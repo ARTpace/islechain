@@ -208,13 +208,24 @@
             if (page === 0) {
                 const purgeResult = await purgeOrphansOnce();
                 if (purgeResult && (purgeResult.removed > 0 || purgeResult.trimmed > 0)) {
-                    // 重置 isLoading 再重拉（避免守卫拦截重入）
                     state.isLoading = false;
-                    // 标记为"刚清理过"，防止重入循环
                     _purgeRan = true;
-                    // 释放当前 try 的资源，然后重拉首页
                     try { await load(0); } catch (e) { console.error('[GalleryList] reload after purge error:', e); }
                     return;
+                }
+            }
+            // 小图模式下内容高度可能不够撑满滚动区，触发器一直可见，
+            // IntersectionObserver 不会再次触发 → 需要主动继续加载下一页
+            if (trigger && state.hasMore && !state.isLoading) {
+                const root = document.querySelector('main');
+                if (root && trigger.offsetHeight > 0) {
+                    const rect = trigger.getBoundingClientRect();
+                    const rootRect = root.getBoundingClientRect();
+                    if (rect.top < rootRect.bottom && rect.bottom > rootRect.top) {
+                        // 触发器仍在可视区，继续加载（先释放锁）
+                        state.isLoading = false;
+                        await load(1);
+                    }
                 }
             }
         } catch (e) {

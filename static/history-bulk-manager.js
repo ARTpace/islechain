@@ -33,6 +33,21 @@
             .history-bulk-btn[data-bulk-delete]{display:none}
             .history-bulk-toolbar.is-selecting .history-bulk-btn[data-bulk-delete]{display:inline-flex}
             .history-bulk-count{font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em}
+            /* 搜索框 */
+            .history-search-wrap{display:flex;align-items:center;gap:0;transition:width .25s ease,opacity .25s ease;width:0;opacity:0;overflow:hidden}
+            .history-search-wrap.is-open{width:220px;opacity:1}
+            .history-search-inner{position:relative;flex:1;min-width:0}
+            .history-search-input{height:32px;border-radius:999px;border:1px solid rgba(148,163,184,.28);background:rgba(255,255,255,.9);color:#1f2937;padding:0 28px 0 12px;font-size:11px;font-weight:600;outline:none;width:100%;transition:border-color .18s;box-sizing:border-box}
+            .history-search-input::placeholder{color:#94a3b8;font-weight:500}
+            .history-search-input:focus{border-color:#6366f1}
+            .history-search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;border:none;background:rgba(148,163,184,.3);color:#64748b;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1;padding:0;transition:background .15s}
+            .history-search-clear:hover{background:rgba(100,116,139,.5);color:#1f2937}
+            .history-search-input:not(:placeholder-shown)~.history-search-clear{display:flex}
+            html.studio-theme-dark .history-search-input,body.studio-theme-dark .history-search-input{background:#111722;border-color:#2a3444;color:#e5e7eb}
+            html.studio-theme-dark .history-search-input::placeholder,body.studio-theme-dark .history-search-input::placeholder{color:#4a6a80}
+            html.studio-theme-dark .history-search-input:focus,body.studio-theme-dark .history-search-input:focus{border-color:#818cf8}
+            html.studio-theme-dark .history-search-clear,body.studio-theme-dark .history-search-clear{background:rgba(74,106,128,.4);color:#94a3b8}
+            html.studio-theme-dark .history-search-clear:hover,body.studio-theme-dark .history-search-clear:hover{background:rgba(74,106,128,.6);color:#e5e7eb}
             body.history-bulk-selecting,body.history-bulk-selecting *{user-select:none!important;-webkit-user-select:none!important}
             body.history-bulk-selecting{cursor:crosshair}
             .history-bulk-selecting .masonry-grid{cursor:crosshair}
@@ -79,6 +94,87 @@
         document.head.appendChild(style);
     }
 
+    let _searchMode = false;
+    let _searchPrevHasMore = false;
+    let _searchPrevPage = 0;
+    let _searchPrevIndex = 0;
+
+    function exitSearchMode(masonry) {
+        if (!_searchMode) return;
+        _searchMode = false;
+        // 恢复正常分页模式
+        if (window.GalleryList && typeof window.GalleryList.load === 'function') {
+            window.GalleryList.load(0);
+        }
+    }
+
+    async function serverSearch(masonry, query) {
+        if (!window.GalleryList) return;
+        _searchMode = true;
+        const type = window.GalleryList.allHistory && window.GalleryList.allHistory.length
+            ? (window.GALLERY_CONFIG && window.GALLERY_CONFIG.type) || 'zimage,anima'
+            : (window.GALLERY_CONFIG && window.GALLERY_CONFIG.type) || 'zimage,anima';
+        try {
+            const token = (window.AuthManager && window.AuthManager.getToken)
+                ? window.AuthManager.getToken()
+                : (localStorage.getItem('xy_auth_token') || '');
+            const res = await fetch('/api/history?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(query) + '&token=' + encodeURIComponent(token));
+            if (!res.ok) throw new Error('Search API ' + res.status);
+            const json = await res.json();
+            const items = Array.isArray(json) ? json : (json.items || []);
+            // 清空当前画廊
+            masonry.innerHTML = '';
+            // 更新 GalleryList 状态
+            window.GalleryList.allHistory = items;
+            // 渲染搜索结果
+            items.forEach(item => {
+                if (window.GalleryCard && typeof window.GalleryCard.render === 'function') {
+                    window.GalleryCard.render({
+                        container: masonry,
+                        record: item,
+                        isNew: false
+                    });
+                }
+            });
+            // 隐藏加载更多的触发器
+            const trigger = document.getElementById('loadMoreTrigger');
+            if (trigger) trigger.classList.add('hidden');
+        } catch (e) {
+            console.error('[Search] error:', e);
+        }
+    }
+
+    function applySearchFilter(masonry, query) {
+        const items = masonry.querySelectorAll('.masonry-item[data-history-ts]');
+        const seps = masonry.querySelectorAll('.date-separator');
+        if (!query) {
+            items.forEach(el => el.style.display = '');
+            seps.forEach(el => el.style.display = '');
+            return;
+        }
+        const allHistory = (window.GalleryList && window.GalleryList.allHistory) || [];
+        const historyMap = new Map();
+        allHistory.forEach(item => { historyMap.set(String(item.timestamp), item); });
+        items.forEach(el => {
+            const ts = el.dataset.historyTs;
+            const record = historyMap.get(ts);
+            const prompt = (record && (record.prompt || record.text || '')).toLowerCase();
+            const model = (record && (record.model || '')).toLowerCase();
+            el.style.display = (prompt.includes(query) || model.includes(query)) ? '' : 'none';
+        });
+        seps.forEach(sep => {
+            let next = sep.nextElementSibling;
+            while (next && !next.classList.contains('date-separator')) {
+                if (next.classList.contains('masonry-item') && next.style.display !== 'none') {
+                    sep.style.display = '';
+                    return;
+                }
+                next = next.nextElementSibling;
+            }
+            sep.style.display = 'none';
+        });
+    }
+
     function deleteHistory(timestamp){
         return fetch('/api/history/delete', {
             method:'POST',
@@ -102,6 +198,15 @@
             `<button class="history-bulk-btn" type="button" data-extra-btn="${b.id}"${b.title ? ` title="${b.title}"` : ''}>${b.label}</button>`
         ).join('');
         toolbar.innerHTML = `
+            <button class="history-bulk-btn" type="button" data-bulk-search title="搜索历史图片" style="flex-shrink:0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <div class="history-search-wrap" data-search-wrap>
+                <div class="history-search-inner">
+                    <input class="history-search-input" type="text" data-search-input placeholder="搜索提示词..." autocomplete="off">
+                    <button class="history-search-clear" type="button" data-search-clear title="清除">✕</button>
+                </div>
+            </div>
             <span class="bulk-spacer"></span>
             <span class="history-bulk-count" data-bulk-count></span>
             ${extraHtml}
@@ -110,6 +215,44 @@
         `;
         masonry.parentNode.insertBefore(toolbar, masonry);
         const toggleBtn = toolbar.querySelector('[data-bulk-toggle]');
+        const searchBtn = toolbar.querySelector('[data-bulk-search]');
+        const searchWrap = toolbar.querySelector('[data-search-wrap]');
+        const searchInput = toolbar.querySelector('[data-search-input]');
+        // 搜索功能
+        if (searchBtn && searchWrap && searchInput) {
+            const clearBtn = toolbar.querySelector('[data-search-clear]');
+            searchBtn.addEventListener('click', () => {
+                const opening = !searchWrap.classList.contains('is-open');
+                searchWrap.classList.toggle('is-open', opening);
+                if (opening) {
+                    searchInput.focus();
+                } else {
+                    searchInput.value = '';
+                    exitSearchMode(masonry);
+                }
+            });
+            let searchTimer = null;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                const q = searchInput.value.trim();
+                if (!q) { exitSearchMode(masonry); return; }
+                searchTimer = setTimeout(() => serverSearch(masonry, q), 300);
+            });
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    exitSearchMode(masonry);
+                    searchWrap.classList.remove('is-open');
+                }
+            });
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    searchInput.value = '';
+                    exitSearchMode(masonry);
+                    searchInput.focus();
+                });
+            }
+        }
         const deleteBtn = toolbar.querySelector('[data-bulk-delete]');
         const countEl = toolbar.querySelector('[data-bulk-count]');
         // 绑定 extra 按钮

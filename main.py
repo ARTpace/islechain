@@ -5421,7 +5421,7 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
     return {"success": True, "timestamp": record["timestamp"]}
 
 @app.get("/api/history")
-async def get_history_api(type: str = None, token: str = "", page: int = None, page_size: int = 15):
+async def get_history_api(type: str = None, token: str = "", page: int = None, page_size: int = 15, q: str = None):
     username = get_username_by_token(token)
     # 优先走进程内缓存,history.json 越大收益越明显
     if _HISTORY_CACHE is not None:
@@ -5445,6 +5445,24 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
             data = [item for item in data if item.get("user") == username]
         # Support both image and text outputs: keep records with images OR text
         data = [item for item in data if item.get("images") or item.get("text")]
+
+        # 服务端搜索：按 prompt / model / text 关键词过滤
+        # 英文整词匹配（\b），中文/非ASCII子串匹配
+        if q:
+            import re as _re
+            tokens = [w for w in q.lower().split() if w]
+            ascii_words = [_re.escape(w) for w in tokens if w.isascii()]
+            cjk_words = [w for w in tokens if not w.isascii()]
+            pat = _re.compile(r'\b(?:' + '|'.join(ascii_words) + r')\b') if ascii_words else None
+            def _match(item):
+                txt = ((item.get('prompt', '') or '') + ' ' + (item.get('model', '') or '') + ' ' + (item.get('text', '') or '')).lower()
+                if pat and pat.search(txt):
+                    return True
+                for w in cjk_words:
+                    if w in txt:
+                        return True
+                return False
+            data = [item for item in data if _match(item)]
 
         def sort_key(item):
             ts = item.get("timestamp", 0)
@@ -8647,17 +8665,22 @@ async def media_preview(url: str, w: int = 512):
         if is_video_preview_file(path):
             img = await asyncio.to_thread(generate_video_preview_image, path, width)
         else:
-            with Image.open(path) as source:
-                img = ImageOps.exif_transpose(source)
-                img.thumbnail((width, width), Image.LANCZOS)
-                img = img.convert("RGBA" if image_has_alpha(img) else "RGB")
+            def _process_image():
+                with Image.open(path) as source:
+                    img = ImageOps.exif_transpose(source)
+                    img.thumbnail((width, width), Image.LANCZOS)
+                    return img.convert("RGBA" if image_has_alpha(img) else "RGB")
+            img = await asyncio.to_thread(_process_image)
 
-        try:
-            img.save(webp_path, format="WEBP", quality=82, method=4)
-            return FileResponse(webp_path, media_type="image/webp")
-        except Exception:
-            img.save(png_path, format="PNG", optimize=True)
-            return FileResponse(png_path, media_type="image/png")
+        def _save_preview():
+            try:
+                img.save(webp_path, format="WEBP", quality=20, method=4)
+                return webp_path, "image/webp"
+            except Exception:
+                img.save(png_path, format="PNG", optimize=True)
+                return png_path, "image/png"
+        saved_path, saved_type = await asyncio.to_thread(_save_preview)
+        return FileResponse(saved_path, media_type=saved_type)
     except Exception as exc:
         raise HTTPException(status_code=415, detail=f"无法生成预览图：{exc}") from exc
 

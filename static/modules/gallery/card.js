@@ -257,21 +257,22 @@
     function buildImagesHTML(record, features, onerror) {
         const imgs = (record.images || []).filter(Boolean);
         if (imgs.length <= 1) {
-            // 单图：按原始比例显示，自适应高度
-            return `<img src="${imgs[0] || ''}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">`;
+            // 单图：缩略图走 preview 接口，原图保留在 data-original-src 供 lightbox 使用
+            const src = thumbUrl(imgs[0] || '', 384);
+            return `<img src="${src}" data-original-src="${imgs[0] || ''}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">`;
         }
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
-            // 2张图：左右并排，按原始比例显示
+            // 2张图：左右并排，缩略图走 preview
             return `<div class="flex gap-0.5" style="height:auto;">${imgs.slice(0, 2).map(u => 
-                `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${u}" class="w-full h-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
+                `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full h-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
             ).join('')}</div>`;
         } else if (imgs.length === 3) {
             // 3张图：上1 + 下2
             return `<div class="flex flex-col gap-0.5" style="height:auto;">
-                <div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${imgs[0]}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>
+                <div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(imgs[0], 384)}" data-original-src="${imgs[0]}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>
                 <div class="flex gap-0.5">${imgs.slice(1, 3).map(u => 
-                    `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
+                    `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
                 ).join('')}</div>
             </div>`;
         } else {
@@ -281,7 +282,7 @@
                 const overlay = isLast
                     ? `<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+${imgs.length - 4}</div>`
                     : '';
-                return `<div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">${overlay}</div>`;
+                return `<div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">${overlay}</div>`;
             }).join('');
             return `<div class="grid grid-cols-2 gap-0.5" style="height:auto;">${cells}</div>`;
         }
@@ -313,6 +314,19 @@
 
     function escapeHTML(s) {
         return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    /**
+     * 将原始图片 URL 转为 /api/media-preview 缩略图 URL
+     * 只处理 /output/ 和 /assets/ 本地路径，其他 URL 原样返回
+     */
+    function thumbUrl(url, w) {
+        w = w || 512;
+        var raw = String(url || '');
+        if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+        if (!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
+        if (!/\.(png|jpe?g|webp|gif|bmp|avif)(\?|#|$)/i.test(raw)) return raw;
+        return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(raw);
     }
 
     // NSFW 提示词关键词检测（保守黑名单，匹配单词边界或紧邻分隔符）
