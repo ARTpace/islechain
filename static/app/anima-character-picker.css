@@ -1,0 +1,209 @@
+/* Anima 角色选择器样式 */
+
+/* 分类样式 */
+.picker-cat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #999;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+.picker-cat-header:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+.picker-cat-header.active {
+    background: rgba(255,107,157,0.15);
+    color: #ff6b9d;
+    font-weight: 600;
+}
+.picker-cat-header .count {
+    margin-left: auto;
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+/* 分组 */
+.picker-cat-group {
+    margin: 8px 0;
+}
+.picker-cat-group-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    color: #888;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+.picker-cat-group-title:hover {
+    color: #ccc;
+}
+.picker-cat-group-title .arrow {
+    transition: transform 0.2s;
+    font-size: 10px;
+}
+.picker-cat-group-title .arrow.collapsed {
+    transform: rotate(-90deg);
+}
+.picker-cat-group-items {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.picker-cat-group-items.collapsed {
+    max-height: 0 !important;
+}
+.picker-cat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #999;
+    font-size: 12px;
+    transition: all 0.15s;
+}
+.picker-cat-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+.picker-cat-item.active {
+    background: rgba(255,107,157,0.15);
+    color: #ff6b9d;
+}
+.picker-cat-item .count {
+    font-size: 11px;
+    opacity: 0.5;
+}
+
+/* 角色卡片 */
+.picker-char-card {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    background: #0e1018;
+    border: 2px solid transparent;
+    transition: all 0.25s ease;
+}
+.picker-char-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.4);
+    border-color: rgba(255,255,255,0.12);
+}
+.picker-char-card.selected {
+    border-color: #4ade80;
+    box-shadow: 0 0 0 3px rgba(74,222,128,0.22);
+}
+.picker-char-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+    background: #0e1018;
+}
+.picker-char-card .picker-char-select {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.picker-char-card.selected .picker-char-select {
+    background: #4ade80;
+    border-color: #4ade80;
+}
+.picker-char-card .picker-char-select svg {
+    width: 16px;
+    height: 16px;
+}
+.picker-char-card .picker-char-fav {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+}
+.picker-char-card:hover .picker-char-fav {
+    opacity: 1;
+}
+.picker-char-card .picker-char-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 48px 14px 14px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.92));
+    min-width: 0;
+}
+.picker-char-card .picker-char-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.picker-char-card .picker-char-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    min-width: 0;
+}
+.picker-char-card .picker-char-series {
+    font-size: 11px;
+    color: #ff6b9d;
+    background: rgba(255,107,157,0.15);
+    padding: 3px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: none;
+    align-self: stretch;
+    text-align: left;
+}
+.picker-char-card .picker-char-series:hover {
+    background: rgba(255,107,157,0.32);
+    border-color: rgba(255,107,157,0.55);
+    color: #ffb3cd;
+    transform: translateY(-1px);
+}
+.picker-char-card .picker-char-series:active {
+    transform: translateY(0);
+}
+.picker-char-card .picker-char-count {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+}

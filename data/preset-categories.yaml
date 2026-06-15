@@ -1,0 +1,1912 @@
+cute:
+  3d_character: &id001
+    name: 3D Character
+    prompt: 3D toy, standing character, tiny, cute, soft lighting, pastel colors,
+      skottie young, blender, pop surrealism, pbr
+    negative_prompt: ''
+  adorable: &id002
+    name: Adorable
+    prompt: Cute and adorable cartoon, fantasy, dreamlike, surrealism, super cute,
+      trending on artstation
+    negative_prompt: ugly
+  caricature: &id011
+    name: Caricature
+    prompt: Cartoon caricature realistic, cute as a pixar disney character caricature
+      cute full body from up 2009 unreal engine octane render 3d render photorealistic
+    negative_prompt: ''
+  cgi_character: &id012
+    name: CGI Character
+    prompt: portrait of a CGI animation character, magical background, bright natural
+      lighing, backlighting, professional studio quality, looking at camera, large
+      round cute detailed eyes, detailed, cute, adorable, intricately detailed, fantasy
+      art, digital painting
+    negative_prompt: Blurry, Blur, Grainy, Oversaturated, Tiling, Draft, Out of frame,
+      Out of Focus, Cut off, Cropped image, Text, Signature, Watermark, Low quality,
+      Bad quality, Low res, Plastic, Ugly, Bad anatomy, Deformed, Disfigured, Two
+      heads, Two faces, Long neck
+  cute_creature: &id017
+    name: Cute Creature
+    prompt: cute cute cute creature, an illustration by esao andrews, cyril rolando
+      and goro fujita, deviantart, fantasy art, storybook illustration, oil on canvas
+    negative_prompt: ''
+  cute_kawaii: &id013
+    name: Cute Kawaii
+    prompt: cute, tiny, little chibi, kawai, furry, great face expression, dynamic
+      pose, trending on artstation, cinematic, hyper realism, high detail, 8k, 8mm,
+      octane render, bokeh, artstation, detailed, character design by mark ryden and
+      pixar
+    negative_prompt: ''
+  drawing: &id018
+    name: Drawing
+    prompt: cute, funny, centered, award winning watercolor pen illustration, detailed,
+      disney, isometric illustration, drawing, by Stephen Hillenburg, Matt Groening,
+      Albert Uderzo
+    negative_prompt: ''
+  low_poly: &id014
+    name: Low Poly
+    prompt: Low poly character, 3d isometric render, plain background, unity, kawaii,
+      cute, blender, polycount
+    negative_prompt: ''
+  needle_felted: &id019
+    name: Needle Felted
+    prompt: 3D Felt fiber toy, made from Felt fibers, Tiny 3D render, trending on
+      cgsociety, maya, octane render, made of yarn, Cute
+    negative_prompt: ''
+  origami: &id157
+    name: Origami
+    prompt: origami style, paper sticker, studio lighting, plain background, pastel
+      colors, papercraft
+    negative_prompt: ''
+  sticker: &id020
+    name: Sticker
+    prompt: Sticker, Cute sticker, Kawaii sticker, die-cut, plain background, illustration
+      minimalism, vector, pastel colors, kawaii
+    negative_prompt: ''
+  stuffed_plush: &id003
+    name: Stuffed Plush
+    prompt: kawaii plush toy, very cute, visible stitch line, soft lighting, vibrant,
+      studio lighting, PBR, realistic texture, smooth
+    negative_prompt: ''
+  toon_monster: &id021
+    name: Toon Monster
+    prompt: cartoon monster, cute, big eyes, big mouth, art by gediminas pranckevicius
+      and Alexander Jansson, pixar, centered, dramatic lighting, glowing light, simple
+      solid background, no background, detailed face, cinematic, illustration, no
+      gradient, trending on a
+    negative_prompt: ''
+  retro_pastel_fashion: &id004
+    name: Retro Pastel Fashion
+    prompt: (colorful fashion photo:1.4), (1960s vibes:1.2), (pastel colors:1.2),
+      (geometric:1.2), high saturation, medium close-up, natural light, bold colors,
+      modern architecture, soft shadows, vibrant, stylish, 35mm lens, f/4, playful,
+      retro, artistic
+  whimsical_smoke_landscape: &id005
+    name: Whimsical Smoke Landscape
+    prompt: (surreal landscape photo:1.4), (dreamlike:1.2), (whimsical:1.2), (vibrant
+      colors:1.2), pastel hues, soft focus, natural light, foggy, ethereal, wide-angle,
+      35mm lens, f/5.6, atmospheric, mysterious, playful, serene
+  ethereal_pastel_landscape: &id006
+    name: Ethereal Pastel Landscape
+    prompt: (surreal landscape photo:1.4), (ethereal:1.2), (pastel colors:1.2), (dreamlike:1.2),
+      soft light, low contrast, high detail, natural light, muted tones, wide-angle,
+      atmospheric, serene, tranquil, misty, 35mm lens, f/4, contemplative, minimalist,
+      otherworldly
+  ethereal_water_portrait: &id007
+    name: Ethereal Water Portrait
+    prompt: (dreamlike outdoor portrait photo:1.4), (ethereal:1.2), (water reflections:1.2),
+      (natural light:1.2), high detail, soft focus, pastel colors, shallow depth of
+      field, intimate, medium close-up, dynamic lighting, serene, contemplative, wet
+      hair, bokeh, sun-dappled, glistening water droplets, 85mm lens, f/1.8, misty
+      atmosphere, emotional, evocative, organic textures
+  pastel_classic_portrait: &id008
+    name: Pastel Classic Portrait
+    prompt: (brightly lit portrait photo:1.4), (pastel colors:1.4), (patterned wallpaper:1.2),
+      (classic wardrobe and hairstyles:1.2), standing against a wall, looking straight
+      at camera, facing forward, deadpan expression, overexposed, soft ambient lighting,
+      high detail, natural light, intimate, expressive, nostalgic, elegant, serene,
+      delicate, rich textures, subtle shadows, refined, vintage aesthetic, whimsical,
+      airy, calm, 50mm lens, f/2.8, evocative, harmonious, gentle, detailed, timeless
+  retro_pastel_desert: &id009
+    name: Retro Pastel Desert
+    prompt: (retro desert photo:1.4), (vibrant pastel colors:1.4), (high contrast:1.2),
+      (mid-century aesthetic:1.2), natural light, high detail, sharp focus, expressive,
+      intimate, nostalgic, atmospheric, moody, textured, dynamic composition, elegant,
+      poised, bright sunlight, dramatic shadows, architectural elements, playful,
+      vibrant, 50mm lens, f/5.6, evocative, whimsical, colorful, bold, stylish
+  retro_roadside_teal_orange: &id010
+    name: Retro Roadside Teal-Orange
+    prompt: Matte finish, high contrast, orange and teal color palette, nostalgic
+      atmosphere, retro aesthetic, roadside travel photo, 1960s vibe, dramatic lighting,
+      cool tones, warm accents, desaturated colors, natural light, cinematic composition,
+      vintage ambiance, deep shadows, rich textures, evocative mood, subdued saturation,
+      warm highlights, teal shadows, evening glow, low angle, wide framing, natural
+      setting, storytelling imagery, timeless quality, classic feel, pastel undertones,
+      roadside architecture, reflective surfaces, golden hour, long shadows, inviting
+      warmth, sunlit elements, dynamic composition, 35mm lens, f/2.8, environmental
+      context, lively scene, authentic vibe, visual nostalgia, vibrant color contrasts,
+      muted vibrancy, engaging perspective
+abstract:
+  3d_character: *id001
+  adorable: *id002
+  stuffed_plush: *id003
+  woolitize:
+    name: Woolitize
+    prompt: puppet,intricated wool material,elegant,highly detailed,patchwork,sewing
+      thread,patches,fabric texture,knitting,badges,embroidery
+    negative_prompt: needle
+  urban_reflections_pensive_portrait__: &id084
+    name: Urban Reflections Pensive Portrait *
+    prompt: (glass reflections photo:1.4), (light streaks:1.4), (vibrant colors mixed
+      with muted tones:1.2), (close-up:1.2), (pensive look:1.2), high contrast, natural
+      light, high detail, sharp focus, expressive, moody, atmospheric, dramatic, deep
+      shadows, soft highlights, textured reflections, urban setting, introspective,
+      melancholic, sophisticated, bold, artistic, captivating, 50mm lens, f/1.8, evocative,
+      cinematic, intense
+  vibrant_autumn_landscape__: &id131
+    name: Vibrant Autumn Landscape *
+    prompt: (vibrant autumn landscape photo:1.4), (dramatic lighting:1.2), (rich colors:1.2),
+      (high contrast:1.2), dynamic sky, intricate details, natural light, wide-angle,
+      cascading waterfalls, vibrant foliage, soft shadows, 24mm lens, f/5.6, atmospheric,
+      serene, evocative, majestic, textured, scenic
+  double_exposure_color_portrait__: &id024
+    name: Double Exposure Color Portrait *
+    prompt: (double exposure portrait photo:1.4), (primary color tones:1.2), (underexposed:1.2),
+      (matte finish:1.2), light leaks, high detail, soft focus, natural light, dynamic
+      lighting, expressive, artistic, ethereal, contemplative, serene, 85mm lens,
+      f/1.8, vibrant, layered textures, dreamy, nostalgic
+  floral_fantasy_portrait__: &id025
+    name: Floral Fantasy Portrait *
+    prompt: (dramatic floral portrait photo:1.4), (elaborate floral headdress:1.4),
+      (dark background:1.2), (fantasy vibe:1.2), rich colors, high contrast, soft
+      focus, intricate details, natural light, ethereal, expressive, intimate, elegant,
+      vibrant blooms, cascading flowers, lush greenery, delicate petals, whimsical,
+      romantic, dramatic shadows, medium close-up, 85mm lens, f/2.8, atmospheric,
+      moody, evocative, luxurious, textured, artistic, surreal, detailed botanical
+      elements, garden setting, otherworldly
+  etched_reality__: &id026
+    name: Etched Reality *
+    prompt: (solid black background:1.4), (etched lines:1.3), (photo-realistic:1.2),
+      (flowing hair:1.2), abstract composition, intricate line patterns, high contrast,
+      dynamic movement, surrealism, artistic expression, soft focus, depth and texture,
+      luminous glow, stark visuals, monochromatic palette, enigmatic, ethereal, minimalist,
+      modern art, fine details, bold imagery, 85mm lens, f/2.8, visually striking,
+      conceptual, imaginative
+  abstract_artistic_silhouette__: &id027
+    name: Abstract Artistic Silhouette *
+    prompt: (abstract artistic silhouette photo:1.4), (vibrant colors:1.4), (textured
+      overlays:1.2), (mixed media effects:1.2), high contrast, ethereal lighting,
+      surreal, expressive, dynamic composition, layered textures, rich hues, moody,
+      atmospheric, intricate details, emotional, dreamlike, soft focus, bold, vibrant
+      reds, deep blues, fluid brushstrokes, creative, artistic, evocative, mysterious,
+      painterly, dramatic, 50mm lens, f/2.8, fantasy, introspective, enigmatic
+  ukiyo_e_landscape__: &id028
+    name: Ukiyo-e Landscape *
+    prompt: (stylized ukiyo-e landscape photo:1.4), (dramatic light and shadow:1.4),
+      (high contrast:1.2), (ethereal atmosphere:1.2), japanese nature photo, natural
+      light, high detail, sharp focus, vibrant colors, soft focus, moody, expressive,
+      intricate, deep shadows, soft highlights, dynamic composition, serene, poetic,
+      textured, autumnal tones, reflective water, misty background, silhouetted trees,
+      expansive sky, tranquil, calm, contemplative, 50mm lens, f/5.6, evocative, harmonious,
+      nostalgic, timeless
+  surreal_circular_ocean_view__: &id029
+    name: Surreal Circular Ocean View *
+    prompt: (surreal portrait photo:1.4), (viewed through a circular hole:1.4), (ocean
+      background:1.2), (monochromatic tones:1.2), high contrast, natural light, high
+      detail, soft focus, atmospheric, moody, ethereal, expressive, deep shadows,
+      soft highlights, minimalistic, clean lines, contemplative, mysterious, serene,
+      stark, bold, introspective, captivating, 50mm lens, f/4, evocative, enigmatic,
+      quiet, tranquil
+  long_exposure_vibrant_silhouette__: &id030
+    name: Long Exposure Vibrant Silhouette *
+    prompt: (long exposure photo:1.4), (vibrant sky:1.4), (silhouetted subject:1.2),
+      (high contrast:1.2), dynamic composition, high detail, natural light, expressive,
+      ethereal, atmospheric, moody, dramatic, deep shadows, soft highlights, rich
+      colors, glowing reflections, textured, expansive, mesmerizing, bold, surreal,
+      dreamlike, powerful, captivating, 24mm lens, f/8, evocative, enchanting, majestic
+  intense_monochrome_portrait: &id085
+    name: Intense Monochrome Portrait
+    prompt: (black and white portrait photo:1.4), (monochromatic:1.2), (high contrast:1.2),
+      (close-up:1.2), low saturation, intense focus, moody, dramatic, chiaroscuro
+      lighting, shallow depth of field, strong shadows, soft highlights, intimate
+      framing, eye-level angle, natural light, grainy texture, 85mm lens, f/2.2, evocative,
+      emotional intensity
+  vibrant_floral_portrait: &id086
+    name: Vibrant Floral Portrait
+    prompt: (colorful portrait photo:1.4), (vibrant:1.2), (floral:1.2), (surreal:1.2),
+      high saturation, close-up, elaborate headpieces, detailed patterns, vivid colors,
+      natural light, artistic, whimsical, expressive, 50mm lens, f/2.8, fantastical,
+      creative
+  abstract_surreal_portrait: &id031
+    name: Abstract Surreal Portrait
+    prompt: (black and white surreal portrait photo:1.4), (abstract:1.2), (artistic:1.2),
+      (dramatic:1.2), high contrast, monochromatic, close-up, detailed headpieces,
+      imaginative, creative, low saturation, moody, ethereal, expressive, 85mm lens,
+      f/2, dark background
+  vibrant_fantasy_portrait: &id032
+    name: Vibrant Fantasy Portrait
+    prompt: (surreal fantasy photo:1.4), (vibrant:1.2), (whimsical:1.2), (dreamlike:1.2),
+      high saturation, bright colors, ethereal lighting, dynamic movement, wide-angle,
+      imaginative, otherworldly, colorful flora, flowing fabric, 24mm lens, f/4, fantastical,
+      enchanting
+  retro_pastel_fashion: *id004
+  whimsical_smoke_landscape: *id005
+  gothic_still_life: &id088
+    name: Gothic Still Life
+    prompt: (morbid still life photo:1.4), (dark:1.2), (high contrast:1.2), (vintage:1.2),
+      black and white, dramatic lighting, detailed textures, chiaroscuro, medium close-up,
+      antique, eerie, gothic, 50mm lens, f/2.8, somber, atmospheric, grim
+  surreal_double_exposure_portrait: &id033
+    name: Surreal Double Exposure Portrait
+    prompt: (surreal portrait photo:1.4), (double exposure:1.2), (motion blur:1.2),
+      (artistic:1.2), black and white, high contrast, intricate details, soft focus,
+      ethereal lighting, abstract, evocative, layered images, dynamic, expressive,
+      medium close-up, 50mm lens, f/1.8, dreamlike, introspective, experimental
+  vibrant_fashion_portrait: &id089
+    name: Vibrant Fashion Portrait
+    prompt: (vibrant fashion portrait photo:1.4), (high contrast:1.2), (colorful:1.2),
+      (dramatic lighting:1.2), rich colors, intricate makeup, close-up, sharp details,
+      natural light, bold, expressive, textured fabrics, dynamic shadows, 85mm lens,
+      f/2.2, artistic, striking, intense
+  ethereal_pastel_landscape: *id006
+  ethereal_water_portrait: *id007
+  vibrant_double_exposure_portrait: &id034
+    name: Vibrant Double Exposure Portrait
+    prompt: (vibrant portrait photo:1.4), (double exposure:1.2), (dramatic light effects:1.2),
+      (rich colors:1.2), high saturation, ethereal lighting, intricate details, close-up,
+      natural light, vibrant flowers, dynamic shadows, surreal, expressive, artistic,
+      85mm lens, f/1.8, dreamy, intense, layered textures, sun-dappled
+  vintage_contemplative_portrait: &id090
+    name: Vintage Contemplative Portrait
+    prompt: (vintage interior portrait photo:1.4), (muted pink tones:1.2), (soft lighting:1.2),
+      (contemplative:1.2), natural light, high detail, soft focus, elegant, serene,
+      medium close-up, intricate textures, calm, nostalgic, 50mm lens, f/2.8, artistic,
+      intimate, melancholic, historic, refined
+  stark_black_and_white_street: &id091
+    name: Stark Black and White Street
+    prompt: (stark black and white street photo:1.4), (high contrast:1.2), (perspective:1.2),
+      deep shadows, natural light, intricate details, sharp focus, urban setting,
+      dramatic lighting, cobblestone texture, silhouette, atmospheric, moody, 35mm
+      lens, f/8, timeless, historic, evocative, reflective surfaces
+  ethereal_underwater_portrait: &id035
+    name: Ethereal Underwater Portrait
+    prompt: (underwater portrait photo:1.4), (flowing hair:1.2), (graceful posture:1.2),
+      (ethereal:1.2), vibrant colors, soft lighting, high detail, natural light, soft
+      focus, dynamic, serene, intimate, dreamy, intricate textures, 35mm lens, f/2.8,
+      atmospheric, contemplative, evocative, artistic
+  cinematic_lake_portrait: &id138
+    name: Cinematic Lake Portrait
+    prompt: (black and white cinematic photo:1.4), (wide angle:1.2), (fisheye lens:1.2),
+      (dramatic composition:1.2), high contrast, natural light, sharp details, serene,
+      moody, deep shadows, textured water, atmospheric, contemplative, reflective,
+      24mm lens, f/4, introspective, historic, evocative
+  warm_vintage_caf__reflection: &id092
+    name: Warm Vintage Café Reflection
+    prompt: (vintage café photo:1.4), (warm tones:1.2), (natural light:1.2), (intimate:1.2),
+      (high contrast:1.2), muted colors, soft focus, high detail, candid, reflective,
+      atmospheric, nostalgic, serene, cozy, dark shadows, medium close-up, 50mm lens,
+      f/2.8, contemplative, historic, textured
+  gritty_urban_contemplative_portrait: &id093
+    name: Gritty Urban Contemplative Portrait
+    prompt: (gritty urban documentary photo:1.4), (high contrast:1.2), (black and
+      white:1.2), (dramatic lighting:1.2), textured walls, peeling paint, urban decay,
+      natural light, high detail, sharp focus, expressive, intimate, raw, melancholic,
+      deep shadows, reflective surfaces, layered reflections, emotional, moody, contemplative,
+      medium close-up, 50mm lens, f/2.8, atmospheric, historic, gritty texture, evocative,
+      somber, realistic
+  kodachrome_cool_toned_contemplative_portrait: &id094
+    name: Kodachrome Cool-Toned Contemplative Portrait
+    prompt: (vintage film photo:1.4), (Kodachrome film stock:1.4), (candid:1.2), (desaturated
+      colors:1.2), (cool tones:1.2), natural light, high detail, soft focus, textured
+      background, intimate, nostalgic, serene, elegant, muted palette, medium close-up,
+      50mm lens, f/2.8, atmospheric, contemplative, expressive, historic, timeless,
+      calm, quiet, detailed patterns, gentle shadows, reflective, soft highlights,
+      artistic
+  moody_textured_blur: &id095
+    name: Moody Textured Blur
+    prompt: (moody textured photo:1.4), (blurred motion:1.2), (water on camera lens:1.2),
+      (haze/fog:1.2), dramatic pose, high contrast, black and white, natural light,
+      soft focus, high detail, expressive, intimate, melancholic, deep shadows, textured
+      environment, urban setting, reflective surfaces, atmospheric, emotional, moody,
+      contemplative, medium close-up, 50mm lens, f/2.8, artistic, evocative, somber,
+      gritty
+  dramatic_spotlight_headshot: &id096
+    name: Dramatic Spotlight Headshot
+    prompt: (dramatic headshot photo:1.4), (single point lighting:1.4), (harsh spotlight:1.2),
+      (black and white:1.2), high contrast, sharp details, natural light, deep shadows,
+      expressive, intimate, moody, theatrical, close-up, intense gaze, strong highlights,
+      stark, 85mm lens, f/1.8, atmospheric, evocative, raw emotion, textured background
+  exaggerated_vibrant_floral_fantasy_portrait: &id036
+    name: Exaggerated Vibrant Floral Fantasy Portrait
+    prompt: (exaggerated vibrant floral portrait photo:1.4), (intricate floral face
+      paint:1.4), (surrounded by vibrant flowers:1.4), (glowing colors:1.2), high
+      saturation, intense contrast, rich details, surreal, ethereal lighting, dreamlike,
+      expressive, intimate, bold, dynamic composition, luminous hues, fantastical,
+      whimsical, saturated blues, radiant reds, lush greens, brilliant yellows, sparkling
+      highlights, soft shadows, 85mm lens, f/1.4, dramatic, colorful, magical, otherworldly,
+      opulent, layered textures, artistic, striking, kaleidoscopic
+  vintage_street_scene: &id097
+    name: Vintage Street Scene
+    prompt: (vintage street photography:1.4), (Kodachrome film stock:1.4), (Ektachrome
+      film stock:1.4), (desaturated:1.2), natural light, high detail, soft focus,
+      nostalgic, serene, muted tones, urban setting, reflective surfaces, rainy street,
+      atmospheric, contemplative, medium close-up, 50mm lens, f/2.8, historic, evocative,
+      textured, calm, quiet, cinematic, timeless
+  vibrant_african_documentary_portrait: &id098
+    name: Vibrant African Documentary Portrait
+    prompt: (African documentary portrait photo:1.4), (Kodachrome film stock:1.4),
+      (vibrant colors:1.2), (natural light:1.2), high detail, sharp focus, intimate,
+      expressive, candid, rich textures, cultural attire, urban background, warm tones,
+      soft shadows, medium close-up, 50mm lens, f/2.8, atmospheric, historic, evocative,
+      authentic, bold patterns, traditional clothing, colorful, detailed, serene,
+      contemplative
+  ornate_portrait: &id037
+    name: Ornate Portrait
+    prompt: (ornate portrait photo:1.4), (richly textured background:1.4), (vibrant
+      colors:1.2), (artistic embellishments:1.2), dramatic lighting, high contrast,
+      intricate details, elaborate patterns, traditional attire, ethereal, expressive,
+      intimate, elegant, bold, dynamic composition, luminous hues, fantastical, whimsical,
+      saturated reds, radiant golds, lush blues, intricate embroidery, opulent, luxurious,
+      lavish, atmospheric, contemplative, historic, evocative, cultural richness,
+      layered textures, 85mm lens, f/1.4, surreal, mythical, majestic
+  vintage_horror_portrait: &id099
+    name: Vintage Horror Portrait
+    prompt: (vintage horror portrait photo:1.4), (dramatic lighting:1.4), (high contrast:1.2),
+      (black and white:1.2), intense expression, deep shadows, eerie, theatrical,
+      exaggerated pose, moody, atmospheric, sharp details, grainy texture, haunting,
+      unsettling, nostalgic, historic, stark, bold, textured, mysterious, dramatic
+      shadows, chiaroscuro, 50mm lens, f/2.8, evocative, dark, vintage film style
+  retro_room_with_gelled_lighting: &id100
+    name: Retro Room with Gelled Lighting
+    prompt: (retro room portrait photo:1.4), (gelled lighting:1.4), (dramatic lighting:1.2),
+      (off camera flash:1.2), subject posed seated, high contrast, rich colors, intricate
+      textures, nostalgic, moody, atmospheric, soft focus, expressive, intimate, vintage
+      decor, teal and red hues, gobo lighting patterns, shadow play, evocative, historic,
+      theatrical, soft shadows, detailed, 50mm lens, f/2.8, cinematic, artistic, dramatic
+      shadows
+  worn_monochrome_seascape: &id038
+    name: Worn Monochrome Seascape
+    prompt: (worn monochrome seascape photo:1.4), (vintage photographic paper:1.4),
+      (high film grain:1.2), (scratches and wear:1.2),  high contrast, deep shadows,
+      textured, black and white, moody, nostalgic, historic, ethereal, soft focus,
+      dramatic, evocative, timeless, antique, aged, weathered, 35mm lens, f/8, melancholic,
+      serene, tranquil, dark sky, reflective water
+  indigenous_african_dusk_portrait: &id039
+    name: Indigenous African Dusk Portrait
+    prompt: (indigenous African portrait photo:1.4), (blending with nature:1.4), (dusk
+      lighting:1.2), (golden hour:1.2), high detail, natural light, soft focus, rich
+      colors, atmospheric, expressive, intimate, cultural attire, textured background,
+      deep shadows, warm tones, serene, tranquil, evocative, harmonious, organic,
+      vibrant greenery, earthy tones, dynamic composition, wide-angle, 50mm lens,
+      f/2.8, historic, contemplative, ethereal
+  minimalist_black_and_white: &id015
+    name: Minimalist Black and White
+    prompt: (minimalist black and white photo:1.4), (side angle:1.4), (strong contrast:1.2),
+      (clean textures:1.2), posed subject standing, shot from the side, natural light,
+      sharp focus, high detail, stark, dramatic, serene, geometric shapes, soft shadows,
+      simple composition, elegant, poised, atmospheric, moody, refined, architectural
+      elements, light and shadow play, medium close-up, 50mm lens, f/4, contemplative,
+      calm, sophisticated
+  dynamic_monochrome_with_red_accent: &id040
+    name: Dynamic Monochrome with Red Accent
+    prompt: (monochrome black and white photo:1.4), (red spot color:1.4), (dynamic
+      motion:1.2), (wind-blown wardrobe:1.2), high contrast, natural light, soft focus,
+      expressive, intimate, candid, dramatic, textured, ethereal, atmospheric, moody,
+      rich details, stark, evocative, flowing fabric, outdoor setting, minimalist,
+      50mm lens, f/2.8, artistic, surreal, bold, melancholic
+  pastel_classic_portrait: *id008
+  dynamic_studio_dance: &id041
+    name: Dynamic Studio Dance
+    prompt: (studio dance photo:1.4), (dynamic motion:1.4), (flowing dress:1.2), (accentuated
+      movement:1.2), high contrast, dramatic lighting, natural light, high detail,
+      sharp focus, ethereal, expressive, intimate, graceful, elegant, dramatic shadows,
+      textured fabric, soft focus, moody, atmospheric, poised, intricate, airy, vibrant,
+      soft shadows, minimalist backdrop, 85mm lens, f/2.8, evocative, powerful, fluid
+  cinematic_noir_window_portrait: &id101
+    name: Cinematic Noir Window Portrait
+    prompt: (cinematic noir portrait photo:1.4), (super contrasty:1.4), (matte finish:1.2),
+      (Kodak Tri-X film stock:1.2), (Leica M6 camera:1.2), black and white, dramatic
+      lighting, high detail, deep shadows, natural light, expressive, intimate, reflective,
+      textured, nostalgic, atmospheric, moody, stark, intricate details, soft focus,
+      urban setting, subject looking off frame, rainy window, soft reflections, layered,
+      evocative, 50mm lens, f/2.8, classic, timeless, enigmatic, elegant
+  ethereal_floral_film: &id042
+    name: Ethereal Floral Film
+    prompt: (film style photo:1.4), (desaturated tones:1.4), (underexposed:1.2), (cool
+      tones:1.2), high detail, natural light, soft focus, ethereal, expressive, intimate,
+      nostalgic, textured, moody, atmospheric, serene, intricate details, floral setting,
+      soft shadows, delicate, romantic, calm, melancholic, vintage aesthetic, top-down
+      angle, dreamy, 50mm lens, f/2.8, evocative, gentle, timeless
+  infrared_colorized_landscape: &id043
+    name: Infrared Colorized Landscape
+    prompt: (infrared colorized photo:1.4), (vibrant pink and red hues:1.4), (outdoor
+      setting:1.2), (high contrast:1.2), surreal, natural light, high detail, sharp
+      focus, ethereal, expressive, dynamic composition, lush foliage, textured landscape,
+      dramatic, atmospheric, moody, rich colors, vibrant, otherworldly, intricate
+      details, bold, 35mm lens, f/5.6, evocative, dreamlike, futuristic, whimsical,
+      imaginative
+  surrealist_water_composition: &id044
+    name: Surrealist Water Composition
+    prompt: (surrealist photo:1.4), (dramatic light and shadow:1.4), (high contrast:1.2),
+      (moody atmosphere:1.2), black and white, natural light, high detail, sharp focus,
+      minimalistic, ethereal, expressive, intricate, deep shadows, soft highlights,
+      dynamic composition, serene, poised, reflective water, stark, dreamlike, atmospheric,
+      contemplative, soft reflections, open doorway, 35mm lens, f/8, evocative, enigmatic,
+      mysterious
+  surrealist_castle_cloudscape: &id045
+    name: Surrealist Castle Cloudscape
+    prompt: (surrealist castle cloudscape photo:1.4), (dramatic light and shadow:1.4),
+      (high contrast:1.2), black and white, natural light, high detail, sharp focus,
+      ethereal, expressive, intricate, deep shadows, soft highlights, dynamic composition,
+      atmospheric, dreamlike, majestic, moody, whimsical, architectural elements,
+      layered clouds, expansive sky, grand, dramatic, fantastical, textured, 35mm
+      lens, f/8, evocative, mysterious, otherworldly
+  vibrant_contrasty_clouds: &id046
+    name: Vibrant Contrasty Clouds
+    prompt: (vibrant cloud photo:1.4), (high contrast:1.4), (rich colors:1.2), (dynamic
+      lighting:1.2), ethereal, expressive, intricate, atmospheric, moody, surreal,
+      dramatic, layered textures, deep shadows, soft highlights, vibrant hues, bold,
+      mystical, luminous, dreamy, otherworldly, expansive, detailed, painterly, abstract,
+      35mm lens, f/5.6, evocative, whimsical, imaginative
+  minimalist_foggy_landscape: &id047
+    name: Minimalist Foggy Landscape
+    prompt: (minimalist landscape photo:1.4), (single tree:1.4), (contrasty:1.2),
+      (foggy white background:1.2), black and white, natural light, high detail, sharp
+      focus, serene, atmospheric, moody, stark, ethereal, expressive, deep shadows,
+      soft highlights, reflective water, tranquil, calm, contemplative, simplistic,
+      textured, dramatic, 50mm lens, f/8, evocative, melancholic, quiet, timeless
+  dusk_fantasy_teen_portrait: &id048
+    name: Dusk Fantasy Teen Portrait
+    prompt: (teenager portrait photo:1.4), (dusk lighting:1.4), (cool tones:1.2),
+      (fantasy vibe:1.2), natural light, high detail, soft focus, expressive, intimate,
+      serene, ethereal, atmospheric, moody, intricate details, calm, magical, soft
+      shadows, vibrant greenery, delicate flowers, glowing fireflies, outdoor setting,
+      romantic, dreamy, textured, contemplative, gentle, 50mm lens, f/2.8, evocative,
+      nostalgic, tranquil
+  after_dusk_northern_landscape: &id139
+    name: After Dusk Northern Landscape
+    prompt: (after dusk landscape photo:1.4), (northern landscape:1.4), (single light
+      glowing:1.2), (lonely cabin:1.2), high contrast, natural light, high detail,
+      soft focus, serene, moody, atmospheric, expressive, deep shadows, soft highlights,
+      dramatic composition, cold tones, textured, tranquil, melancholic, expansive
+      sky, reflective water, tall trees, isolated, remote, contemplative, 35mm lens,
+      f/4, evocative, nostalgic, calm, winter setting, quiet
+  surreal_underwater_portrait: &id049
+    name: Surreal Underwater Portrait
+    prompt: (underwater portrait photo:1.4), (abstract colorful overlays:1.4), (ethereal
+      lighting:1.2), (surreal elements:1.2), high contrast, natural light, high detail,
+      soft focus, dreamy, expressive, intimate, vibrant hues, textured water surface,
+      fluid motion, artistic, moody, atmospheric, intricate details, dynamic, evocative,
+      fantastical, mystical, soft shadows, luminous, layered textures, bold colors,
+      otherworldly, imaginative, whimsical, serene, 50mm lens, f/2.8, ethereal glow,
+      delicate, painterly
+  african_art_portrait: &id103
+    name: African Art Portrait
+    prompt: (African art portrait photo:1.4), (intricate background:1.4), (vibrant
+      wardrobe:1.2), (expressive pose:1.2), high contrast, natural light, high detail,
+      sharp focus, rich colors, textured fabric, cultural elements, atmospheric, moody,
+      elegant, bold, detailed patterns, deep shadows, soft highlights, intimate, dynamic
+      composition, poised, powerful, 50mm lens, f/2.8, evocative, regal, sophisticated,
+      artistic, striking, majestic
+  retro_pastel_desert: *id009
+  dark_60s_cinematic: &id104
+    name: Dark 60s Cinematic
+    prompt: (dark 60s vibe photo:1.4), (gobo lighting:1.4), (gelled colors:1.2), (off
+      camera flash:1.2), casting shadows across the subject's face, high contrast,
+      moody, atmospheric, dramatic shadows, rich colors, textured, nostalgic, expressive,
+      intimate, cinematic, deep shadows, soft highlights, dynamic composition, stylish,
+      retro decor, intricate details, artistic, bold, vibrant, dramatic lighting,
+      warm tones, evocative, sophisticated, 50mm lens, f/2.8, intense, enigmatic,
+      elegant
+  macro_vibrant_fantasy_nature: &id050
+    name: Macro Vibrant Fantasy Nature
+    prompt: (macro vibrant nature photo:1.4), (fantasy vibe:1.4), (high contrast:1.2),
+      (ethereal lighting:1.2), high detail, soft focus, expressive, intimate, dreamy,
+      atmospheric, moody, intricate details, vibrant hues, dynamic composition, glowing
+      bokeh, soft reflections, whimsical, enchanting, surreal, magical, deep shadows,
+      soft highlights, delicate, serene, 100mm macro lens, f/2.8, captivating, imaginative,
+      playful, bold colors
+  low_angle_vibrant_water: &id051
+    name: Low Angle Vibrant Water
+    prompt: (low angle vibrant water photo:1.4), (dark contrast:1.4), (dramatic lighting:1.2),
+      (rippling water:1.2), high detail, natural light, sharp focus, expressive, atmospheric,
+      moody, dynamic composition, glowing reflections, deep shadows, soft highlights,
+      rich colors, dramatic sky, ethereal, intense, captivating, bold, expansive view,
+      golden hour, textured water surface, serene, powerful, 24mm lens, f/4, evocative,
+      mesmerizing, vibrant hues
+  abstract_geometric_surrealism: &id052
+    name: Abstract Geometric Surrealism
+    prompt: (abstract geometric photo:1.4), (minimalist surrealism:1.4), (high contrast:1.2),
+      (dramatic lighting:1.2), black and white, high detail, sharp focus, ethereal,
+      expressive, atmospheric, moody, dynamic composition, deep shadows, soft highlights,
+      clean lines, stark, intricate, poetic, expansive, architectural elements, bold
+      shapes, dramatic, mysterious, contemplative, 35mm lens, f/8, evocative, enigmatic,
+      elegant
+  worn_lomography_tin_plate: &id053
+    name: Worn Lomography Tin Plate
+    prompt: (lomography portrait photo:1.4), (worn tin plate effect:1.4), (vintage
+      aesthetic:1.2), (dramatic lighting:1.2), high contrast, natural light, high
+      detail, soft focus, expressive, intimate, ethereal, atmospheric, moody, intricate
+      details, deep shadows, soft highlights, textured, nostalgic, weathered, romantic,
+      melancholic, antique, faded colors, distressed, delicate, serene, poetic, 85mm
+      lens, f/1.8, evocative, timeless, historical
+  aerial_river_landscape: &id141
+    name: Aerial River Landscape
+    prompt: (aerial drone photo:1.4), (high contrast:1.4), (vivid colors:1.2), (dynamic
+      composition:1.2), high detail, natural light, sharp focus, expansive view, atmospheric,
+      moody, intricate details, dramatic, deep shadows, soft highlights, textured,
+      vast, scenic, breathtaking, expansive sky, sweeping panorama, stunning, majestic,
+      24mm lens, f/5.6, evocative, powerful, captivating
+  dynamic_surf_photography: &id119
+    name: Dynamic Surf Photography
+    prompt: (surf photography:1.4), (capturing motion:1.4), (dynamic waves:1.2), (high
+      contrast:1.2), vibrant colors, natural light, high detail, sharp focus, expressive,
+      energetic, atmospheric, moody, dramatic, deep shadows, soft highlights, textured
+      water, intense, exhilarating, bold, adventurous, powerful, captivating, wide-angle,
+      immersive, thrilling, 24mm lens, f/4, evocative, mesmerizing
+  double_exposure_nature_portrait: &id054
+    name: Double Exposure Nature Portrait
+    prompt: (double exposure photo:1.4), (black and white:1.4), (white background:1.2),
+      (portrait foreground:1.2), (nature inset exposure:1.2), high contrast, sharp
+      focus, high detail, expressive, atmospheric, dramatic, soft highlights, textured,
+      intricate, artistic, elegant, serene, introspective, captivating, moody, minimalistic,
+      50mm lens, f/2, evocative, contemplative, ethereal
+  golden_era_cinematic_portrait: &id142
+    name: Golden Era Cinematic Portrait
+    prompt: (golden era photo:1.4), (1970s cinema:1.4), (muted color tones:1.2), (dramatic
+      poses:1.2), high contrast, natural light, high detail, sharp focus, expressive,
+      moody, atmospheric, soft shadows, textured, elegant, sophisticated, nostalgic,
+      retro, glamorous, cinematic, intricate, evocative, timeless, artistic, classic,
+      85mm lens, f/1.8, vintage
+  neon_urban_dreamscape: &id016
+    name: Neon Urban Dreamscape
+    prompt: (neon street photography:1.4), (vibrant bokeh lights:1.4), (dramatic light
+      and shadow:1.4), (dynamic pose:1.2), rich colors, high contrast, intricate light
+      leaks, soft highlights, natural and artificial light blend, ethereal, surreal,
+      magical, enchanting, moody, atmospheric, dreamy, cinematic, expressive, urban
+      nightscape, shallow depth of field, intense, captivating, 50mm lens, f/1.4,
+      immersive, vivid, noir, urban glow, modern yet nostalgic, captivating textures,
+      edgy, artistic
+  surreal_vibrant_fantasy: &id055
+    name: Surreal Vibrant Fantasy
+    prompt: (surreal portrait:1.4), (vivid color contrasts:1.4), (dramatic lighting:1.2),
+      theatrical, whimsical, fantastical elements, intricate details, soft shadows,
+      painterly texture, high saturation, expressive, avant-garde, eccentric, meticulously
+      composed, bold colors, ethereal, dreamlike, cinematic, elegant, mysterious,
+      imaginative, rich textures, soft highlights, artistic, 85mm lens, f/2.8, striking,
+      evocative, otherworldly
+  nocturnal_pinhole: &id105
+    name: Nocturnal Pinhole
+    prompt: (pinhole photography:1.4), (blurred edges:1.2), (soft focus:1.2), (underexposed:1.2),
+      (dark:1.2), (contrasty:1.2), dramatic shadows, moody atmosphere, low light,
+      high grain, black and white, intense highlights, textured, urban landscape,
+      reflective surfaces, wet pavement, eerie, mysterious, 50mm lens, f/1.8, somber,
+      desolate, evocative
+  antique_wilderness: &id144
+    name: Antique Wilderness
+    prompt: (old yellowed photograph:1.4), (black and white process:1.2), (vintage
+      travel photography:1.2), (cracks and abrasions:1.2), sepia tones, high grain,
+      faded edges, antique look, aged texture, historical feel, rough terrain, majestic
+      mountains, reflective river, timeless, nostalgic, early 20th century aesthetic,
+      35mm lens, f/11, atmospheric, rustic, evocative, weathered, enduring, archival
+  muted_meadow: &id056
+    name: Muted Meadow
+    prompt: (extremely muted color tones:1.4), (extremely low contrast:1.3), (duotone:1.2),
+      outdoor setting, field or meadow, soft ambient light, delicate textures, serene
+      atmosphere, minimalistic composition, ethereal mood, natural surroundings, blurred
+      background, gentle focus, cool tones, subtle highlights, earthy palette, calm
+      and introspective, 85mm lens, f/2, vintage film grain, understated elegance,
+      dreamy quality, tranquil, organic, timeless
+  zen_lakeside_gazebo: &id057
+    name: Zen Lakeside Gazebo
+    prompt: (long exposure:1.4), (lakeside Japanese architecture:1.2), (silhouetted:1.3),
+      (clouds:1.2), serene lake, calm water, misty atmosphere, tranquil scene, black
+      and white, high contrast, soft reflections, minimalistic composition, ethereal
+      mood, diffused light, timeless feel, smooth textures, elegant lines, peaceful
+      setting, natural surroundings, gentle tones, wide-angle lens, f/8, classic film
+      grain, understated beauty, contemplative ambiance, harmonious with nature, stillness,
+      reflective surface, subtle highlights, crisp details, Zen-inspired, artistic
+      simplicity
+  ink_fusion_portrait: &id058
+    name: Ink Fusion Portrait
+    prompt: (blended inks:1.4), (super contrasty subject:1.3), (bold colors:1.2),
+      dramatic pose, intense expression, vibrant tones, high contrast, dynamic movement,
+      ethereal swirls, abstract elements, fluid shapes, artistic composition, stark
+      shadows, sharp highlights, smooth gradients, soft edges, imaginative visual,
+      captivating mood, striking details, fine art photography, surreal ambiance,
+      vibrant splashes, elegant lines, creative fusion, modern aesthetics, vivid saturation,
+      unique perspective, soft focus, painterly feel, 50mm lens, f/1.8, artistic depth,
+      contemporary style, avant-garde
+  vivid_nature_landscape: &id059
+    name: Vivid Nature Landscape
+    prompt: (vivid colors:1.4), (dramatic sky:1.3), low angle, long shot, ethereal
+      lighting, vibrant hues, nature scene, striking contrast, atmospheric mood, wide
+      frame, detailed textures, serene ambiance, soft shadows, dynamic composition,
+      balanced elements, natural light, colorful foliage, artistic landscape, high
+      saturation, warm and cool tones, expansive view, intricate details, captivating
+      scenery, moody background, painterly effect, deep focus, crisp edges, autumn
+      tones, twilight setting, tranquil environment, soft gradients, immersive atmosphere,
+      24mm lens, f/8, cinematic feel, evocative
+  underwater_serenity: &id060
+    name: Underwater Serenity
+    prompt: underwater scene, (low contrast:1.4), (desaturated colors:1.3), soft light
+      shafts, depth, floating, flowing elements, serene ambiance, ethereal lighting,
+      clear water, intricate textures, soft shadows, expansive view, natural light,
+      detailed background, muted tones, gentle motion, tranquil environment, soft
+      gradients, immersive atmosphere, flowing dress, architectural ruins, serene
+      and calm, misty appearance, subtle highlights, dreamlike quality, 35mm lens,
+      f/2.8, cinematic feel, evocative, painterly effect, moody
+  retro_blue_and_gold: &id145
+    name: Retro Blue and Gold
+    prompt: golden tones, (blue backgrounds:1.4), duotone effect, highly stylized,
+      floral wardrobe, looking behind pose, vintage aesthetics, soft ambient lighting,
+      muted contrast, cinematic color grading, warm highlights, soft shadows, retro
+      vibe, detailed textures, sharp focus, expressive gaze, nostalgic atmosphere,
+      50mm lens, f/1.8, sunny day, high detail, vibrant yet subdued colors, natural
+      light, serene expression, timeless feel, elegant composition, saturated hues,
+      soft gradients
+  foggy_minimalism: &id061
+    name: Foggy Minimalism
+    prompt: minimalist dock, (black and white photo:1.4), blue water, foreground disappearing
+      into the fog, centered composition, soft gradients, high contrast, tranquil
+      atmosphere, smooth textures, clean lines, crisp details, foggy background, serene
+      mood, low saturation, natural light, balanced framing, high detail, calm water,
+      reflective surface, leading lines, depth, simplicity, minimalist aesthetics,
+      long exposure, soft shadows, peaceful scene, 35mm lens, f/4, overcast sky, ethereal
+      feel
+  gritty_underpass: &id107
+    name: Gritty Underpass
+    prompt: moody nightscape, under the bridge, urban environment, dingy, gritty,
+      bright lights, fog, high contrast, deep shadows, neon lights, reflective wet
+      surfaces, atmospheric perspective, dramatic lighting, cool and warm color contrasts,
+      harsh streetlights, industrial textures, desolate mood, cinematic feel, mysterious
+      ambiance, isolated subject, heavy fog, soft edges, muted tones, urban decay,
+      50mm lens, f/2.8, nocturnal, eerie silence, urban solitude, gritty realism
+  haunting_waterfall: &id062
+    name: Haunting Waterfall
+    prompt: ghostly antique photo, haunting feel, sepia tones, high contrast, heavy
+      vignette, subject beside the rushing waters of a waterfall, scraggly branch,
+      soft focus, worn and aged appearance, faded edges, ethereal atmosphere, delicate
+      textures, misty surroundings, timeless quality, melancholic mood, natural light,
+      85mm lens, f/1.8, vintage film grain, eerie silence, historical ambiance, flowing
+      garments, somber expression, organic elements, moody composition
+  surreal_primary_still_life: &id108
+    name: Surreal Primary Still Life
+    prompt: surreal collage, bright primary colors, still life, bold geometric shapes,
+      vibrant tones, high contrast, sharp shadows, clean lines, minimalistic composition,
+      artistic arrangement, abstract forms, modern design, playful aesthetic, dynamic
+      angles, textured surfaces, contrasting hues, 50mm lens, f/8, meticulously crafted
+      elements, eye-catching patterns, striking visual balance, crisp edges, imaginative
+      layout, polished finish, whimsical feel
+  midwestern_sunset_ruin: &id127
+    name: Midwestern Sunset Ruin
+    prompt: vast flat midwestern landscape, single dilapidated building, dramatic
+      clouds, sunset, big sky, vibrant tones, rich colors, high contrast, warm light,
+      long shadows, weathered textures, rustic charm, isolated structure, expansive
+      horizon, atmospheric perspective, nostalgic feel, wide-angle shot, detailed
+      sky, painterly quality, soft edges, serene mood, deserted setting, timeless
+      ambiance, golden hour glow, dramatic composition, natural light, 24mm lens,
+      f/11, visually striking, moody atmosphere, evocative scene
+  sunlit_retro_haven: &id121
+    name: Sunlit Retro Haven
+    prompt: bold colored interiors, bold patterned wallpapers, retro furniture, sun
+      streaming through large windows, warm tones, high saturation, vintage decor,
+      floral patterns, vibrant colors, 1970s aesthetic, soft shadows, cozy atmosphere,
+      nostalgic, eclectic mix, natural light, golden hour, rich textures, detailed
+      ornamentation, intimate setting, relaxed ambiance, inviting warmth, carefully
+      curated, homely feel, artistic arrangement, bright highlights, detailed interiors,
+      organic elements, vibrant hues, f/2.8, 35mm lens, timeless quality, lived-in
+      look
+  floating_dreamscape: &id063
+    name: Floating Dreamscape
+    prompt: overexposed white sky, grassy meadow in the foreground, subject floating
+      with balloons, horizon line, low angle, side shot, minimalist composition, ethereal
+      atmosphere, bright daylight, soft shadows, natural light, muted color palette,
+      calm and serene mood, whimsical, dreamlike, gentle wind, simple background,
+      expansive sky, isolated figure, subtle details, timeless quality, airy and light,
+      carefree feeling, f/2.8, 50mm lens, high key lighting, soft focus, open space,
+      tranquil setting, weightless impression, floating sensation, delicate textures,
+      gentle movement, artistic framing, elegant simplicity
+  vintage_desert_elegance: &id109
+    name: Vintage Desert Elegance
+    prompt: 1920s desert portrait, rocky cliffs, windblown sand dunes, black and white
+      photography, high contrast, vintage feel, dramatic shadows, natural light, rugged
+      terrain, windswept textures, harsh environment, timeless elegance, atmospheric
+      composition, isolated figure, moody ambiance, dynamic landscape, 35mm lens,
+      f/8, sepia tones, nostalgic vibe, stark realism, evocative scenery, historical
+      context, classic aesthetic, textured backgrounds, contemplative mood, artful
+      simplicity, organic forms, austere beauty, minimalist approach, natural elegance,
+      raw emotion, environmental portraiture
+  retro_glamour_pinup: &id110
+    name: Retro Glamour Pinup
+    prompt: 1960s pinup photography, vibrant gelled lighting, warm and cool contrast,
+      retro hotel room setting, saturated colors, dramatic lighting, vintage glamour,
+      bold makeup, striking poses, neon highlights, high contrast, mid-century decor,
+      cinematic composition, nostalgic vibe, soft focus, 50mm lens, f/1.4, shallow
+      depth of field, evocative expressions, playful atmosphere, classic pinup wardrobe,
+      lush textures, colorful backgrounds, retro elegance, bold shadows, reflective
+      surfaces, artful styling, intimate ambiance, lively color palette, dynamic lighting
+      effects, luxurious props, stylized aesthetic, vibrant atmosphere, fashion photography
+      influences, artistic flair, vintage allure
+  ethereal_nature_portrait: &id064
+    name: Ethereal Nature Portrait
+    prompt: Low contrast, matte finish, nature portrait, limited color palette, morning
+      fog, soft ambient light, misty atmosphere, serene and contemplative mood, gentle
+      textures, subdued tones, ethereal quality, subtle details, 85mm lens, f/2.8,
+      shallow depth of field, delicate focus, blurred background, peaceful environment,
+      muted greens and grays, artistic framing, intimate composition, tranquil setting,
+      quiet solitude, timeless feel, soft highlights, minimalistic approach, emotional
+      depth, introspective vibe, natural elegance, dreamlike scene, gentle gradients,
+      harmonious balance, refined simplicity, poetic ambiance, nuanced shadows, light
+      haze, calm presence, soft transitions, delicate interplay of light and shadow,
+      natural harmony
+  sunset_meadow_dreamscape: &id065
+    name: Sunset Meadow Dreamscape
+    prompt: Dreamy warm tones, meadow, sunset, underexposed, dark shadows, backlit,
+      evening glow, motion, side shot, low angle, dramatic clouds, golden hour light,
+      high contrast, vibrant colors, soft highlights, ethereal atmosphere, romantic
+      mood, natural light, dynamic composition, serene setting, gentle breeze, 85mm
+      lens, f/2, shallow depth of field, blurred background, cinematic feel, rich
+      textures, emotional depth, poetic ambiance, timeless quality, harmonious balance,
+      graceful movement, evocative scene, artistic framing, intimate perspective,
+      magical realism, peaceful environment, warm hues, nuanced shadows, atmospheric
+      perspective, tranquil beauty, delicate interplay of light and shadow
+  vintage_candid_streetview: &id126
+    name: Vintage Candid Streetview
+    prompt: First person view, high contrast, old black and white film, playful candid,
+      gritty texture, strong shadows, vintage aesthetic, dynamic composition, street
+      photography vibe, nostalgic atmosphere, intimate perspective, spontaneous moment,
+      authentic emotion, natural light, dramatic lighting, timeless quality, film
+      grain, classic feel, evocative mood, historical ambiance, powerful contrast,
+      expressive scene, 50mm lens, f/2.8, wide depth of field, textured details, engaging
+      storytelling, raw energy, lively spirit, traditional framing, cultural context,
+      lively setting, unique perspective, real-life action, human connection, immersive
+      experience
+  retro_roadside_teal_orange: *id010
+  1920s_silent_romance: &id111
+    name: 1920s Silent Romance
+    prompt: 1920s black and white film, period-appropriate clothing, intense film
+      grain, heavy scratches and dust, burned film edges, high contrast, low key lighting,
+      dramatic shadows, intimate close-ups, cinematic composition, vintage ambiance,
+      worn textures, soft focus, emotional expressions, historical authenticity, natural
+      light, deep blacks, glowing highlights, soft contours, romantic atmosphere,
+      nostalgic feel, 50mm lens, f/2.8, evocative mood, film noir influences, distressed
+      film stock, visual storytelling, aged aesthetic, timeless quality, classic romance,
+      evocative setting, raw emotions, compelling imagery, expressive poses, subdued
+      background, rich textures, classic cinema vibe, storytelling composition, aged
+      film look, authentic period detail, atmospheric lighting, visual nostalgia,
+      storytelling through visuals, period drama
+  bold_surreal_interiors: &id066
+    name: Bold Surreal Interiors
+    prompt: Bold colored surreal interiors, vibrant and contrasting color schemes,
+      candid subject wearing complementary colors, whimsical and dreamlike atmosphere,
+      vivid hues, saturated tones, imaginative and fantastical settings, creative
+      and artistic composition, unconventional room designs, playful elements, ethereal
+      lighting, dynamic and engaging visuals, rich textures, detailed and ornate decor,
+      striking and eye-catching visuals, 35mm lens, f/4.5, indoor lighting, meticulous
+      attention to color harmony, juxtaposition of colors and elements, visual storytelling,
+      surrealism in photography, expressive and unconventional art style, immersive
+      and captivating scenes, unique and thought-provoking imagery
+  modern_victorian_portraiture: &id112
+    name: Modern Victorian Portraiture
+    prompt: (Victorian era vibe:1.4), (modern studio photography techniques:1.2),
+      detailed and ornate Victorian costumes, dramatic and rich color palette, intricate
+      patterns and textures, historical accuracy in wardrobe, studio backdrop with
+      subdued lighting, classical and elegant poses, high contrast and deep shadows,
+      soft and diffused lighting, 85mm lens, f/2.8, meticulous attention to fabric
+      details, regal and authoritative posture, timeless and sophisticated atmosphere,
+      rich and moody tones, formal and dignified expressions, artistic composition,
+      reminiscent of classic portraiture, blending historical elements with contemporary
+      photographic techniques, visually striking and culturally rich imagery, masterful
+      use of light and shadow, emotive and evocative portraits, capturing the essence
+      of the Victorian period with a modern twist
+  fragmented_greco_roman_sculpture: &id113
+    name: Fragmented Greco-Roman Sculpture
+    prompt: (shattered sculpture:1.4), (black and white:1.3), (Greco-Roman statue:1.4),
+      intricate and detailed cracks and fractures, high contrast monochrome, dramatic
+      and intense lighting, texture-rich surfaces, timeless and classical design,
+      chiseled and refined features, weathered and aged appearance, artistic and expressive
+      poses, deep shadows and highlights, 85mm lens, f/2.8, emotive and haunting atmosphere,
+      artistic composition, capturing the essence of ancient sculptures with a modern
+      twist, surreal and fragmented aesthetic, evocative and powerful imagery, blending
+      classical art with contemporary photographic techniques, visually striking and
+      thought-provoking, stark and minimalist background, emphasizing the sculpture's
+      form and detail
+  whimsical_fantasy_portrait: &id067
+    name: Whimsical Fantasy Portrait
+    prompt: (fantasy:1.4), (elaborate wigs and hairpieces:1.4), (vibrant colors:1.3),
+      (studio photography:1.3), whimsical and dreamlike atmosphere, intricate and
+      detailed hair designs, bold and striking color palettes, theatrical makeup,
+      soft and diffused lighting, high contrast with soft edges, richly textured backgrounds,
+      playful and imaginative styling, rococo-inspired elements, delicate and ornate
+      accessories, 85mm lens, f/2.8, capturing the essence of a fantasy world, surreal
+      and captivating, elaborate costuming, dramatic poses, enchanting and otherworldly
+      vibe, visually lush and opulent, artistic composition, blending classical and
+      contemporary elements, ethereal and magical, creating a sense of wonder and
+      fantasy
+  moody_floral_portrait: &id068
+    name: Moody Floral Portrait
+    prompt: (dark:1.4), (bokeh:1.3), (muted colors:1.3), (flower photography:1.2),
+      soft focus background, low-key lighting, minimal highlights, shallow depth of
+      field, artistic composition, subtle contrast, delicate and intricate details,
+      natural and organic forms, tranquil and serene mood, emphasizing texture and
+      form, rich yet subdued color palette, 50mm lens, f/1.8, capturing the quiet
+      beauty of nature, atmospheric and moody, creating a sense of intimacy and closeness,
+      soft shadows, capturing the essence of twilight, ethereal and calming, timeless
+      and elegant, visually poetic and evocative, blending realism with artistic interpretation
+  ethereal_ink_dynamics: &id069
+    name: Ethereal Ink Dynamics
+    prompt: (pure white background:1.4), (floating ink:1.5), ethereal, vibrant colors,
+      dynamic movement, high contrast, soft edges, delicate and intricate, fluid shapes,
+      abstract forms, light and airy, artistic and surreal, dreamlike quality, visually
+      striking, contemporary art, expressive and emotive, blending realism with abstraction,
+      capturing motion and energy, translucent layers, minimalist composition, highlighting
+      color gradients, soft focus, painterly effect, luminous, captivating and mesmerizing,
+      emphasizing texture and flow, modern and sleek, visually intriguing and enchanting
+  vibrant_evening_skyscape: &id070
+    name: Vibrant Evening Skyscape
+    prompt: (vibrant long exposure:1.4), (time-lapse:1.3), (slow shutter:1.3), (smooth
+      motion:1.2), (skyscape:1.4), (evening sunset:1.5), dramatic, high contrast,
+      intense colors, flowing clouds, streaked sky, dynamic, ethereal glow, expansive
+      scenery, visually captivating, atmospheric depth, blending warm and cool tones,
+      horizon line, tranquil water reflections, serene, immersive, breathtaking, wide-angle
+      lens, f/4, capturing the essence of time and movement, fluid, surreal, painterly
+      effect, enchanting and mesmerizing, natural wonder
+  long_exposure_light_painting: &id071
+    name: Long Exposure Light Painting
+    prompt: (long exposure photography:1.4), (light painting:1.5), (vibrant orange
+      and yellow light trails:1.5), (silhouetted figure:1.3), (dynamic motion:1.4),
+      (dark night background:1.2), (high contrast:1.3), (circular motion:1.4), (steel
+      wool photography:1.5), (sparks flying:1.4), (energy and movement:1.3), (capturing
+      the essence of light and shadow:1.3), (immersive:1.2), (mesmerizing light patterns:1.3),
+      (ethereal glow:1.2)
+  ethereal_blurred_portrait: &id114
+    name: Ethereal Blurred Portrait
+    prompt: Abstract portrait of a woman with blurred colors.
+  surreal_retro_collage: &id115
+    name: Surreal Retro Collage
+    prompt: A woman wearing large, colorful, retro sunglasses with various abstract
+      and surreal elements around her head, including papers and geometric shapes
+character:
+  3d_character: *id001
+  caricature: *id011
+  cgi_character: *id012
+  cute_kawaii: *id013
+  fashion: &id076
+    name: Fashion
+    prompt: photograph of a Fashion model, full body, highly detailed and intricate,
+      golden ratio, vibrant colors, hyper maximalist, futuristic, city background,
+      luxury, elite, cinematic, fashion, depth of field, colorful, glow, trending
+      on artstation, ultra high d
+    negative_prompt: ''
+  low_poly: *id014
+  warm_scene: &id022
+    name: Warm Scene
+    prompt: unreal engine, warm indoor lighting, arts station, detailed digital painting,
+      cinematic, character design by mark ryden and pixar and hayao miyazaki, unreal
+      5, daz, hyperrealistic, octane rendering
+    negative_prompt: ''
+  minimalist_black_and_white: *id015
+  pastel_classic_portrait: *id008
+  neon_urban_dreamscape: *id016
+  burning_portal: &id152
+    name: Burning Portal
+    prompt: A girl in a white dress standing in front of a burning doorway in a dark
+      forest.
+  doorway_solitude: &id150
+    name: Doorway Solitude
+    prompt: A woman in a long dress, standing next to an old door with a raven perched
+      on top, in a misty, barren field.
+  vintage_ghost_scene: &id128
+    name: Vintage Ghost Scene
+    prompt: A person covered in a white sheet with eye holes, resembling a ghost,
+      sitting in a dimly lit room with window blinds.
+  sunset_silhouette: &id160
+    name: Sunset Silhouette
+    prompt: Silhouette of a person standing on a mountain during a sunset.
+  ghostly_forest_encounter: &id161
+    name: Ghostly Forest Encounter
+    prompt: A ghostly figure standing in a foggy forest while another figure reaches
+      out to them.
+  tranquil_sunset_solitude: &id162
+    name: Tranquil Sunset Solitude
+    prompt: A lone figure standing at the end of a pier during a tranquil sunset over
+      calm waters.
+  vintage_nostalgia: &id155
+    name: Vintage Nostalgia
+    prompt: A woman with fiery red hair standing in a field, her hair dramatically
+      lifted as if by the wind.
+digital_art:
+  3d_character: *id001
+  archviz: &id122
+    name: ArchViz
+    prompt: by James McDonald and Joarc Architects, home, interior, octane render,
+      deviantart, cinematic, key art, hyperrealism, sun light, sunrays, canon eos
+      c 300, ƒ 1.8, 35 mm, 8k
+    negative_prompt: ''
+  beautiful_portrait: &id072
+    name: Beautiful Portrait
+    prompt: alluring portrait, intricate, highly detailed, digital painting, artstation,
+      concept art, naughty, sharp focus, cinematic lighting, illustration, art by
+      artgerm and greg rutkowski, alphonse mucha, cgsociety
+    negative_prompt: ''
+  building: &id073
+    name: Building
+    prompt: shot 35 mm, realism, octane render, 8k, trending on artstation, 35 mm
+      camera, unreal engine, hyper detailed, photo-realistic maximum detail, volumetric
+      light, realistic matte painting, hyper photorealistic, trending on artstation,
+      ultra-detailed, realis
+    negative_prompt: ''
+  caricature: *id011
+  cgi_character: *id012
+  cute_creature: *id017
+  cute_kawaii: *id013
+  cyberpunk: &id023
+    name: CyberPunk
+    prompt: cyberpunk, in heavy raining futuristic tokyo rooftop cyberpunk night,
+      sci-fi, fantasy, intricate, very very beautiful, elegant, neon light, highly
+      detailed, digital painting, artstation, concept art, soft light, hdri, smooth,
+      sharp focus, illustration,
+    negative_prompt: ''
+  digital_art: &id074
+    name: Digital Art
+    prompt: intricate, elegant, highly detailed, digital painting, artstation, concept
+      art, smooth, sharp focus, illustration, art by wlop, charlie bowater and alexandra
+      fomina
+    negative_prompt: ''
+  digital_portrait: &id075
+    name: Digital Portrait
+    prompt: digital painting portrait, natural lighting, in the style of pixar, trending
+      on artstation, sharp, focus art by Arthur Streeton and Božidar Jakac
+    negative_prompt: ''
+  drawing: *id018
+  horror: &id077
+    name: Horror
+    prompt: dark  themed background. very dark and scary horror vibes. hyper intricate
+      details. purple, red, white colors. hyperrealistic artwork style. scary horror
+      metal music vibe. godrays, gorgeous, amazing, intricate, highly detailed, digital
+      painting, artstatio
+    negative_prompt: ''
+  illustration: &id078
+    name: Illustration
+    prompt: illustration, fisheye lens, high contrast, highly detailed, sharp focus,
+      digital painting, 3 d art, illustration, trending on artstation
+    negative_prompt: ''
+  isometric: &id123
+    name: Isometric
+    prompt: Detailed isometric render, unreal engine voxel render, video game, very
+      cozy, nostalgia, c4d render, ultra detailed, octane render, volumetric lighting,
+      8k post-production isometric, isometric render, tiltshift
+    negative_prompt: ''
+  logo: &id156
+    name: Logo
+    prompt: 2d vector illustration, emblem logo, 2d flat, centered, illustrator, symetrical,
+      victory, 2D team logo, company logo design
+    negative_prompt: ''
+  low_poly: *id014
+  needle_felted: *id019
+  oil_painting: &id116
+    name: Oil Painting
+    prompt: oil painting from studio ghibli film, by noriyuki morimoto, digital artist,
+      bright and bold colors, expansive sky, sense of adventure, epic scope studio
+      ghibli
+    negative_prompt: ''
+  postapocalyptic: &id124
+    name: Postapocalyptic
+    prompt: fog, animals, birds, deer, bunny, postapocalyptic, overgrown with plant
+      life and ivy, artgerm, yoshitaka amano, gothic interior, 8k, octane render,
+      unreal engine
+    negative_prompt: ''
+  realistic_anime_face: &id080
+    name: Realistic Anime Face
+    prompt: Closeup face portrait, smooth soft skin, beautiful eyes, intricate colored
+      hair, symmetrical, anime wide eyes, soft lighting, detailed face, by makoto
+      shinkai, stanley artgerm lau, wlop, rossdraws, concept art, digital painting
+    negative_prompt: ''
+  render_3d: &id125
+    name: Render 3D
+    prompt: highly detailed, CG render, octane, bokeh, 4k, 8k, 8mm, unreal engine
+      3d
+    negative_prompt: ''
+  sticker: *id020
+  tokyo_background: &id081
+    name: Tokyo Background
+    prompt: highly detailed matte painting of a suburban tokyo street with a bright
+      shimmering sky by Studio Ghibli, Mokoto Shinkai, by Artgerm, by beeple, volumetric
+      lighting, octane render, 4K resolution, trending on artstation, vivid colours
+    negative_prompt: ''
+  toon_monster: *id021
+  typography: &id082
+    name: Typography
+    prompt: typography by kaws, studio ghibli by tim hildebrandt, michael whelan,
+      background environment. sharpen. an intricate, elegant, highly detailed digital
+      painting, concept art, smooth
+    negative_prompt: ''
+  warm_scene: *id022
+fantasy:
+  adorable: *id002
+  cgi_character: *id012
+  cute_creature: *id017
+  cyberpunk: *id023
+  pencil_sketch: &id079
+    name: Pencil Sketch
+    prompt: Hyperrealist pencil sketch drawing, black and white painting, fantasy
+      art, photo realistic, dynamic lighting, artstation, poster, volumetric lighting,
+      very detailed, 4k, da vinci style made with a charcoal pencil
+    negative_prompt: ''
+  double_exposure_color_portrait__: *id024
+  floral_fantasy_portrait__: *id025
+  glassy_reflective_landscape__: &id132
+    name: Glassy Reflective Landscape *
+    prompt: (reflective landscape photo:1.4), (glassy reflection:1.4), (clear sky
+      background:1.2), (horizon line:1.2), natural light, high detail, sharp focus,
+      serene, tranquil, minimalist, bright, calm, soft shadows, ethereal, wide-angle,
+      35mm lens, f/5.6, atmospheric, peaceful, clean composition, crisp, pure, balanced,
+      open space
+  etched_reality__: *id026
+  abstract_artistic_silhouette__: *id027
+  ukiyo_e_landscape__: *id028
+  surreal_circular_ocean_view__: *id029
+  long_exposure_vibrant_silhouette__: *id030
+  abstract_surreal_portrait: *id031
+  vibrant_fantasy_portrait: *id032
+  melancholic_outdoor_portrait: &id087
+    name: Melancholic Outdoor Portrait
+    prompt: (moody outdoor portrait photo:1.4), (melancholic:1.2), (atmospheric:1.2),
+      (dreamlike:1.2), muted colors, natural light, soft focus, wide-angle, introspective,
+      solitary, ethereal lighting, serene, misty, dramatic skies, reflective water,
+      35mm lens, f/2.8, contemplative, calm
+  whimsical_smoke_landscape: *id005
+  surreal_double_exposure_portrait: *id033
+  ethereal_pastel_landscape: *id006
+  ethereal_water_portrait: *id007
+  vibrant_double_exposure_portrait: *id034
+  ethereal_underwater_portrait: *id035
+  exaggerated_vibrant_floral_fantasy_portrait: *id036
+  ornate_portrait: *id037
+  worn_monochrome_seascape: *id038
+  indigenous_african_dusk_portrait: *id039
+  dynamic_monochrome_with_red_accent: *id040
+  dynamic_studio_dance: *id041
+  ethereal_floral_film: *id042
+  infrared_colorized_landscape: *id043
+  surrealist_water_composition: *id044
+  surrealist_castle_cloudscape: *id045
+  vibrant_contrasty_clouds: *id046
+  minimalist_foggy_landscape: *id047
+  dynamic_close_up_movement: &id102
+    name: Dynamic Close-Up Movement
+    prompt: (extreme close-up portrait photo:1.4), (extremely blurred background:1.4),
+      (motion blur:1.2), (dynamic movement:1.2), high contrast, dramatic lighting,
+      black and white, natural light, high detail, expressive, intimate, ethereal,
+      moody, atmospheric, sharp focus on subject, deep shadows, soft highlights, dramatic
+      composition, intense, bold, elegant, fluid, captivating, stark, artistic, 85mm
+      lens, f/1.4, evocative, powerful, intricate, timeless
+  dusk_fantasy_teen_portrait: *id048
+  surreal_underwater_portrait: *id049
+  macro_vibrant_fantasy_nature: *id050
+  low_angle_vibrant_water: *id051
+  abstract_geometric_surrealism: *id052
+  worn_lomography_tin_plate: *id053
+  double_exposure_nature_portrait: *id054
+  enchanted_morning_forest: &id143
+    name: Enchanted Morning Forest
+    prompt: (vibrant nature photo:1.4), (light shafts:1.4), (morning fog:1.2), (dynamic
+      lighting:1.2), rich colors, high contrast, intricate details, soft shadows,
+      natural light, ethereal, serene, magical, enchanting, tranquil, atmospheric,
+      dreamy, picturesque, lush, serene, 35mm lens, f/2.8, immersive, vivid, moody,
+      captivating
+  neon_urban_dreamscape: *id016
+  surreal_vibrant_fantasy: *id055
+  northern_serenity: &id120
+    name: Northern Serenity
+    prompt: (cool tones:1.4), (northern lake:1.2), (winter vibes:1.2), (waterfall:1.2),
+      rocky shore, lone subject, red clothing, blowing in the wind, dramatic landscape,
+      misty atmosphere, serene, ethereal, soft lighting, natural light, high contrast,
+      moody, cinematic, vibrant colors, reflective water, tranquil, wide-angle, intricate
+      details, soft shadows, overcast sky, 35mm lens, f/4, evocative, peaceful
+  glacial_nightscape: &id106
+    name: Glacial Nightscape
+    prompt: (icy blue landscapes:1.4), (caves:1.2), (arches:1.2), (starry night sky:1.3),
+      (blue cool tones:1.4), glacial formations, dramatic lighting, high contrast,
+      ethereal glow, expansive scenery, serene, reflective ice surfaces, winter wilderness,
+      natural wonder, atmospheric depth, midnight hues, mystical, tranquil, crisp
+      air, solitude, astrophotography, wide-angle lens, f/4, immersive, breathtaking,
+      otherworldly
+  muted_meadow: *id056
+  zen_lakeside_gazebo: *id057
+  ink_fusion_portrait: *id058
+  vivid_nature_landscape: *id059
+  underwater_serenity: *id060
+  foggy_minimalism: *id061
+  haunting_waterfall: *id062
+  floating_dreamscape: *id063
+  ethereal_nature_portrait: *id064
+  sunset_meadow_dreamscape: *id065
+  bold_surreal_interiors: *id066
+  whimsical_fantasy_portrait: *id067
+  moody_floral_portrait: *id068
+  ethereal_ink_dynamics: *id069
+  vibrant_evening_skyscape: *id070
+  long_exposure_light_painting: *id071
+concept_art:
+  adorable: *id002
+  anime_portrait: &id083
+    name: Anime Portrait
+    prompt: portrait of an anime person, aesthetic, wlop, trending on artstation,
+      deviantart, anime key visual, 8k uhd
+    negative_prompt: ''
+  beautiful_portrait: *id072
+  building: *id073
+  cgi_character: *id012
+  cute_kawaii: *id013
+  cyberpunk: *id023
+  digital_art: *id074
+  digital_portrait: *id075
+  fashion: *id076
+  horror: *id077
+  illustration: *id078
+  needle_felted: *id019
+  nightmare: &id151
+    name: Nightmare
+    prompt: nightmare by tim burton, monster dreams, v-ray octane, highly detailed
+      by artgem, art, trending artstation, blender, vivid color, steampunk, messi,
+      cinematic light, alexa, ultra primme
+    negative_prompt: ''
+  pencil_sketch: *id079
+  pixar: &id147
+    name: Pixar
+    prompt: animation pixar style, pendleton ward, magali villeneuve, artgerm, rob
+      rey and kentaro miura style, golden ratio, behance, trending on art station
+    negative_prompt: ''
+  realistic_anime_face: *id080
+  tokyo_background: *id081
+  toon_monster: *id021
+  typography: *id082
+  warm_scene: *id022
+portrait:
+  anime_portrait: *id083
+  beautiful_portrait: *id072
+  cgi_character: *id012
+  cute_kawaii: *id013
+  dataviz:
+    name: Dataviz
+    prompt: polygonal, hologram,orthographic projection lines,axis, blueprint, dataviz,
+      infographic,tron, minority report interface,vaporwave, synthwave
+    negative_prompt: ''
+  digital_portrait: *id075
+  psycho:
+    name: Psycho
+    prompt: anthropomorphic, beautiful, borderlands 3 psycho portrait, colourful vector,
+      graphic novel, grunge
+    negative_prompt: ''
+  realistic_anime_face: *id080
+  realistic_shaded: &id117
+    name: Realistic Shaded
+    prompt: fine-face, realistic shaded perfect face, fine details. Night setting.
+      Very anime style. Realistic shaded lighting poster by Ilya Kuvshinov katsuhiro,
+      magali villeneuve, artgerm, Jeremy Lipkin and Michael Garmash, Rob Rey and Kentarõ
+      Miura style, trendin
+    negative_prompt: blurry
+  toon_monster: *id021
+  urban_reflections_pensive_portrait__: *id084
+  double_exposure_color_portrait__: *id024
+  floral_fantasy_portrait__: *id025
+  surreal_circular_ocean_view__: *id029
+  intense_monochrome_portrait: *id085
+  vibrant_floral_portrait: *id086
+  abstract_surreal_portrait: *id031
+  contemplative_window_portrait: &id133
+    name: Contemplative Window Portrait
+    prompt: (contemplative portrait photo:1.4), (reflective:1.2), (melancholic:1.2),
+      (moody:1.2), muted colors, natural light, soft focus, medium close-up, through
+      glass, introspective, solitary, quiet, 50mm lens, f/2.8, calm, serene
+  melancholic_outdoor_portrait: *id087
+  cinematic_nighttime_urban_portrait: &id134
+    name: Cinematic Nighttime Urban Portrait
+    prompt: (nighttime urban portrait photo:1.4), (cinematic:1.2), (noir:1.2), (moody:1.2),
+      low light, high contrast, soft grain, film stock, neon lighting, urban setting,
+      reflective surfaces, soft focus, medium close-up, 50mm lens, f/1.8, nostalgic,
+      solitary, melancholic, dramatic shadows
+  retro_pastel_fashion: *id004
+  neon_night_diner: &id118
+    name: Neon Night Diner
+    prompt: (nighttime urban photo:1.4), (neon lights:1.2), (retro:1.2), (moody:1.2),
+      high contrast, soft grain, cinematic, vibrant colors, artificial light, medium
+      close-up, nostalgic, atmospheric, 35mm lens, f/1.8, reflective surfaces, isolated,
+      dramatic shadows
+  gothic_still_life: *id088
+  dramatic_black_and_white_portrait: &id135
+    name: Dramatic Black and White Portrait
+    prompt: (black and white portrait photo:1.4), (dramatic lighting:1.2), (high contrast:1.2),
+      (artistic:1.2), chiaroscuro, close-up, soft focus, sharp details, elegant, mysterious,
+      low-key lighting, expressive, 85mm lens, f/1.8, moody, refined
+  surreal_double_exposure_portrait: *id033
+  vibrant_fashion_portrait: *id089
+  dramatic_shadow_and_highlight_portrait: &id136
+    name: Dramatic Shadow and Highlight Portrait
+    prompt: (high contrast portrait photo:1.4), (dramatic shadows:1.2), (bold makeup:1.2),
+      blown out highlights, high contrast black and white, red spot color, artistic,
+      stark lighting, close-up, soft grain, expressive, rock album cover art, intense
+      gaze, natural light, sharp details, striking, edgy, 50mm lens, f/1.8, moody,
+      dark tones
+  1950s_cinematic_noir: &id137
+    name: 1950s Cinematic Noir
+    prompt: (black and white photo:1.4), (1950s era:1.2), (cinematic:1.2), (noir:1.2),
+      high contrast, deep shadows, sharp details, natural light, nostalgic, dramatic
+      lighting, medium close-up, urban setting, reflective surfaces, 50mm lens, f/2.8,
+      atmospheric, historic, evocative
+  ethereal_water_portrait: *id007
+  vibrant_double_exposure_portrait: *id034
+  vintage_contemplative_portrait: *id090
+  stark_black_and_white_street: *id091
+  ethereal_underwater_portrait: *id035
+  warm_vintage_caf__reflection: *id092
+  gritty_urban_contemplative_portrait: *id093
+  kodachrome_cool_toned_contemplative_portrait: *id094
+  moody_textured_blur: *id095
+  dramatic_spotlight_headshot: *id096
+  exaggerated_vibrant_floral_fantasy_portrait: *id036
+  vintage_street_scene: *id097
+  vibrant_african_documentary_portrait: *id098
+  ornate_portrait: *id037
+  vintage_horror_portrait: *id099
+  retro_room_with_gelled_lighting: *id100
+  indigenous_african_dusk_portrait: *id039
+  minimalist_black_and_white: *id015
+  pastel_classic_portrait: *id008
+  cinematic_noir_window_portrait: *id101
+  dynamic_close_up_movement: *id102
+  dusk_fantasy_teen_portrait: *id048
+  surreal_underwater_portrait: *id049
+  african_art_portrait: *id103
+  dark_60s_cinematic: *id104
+  low_angle_vibrant_water: *id051
+  worn_lomography_tin_plate: *id053
+  urban_adventure_city_lights: &id140
+    name: Urban Adventure City Lights
+    prompt: (urban adventure photo:1.4), (dramatic city lights:1.4), (evening shot:1.2),
+      (side angle:1.2), high contrast, natural light, high detail, sharp focus, moody,
+      atmospheric, dynamic composition, expressive, deep shadows, soft highlights,
+      vibrant, intricate, cinematic, bold, intense, reflective surfaces, urban landscape,
+      street lights, captivating, energetic, 50mm lens, f/1.8, evocative, sophisticated,
+      contemporary
+  double_exposure_nature_portrait: *id054
+  surreal_vibrant_fantasy: *id055
+  nocturnal_pinhole: *id105
+  glacial_nightscape: *id106
+  zen_lakeside_gazebo: *id057
+  foggy_minimalism: *id061
+  gritty_underpass: *id107
+  surreal_primary_still_life: *id108
+  vintage_desert_elegance: *id109
+  retro_glamour_pinup: *id110
+  ethereal_nature_portrait: *id064
+  retro_roadside_teal_orange: *id010
+  1920s_silent_romance: *id111
+  modern_victorian_portraiture: *id112
+  fragmented_greco_roman_sculpture: *id113
+  art_nouveau_elegance:
+    name: Art Nouveau Elegance
+    prompt: Profile portrait of a woman with flowers in her hair and background.
+  abstract_light_projections:
+    name: Abstract Light Projections
+    prompt: Portrait of a person with light projections on their body.
+  blurred_identity:
+    name: Blurred Identity
+    prompt: A woman with her face blurred in motion.
+  rain_streaked_melancholy:
+    name: Rain-Streaked Melancholy
+    prompt: Portrait of a woman behind a rain-streaked window, her hand pressed to
+      the glass
+  floral_pastels:
+    name: Floral Pastels
+    prompt: A woman with long, straight hair adorned with an extravagant enormous
+      headpiece made entirely of dried flowers.
+  urban_double_exposure: &id129
+    name: Urban Double Exposure
+    prompt: Double exposure of A woman wearing round sunglasses, with her portrait
+      blended with architectural elements of a modern building.
+  floral_exposurexxxxxxxx:
+    name: Floral Exposurexxxxxxxx
+    prompt: A woman with long hair, her face superimposed with yellow floral elements.
+  floral_dream_portrait:
+    name: Floral Dream Portrait
+    prompt: Close-up portrait of a woman with closed eyes, overlaid with red flowers.
+  prismatic_refraction:
+    name: Prismatic Refraction
+    prompt: Close-up portrait of a person with eyes closed, light refractions
+  ethereal_blurred_portrait: *id114
+  surreal_retro_collage: *id115
+anime:
+  anime_portrait: *id083
+  comic_art: &id146
+    name: Comic Art
+    prompt: Retro style artwork, comic book art, high details, comic book cover, symmetrical,
+      vibrant colors
+    negative_prompt: ''
+  fashion: *id076
+  oil_painting: *id116
+  poster_illustration:
+    name: Poster Illustration
+    prompt: official fanart behance hd by jesper ejsing, by rhads, makoto shinkai
+      and lois van baarle, ilya kuvshinov, rossdraws global illumination
+    negative_prompt: ''
+  realistic_anime_face: *id080
+  realistic_shaded: *id117
+  tokyo_background: *id081
+  typography: *id082
+  urban_reflections_pensive_portrait__: *id084
+  abstract_artistic_silhouette__: *id027
+  ukiyo_e_landscape__: *id028
+  whimsical_smoke_landscape: *id005
+  neon_night_diner: *id118
+  ethereal_underwater_portrait: *id035
+  vibrant_african_documentary_portrait: *id098
+  ornate_portrait: *id037
+  dynamic_surf_photography: *id119
+  northern_serenity: *id120
+  sunlit_retro_haven: *id121
+  sunset_meadow_dreamscape: *id065
+  whimsical_fantasy_portrait: *id067
+  ethereal_ink_dynamics: *id069
+realistic:
+  anime_portrait: *id083
+  archviz: *id122
+  building: *id073
+  caricature: *id011
+  cute_kawaii: *id013
+  dramatic: &id130
+    name: Dramatic
+    prompt: Wide angle, chaotic cabin in background. vibrant, photorealistic, realistic,
+      dramatic, dark, sharp focus, 8k.
+    negative_prompt: ''
+  horror: *id077
+  isometric: *id123
+  pencil_sketch: *id079
+  postapocalyptic: *id124
+  realistic_shaded: *id117
+  render_3d: *id125
+  stuffed_plush: *id003
+  warm_scene: *id022
+  etched_reality__: *id026
+  gritty_urban_contemplative_portrait: *id093
+  worn_monochrome_seascape: *id038
+  muted_meadow: *id056
+  zen_lakeside_gazebo: *id057
+  haunting_waterfall: *id062
+  vintage_candid_streetview: *id126
+  1920s_silent_romance: *id111
+  modern_victorian_portraiture: *id112
+  fragmented_greco_roman_sculpture: *id113
+architecture:
+  archviz: *id122
+  control_room:
+    name: Control Room
+    prompt: steampunk happy Funny cartoonish at a complex nuclear control room, by
+      Gediminas Pranckevicius H 704, machinarium style, intricate
+    negative_prompt: ''
+  postapocalyptic: *id124
+  retro_pastel_fashion: *id004
+  vintage_contemplative_portrait: *id090
+  retro_room_with_gelled_lighting: *id100
+  zen_lakeside_gazebo: *id057
+  midwestern_sunset_ruin: *id127
+  sunlit_retro_haven: *id121
+  retro_glamour_pinup: *id110
+  retro_roadside_teal_orange: *id010
+  bold_surreal_interiors: *id066
+  burning_news_drama:
+    name: Burning News Drama
+    prompt: A person reading a burning newspaper inside a dimly lit room with a window
+      in the background.
+  vintage_ghost_scene: *id128
+  urban_double_exposure: *id129
+photography:
+  building: *id073
+  caricature: *id011
+  cgi_character: *id012
+  cute_kawaii: *id013
+  dramatic: *id130
+  fashion: *id076
+  illustration: *id078
+  pencil_sketch: *id079
+  photograph:
+    name: Photograph
+    prompt: high quality photography, 3 point lighting, flash with softbox, 4k, Canon
+      EOS R3, hdr, smooth, sharp focus, high resolution, award winning photo, 80mm,
+      f2.8, bokeh
+    negative_prompt: ''
+  render_3d: *id125
+  urban_reflections_pensive_portrait__: *id084
+  vibrant_autumn_landscape__: *id131
+  double_exposure_color_portrait__: *id024
+  floral_fantasy_portrait__: *id025
+  glassy_reflective_landscape__: *id132
+  etched_reality__: *id026
+  abstract_artistic_silhouette__: *id027
+  ukiyo_e_landscape__: *id028
+  surreal_circular_ocean_view__: *id029
+  long_exposure_vibrant_silhouette__: *id030
+  intense_monochrome_portrait: *id085
+  vibrant_floral_portrait: *id086
+  abstract_surreal_portrait: *id031
+  contemplative_window_portrait: *id133
+  vibrant_fantasy_portrait: *id032
+  melancholic_outdoor_portrait: *id087
+  cinematic_nighttime_urban_portrait: *id134
+  retro_pastel_fashion: *id004
+  whimsical_smoke_landscape: *id005
+  neon_night_diner: *id118
+  gothic_still_life: *id088
+  dramatic_black_and_white_portrait: *id135
+  minimalist_desolate_landscape: &id148
+    name: Minimalist Desolate Landscape
+    prompt: (desolate landscape photo:1.4), (minimalist:1.2), (muted colors:1.2),
+      (vintage:1.2), soft light, natural light, wide-angle, high detail, low saturation,
+      nostalgic, melancholic, calm, 35mm lens, f/5.6, empty, serene
+  1950s_black_and_white_street: &id153
+    name: 1950s Black and White Street
+    prompt: (black and white street photo:1.4), (1950s era:1.2), (documentary:1.2),
+      (nostalgic:1.2), high contrast, sharp details, natural light, wide-angle, candid,
+      urban environment, quiet, serene, 50mm lens, f/4, timeless, historic
+  surreal_double_exposure_portrait: *id033
+  vibrant_fashion_portrait: *id089
+  dramatic_shadow_and_highlight_portrait: *id136
+  ethereal_pastel_landscape: *id006
+  dramatic_autumn_landscape: &id154
+    name: Dramatic Autumn Landscape
+    prompt: (vibrant landscape photo:1.4), (hdr:1.4), (dramatic lighting:1.2), (autumn
+      colors:1.2), (high contrast:1.2), rich tones, dynamic sky, reflections, wide-angle,
+      intricate details, natural light, moody, intense, vibrant leaves, soft shadows,
+      24mm lens, f/5.6, atmospheric, striking, evocative
+  1950s_cinematic_noir: *id137
+  ethereal_water_portrait: *id007
+  vibrant_double_exposure_portrait: *id034
+  vintage_contemplative_portrait: *id090
+  stark_black_and_white_street: *id091
+  ethereal_underwater_portrait: *id035
+  cinematic_lake_portrait: *id138
+  warm_vintage_caf__reflection: *id092
+  gritty_urban_contemplative_portrait: *id093
+  kodachrome_cool_toned_contemplative_portrait: *id094
+  moody_textured_blur: *id095
+  dramatic_spotlight_headshot: *id096
+  exaggerated_vibrant_floral_fantasy_portrait: *id036
+  vintage_street_scene: *id097
+  vibrant_african_documentary_portrait: *id098
+  ornate_portrait: *id037
+  vintage_horror_portrait: *id099
+  vibrant_beach_resort: &id149
+    name: Vibrant Beach Resort
+    prompt: (vibrant beach resort photo:1.4), (bright colors:1.4), (high saturation:1.2),
+      (clear blue sky:1.2), natural light, high detail, sharp focus, playful, cheerful,
+      dynamic composition, sunny, colorful umbrellas, reflective water, tropical,
+      lively, energetic, bold, warm tones, soft shadows, beach setting, poolside,
+      relaxed, vacation vibes, 35mm lens, f/5.6, crisp, vivid, joyful
+  retro_room_with_gelled_lighting: *id100
+  worn_monochrome_seascape: *id038
+  indigenous_african_dusk_portrait: *id039
+  minimalist_black_and_white: *id015
+  dynamic_monochrome_with_red_accent: *id040
+  pastel_classic_portrait: *id008
+  dynamic_studio_dance: *id041
+  cinematic_noir_window_portrait: *id101
+  ethereal_floral_film: *id042
+  infrared_colorized_landscape: *id043
+  surrealist_water_composition: *id044
+  surrealist_castle_cloudscape: *id045
+  vibrant_contrasty_clouds: *id046
+  minimalist_foggy_landscape: *id047
+  dynamic_close_up_movement: *id102
+  dusk_fantasy_teen_portrait: *id048
+  after_dusk_northern_landscape: *id139
+  surreal_underwater_portrait: *id049
+  african_art_portrait: *id103
+  retro_pastel_desert: *id009
+  dark_60s_cinematic: *id104
+  macro_vibrant_fantasy_nature: *id050
+  low_angle_vibrant_water: *id051
+  abstract_geometric_surrealism: *id052
+  worn_lomography_tin_plate: *id053
+  urban_adventure_city_lights: *id140
+  aerial_river_landscape: *id141
+  dynamic_surf_photography: *id119
+  double_exposure_nature_portrait: *id054
+  golden_era_cinematic_portrait: *id142
+  enchanted_morning_forest: *id143
+  neon_urban_dreamscape: *id016
+  surreal_vibrant_fantasy: *id055
+  northern_serenity: *id120
+  nocturnal_pinhole: *id105
+  antique_wilderness: *id144
+  glacial_nightscape: *id106
+  muted_meadow: *id056
+  zen_lakeside_gazebo: *id057
+  ink_fusion_portrait: *id058
+  vivid_nature_landscape: *id059
+  underwater_serenity: *id060
+  retro_blue_and_gold: *id145
+  foggy_minimalism: *id061
+  gritty_underpass: *id107
+  haunting_waterfall: *id062
+  surreal_primary_still_life: *id108
+  midwestern_sunset_ruin: *id127
+  sunlit_retro_haven: *id121
+  floating_dreamscape: *id063
+  vintage_desert_elegance: *id109
+  retro_glamour_pinup: *id110
+  ethereal_nature_portrait: *id064
+  sunset_meadow_dreamscape: *id065
+  vintage_candid_streetview: *id126
+  retro_roadside_teal_orange: *id010
+  1920s_silent_romance: *id111
+  bold_surreal_interiors: *id066
+  modern_victorian_portraiture: *id112
+  fragmented_greco_roman_sculpture: *id113
+  whimsical_fantasy_portrait: *id067
+  moody_floral_portrait: *id068
+  vibrant_evening_skyscape: *id070
+  long_exposure_light_painting: *id071
+  lens_ball_reflection: &id163
+    name: Lens Ball Reflection
+    prompt: a lens ball refracting an inverted landscape at sunset.
+vintage:
+  comic_art: *id146
+  fashion: *id076
+  oil_painting: *id116
+  pixar: *id147
+  urban_reflections_pensive_portrait__: *id084
+  etched_reality__: *id026
+  abstract_artistic_silhouette__: *id027
+  surreal_circular_ocean_view__: *id029
+  long_exposure_vibrant_silhouette__: *id030
+  intense_monochrome_portrait: *id085
+  retro_pastel_fashion: *id004
+  neon_night_diner: *id118
+  gothic_still_life: *id088
+  minimalist_desolate_landscape: *id148
+  vibrant_fashion_portrait: *id089
+  dramatic_shadow_and_highlight_portrait: *id136
+  vintage_contemplative_portrait: *id090
+  warm_vintage_caf__reflection: *id092
+  kodachrome_cool_toned_contemplative_portrait: *id094
+  exaggerated_vibrant_floral_fantasy_portrait: *id036
+  vintage_street_scene: *id097
+  vibrant_african_documentary_portrait: *id098
+  ornate_portrait: *id037
+  vintage_horror_portrait: *id099
+  vibrant_beach_resort: *id149
+  retro_room_with_gelled_lighting: *id100
+  worn_monochrome_seascape: *id038
+  indigenous_african_dusk_portrait: *id039
+  dynamic_monochrome_with_red_accent: *id040
+  pastel_classic_portrait: *id008
+  cinematic_noir_window_portrait: *id101
+  ethereal_floral_film: *id042
+  infrared_colorized_landscape: *id043
+  vibrant_contrasty_clouds: *id046
+  dynamic_close_up_movement: *id102
+  after_dusk_northern_landscape: *id139
+  surreal_underwater_portrait: *id049
+  african_art_portrait: *id103
+  retro_pastel_desert: *id009
+  dark_60s_cinematic: *id104
+  macro_vibrant_fantasy_nature: *id050
+  low_angle_vibrant_water: *id051
+  abstract_geometric_surrealism: *id052
+  worn_lomography_tin_plate: *id053
+  urban_adventure_city_lights: *id140
+  dynamic_surf_photography: *id119
+  golden_era_cinematic_portrait: *id142
+  surreal_vibrant_fantasy: *id055
+  antique_wilderness: *id144
+  muted_meadow: *id056
+  zen_lakeside_gazebo: *id057
+  ink_fusion_portrait: *id058
+  retro_blue_and_gold: *id145
+  haunting_waterfall: *id062
+  surreal_primary_still_life: *id108
+  midwestern_sunset_ruin: *id127
+  sunlit_retro_haven: *id121
+  vintage_desert_elegance: *id109
+  retro_glamour_pinup: *id110
+  sunset_meadow_dreamscape: *id065
+  vintage_candid_streetview: *id126
+  retro_roadside_teal_orange: *id010
+  1920s_silent_romance: *id111
+  bold_surreal_interiors: *id066
+  modern_victorian_portraiture: *id112
+  fragmented_greco_roman_sculpture: *id113
+  whimsical_fantasy_portrait: *id067
+  retro_poolside_elegance: &id159
+    name: Retro Poolside Elegance
+    prompt: (1980s lofi:1.4), (hotel pool:1.3), (desaturated:1.2), (low contrast:1.3),
+      (blue tones:1.4), retro, nostalgic, faded colors, relaxed vibe, casual elegance,
+      minimalist, urban oasis, soft lighting, analog feel, dreamy, tranquil atmosphere,
+      cool hues, vintage aesthetic, suburban luxury, architectural details, serene,
+      unpretentious, relaxed, understated, poolside ambiance, sunlight reflections,
+      cool shadows, time capsule, calming, soothing visuals, leisure, retro-chic
+  doorway_solitude: *id150
+  veiled_serenity:
+    name: Veiled Serenity
+    prompt: A woman draped in a translucent veil, holding her chest with a serene
+      expression.
+  surreal_retro_collage: *id115
+sci_fi:
+  cyberpunk: *id023
+  fashion: *id076
+  robotize:
+    name: Robotize
+    prompt: steampunk robot happy Funny cartoonish, by Gediminas Pranckevicius
+    negative_prompt: ''
+  glassy_reflective_landscape__: *id132
+  cinematic_nighttime_urban_portrait: *id134
+  neon_night_diner: *id118
+  infrared_colorized_landscape: *id043
+  neon_urban_dreamscape: *id016
+  gritty_underpass: *id107
+  floating_dreamscape: *id063
+  retro_glamour_pinup: *id110
+  space_dream: &id164
+    name: Space Dream
+    prompt: A woman in a spacesuit helmet filled with flowers, set against a starry
+      night sky with the moon in the background.
+traditional_art:
+  dark:
+    name: Dark
+    prompt: Style of stephen gammell, watercolors, black and white, swamp, shadowy
+      creatures, dripping, infected
+    negative_prompt: ''
+  drawing: *id018
+  oil_painting: *id116
+  pencil_sketch: *id079
+horror:
+  dramatic: *id130
+  horror: *id077
+  nightmare: *id151
+  punky:
+    name: Punky
+    prompt: in a punk style, piercings, tatoos, trash, garbages, color paint splats,
+      coloured spoils, dust and scratches, punk crete, rainbow coloured hairs,synthwave,dark
+      mood lighting
+    negative_prompt: ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn
+      face, out of frame, extra limbs, disfigured, deformed, body out of frame, bad
+      anatomy, watermark, signature, cut off, low contrast, underexposed, overexposed,
+      bad art, beginner, amateur, di
+  floral_fantasy_portrait__: *id025
+  abstract_surreal_portrait: *id031
+  gothic_still_life: *id088
+  dramatic_shadow_and_highlight_portrait: *id136
+  warm_vintage_caf__reflection: *id092
+  vintage_horror_portrait: *id099
+  worn_monochrome_seascape: *id038
+  dark_60s_cinematic: *id104
+  low_angle_vibrant_water: *id051
+  nocturnal_pinhole: *id105
+  sunset_meadow_dreamscape: *id065
+  moody_floral_portrait: *id068
+  long_exposure_light_painting: *id071
+  burning_portal: *id152
+  prismatic_night_portrait:
+    name: Prismatic Night Portrait
+    prompt: Woman with dark hair in a night market setting
+  moody_nature_portrait:
+    name: Moody Nature Portrait
+    prompt: Man in a blue turtleneck amidst dark muted green leaves
+dramatic:
+  dramatic: *id130
+  illustration: *id078
+  toon_monster: *id021
+  urban_reflections_pensive_portrait__: *id084
+  vibrant_autumn_landscape__: *id131
+  floral_fantasy_portrait__: *id025
+  etched_reality__: *id026
+  abstract_artistic_silhouette__: *id027
+  ukiyo_e_landscape__: *id028
+  surreal_circular_ocean_view__: *id029
+  long_exposure_vibrant_silhouette__: *id030
+  intense_monochrome_portrait: *id085
+  abstract_surreal_portrait: *id031
+  contemplative_window_portrait: *id133
+  melancholic_outdoor_portrait: *id087
+  cinematic_nighttime_urban_portrait: *id134
+  neon_night_diner: *id118
+  gothic_still_life: *id088
+  dramatic_black_and_white_portrait: *id135
+  1950s_black_and_white_street: *id153
+  surreal_double_exposure_portrait: *id033
+  vibrant_fashion_portrait: *id089
+  dramatic_shadow_and_highlight_portrait: *id136
+  dramatic_autumn_landscape: *id154
+  1950s_cinematic_noir: *id137
+  vibrant_double_exposure_portrait: *id034
+  stark_black_and_white_street: *id091
+  cinematic_lake_portrait: *id138
+  warm_vintage_caf__reflection: *id092
+  gritty_urban_contemplative_portrait: *id093
+  moody_textured_blur: *id095
+  dramatic_spotlight_headshot: *id096
+  exaggerated_vibrant_floral_fantasy_portrait: *id036
+  ornate_portrait: *id037
+  vintage_horror_portrait: *id099
+  retro_room_with_gelled_lighting: *id100
+  worn_monochrome_seascape: *id038
+  minimalist_black_and_white: *id015
+  dynamic_monochrome_with_red_accent: *id040
+  dynamic_studio_dance: *id041
+  cinematic_noir_window_portrait: *id101
+  ethereal_floral_film: *id042
+  infrared_colorized_landscape: *id043
+  surrealist_water_composition: *id044
+  surrealist_castle_cloudscape: *id045
+  vibrant_contrasty_clouds: *id046
+  minimalist_foggy_landscape: *id047
+  dynamic_close_up_movement: *id102
+  dusk_fantasy_teen_portrait: *id048
+  after_dusk_northern_landscape: *id139
+  surreal_underwater_portrait: *id049
+  african_art_portrait: *id103
+  retro_pastel_desert: *id009
+  dark_60s_cinematic: *id104
+  macro_vibrant_fantasy_nature: *id050
+  low_angle_vibrant_water: *id051
+  abstract_geometric_surrealism: *id052
+  worn_lomography_tin_plate: *id053
+  urban_adventure_city_lights: *id140
+  aerial_river_landscape: *id141
+  dynamic_surf_photography: *id119
+  double_exposure_nature_portrait: *id054
+  golden_era_cinematic_portrait: *id142
+  enchanted_morning_forest: *id143
+  neon_urban_dreamscape: *id016
+  surreal_vibrant_fantasy: *id055
+  northern_serenity: *id120
+  nocturnal_pinhole: *id105
+  glacial_nightscape: *id106
+  zen_lakeside_gazebo: *id057
+  ink_fusion_portrait: *id058
+  vivid_nature_landscape: *id059
+  underwater_serenity: *id060
+  foggy_minimalism: *id061
+  gritty_underpass: *id107
+  haunting_waterfall: *id062
+  surreal_primary_still_life: *id108
+  midwestern_sunset_ruin: *id127
+  vintage_desert_elegance: *id109
+  retro_glamour_pinup: *id110
+  sunset_meadow_dreamscape: *id065
+  vintage_candid_streetview: *id126
+  retro_roadside_teal_orange: *id010
+  1920s_silent_romance: *id111
+  modern_victorian_portraiture: *id112
+  fragmented_greco_roman_sculpture: *id113
+  whimsical_fantasy_portrait: *id067
+  moody_floral_portrait: *id068
+  ethereal_ink_dynamics: *id069
+  vibrant_evening_skyscape: *id070
+  long_exposure_light_painting: *id071
+  vintage_nostalgia: *id155
+product:
+  drawing: *id018
+  figurine: &id158
+    name: Figurine
+    prompt: plastic funky pop figurine, product, studio shot, plain background, diffused
+      lighting, centered
+    negative_prompt: ''
+  isometric: *id123
+  logo: *id156
+  low_poly: *id014
+  origami: *id157
+  sticker: *id020
+  toon_monster: *id021
+  foggy_minimalism: *id061
+  modern_victorian_portraiture: *id112
+  whimsical_fantasy_portrait: *id067
+minimalist:
+  figurine: *id158
+  low_poly: *id014
+  origami: *id157
+  sticker: *id020
+  toon_monster: *id021
+  glassy_reflective_landscape__: *id132
+  etched_reality__: *id026
+  surreal_circular_ocean_view__: *id029
+  minimalist_desolate_landscape: *id148
+  ethereal_pastel_landscape: *id006
+  minimalist_black_and_white: *id015
+  dynamic_monochrome_with_red_accent: *id040
+  dynamic_studio_dance: *id041
+  surrealist_water_composition: *id044
+  minimalist_foggy_landscape: *id047
+  abstract_geometric_surrealism: *id052
+  double_exposure_nature_portrait: *id054
+  muted_meadow: *id056
+  zen_lakeside_gazebo: *id057
+  foggy_minimalism: *id061
+  surreal_primary_still_life: *id108
+  floating_dreamscape: *id063
+  vintage_desert_elegance: *id109
+  ethereal_nature_portrait: *id064
+  fragmented_greco_roman_sculpture: *id113
+  ethereal_ink_dynamics: *id069
+  retro_poolside_elegance: *id159
+landscape:
+  oil_painting: *id116
+  tokyo_background: *id081
+  vibrant_autumn_landscape__: *id131
+  glassy_reflective_landscape__: *id132
+  ukiyo_e_landscape__: *id028
+  surreal_circular_ocean_view__: *id029
+  long_exposure_vibrant_silhouette__: *id030
+  whimsical_smoke_landscape: *id005
+  minimalist_desolate_landscape: *id148
+  ethereal_pastel_landscape: *id006
+  dramatic_autumn_landscape: *id154
+  vibrant_beach_resort: *id149
+  worn_monochrome_seascape: *id038
+  indigenous_african_dusk_portrait: *id039
+  infrared_colorized_landscape: *id043
+  surrealist_castle_cloudscape: *id045
+  minimalist_foggy_landscape: *id047
+  after_dusk_northern_landscape: *id139
+  macro_vibrant_fantasy_nature: *id050
+  low_angle_vibrant_water: *id051
+  urban_adventure_city_lights: *id140
+  aerial_river_landscape: *id141
+  double_exposure_nature_portrait: *id054
+  enchanted_morning_forest: *id143
+  northern_serenity: *id120
+  nocturnal_pinhole: *id105
+  antique_wilderness: *id144
+  glacial_nightscape: *id106
+  zen_lakeside_gazebo: *id057
+  vivid_nature_landscape: *id059
+  foggy_minimalism: *id061
+  midwestern_sunset_ruin: *id127
+  floating_dreamscape: *id063
+  vintage_desert_elegance: *id109
+  ethereal_nature_portrait: *id064
+  sunset_meadow_dreamscape: *id065
+  moody_floral_portrait: *id068
+  vibrant_evening_skyscape: *id070
+  burning_portal: *id152
+  forest_double_exposure:
+    name: Forest Double Exposure
+    prompt: Profile double exposure silhouette of a woman with a forest landscape
+      overlaid.
+  astro_camp_serenity:
+    name: Astro Camp Serenity
+    prompt: tent under a starry night sky, illuminated from inside
+  sunset_silhouette: *id160
+  ghostly_forest_encounter: *id161
+  tranquil_sunset_solitude: *id162
+  lens_ball_reflection: *id163
+  sunset_light_trails:
+    name: Sunset Light Trails
+    prompt: A woman dancing outdoors at sunset, with curved light trails around her.
+  space_dream: *id164
+  starry_silhouette:
+    name: Starry Silhouette
+    prompt: Silhouette of a woman with inset glowing sparks covering, against a sunset
+      sky backdrop.
+other:
+  schematic:
+    name: Schematic
+    prompt: 23rd century scientific schematics, blueprint, hyperdetailed vector technical
+      documents, callouts, legend, patent registry
+    negative_prompt: ''
+  ______________________________________________:
+    name: :---------------------------------------------
+    prompt: :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  dark_ethereal_reflection:
+    name: Dark Ethereal Reflection
+    prompt: Woman with emerging from water
+  backlit_silhouette:
+    name: Backlit Silhouette
+    prompt: Silhouette of a woman with hair tied back, illuminated from behind
+  rob:
+    name: Rob
+    prompt: Human profiles
+  burnt_film_surrealism:
+    name: Burnt Film Surrealism
+    prompt: Silhouette of a man against an urban background with a burnt film effect.
