@@ -10,6 +10,12 @@ data/canvases/
 # 图像生成历史记录
 history.json
 
+# 缩略图预览缓存
+data/media_previews/
+
+# 工具缓存
+tools/*/cache/
+
 # API 密钥配置文件（已改为公开）
 # API/.env
 

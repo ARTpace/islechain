@@ -1,0 +1,116 @@
+# 风格预设翻译报告
+
+- 总数: 280
+- 完整翻译: 280
+- 部分翻译（含未命中段）: 0
+- 未翻译: 0
+- 空名: 0
+- 翻译率（ok+partial）: 100.0%
+
+## 完整翻译（ok，前 100）
+- Fooocus Sharp  →  锐利
+- Fooocus Masterpiece  →  杰作
+- Fooocus Photograph  →  摄影
+- Fooocus Cinematic  →  电影感
+- Fooocus Pony  →  小马
+- Fooocus Enhance  →  增强
+- Fooocus Sharp  →  锐利
+- Fooocus Masterpiece  →  杰作
+- Fooocus Photograph  →  摄影
+- Fooocus Negative  →  负面
+- Fooocus Cinematic  →  电影感
+- sai-3d-model  →  3D 模型
+- sai-analog film  →  模拟胶片
+- sai-anime  →  动漫
+- sai-cinematic  →  电影感
+- sai-comic book  →  漫画书
+- sai-craft clay  →  工艺黏土
+- sai-digital art  →  数字艺术
+- sai-enhance  →  增强
+- sai-fantasy art  →  奇幻艺术
+- sai-isometric  →  等距
+- sai-line art  →  线稿
+- sai-lowpoly  →  低多边形
+- sai-neonpunk  →  霓虹朋克
+- sai-origami  →  折纸
+- sai-photographic  →  摄影
+- sai-pixel art  →  像素艺术
+- sai-texture  →  质感
+- cinematic-diva  →  电影感 DIVA
+- Abstract Expressionism  →  抽象表现主义
+- Academia  →  学院派
+- Action Figure  →  可动人偶
+- Adorable 3D Character  →  可爱 3D 角色
+- Adorable Kawaii  →  可爱卡哇伊
+- Art Deco  →  装饰艺术
+- Art Nouveau  →  新艺术
+- Astral Aura  →  星象光环
+- Avant-garde  →  先锋派
+- Baroque  →  巴洛克
+- Bauhaus-Style Poster  →  包豪斯风海报
+- Blueprint Schematic Drawing  →  蓝图示意图
+- Caricature  →  漫画肖像
+- Cel Shaded Art  →  赛璐璐风格
+- Character Design Sheet  →  角色设计稿
+- Classicism Art  →  古典主义
+- Color Field Painting  →  色域绘画
+- Colored Pencil Art  →  彩铅画
+- Conceptual Art  →  观念艺术
+- Constructivism  →  构成主义
+- Cubism  →  立体主义
+- Dadaism  →  达达主义
+- Dark Fantasy  →  黑暗奇幻
+- Dark Moody Atmosphere  →  阴郁氛围
+- DMT Art Style  →  DMT 艺术风格
+- Doodle Art  →  涂鸦艺术
+- Double Exposure  →  双重曝光
+- Dripping Paint Splatter Art  →  滴落泼溅画
+- Expressionism  →  表现主义
+- Faded Polaroid Photo  →  褪色宝丽来
+- Fauvism  →  野兽派
+- Flat 2D Art  →  扁平 2D 艺术
+- Fortnite Art Style  →  堡垒之夜风格
+- Futurism  →  未来主义
+- Glitchcore  →  故障核
+- Glo-fi  →  梦幻流行
+- Googie Art Style  →  古吉艺术风格
+- Graffiti Art  →  涂鸦艺术
+- Harlem Renaissance Art  →  哈林文艺复兴
+- High Fashion  →  高级时装
+- Idyllic  →  田园诗
+- Impressionism  →  印象派
+- Infographic Drawing  →  信息图
+- Ink Dripping Drawing  →  滴墨画
+- Japanese Ink Drawing  →  日本水墨画
+- Knolling Photography  →  平铺摄影
+- Light Cheery Atmosphere  →  明快欢愉氛围
+- Logo Design  →  标志设计
+- Luxurious Elegance  →  奢华优雅
+- Macro Photography  →  微距摄影
+- Mandola Art  →  曼陀林艺术
+- Marker Drawing  →  马克笔画
+- Medievalism  →  中世纪风格
+- Minimalism  →  极简主义
+- Neo-Baroque  →  新巴洛克
+- Neo-Byzantine  →  新拜占庭
+- Neo-Futurism  →  新未来主义
+- Neo-Impressionism  →  新印象派
+- Neo-Rococo  →  新洛可可
+- Neoclassicism  →  新古典主义
+- Op Art  →  光效艺术
+- Ornate and Intricate  →  繁复华丽
+- Pencil Sketch Drawing  →  铅笔素描
+- Pop Art 2  →  波普艺术 2
+- Rococo  →  洛可可
+- Silhouette Art  →  剪影艺术
+- Simple Vector Art  →  简约矢量艺术
+- Sketchup  →  草图大师
+- Steampunk 2  →  蒸汽朋克 2
+- Surrealism  →  超现实主义
+- Suprematism  →  至上主义
+  ... 还有 180 条
+
+## 部分翻译（ok_partial，前 200）
+
+## 未翻译（unknown）
+  (无)
