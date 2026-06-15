@@ -251,6 +251,7 @@ art-canvas/
 | ComfyUI 设置 | `/api/comfyui/instances`、`/api/comfyui/system_stats`、`/api/comfyui/upload/image` |
 | 工作流 | `/api/workflows`、`/api/workflows/{name}`、`/api/workflows/{name}/config`、`/api/workflows/{name}/run` |
 | 提供商 | `/api/providers`、`/api/providers/test-connection`、`/api/providers/probe-async`、`/api/providers/fetch-models` |
+| 即梦 CLI | `/api/jimeng/status`、`/api/jimeng/credit`、`/api/jimeng/login/start`、`/api/jimeng/login/status`、`/api/jimeng/logout`、`/api/jimeng/help`、`/api/jimeng/query-media` |
 | WebSocket | `/ws/stats` |
 
 ## 数据与文件说明
@@ -285,6 +286,10 @@ art-canvas/
 | `REQUEST_TIMEOUT` | 请求超时时间 |
 | `IMAGE_POLL_INTERVAL` | 图像任务轮询间隔 |
 | `MAX_HISTORY_MESSAGES` | 对话上下文最大历史消息数 |
+| `JIMENG_BIN` / `DREAMINA_BIN` | dreamina CLI 可执行文件路径（可选，默认从 PATH 查找） |
+| `JIMENG_USE_WSL` | 设为 1/true 时通过 WSL 执行 dreamina CLI |
+| `JIMENG_WSL_DISTRO` | WSL 发行版名称（可选） |
+| `JIMENG_POLL_SECONDS` | 即梦 CLI 任务轮询超时秒数，默认 900 |
 
 ## 开发注意事项
 
