@@ -1970,6 +1970,7 @@ def canvas_record(data):
         "id": data.get("id"),
         "title": data.get("title", "未命名画布"),
         "icon": data.get("icon", "🧩"),
+        "kind": data.get("kind", "classic"),
         "created_at": data.get("created_at", 0),
         "updated_at": data.get("updated_at", 0),
         "deleted_at": data.get("deleted_at", 0),
