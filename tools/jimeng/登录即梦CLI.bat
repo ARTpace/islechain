@@ -3,6 +3,7 @@ set DREAMINA=%USERPROFILE%\bin\dreamina.exe
 echo.
 echo === ??CLI?? ===
 echo.
+cd /d "%~dp0\..\.."
 "%DREAMINA%" login
 "%DREAMINA%" user_credit
 if not exist "API" mkdir "API"
