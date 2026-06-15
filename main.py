@@ -16,6 +16,8 @@ import asyncio
 import shlex
 import tempfile
 import threading
+import zipfile
+from io import BytesIO
 import requests
 from typing import List, Dict, Any, Optional
 from threading import Lock
@@ -98,6 +100,15 @@ CANVAS_TASK_LOCK = Lock()
 async def lifespan(app: FastAPI):
     global GLOBAL_LOOP
     GLOBAL_LOOP = asyncio.get_running_loop()
+    # 启动时整理资产库
+    try:
+        await asyncio.to_thread(migrate_asset_library_into_dirs)
+    except Exception as exc:
+        print(f"资产库分组整理失败: {exc}")
+    try:
+        await asyncio.to_thread(migrate_double_extension_uploads)
+    except Exception as exc:
+        print(f"修复双重扩展名素材失败: {exc}")
     print("Application startup complete.")
     yield
     print("Application shutting down.")
@@ -955,6 +966,19 @@ GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 PROMPT_PRESETS_FILE = os.path.join(DATA_DIR, "prompt-presets.json")
 
+# --- 素材库配置 ---
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
+OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
+ASSET_LIBRARY_DIR = os.path.join(ASSETS_DIR, "library")
+LOCAL_UPLOAD_DIR = os.path.join(ASSETS_DIR, "uploads")
+ASSET_LIBRARY_PATH = os.path.join(DATA_DIR, "asset_library.json")
+PROMPT_LIBRARY_PATH = os.path.join(DATA_DIR, "prompt_libraries.json")
+SHARED_FOLDERS_FILE = os.path.join(DATA_DIR, "shared_folders.json")
+MEDIA_PREVIEW_DIR = os.path.join(DATA_DIR, "media_previews")
+LOCAL_IMAGE_IMPORT_MAX_BYTES = int(os.getenv("LOCAL_IMAGE_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
+LOCAL_IMAGE_IMPORT_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
 # === history.json 进程内缓存 ===
 # 第一次 GET 时读盘并缓存,save_to_history 写盘时失效
 # history.json 越大,这个优化收益越明显(从 N ms 读盘 + N ms json.load → 0)
@@ -1327,6 +1351,12 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(WORKFLOW_DIR, exist_ok=True)
 os.makedirs(CONVERSATION_DIR, exist_ok=True)
 os.makedirs(CANVAS_DIR, exist_ok=True)
+os.makedirs(ASSETS_DIR, exist_ok=True)
+os.makedirs(OUTPUT_INPUT_DIR, exist_ok=True)
+os.makedirs(OUTPUT_OUTPUT_DIR, exist_ok=True)
+os.makedirs(ASSET_LIBRARY_DIR, exist_ok=True)
+os.makedirs(LOCAL_UPLOAD_DIR, exist_ok=True)
+os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
 
 # Custom static files with no-cache headers for HTML files
 from starlette.responses import Response
@@ -1570,6 +1600,141 @@ class AdminResetPasswordRequest(BaseModel):
 class AdminDeleteUserRequest(BaseModel):
     token: str = Field(min_length=1)
     username: str = Field(min_length=1, max_length=40)
+
+# --- 素材库 Pydantic 模型 ---
+
+class CanvasAssetCheckRequest(BaseModel):
+    urls: List[str] = []
+
+class CanvasAssetDownloadRequest(BaseModel):
+    urls: List[str] = []
+    items: List[Dict[str, Any]] = []
+    filename: str = "canvas-output-images.zip"
+
+class LocalAssetCaptionRequest(BaseModel):
+    names: List[str] = []
+    provider: str = "comfly"
+    model: str = ""
+    ms_model: str = ""
+    prompt: str = "描述图片"
+
+class LocalAssetCaptionSaveRequest(BaseModel):
+    name: str = ""
+    caption: str = ""
+
+class LocalAssetClassifyRequest(BaseModel):
+    names: List[str] = []
+    provider: str = "comfly"
+    model: str = ""
+    ms_model: str = ""
+    prompt: str = ""
+
+class LocalAssetUrlImportItem(BaseModel):
+    url: str = ""
+    name: str = ""
+    data: str = ""
+    content_type: str = ""
+
+class LocalAssetUrlImportRequest(BaseModel):
+    items: List[LocalAssetUrlImportItem] = []
+    folder: str = ""
+    classify: bool = False
+    provider: str = "comfly"
+    model: str = ""
+    ms_model: str = ""
+    prompt: str = ""
+
+class LocalAssetFolderRequest(BaseModel):
+    parent: str = ""
+    path: str = ""
+    name: str = ""
+
+class LocalAssetRenameRequest(BaseModel):
+    path: str = ""
+    name: str = ""
+
+class AssetLibraryCategoryRequest(BaseModel):
+    name: str = "新文件夹"
+    type: str = "image"
+    library_id: str = ""
+
+class AssetLibraryRequest(BaseModel):
+    name: str = "资产库"
+
+class AssetLibraryAddRequest(BaseModel):
+    category_id: str = ""
+    url: str = ""
+    name: str = ""
+    library_id: str = ""
+
+class AssetLibraryBatchAddRequest(BaseModel):
+    category_id: str = ""
+    library_id: str = ""
+    items: List[AssetLibraryAddRequest] = []
+
+class SharedFolderRegister(BaseModel):
+    path: str = ""
+    name: str = ""
+
+class SharedFolderImport(BaseModel):
+    library_id: str = ""
+    category_id: str = ""
+    folder_id: str = ""
+    paths: List[str] = []
+
+class AssetLibraryRenameRequest(BaseModel):
+    name: str = ""
+    library_id: str = ""
+
+class AssetLibraryBatchDeleteRequest(BaseModel):
+    ids: List[str] = []
+    library_id: str = ""
+
+class AssetLibraryBatchMoveRequest(BaseModel):
+    ids: List[str] = []
+    library_id: str = ""
+    target_library_id: str = ""
+    target_category_id: str = ""
+
+class AssetLibraryBatchCropRequest(BaseModel):
+    ids: List[str] = []
+    library_id: str = ""
+    target_library_id: str = ""
+    target_category_id: str = ""
+    mode: str = "square"
+
+class AssetAvatarRegisterRequest(BaseModel):
+    library_id: str = ""
+    provider_id: str = ""
+    project_name: str = "default"
+    group_name: str = ""
+
+class AssetLibraryClassifyRequest(BaseModel):
+    library_id: str = ""
+    ids: List[str] = []
+    provider: str = "comfly"
+    model: str = ""
+    ms_model: str = ""
+    prompt: str = ""
+
+class PromptLibraryRequest(BaseModel):
+    name: str = "提示词库"
+
+class PromptLibraryItemRequest(BaseModel):
+    library_id: str = ""
+    item_id: str = ""
+    name: str = "提示词"
+    category: str = "custom"
+    positive: str = ""
+    negative: str = ""
+    scene: str = ""
+
+class PromptLibraryBatchDeleteRequest(BaseModel):
+    ids: List[str] = []
+
+class PromptLibraryCategoryRequest(BaseModel):
+    name: str = "新分组"
+    library_id: str = ""
 
 # --- 负载均衡 ---
 
@@ -2190,6 +2355,1184 @@ def upstream_message_from_record(item):
                 content.append({"type": "image_url", "image_url": {"url": url}})
         return {"role": role, "content": content}
     return {"role": role, "content": item.get("content", "")}
+
+# === 素材库辅助函数 ===
+
+def ensure_same_origin_request(request: Request):
+    host = str(request.headers.get("host") or "").lower()
+    expected = f"{request.url.scheme}://{host}".lower() if host else ""
+    origin = origin_from_url(request.headers.get("origin", ""))
+    referer = origin_from_url(request.headers.get("referer", ""))
+    actual = origin or referer
+    if expected and actual != expected:
+        raise HTTPException(status_code=403, detail="只允许从当前页面导入本地图片")
+
+def origin_from_url(value):
+    parsed = urllib.parse.urlparse(str(value or ""))
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}".lower()
+
+def sanitize_export_filename(name: str, fallback: str) -> str:
+    name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "")).strip(" ._")
+    return name[:120] or fallback
+
+def sanitize_asset_name(name, fallback="asset"):
+    name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or fallback)).strip()
+    return name[:120] or fallback
+
+def content_type_for_path(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext in [".mp4", ".m4v"]:
+        return "video/mp4"
+    if ext == ".webm":
+        return "video/webm"
+    if ext == ".mov":
+        return "video/quicktime"
+    if ext == ".avi":
+        return "video/x-msvideo"
+    if ext == ".mkv":
+        return "video/x-matroska"
+    if ext == ".mp3":
+        return "audio/mpeg"
+    if ext == ".wav":
+        return "audio/wav"
+    if ext == ".ogg":
+        return "audio/ogg"
+    if ext == ".flac":
+        return "audio/flac"
+    if ext == ".aac":
+        return "audio/aac"
+    if ext == ".m4a":
+        return "audio/mp4"
+    if ext == ".png":
+        return "image/png"
+    if ext in (".jpg", ".jpeg"):
+        return "image/jpeg"
+    if ext == ".webp":
+        return "image/webp"
+    if ext == ".gif":
+        return "image/gif"
+    if ext == ".txt":
+        return "text/plain"
+    return "application/octet-stream"
+
+def output_file_from_url(url):
+    if isinstance(url, dict):
+        url = url.get("url", "")
+    if not url or not (url.startswith("/output/") or url.startswith("/assets/")):
+        return None
+    clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
+    if clean.startswith("/assets/"):
+        root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
+        rel = clean[len("/assets/"):]
+    else:
+        root = OUTPUT_DIR
+        rel = clean[len("/output/"):]
+    rel = rel.lstrip("/")
+    if not rel:
+        return None
+    path = os.path.abspath(os.path.join(root, rel))
+    output_root = os.path.abspath(root)
+    if os.path.commonpath([output_root, path]) != output_root or not os.path.exists(path):
+        return None
+    return path
+
+def local_media_file_by_basename(name: str):
+    safe = os.path.basename(urllib.parse.unquote(str(name or "")))
+    if not safe:
+        return None
+    roots = [
+        OUTPUT_OUTPUT_DIR,
+        OUTPUT_INPUT_DIR,
+        os.path.join(ASSETS_DIR, "output"),
+        os.path.join(ASSETS_DIR, "input"),
+        os.path.join(ASSETS_DIR, "library"),
+    ]
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        path = os.path.abspath(os.path.join(root, safe))
+        root_abs = os.path.abspath(root)
+        if os.path.commonpath([root_abs, path]) == root_abs and os.path.isfile(path):
+            return path
+    return None
+
+def filename_from_media_url(url: str, fallback: str = "download.bin") -> str:
+    path = urllib.parse.urlsplit(str(url or "")).path
+    name = os.path.basename(urllib.parse.unquote(path))
+    return sanitize_export_filename(name or fallback, fallback)
+
+def fetch_remote_media_bytes(url: str, timeout: float = 30.0, max_bytes: int = 200 * 1024 * 1024):
+    text = str(url or "").strip()
+    parsed = urllib.parse.urlparse(text)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    with requests.get(text, stream=True, timeout=timeout, headers={"User-Agent": "ComfyUI-API-Modelscope/1.0"}) as response:
+        response.raise_for_status()
+        content_type = response.headers.get("content-type") or "application/octet-stream"
+        chunks = []
+        total = 0
+        for chunk in response.iter_content(chunk_size=1024 * 256):
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(status_code=413, detail="文件太大，无法下载")
+            chunks.append(chunk)
+        return b"".join(chunks), content_type
+
+# --- 资产库辅助函数 ---
+
+def default_asset_library():
+    categories = [
+        {"id": "characters", "name": "角色", "type": "image", "items": []},
+        {"id": "scenes", "name": "场景", "type": "image", "items": []},
+        {"id": "workflows", "name": "工作流", "type": "workflow", "items": []},
+    ]
+    return {
+        "active_library_id": "default",
+        "libraries": [{"id": "default", "name": "默认资产库", "type": "asset", "categories": categories}],
+        "categories": categories,
+        "updated_at": now_ms(),
+    }
+
+AVATAR_LEGACY_FLAT_FIELDS = ("platform", "provider_id", "project_name", "avatar_task_id",
+                             "avatar_status", "avatar_detail", "asset_uri", "asset_id", "registered_at")
+
+def migrate_asset_item_registrations(item):
+    if not isinstance(item, dict):
+        return
+    regs = item.get("registrations")
+    if not isinstance(regs, dict):
+        regs = {}
+    legacy_platform = str(item.get("platform") or "").strip()
+    if legacy_platform and legacy_platform not in regs and (item.get("asset_uri") or item.get("avatar_task_id")):
+        regs[legacy_platform] = {
+            "provider_id": item.get("provider_id") or "",
+            "project_name": item.get("project_name") or "default",
+            "task_id": item.get("avatar_task_id") or "",
+            "status": item.get("avatar_status") or "",
+            "detail": item.get("avatar_detail") or "",
+            "asset_uri": item.get("asset_uri") or "",
+            "asset_id": item.get("asset_id") or "",
+            "registered_at": item.get("registered_at") or 0,
+        }
+    item["registrations"] = regs if isinstance(regs, dict) else {}
+    for key in AVATAR_LEGACY_FLAT_FIELDS:
+        item.pop(key, None)
+
+def normalize_asset_library(lib):
+    if not isinstance(lib, dict):
+        lib = default_asset_library()
+    legacy_categories = lib.get("categories") if isinstance(lib.get("categories"), list) else None
+    libraries = lib.get("libraries") if isinstance(lib.get("libraries"), list) else []
+    if not libraries:
+        libraries = [{
+            "id": "default",
+            "name": "默认资产库",
+            "type": "asset",
+            "categories": legacy_categories or default_asset_library()["categories"],
+        }]
+    for library in libraries:
+        library["id"] = re.sub(r"[^A-Za-z0-9_-]+", "_", str(library.get("id") or f"lib_{uuid.uuid4().hex[:8]}"))[:40]
+        library["name"] = sanitize_asset_name(library.get("name") or "资产库", "资产库")
+        cats = library.get("categories") if isinstance(library.get("categories"), list) else []
+        if library.get("id") == "default" and not any(c.get("type") == "workflow" for c in cats):
+            cats.append({"id": "workflows", "name": "工作流", "type": "workflow", "items": []})
+        for cat in cats:
+            for item in (cat.get("items") or []):
+                migrate_asset_item_registrations(item)
+        library["categories"] = cats
+    active = str(lib.get("active_library_id") or libraries[0].get("id") or "default")
+    if not any(item.get("id") == active for item in libraries):
+        active = libraries[0].get("id") or "default"
+    active_library = next((item for item in libraries if item.get("id") == active), libraries[0])
+    lib["libraries"] = libraries
+    lib["active_library_id"] = active
+    lib["categories"] = active_library.get("categories") or []
+    lib["updated_at"] = int(lib.get("updated_at") or now_ms())
+    sort_asset_library_items(lib)
+    return lib
+
+def sort_asset_library_items(lib):
+    cats = list(lib.get("categories", []))
+    for library in lib.get("libraries", []) if isinstance(lib.get("libraries"), list) else []:
+        cats.extend(library.get("categories") or [])
+    seen = set()
+    for cat in cats:
+        if id(cat) in seen:
+            continue
+        seen.add(id(cat))
+        items = cat.get("items")
+        if isinstance(items, list):
+            def created_at_key(item):
+                if not isinstance(item, dict):
+                    return 0
+                try:
+                    return int(float(item.get("created_at") or 0))
+                except (TypeError, ValueError):
+                    return 0
+            items.sort(key=created_at_key, reverse=True)
+
+def load_asset_library():
+    if not os.path.exists(ASSET_LIBRARY_PATH):
+        lib = default_asset_library()
+        save_asset_library(lib)
+        return lib
+    try:
+        with open(ASSET_LIBRARY_PATH, "r", encoding="utf-8") as f:
+            lib = json.load(f)
+    except Exception:
+        lib = default_asset_library()
+    return normalize_asset_library(lib)
+
+def save_asset_library(lib):
+    lib = normalize_asset_library(lib)
+    sort_asset_library_items(lib)
+    lib["updated_at"] = now_ms()
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(ASSET_LIBRARY_PATH, "w", encoding="utf-8") as f:
+        json.dump(lib, f, ensure_ascii=False, indent=2)
+
+def asset_library_media_kind(path: str, content_type: str = "") -> str:
+    ext = os.path.splitext(path or "")[1].lower()
+    ct = (content_type or "").lower()
+    if ext in {".json", ".zip"}:
+        return "workflow"
+    if ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"} or ct.startswith("video/"):
+        return "video"
+    if ext in {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"} or ct.startswith("audio/"):
+        return "audio"
+    return "image"
+
+def asset_library_safe_extension(path: str, kind: str) -> str:
+    ext = os.path.splitext(path or "")[1].lower()
+    allowed = {
+        "image": {".png", ".jpg", ".jpeg", ".webp", ".gif"},
+        "video": {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"},
+        "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"},
+        "workflow": {".json", ".zip"},
+    }
+    fallback = {"image": ".png", "video": ".mp4", "audio": ".mp3", "workflow": ".zip"}
+    return ext if ext in allowed.get(kind, allowed["image"]) else fallback.get(kind, ".png")
+
+def unique_asset_category_dir(library, base_name: str) -> str:
+    base = sanitize_asset_name(base_name, "分组").strip(" .") or "分组"
+    existing = {
+        str(c.get("dir")) for c in (library.get("categories") or [])
+        if isinstance(c, dict) and c.get("dir")
+    }
+    candidate = base
+    i = 2
+    while candidate in existing or os.path.exists(os.path.join(ASSET_LIBRARY_DIR, candidate)):
+        candidate = f"{base}_{i}"
+        i += 1
+    return candidate
+
+def remove_asset_library_file(item) -> None:
+    try:
+        url = item.get("url") if isinstance(item, dict) else ""
+        path = output_file_from_url(url)
+        if path and os.path.isfile(path):
+            os.remove(path)
+    except Exception as exc:
+        print(f"删除资产文件失败: {exc}")
+
+def make_asset_library_item(src: str, name: str = "", subdir: str = "") -> Tuple[str, Dict[str, Any]]:
+    kind = asset_library_media_kind(src)
+    ext = asset_library_safe_extension(src, kind)
+    safe_name = sanitize_asset_name(name or os.path.basename(src), "asset")
+    if not os.path.splitext(safe_name)[1]:
+        safe_name += ext
+    dest_name = f"lib_{uuid.uuid4().hex[:12]}_{safe_name}"
+    subdir = str(subdir or "").strip("/").strip()
+    if subdir:
+        dest_dir = os.path.join(ASSET_LIBRARY_DIR, subdir)
+        os.makedirs(dest_dir, exist_ok=True)
+        dest_path = os.path.join(dest_dir, dest_name)
+        rel = f"{subdir}/{dest_name}"
+    else:
+        dest_path = os.path.join(ASSET_LIBRARY_DIR, dest_name)
+        rel = dest_name
+    shutil.copy2(src, dest_path)
+    item = {
+        "id": f"asset_{uuid.uuid4().hex[:12]}",
+        "name": os.path.splitext(safe_name)[0][:120],
+        "url": "/assets/library/" + urllib.parse.quote(rel, safe="/"),
+        "kind": kind,
+        "created_at": now_ms(),
+    }
+    return dest_name, item
+
+def make_workflow_library_item_from_bytes(raw: bytes, filename: str, name: str = "") -> Dict[str, Any]:
+    ext = os.path.splitext(filename or "")[1].lower()
+    display_name = sanitize_asset_name(name or os.path.splitext(filename)[0], "workflow")
+    dest_name = f"wf_{uuid.uuid4().hex[:8]}_{display_name}{ext or '.zip'}"
+    dest_path = os.path.join(ASSET_LIBRARY_DIR, dest_name)
+    os.makedirs(ASSET_LIBRARY_DIR, exist_ok=True)
+    with open(dest_path, "wb") as f:
+        f.write(raw)
+    return {
+        "id": f"wf_{uuid.uuid4().hex[:12]}",
+        "name": display_name[:120],
+        "url": f"/assets/library/{dest_name}",
+        "kind": "workflow",
+        "type": "workflow",
+        "format": "zip" if ext == ".zip" else "json",
+        "size": len(raw),
+        "created_at": now_ms(),
+    }
+
+def find_asset_category(lib, category_id):
+    for cat in lib.get("categories", []):
+        if cat.get("id") == category_id:
+            return cat
+    return None
+
+def find_asset_library(lib, library_id=""):
+    lib = normalize_asset_library(lib)
+    library_id = str(library_id or lib.get("active_library_id") or "").strip()
+    return next((item for item in lib.get("libraries", []) if item.get("id") == library_id), None) or (lib.get("libraries") or [None])[0]
+
+def find_asset_category_in_library(lib, category_id, library_id=""):
+    library = find_asset_library(lib, library_id)
+    if not library:
+        return None
+    for cat in library.get("categories", []):
+        if cat.get("id") == category_id:
+            return cat
+    return None
+
+def find_asset_category_with_library(lib, category_id, library_id=""):
+    lib = normalize_asset_library(lib)
+    preferred = str(library_id or "").strip()
+    libraries = lib.get("libraries", []) or []
+    if preferred:
+        libraries = [item for item in libraries if item.get("id") == preferred]
+    for library in libraries:
+        for cat in library.get("categories", []) or []:
+            if cat.get("id") == category_id:
+                return library, cat
+    return None, None
+
+def find_asset_item_in_library(lib, item_id, library_id=""):
+    for library in lib.get("libraries", []):
+        if library_id and library.get("id") != library_id:
+            continue
+        for cat in library.get("categories", []):
+            for item in cat.get("items", []):
+                if item.get("id") == item_id:
+                    return item
+    return None
+
+def migrate_asset_library_into_dirs():
+    try:
+        lib = load_asset_library()
+    except Exception as exc:
+        print(f"资产库分组整理：加载失败 {exc}")
+        return
+    changed = False
+    for library in lib.get("libraries", []) or []:
+        for cat in library.get("categories", []) or []:
+            if cat.get("type") == "workflow":
+                continue
+            cat_dir = cat.get("dir") or ""
+            if not cat_dir:
+                cat_dir = unique_asset_category_dir(library, cat.get("name") or "分组")
+                cat["dir"] = cat_dir
+                changed = True
+            cat_abs = os.path.join(ASSET_LIBRARY_DIR, cat_dir)
+            os.makedirs(cat_abs, exist_ok=True)
+    if changed:
+        save_asset_library(lib)
+
+def get_primary_provider_id(providers=None):
+    for p in (providers or load_api_providers()):
+        if p.get("primary") and p.get("enabled", True):
+            return p["id"]
+    for p in load_api_providers():
+        if p.get("enabled", True):
+            return p["id"]
+    return "comfly"
+
+# --- 资产分类辅助 ---
+
+ASSET_CLASSIFICATION_PROMPT = """请识别这张图片，输出严格 JSON，不要 Markdown，不要解释。
+目标是给素材库做非常全面的筛选分类。所有字段都用中文短标签数组，尽量具体但不要虚构。
+JSON 结构：
+{
+  "summary": "一句话描述",
+  "categories": {
+    "environment": ["室内/室外/自然/城市/棚拍/商业空间等环境大类"],
+    "scene": ["室内/室外/棚拍/街景/自然/商业空间等"],
+    "space": ["卧室/餐厅/客厅/厨房/浴室/办公室/店铺/展厅/户外道路等"],
+    "subject": ["人物/模特/产品/家具/建筑/食物/动物/车辆/植物等"],
+    "model": ["无人/单人模特/多人模特/男性模特/女性模特/儿童模特/半身模特/全身模特/手部模特等"],
+    "people": ["无人/单人/多人/男性/女性/儿童/半身/全身/手部特写等"],
+    "style": ["写实/摄影/插画/3D/极简/奢华/复古/现代/电商/电影感等"],
+    "lighting": ["自然光/硬光/柔光/逆光/侧光/夜景/暖光/冷光/高对比/低对比等"],
+    "color": ["白色/黑色/暖色/冷色/高饱和/低饱和/莫兰迪/金属色等"],
+    "composition": ["近景/中景/远景/俯拍/仰拍/正面/侧面/居中/留白/对称/特写等"],
+    "mood": ["温馨/高级/清爽/科技/自然/浪漫/神秘/活力/安静等"],
+    "use_case": ["广告/电商主图/海报/社媒/样机/参考图/背景/角色参考/空间参考等"],
+    "objects": ["画面中重要物体"],
+    "materials": ["木材/金属/玻璃/布料/皮革/石材/陶瓷等"],
+    "quality": ["高清/模糊/低清/噪点/水印/截图/透明背景等"]
+  },
+  "tags": ["综合关键词，20个以内"]
+}
+要求：只返回可解析 JSON；每个数组最多 8 项；如果不确定就省略该标签。"""
+
+ASSET_CLASSIFICATION_DIMENSION_NAMES = {
+    "environment": "环境", "scene": "场景", "space": "空间",
+    "subject": "主体", "model": "模特", "people": "人物",
+    "style": "风格", "lighting": "光影", "color": "色彩",
+    "composition": "构图", "mood": "氛围", "use_case": "用途",
+    "objects": "物体", "materials": "材质", "quality": "质量",
+}
+
+def _local_upload_classification_path(filename):
+    return os.path.splitext(os.path.join(LOCAL_UPLOAD_DIR, filename))[0] + ".classification.json"
+
+def _safe_asset_tag(value, limit=24):
+    text = re.sub(r"\s+", " ", str(value or "").strip())
+    text = re.sub(r"^[#＃]+", "", text).strip(" ,，、;；|/")
+    return text[:limit]
+
+def normalize_asset_classification(raw):
+    if not isinstance(raw, dict):
+        raw = {}
+    categories = raw.get("categories") if isinstance(raw.get("categories"), dict) else {}
+    clean_categories = {}
+    flat = []
+    for key, values in categories.items():
+        norm_key = re.sub(r"[^A-Za-z0-9_-]+", "_", str(key or "").strip().lower())[:40]
+        if not norm_key:
+            continue
+        if isinstance(values, str):
+            values = re.split(r"[,，、/|;；\n]+", values)
+        if not isinstance(values, list):
+            continue
+        clean_values = []
+        seen = set()
+        for value in values:
+            tag = _safe_asset_tag(value)
+            if not tag or tag in seen:
+                continue
+            seen.add(tag)
+            clean_values.append(tag)
+            flat.append({"dimension": norm_key, "label": ASSET_CLASSIFICATION_DIMENSION_NAMES.get(norm_key, norm_key), "tag": tag})
+            if len(clean_values) >= 8:
+                break
+        if clean_values:
+            clean_categories[norm_key] = clean_values
+    tags = raw.get("tags") if isinstance(raw.get("tags"), list) else []
+    clean_tags = []
+    seen_tags = set()
+    for value in tags:
+        tag = _safe_asset_tag(value)
+        if not tag or tag in seen_tags:
+            continue
+        seen_tags.add(tag)
+        clean_tags.append(tag)
+        flat.append({"dimension": "tags", "label": "标签", "tag": tag})
+        if len(clean_tags) >= 20:
+            break
+    seen_flat = set()
+    flat_unique = []
+    for item in flat:
+        key = f"{item['dimension']}::{item['tag']}"
+        if key in seen_flat:
+            continue
+        seen_flat.add(key)
+        flat_unique.append(item)
+    return {
+        "summary": str(raw.get("summary") or "").strip()[:240],
+        "categories": clean_categories,
+        "tags": clean_tags,
+        "flat": flat_unique,
+        "updated_at": now_ms(),
+    }
+
+def parse_asset_classification_text(text):
+    value = str(text or "").strip()
+    if not value:
+        return normalize_asset_classification({})
+    value = re.sub(r"^```(?:json)?\s*", "", value, flags=re.IGNORECASE).strip()
+    value = re.sub(r"\s*```$", "", value).strip()
+    try:
+        data = json.loads(value)
+    except Exception:
+        match = re.search(r"\{.*\}", value, re.S)
+        data = json.loads(match.group(0)) if match else {}
+    return normalize_asset_classification(data)
+
+def _read_local_upload_classification(filename):
+    path = _local_upload_classification_path(filename)
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return normalize_asset_classification(json.load(f))
+    except Exception:
+        return None
+
+def _write_local_upload_classification(filename, classification):
+    path = _local_upload_classification_path(filename)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(normalize_asset_classification(classification), f, ensure_ascii=False, indent=2)
+
+def asset_classification_prompt(extra_prompt=""):
+    extra = str(extra_prompt or "").strip()
+    if not extra:
+        return ASSET_CLASSIFICATION_PROMPT
+    return ASSET_CLASSIFICATION_PROMPT + "\n\n用户补充分类要求：\n" + extra[:4000]
+
+async def classify_image_with_provider(abs_path, provider_id="", model="", ms_model="", prompt=""):
+    text, resolved_model = await caption_image_with_provider(
+        abs_path,
+        asset_classification_prompt(prompt),
+        provider_id or get_primary_provider_id(),
+        model,
+        ms_model,
+    )
+    classification = parse_asset_classification_text(text)
+    classification["model"] = resolved_model
+    classification["provider"] = provider_id or get_primary_provider_id()
+    return classification
+
+async def classify_asset_image_best_effort(abs_path, provider_id="", model="", ms_model="", prompt=""):
+    try:
+        return await classify_image_with_provider(abs_path, provider_id, model, ms_model, prompt)
+    except Exception as exc:
+        print(f"素材智能分类失败: {exc}")
+        return None
+
+async def caption_image_with_provider(abs_path, prompt, provider_id, model, ms_model=""):
+    chat_base, chat_hdrs, resolved_model = resolve_chat_provider(provider_id, model, ms_model)
+    prompt_text = (prompt or "描述图片").strip() or "描述图片"
+    data_url = image_path_to_data_url(abs_path, max_size=1024)
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": prompt_text},
+            {"type": "image_url", "image_url": {"url": data_url}},
+        ],
+    }]
+    raw = None
+    try:
+        async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+            response = await client.post(
+                f"{chat_base}/chat/completions",
+                headers=chat_hdrs,
+                json={"model": resolved_model, "messages": messages},
+            )
+            response.raise_for_status()
+            raw = response.json()
+    except httpx.HTTPStatusError as exc:
+        body = exc.response.text or ""
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{body[:200]}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"解析上游响应失败：{exc}") from exc
+    text = text_from_chat_response(raw).strip() if isinstance(raw, dict) else ""
+    return text or "接口返回了空回复。", resolved_model
+
+def image_path_to_data_url(path, max_size=1024):
+    if max_size:
+        try:
+            with Image.open(path) as img:
+                img.load()
+                if max(img.size) > max_size:
+                    img.thumbnail((max_size, max_size), Image.LANCZOS)
+                if img.mode not in ("RGB", "RGBA"):
+                    img = img.convert("RGB")
+                from io import BytesIO
+                buf = BytesIO()
+                fmt = "PNG" if img.mode == "RGBA" else "JPEG"
+                img.save(buf, format=fmt, quality=88 if fmt == "JPEG" else None)
+                encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+                mime = "image/png" if fmt == "PNG" else "image/jpeg"
+                return f"data:{mime};base64,{encoded}"
+        except Exception as e:
+            print(f"image_path_to_data_url resize failed: {e}")
+    with open(path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("ascii")
+    return f"data:{content_type_for_path(path)};base64,{encoded}"
+
+# --- 共享文件夹辅助 ---
+
+SHARED_MEDIA_EXTS = {
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp",
+    ".mp4", ".webm", ".mov", ".m4v", ".mkv",
+    ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac",
+}
+SHARED_SCAN_MAX_ENTRIES = 8000
+SHARED_FOLDERS_LOCK = Lock()
+
+def shared_folders_load():
+    try:
+        with open(SHARED_FOLDERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    folders = data.get("folders")
+    if not isinstance(folders, list):
+        folders = []
+    return {"folders": [f for f in folders if isinstance(f, dict)]}
+
+def shared_folders_save(data):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(SHARED_FOLDERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def shared_folder_by_id(folder_id):
+    for entry in shared_folders_load().get("folders", []):
+        if entry.get("id") == folder_id:
+            return entry
+    return None
+
+def shared_folder_abs(entry):
+    rel = (entry or {}).get("rel") or ""
+    return os.path.normpath(os.path.join(BASE_DIR, rel))
+
+def shared_resolve_register(path):
+    raw = (path or "").strip().strip('"').strip("'")
+    if not raw:
+        raise HTTPException(status_code=400, detail="请提供文件夹路径")
+    candidate = raw if os.path.isabs(raw) else os.path.join(BASE_DIR, raw)
+    abs_path = os.path.normpath(os.path.abspath(candidate))
+    base = os.path.normpath(os.path.abspath(BASE_DIR))
+    try:
+        common = os.path.commonpath([abs_path, base])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="只允许登记项目目录内的文件夹")
+    if common != base:
+        raise HTTPException(status_code=400, detail="只允许登记项目目录内的文件夹")
+    if abs_path == base:
+        raise HTTPException(status_code=400, detail="不能直接登记项目根目录，请选择子文件夹")
+    if not os.path.isdir(abs_path):
+        raise HTTPException(status_code=400, detail="文件夹不存在")
+    rel = os.path.relpath(abs_path, base)
+    return abs_path, rel
+
+def shared_child_abs(folder_abs, rel):
+    rel = (rel or "").replace("\\", "/").lstrip("/")
+    abs_path = os.path.normpath(os.path.join(folder_abs, rel))
+    base = os.path.normpath(os.path.abspath(folder_abs))
+    try:
+        common = os.path.commonpath([os.path.abspath(abs_path), base])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="非法路径")
+    if common != base:
+        raise HTTPException(status_code=400, detail="非法路径")
+    return abs_path
+
+def scan_shared_tree(folder_id, folder_abs, rel_prefix="", display="", counter=None):
+    if counter is None:
+        counter = {"n": 0}
+    node = {
+        "id": f"{folder_id}:{rel_prefix or '__root__'}",
+        "name": display or os.path.basename(folder_abs) or folder_abs,
+        "path": rel_prefix,
+        "items": [],
+        "children": [],
+    }
+    try:
+        entries = sorted(os.scandir(folder_abs), key=lambda e: (not e.is_dir(), e.name.lower()))
+    except OSError:
+        return node
+    for ent in entries:
+        if counter["n"] >= SHARED_SCAN_MAX_ENTRIES:
+            break
+        if ent.name.startswith(".") or ent.name.startswith("._"):
+            continue
+        child_rel = f"{rel_prefix}/{ent.name}".lstrip("/")
+        if ent.is_dir():
+            child = scan_shared_tree(folder_id, ent.path, child_rel, ent.name, counter)
+            if child["items"] or child["children"]:
+                node["children"].append(child)
+        elif ent.is_file():
+            ext = os.path.splitext(ent.name)[1].lower()
+            if ext not in SHARED_MEDIA_EXTS:
+                continue
+            counter["n"] += 1
+            try:
+                st = ent.stat()
+                size = st.st_size
+                mtime = int(st.st_mtime * 1000)
+            except OSError:
+                size = 0
+                mtime = 0
+            node["items"].append({
+                "id": f"{folder_id}:{child_rel}",
+                "name": ent.name,
+                "url": f"/api/shared-folders/{folder_id}/file?path={urllib.parse.quote(child_rel)}",
+                "kind": asset_library_media_kind(ent.name),
+                "size": size,
+                "lastModified": mtime,
+                "relativePath": child_rel,
+                "folderId": folder_id,
+            })
+    return node
+
+# --- 本地素材管理辅助 ---
+
+def _local_upload_kind_ext(filename, content_type):
+    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    video_exts = {".mp4", ".webm", ".mov", ".m4v", ".flv"}
+    audio_exts = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
+    ext = os.path.splitext(filename or "")[1].lower()
+    ct = (content_type or "").lower()
+    if ext in video_exts or ct.startswith("video/"):
+        if ext not in video_exts:
+            ext = ".webm" if "webm" in ct else ".mov" if "quicktime" in ct else ".mp4"
+        return "video", ext
+    if ext in audio_exts or ct.startswith("audio/"):
+        if ext not in audio_exts:
+            ext = ".wav" if "wav" in ct else ".ogg" if "ogg" in ct else ".m4a" if "mp4" in ct else ".mp3"
+        return "audio", ext
+    if ext in image_exts or ct.startswith("image/"):
+        if ext not in image_exts:
+            ext = ".jpg" if "jpeg" in ct else ".webp" if "webp" in ct else ".gif" if "gif" in ct else ".png"
+        return "image", ext
+    return None, ext
+
+def _local_upload_display_name(filename):
+    base = os.path.basename(str(filename or ""))
+    m = re.match(r"^up_[0-9a-f]{12}_(.+)$", base)
+    return m.group(1) if m else base
+
+def _local_upload_rel_path(value):
+    text = str(value or "").replace("\\", "/").strip().lstrip("/")
+    if not text:
+        return ""
+    norm = os.path.normpath(text).replace("\\", "/")
+    if norm in {".", ""}:
+        return ""
+    if norm.startswith("../") or norm == ".." or os.path.isabs(norm):
+        raise HTTPException(status_code=400, detail="非法路径")
+    return norm
+
+def _local_upload_abs(rel):
+    rel_path = _local_upload_rel_path(rel)
+    path = os.path.abspath(os.path.join(LOCAL_UPLOAD_DIR, rel_path))
+    root = os.path.abspath(LOCAL_UPLOAD_DIR)
+    try:
+        common = os.path.commonpath([root, path])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="非法路径")
+    if common != root:
+        raise HTTPException(status_code=400, detail="非法路径")
+    return rel_path, path
+
+def _local_upload_safe_path(name):
+    filename, path = _local_upload_abs(name)
+    if not filename:
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+    return filename, path
+
+def _local_upload_safe_folder(path_value):
+    rel, path = _local_upload_abs(path_value)
+    return rel, path
+
+def _local_upload_safe_folder_name(name):
+    cleaned = sanitize_asset_name(os.path.basename(str(name or "").strip()), "")
+    cleaned = re.sub(r"[\\/]+", "_", cleaned).strip(" ._")
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="文件夹名称不能为空")
+    return cleaned[:60]
+
+def _local_upload_safe_file_stem(name):
+    raw = os.path.splitext(os.path.basename(str(name or "").strip()))[0]
+    cleaned = sanitize_asset_name(raw, "")
+    cleaned = re.sub(r"[\\/]+", "_", cleaned).strip(" ._")
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="文件名称不能为空")
+    return cleaned[:120]
+
+def _local_upload_caption_path(filename):
+    return os.path.splitext(os.path.join(LOCAL_UPLOAD_DIR, filename))[0] + ".txt"
+
+def _read_local_upload_caption(filename):
+    caption_path = _local_upload_caption_path(filename)
+    if not os.path.isfile(caption_path):
+        return "", ""
+    try:
+        with open(caption_path, "r", encoding="utf-8-sig") as f:
+            text = f.read()
+    except UnicodeDecodeError:
+        with open(caption_path, "r", encoding="gb18030", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return "", ""
+    return text, os.path.basename(caption_path)
+
+def _local_upload_item(filename):
+    path = os.path.join(LOCAL_UPLOAD_DIR, filename)
+    rel = _local_upload_rel_path(filename)
+    try:
+        stat = os.stat(path)
+        size = stat.st_size
+        created_at = stat.st_mtime
+    except OSError:
+        size = 0
+        created_at = 0
+    kind, _ = _local_upload_kind_ext(filename, "")
+    item = {
+        "id": rel,
+        "file": rel,
+        "name": _local_upload_display_name(rel),
+        "url": f"/assets/uploads/{urllib.parse.quote(rel, safe='/')}",
+        "kind": kind or "image",
+        "size": size,
+        "created_at": created_at,
+        "folder": os.path.dirname(rel).replace("\\", "/"),
+    }
+    if kind == "image":
+        try:
+            with Image.open(path) as img:
+                item["natural_w"], item["natural_h"] = img.size
+                item["width"], item["height"] = img.size
+        except Exception:
+            pass
+        caption, caption_file = _read_local_upload_caption(filename)
+        item["caption"] = caption
+        item["caption_file"] = caption_file
+        classification = _read_local_upload_classification(filename)
+        if classification:
+            item["classification"] = classification
+    return item
+
+def _local_upload_folder_node(path="", name="全部上传"):
+    rel = _local_upload_rel_path(path)
+    return {
+        "id": rel or "__root__",
+        "path": rel,
+        "name": name if not rel else os.path.basename(rel),
+        "items": [],
+        "children": [],
+    }
+
+def _local_upload_tree_and_items():
+    root_node = _local_upload_folder_node("", "全部上传")
+    folder_map = {"": root_node}
+    items = []
+    for current, dirs, files in os.walk(LOCAL_UPLOAD_DIR):
+        dirs[:] = sorted([d for d in dirs if not d.startswith(".") and not d.startswith("._")], key=str.lower)
+        rel_dir = os.path.relpath(current, LOCAL_UPLOAD_DIR).replace("\\", "/")
+        if rel_dir == ".":
+            rel_dir = ""
+        node = folder_map.get(rel_dir)
+        if node is None:
+            node = _local_upload_folder_node(rel_dir)
+            folder_map[rel_dir] = node
+        for dirname in dirs:
+            child_rel = f"{rel_dir}/{dirname}".lstrip("/")
+            child = _local_upload_folder_node(child_rel)
+            folder_map[child_rel] = child
+            node["children"].append(child)
+        for name in sorted(files, key=str.lower):
+            if name.startswith(".") or name.startswith("._"):
+                continue
+            rel_file = f"{rel_dir}/{name}".lstrip("/")
+            kind, _ = _local_upload_kind_ext(name, "")
+            if kind is None:
+                continue
+            item = _local_upload_item(rel_file)
+            node["items"].append(item)
+            items.append(item)
+    def fill_counts(node):
+        total = len(node.get("items") or [])
+        for child in node.get("children") or []:
+            total += fill_counts(child)
+        node["count"] = total
+        return total
+    fill_counts(root_node)
+    items.sort(key=lambda it: it.get("created_at") or 0, reverse=True)
+    return root_node, items
+
+_DOUBLE_EXT_RE = re.compile(r'(\.[A-Za-z0-9]{1,5})\1$', re.IGNORECASE)
+_DOUBLE_EXT_MEDIA = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif",
+                     ".mp4", ".webm", ".mov", ".m4v", ".flv"}
+
+def migrate_double_extension_uploads():
+    if not os.path.isdir(LOCAL_UPLOAD_DIR):
+        return
+    renamed = 0
+    for current, _dirs, files in os.walk(LOCAL_UPLOAD_DIR):
+        for name in files:
+            m = _DOUBLE_EXT_RE.search(name)
+            if not m or m.group(1).lower() not in _DOUBLE_EXT_MEDIA:
+                continue
+            old_path = os.path.join(current, name)
+            new_path = os.path.join(current, name[:-len(m.group(1))])
+            if os.path.exists(new_path):
+                continue
+            try:
+                os.rename(old_path, new_path)
+            except OSError:
+                continue
+            renamed += 1
+            old_base = os.path.splitext(old_path)[0]
+            new_base = os.path.splitext(new_path)[0]
+            for suffix in (".classification.json", ".txt"):
+                src_side, dst_side = old_base + suffix, new_base + suffix
+                if os.path.exists(src_side) and not os.path.exists(dst_side):
+                    try:
+                        os.rename(src_side, dst_side)
+                    except OSError:
+                        pass
+    if renamed:
+        print(f"修复双重扩展名素材: {renamed} 个")
+
+# --- 画布资产辅助 ---
+
+def canvas_assets_index():
+    canvases = []
+    items = []
+    canvas_counts = {"all": 0, "smart": 0, "classic": 0}
+    item_counts = {"all": 0, "smart": 0, "classic": 0}
+    cleanup_expired_canvas_trash()
+    for filename in os.listdir(CANVAS_DIR):
+        if not filename.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(CANVAS_DIR, filename), "r", encoding="utf-8") as f:
+                canvas = json.load(f)
+        except Exception:
+            continue
+        if canvas.get("deleted_at"):
+            continue
+        record = canvas_record(canvas)
+        canvas_items = extract_canvas_assets(canvas)
+        record["asset_count"] = len(canvas_items)
+        canvases.append(record)
+        items.extend(canvas_items)
+        kind = record.get("kind") or "classic"
+        canvas_counts["all"] += 1
+        canvas_counts[kind] = canvas_counts.get(kind, 0) + 1
+        item_counts["all"] += len(canvas_items)
+        item_counts[kind] = item_counts.get(kind, 0) + len(canvas_items)
+    canvases.sort(key=lambda item: (0 if item.get("pinned") else 1, -int(item.get("updated_at") or item.get("created_at") or 0)))
+    items.sort(key=lambda item: int(item.get("canvas_updated_at") or item.get("created_at") or 0), reverse=True)
+    categories = [
+        {"id": "all", "name": "全部画布", "count": item_counts.get("all", 0), "canvas_count": canvas_counts.get("all", 0)},
+        {"id": "smart", "name": "智能画布", "count": item_counts.get("smart", 0), "canvas_count": canvas_counts.get("smart", 0)},
+        {"id": "classic", "name": "普通画布", "count": item_counts.get("classic", 0), "canvas_count": canvas_counts.get("classic", 0)},
+    ]
+    return {"categories": categories, "canvases": canvases, "items": items}
+
+def extract_canvas_assets(canvas):
+    """从画布 JSON 中提取所有素材 URL（节点图片/视频/音频）"""
+    import copy
+    items = []
+    seen = set()
+    MEDIA_INPUT_EXT_RE = re.compile(r"\.(png|jpe?g|webp|gif|bmp|tiff?|mp4|webm|mov|m4v|avi|mkv|mp3|wav|m4a|aac|ogg|flac)(?:\?|$)", re.I)
+    def _extract(value, canvas):
+        if isinstance(value, dict):
+            for k, v in value.items():
+                _extract(v, canvas)
+        elif isinstance(value, list):
+            for v in value:
+                _extract(v, canvas)
+        elif isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return
+            m = MEDIA_INPUT_EXT_RE.search(text)
+            if not m:
+                return
+            clean = text.split("?", 1)[0]
+            if clean in seen:
+                return
+            seen.add(clean)
+            raw = {}
+            kind = "image"
+            ext = m.group(1).lower()
+            if ext in ("mp4", "webm", "mov", "m4v", "avi", "mkv"):
+                kind = "video"
+            elif ext in ("mp3", "wav", "m4a", "aac", "ogg", "flac"):
+                kind = "audio"
+            if text.startswith("/"):
+                raw["url"] = text
+            items.append({
+                "url": text,
+                "kind": kind,
+                "canvas_id": canvas.get("id"),
+                "canvas_title": canvas.get("title"),
+                "canvas_updated_at": canvas.get("updated_at") or 0,
+                "created_at": canvas.get("created_at") or 0,
+                **raw,
+            })
+    for node in (canvas.get("nodes") or []):
+        if isinstance(node, dict):
+            data = node.get("data") or node.get("inputs") or node
+            _extract(data, canvas)
+    return items
+
+# --- 提示词库辅助 ---
+
+def normalize_prompt_category_id(category="custom"):
+    category_id = re.sub(r"[^A-Za-z0-9_-]+", "_", str(category or "custom"))[:40] or "custom"
+    return "custom" if category_id in {"mine", "my", "personal"} else category_id
+
+def normalize_prompt_library_item(item):
+    if not isinstance(item, dict):
+        item = {}
+    name = sanitize_asset_name(item.get("name") or "提示词", "提示词")
+    positive = str(item.get("positive") or item.get("text") or "").strip()
+    return {
+        "id": re.sub(r"[^A-Za-z0-9_-]+", "_", str(item.get("id") or item.get("item_id") or f"tpl_{uuid.uuid4().hex[:12]}"))[:60],
+        "name": name,
+        "category": normalize_prompt_category_id(item.get("category") or "custom"),
+        "scene": str(item.get("scene") or "").strip()[:500],
+        "positive": positive,
+        "negative": str(item.get("negative") or "").strip(),
+        "params": item.get("params") if isinstance(item.get("params"), dict) else {},
+        "created_at": int(item.get("created_at") or now_ms()),
+        "updated_at": int(item.get("updated_at") or item.get("created_at") or now_ms()),
+    }
+
+def seed_system_prompt_library():
+    return {
+        "id": "system",
+        "name": "系统提示词库",
+        "type": "prompt",
+        "items": [],
+        "categories": defaultPromptTemplateCategories(),
+    }
+
+def default_prompt_libraries():
+    return {
+        "active_library_id": "system",
+        "libraries": [seed_system_prompt_library()],
+        "updated_at": now_ms(),
+    }
+
+def defaultPromptTemplateCategories():
+    return [
+        {"id": "view", "name": "视角"},
+        {"id": "storyboard", "name": "分镜"},
+        {"id": "character", "name": "角色"},
+        {"id": "product", "name": "产品"},
+        {"id": "lighting", "name": "光影"},
+        {"id": "custom", "name": "我的"},
+    ]
+
+def normalize_prompt_template_categories(*category_lists, include_defaults=True):
+    normalized = []
+    seen = set()
+    def add_category(category):
+        if not isinstance(category, dict):
+            return
+        cat_id = normalize_prompt_category_id(category.get("id") or category.get("name") or "custom")
+        if cat_id in seen:
+            return
+        seen.add(cat_id)
+        name = sanitize_asset_name(category.get("name") or cat_id, cat_id)
+        normalized.append({"id": cat_id, "name": name})
+    for categories in category_lists:
+        if isinstance(categories, list):
+            for category in categories:
+                add_category(category)
+    if include_defaults and not normalized:
+        for category in defaultPromptTemplateCategories():
+            add_category(category)
+    return normalized
+
+def normalize_prompt_libraries(data):
+    if not isinstance(data, dict):
+        data = default_prompt_libraries()
+    raw_libraries = data.get("libraries") if isinstance(data.get("libraries"), list) else []
+    raw_libraries = [lib for lib in raw_libraries if isinstance(lib, dict)]
+    if not any(lib.get("id") == "system" for lib in raw_libraries):
+        raw_libraries = [seed_system_prompt_library()] + raw_libraries
+    libraries = []
+    seen_lib_ids = set()
+    for raw in raw_libraries:
+        is_system = raw.get("id") == "system"
+        if is_system:
+            lib_id = "system"
+        else:
+            lib_id = re.sub(r"[^A-Za-z0-9_-]+", "_", str(raw.get("id") or f"lib_{uuid.uuid4().hex[:12]}"))[:60] or f"lib_{uuid.uuid4().hex[:12]}"
+        if lib_id in seen_lib_ids:
+            continue
+        seen_lib_ids.add(lib_id)
+        items = []
+        seen_items = set()
+        for raw_item in (raw.get("items") if isinstance(raw.get("items"), list) else []):
+            if not isinstance(raw_item, dict):
+                continue
+            item = normalize_prompt_library_item(raw_item)
+            item_id = item.get("id") or f"tpl_{uuid.uuid4().hex[:12]}"
+            if item_id in seen_items:
+                continue
+            seen_items.add(item_id)
+            items.append(item)
+        default_name = "系统提示词库" if is_system else "提示词库"
+        raw_categories = raw.get("categories") if isinstance(raw.get("categories"), list) else []
+        if not is_system:
+            builtin_ids = {"view", "storyboard", "character", "product", "lighting", "custom"}
+            raw_categories = [c for c in raw_categories if isinstance(c, dict) and normalize_prompt_category_id(c.get("id") or c.get("name") or "") not in builtin_ids]
+        libraries.append({
+            "id": lib_id,
+            "name": sanitize_asset_name(raw.get("name") or default_name, default_name),
+            "type": "prompt",
+            "readonly": False,
+            "system": is_system,
+            "categories": normalize_prompt_template_categories(raw_categories, include_defaults=is_system),
+            "items": items,
+        })
+    active = str(data.get("active_library_id") or "system")
+    if not any(lib["id"] == active for lib in libraries):
+        active = "system" if any(lib["id"] == "system" for lib in libraries) else (libraries[0]["id"] if libraries else "system")
+    return {"active_library_id": active, "libraries": libraries, "updated_at": int(data.get("updated_at") or now_ms())}
+
+def load_prompt_libraries():
+    if not os.path.exists(PROMPT_LIBRARY_PATH):
+        data = default_prompt_libraries()
+        return save_prompt_libraries(data)
+    try:
+        with open(PROMPT_LIBRARY_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        data = default_prompt_libraries()
+    if not isinstance(data, dict):
+        data = default_prompt_libraries()
+    normalized = normalize_prompt_libraries(data)
+    if normalized.get("active_library_id") != data.get("active_library_id") or normalized.get("libraries") != data.get("libraries"):
+        return save_prompt_libraries(normalized)
+    return normalized
+
+def save_prompt_libraries(data):
+    data = normalize_prompt_libraries(data)
+    data["updated_at"] = now_ms()
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(PROMPT_LIBRARY_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return data
+
+def public_prompt_libraries(data=None):
+    data = normalize_prompt_libraries(data or load_prompt_libraries())
+    return {
+        "active_library_id": data.get("active_library_id") or (data.get("libraries") or [{}])[0].get("id") or "system",
+        "libraries": data.get("libraries") or [],
+        "updated_at": data.get("updated_at") or now_ms(),
+    }
+
+def find_prompt_library(data, library_id=""):
+    if not isinstance(data, dict):
+        return None
+    libraries = data.get("libraries") if isinstance(data.get("libraries"), list) else []
+    library_id = str(library_id or data.get("active_library_id") or "").strip()
+    return next((item for item in libraries if item.get("id") == library_id), None) or (libraries[0] if libraries else None)
 
 # --- 路由接口 ---
 
@@ -5214,6 +6557,1015 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"运行工作流失败: {str(e)}")
+
+
+# ==================== 素材库 API 路由 ====================
+
+# --- 本地素材 API ---
+
+@app.post("/api/local-assets/upload")
+async def upload_local_assets(files: List[UploadFile] = File(...), folder: str = Form("")):
+    uploaded = []
+    folder_rel, folder_abs = _local_upload_safe_folder(folder)
+    os.makedirs(folder_abs, exist_ok=True)
+    for file in files:
+        content = await file.read()
+        if not content:
+            continue
+        kind, ext = _local_upload_kind_ext(file.filename, file.content_type)
+        if kind is None:
+            continue
+        base = os.path.splitext(os.path.basename(file.filename or "file"))[0]
+        base = re.sub(r"[^0-9A-Za-z一-鿿._-]+", "_", base).strip("_") or "file"
+        base = base[:60]
+        filename = f"up_{uuid.uuid4().hex[:12]}_{base}{ext}"
+        rel_name = f"{folder_rel}/{filename}".lstrip("/")
+        path = os.path.join(folder_abs, filename)
+        with open(path, "wb") as f:
+            f.write(content)
+        if kind == "image":
+            classification = await classify_asset_image_best_effort(path)
+            if classification:
+                _write_local_upload_classification(rel_name, classification)
+        uploaded.append(_local_upload_item(rel_name))
+    return {"files": uploaded}
+
+@app.post("/api/local-assets/import-urls")
+async def import_local_assets_from_urls(payload: LocalAssetUrlImportRequest):
+    uploaded = []
+    results = []
+    folder_rel, folder_abs = _local_upload_safe_folder(payload.folder)
+    os.makedirs(folder_abs, exist_ok=True)
+    timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, headers={"User-Agent": "art-canvas-Asset-Importer/1.0"}) as client:
+        for entry in (payload.items or [])[:200]:
+            src_url = str(entry.url or "").strip()
+            inline_data = str(entry.data or "").strip()
+            result = {"url": src_url, "ok": False, "file": "", "error": ""}
+            if not inline_data and not src_url.startswith(("http://", "https://")):
+                result["error"] = "仅支持 http(s) 素材地址"
+                results.append(result)
+                continue
+            try:
+                if inline_data:
+                    content_type = str(entry.content_type or "").split(";", 1)[0].strip().lower()
+                    b64 = inline_data
+                    if inline_data.startswith("data:"):
+                        header, _, b64 = inline_data.partition(",")
+                        if not content_type:
+                            content_type = header[5:].split(";", 1)[0].strip().lower()
+                    try:
+                        content = base64.b64decode(b64, validate=False)
+                    except Exception:
+                        raise HTTPException(status_code=400, detail="素材数据无法解码")
+                    name_path = urllib.parse.urlparse(src_url).path
+                else:
+                    response = await client.get(src_url)
+                    response.raise_for_status()
+                    content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                    content = response.content
+                    name_path = urllib.parse.urlparse(src_url).path
+                kind, ext = _local_upload_kind_ext(name_path, content_type)
+                if kind not in ("image", "video"):
+                    raise HTTPException(status_code=400, detail=f"不是图片或视频资源：{content_type or src_url}")
+                if not content:
+                    raise HTTPException(status_code=400, detail="素材内容为空")
+                if entry.name:
+                    base = os.path.splitext(entry.name)[0]
+                else:
+                    base = os.path.splitext(os.path.basename(urllib.parse.unquote(name_path)))[0]
+                base = base or ("web-video" if kind == "video" else "web-image")
+                base = re.sub(r"[^0-9A-Za-z一-鿿._-]+", "_", base).strip("_") or ("web-video" if kind == "video" else "web-image")
+                base = base[:60]
+                if ext and base.lower().endswith(ext.lower()):
+                    base = base[:-len(ext)].rstrip(".") or ("web-video" if kind == "video" else "web-image")
+                filename = f"up_{uuid.uuid4().hex[:12]}_{base}{ext}"
+                rel_name = f"{folder_rel}/{filename}".lstrip("/")
+                path = os.path.join(folder_abs, filename)
+                with open(path, "wb") as f:
+                    f.write(content)
+                if payload.classify and kind == "image":
+                    classification = await classify_asset_image_best_effort(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
+                    if classification:
+                        _write_local_upload_classification(rel_name, classification)
+                item = _local_upload_item(rel_name)
+                uploaded.append(item)
+                result.update({"ok": True, "file": rel_name, "item": item})
+            except HTTPException as exc:
+                result["error"] = str(exc.detail or "导入失败")
+            except Exception as exc:
+                result["error"] = str(exc) or "导入失败"
+            results.append(result)
+    return {"ok": True, "count": len(uploaded), "files": uploaded, "items": results}
+
+@app.get("/api/local-assets")
+async def list_local_assets():
+    tree, items = _local_upload_tree_and_items()
+    return {"items": items, "tree": tree}
+
+@app.post("/api/local-assets/folders")
+async def create_local_asset_folder(payload: LocalAssetFolderRequest, request: Request):
+    ensure_same_origin_request(request)
+    parent_rel, parent_abs = _local_upload_safe_folder(payload.parent)
+    if not os.path.isdir(parent_abs):
+        raise HTTPException(status_code=404, detail="父文件夹不存在")
+    name = _local_upload_safe_folder_name(payload.name)
+    rel = f"{parent_rel}/{name}".lstrip("/")
+    _, abs_path = _local_upload_safe_folder(rel)
+    if os.path.exists(abs_path):
+        raise HTTPException(status_code=400, detail="同名文件夹已存在")
+    os.makedirs(abs_path, exist_ok=False)
+    tree, items = _local_upload_tree_and_items()
+    return {"ok": True, "folder": {"path": rel, "name": name}, "tree": tree, "items": items}
+
+@app.patch("/api/local-assets/folders")
+async def rename_local_asset_folder(payload: LocalAssetFolderRequest, request: Request):
+    ensure_same_origin_request(request)
+    rel, abs_path = _local_upload_safe_folder(payload.path)
+    if not rel:
+        raise HTTPException(status_code=400, detail="根目录不能重命名")
+    if not os.path.isdir(abs_path):
+        raise HTTPException(status_code=404, detail="文件夹不存在")
+    name = _local_upload_safe_folder_name(payload.name)
+    parent = os.path.dirname(rel).replace("\\", "/")
+    new_rel = f"{parent}/{name}".lstrip("/")
+    _, new_abs = _local_upload_safe_folder(new_rel)
+    if os.path.exists(new_abs):
+        raise HTTPException(status_code=400, detail="同名文件夹已存在")
+    os.rename(abs_path, new_abs)
+    tree, items = _local_upload_tree_and_items()
+    return {"ok": True, "folder": {"path": new_rel, "name": name}, "tree": tree, "items": items}
+
+@app.patch("/api/local-assets/items")
+async def rename_local_asset_item(payload: LocalAssetRenameRequest, request: Request):
+    ensure_same_origin_request(request)
+    rel, abs_path = _local_upload_safe_path(payload.path)
+    if not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="本地素材不存在")
+    kind, ext = _local_upload_kind_ext(rel, "")
+    if kind is None:
+        raise HTTPException(status_code=400, detail="不支持的素材类型")
+    new_stem = _local_upload_safe_file_stem(payload.name)
+    old_ext = os.path.splitext(rel)[1] or ext
+    parent = os.path.dirname(rel).replace("\\", "/")
+    new_rel = f"{parent}/{new_stem}{old_ext}".lstrip("/")
+    if new_rel == rel:
+        tree, items = _local_upload_tree_and_items()
+        return {"ok": True, "item": _local_upload_item(rel), "tree": tree, "items": items}
+    _, new_abs = _local_upload_abs(new_rel)
+    if os.path.exists(new_abs):
+        raise HTTPException(status_code=400, detail="同名素材已存在")
+    os.rename(abs_path, new_abs)
+    old_caption = _local_upload_caption_path(rel)
+    new_caption = _local_upload_caption_path(new_rel)
+    if os.path.isfile(old_caption) and not os.path.exists(new_caption):
+        os.rename(old_caption, new_caption)
+    old_classification = _local_upload_classification_path(rel)
+    new_classification = _local_upload_classification_path(new_rel)
+    if os.path.isfile(old_classification) and not os.path.exists(new_classification):
+        os.rename(old_classification, new_classification)
+    tree, items = _local_upload_tree_and_items()
+    return {"ok": True, "item": _local_upload_item(new_rel), "old_path": rel, "tree": tree, "items": items}
+
+@app.post("/api/local-assets/delete")
+async def delete_local_assets(payload: dict, request: Request):
+    ensure_same_origin_request(request)
+    names = payload.get("names") if isinstance(payload, dict) else None
+    if not isinstance(names, list):
+        names = []
+    deleted = []
+    for name in names:
+        try:
+            rel, path = _local_upload_safe_path(name)
+        except HTTPException:
+            continue
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+                txt_path = _local_upload_caption_path(rel)
+                if os.path.isfile(txt_path):
+                    os.remove(txt_path)
+                cls_path = _local_upload_classification_path(rel)
+                if os.path.isfile(cls_path):
+                    os.remove(cls_path)
+                deleted.append(rel)
+            except OSError:
+                pass
+    return {"deleted": deleted}
+
+@app.post("/api/local-assets/move")
+async def move_local_assets(payload: dict, request: Request):
+    ensure_same_origin_request(request)
+    names = payload.get("names") if isinstance(payload, dict) else None
+    if not isinstance(names, list) or not names:
+        raise HTTPException(status_code=400, detail="没有选择素材")
+    folder_value = str(payload.get("folder") or "").strip() if isinstance(payload, dict) else ""
+    target_rel, target_abs = _local_upload_safe_folder(folder_value)
+    if target_rel and not os.path.isdir(target_abs):
+        raise HTTPException(status_code=404, detail="目标文件夹不存在")
+    moved = 0
+    for name in names:
+        try:
+            rel, abs_path = _local_upload_safe_path(name)
+        except HTTPException:
+            continue
+        if not os.path.isfile(abs_path):
+            continue
+        base = os.path.basename(rel)
+        new_rel = f"{target_rel}/{base}".lstrip("/") if target_rel else base
+        if new_rel == rel:
+            continue
+        _, new_abs = _local_upload_abs(new_rel)
+        if os.path.exists(new_abs):
+            stem, ext = os.path.splitext(base)
+            base = f"{stem}_{uuid.uuid4().hex[:6]}{ext}"
+            new_rel = f"{target_rel}/{base}".lstrip("/") if target_rel else base
+            _, new_abs = _local_upload_abs(new_rel)
+        try:
+            os.makedirs(os.path.dirname(new_abs), exist_ok=True)
+            os.rename(abs_path, new_abs)
+            for src_sib, dst_sib in (
+                (_local_upload_caption_path(rel), _local_upload_caption_path(new_rel)),
+                (_local_upload_classification_path(rel), _local_upload_classification_path(new_rel)),
+            ):
+                if os.path.isfile(src_sib) and not os.path.exists(dst_sib):
+                    os.rename(src_sib, dst_sib)
+            moved += 1
+        except OSError:
+            continue
+    tree, items = _local_upload_tree_and_items()
+    return {"ok": True, "moved": moved, "items": items, "tree": tree}
+
+@app.post("/api/local-assets/caption")
+async def caption_local_assets(payload: LocalAssetCaptionRequest):
+    prompt = (payload.prompt or "描述图片").strip() or "描述图片"
+    items = []
+    ok_count = 0
+    for name in (payload.names or [])[:100]:
+        item = {"name": name, "ok": False, "caption": "", "caption_file": "", "error": ""}
+        try:
+            filename, path = _local_upload_safe_path(name)
+            if not os.path.isfile(path):
+                raise HTTPException(status_code=404, detail="文件不存在")
+            kind, _ = _local_upload_kind_ext(filename, "")
+            if kind != "image":
+                raise HTTPException(status_code=400, detail="仅支持图片素材反推提示词")
+            caption, resolved_model = await caption_image_with_provider(
+                path, prompt, payload.provider, payload.model, payload.ms_model,
+            )
+            txt_path = _local_upload_caption_path(filename)
+            with open(txt_path, "w", encoding="utf-8", newline="") as f:
+                f.write(caption)
+            item.update({
+                "ok": True, "name": filename, "caption": caption,
+                "caption_file": os.path.basename(txt_path), "model": resolved_model,
+            })
+            ok_count += 1
+        except HTTPException as exc:
+            item["error"] = str(exc.detail or "反推失败")
+        except Exception as exc:
+            item["error"] = str(exc) or "反推失败"
+        items.append(item)
+    return {"ok": True, "count": ok_count, "items": items}
+
+@app.post("/api/local-assets/classify")
+async def classify_local_assets(payload: LocalAssetClassifyRequest):
+    items = []
+    ok_count = 0
+    for name in (payload.names or [])[:80]:
+        item = {"name": name, "ok": False, "classification": None, "classification_file": "", "error": ""}
+        try:
+            filename, path = _local_upload_safe_path(name)
+            if not os.path.isfile(path):
+                raise HTTPException(status_code=404, detail="文件不存在")
+            kind, _ = _local_upload_kind_ext(filename, "")
+            if kind != "image":
+                raise HTTPException(status_code=400, detail="仅支持图片素材智能分类")
+            classification = await classify_image_with_provider(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
+            _write_local_upload_classification(filename, classification)
+            item.update({
+                "ok": True, "name": filename, "classification": classification,
+                "classification_file": os.path.basename(_local_upload_classification_path(filename)),
+                "model": classification.get("model") or "",
+            })
+            ok_count += 1
+        except HTTPException as exc:
+            item["error"] = str(exc.detail or "智能分类失败")
+        except Exception as exc:
+            item["error"] = str(exc) or "智能分类失败"
+        items.append(item)
+    return {"ok": True, "count": ok_count, "items": items}
+
+@app.patch("/api/local-assets/caption")
+async def save_local_asset_caption(payload: LocalAssetCaptionSaveRequest):
+    filename, path = _local_upload_safe_path(payload.name)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    kind, _ = _local_upload_kind_ext(filename, "")
+    if kind != "image":
+        raise HTTPException(status_code=400, detail="仅支持图片素材保存提示词")
+    caption = str(payload.caption or "")[:100000]
+    txt_path = _local_upload_caption_path(filename)
+    with open(txt_path, "w", encoding="utf-8", newline="") as f:
+        f.write(caption)
+    return {"ok": True, "caption": caption, "caption_file": os.path.basename(txt_path)}
+
+# --- 画布资产 API ---
+
+@app.get("/api/canvas-assets")
+async def list_canvas_assets():
+    return await asyncio.to_thread(canvas_assets_index)
+
+@app.post("/api/canvas-assets/check")
+async def check_canvas_assets(payload: CanvasAssetCheckRequest):
+    result = {}
+    for url in payload.urls[:3000]:
+        text = str(url or "").strip()
+        if not text:
+            continue
+        if text.startswith("/output/") or text.startswith("/assets/"):
+            result[text] = bool(output_file_from_url(text))
+        else:
+            result[text] = True
+    return {"exists": result}
+
+@app.post("/api/canvas-assets/download")
+async def download_canvas_assets(payload: CanvasAssetDownloadRequest):
+    buffer = BytesIO()
+    used_names = set()
+    count = 0
+    raw_items = payload.items or [{"url": url} for url in payload.urls]
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for raw in raw_items[:1000]:
+            if isinstance(raw, dict):
+                text = str(raw.get("url") or "").strip()
+                requested_name = str(raw.get("name") or "").strip()
+            else:
+                text = str(raw or "").strip()
+                requested_name = ""
+            if not text:
+                continue
+            path = output_file_from_url(text)
+            content = None
+            content_type = ""
+            if path and os.path.isfile(path):
+                base = sanitize_export_filename(requested_name or os.path.basename(path), os.path.basename(path) or f"image-{count + 1}.png")
+            else:
+                local_by_name = local_media_file_by_basename(filename_from_media_url(text, ""))
+                if local_by_name and os.path.isfile(local_by_name):
+                    path = local_by_name
+                    base = sanitize_export_filename(requested_name or os.path.basename(path), os.path.basename(path) or f"image-{count + 1}.png")
+                else:
+                    try:
+                        remote = fetch_remote_media_bytes(text)
+                    except Exception:
+                        remote = None
+                    if not remote:
+                        continue
+                    content, content_type = remote
+                    base = sanitize_export_filename(requested_name or filename_from_media_url(text, f"image-{count + 1}.bin"), f"image-{count + 1}.bin")
+            name, ext = os.path.splitext(base)
+            archive_name = base
+            suffix = 2
+            while archive_name in used_names:
+                archive_name = f"{name}-{suffix}{ext}"
+                suffix += 1
+            used_names.add(archive_name)
+            if path and os.path.isfile(path):
+                zf.write(path, archive_name)
+            elif content:
+                zf.writestr(archive_name, content)
+            count += 1
+    if count <= 0:
+        raise HTTPException(status_code=404, detail="没有可下载的内容")
+    buffer.seek(0)
+    filename = sanitize_export_filename(payload.filename or "canvas-output-images.zip", "canvas-output-images.zip")
+    if not filename.lower().endswith(".zip"):
+        filename += ".zip"
+    encoded = urllib.parse.quote(filename)
+    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"}
+    return Response(buffer.getvalue(), media_type="application/zip", headers=headers)
+
+# --- 资产库 API ---
+
+@app.get("/api/asset-library")
+async def get_asset_library():
+    return {"library": load_asset_library()}
+
+@app.post("/api/asset-library/libraries")
+async def create_asset_library(payload: AssetLibraryRequest):
+    lib = load_asset_library()
+    library = {"id": f"lib_{uuid.uuid4().hex[:12]}", "name": sanitize_asset_name(payload.name, "资产库"), "type": "asset", "categories": []}
+    library["categories"].append({"id": f"cat_{uuid.uuid4().hex[:12]}", "name": "默认分组", "type": "image", "items": []})
+    library["categories"].append({"id": f"wf_{uuid.uuid4().hex[:12]}", "name": "工作流", "type": "workflow", "items": []})
+    lib.setdefault("libraries", []).append(library)
+    lib["active_library_id"] = library["id"]
+    save_asset_library(lib)
+    return {"library": lib, "asset_library": library}
+
+@app.patch("/api/asset-library/libraries/{library_id}")
+async def rename_asset_library(library_id: str, payload: AssetLibraryRenameRequest):
+    lib = load_asset_library()
+    library = find_asset_library(lib, library_id)
+    if not library or library.get("id") != library_id:
+        raise HTTPException(status_code=404, detail="资产库不存在")
+    library["name"] = sanitize_asset_name(payload.name, library.get("name") or "资产库")
+    save_asset_library(lib)
+    return {"library": lib, "asset_library": library}
+
+@app.delete("/api/asset-library/libraries/{library_id}")
+async def delete_asset_library(library_id: str):
+    lib = load_asset_library()
+    libraries = lib.get("libraries") or []
+    if len(libraries) <= 1:
+        raise HTTPException(status_code=400, detail="至少保留一个资产库")
+    if not any(item.get("id") == library_id for item in libraries):
+        raise HTTPException(status_code=404, detail="资产库不存在")
+    lib["libraries"] = [item for item in libraries if item.get("id") != library_id]
+    if lib.get("active_library_id") == library_id:
+        lib["active_library_id"] = lib["libraries"][0].get("id")
+    save_asset_library(lib)
+    return {"library": lib}
+
+@app.post("/api/asset-library/categories")
+async def create_asset_library_category(payload: AssetLibraryCategoryRequest):
+    lib = load_asset_library()
+    library = find_asset_library(lib, payload.library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="资产库不存在")
+    cat_type = "workflow" if str(payload.type or "").lower() == "workflow" else "image"
+    category = {"id": f"cat_{uuid.uuid4().hex[:12]}", "name": sanitize_asset_name(payload.name, "新文件夹"), "type": cat_type, "items": []}
+    if cat_type == "image":
+        category["dir"] = unique_asset_category_dir(library, payload.name)
+        try:
+            os.makedirs(os.path.join(ASSET_LIBRARY_DIR, category["dir"]), exist_ok=True)
+        except Exception as exc:
+            print(f"创建分组文件夹失败: {exc}")
+    library.setdefault("categories", []).append(category)
+    lib["active_library_id"] = library.get("id") or lib.get("active_library_id")
+    save_asset_library(lib)
+    return {"library": lib, "category": category}
+
+@app.patch("/api/asset-library/categories/{category_id}")
+async def rename_asset_library_category(category_id: str, payload: AssetLibraryRenameRequest):
+    lib = load_asset_library()
+    _, cat = find_asset_category_with_library(lib, category_id, payload.library_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    cat["name"] = sanitize_asset_name(payload.name, cat.get("name") or "新文件夹")
+    save_asset_library(lib)
+    return {"library": lib, "category": cat}
+
+@app.delete("/api/asset-library/categories/{category_id}")
+async def delete_asset_library_category(category_id: str, library_id: str = ""):
+    lib = load_asset_library()
+    library, cat = find_asset_category_with_library(lib, category_id, library_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    cat_items = cat.get("items") or []
+    categories = library.get("categories") or []
+    remaining = [c for c in categories if c.get("id") != category_id]
+    if remaining:
+        fallback_cat = remaining[0]
+        fallback_cat.setdefault("items", []).extend(cat_items)
+    else:
+        default_cat = library.get("categories", [{}])[0] if library.get("categories") else None
+        if default_cat and default_cat.get("id") != category_id:
+            default_cat.setdefault("items", []).extend(cat_items)
+    library["categories"] = remaining
+    save_asset_library(lib)
+    return {"library": lib}
+
+@app.post("/api/asset-library/items")
+async def add_asset_library_item(payload: AssetLibraryAddRequest):
+    lib = load_asset_library()
+    _, cat = find_asset_category_with_library(lib, payload.category_id, payload.library_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    url = str(payload.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="素材 URL 不能为空")
+    item = {
+        "id": f"asset_{uuid.uuid4().hex[:12]}",
+        "name": sanitize_asset_name(payload.name, "asset"),
+        "url": url,
+        "kind": asset_library_media_kind(url),
+        "created_at": now_ms(),
+    }
+    cat.setdefault("items", []).append(item)
+    lib["active_library_id"] = library_id = lib.get("active_library_id") or (find_asset_library(lib, "") or {}).get("id")
+    save_asset_library(lib)
+    return {"library": lib, "item": item}
+
+@app.post("/api/asset-library/items/batch")
+async def batch_add_asset_library_items(payload: AssetLibraryBatchAddRequest):
+    lib = load_asset_library()
+    _, cat = find_asset_category_with_library(lib, payload.category_id, payload.library_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    added = []
+    for entry in (payload.items or [])[:200]:
+        url = str(entry.url or "").strip()
+        if not url:
+            continue
+        item = {
+            "id": f"asset_{uuid.uuid4().hex[:12]}",
+            "name": sanitize_asset_name(entry.name, "asset"),
+            "url": url,
+            "kind": asset_library_media_kind(url),
+            "created_at": now_ms(),
+        }
+        cat.setdefault("items", []).append(item)
+        added.append(item)
+    save_asset_library(lib)
+    return {"library": lib, "items": added}
+
+@app.patch("/api/asset-library/items/{item_id}")
+async def rename_asset_library_item(item_id: str, payload: AssetLibraryRenameRequest):
+    lib = load_asset_library()
+    for library in lib.get("libraries", []):
+        for cat in library.get("categories", []):
+            for item in cat.get("items", []):
+                if item.get("id") == item_id:
+                    item["name"] = sanitize_asset_name(payload.name, item.get("name") or "asset")
+                    save_asset_library(lib)
+                    return {"library": lib, "item": item}
+    raise HTTPException(status_code=404, detail="资产不存在")
+
+@app.post("/api/asset-library/items/classify")
+async def classify_asset_library_items(payload: AssetLibraryClassifyRequest):
+    lib = load_asset_library()
+    results = []
+    changed = False
+    for item_id in (payload.ids or [])[:80]:
+        item = find_asset_item_in_library(lib, item_id, payload.library_id)
+        result = {"id": item_id, "ok": False, "classification": None, "error": ""}
+        if not item:
+            result["error"] = "资产不存在"
+            results.append(result)
+            continue
+        if asset_library_media_kind(item.get("url") or "") != "image" and item.get("kind") != "image":
+            result["error"] = "仅支持图片素材智能分类"
+            results.append(result)
+            continue
+        path = output_file_from_url(item.get("url") or "")
+        if not path or not os.path.isfile(path):
+            result["error"] = "文件不存在"
+            results.append(result)
+            continue
+        try:
+            classification = await classify_image_with_provider(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
+            item["classification"] = classification
+            changed = True
+            result.update({"ok": True, "classification": classification})
+        except Exception as exc:
+            result["error"] = str(getattr(exc, "detail", "") or exc)
+        results.append(result)
+    if changed:
+        save_asset_library(lib)
+    return {"library": lib, "count": sum(1 for item in results if item.get("ok")), "items": results}
+
+@app.delete("/api/asset-library/items/{item_id}")
+async def delete_asset_library_item(item_id: str):
+    lib = load_asset_library()
+    removed = None
+    for library in lib.get("libraries", []):
+        for cat in library.get("categories", []):
+            keep = []
+            for item in cat.get("items", []):
+                if item.get("id") == item_id:
+                    removed = item
+                else:
+                    keep.append(item)
+            cat["items"] = keep
+    if not removed:
+        raise HTTPException(status_code=404, detail="资产不存在")
+    remove_asset_library_file(removed)
+    save_asset_library(lib)
+    return {"library": lib}
+
+@app.post("/api/asset-library/items/delete")
+async def batch_delete_asset_library_items(payload: AssetLibraryBatchDeleteRequest):
+    ids = {str(item) for item in (payload.ids or []) if str(item)}
+    if not ids:
+        raise HTTPException(status_code=400, detail="没有选择资产")
+    lib = load_asset_library()
+    removed = 0
+    removed_items = []
+    for library in lib.get("libraries", []):
+        if payload.library_id and library.get("id") != payload.library_id:
+            continue
+        for cat in library.get("categories", []):
+            keep = []
+            for item in cat.get("items", []):
+                if item.get("id") in ids:
+                    removed += 1
+                    removed_items.append(item)
+                else:
+                    keep.append(item)
+            cat["items"] = keep
+    for item in removed_items:
+        remove_asset_library_file(item)
+    save_asset_library(lib)
+    return {"library": lib, "removed": removed}
+
+@app.post("/api/asset-library/items/move")
+async def batch_move_asset_library_items(payload: AssetLibraryBatchMoveRequest):
+    ids = {str(item) for item in (payload.ids or []) if str(item)}
+    if not ids:
+        raise HTTPException(status_code=400, detail="没有选择资产")
+    lib = load_asset_library()
+    target_cat = find_asset_category_in_library(lib, payload.target_category_id, payload.target_library_id)
+    if not target_cat:
+        raise HTTPException(status_code=404, detail="目标分组不存在")
+    target_type = target_cat.get("type") or "image"
+    moved = []
+    for library in lib.get("libraries", []):
+        if payload.library_id and library.get("id") != payload.library_id:
+            continue
+        for cat in library.get("categories", []):
+            if (cat.get("type") or "image") != target_type:
+                continue
+            keep = []
+            for item in cat.get("items", []):
+                if item.get("id") in ids:
+                    moved.append(item)
+                else:
+                    keep.append(item)
+            cat["items"] = keep
+    existing_ids = {item.get("id") for item in target_cat.get("items", [])}
+    for item in moved:
+        if item.get("id") not in existing_ids:
+            target_cat.setdefault("items", []).append(item)
+            existing_ids.add(item.get("id"))
+    save_asset_library(lib)
+    return {"library": lib, "moved": len(moved)}
+
+@app.post("/api/asset-library/items/crop")
+async def batch_crop_asset_library_items(payload: AssetLibraryBatchCropRequest):
+    ids = {str(item) for item in (payload.ids or []) if str(item)}
+    if not ids:
+        raise HTTPException(status_code=400, detail="没有选择资产")
+    lib = load_asset_library()
+    target_cat = None
+    if payload.target_category_id:
+        target_cat = find_asset_category_in_library(lib, payload.target_category_id, payload.target_library_id)
+        if not target_cat:
+            raise HTTPException(status_code=404, detail="目标分组不存在")
+        if target_cat.get("type") != "image":
+            raise HTTPException(status_code=400, detail="目标分组不支持媒体")
+    added = []
+    for library in lib.get("libraries", []):
+        if payload.library_id and library.get("id") != payload.library_id:
+            continue
+        for cat in library.get("categories", []):
+            if cat.get("type") != "image":
+                continue
+            cat_items = cat.get("items") or []
+            target_items = []
+            remaining = []
+            for item in cat_items:
+                if item.get("id") in ids:
+                    target_items.append(item)
+                else:
+                    remaining.append(item)
+            cat["items"] = remaining
+            if not target_cat:
+                target_cat = cat
+            for item in target_items:
+                existing_ids = {i.get("id") for i in target_cat.get("items", [])}
+                if item.get("id") not in existing_ids:
+                    target_cat.setdefault("items", []).append(item)
+                    added.append(item)
+    save_asset_library(lib)
+    return {"library": lib, "items": added}
+
+# --- 提示词库 API ---
+
+@app.get("/api/prompt-libraries")
+async def get_prompt_libraries():
+    return {"library": public_prompt_libraries()}
+
+@app.post("/api/prompt-libraries")
+async def create_prompt_library(payload: PromptLibraryRequest):
+    data = load_prompt_libraries()
+    library = {
+        "id": f"lib_{uuid.uuid4().hex[:12]}",
+        "name": sanitize_asset_name(payload.name, "提示词库"),
+        "type": "prompt",
+        "categories": [],
+        "items": [],
+    }
+    data.setdefault("libraries", []).append(library)
+    data["active_library_id"] = library["id"]
+    data = save_prompt_libraries(data)
+    new_lib = next((lib for lib in data.get("libraries", []) if lib.get("id") == library["id"]), library)
+    return {"library": public_prompt_libraries(data), "prompt_library": new_lib}
+
+@app.patch("/api/prompt-libraries/{library_id}")
+async def rename_prompt_library(library_id: str, payload: PromptLibraryRequest):
+    data = load_prompt_libraries()
+    library = find_prompt_library(data, library_id)
+    if not library or library.get("id") != library_id:
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    library["name"] = sanitize_asset_name(payload.name, library.get("name") or "提示词库")
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data), "prompt_library": library}
+
+@app.delete("/api/prompt-libraries/{library_id}")
+async def delete_prompt_library(library_id: str):
+    if library_id == "system":
+        raise HTTPException(status_code=400, detail="系统提示词库不能删除，可以删除其中的提示词")
+    data = load_prompt_libraries()
+    libraries = data.get("libraries", []) or []
+    kept = [lib for lib in libraries if lib.get("id") != library_id]
+    if len(kept) == len(libraries):
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    data["libraries"] = kept
+    if data.get("active_library_id") == library_id:
+        data["active_library_id"] = "system"
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data)}
+
+@app.post("/api/prompt-libraries/items")
+async def add_prompt_library_item(payload: PromptLibraryItemRequest):
+    data = load_prompt_libraries()
+    library = find_prompt_library(data, payload.library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    if not str(payload.positive or "").strip():
+        raise HTTPException(status_code=400, detail="提示词内容不能为空")
+    item = normalize_prompt_library_item({
+        "id": f"tpl_{uuid.uuid4().hex[:12]}",
+        "name": payload.name,
+        "category": payload.category,
+        "positive": payload.positive,
+        "negative": payload.negative,
+        "scene": payload.scene,
+        "created_at": now_ms(),
+        "updated_at": now_ms(),
+    })
+    library.setdefault("items", []).insert(0, item)
+    data["active_library_id"] = library.get("id") or data.get("active_library_id")
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data), "item": item}
+
+@app.patch("/api/prompt-libraries/items/{item_id}")
+async def update_prompt_library_item(item_id: str, payload: PromptLibraryItemRequest):
+    data = load_prompt_libraries()
+    for library in data.get("libraries", []) or []:
+        if payload.library_id and library.get("id") != payload.library_id:
+            continue
+        for index, item in enumerate(library.get("items", []) or []):
+            if item.get("id") == item_id:
+                next_item = normalize_prompt_library_item({
+                    **item,
+                    "name": payload.name or item.get("name"),
+                    "category": payload.category or item.get("category"),
+                    "positive": payload.positive or item.get("positive"),
+                    "negative": payload.negative,
+                    "scene": payload.scene,
+                    "updated_at": now_ms(),
+                })
+                library["items"][index] = next_item
+                data = save_prompt_libraries(data)
+                return {"library": public_prompt_libraries(data), "item": next_item}
+    raise HTTPException(status_code=404, detail="提示词不存在")
+
+@app.delete("/api/prompt-libraries/items/{item_id}")
+async def delete_prompt_library_item(item_id: str):
+    data = load_prompt_libraries()
+    removed = None
+    for library in data.get("libraries", []) or []:
+        keep = []
+        for item in library.get("items", []) or []:
+            if item.get("id") == item_id:
+                removed = item
+            else:
+                keep.append(item)
+        library["items"] = keep
+    if not removed:
+        raise HTTPException(status_code=404, detail="提示词不存在")
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data), "removed": 1}
+
+@app.post("/api/prompt-libraries/items/delete")
+async def batch_delete_prompt_library_items(payload: PromptLibraryBatchDeleteRequest):
+    ids = {str(item) for item in (payload.ids or []) if str(item)}
+    if not ids:
+        raise HTTPException(status_code=400, detail="没有选择提示词")
+    data = load_prompt_libraries()
+    removed = 0
+    for library in data.get("libraries", []) or []:
+        keep = []
+        for item in library.get("items", []) or []:
+            if item.get("id") in ids:
+                removed += 1
+            else:
+                keep.append(item)
+        library["items"] = keep
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data), "removed": removed}
+
+PROMPT_BUILTIN_CATEGORY_IDS = {"view", "storyboard", "character", "product", "lighting", "custom"}
+
+@app.post("/api/prompt-libraries/categories")
+async def add_prompt_library_category(payload: PromptLibraryCategoryRequest):
+    data = load_prompt_libraries()
+    library = find_prompt_library(data, payload.library_id) or find_prompt_library(data, "system")
+    if not library:
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    name = sanitize_asset_name(payload.name, "新分组")
+    existing = {str(c.get("id")) for c in (library.get("categories") or []) if isinstance(c, dict)} | PROMPT_BUILTIN_CATEGORY_IDS
+    cat_id = f"pcat_{uuid.uuid4().hex[:10]}"
+    while cat_id in existing:
+        cat_id = f"pcat_{uuid.uuid4().hex[:10]}"
+    category = {"id": cat_id, "name": name}
+    library.setdefault("categories", []).append(category)
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data), "category": category}
+
+@app.patch("/api/prompt-libraries/categories/{category_id}")
+async def rename_prompt_library_category(category_id: str, payload: PromptLibraryCategoryRequest):
+    name = sanitize_asset_name(payload.name, "")
+    if not name:
+        raise HTTPException(status_code=400, detail="分组名称不能为空")
+    data = load_prompt_libraries()
+    updated = False
+    for library in data.get("libraries", []) or []:
+        for cat in library.get("categories") or []:
+            if isinstance(cat, dict) and cat.get("id") == category_id:
+                cat["name"] = name
+                updated = True
+    if not updated:
+        raise HTTPException(status_code=404, detail="分组不存在")
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data)}
+
+@app.delete("/api/prompt-libraries/categories/{category_id}")
+async def delete_prompt_library_category(category_id: str):
+    data = load_prompt_libraries()
+    found = False
+    for library in data.get("libraries", []) or []:
+        cats = library.get("categories") or []
+        kept = [c for c in cats if not (isinstance(c, dict) and c.get("id") == category_id)]
+        if len(kept) != len(cats):
+            found = True
+            library["categories"] = kept
+            fallback = next((str(c.get("id")) for c in kept if isinstance(c, dict) and c.get("id")), "")
+            for item in library.get("items", []) or []:
+                if isinstance(item, dict) and item.get("category") == category_id:
+                    item["category"] = fallback
+    if not found:
+        raise HTTPException(status_code=404, detail="分组不存在")
+    data = save_prompt_libraries(data)
+    return {"library": public_prompt_libraries(data)}
+
+# --- 共享文件夹 API ---
+
+@app.get("/api/shared-folders")
+async def list_shared_folders():
+    data = shared_folders_load()
+    folders = []
+    for entry in data.get("folders", []):
+        abs_path = shared_folder_abs(entry)
+        folders.append({
+            "id": entry.get("id"),
+            "name": entry.get("name") or os.path.basename(abs_path) or abs_path,
+            "rel": entry.get("rel") or "",
+            "path": abs_path,
+            "exists": os.path.isdir(abs_path),
+            "created_at": entry.get("created_at"),
+        })
+    return {"folders": folders}
+
+@app.post("/api/shared-folders")
+async def register_shared_folder(payload: SharedFolderRegister):
+    abs_path, rel = shared_resolve_register(payload.path)
+    name = sanitize_asset_name(payload.name or os.path.basename(abs_path), "共享文件夹")
+    with SHARED_FOLDERS_LOCK:
+        data = shared_folders_load()
+        for entry in data.get("folders", []):
+            if os.path.normpath(shared_folder_abs(entry)) == os.path.normpath(abs_path):
+                entry["name"] = name
+                shared_folders_save(data)
+                return {"folder": {**entry, "path": abs_path, "exists": True}}
+        entry = {
+            "id": f"shared_{uuid.uuid4().hex[:12]}",
+            "name": name,
+            "rel": rel,
+            "created_at": now_ms(),
+        }
+        data.setdefault("folders", []).append(entry)
+        shared_folders_save(data)
+    return {"folder": {**entry, "path": abs_path, "exists": True}}
+
+@app.delete("/api/shared-folders/{folder_id}")
+async def unregister_shared_folder(folder_id: str):
+    with SHARED_FOLDERS_LOCK:
+        data = shared_folders_load()
+        before = len(data.get("folders", []))
+        data["folders"] = [f for f in data.get("folders", []) if f.get("id") != folder_id]
+        if len(data["folders"]) == before:
+            raise HTTPException(status_code=404, detail="共享文件夹不存在")
+        shared_folders_save(data)
+    return {"ok": True}
+
+@app.get("/api/shared-folders/{folder_id}/tree")
+async def get_shared_folder_tree(folder_id: str):
+    entry = shared_folder_by_id(folder_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="共享文件夹不存在")
+    abs_path = shared_folder_abs(entry)
+    if not os.path.isdir(abs_path):
+        raise HTTPException(status_code=404, detail="文件夹已不存在")
+    tree = scan_shared_tree(folder_id, abs_path, "", entry.get("name") or os.path.basename(abs_path))
+    return {"folder": {"id": folder_id, "name": entry.get("name"), "path": abs_path}, "tree": tree}
+
+@app.get("/api/shared-folders/{folder_id}/file")
+async def get_shared_folder_file(folder_id: str, path: str = ""):
+    entry = shared_folder_by_id(folder_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="共享文件夹不存在")
+    folder_abs = shared_folder_abs(entry)
+    abs_path = shared_child_abs(folder_abs, path)
+    if not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    ext = os.path.splitext(abs_path)[1].lower()
+    if ext not in SHARED_MEDIA_EXTS:
+        raise HTTPException(status_code=400, detail="不支持的文件类型")
+    return FileResponse(abs_path, media_type=content_type_for_path(abs_path))
+
+@app.post("/api/shared-folders/import")
+async def import_shared_folder_files(payload: SharedFolderImport):
+    entry = shared_folder_by_id(payload.folder_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="共享文件夹不存在")
+    folder_abs = shared_folder_abs(entry)
+    lib = load_asset_library()
+    cat = find_asset_category_in_library(lib, payload.category_id, payload.library_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    if cat.get("type") != "image":
+        raise HTTPException(status_code=400, detail="该分类暂不支持添加媒体")
+    added = []
+    for rel in (payload.paths or [])[:200]:
+        abs_path = shared_child_abs(folder_abs, rel)
+        if not os.path.isfile(abs_path):
+            continue
+        ext = os.path.splitext(abs_path)[1].lower()
+        if ext not in SHARED_MEDIA_EXTS:
+            continue
+        _, item = make_asset_library_item(abs_path, os.path.basename(abs_path), subdir=cat.get("dir") or "")
+        if item.get("kind") == "image":
+            classification = await classify_asset_image_best_effort(output_file_from_url(item.get("url") or "") or abs_path)
+            if classification:
+                item["classification"] = classification
+        cat.setdefault("items", []).append(item)
+        added.append(item)
+    save_asset_library(lib)
+    return {"library": lib, "items": added}
+
+# --- 服务静态文件（上传素材） ---
+
+@app.get("/assets/uploads/{path:path}")
+async def serve_local_upload(path: str):
+    clean_path = path.replace("\\", "/")
+    if ".." in clean_path:
+        raise HTTPException(status_code=404, detail="File not found")
+    full_path = os.path.abspath(os.path.join(LOCAL_UPLOAD_DIR, clean_path))
+    root = os.path.abspath(LOCAL_UPLOAD_DIR)
+    if not full_path.startswith(root):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    ext = os.path.splitext(full_path)[1].lower()
+    media_type = {
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".webp": "image/webp", ".gif": "image/gif",
+        ".mp4": "video/mp4", ".webm": "video/webm",
+    }.get(ext, "application/octet-stream")
+    return StarletteFileResponse(full_path, media_type=media_type)
+
+@app.get("/assets/library/{path:path}")
+async def serve_asset_library(path: str):
+    clean_path = path.replace("\\", "/")
+    if ".." in clean_path:
+        raise HTTPException(status_code=404, detail="File not found")
+    full_path = os.path.abspath(os.path.join(ASSET_LIBRARY_DIR, clean_path))
+    root = os.path.abspath(ASSET_LIBRARY_DIR)
+    if not full_path.startswith(root):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    ext = os.path.splitext(full_path)[1].lower()
+    media_type = {
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".webp": "image/webp", ".gif": "image/gif",
+        ".json": "application/json",
+        ".zip": "application/zip",
+    }.get(ext, "application/octet-stream")
+    return StarletteFileResponse(full_path, media_type=media_type)
 
 
 @app.post("/api/restart")
