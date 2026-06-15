@@ -965,6 +965,8 @@ CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
 GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 PROMPT_PRESETS_FILE = os.path.join(DATA_DIR, "prompt-presets.json")
+STATIC_PROMPT_TEMPLATE_MD = os.path.join(STATIC_DIR, "system-prompts", "infinite-canvas-prompt-templates.md")
+PROMPT_TEMPLATE_PATHS = [STATIC_PROMPT_TEMPLATE_MD]
 
 # --- 素材库配置 ---
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
@@ -2376,6 +2378,63 @@ def origin_from_url(value):
 def sanitize_export_filename(name: str, fallback: str) -> str:
     name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "")).strip(" ._")
     return name[:120] or fallback
+
+def prompt_template_markdown_path() -> str:
+    for path in PROMPT_TEMPLATE_PATHS:
+        if os.path.exists(path):
+            return path
+    return ""
+
+def parse_prompt_template_markdown(content: str) -> list:
+    """解析提示词模板 Markdown 文件"""
+    templates = []
+    blocks = re.split(r'\n(?=##\s)', content)
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        title_match = re.match(r'^##\s+(.+)$', block, re.MULTILINE)
+        if not title_match:
+            continue
+        title = title_match.group(1).strip()
+        scene = ""
+        positive = ""
+        scene_match = re.search(r'###\s*场景描述\s*\n(.+?)(?=\n###|$)', block, re.DOTALL)
+        if scene_match:
+            scene = scene_match.group(1).strip()
+        prompt_match = re.search(r'###\s*提示词\s*\n(.+?)(?=\n###|$)', block, re.DOTALL)
+        if prompt_match:
+            positive = prompt_match.group(1).strip()
+        if positive:
+            templates.append({
+                "name": title,
+                "scene": scene,
+                "positive": positive,
+                "category": "storyboard",
+            })
+    return templates
+
+def builtin_prompt_templates():
+    try:
+        template_path = prompt_template_markdown_path()
+        if not template_path:
+            return []
+        with open(template_path, "r", encoding="utf-8") as f:
+            return parse_prompt_template_markdown(f.read())
+    except Exception as e:
+        print(f"读取提示词模板失败: {e}")
+        return []
+
+def smart_group_export_folder(folder: str, group_name: str) -> str:
+    text = str(folder or "").strip()
+    if text:
+        path = os.path.abspath(os.path.expanduser(text))
+    else:
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        safe_group = sanitize_export_filename(group_name or "group", "group")
+        path = os.path.abspath(os.path.join(OUTPUT_DIR, "smart-groups", f"{safe_group}-{stamp}"))
+    os.makedirs(path, exist_ok=True)
+    return path
 
 def sanitize_asset_name(name, fallback="asset"):
     name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or fallback)).strip()
@@ -5525,6 +5584,19 @@ def generate(req: GenerateRequest, token: str = ""):
 
 # --- API 设置相关 API ---
 
+# --- 智能画布分组导出模型 ---
+
+class SmartCanvasGroupExportItem(BaseModel):
+    kind: str = ""
+    url: str = ""
+    text: str = ""
+    name: str = ""
+
+class SmartCanvasGroupExportRequest(BaseModel):
+    folder: str = ""
+    group_name: str = "group"
+    items: List[SmartCanvasGroupExportItem] = []
+
 # --- 即梦 CLI 请求模型 ---
 
 class JimengHelpRequest(BaseModel):
@@ -7566,6 +7638,66 @@ async def serve_asset_library(path: str):
         ".zip": "application/zip",
     }.get(ext, "application/octet-stream")
     return StarletteFileResponse(full_path, media_type=media_type)
+
+# --- 智能画布分组导出 API ---
+
+@app.get("/api/smart-canvas/prompt-templates")
+async def smart_canvas_prompt_templates():
+    try:
+        template_path = prompt_template_markdown_path()
+        source = os.path.relpath(template_path, BASE_DIR).replace("\\", "/") if template_path else ""
+        return {"templates": builtin_prompt_templates(), "source": source}
+    except Exception as e:
+        print(f"读取提示词模板失败: {e}")
+        return {"templates": []}
+
+@app.post("/api/smart-canvas/group-export")
+async def export_smart_canvas_group(payload: SmartCanvasGroupExportRequest):
+    target_dir = smart_group_export_folder(payload.folder, payload.group_name)
+    used_names = set()
+    count = 0
+    text_index = 1
+    for item in payload.items[:2000]:
+        kind = str(item.kind or "").lower()
+        if kind == "text":
+            text = str(item.text or "")
+            if not text.strip():
+                continue
+            base = sanitize_export_filename(item.name or f"{text_index}.txt", f"{text_index}.txt")
+            if not base.lower().endswith(".txt"):
+                base += ".txt"
+            text_index += 1
+            name, ext = os.path.splitext(base)
+            out_name = base
+            suffix = 2
+            while out_name in used_names:
+                out_name = f"{name}-{suffix}{ext}"
+                suffix += 1
+            used_names.add(out_name)
+            with open(os.path.join(target_dir, out_name), "w", encoding="utf-8") as f:
+                f.write(text)
+            count += 1
+            continue
+        src = output_file_from_url(item.url)
+        if not src or not os.path.isfile(src):
+            continue
+        base = sanitize_export_filename(item.name or os.path.basename(src), os.path.basename(src) or f"asset-{count + 1}")
+        name, ext = os.path.splitext(base)
+        if not ext:
+            _, src_ext = os.path.splitext(src)
+            ext = src_ext or ".bin"
+            base = name + ext
+        out_name = base
+        suffix = 2
+        while out_name in used_names:
+            out_name = f"{name}-{suffix}{ext}"
+            suffix += 1
+        used_names.add(out_name)
+        shutil.copy2(src, os.path.join(target_dir, out_name))
+        count += 1
+    if count <= 0:
+        raise HTTPException(status_code=404, detail="没有可导出的内容")
+    return {"ok": True, "folder": target_dir, "count": count}
 
 
 @app.post("/api/restart")
