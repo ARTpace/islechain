@@ -19,7 +19,7 @@ import threading
 import zipfile
 from io import BytesIO
 import requests
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
