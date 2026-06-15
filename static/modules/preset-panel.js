@@ -48,8 +48,8 @@ export class PresetPanel {
       <div class="preset-panel">
         <div class="preset-header">
           <div class="preset-tabs">
-            <button class="preset-tab active" data-tab="style">🎨 风格预设</button>
-            <button class="preset-tab" data-tab="tag">🏷️ 标签预设</button>
+            <button class="preset-tab active" data-tab="style">🎨 风格</button>
+            <button class="preset-tab" data-tab="tag">🏷️ 标签</button>
           </div>
           <div class="preset-controls">
             <input type="text" class="preset-search" placeholder="搜索预设..." />

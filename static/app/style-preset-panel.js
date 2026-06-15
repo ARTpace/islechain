@@ -17,8 +17,6 @@ let stylePresetsCallback = null;
 
 // === 配置 ===
 const STYLE_PRESETS_API = '/api/style-presets';
-const STYLE_PRESET_DEBOUNCE_MS = 200;
-let _styleSearchTimer = null;
 
 /**
  * 初始化风格预设面板
@@ -27,33 +25,14 @@ let _styleSearchTimer = null;
  */
 function stylePresetPanelInit(container, onApply) {
     stylePresetsCallback = onApply;
+    // 风格面板只保留内容区域，标题和搜索由顶部工具栏统一提供
     container.innerHTML = `
         <div class="style-preset-panel">
-            <div class="style-preset-header">
-                <div class="style-preset-title">
-                    <span class="style-preset-icon">🎨</span>
-                    <span>风格预设</span>
-                    <span class="style-preset-badge" id="stylePresetCount">0</span>
-                </div>
-                <div class="style-preset-search-wrap">
-                    <input type="text" id="stylePresetSearch" class="style-preset-search" placeholder="搜索风格..." />
-                </div>
-            </div>
             <div class="style-preset-body" id="stylePresetBody"></div>
         </div>
     `;
 
-    // 绑定搜索
-    const searchEl = document.getElementById('stylePresetSearch');
-    if (searchEl) {
-        searchEl.addEventListener('input', () => {
-            clearTimeout(_styleSearchTimer);
-            _styleSearchTimer = setTimeout(() => {
-                stylePresetsSearchQuery = searchEl.value.toLowerCase();
-                _stylePresetRenderBody();
-            }, STYLE_PRESET_DEBOUNCE_MS);
-        });
-    }
+    // 搜索由顶部工具栏统一处理，无需绑定本地搜索框
 
     // 事件委托
     const body = document.getElementById('stylePresetBody');
@@ -112,17 +91,15 @@ function _stylePresetRenderBody() {
     const cats = stylePresetsData.categories || [];
     const filtered = _stylePresetFilter(cats);
 
-    // 更新总数
-    const countEl = document.getElementById('stylePresetCount');
-    if (countEl) {
-        const total = filtered.reduce((sum, c) =>
-            sum + c.subcategories.reduce((s, sub) => s + sub.presets.length, 0), 0
-        );
-        countEl.textContent = total;
-    }
+    // 更新总数（显示在工具栏）
+    const total = filtered.reduce((sum, c) =>
+        sum + c.subcategories.reduce((s, sub) => s + sub.presets.length, 0), 0
+    );
+    const toolbarCount = document.getElementById('presetPickerTotalCount');
+    if (toolbarCount) toolbarCount.textContent = total + ' 个预设';
 
     if (filtered.length === 0) {
-        body.innerHTML = '<div class="style-preset-empty">暂无风格预设</div>';
+        body.innerHTML = '<div class="style-preset-empty">暂无风格</div>';
         return;
     }
 
@@ -256,3 +233,12 @@ function stylePresetPanelRefresh() {
 window.stylePresetPanelInit = stylePresetPanelInit;
 window.stylePresetPanelSetSubject = stylePresetPanelSetSubject;
 window.stylePresetPanelRefresh = stylePresetPanelRefresh;
+
+/**
+ * 外部搜索接口：由顶部工具栏调用
+ */
+function stylePresetPanelSetSearch(query) {
+    stylePresetsSearchQuery = (query || '').toLowerCase();
+    _stylePresetRenderBody();
+}
+window.stylePresetPanelSetSearch = stylePresetPanelSetSearch;

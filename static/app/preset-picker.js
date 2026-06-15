@@ -35,10 +35,9 @@ function _getPresetCnName(preset) {
 }
 
 // --- 虚拟滚动 ---
-const VS_BATCH = 48;           // 每批渲染条数
-let _vsRendered = 0;            // 已渲染数量
-let _vsList = [];               // 当前过滤后的完整列表
-let _vsObserver = null;         // IntersectionObserver
+const VS_BATCH = 48;
+let _vsRendered = 0;
+let _vsList = [];
 
 // --- 扁平索引（只构建一次）---
 let _flatIndex = [];          // [{ id, name, prompt, nameLower, promptLower, category_id, category_name, _subcats: [{id, name}] }]
@@ -72,10 +71,10 @@ function _buildFlatIndex() {
                 } else {
                     merged.set(key, {
                         ...p,
+                        _type: 'tag',
                         category_id: cat.id,
                         category_name: _presetI18nMap && _presetI18nMap[cat.id] ? _presetI18nMap[cat.id] : cat.name,
                         _subcats: [{ id: sub.id, name: _presetI18nMap && _presetI18nMap[sub.id] ? _presetI18nMap[sub.id] : sub.name }],
-                        // 应用 i18n 映射到 name 字段
                         name: _presetI18nMap && _presetI18nMap[p.id] ? _presetI18nMap[p.id] : p.name,
                         nameLower: (_presetI18nMap && _presetI18nMap[p.id] ? _presetI18nMap[p.id] : p.name).toLowerCase(),
                         promptLower: p.prompt.toLowerCase(),
@@ -96,17 +95,50 @@ function _buildFlatIndex() {
         _categoryCounts[cat.id] = catCount;
         _categoryCounts.all += catCount;
     });
+
+    // === 风格预设也加入扁平索引 ===
+    const sCatI18n = _styleI18n.categories || {};
+    const sSubI18n = _styleI18n.subcategories || {};
+    const sPreI18n = _styleI18n.presets || {};
+    (_stylePickerData.categories || []).forEach(cat => {
+        const catName = sCatI18n[cat.id] || cat.name;
+        cat.subcategories.forEach(sub => {
+            const subName = sSubI18n[sub.id] || sub.name;
+            sub.presets.forEach(p => {
+                const key = 'style_' + cat.id + ':' + p.id;
+                const pName = sPreI18n[p.id] || p.name;
+                _flatIndex.push({
+                    ...p,
+                    _type: 'style',
+                    category_id: 'style_' + cat.id,
+                    category_name: catName,
+                    name: pName,
+                    _subcats: [{ id: sub.id, name: subName }],
+                    nameLower: pName.toLowerCase(),
+                    promptLower: (p.prompt || '').toLowerCase(),
+                });
+                _flatById.set(key, _flatIndex[_flatIndex.length - 1]);
+            });
+        });
+    });
 }
 
 // 加载预设数据
+let _stylePickerData = { categories: [] }; // 风格预设原始数据
+let _styleI18n = { categories: {}, subcategories: {}, presets: {} }; // 风格中文映射
+
 function presetPickerLoadData() {
     return Promise.all([
         fetch('/api/prompt-presets').then(r => r.json()),
-        _loadPresetI18n()
-    ]).then(([data, i18n]) => {
-        presetPickerData = data;
+        fetch('/api/style-presets').then(r => r.json()).catch(() => ({ categories: [] })),
+        _loadPresetI18n(),
+        fetch('/api/style-i18n').then(r => r.json()).catch(() => ({ categories: {}, subcategories: {}, presets: {} }))
+    ]).then(([tagData, styleData, i18n, styleI18n]) => {
+        presetPickerData = tagData;
+        _stylePickerData = styleData;
+        _styleI18n = styleI18n;
         _buildFlatIndex();
-        console.log('[PresetPicker] Loaded ' + _flatIndex.length + ' presets across ' + data.categories.length + ' categories');
+        console.log('[PresetPicker] Loaded ' + _flatIndex.length + ' presets');
     }).catch(e => console.error('[PresetPicker] Failed to load preset data', e));
 }
 
@@ -114,11 +146,16 @@ function presetPickerLoadData() {
  * 获取过滤后的预设列表
  */
 function _getFilteredPresets() {
-    let list = _flatIndex;
+    // 按当前模式过滤类型
+    let list = _flatIndex.filter(p => p._type === _presetMode);
 
     // 分类过滤
     if (presetPickerCategory !== 'all') {
-        list = list.filter(p => p.category_id === presetPickerCategory);
+        if (_presetMode === 'style') {
+            list = list.filter(p => p.category_id === 'style_' + presetPickerCategory);
+        } else {
+            list = list.filter(p => p.category_id === presetPickerCategory);
+        }
     }
     if (presetPickerSubcategory !== 'all') {
         list = list.filter(p => p._subcats.some(s => s.id === presetPickerSubcategory));
@@ -146,27 +183,51 @@ function _getFilteredPresets() {
     return list;
 }
 
-// 渲染分类
+// 渲染分类（标签/风格通用）
 function presetPickerRenderCategories() {
     const el = document.getElementById('presetPickerCategories');
     if (!el) return;
 
-    el.innerHTML = [
-        { id: 'all', name: '全部', count: _categoryCounts.all || 0 },
-        ...presetPickerData.categories.map(cat => ({
-            id: cat.id,
-            name: _presetI18nMap && _presetI18nMap[cat.id] ? _presetI18nMap[cat.id] : cat.name,
-            count: _categoryCounts[cat.id] || 0,
-        }))
-    ].map(cat => {
-        return '<div class="preset-picker-cat' + (presetPickerCategory === cat.id ? ' active' : '') + '" onclick="presetPickerSetCategory(\'' + cat.id + '\')">' +
-            '<span>' + cat.name + '</span>' +
-            '<span class="count">' + cat.count + '</span>' +
-            '</div>';
-    }).join('');
+    if (_presetMode === 'style') {
+        // 风格分类
+        const cats = _stylePickerData.categories || [];
+        const sCatI18n = _styleI18n.categories || {};
+        const styleCounts = {};
+        let styleAll = 0;
+        cats.forEach(cat => {
+            let n = 0;
+            cat.subcategories.forEach(sub => { n += sub.presets.length; });
+            styleCounts[cat.id] = n;
+            styleAll += n;
+        });
+        el.innerHTML = [
+            { id: 'all', name: '全部', count: styleAll },
+            ...cats.map(cat => ({ id: cat.id, name: sCatI18n[cat.id] || cat.name, count: styleCounts[cat.id] || 0 }))
+        ].map(cat => {
+            return '<div class="preset-picker-cat' + (presetPickerCategory === cat.id ? ' active' : '') + '" onclick="presetPickerSetCategory(\'' + cat.id + '\')">' +
+                '<span>' + cat.name + '</span>' +
+                '<span class="count">' + cat.count + '</span>' +
+                '</div>';
+        }).join('');
+    } else {
+        // 标签分类
+        el.innerHTML = [
+            { id: 'all', name: '全部', count: _categoryCounts.all || 0 },
+            ...presetPickerData.categories.map(cat => ({
+                id: cat.id,
+                name: _presetI18nMap && _presetI18nMap[cat.id] ? _presetI18nMap[cat.id] : cat.name,
+                count: _categoryCounts[cat.id] || 0,
+            }))
+        ].map(cat => {
+            return '<div class="preset-picker-cat' + (presetPickerCategory === cat.id ? ' active' : '') + '" onclick="presetPickerSetCategory(\'' + cat.id + '\')">' +
+                '<span>' + cat.name + '</span>' +
+                '<span class="count">' + cat.count + '</span>' +
+                '</div>';
+        }).join('');
+    }
 }
 
-// 渲染子分类
+// 渲染子分类（标签/风格通用）
 function presetPickerRenderSubcategories() {
     const el = document.getElementById('presetPickerSubcategories');
     if (!el) return;
@@ -177,15 +238,28 @@ function presetPickerRenderSubcategories() {
         return;
     }
 
-    const cat = presetPickerData.categories.find(c => c.id === presetPickerCategory);
-    if (!cat) { el.innerHTML = ''; el.style.display = 'none'; return; }
+    let subcats = [];
+    if (_presetMode === 'style') {
+        const cat = (_stylePickerData.categories || []).find(c => c.id === presetPickerCategory);
+        if (!cat) { el.innerHTML = ''; el.style.display = 'none'; return; }
+        const sSubI18n = _styleI18n.subcategories || {};
+        subcats = cat.subcategories.map(sub => ({ id: sub.id, name: sSubI18n[sub.id] || sub.name, count: sub.presets.length }));
+    } else {
+        const cat = presetPickerData.categories.find(c => c.id === presetPickerCategory);
+        if (!cat) { el.innerHTML = ''; el.style.display = 'none'; return; }
+        subcats = cat.subcategories.map(sub => ({
+            id: sub.id,
+            name: _presetI18nMap && _presetI18nMap[sub.id] ? _presetI18nMap[sub.id] : sub.name,
+            count: _subcategoryCounts[cat.id + ':' + sub.id] || 0,
+        }));
+    }
 
     el.style.display = 'flex';
-    const allCount = _categoryCounts[cat.id] || 0;
+    const totalCount = subcats.reduce((s, c) => s + c.count, 0);
 
     el.innerHTML = [
-        { id: 'all', name: '全部', count: allCount },
-        ...cat.subcategories.map(sub => ({ id: sub.id, name: _presetI18nMap && _presetI18nMap[sub.id] ? _presetI18nMap[sub.id] : sub.name, count: _subcategoryCounts[cat.id + ':' + sub.id] || 0 }))
+        { id: 'all', name: '全部', count: totalCount },
+        ...subcats
     ].map(sub => {
         return '<div class="preset-picker-subcat' + (presetPickerSubcategory === sub.id ? ' active' : '') + '" onclick="presetPickerSetSubcategory(\'' + sub.id + '\')">' +
             '<span>' + sub.name + '</span>' +
@@ -214,82 +288,69 @@ function presetPickerSetSubcategory(sub) {
 
 // 渲染网格 — 虚拟滚动
 function presetPickerRenderGrid() {
-    const grid = document.getElementById('presetPickerGrid');
+    const gridId = _presetMode === 'style' ? 'presetPickerStyleGrid' : 'presetPickerGrid';
+    const grid = document.getElementById(gridId);
     if (!grid) return;
 
-    // 断开旧 observer
-    if (_vsObserver) _vsObserver.disconnect();
-
-    // 获取完整过滤列表
     _vsList = _getFilteredPresets();
     _vsRendered = 0;
 
-    // 更新总数
     const totalEl = document.getElementById('presetPickerTotalCount');
     if (totalEl) totalEl.textContent = '共 ' + _vsList.length + ' 个预设';
 
-    // 清空网格，放入容器
-    grid.innerHTML = '<div id="vsContainer"></div>';
-    const container = document.getElementById('vsContainer');
-    if (!container) return;
+    // 直接清空网格
+    grid.innerHTML = '';
+
+    if (_vsList.length === 0) return;
 
     // 渲染首批
-    _vsAppendBatch(container);
+    _vsAppendBatch(grid);
 
-    // 创建 sentinel
-    const sentinel = document.createElement('div');
-    sentinel.id = 'vsSentinel';
-    sentinel.style.height = '1px';
-    container.appendChild(sentinel);
-
-    // 创建 IntersectionObserver
-    _vsObserver = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && _vsRendered < _vsList.length) {
-            _vsAppendBatch(container);
+    // 滚动加载后续
+    grid.onscroll = () => {
+        if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 100 && _vsRendered < _vsList.length) {
+            _vsAppendBatch(grid);
         }
-    }, { root: grid, rootMargin: '200px' });
-    _vsObserver.observe(sentinel);
+    };
 }
 
-function _vsAppendBatch(container) {
+function _vsAppendBatch(grid) {
     const start = _vsRendered;
     const end = Math.min(start + VS_BATCH, _vsList.length);
     const batch = _vsList.slice(start, end);
+    if (batch.length === 0) return;
 
-    let html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">';
+    const isStyle = _presetMode === 'style';
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px;';
     batch.forEach(p => {
         const sel = presetPickerSelected.some(s => s.id === p.id && s.category_id === p.category_id);
         const catTags = p._subcats.map(s => '<span class="preset-picker-card-tag">' + s.name + '</span>').join('');
         const cnName = _getPresetCnName(p);
-        // 始终显示：中文名 + 英文 prompt
         const displayName = cnName 
             ? cnName + '<br><span style="font-size:9px;opacity:0.7;font-weight:400;">' + p.prompt + '</span>'
             : p.prompt;
-        html += '<div class="preset-picker-card' + (sel ? ' selected' : '') + '" onclick="presetPickerToggle(\'' + p.id.replace(/'/g, "\\'") + '\', \'' + p.category_id.replace(/'/g, "\\'") + '\')">' +
-            '<div class="preset-picker-card-top">' +
-            '<div class="preset-picker-card-cats">' + catTags + '</div>' +
-            '<div class="preset-picker-card-check">' + (sel ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div>' +
-            '</div>' +
-            '<div class="preset-picker-card-name" title="' + p.prompt.replace(/"/g, '&quot;') + '">' + displayName + '</div>' +
-            '</div>';
+        const card = document.createElement('div');
+        card.className = 'preset-picker-card' + (sel ? ' selected' : '');
+        card.style.cssText = 'width: calc(25% - 8px); box-sizing: border-box;';
+        card.setAttribute('onclick', "presetPickerToggle('" + p.id.replace(/'/g, "\\'") + "', '" + p.category_id.replace(/'/g, "\\'") + "')");
+
+        let inner = '<div class="preset-picker-card-top"><div class="preset-picker-card-cats">' + catTags + '</div><div class="preset-picker-card-check">' + (sel ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div></div>';
+
+        // 风格卡片：显示缩略图
+        if (isStyle && p.thumbnail) {
+            inner += '<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:6px;background:rgba(255,255,255,0.05);"><img src="' + p.thumbnail + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></div>';
+        }
+
+        inner += '<div class="preset-picker-card-name" title="' + p.prompt.replace(/"/g, '&quot;') + '">' + displayName + '</div>';
+        card.innerHTML = inner;
+        wrapper.appendChild(card);
     });
-    html += '</div>';
-
-    // 在 sentinel 前插入
-    const sentinel = document.getElementById('vsSentinel');
-    if (sentinel) {
-        sentinel.insertAdjacentHTML('beforebegin', html);
-    } else {
-        container.insertAdjacentHTML('beforeend', html);
-    }
-
+    grid.appendChild(wrapper);
     _vsRendered = end;
 
-    // 更新统计（可选）
     const pageInfoEl = document.getElementById('presetPickerPageInfo');
-    if (pageInfoEl) {
-        pageInfoEl.textContent = '显示 ' + _vsRendered + ' / ' + _vsList.length + ' 项';
-    }
+    if (pageInfoEl) pageInfoEl.textContent = '显示 ' + _vsRendered + ' / ' + _vsList.length + ' 项';
 }
 
 // 操作函数
@@ -324,33 +385,66 @@ function isPresetNameToken(s) {
 }
 
 function presetPickerApply() {
-    if (presetPickerCallback) {
-        presetPickerCallback(presetPickerSelected.slice());
-    } else {
-        // 更新 prompt 输入框
-        const promptInput = document.getElementById('prompt');
-        if (promptInput) {
-            const current = promptInput.value.trim();
-            const parts = current.split(',').map(p => p.trim()).filter(p => p);
-            const charParts = parts.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !isPresetNameToken(p) && !p.startsWith('['));
-            const artistParts = parts.filter(p => p.startsWith('@') || p.startsWith('by '));
-            // 收集已存在的预设 token（中文名或方括号包裹的），避免被覆盖
-            const existingPresetTokens = parts.filter(p => 
-                (isPresetNameToken(p) || p.startsWith('[')) && 
-                !p.startsWith('@') && 
-                !p.startsWith('by ')
-            );
-            // 新选的预设（始终使用英文prompt）
-            const newPresetTokens = presetPickerSelected.map(p => {
-                return (p.prompt || p.name || p.id || '').trim();
-            }).filter(Boolean);
-            // 合并：已存在 + 新选
-            const presetTokenSet = new Set([...existingPresetTokens, ...newPresetTokens]);
-            const presetParts = Array.from(presetTokenSet);
-            const allParts = [...charParts, ...presetParts, ...artistParts];
-            promptInput.value = allParts.filter(p => p).join(', ');
+    const promptInput = document.getElementById('prompt');
+    if (!promptInput) return;
+
+    if (_presetMode === 'style') {
+        // 风格模式：用选中的风格预设提示词替换
+        const currentPrompt = promptInput.value.trim();
+        // {subject} = 用户输入的主题
+        let subject = currentPrompt.replace(/\{subject\}/gi, '').trim();
+        if (!subject) subject = 'subject';
+        // {prompt} = 用户已有的提示词
+        let existingPrompt = currentPrompt;
+
+        const stylePrompts = presetPickerSelected.map(p => {
+            let text = (p.prompt || '').trim();
+            // 如果 prompt 是 JSON，把所有字段转成逗号分隔的提示词
+            if (text.startsWith('{') && !text.startsWith('{subject}') && !text.startsWith('{prompt}')) {
+                try {
+                    const obj = JSON.parse(text);
+                    if (typeof obj === 'object' && obj !== null) {
+                        const parts = [];
+                        for (const [k, v] of Object.entries(obj)) {
+                            if (typeof v === 'string' && v.trim()) parts.push(v.trim());
+                            else if (typeof v === 'object' && v !== null) {
+                                for (const [k2, v2] of Object.entries(v)) {
+                                    if (typeof v2 === 'string' && v2.trim()) parts.push(v2.trim());
+                                }
+                            }
+                        }
+                        if (parts.length > 0) text = parts.join(', ');
+                    }
+                } catch(e) {}
+            }
+            // 替换占位符
+            text = text.replace(/\{subject\}/gi, subject);
+            text = text.replace(/\{prompt\}/gi, existingPrompt);
+            return text;
+        }).filter(Boolean);
+        if (stylePrompts.length > 0) {
+            promptInput.value = stylePrompts.join(', ');
         }
+    } else {
+        // 标签模式：合并到现有提示词
+        const current = promptInput.value.trim();
+        const parts = current.split(',').map(p => p.trim()).filter(p => p);
+        const charParts = parts.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !isPresetNameToken(p) && !p.startsWith('['));
+        const artistParts = parts.filter(p => p.startsWith('@') || p.startsWith('by '));
+        const existingPresetTokens = parts.filter(p => 
+            (isPresetNameToken(p) || p.startsWith('[')) && 
+            !p.startsWith('@') && 
+            !p.startsWith('by ')
+        );
+        const newPresetTokens = presetPickerSelected.map(p => {
+            return (p.prompt || p.name || p.id || '').trim();
+        }).filter(Boolean);
+        const presetTokenSet = new Set([...existingPresetTokens, ...newPresetTokens]);
+        const presetParts = Array.from(presetTokenSet);
+        const allParts = [...charParts, ...presetParts, ...artistParts];
+        promptInput.value = allParts.filter(p => p).join(', ');
     }
+
     presetPickerClose();
     if (typeof updatePromptTags === 'function') updatePromptTags();
 }
@@ -425,26 +519,37 @@ function _presetSwitchMode(mode) {
     _presetMode = mode;
     const tabs = document.querySelectorAll('#presetPickerModal .preset-mode-tab');
     tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-    const tagPanel = document.getElementById('presetPickerTagPanel');
-    const stylePanel = document.getElementById('presetPickerStylePanel');
-    if (tagPanel) tagPanel.style.display = mode === 'tag' ? 'flex' : 'none';
-    if (stylePanel) stylePanel.style.display = mode === 'style' ? 'flex' : 'none';
-    // 切换到风格时初始化面板
-    if (mode === 'style' && stylePanel && !stylePanel.dataset.inited && typeof stylePresetPanelInit === 'function') {
-        stylePanel.dataset.inited = '1';
-        stylePresetPanelInit(stylePanel, (preset, action) => {
-            const promptInput = document.getElementById('prompt');
-            if (!promptInput) return;
-            if (action === 'replace') {
-                promptInput.value = preset.filledPrompt || preset.prompt || '';
-            } else {
-                const current = promptInput.value.trim();
-                promptInput.value = current ? current + ', ' + (preset.filledPrompt || preset.prompt || '') : (preset.filledPrompt || preset.prompt || '');
-            }
-            presetPickerClose();
-            if (typeof updatePromptTags === 'function') updatePromptTags();
-        });
+
+    // 切换两个网格的显隐
+    const tagGrid = document.getElementById('presetPickerGrid');
+    const styleGrid = document.getElementById('presetPickerStyleGrid');
+    if (tagGrid) tagGrid.style.display = mode === 'tag' ? '' : 'none';
+    if (styleGrid) styleGrid.style.display = mode === 'style' ? '' : 'none';
+
+    // --- 标题 ---
+    const titleEl = document.getElementById('presetPickerTitle');
+    if (titleEl) titleEl.textContent = mode === 'tag' ? '标签' : '风格';
+
+    // --- 切换模式时重置分类选择 ---
+    presetPickerCategory = 'all';
+    presetPickerSubcategory = 'all';
+
+    // --- 侧边栏/子分类始终显示，内容由渲染函数按模式切换 ---
+    presetPickerRenderCategories();
+    presetPickerRenderSubcategories();
+
+    // --- 搜索框 ---
+    const searchEl = document.getElementById('presetPickerSearch');
+    if (searchEl) {
+        searchEl.placeholder = mode === 'tag' ? '搜索标签...' : '搜索风格...';
+        searchEl.oninput = () => _presetPickerSearchInput();
+        searchEl.value = '';
     }
+
+    // --- 重新渲染网格 ---
+    _vsList = [];
+    _vsRendered = 0;
+    presetPickerRenderGrid();
 }
 
 function presetPickerInit() {
@@ -456,13 +561,13 @@ function presetPickerInit() {
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 960px; height: 680px; background: linear-gradient(180deg, #0d1b2a 0%, #1b2838 100%); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 1px solid rgba(0,180,216,0.15);">
                 <!-- 顶部 Tab 切换 -->
                 <div style="display: flex; padding: 12px 20px 0; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
-                    <div class="preset-mode-tab active" data-mode="tag" onclick="_presetSwitchMode('tag')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🏷️ 标签预设</div>
-                    <div class="preset-mode-tab" data-mode="style" onclick="_presetSwitchMode('style')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🎨 风格预设</div>
+                    <div class="preset-mode-tab active" data-mode="tag" onclick="_presetSwitchMode('tag')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🏷️ 标签</div>
+                    <div class="preset-mode-tab" data-mode="style" onclick="_presetSwitchMode('style')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🎨 风格</div>
                 </div>
                 <!-- 顶部工具栏 -->
                 <div id="presetPickerToolbar" style="display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;">
                     <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
-                        <span id="presetPickerTitle" style="font-size: 14px; font-weight: 700; color: #fff;">标签预设</span>
+                        <span id="presetPickerTitle" style="font-size: 14px; font-weight: 700; color: #fff;">标签</span>
                         <span id="presetPickerTotalCount" style="font-size: 12px; color: #666;"></span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -478,20 +583,20 @@ function presetPickerInit() {
                         <button onclick="presetPickerClose()" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
                     </div>
                 </div>
-                <!-- 主体：标签预设面板 -->
-                <div id="presetPickerTagPanel" style="display: flex; flex: 1; overflow: hidden;">
-                    <!-- 左侧分类 -->
-                    <div id="presetPickerCategories" style="width: 140px; padding: 12px 8px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;"></div>
+                <!-- 主体 -->
+                <div style="display: flex; flex: 1; overflow: hidden;">
+                    <!-- 左侧分类（共享） -->
+                    <div id="presetPickerCategories" style="width: 200px; padding: 12px 10px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;"></div>
                     <!-- 右侧内容 -->
                     <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-                        <!-- 子分类标签栏 -->
+                        <!-- 子分类标签栏（共享） -->
                         <div id="presetPickerSubcategories" style="display: none; padding: 8px 16px; gap: 6px; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; flex-wrap: wrap;"></div>
-                        <!-- 网格 -->
+                        <!-- 标签网格 -->
                         <div id="presetPickerGrid" style="flex: 1; overflow-y: auto; padding: 16px;"></div>
+                        <!-- 风格网格 -->
+                        <div id="presetPickerStyleGrid" style="display: none; flex: 1; overflow-y: auto; padding: 16px;"></div>
                     </div>
                 </div>
-                <!-- 主体：风格预设面板 -->
-                <div id="presetPickerStylePanel" style="display: none; flex: 1; overflow: hidden; flex-direction: column;"></div>
                 <!-- 底部分页 -->
                 <div id="presetPickerFooter" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
                     <span id="presetPickerPageInfo" style="font-size: 12px; color: #666;"></span>

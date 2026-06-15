@@ -5640,6 +5640,19 @@ def api_preset_i18n():
     """返回预设中文名映射表（兼容旧接口）"""
     return load_preset_i18n()
 
+STYLE_I18N_FILE = os.path.join(DATA_DIR, "style-i18n.json")
+
+@app.get("/api/style-i18n")
+def api_style_i18n():
+    """返回风格预设中文名映射表"""
+    if os.path.exists(STYLE_I18N_FILE):
+        try:
+            with open(STYLE_I18N_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"categories": {}, "subcategories": {}, "presets": {}}
+
 @app.get("/api/preset-bidir")
 def api_preset_bidir():
     """返回 {id_to_name, name_to_id}（兼容旧接口）"""
@@ -5667,6 +5680,39 @@ async def api_save_style_presets(data: dict):
     """保存风格预设"""
     ok = save_style_presets(data)
     return {"success": ok}
+
+
+@app.post("/api/import/fooocus-styles")
+async def api_import_fooocus_styles(payload: dict = None):
+    """
+    一键导入 Fooocus 官方风格包到 style-presets.json
+
+    Body 参数:
+      - sources: List[str]  要导入的源 key，默认全部
+        可选: fooocus, sai, diva, marc_k3nt3l, twri, mre
+      - dry_run: bool       预览模式，不写文件
+      - skip_thumbs: bool   不下载缩略图
+    """
+    payload = payload or {}
+    try:
+        from tools.fooocus_importer import import_fooocus_styles
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"fooocus_importer 加载失败: {e}")
+
+    sources = payload.get("sources")  # None=全部
+    dry_run = bool(payload.get("dry_run", False))
+    skip_thumbs = bool(payload.get("skip_thumbs", False))
+
+    try:
+        result = import_fooocus_styles(
+            sources=sources,
+            dry_run=dry_run,
+            skip_thumbs=skip_thumbs,
+        )
+        return result
+    except Exception as e:
+        log.exception(f"Fooocus 导入失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/all-presets")
 async def api_get_all_presets():
