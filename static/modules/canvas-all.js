@@ -427,8 +427,10 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
             setStatus('请先新建或选择画布');
             return false;
         }
-        function setCreateMode(active){
+        let creatingSmartCanvas = false;
+        function setCreateMode(active, kind='classic'){
             creatingCanvas = active;
+            creatingSmartCanvas = (kind === 'smart');
             if(active) trashMode = false;
             canvasGate.classList.toggle('creating', active);
             refreshGateViewControls();
@@ -724,11 +726,12 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
             }
             const customTitle = gateTitleInput?.value.trim();
             const title = customTitle || `新画布 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}`;
+            const isSmart = creatingSmartCanvas;
             trashMode = false;
             refreshGateViewControls();
             setStatus('Creating...');
             try {
-                const res = await fetch(apiUrl('/api/canvases'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title})});
+                const res = await fetch(apiUrl('/api/canvases'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title, kind: isSmart ? 'smart' : 'classic'})});
                 if(!res.ok) throw new Error('新建画布失败');
                 const data = await res.json();
                 window.canvas = data.canvas;
@@ -743,6 +746,10 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 render();
                 setStatus('Saved');
                 setCreateMode(false);
+                if(isSmart) {
+                    openSmartCanvasPage(data.canvas?.id);
+                    return;
+                }
                 await loadCanvasList(false);
                 renderCanvasList();
             } catch(e) {
@@ -988,6 +995,17 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
         window.deleteCanvas = deleteCanvas;
         window.returnToCanvasManager = returnToCanvasManager;
         gateCreateBtn.addEventListener('click', () => setCreateMode(true));
+        const gateCreateSmartBtn = document.getElementById('gateCreateSmartBtn');
+        function createSmartCanvas(){
+            setCreateMode(true, 'smart');
+        }
+        function openSmartCanvasPage(id){
+            if(!id) return;
+            window.location.href = `/static/smart-canvas.html?id=${encodeURIComponent(id)}`;
+        }
+        gateCreateSmartBtn?.addEventListener('click', createSmartCanvas);
+        window.createSmartCanvas = createSmartCanvas;
+        window.openSmartCanvasPage = openSmartCanvasPage;
         gateBackBtn.addEventListener('click', () => setTrashMode(false));
         gateTrashBtn.addEventListener('click', () => setTrashMode(true));
         gateRefreshBtn.addEventListener('click', () => trashMode ? loadTrashList() : loadCanvasList(false));

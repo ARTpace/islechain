@@ -1573,6 +1573,7 @@ class ConversationCreateRequest(BaseModel):
 class CanvasCreateRequest(BaseModel):
     title: str = "未命名画布"
     icon: str = "🧩"
+    kind: str = "classic"
 
 class CanvasSaveRequest(BaseModel):
     title: str = "未命名画布"
@@ -4109,7 +4110,10 @@ async def trashed_canvases(token: str = ""):
 @app.post("/api/canvases")
 async def create_canvas(payload: CanvasCreateRequest, token: str = ""):
     username = get_username_by_token(token)
-    return {"canvas": new_canvas(payload.title, payload.icon, owner=username)}
+    canvas = new_canvas(payload.title, payload.icon, owner=username)
+    canvas["kind"] = payload.kind or "classic"
+    save_canvas(canvas)
+    return {"canvas": canvas}
 
 @app.get("/api/canvases/{canvas_id}")
 async def get_canvas(canvas_id: str, token: str = ""):
