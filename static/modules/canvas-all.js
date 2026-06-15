@@ -639,7 +639,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                         <div class="canvas-card-icon-row">
                             <span class="canvas-preview-mark" role="button" tabindex="0" title="${trashMode ? '已删除画布' : '修改画布图标'}">${renderCanvasIcon(item.icon, 16)}</span>
                         </div>
-                        <div class="canvas-card-title">${escapeHtml(item.title)}</div>
+                        <div class="canvas-card-title">${escapeHtml(item.title)}${item.kind === 'smart' ? ' <span class="canvas-kind-chip">智能</span>' : ''}</div>
                         <div class="canvas-card-meta">
                             <span class="canvas-card-meta-dot"></span>
                             <div class="canvas-card-time">${trashMode ? `删除于 ${formatCanvasTime(item.deleted_at)}` : formatCanvasTime(item.updated_at || item.created_at)}</div>
@@ -873,7 +873,13 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 const res = await fetch(apiUrl(`/api/canvases/${id}`));
                 if(!res.ok) throw new Error('打开画布失败');
                 const data = await res.json();
-                window.canvas = data.canvas;
+                const canvasData = data.canvas;
+                // 检查是否是智能画布，如果是则跳转到智能画布页面
+                if(canvasData.kind === 'smart') {
+                    openSmartCanvasPage(id);
+                    return;
+                }
+                window.canvas = canvasData;
                 nodes = window.canvas.nodes || [];
                 connections = window.canvas.connections || [];
                 viewport = window.canvas.viewport || {x:0, y:0, scale:1};
