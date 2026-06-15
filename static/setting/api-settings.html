@@ -244,6 +244,27 @@
         .ms-hint .ms-line { display:block; }
         .ms-hint .inline-code { display:inline-flex; align-items:center; min-height:20px; padding:0 7px; border-radius:6px; background:var(--panel); color:var(--text); border:1px solid var(--line); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; font-weight:700; vertical-align:middle; }
         .empty { padding:18px; border:1px dashed var(--line); border-radius:11px; color:var(--faint); text-align:center; font-size:11.5px; font-weight:700; }
+        /* 即梦 CLI 面板 */
+        body.show-jimeng .api-base-url-field,
+        body.show-jimeng .api-key-field { display:none !important; }
+        .jimeng-cli-panel { grid-column:1/-1; display:none; flex-direction:column; gap:12px; margin-top:2px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+        body.show-jimeng .jimeng-cli-panel:not([hidden]) { display:flex; }
+        .jimeng-cli-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .jimeng-status-pill { height:26px; padding:0 10px; border-radius:8px; border:1px solid var(--line-strong); display:inline-flex; align-items:center; color:var(--muted); background:var(--panel); font-size:11px; font-weight:900; white-space:nowrap; }
+        .jimeng-status-pill.ok { color:#15803d; border-color:#86efac; background:#f0fdf4; }
+        .jimeng-status-pill.bad { color:#b45309; border-color:#fcd34d; background:#fffbeb; }
+        .jimeng-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .jimeng-credit { min-height:20px; color:var(--text); font-size:12px; line-height:1.55; font-weight:800; white-space:pre-wrap; word-break:break-word; }
+        .jimeng-output { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; align-items:start; padding:10px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+        .jimeng-output[hidden] { display:none !important; }
+        .jimeng-output pre { margin:0; max-height:260px; overflow:auto; color:var(--text); font:11px/1.45 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
+        .jimeng-qr-img { width:180px; height:180px; object-fit:contain; border-radius:10px; border:1px solid var(--line); background:#fff; }
+        .jimeng-help-modal { max-width:860px; }
+        .jimeng-help-toolbar { display:flex; gap:10px; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line); }
+        .jimeng-help-toolbar select { height:38px; min-width:180px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); padding:0 10px; font-weight:800; outline:none; }
+        .jimeng-help-output { margin:0; padding:18px 20px; min-height:420px; max-height:62vh; overflow:auto; background:var(--soft); color:var(--text); font:12px/1.55 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
+        body.show-jimeng #probeAsyncBtn,
+        body.show-jimeng .image-request-mode-wrap { display:none !important; }
         @media (max-width:860px) { .page{padding:24px 16px 60px}.layout{grid-template-columns:1fr;gap:28px}.sidebar{position:static}.form,.model-grid{grid-template-columns:1fr}.models-toolbar{align-items:flex-start;flex-direction:column}.models-toolbar-actions{width:100%;justify-content:flex-end}.lora-row{grid-template-columns:1fr}.lora-row .icon-btn{width:100%;} }
     </style>
 </head>
@@ -313,6 +334,23 @@
                                     <span class="ms-line"><span data-i18n="api.msTokenGlobal">获取 Token · 国外：</span><a href="https://www.modelscope.ai/my/access/token" target="_blank">https://www.modelscope.ai/my/access/token</a></span>
                                 </div>
                             </label>
+                            <div id="jimengCliPanel" class="jimeng-cli-panel" hidden>
+                                <div class="jimeng-cli-head">
+                                    <div>
+                                        <div class="rh-key-title">即梦 CLI 账户</div>
+                                        <div class="rh-key-desc">使用本机 dreamina 登录态，无需 API Key。</div>
+                                    </div>
+                                    <div id="jimengCliStatus" class="jimeng-status-pill">未检测</div>
+                                </div>
+                                <div class="jimeng-actions">
+                                    <button class="action-btn primary-btn" type="button" onclick="startJimengLogin()"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>扫码登录</span></button>
+                                    <button class="action-btn" type="button" onclick="refreshJimengCredit()"><i data-lucide="wallet-cards" class="w-3.5 h-3.5"></i><span>查询积分</span></button>
+                                    <button class="action-btn" type="button" onclick="openJimengHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
+                                    <button class="action-btn danger-btn" type="button" onclick="logoutJimeng()"><i data-lucide="log-out" class="w-3.5 h-3.5"></i><span>退出登录</span></button>
+                                </div>
+                                <div id="jimengCredit" class="jimeng-credit"></div>
+                                <div id="jimengLoginBox" class="jimeng-output" hidden></div>
+                            </div>
                             <!-- 验证操作行 -->
                             <div class="verify-action-row">
                                 <button id="testUrlBtn" class="action-btn" type="button" onclick="testConnection()">
@@ -326,6 +364,9 @@
                                         <option value="openai" data-i18n="api.protocolOpenAI">OpenAI 兼容</option>
                                         <option value="apimart" data-i18n="api.protocolApimart">APIMart 异步</option>
                                         <option value="gemini" data-i18n="api.protocolGemini">Gemini 协议</option>
+                                        <option value="volcengine">方舟/Ark 任务协议</option>
+                                        <option value="runninghub">RunningHub OpenAPI</option>
+                                        <option value="jimeng">即梦 CLI</option>
                                     </select>
                                 </div>
                             </div>
@@ -516,7 +557,8 @@
             item.name = nameInput.value.trim() || item.id;
             item.base_url = baseInput.value.trim();
             // MS 固定使用 OpenAI 协议，不从下拉读取
-            item.protocol = (item.id === 'modelscope') ? 'openai' : (protocolInput?.value || 'openai');
+            item.protocol = (item.id === 'modelscope') ? 'openai' : (item.id === 'jimeng') ? 'jimeng' : (protocolInput?.value || 'openai');
+            if(item.protocol === 'jimeng') item.base_url = '';
             const key = keyInput.value.trim();
             if(key) item.api_key = key;
         }
@@ -568,7 +610,17 @@
             keyInput.placeholder = item.has_key ? `${tr('api.keepCurrentKey')} ${item.key_preview || ''}` : tr('api.enterKey');
             keyHint.textContent = item.has_key ? `${tr('api.keySaved')}${item.key_env || 'API/.env'}` : tr('api.noKey');
             const isModelScope = item.id === 'modelscope';
+            const isJimeng = item.id === 'jimeng' || String(protocolInput?.value || item.protocol || '').toLowerCase() === 'jimeng';
             document.body.classList.toggle('show-ms', isModelScope);
+            if(isJimeng && item.protocol !== 'jimeng'){
+                item.protocol = 'jimeng';
+                item.base_url = '';
+            }
+            if(isJimeng){
+                keyInput.placeholder = '即梦 CLI 使用本机 dreamina login，无需 API Key';
+                keyHint.textContent = '请先在终端安装 dreamina CLI，并执行 dreamina login';
+            }
+            document.body.classList.toggle('show-jimeng', isJimeng);
             if(msLoraBlock) msLoraBlock.style.display = isModelScope ? 'flex' : 'none';
             const deleteBtn = document.getElementById('deleteBtn');
             if(deleteBtn) deleteBtn.style.display = (item.id === 'modelscope') ? 'none' : 'inline-flex';
@@ -578,6 +630,12 @@
             if(isModelScope) renderMsLoras();
             else if(msLoraList) msLoraList.innerHTML = '';
             renderProviderList();
+            // 即梦 CLI 面板
+            if(jimengCliPanel){
+                jimengCliPanel.hidden = !isJimeng;
+                jimengCliPanel.style.display = isJimeng ? 'flex' : 'none';
+            }
+            if(isJimeng) refreshJimengStatus(true);
         }
         function showVerifyResult(html){ const el = document.getElementById('verifyResult'); if(el){ el.style.display = 'block'; el.innerHTML = html; } }
         function clearVerifyResult(){ const el = document.getElementById('verifyResult'); if(el){ el.style.display = 'none'; el.innerHTML = ''; } }
@@ -1025,6 +1083,108 @@
             return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
         }
         function escapeAttr(str){ return escapeHtml(str).replace(/`/g, '&#96;'); }
+
+        // --- 即梦 CLI 函数 ---
+        const jimengCliPanel = document.getElementById('jimengCliPanel');
+        const jimengCliStatus = document.getElementById('jimengCliStatus');
+        const jimengCredit = document.getElementById('jimengCredit');
+        const jimengLoginBox = document.getElementById('jimengLoginBox');
+
+        const JIMENG_LEGACY_IMAGE_MODELS = new Set(['jimeng-image-2k', 'jimeng-image-4k']);
+        const JIMENG_LEGACY_VIDEO_MODELS = new Set(['jimeng-video-720p', 'jimeng-video-1080p']);
+
+        function jimengCreditText(raw){
+            if(!raw) return '';
+            if(typeof raw === 'string') return raw;
+            const credits = raw.total_credit ?? raw.credit ?? raw.credits;
+            const remaining = raw.remaining_credit ?? raw.remain ?? raw.balance;
+            const parts = [];
+            if(credits != null) parts.push(`总积分: ${credits}`);
+            if(remaining != null) parts.push(`剩余: ${remaining}`);
+            return parts.join('  |  ') || JSON.stringify(raw, null, 2);
+        }
+        function setJimengStatus(text, ok){
+            if(!jimengCliStatus) return;
+            jimengCliStatus.textContent = text || '未检测';
+            jimengCliStatus.classList.toggle('ok', ok === true);
+            jimengCliStatus.classList.toggle('bad', ok === false);
+        }
+        function showJimengLoginBox(text, qrUrl){
+            if(!jimengLoginBox) return;
+            const qrHtml = qrUrl
+                ? `<img class="jimeng-qr-img" src="${escapeHtml(qrUrl)}" alt="即梦登录二维码">`
+                : '';
+            jimengLoginBox.hidden = false;
+            jimengLoginBox.innerHTML = `${qrHtml}<pre>${escapeHtml(text || '等待 CLI 输出登录二维码...')}</pre>`;
+        }
+        let jimengLoginTimer = null;
+        async function refreshJimengStatus(showCredit){
+            if(!jimengCliPanel || jimengCliPanel.hidden) return;
+            try{
+                const data = await fetch('/api/jimeng/status').then(r => r.json());
+                setJimengStatus(data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装', data.logged_in);
+                if(data.installed && data.version_ok === false && jimengCredit){
+                    jimengCredit.textContent = `⚠ 检测到 dreamina CLI 版本 ${data.cli_version || '未知'}，低于推荐的 ${data.min_version || '1.4.2'}。旧版本任务状态可能无法更新，请升级 CLI。`;
+                } else if(showCredit && data.raw && jimengCredit){
+                    jimengCredit.textContent = jimengCreditText(data.raw);
+                }
+            } catch(e){
+                setJimengStatus('检测失败', false);
+                if(jimengCredit) jimengCredit.textContent = e.message || String(e);
+            }
+        }
+        async function startJimengLogin(){
+            if(jimengCredit) jimengCredit.textContent = '';
+            try{
+                const data = await fetch('/api/jimeng/login/start', {method:'POST'}).then(async r => r.json());
+                showJimengLoginBox(data.text, data.qr_url);
+                if(data.running && !jimengLoginTimer){
+                    jimengLoginTimer = setInterval(async () => {
+                        try{
+                            const st = await fetch('/api/jimeng/login/status').then(r => r.json());
+                            showJimengLoginBox(st.text, st.qr_url);
+                            if(!st.running){
+                                clearInterval(jimengLoginTimer);
+                                jimengLoginTimer = null;
+                                refreshJimengStatus(true);
+                            }
+                        } catch(e){}
+                    }, 3000);
+                }
+            } catch(e){
+                if(jimengLoginBox){ jimengLoginBox.hidden = false; jimengLoginBox.innerHTML = `<pre>${escapeHtml(e.message || String(e))}</pre>`; }
+            }
+        }
+        async function refreshJimengCredit(){
+            if(jimengCredit) jimengCredit.textContent = '查询中...';
+            try{
+                const data = await fetch('/api/jimeng/credit').then(r => r.json());
+                if(jimengCredit) jimengCredit.textContent = jimengCreditText(data.raw);
+            } catch(e){
+                if(jimengCredit) jimengCredit.textContent = e.message || String(e);
+            }
+        }
+        async function logoutJimeng(){
+            if(!confirm('确认退出即梦 CLI 登录？')) return;
+            try{
+                await fetch('/api/jimeng/logout', {method:'POST'});
+                refreshJimengStatus(false);
+                if(jimengLoginBox) jimengLoginBox.hidden = true;
+            } catch(e){}
+        }
+        function openJimengHelp(){
+            // TODO: 即梦帮助弹窗（可选）
+        }
+
+        // 即梦 CLI 面板显隐逻辑
+        function toggleJimengPanel(isJimeng){
+            if(jimengCliPanel){
+                jimengCliPanel.hidden = !isJimeng;
+                jimengCliPanel.style.display = isJimeng ? 'flex' : 'none';
+            }
+            document.body.classList.toggle('show-jimeng', isJimeng);
+            if(isJimeng) refreshJimengStatus(true);
+        }
         window.addEventListener('message', event => {
             if(event.data?.type === 'studio-theme' && window.StudioTheme) window.StudioTheme.set(event.data.theme);
             if(event.data?.type === 'studio-lang' && window.StudioI18n) {

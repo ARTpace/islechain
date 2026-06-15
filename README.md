@@ -21,6 +21,7 @@ http://localhost:7000
 - **在线生图**：通过 COMFLY / OpenAI 兼容协议调用在线图像模型，支持参考图、提示词预设和历史记录。
 - **智能对话**：支持多轮对话、SSE 流式响应、会话保存、文本对话与图片生成模式。
 - **API 多提供商管理**：支持 OpenAI 兼容协议、APIMart 异步协议、模型同步、连接测试和 API Key 管理。
+- **即梦 CLI 集成**：支持调用即梦（Dreamina）命令行工具，使用本机登录态进行文生图、图生图、文生视频、图生视频，无需 API Key。
 - **本地资产与历史**：生成图片、画布资产、对话、历史记录均以本地文件方式保存，方便迁移和备份。
 
 ## 技术栈
@@ -29,7 +30,7 @@ http://localhost:7000
 |------|------|
 | 后端 | FastAPI、Uvicorn、Pydantic、httpx、requests、Pillow、WebSocket |
 | 前端 | HTML、原生 JavaScript、Tailwind CSS、本地主题系统、Lucide Icons、Three.js |
-| AI 引擎 | 本地 ComfyUI、COMFLY、ModelScope、自定义 OpenAI 兼容提供商 |
+| AI 引擎 | 本地 ComfyUI、COMFLY、ModelScope、即梦 CLI（Dreamina）、自定义 OpenAI 兼容提供商 |
 | 数据存储 | JSON 文件、input/output 本地文件目录 |
 | 运行环境 | Windows 优先，Python 3.12 便携环境/虚拟环境均可 |
 
