@@ -332,7 +332,6 @@ function _vsAppendBatch(grid) {
             : p.prompt;
         const card = document.createElement('div');
         card.className = 'preset-picker-card' + (sel ? ' selected' : '');
-        card.style.cssText = 'width: calc(25% - 8px); box-sizing: border-box;';
         card.setAttribute('onclick', "presetPickerToggle('" + p.id.replace(/'/g, "\\'") + "', '" + p.category_id.replace(/'/g, "\\'") + "')");
 
         let inner = '<div class="preset-picker-card-top"><div class="preset-picker-card-cats">' + catTags + '</div><div class="preset-picker-card-check">' + (sel ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div></div>';

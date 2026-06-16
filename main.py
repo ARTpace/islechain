@@ -1213,6 +1213,12 @@ def normalize_provider(data):
 
 def public_provider(provider):
     """返回公开的提供商信息（隐藏 API Key）"""
+    env_key = provider_key_env(provider["id"])
+    has_key = bool(os.getenv(env_key, "") or read_api_env_value(env_key))
+    key_preview = ''
+    if has_key:
+        raw = os.getenv(env_key, "") or read_api_env_value(env_key)
+        key_preview = raw[:4] + '••••' + raw[-4:] if len(raw) > 8 else '••••••••'
     return {
         "id": provider["id"],
         "name": provider["name"],
@@ -1223,7 +1229,15 @@ def public_provider(provider):
         "video_models": provider.get("video_models") or [],
         "primary": provider["primary"],
         "enabled": provider["enabled"],
+        "has_key": has_key,
+        "key_preview": key_preview,
+        "key_env": env_key,
     }
+
+def get_provider_api_key(provider_id: str) -> str:
+    """从 API/.env 读取指定 provider 的 API Key"""
+    env_key = provider_key_env(provider_id)
+    return os.getenv(env_key, "") or read_api_env_value(env_key)
 
 def get_api_provider(provider_id):
     """根据 ID 获取提供商"""
@@ -2032,6 +2046,21 @@ def resolve_chat_provider(provider: str, model: str, ms_model: str):
         hdrs = {"Authorization": f"Bearer {MODELSCOPE_API_KEY}", "Content-Type": "application/json"}
         mdl = selected_model(ms_model or model, MODELSCOPE_CHAT_MODELS[0] if MODELSCOPE_CHAT_MODELS else "MiniMax/MiniMax-M2.7")
         return base, hdrs, mdl
+    # 查找 api_providers.json 中的自定义 provider
+    providers = load_api_providers()
+    for p in providers:
+        if p["id"] == provider and p.get("chat_models"):
+            base_url = p.get("base_url", "").rstrip("/")
+            api_key = get_provider_api_key(p["id"])
+            if not base_url:
+                raise HTTPException(status_code=400, detail=f"提供商 {p.get('name', provider)} 未配置请求地址")
+            if not api_key:
+                raise HTTPException(status_code=400, detail=f"提供商 {p.get('name', provider)} 未配置 API Key")
+            base = base_url + "/v1" if not base_url.endswith("/v1") else base_url
+            hdrs = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            mdl = selected_model(model, p["chat_models"][0] if p["chat_models"] else "")
+            return base, hdrs, mdl
+    # 默认走 comfly
     base = AI_BASE_URL + "/v1"
     hdrs = api_headers()
     mdl = selected_model(model, CHAT_MODEL)
@@ -4591,6 +4620,17 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
 @app.get("/api/config")
 async def ai_config():
     preferred_chat_model = next((m for m in CHAT_MODELS if m == "gpt-5.5"), CHAT_MODELS[0] if CHAT_MODELS else CHAT_MODEL)
+    # 收集所有 provider 的聊天模型
+    all_chat_providers = []
+    providers = load_api_providers()
+    for p in providers:
+        if p.get("chat_models"):
+            all_chat_providers.append({
+                "id": p["id"],
+                "name": p.get("name", p["id"]),
+                "base_url": p.get("base_url", ""),
+                "chat_models": p["chat_models"],
+            })
     return {
         "base_url": AI_BASE_URL,
         "chat_model": preferred_chat_model,
@@ -4600,6 +4640,7 @@ async def ai_config():
         "has_api_key": bool(AI_API_KEY),
         "ms_chat_models": MODELSCOPE_CHAT_MODELS,
         "has_ms_key": bool(MODELSCOPE_API_KEY),
+        "chat_providers": all_chat_providers,
     }
 
 @app.get("/api/models")
@@ -5760,15 +5801,159 @@ class SmartPromptRequest(BaseModel):
     prompt: str
     config: Optional[Dict[str, Any]] = None
 
+@app.get("/api/smart-prompt/config")
+async def get_smart_prompt_config():
+    """获取智能提示词的 provider 选择"""
+    config_file = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
+    try:
+        if os.path.exists(config_file):
+            with open(config_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return {"provider_id": data.get("provider_id", "")}
+    except Exception:
+        pass
+    return {"provider_id": ""}
+
+@app.post("/api/smart-prompt/config")
+async def save_smart_prompt_config(payload: dict):
+    """保存智能提示词的 provider 选择"""
+    config_file = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
+    os.makedirs(os.path.dirname(config_file), exist_ok=True)
+    data = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    data["provider_id"] = payload.get("provider_id", "")
+    with open(config_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return {"success": True}
+
+# === 提示词预设 CRUD ===
+SMART_PRESETS_DIR = os.path.join(BASE_DIR, "data", "smart-prompt-presets")
+os.makedirs(SMART_PRESETS_DIR, exist_ok=True)
+
+def load_presets():
+    presets = []
+    if os.path.exists(SMART_PRESETS_DIR):
+        for f in sorted(os.listdir(SMART_PRESETS_DIR)):
+            if f.endswith('.json'):
+                try:
+                    with open(os.path.join(SMART_PRESETS_DIR, f), 'r', encoding='utf-8') as fh:
+                        presets.append(json.load(fh))
+                except Exception:
+                    pass
+    return presets
+
+def save_preset(preset):
+    pid = preset.get('id', '')
+    if not pid:
+        pid = 'preset-' + uuid.uuid4().hex[:8]
+        preset['id'] = pid
+    path = os.path.join(SMART_PRESETS_DIR, f'{pid}.json')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(preset, f, ensure_ascii=False, indent=2)
+    return preset
+
+@app.get("/api/smart-prompt/presets")
+async def list_presets():
+    return {"presets": load_presets()}
+
+@app.post("/api/smart-prompt/presets")
+async def create_preset(payload: dict):
+    preset = {
+        "id": payload.get('id', ''),
+        "name": payload.get('name', '新预设'),
+        "description": payload.get('description', ''),
+        "provider_id": payload.get('provider_id', ''),
+        "system_prompt": payload.get('system_prompt', ''),
+        "temperature": payload.get('temperature', 0.3),
+        "max_tokens": payload.get('max_tokens', 1024),
+        "quality_tags": payload.get('quality_tags', 'masterpiece, best quality, ultra detailed, highres'),
+        "negative_default": payload.get('negative_default', 'worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry'),
+        "output_format": payload.get('output_format', 'tag_only'),
+        "is_default": payload.get('is_default', False),
+        "created_at": payload.get('created_at', ''),
+    }
+    saved = save_preset(preset)
+    return {"success": True, "preset": saved}
+
+@app.put("/api/smart-prompt/presets/{preset_id}")
+async def update_preset(preset_id: str, payload: dict):
+    payload['id'] = preset_id
+    saved = save_preset(payload)
+    return {"success": True, "preset": saved}
+
+@app.delete("/api/smart-prompt/presets/{preset_id}")
+async def delete_preset(preset_id: str):
+    path = os.path.join(SMART_PRESETS_DIR, f'{preset_id}.json')
+    if os.path.exists(path):
+        os.remove(path)
+    return {"success": True}
+
+# === 提示词预设选择（文生图用） ===
+SMART_PRESET_SELECT_FILE = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
+
+@app.get("/api/smart-prompt/selected-preset")
+async def get_selected_preset():
+    try:
+        if os.path.exists(SMART_PRESET_SELECT_FILE):
+            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return {"preset_id": data.get('preset_id', 'default')}
+    except Exception:
+        pass
+    return {"preset_id": "default"}
+
+@app.post("/api/smart-prompt/selected-preset")
+async def set_selected_preset(payload: dict):
+    os.makedirs(os.path.dirname(SMART_PRESET_SELECT_FILE), exist_ok=True)
+    data = {}
+    if os.path.exists(SMART_PRESET_SELECT_FILE):
+        try:
+            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    data['preset_id'] = payload.get('preset_id', 'default')
+    with open(SMART_PRESET_SELECT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return {"success": True}
+
 @app.post("/api/smart-prompt")
 async def smart_prompt(req: SmartPromptRequest):
     """智能提示词生成：中文描述 → Anima 标签"""
     try:
-        # 自动从 API 平台配置读取
+        # 加载当前选中的预设
+        preset_id = 'default'
+        try:
+            if os.path.exists(SMART_PRESET_SELECT_FILE):
+                with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    preset_id = data.get('preset_id', 'default')
+        except Exception:
+            pass
+        # 查找预设
+        preset = None
+        for p in load_presets():
+            if p.get('id') == preset_id:
+                preset = p
+                break
+        # 加载 AI 配置
         config = load_config()
         if req.config:
             config.update(req.config)
-        result = generate_smart_prompt(req.prompt, config)
+        # 用预设覆盖参数
+        if preset:
+            if preset.get('provider_id'):
+                config['_preset_provider'] = preset['provider_id']
+            if preset.get('temperature') is not None:
+                config['temperature'] = preset['temperature']
+            if preset.get('max_tokens') is not None:
+                config['max_tokens'] = preset['max_tokens']
+        result = generate_smart_prompt(req.prompt, config, preset)
         return result
     except Exception as e:
         return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}

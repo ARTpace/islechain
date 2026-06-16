@@ -1,9 +1,9 @@
 [
   {
-    "id": "api-2tz2h1",
+    "id": "api-henp06",
     "name": "魔搭",
-    "base_url": "https://api-inference.modelscope.cn/v1/",
-    "protocol": "apimart",
+    "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+    "protocol": "openai",
     "image_models": [
       "MusePublic/Qwen-Image-Edit"
     ],
@@ -29,21 +29,8 @@
     "enabled": true
   },
   {
-    "id": "api",
-    "name": "新 API 平台",
-    "base_url": "https://api.ukiyostudio.co",
-    "protocol": "openai",
-    "image_models": [
-      "gemini-3.1-flash-image-preview"
-    ],
-    "chat_models": [],
-    "video_models": [],
-    "primary": false,
-    "enabled": true
-  },
-  {
-    "id": "xiaomi-tp",
-    "name": "小米 MiMo Token Plan",
+    "id": "mimo",
+    "name": "MiMo",
     "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
     "protocol": "openai",
     "image_models": [],

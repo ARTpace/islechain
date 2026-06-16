@@ -143,7 +143,7 @@ function artistPickerRenderGrid() {
     const grid = document.getElementById('artistPickerGrid');
     if (!grid) return;
     
-    grid.innerHTML = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">' +
+    grid.innerHTML = '<div class="artist-picker-grid">' +
         pageItems.map(a => {
             const sel = artistPickerSelected.includes(a.name);
             const isFav = artistPickerFavorites.includes(a.name);

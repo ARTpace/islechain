@@ -140,3 +140,72 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+
+/* ===== 预设卡片：响应式列宽（手机/平板/PC + 横竖版）===== */
+/* 默认：4 列（PC 中等屏） */
+.preset-picker-card {
+    width: calc(25% - 8px);
+    box-sizing: border-box;
+}
+
+/* 手机竖版：2 列 */
+@media (max-width: 639px) {
+    .preset-picker-card { width: calc(50% - 5px); padding: 10px 8px; min-height: 64px; }
+    .preset-picker-card-name { font-size: 12px; }
+    .preset-picker-card-tag { font-size: 9px; padding: 1px 4px; }
+    .preset-picker-card-check { width: 16px; height: 16px; }
+}
+/* 手机横版：3 列 */
+@media (min-width: 480px) and (max-width: 899px) and (orientation: landscape) {
+    .preset-picker-card { width: calc(33.333% - 7px); }
+}
+/* 平板竖版：3 列 */
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: portrait) {
+    .preset-picker-card { width: calc(33.333% - 7px); }
+}
+/* 平板横版：4 列 */
+@media (min-width: 900px) and (max-width: 1023px) {
+    .preset-picker-card { width: calc(25% - 8px); }
+}
+/* PC 中等屏：5 列 */
+@media (min-width: 1024px) and (max-width: 1439px) {
+    .preset-picker-card { width: calc(20% - 8px); }
+}
+/* 大屏 PC：6 列 */
+@media (min-width: 1440px) {
+    .preset-picker-card { width: calc(16.666% - 9px); }
+}
+
+/* ===== Modal 容器：响应式 ===== */
+#presetPickerModal > div {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(960px, calc(100vw - 24px)) !important;
+    height: min(680px, calc(100vh - 24px)) !important;
+    box-sizing: border-box;
+}
+@media (max-width: 639px) {
+    #presetPickerModal > div {
+        width: calc(100vw - 12px) !important;
+        height: calc(100vh - 12px) !important;
+        border-radius: 12px !important;
+    }
+    #presetPickerModal > div > div:nth-of-type(1),
+    #presetPickerModal > div > div:nth-of-type(2) {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 8px 12px !important;
+    }
+    /* 隐藏子分类列 */
+    #presetPickerModal > div > div:nth-of-type(2) > div:nth-of-type(1) {
+        display: none !important;
+    }
+}
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: portrait) {
+    #presetPickerModal > div {
+        width: calc(100vw - 24px) !important;
+        height: calc(100vh - 24px) !important;
+    }
+}

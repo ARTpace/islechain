@@ -30,30 +30,66 @@ CONFIG_FILE = KNOWLEDGE_DIR / "smart-prompt-config.json"
 
 
 def load_config() -> Dict[str, Any]:
-    """从 API 平台配置中读取，不再使用独立配置文件"""
+    """从 API 平台配置中读取，支持用户指定 provider"""
     import re
     config = DEFAULT_CONFIG.copy()
-    # 读取 api_providers.json，找第一个有 key 的平台
+    # 先读取用户选择的 provider
+    selected_provider_id = ''
+    config_file = Path(__file__).resolve().parent / "data" / "smart-prompt-config.json"
+    try:
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                sc = json.load(f)
+                selected_provider_id = sc.get('provider_id', '')
+    except Exception:
+        pass
+
     if API_PROVIDERS_FILE.exists():
         try:
             with open(API_PROVIDERS_FILE, 'r', encoding='utf-8') as f:
                 providers = json.load(f)
-            # 遍历平台，找有 key 的 chat 平台
             for p in providers:
                 if not isinstance(p, dict):
                     continue
                 pid = p.get("id", "")
                 base_url = (p.get("base_url") or "").strip()
-                # 从 env 读 key（与 main-1.py 的 provider_key_env 逻辑一致）
-                if pid == "comfly":
-                    env_key = "COMFLY_API_KEY"
-                elif pid == "modelscope":
-                    env_key = "MODELSCOPE_API_KEY"
-                else:
-                    env_key = f"API_PROVIDER_{re.sub(r'[^A-Za-z0-9]', '_', pid).upper()}_KEY"
+                env_key = f"{pid.upper()}_API_KEY"
                 api_key = os.environ.get(env_key, "").strip()
+                # 回退：从 API/.env 文件读取
+                if not api_key:
+                    try:
+                        api_env = Path(__file__).resolve().parent / "API" / ".env"
+                        if api_env.exists():
+                            with open(api_env, 'r', encoding='utf-8-sig') as f:
+                                for line in f.read().splitlines():
+                                    line = line.strip()
+                                    if not line or line.startswith('#') or '=' not in line:
+                                        continue
+                                    k, v = line.split('=', 1)
+                                    if k.strip().upper() == env_key.upper():
+                                        api_key = v.strip().strip('"').strip("'")
+                                        break
+                    except Exception:
+                        pass
                 chat_models = p.get("chat_models") or []
-                if api_key and base_url:
+                if not api_key or not base_url:
+                    continue
+                # 如果用户指定了 provider，只用那个
+                if selected_provider_id:
+                    if '::' in selected_provider_id:
+                        spid, smodel = selected_provider_id.split('::', 1)
+                    else:
+                        spid, smodel = selected_provider_id, ''
+                    if pid == spid:
+                        config["base_url"] = base_url
+                        config["api_key"] = api_key
+                        if smodel:
+                            config["model"] = smodel
+                        elif chat_models:
+                            config["model"] = chat_models[0]
+                        return config
+                else:
+                    # 无指定，用第一个有 key 的
                     config["base_url"] = base_url
                     config["api_key"] = api_key
                     if chat_models:
@@ -76,8 +112,37 @@ def load_knowledge() -> str:
     return ""
 
 
-def build_system_prompt(knowledge: str) -> str:
-    """构建系统提示词"""
+def build_system_prompt(knowledge: str, preset: Optional[Dict[str, Any]] = None) -> str:
+    """构建系统提示词，支持预设覆盖"""
+    # 预设覆盖
+    quality = "masterpiece, best quality, ultra detailed, highres"
+    negative = "worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry"
+    custom_rules = ""
+    if preset:
+        if preset.get('quality_tags'):
+            quality = preset['quality_tags']
+        if preset.get('negative_default'):
+            negative = preset['negative_default']
+        if preset.get('system_prompt'):
+            custom_rules = preset['system_prompt']
+    # 如果预设有自定义 system_prompt，直接使用
+    if custom_rules:
+        return f"""{custom_rules}
+
+## 质量词
+{quality}
+
+## 负向提示词
+{negative}
+
+---
+
+## 参考知识库
+
+以下是 Anima 模型的标签知识库，请参考其中的画师风格、标签用法：
+
+{knowledge}
+"""
     return f"""# Role: Anima Prompt Engineer
 
 你是一个专门为 Anima 模型生成提示词的专家。你的核心任务是根据用户的中文描述，生成标准的 Anima/Danbooru 标签格式提示词。
@@ -94,11 +159,10 @@ def build_system_prompt(knowledge: str) -> str:
 ## 标签规范
 
 ### 质量词（必须包含）
-- `masterpiece, best quality, ultra detailed, highres`
-- 或 `score_9, score_8_up, score_7_up`
+- `{quality}`
 
 ### 负向提示词（单独一行，以 [NEG] 开头）
-- `worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry`
+- `{negative}`
 
 ## 示例
 
@@ -133,8 +197,11 @@ def call_llm(
     if not api_key:
         return "ERROR: 未配置 API Key，请在设置中配置"
 
-    # 构建请求
-    url = f"{base_url}/v1/chat/completions"
+    # 构建请求：如果 base_url 已经以 /v1 结尾，不再重复加 /v1
+    if base_url.endswith('/v1'):
+        url = f"{base_url}/chat/completions"
+    else:
+        url = f"{base_url}/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
@@ -167,7 +234,7 @@ def call_llm(
         return f"ERROR: {str(e)}"
 
 
-def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = None, preset: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     智能提示词生成主函数
     
@@ -193,7 +260,50 @@ def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = No
 
     # 加载知识库
     knowledge = load_knowledge()
-    system_prompt = build_system_prompt(knowledge)
+    system_prompt = build_system_prompt(knowledge, preset)
+
+    # 预设指定的 provider 优先
+    if preset and preset.get('provider_id'):
+        pid = preset['provider_id']
+        if '::' in pid:
+            spid, smodel = pid.split('::', 1)
+        else:
+            spid, smodel = pid, ''
+        import re
+        env_key = f"{spid.upper()}_API_KEY"
+        api_key = os.environ.get(env_key, "").strip()
+        if not api_key:
+            # 回退从 API/.env 读取
+            try:
+                api_env = Path(__file__).resolve().parent / "API" / ".env"
+                if api_env.exists():
+                    with open(api_env, 'r', encoding='utf-8-sig') as f:
+                        for line in f.read().splitlines():
+                            line = line.strip()
+                            if not line or line.startswith('#') or '=' not in line:
+                                continue
+                            k, v = line.split('=', 1)
+                            if k.strip().upper() == env_key.upper():
+                                api_key = v.strip().strip('"').strip("'")
+                                break
+            except Exception:
+                pass
+        # 从 api_providers.json 读取 base_url
+        try:
+            with open(Path(__file__).resolve().parent / 'api_providers.json', 'r', encoding='utf-8') as f:
+                providers = json.load(f)
+            for p in providers:
+                if p.get('id') == spid:
+                    config['base_url'] = p.get('base_url', config.get('base_url', ''))
+                    if api_key:
+                        config['api_key'] = api_key
+                    if smodel:
+                        config['model'] = smodel
+                    elif p.get('chat_models'):
+                        config['model'] = p['chat_models'][0]
+                    break
+        except Exception:
+            pass
 
     # 调用 LLM
     raw_output = call_llm(user_input, system_prompt, config)

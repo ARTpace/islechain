@@ -606,8 +606,17 @@
             clearVerifyResult();
             baseInput.value = item.base_url || '';
             if(protocolInput) protocolInput.value = item.protocol || 'openai';
-            keyInput.value = '';
-            keyInput.placeholder = item.has_key ? `${tr('api.keepCurrentKey')} ${item.key_preview || ''}` : tr('api.enterKey');
+            if(item.has_key) {
+                keyInput.type = 'password';
+                keyInput.value = item.key_preview || '••••••••';
+                keyInput.placeholder = tr('api.keepCurrentKey') + ' ' + (item.key_preview || '');
+                keyInput.style.letterSpacing = '3px';
+            } else {
+                keyInput.type = 'text';
+                keyInput.value = '';
+                keyInput.placeholder = tr('api.enterKey');
+                keyInput.style.letterSpacing = '';
+            }
             keyHint.textContent = item.has_key ? `${tr('api.keySaved')}${item.key_env || 'API/.env'}` : tr('api.noKey');
             const isModelScope = item.id === 'modelscope';
             const isJimeng = item.id === 'jimeng' || String(protocolInput?.value || item.protocol || '').toLowerCase() === 'jimeng';
@@ -870,8 +879,26 @@
             const key = keyInput.value.trim();
             if(!key){ alert(tr('api.enterKeyAlert') || '请输入 Key'); return; }
             item.api_key = key;
+            const savedKey = key;
+            const btn = document.querySelector('.key-btn[onclick="saveKeyOnly()"]');
+            if(btn) btn.style.cssText = 'width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid #22c55e;background:rgba(34,197,94,0.15);color:#22c55e;transition:all .15s ease;';
             await saveProviders();
-            keyInput.value = '';
+            setStatus(tr('api.saved') || '已保存');
+            // 保存后把输入框改成 password 类型，显示为密文点
+            keyInput.type = 'password';
+            keyInput.value = savedKey;
+            keyInput.style.opacity = '0.7';
+            keyInput.style.letterSpacing = '2px';
+            keyHint.textContent = (tr('api.keySaved') || '当前 Key 已保存：') + (item.key_env || 'API/.env');
+            keyHint.style.color = '#22c55e';
+            setTimeout(() => {
+                keyInput.style.opacity = '';
+                keyInput.style.letterSpacing = '';
+                keyInput.type = 'password';
+                keyInput.placeholder = (tr('api.keepCurrentKey') || '留空保持当前 Key') + ' ' + (item.key_preview || '');
+                keyHint.style.color = '';
+                if(btn) btn.style.cssText = '';
+            }, 2000);
         }
         async function clearKeyOnly(){
             const item = provider();

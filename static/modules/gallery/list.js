@@ -77,6 +77,25 @@
         return el;
     }
 
+    /** 更新所有日期分隔线的图片数量 */
+    function updateDateCounts() {
+        const c = state.container;
+        if (!c) return;
+        const seps = c.querySelectorAll('.date-separator');
+        seps.forEach(sep => {
+            let count = 0, n = sep.nextElementSibling;
+            while (n && !n.classList.contains('date-separator')) {
+                if (n.classList.contains('masonry-item')) count++;
+                n = n.nextElementSibling;
+            }
+            const label = sep.querySelector('.sep-label');
+            if (!label) return;
+            const base = label.dataset.baseText || label.textContent.replace(/\s*·\d+\s*$/, '').trim();
+            if (!label.dataset.baseText) label.dataset.baseText = base;
+            label.textContent = count > 0 ? base + '  ·' + count : base;
+        });
+    }
+
     // === DOM 驱动的日期分组(单一事实来源) ===
     // 用 DOM 中最后一张 / 第一张已渲染卡片的 timestamp 推算日期 key,
     // 彻底消除模块级 lastRenderedDateKey 带来的"两个今天"等脏数据问题。
@@ -195,6 +214,8 @@
                 }
             });
             state.currentIndex = state.allHistory.length;
+            // 更新日期分隔线的图片计数
+            updateDateCounts();
             // 触发器显隐：空 / 已无更多 → 隐藏；否则显示
             if (state.currentIndex === 0) {
                 if (trigger) trigger.classList.add('hidden');

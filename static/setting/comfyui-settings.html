@@ -284,6 +284,14 @@
                         <input id="uploadInput" type="file" accept="application/json" style="display:none" onchange="onUpload(event)">
                     </div>
 
+                    <div class="side-card">
+                        <div class="side-title">AI 智能提示词</div>
+                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">文生图「AI 生成」按钮使用的模型</div>
+                        <select id="smartPromptProvider" onchange="saveSmartPromptProvider()" style="width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                        </select>
+                        <div id="smartPromptStatus" style="font-size:10px;color:var(--faint);font-weight:600"></div>
+                    </div>
+
                     <div class="side-card" id="previewCard">
                         <div class="preview-title-row">
                             <i data-lucide="eye" class="w-4 h-4" style="color:var(--muted)"></i>
@@ -1622,11 +1630,74 @@
         });
         window.addEventListener('studio-lang-change', refreshLanguageView);
 
+        // === AI 智能提示词 Provider 选择 ===
+        async function loadSmartPromptProvider(){
+            const sel = document.getElementById('smartPromptProvider');
+            if(!sel) return;
+            try {
+                const [configRes, providersRes] = await Promise.all([
+                    fetch('/api/smart-prompt/config').then(r=>r.json()),
+                    fetch('/api/config').then(r=>r.json())
+                ]);
+                const current = configRes.provider_id || '';
+                const chatProviders = providersRes.chat_providers || [];
+                sel.innerHTML = '';
+                // 内置 comfly
+                if(providersRes.has_api_key) {
+                    const opt = document.createElement('option');
+                    opt.value = 'comfly';
+                    opt.textContent = 'ComfyUI (' + (providersRes.chat_model || '') + ')';
+                    sel.appendChild(opt);
+                }
+                // 内置 modelscope
+                if(providersRes.has_ms_key && providersRes.ms_chat_models?.length) {
+                    const opt = document.createElement('option');
+                    opt.value = 'modelscope';
+                    opt.textContent = 'ModelScope (' + providersRes.ms_chat_models[0] + ')';
+                    sel.appendChild(opt);
+                }
+                // 自定义 providers
+                chatProviders.forEach(p => {
+                    (p.chat_models || []).forEach(model => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id + '::' + model;
+                        opt.textContent = p.name + ' (' + model + ')';
+                        sel.appendChild(opt);
+                    });
+                });
+                // 设置当前值
+                if(current && sel.querySelector(`option[value="${current}"]`)) {
+                    sel.value = current;
+                } else if(sel.options.length > 0) {
+                    sel.selectedIndex = 0;
+                }
+                const status = document.getElementById('smartPromptStatus');
+                if(status) status.textContent = '当前：' + (sel.options[sel.selectedIndex]?.textContent || '未选择');
+            } catch(e) {}
+        }
+        async function saveSmartPromptProvider(){
+            const sel = document.getElementById('smartPromptProvider');
+            if(!sel) return;
+            const val = sel.value;
+            const status = document.getElementById('smartPromptStatus');
+            try {
+                await fetch('/api/smart-prompt/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ provider_id: val })
+                });
+                if(status) status.textContent = '✓ 已保存：' + (sel.options[sel.selectedIndex]?.textContent || '');
+            } catch(e) {
+                if(status) status.textContent = '保存失败';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             refreshIcons();
             if(window.StudioI18n) StudioI18n.apply();
             loadList();
             loadComfyInstances();
+            loadSmartPromptProvider();
         });
     </script>
 </body>

@@ -181,3 +181,71 @@
     width: 16px;
     height: 16px;
 }
+
+/* ===== 画师卡片网格：响应式（手机/平板/PC + 横竖版）===== */
+.artist-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+/* 手机竖版：2 列 */
+@media (max-width: 639px) {
+    .artist-picker-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .artist-picker-info { padding: 36px 10px 10px; }
+    .artist-picker-name { font-size: 13px; }
+    .artist-picker-link,
+    .artist-picker-fav { width: 30px; height: 30px; top: 8px; }
+    .artist-picker-link { left: 8px; }
+    .artist-picker-fav { right: 8px; }
+    .artist-picker-check { width: 26px; height: 26px; bottom: 8px; right: 8px; }
+}
+/* 手机横版：3 列 */
+@media (min-width: 480px) and (max-width: 899px) and (orientation: landscape) {
+    .artist-picker-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+}
+/* 平板竖版：3 列 */
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: portrait) {
+    .artist-picker-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+}
+/* 平板横版：4 列 */
+@media (min-width: 900px) and (max-width: 1023px) {
+    .artist-picker-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+}
+/* PC：5 列 */
+@media (min-width: 1024px) and (max-width: 1439px) {
+    .artist-picker-grid { grid-template-columns: repeat(5, 1fr); gap: 18px; }
+}
+/* 大屏 PC：6 列 */
+@media (min-width: 1440px) {
+    .artist-picker-grid { grid-template-columns: repeat(6, 1fr); gap: 20px; }
+}
+
+/* ===== Modal 容器：响应式 ===== */
+#artistPickerModal > div {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(1240px, calc(100vw - 24px)) !important;
+    height: min(720px, calc(100vh - 24px)) !important;
+    box-sizing: border-box;
+}
+@media (max-width: 639px) {
+    #artistPickerModal > div {
+        width: calc(100vw - 12px) !important;
+        height: calc(100vh - 12px) !important;
+        border-radius: 12px !important;
+    }
+    #artistPickerModal > div > div:nth-of-type(1) {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+    }
+}
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: portrait) {
+    #artistPickerModal > div {
+        width: calc(100vw - 24px) !important;
+        height: calc(100vh - 24px) !important;
+    }
+}

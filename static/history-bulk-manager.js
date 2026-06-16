@@ -210,8 +210,8 @@
             <span class="bulk-spacer"></span>
             <span class="history-bulk-count" data-bulk-count></span>
             ${extraHtml}
-            <button class="history-bulk-btn danger" type="button" data-bulk-delete disabled>${L.delete}</button>
-            <button class="history-bulk-btn" type="button" data-bulk-toggle>${L.manage}</button>
+            <button class="history-bulk-btn danger" type="button" data-bulk-delete disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg><span class="btn-text"> ${L.delete}</span></button>
+            <button class="history-bulk-btn" type="button" data-bulk-toggle><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="btn-text"> ${L.manage}</span></button>
         `;
         masonry.parentNode.insertBefore(toolbar, masonry);
         const toggleBtn = toolbar.querySelector('[data-bulk-toggle]');
@@ -278,8 +278,10 @@
         function cardTs(card){ return card?.dataset?.historyTs || ''; }
         function sync(){
             const l = labels();
-            toolbar.querySelector('[data-bulk-toggle]').textContent = selecting ? l.done : l.manage;
-            deleteBtn.textContent = l.delete;
+            const toggleText = toolbar.querySelector('[data-bulk-toggle] .btn-text');
+            if (toggleText) toggleText.textContent = ' ' + (selecting ? l.done : l.manage);
+            const delText = deleteBtn.querySelector('.btn-text');
+            if (delText) delText.textContent = ' ' + l.delete;
             deleteBtn.disabled = !selected.size;
             countEl.textContent = selected.size ? `${selected.size} ${l.selected}` : '';
             toolbar.classList.toggle('is-selecting', selecting);

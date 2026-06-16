@@ -68,7 +68,7 @@
         .node::before { content:""; position:absolute; inset:0; border-radius:inherit; background:var(--card); pointer-events:none; z-index:-1; overflow:hidden; }
         .node.sized { display:flex; flex-direction:column; }
         .node.selected { outline:2px solid var(--strong); outline-offset:2px; }
-        .node-head { height:42px; flex:0 0 42px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 12px; border-bottom:1px solid var(--line); border-radius:21px 21px 0 0; overflow:hidden; cursor:move; }
+        .node-head { height:42px; flex:0 0 42px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 12px; border-bottom:1px solid var(--line); border-radius:21px 21px 0 0; overflow:hidden; cursor:move; position:relative; z-index:3; }
         .node-title { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
         .node-body { padding:12px; }
         .node.sized .node-body { flex:1; min-height:0; overflow:auto; }
@@ -77,10 +77,14 @@
         .resize-handle:hover { color:#111827; border-color:#cbd5e1; background:#fff; }
         .resize-handle::before { content:""; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; }
         .prompt-node { width:310px; }
-        .prompt-node .node-body { overflow:hidden !important; }
-        .prompt-node textarea { width:100%; height:140px; min-height:72px; resize:none; overflow:hidden; scrollbar-width:none; border:1px solid #edf2f7; border-radius:16px; outline:none; padding:12px; background:#fbfdff; font-size:13px; line-height:1.6; }
+        .prompt-node .node-body { overflow:hidden !important; position:relative; }
+        .prompt-node textarea { width:100%; height:140px; min-height:72px; resize:none; overflow:hidden; scrollbar-width:none; border:1px solid #edf2f7; border-radius:16px; outline:none; padding:12px; background:#fbfdff; font-size:13px; line-height:1.6; position:relative; }
         .prompt-node textarea::-webkit-scrollbar { display:none; }
         .node.sized.prompt-node textarea { height:100%; }
+        .prompt-list { max-height:120px; overflow-y:auto; scrollbar-width:thin; }
+        .prompt-list::-webkit-scrollbar { width:3px; }
+        .prompt-list::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+        .prompt-tag { font-size:11px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:3px 10px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default; }
         .text-node { width:400px; }
         .text-node .node-body { overflow:hidden; }
         .text-node-content { padding:8px; }

@@ -2463,7 +2463,18 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
         }
         function renderPromptPreview(container, promptInputs){
             if(!container) return;
-            container.innerHTML = promptInputs.length ? `<div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Prompts</div>${promptInputs.map(src => `<div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 line-clamp-2">${escapeHtml(src.label)}</div>`).join('')}` : '';
+            if(!promptInputs.length){ container.innerHTML = ''; return; }
+            const maxPreview = 3;
+            const collapsed = promptInputs.length > maxPreview;
+            const visible = collapsed ? promptInputs.slice(0, maxPreview) : promptInputs;
+            const moreCount = promptInputs.length - maxPreview;
+            container.innerHTML = `<div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Prompts <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.6">${promptInputs.length}</span></div>` +
+                visible.map(src => {
+                    const text = escapeHtml(src.label || '');
+                    const truncated = text.length > 80 ? text.slice(0, 80) + '…' : text;
+                    return `<div class="prompt-tag" title="${text}">${truncated}</div>`;
+                }).join('') +
+                (collapsed ? `<div class="text-[10px] text-gray-400 mt-1">+${moreCount} more…</div>` : '');
         }
         function imageRefsFromNode(n){
             if(!n) return [];

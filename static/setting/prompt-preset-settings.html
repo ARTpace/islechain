@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提示词预设管理</title>
+    <script src="/static/modules/auth-token.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'dark';if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="/static/lucide.min.js"></script>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/theme.css">
+    <style>
+        :root{--bg:#f8f8f8;--text-main:#1a1a1a;--accent:#00b4d8;}
+        body{background:var(--bg);color:var(--text-main);font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:0;min-height:100vh;overflow-y:auto;}
+        body.studio-theme-dark{--bg:#0a0e17;--text-main:#e0e7ef;}
+        .page{max-width:900px;margin:0 auto;padding:32px 24px 80px;}
+        .page-head{margin-bottom:24px;}
+        .page-head h1{font-size:22px;font-weight:900;margin:0 0 4px;}
+        .page-head p{font-size:12px;color:#999;margin:0;}
+        body.studio-theme-dark .page-head p{color:#666;}
+        .preset-list{display:flex;flex-direction:column;gap:8px;margin-bottom:24px;}
+        .preset-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;border:1.5px solid rgba(0,0,0,0.06);background:#fff;cursor:pointer;transition:all 0.15s;}
+        body.studio-theme-dark .preset-card{background:#0d1520;border-color:rgba(255,255,255,0.06);}
+        .preset-card:hover{border-color:rgba(0,0,0,0.12);transform:translateY(-1px);}
+        body.studio-theme-dark .preset-card:hover{border-color:rgba(0,240,255,0.2);}
+        .preset-card.active{border-color:var(--accent);background:rgba(0,180,216,0.04);}
+        body.studio-theme-dark .preset-card.active{background:rgba(0,240,255,0.04);border-color:#00f0ff;}
+        .preset-card .dot{width:10px;height:10px;border-radius:50%;border:2px solid #ccc;flex-shrink:0;}
+        .preset-card.active .dot{background:var(--accent);border-color:var(--accent);}
+        .preset-card .info{flex:1;min-width:0;}
+        .preset-card .name{font-size:13px;font-weight:800;}
+        .preset-card .desc{font-size:11px;color:#999;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .preset-card .del-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ccc;transition:all 0.15s;flex-shrink:0;border:none;background:transparent;}
+        .preset-card .del-btn:hover{color:#ef4444;background:rgba(239,68,68,0.08);}
+        .editor{background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.06);padding:24px;}
+        body.studio-theme-dark .editor{background:#0d1520;border-color:rgba(255,255,255,0.06);}
+        .field{margin-bottom:16px;}
+        .field label{display:block;font-size:11px;font-weight:800;color:#999;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+        body.studio-theme-dark .field label{color:#666;}
+        .field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;font-size:13px;font-weight:600;background:transparent;color:var(--text-main);outline:none;transition:border-color 0.15s;}
+        body.studio-theme-dark .field input,.body.studio-theme-dark .field textarea,.body.studio-theme-dark .field select{border-color:rgba(255,255,255,0.08);}
+        .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);}
+        .field textarea{min-height:120px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;}
+        .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+        .btn-row{display:flex;gap:8px;margin-top:20px;}
+        .btn{height:38px;padding:0 20px;border-radius:10px;font-size:12px;font-weight:800;border:none;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;}
+        .btn-primary{background:var(--accent);color:#fff;}
+        .btn-primary:hover{opacity:0.9;transform:translateY(-1px);}
+        .btn-ghost{background:transparent;border:1px solid rgba(0,0,0,0.1);color:#666;}
+        .btn-ghost:hover{background:rgba(0,0,0,0.04);}
+        body.studio-theme-dark .btn-ghost{border-color:rgba(255,255,255,0.1);color:#999;}
+        .btn-test{background:rgba(0,180,216,0.08);color:var(--accent);border:1px solid rgba(0,180,216,0.2);}
+        .btn-test:hover{background:rgba(0,180,216,0.15);}
+        .test-result{margin-top:12px;padding:12px;border-radius:10px;background:rgba(0,0,0,0.02);font-size:12px;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;min-height:40px;color:#666;}
+        body.studio-theme-dark .test-result{background:rgba(255,255,255,0.03);color:#999;}
+        .empty-state{text-align:center;padding:40px;color:#999;font-size:13px;}
+        body.studio-theme-dark .empty-state{color:#555;}
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="page-head">
+            <h1>提示词预设管理</h1>
+            <p>创建和管理不同的 AI 提示词生成规则，文生图页面可快速切换</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start;">
+            <!-- 左侧：预设列表 -->
+            <div>
+                <button class="btn btn-ghost" style="width:100%;margin-bottom:12px;" onclick="createPreset()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    新建预设
+                </button>
+                <div id="presetList" class="preset-list"></div>
+            </div>
+
+            <!-- 右侧：编辑器 -->
+            <div id="editorArea">
+                <div class="empty-state" id="emptyState">选择左侧预设进行编辑<br>或新建一个预设</div>
+                <div class="editor" id="editorForm" style="display:none;">
+                    <div class="field">
+                        <label>预设名称</label>
+                        <input id="epName" type="text" placeholder="如：萌系动漫、暗黑哥特...">
+                    </div>
+                    <div class="field">
+                        <label>描述</label>
+                        <input id="epDesc" type="text" placeholder="简短描述这个预设的适用场景">
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>AI 模型</label>
+                            <select id="epProvider"></select>
+                        </div>
+                        <div class="field-row">
+                            <div class="field">
+                                <label>Temperature</label>
+                                <input id="epTemp" type="number" min="0" max="2" step="0.1" value="0.3">
+                            </div>
+                            <div class="field">
+                                <label>Max Tokens</label>
+                                <input id="epTokens" type="number" min="64" max="4096" step="64" value="1024">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>质量词模板</label>
+                        <input id="epQuality" type="text" placeholder="masterpiece, best quality, ultra detailed, highres">
+                    </div>
+                    <div class="field">
+                        <label>默认负向提示词</label>
+                        <input id="epNegative" type="text" placeholder="worst quality, low quality, bad anatomy...">
+                    </div>
+                    <div class="field">
+                        <label>自定义 System Prompt（留空使用默认规则）</label>
+                        <textarea id="epSystemPrompt" placeholder="留空则使用内置的 Anima 标签生成规则，填写则完全替换"></textarea>
+                    </div>
+
+                    <div style="border-top:1px solid rgba(0,0,0,0.06);padding-top:16px;margin-top:8px;">
+                        <label style="display:block;font-size:11px;font-weight:800;color:#999;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">测试预览</label>
+                        <div style="display:flex;gap:8px;">
+                            <input id="epTestInput" type="text" placeholder="输入中文描述测试..." style="flex:1;">
+                            <button class="btn btn-test" onclick="testPreset()">测试生成</button>
+                        </div>
+                        <div id="epTestResult" class="test-result" style="display:none;"></div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="saveCurrentPreset()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            保存
+                        </button>
+                        <button class="btn btn-ghost" onclick="duplicatePreset()">复制</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let presets = [];
+        let editingId = null;
+
+        async function loadPresets() {
+            try {
+                const res = await fetch('/api/smart-prompt/presets').then(r => r.json());
+                presets = res.presets || [];
+            } catch (e) { presets = []; }
+            renderList();
+        }
+
+        function renderList() {
+            const el = document.getElementById('presetList');
+            if (!presets.length) { el.innerHTML = '<div class="empty-state">暂无预设</div>'; return; }
+            el.innerHTML = presets.map(p => `
+                <div class="preset-card ${p.id === editingId ? 'active' : ''}" onclick="editPreset('${p.id}')">
+                    <div class="dot"></div>
+                    <div class="info">
+                        <div class="name">${esc(p.name || p.id)}</div>
+                        <div class="desc">${esc(p.description || '')}</div>
+                    </div>
+                    ${p.id !== 'default' ? `<button class="del-btn" onclick="event.stopPropagation();deletePreset('${p.id}')" title="删除">✕</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function editPreset(id) {
+            editingId = id;
+            const p = presets.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('editorForm').style.display = '';
+            document.getElementById('epName').value = p.name || '';
+            document.getElementById('epDesc').value = p.description || '';
+            document.getElementById('epTemp').value = p.temperature ?? 0.3;
+            document.getElementById('epTokens').value = p.max_tokens ?? 1024;
+            document.getElementById('epQuality').value = p.quality_tags || '';
+            document.getElementById('epNegative').value = p.negative_default || '';
+            document.getElementById('epSystemPrompt').value = p.system_prompt || '';
+            loadProviderOptions(p.provider_id || '');
+            renderList();
+        }
+
+        async function loadProviderOptions(selected) {
+            const sel = document.getElementById('epProvider');
+            sel.innerHTML = '<option value="">自动（第一个可用）</option>';
+            try {
+                const data = await fetch('/api/config').then(r => r.json());
+                (data.chat_providers || []).forEach(p => {
+                    (p.chat_models || []).forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id + '::' + m;
+                        opt.textContent = p.name + ' (' + m + ')';
+                        sel.appendChild(opt);
+                    });
+                });
+            } catch (e) {}
+            if (selected) sel.value = selected;
+        }
+
+        function createPreset() {
+            const id = 'preset-' + Date.now().toString(36);
+            const p = { id, name: '新预设', description: '', provider_id: '', temperature: 0.3, max_tokens: 1024, quality_tags: 'masterpiece, best quality, ultra detailed, highres', negative_default: 'worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry', system_prompt: '', output_format: 'tag_only', is_default: false, created_at: new Date().toISOString().slice(0,10) };
+            presets.push(p);
+            editPreset(id);
+        }
+
+        async function saveCurrentPreset() {
+            if (!editingId) return;
+            const p = presets.find(x => x.id === editingId);
+            if (!p) return;
+            p.name = document.getElementById('epName').value.trim() || p.name;
+            p.description = document.getElementById('epDesc').value.trim();
+            p.provider_id = document.getElementById('epProvider').value;
+            p.temperature = parseFloat(document.getElementById('epTemp').value) || 0.3;
+            p.max_tokens = parseInt(document.getElementById('epTokens').value) || 1024;
+            p.quality_tags = document.getElementById('epQuality').value.trim();
+            p.negative_default = document.getElementById('epNegative').value.trim();
+            p.system_prompt = document.getElementById('epSystemPrompt').value;
+            try {
+                await fetch('/api/smart-prompt/presets/' + p.id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(p) });
+                renderList();
+                alert('已保存');
+            } catch (e) { alert('保存失败'); }
+        }
+
+        async function deletePreset(id) {
+            if (!confirm('确认删除此预设？')) return;
+            try { await fetch('/api/smart-prompt/presets/' + id, { method: 'DELETE' }); } catch (e) {}
+            presets = presets.filter(x => x.id !== id);
+            if (editingId === id) { editingId = null; document.getElementById('editorForm').style.display = 'none'; document.getElementById('emptyState').style.display = ''; }
+            renderList();
+        }
+
+        function duplicatePreset() {
+            if (!editingId) return;
+            const src = presets.find(x => x.id === editingId);
+            if (!src) return;
+            const id = 'preset-' + Date.now().toString(36);
+            const copy = { ...src, id, name: src.name + ' (副本)', is_default: false };
+            presets.push(copy);
+            editPreset(id);
+        }
+
+        async function testPreset() {
+            const input = document.getElementById('epTestInput').value.trim();
+            if (!input) return alert('请输入中文描述');
+            const resultEl = document.getElementById('epTestResult');
+            resultEl.style.display = 'block';
+            resultEl.textContent = '生成中...';
+            const preset = {
+                provider_id: document.getElementById('epProvider').value,
+                temperature: parseFloat(document.getElementById('epTemp').value) || 0.3,
+                max_tokens: parseInt(document.getElementById('epTokens').value) || 1024,
+                quality_tags: document.getElementById('epQuality').value,
+                negative_default: document.getElementById('epNegative').value,
+                system_prompt: document.getElementById('epSystemPrompt').value,
+            };
+            try {
+                const res = await fetch('/api/smart-prompt', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ prompt: input }) }).then(r => r.json());
+                resultEl.textContent = res.success ? (res.prompt + '\n\n[NEG] ' + res.negative) : ('错误：' + (res.error || '生成失败'));
+            } catch (e) { resultEl.textContent = '请求失败：' + e.message; }
+        }
+
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        loadPresets();
+    </script>
+</body>
+</html>

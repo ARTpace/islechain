@@ -196,6 +196,22 @@ class SettingsUI {
         `;
         document.head.appendChild(style);
 
+        // 检测侧边栏按钮是否已存在
+        const sbSettings = document.getElementById('sidebar-settings-btn');
+        const sbTheme = document.getElementById('sidebar-theme-btn');
+        const sbLogin = document.getElementById('sidebar-login-btn');
+        const sbRestart = document.getElementById('sidebar-restart-btn');
+        if (sbSettings && sbTheme) {
+            this._useSidebar = true;
+            this.buttonEl = sbSettings;
+            this.themeBtnEl = sbTheme;
+            this.loginBtnEl = sbLogin;
+            if (sbRestart) sbRestart.onclick = () => { if (!confirm('确定要重启服务吗？')) return; fetch('/api/restart', { method: 'POST' }).catch(() => {}); };
+            this.updateThemeIcon();
+            return; // 跳过浮动按钮创建
+        }
+        this._useSidebar = false;
+
         const container = document.createElement('div');
         container.style.cssText = `
             position: fixed;
@@ -372,7 +388,6 @@ class SettingsUI {
         this.themeBtnEl = themeBtn;
         this.loginBtnEl = loginBtn;
         
-        this.updateThemeIcon();
     }
     
     createPanel() {
@@ -606,12 +621,19 @@ class SettingsUI {
     updateThemeIcon() {
         const isDark = document.body.classList.contains('theme-dark') || 
                        document.documentElement.classList.contains('studio-theme-dark');
+        // 更新浮动按钮图标
         const moonIcon = document.getElementById('icon-moon');
         const sunIcon = document.getElementById('icon-sun');
-        
         if (moonIcon && sunIcon) {
             moonIcon.style.display = isDark ? 'none' : 'block';
             sunIcon.style.display = isDark ? 'block' : 'none';
+        }
+        // 同步侧边栏图标
+        const sbMoon = document.getElementById('sidebar-icon-moon');
+        const sbSun = document.getElementById('sidebar-icon-sun');
+        if (sbMoon && sbSun) {
+            sbMoon.style.display = isDark ? 'none' : 'block';
+            sbSun.style.display = isDark ? 'block' : 'none';
         }
     }
     
@@ -753,31 +775,42 @@ class SettingsUI {
     }
     
     updateLoginState() {
+        const isSidebar = this._useSidebar;
         if (AuthManager.isLoggedIn()) {
             const user = AuthManager.getUser();
-            this.loginBtnEl.innerHTML = `
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-            `;
-            this.loginBtnEl.title = '点击退出登录 (' + this.escapeHtml(user.username) + ')';
-            this.loginBtnEl.style.width = '40px';
-            this.loginBtnEl.style.padding = '0';
-            this.loginBtnEl.style.borderRadius = '50%';
-            this.loginBtnEl.classList.add('logged-in');
+            if (isSidebar) {
+                this.loginBtnEl.title = '点击退出登录 (' + this.escapeHtml(user.username) + ')';
+                this.loginBtnEl.classList.add('logged-in');
+            } else {
+                this.loginBtnEl.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                `;
+                this.loginBtnEl.title = '点击退出登录 (' + this.escapeHtml(user.username) + ')';
+                this.loginBtnEl.style.width = '40px';
+                this.loginBtnEl.style.padding = '0';
+                this.loginBtnEl.style.borderRadius = '50%';
+                this.loginBtnEl.classList.add('logged-in');
+            }
         } else {
-            this.loginBtnEl.innerHTML = `
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-            `;
-            this.loginBtnEl.title = '登录';
-            this.loginBtnEl.style.width = '40px';
-            this.loginBtnEl.style.padding = '0';
-            this.loginBtnEl.style.borderRadius = '50%';
-            this.loginBtnEl.classList.remove('logged-in');
+            if (isSidebar) {
+                this.loginBtnEl.title = '登录';
+                this.loginBtnEl.classList.remove('logged-in');
+            } else {
+                this.loginBtnEl.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                `;
+                this.loginBtnEl.title = '登录';
+                this.loginBtnEl.style.width = '40px';
+                this.loginBtnEl.style.padding = '0';
+                this.loginBtnEl.style.borderRadius = '50%';
+                this.loginBtnEl.classList.remove('logged-in');
+            }
         }
     }
     
