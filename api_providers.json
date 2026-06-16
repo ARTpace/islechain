@@ -1,20 +1,5 @@
 [
   {
-    "id": "api-henp06",
-    "name": "魔搭",
-    "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
-    "protocol": "openai",
-    "image_models": [
-      "MusePublic/Qwen-Image-Edit"
-    ],
-    "chat_models": [
-      "Qwen/Qwen3-VL-8B-Instruct"
-    ],
-    "video_models": [],
-    "primary": false,
-    "enabled": true
-  },
-  {
     "id": "uki",
     "name": "uki",
     "base_url": "https://api.ukiyostudio.co",
@@ -37,6 +22,17 @@
     "chat_models": [
       "mimo-v2.5"
     ],
+    "video_models": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "api",
+    "name": "新 API 平台",
+    "base_url": "https://",
+    "protocol": "openai",
+    "image_models": [],
+    "chat_models": [],
     "video_models": [],
     "primary": false,
     "enabled": true

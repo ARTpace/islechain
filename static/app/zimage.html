@@ -325,6 +325,10 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text"> 参考图</span>
                         </button>
                         <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" onchange="refImageHandleUpload(this)">
+                        <button id="translateBtn" class="anima-ctrl" onclick="translatePrompt()" oncontextmenu="event.preventDefault();toggleTranslateDir()" title="左键翻译 · 右键切换方向">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2v3"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                            <span class="btn-text" id="translateDirLabel"> 中→英</span>
+                        </button>
                         <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
                     </div>
@@ -661,6 +665,49 @@
         function onSeedInput(v) {
             animaFixedSeed = parseInt(v) || 0;
             localStorage.setItem('anima_fixed_seed', animaFixedSeed);
+        }
+
+        // === 翻译提示词 ===
+        let translateDir = localStorage.getItem('translate_dir') || 'zh2en';
+        function updateTranslateLabel() {
+            const label = document.getElementById('translateDirLabel');
+            if (label) label.textContent = translateDir === 'zh2en' ? ' 中→英' : ' 英→中';
+        }
+        function toggleTranslateDir() {
+            translateDir = translateDir === 'zh2en' ? 'en2zh' : 'zh2en';
+            localStorage.setItem('translate_dir', translateDir);
+            updateTranslateLabel();
+        }
+        updateTranslateLabel();
+        async function translatePrompt() {
+            const promptInput = document.getElementById('prompt');
+            const btn = document.getElementById('translateBtn');
+            if (!promptInput || !btn) return;
+            const text = promptInput.value.trim();
+            if (!text) return;
+            btn.disabled = true;
+            const span = btn.querySelector('.btn-text');
+            const origText = span.textContent;
+            span.textContent = ' 翻译中…';
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text, direction: translateDir })
+                });
+                const data = await res.json();
+                if (data.success && data.result) {
+                    promptInput.value = data.result;
+                    promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+                } else {
+                    alert(data.error || '翻译失败');
+                }
+            } catch(e) {
+                alert('翻译请求失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                span.textContent = origText;
+            }
         }
 
         // === 提示词预设（通过预设选择器管理） ===

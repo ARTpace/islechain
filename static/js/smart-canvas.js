@@ -5499,6 +5499,7 @@ function promptNodeBodyHtml(node){
         <textarea class="prompt-node-text prompt-node-control" ${readonly} placeholder="${escapeHtml(tr('smart.promptPlaceholderNode'))}">${escapeHtml(node.text || '')}</textarea>
         <div class="prompt-node-tools">
             <button class="prompt-node-pill prompt-node-control prompt-preset-edit ${templateActive ? 'active' : ''}" type="button"><i data-lucide="library"></i><span>模板库</span></button>
+            <button class="prompt-node-pill prompt-node-control prompt-translate-btn" type="button" data-action="translate"><i data-lucide="languages"></i><span>翻译</span></button>
             <button class="prompt-node-pill prompt-llm-toggle ${node.llmEnabled ? 'active' : ''}" type="button"><i data-lucide="sparkles"></i><span>LLM</span></button>
         </div>
         ${node.llmEnabled ? inputThumbs : ''}
@@ -6106,6 +6107,49 @@ function bindPromptNodeControls(el, node){
     });
     const runEl = el.querySelector('.prompt-node-run');
     if(runEl) runEl.onclick = e => { e.preventDefault(); e.stopPropagation(); runPromptLLMNode(node.id); };
+    const translateEl = el.querySelector('.prompt-translate-btn');
+    if(translateEl) {
+        // 更新翻译按钮方向标签
+        const trDir = localStorage.getItem('translate_dir') || 'zh2en';
+        const trSpan = translateEl.querySelector('span');
+        if(trSpan) trSpan.textContent = trDir === 'zh2en' ? '中→英' : '英→中';
+        // 右键切换方向
+        translateEl.addEventListener('contextmenu', e => {
+            e.preventDefault(); e.stopPropagation();
+            const cur = localStorage.getItem('translate_dir') || 'zh2en';
+            const next = cur === 'zh2en' ? 'en2zh' : 'zh2en';
+            localStorage.setItem('translate_dir', next);
+            const s = translateEl.querySelector('span');
+            if(s) s.textContent = next === 'zh2en' ? '中→英' : '英→中';
+        });
+        translateEl.onclick = e => {
+            e.preventDefault(); e.stopPropagation();
+            const text = node.text || '';
+            if(!text.trim()) return;
+            const direction = localStorage.getItem('translate_dir') || 'zh2en';
+            const span = translateEl.querySelector('span');
+            const orig = span?.textContent || '';
+            if(span) span.textContent = '翻译中…';
+            translateEl.style.opacity = '0.5';
+            translateEl.style.pointerEvents = 'none';
+            fetch('/api/translate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text, direction })
+            }).then(r => r.json()).then(data => {
+                if(data.success && data.result){
+                    node.text = data.result;
+                    const textArea = el.querySelector('.prompt-node-text');
+                    if(textArea) textArea.value = data.result;
+                    scheduleSave();
+                }
+            }).catch(() => {}).finally(() => {
+                if(span) span.textContent = orig;
+                translateEl.style.opacity = '';
+                translateEl.style.pointerEvents = '';
+            });
+        };
+    }
 }
 function bindLoopNodeControls(el, node){
     el.querySelectorAll('.loop-smart-control').forEach(control => {

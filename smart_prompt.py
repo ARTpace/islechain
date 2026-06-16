@@ -197,6 +197,13 @@ def call_llm(
     if not api_key:
         return "ERROR: 未配置 API Key，请在设置中配置"
 
+    # 过滤 API Key 中的非 ASCII 字符（防止 latin-1 编码错误）
+    api_key_ascii = api_key.encode('ascii', 'ignore').decode('ascii')
+    if api_key_ascii != api_key:
+        api_key = api_key_ascii
+        if not api_key:
+            return "ERROR: API Key 包含非 ASCII 字符，请检查配置"
+
     # 构建请求：如果 base_url 已经以 /v1 结尾，不再重复加 /v1
     if base_url.endswith('/v1'):
         url = f"{base_url}/chat/completions"

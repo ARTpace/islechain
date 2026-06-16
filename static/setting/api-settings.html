@@ -439,6 +439,68 @@
                             </div>
                             <div id="msLoraList" class="lora-list"></div>
                         </section>
+
+                        <!-- 翻译模型 -->
+                        <section id="translateSection" class="block">
+                            <div class="block-head">
+                                <div>
+                                    <div class="block-title">翻译模型</div>
+                                    <div class="block-desc">提示词中英互译使用，支持百度翻译 API 和 AI 模型</div>
+                                </div>
+                            </div>
+                            <div class="form" style="grid-template-columns:1fr;gap:12px;">
+                                <div class="field">
+                                    <div class="label">翻译模式</div>
+                                    <div class="field-frame">
+                                        <select id="trProviderType" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrProviderTypeChange()">
+                                            <option value="ai">AI 模型翻译</option>
+                                            <option value="baidu">百度翻译 API</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <!-- 百度翻译配置 -->
+                                <div id="trBaiduFields" style="display:none;">
+                                    <div class="field">
+                                        <div class="label">App ID</div>
+                                        <div class="field-frame"><input id="trBaiduAppId" type="text" placeholder="百度翻译开放平台 App ID"></div>
+                                    </div>
+                                    <div class="field" style="margin-top:8px;">
+                                        <div class="label">Secret Key</div>
+                                        <div class="field-frame"><input id="trBaiduSecret" type="password" placeholder="百度翻译 Secret Key"></div>
+                                    </div>
+                                    <div class="hint" style="margin-top:6px;">免费额度 5万字符/月 · <a href="https://fanyi-api.baidu.com/" target="_blank" style="color:var(--neon-cyan);">去注册</a></div>
+                                </div>
+                                <!-- AI 模型翻译配置 -->
+                                <div id="trAiFields">
+                                    <div class="field">
+                                        <div class="label">Provider</div>
+                                        <div class="field-frame">
+                                            <select id="trAiProvider" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrAiProviderChange()">
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="field" style="margin-top:8px;">
+                                        <div class="label">模型</div>
+                                        <div class="field-frame">
+                                            <select id="trAiModel" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="label">翻译提示词模板</div>
+                                    <div class="field-frame" style="height:auto;">
+                                        <textarea id="trTemplate" rows="3" style="width:100%;min-height:60px;padding:8px 10px;border:0;background:transparent;color:var(--text);font-size:11px;font-weight:600;outline:none;resize:vertical;line-height:1.5;" placeholder="{text} 会被替换为待翻译文本"></textarea>
+                                    </div>
+                                </div>
+                                <div class="hint">模板中用 <code style="background:var(--soft);padding:1px 4px;border-radius:4px;">{text}</code> 表示待翻译文本</div>
+                                <div class="verify-action-row" style="margin-top:4px;">
+                                    <button class="ghost-btn" type="button" onclick="testTranslate()" id="trTestBtn"><i data-lucide="play" class="w-3.5 h-3.5"></i><span>测试翻译</span></button>
+                                    <button class="ghost-btn" type="button" onclick="saveTranslateConfig()" id="trSaveBtn" style="background:var(--strong);color:var(--strong-text);border-color:var(--strong);"><i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                                    <div id="trTestResult" style="font-size:11px;color:var(--muted);font-weight:600;min-height:16px;"></div>
+                                </div>
+                            </div>
+                        </section>
                 </div>
 
             </main>
@@ -1222,10 +1284,108 @@
         window.addEventListener('studio-lang-change', () => {
             renderEditor();
         });
+
+        // --- 翻译模型配置 ---
+        async function loadTranslateConfig(){
+            try {
+                const cfg = await fetch('/api/translate/config').then(r=>r.json());
+                const typeEl = document.getElementById('trProviderType');
+                const baiduFields = document.getElementById('trBaiduFields');
+                const aiFields = document.getElementById('trAiFields');
+                typeEl.value = cfg.provider_type || 'ai';
+                document.getElementById('trBaiduAppId').value = cfg.baidu_app_id || '';
+                document.getElementById('trBaiduSecret').value = '';
+                document.getElementById('trBaiduSecret').placeholder = cfg.baidu_secret_key_preview || '百度翻译 Secret Key';
+                document.getElementById('trTemplate').value = cfg.ai_prompt_template || '';
+                onTrProviderTypeChange();
+                // 加载 AI provider 列表
+                const sel = document.getElementById('trAiProvider');
+                sel.innerHTML = '';
+                providers.forEach(p => {
+                    if(p.chat_models && p.chat_models.length){
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name || p.id;
+                        sel.appendChild(opt);
+                    }
+                });
+                if(cfg.ai_provider_id && sel.querySelector(`option[value="${cfg.ai_provider_id}"]`)){
+                    sel.value = cfg.ai_provider_id;
+                } else if(sel.options.length){
+                    sel.selectedIndex = 0;
+                }
+                onTrAiProviderChange();
+                if(cfg.ai_model){
+                    const modelSel = document.getElementById('trAiModel');
+                    if(modelSel.querySelector(`option[value="${cfg.ai_model}"]`)){
+                        modelSel.value = cfg.ai_model;
+                    }
+                }
+            } catch(e){}
+        }
+        function onTrProviderTypeChange(){
+            const t = document.getElementById('trProviderType').value;
+            document.getElementById('trBaiduFields').style.display = t === 'baidu' ? 'block' : 'none';
+            document.getElementById('trAiFields').style.display = t === 'ai' ? 'block' : 'none';
+        }
+        function onTrAiProviderChange(){
+            const pid = document.getElementById('trAiProvider').value;
+            const prov = providers.find(p => p.id === pid);
+            const modelSel = document.getElementById('trAiModel');
+            modelSel.innerHTML = '';
+            if(prov && prov.chat_models){
+                prov.chat_models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m; opt.textContent = m;
+                    modelSel.appendChild(opt);
+                });
+            }
+        }
+        async function saveTranslateConfig(){
+            const data = {
+                provider_type: document.getElementById('trProviderType').value,
+                baidu_app_id: document.getElementById('trBaiduAppId').value.trim(),
+                baidu_secret_key: document.getElementById('trBaiduSecret').value.trim(),
+                ai_provider_id: document.getElementById('trAiProvider').value,
+                ai_model: document.getElementById('trAiModel').value,
+                ai_prompt_template: document.getElementById('trTemplate').value,
+            };
+            // 如果 secret 为空且有 placeholder 说明没改，不传
+            if(!data.baidu_secret_key) delete data.baidu_secret_key;
+            const resEl = document.getElementById('trTestResult');
+            try {
+                await fetch('/api/translate/config', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify(data)
+                });
+                resEl.innerHTML = '<span style="color:#15803d">✓ 已保存</span>';
+            } catch(e){
+                resEl.innerHTML = '<span style="color:#dc2626">保存失败</span>';
+            }
+        }
+        async function testTranslate(){
+            const btn = document.getElementById('trTestBtn');
+            const resEl = document.getElementById('trTestResult');
+            btn.disabled = true; btn.querySelector('span').textContent = '测试中...';
+            resEl.innerHTML = '<span style="color:var(--muted)">正在测试...</span>';
+            try {
+                const data = await fetch('/api/translate/test', {method:'POST'}).then(r=>r.json());
+                if(data.success){
+                    resEl.innerHTML = `<span style="color:#15803d">✓ 测试通过</span><div style="margin-top:4px;color:var(--text);font-size:10.5px;">${escapeHtml(data.test_input)} → <strong>${escapeHtml(data.result)}</strong></div>`;
+                } else {
+                    resEl.innerHTML = `<span style="color:#dc2626">✗ ${escapeHtml(data.error)}</span>`;
+                }
+            } catch(e){
+                resEl.innerHTML = `<span style="color:#dc2626">✗ ${escapeHtml(e.message)}</span>`;
+            } finally {
+                btn.disabled = false; btn.querySelector('span').textContent = '测试翻译';
+            }
+        }
+
         window.onload = () => {
             if(window.StudioTheme) window.StudioTheme.apply();
             if(window.StudioI18n) window.StudioI18n.apply();
-            loadProviders();
+            loadProviders().then(() => loadTranslateConfig());
             // 平台名输入时实时预览生成的 ID
             if(nameInput) nameInput.addEventListener('input', updateIdPreview);
         };
