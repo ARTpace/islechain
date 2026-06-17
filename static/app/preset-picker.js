@@ -435,10 +435,27 @@ function presetPickerApply() {
             !p.startsWith('@') && 
             !p.startsWith('by ')
         );
+        // 收集新选预设的所有 token（prompt + name），用于替换旧的
+        const selectedPromptTexts = new Set();
+        const selectedNames = new Set();
+        presetPickerSelected.forEach(p => {
+            const pt = (p.prompt || '').trim();
+            if (pt) selectedPromptTexts.add(pt.toLowerCase());
+            const nm = (p.name || '').trim();
+            if (nm) selectedNames.add(nm.toLowerCase());
+        });
+        // 从现有 token 中移除旧的预设 token（已被新选的替换），避免重复累积
+        const cleanedExisting = existingPresetTokens.filter(t => {
+            const tl = t.toLowerCase();
+            // 如果这个 token 匹配某个新选预设的 prompt 或 name，跳过（会被新值替换）
+            if (selectedPromptTexts.has(tl)) return false;
+            if (selectedNames.has(tl)) return false;
+            return true;
+        });
         const newPresetTokens = presetPickerSelected.map(p => {
             return (p.prompt || p.name || p.id || '').trim();
         }).filter(Boolean);
-        const presetTokenSet = new Set([...existingPresetTokens, ...newPresetTokens]);
+        const presetTokenSet = new Set([...cleanedExisting, ...newPresetTokens]);
         const presetParts = Array.from(presetTokenSet);
         const allParts = [...charParts, ...presetParts, ...artistParts];
         promptInput.value = allParts.filter(p => p).join(', ');
@@ -473,8 +490,15 @@ function presetPickerOpen(callback) {
                     if (tokenSet.has(p.name)) matched.add(p);
                     if (p.prompt) {
                         const pStr = p.prompt.trim();
-                        if (tokenSet.has(pStr)) matched.add(p);
-                        if (tokenLowerSet.has(pStr.toLowerCase())) matched.add(p);
+                        if (tokenSet.has(pStr) || tokenLowerSet.has(pStr.toLowerCase())) {
+                            matched.add(p);
+                        } else {
+                            // 预设 prompt 含逗号时被拆成多个 token，检查是否全部存在于当前输入中
+                            const pTokens = pStr.split(',').map(s => s.trim()).filter(Boolean);
+                            if (pTokens.length > 1 && pTokens.every(t => tokenLowerSet.has(t.toLowerCase()))) {
+                                matched.add(p);
+                            }
+                        }
                     }
                 });
                 presetPickerSelected = Array.from(matched);

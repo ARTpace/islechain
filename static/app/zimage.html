@@ -93,7 +93,7 @@
             #lightboxPrevBtn { left:8px; }
             #lightboxNextBtn { right:8px; }
             #lightboxRes { padding:4px 8px; top:8px; left:8px; }
-            #lightboxPrompt { padding:10px 14px; max-height:120px; }
+            #lightboxPrompt { padding:10px 14px; max-height:clamp(50px, 10vh, 100px); }
             .gallery-lightbox .flex-col { max-height:100vh; }
         }
         /* 手机横屏 */
@@ -102,7 +102,7 @@
             #lightboxPrevBtn, #lightboxNextBtn { width:36px; height:36px; }
             #lightboxPrevBtn { left:4px; }
             #lightboxNextBtn { right:4px; }
-            #lightboxPrompt { max-height:80px; padding:8px 12px; }
+            #lightboxPrompt { max-height:clamp(40px, 8vh, 80px); padding:8px 12px; }
             #lightboxImg { max-height:55vh; }
         }
         .btn-render { background:rgba(0,0,0,0.06)!important; color:#000!important; transition:all 0.3s ease; border:1px solid rgba(0,0,0,0.1); }
@@ -425,19 +425,19 @@
         <button onclick="closeLightbox()" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 text-gray-400 hover:text-white transition-colors p-1"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         <button id="lightboxPrevBtn" onclick="ImageViewer.prevImage()" class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-50 bg-black/50 hover:bg-black/80 text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all opacity-0 pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
         <button id="lightboxNextBtn" onclick="ImageViewer.nextImage()" class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-50 bg-black/50 hover:bg-black/80 text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all opacity-0 pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
-        <div id="lightboxActions" class="absolute left-1/2 -translate-x-1/2 z-50 flex gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-xl" style="display:none; bottom:calc(35vh + 16px);">
-            <button onclick="lightboxAction('openFolder')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="打开文件夹"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-            <button onclick="lightboxAction('download')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-green-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="下载图片"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-            <button onclick="lightboxAction('favorite')" id="lightboxFavBtn" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-amber-400 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="收藏"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-            <button onclick="lightboxAction('copyPrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-cyan-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="复制提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
-            <button onclick="lightboxAction('usePrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-indigo-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="载入提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-            <button onclick="lightboxAction('delete')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-black hover:text-white rounded-lg flex items-center justify-center transition-colors" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
-        </div>
         <div class="flex flex-col w-full max-h-[100vh] sm:max-h-[90vh]">
             <div id="lightboxImgContainer" class="flex items-center justify-center p-2 sm:p-4 overflow-hidden relative" style="height:65vh; min-height:0;">
                 <img id="lightboxImg" src="" class="object-contain rounded-lg sm:rounded-2xl shadow-2xl" style="transition: transform 0.1s ease-out; position:relative; z-index:1; max-width:100%; max-height:100%;">
             </div>
-            <div id="lightboxPrompt" class="bg-black/40 backdrop-blur-sm text-white px-5 py-3 sm:px-6 sm:py-4 rounded-xl text-[12px] sm:text-[13px] leading-relaxed max-h-[100px] sm:max-h-[140px] overflow-y-auto text-center" style="display:none; max-width:min(88vw, 580px); margin:0 auto;">
+            <div id="lightboxActions" class="z-50 flex gap-1.5 justify-center flex-shrink-0" style="display:none;">
+                <button onclick="lightboxAction('openFolder')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="打开文件夹"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+                <button onclick="lightboxAction('download')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-green-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="下载图片"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
+                <button onclick="lightboxAction('favorite')" id="lightboxFavBtn" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-amber-400 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="收藏"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+                <button onclick="lightboxAction('copyPrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-cyan-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="复制提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
+                <button onclick="lightboxAction('usePrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-indigo-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="载入提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+                <button onclick="lightboxAction('delete')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-black hover:text-white rounded-lg flex items-center justify-center transition-colors" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
+            </div>
+            <div id="lightboxPrompt" class="bg-black/40 backdrop-blur-sm text-white px-5 py-3 sm:px-6 sm:py-4 rounded-xl text-[12px] sm:text-[13px] leading-relaxed overflow-y-auto text-center flex-shrink-0" style="display:none; max-width:min(88vw, 580px); margin:0 auto; max-height:clamp(60px, 12vh, 140px); min-height:0;">
                 <div id="lightboxPromptEn" class="opacity-90"></div>
                 <div id="lightboxPromptCn" class="opacity-50 text-[11px] sm:text-[12px] mt-1.5"></div>
             </div>
@@ -712,11 +712,18 @@
 
         // === 提示词预设（通过预设选择器管理） ===
         function getActivePresetPrompts() {
-            // 从预设选择器获取已选预设
-            if (typeof presetPickerSelected !== 'undefined' && presetPickerSelected.length > 0) {
-                return presetPickerSelected.map(p => p.prompt).filter(Boolean).join(', ');
-            }
-            return '';
+            // 从当前 prompt 文本中反推还保留着的预设，而不是依赖可能过期的 presetPickerSelected
+            const promptInput = document.getElementById('prompt');
+            if (!promptInput) return '';
+            const currentText = promptInput.value.trim();
+            if (!currentText) return '';
+            const currentLower = currentText.toLowerCase();
+            // 只返回 prompt 文本仍然完整存在于输入中的预设
+            return (presetPickerSelected || []).filter(p => {
+                const pt = (p.prompt || '').trim();
+                if (!pt) return false;
+                return currentLower.includes(pt.toLowerCase());
+            }).map(p => p.prompt).filter(Boolean).join(', ');
         }
 
         // === 清空提示词 ===
@@ -1062,13 +1069,13 @@
                 return;
             }
 
-            // 智能分拆：先匹配完整预设，再分拆普通token
+            // 智能分拆：按逗号分拆后，尝试合并连续 token 还原多词预设，保持原始顺序
             const raw = promptInput.value;
+            const simpleTokens = raw.split(',').map(p => p.trim()).filter(p => p);
             const parts = [];
-            let remaining = raw;
             
-            // 构建所有预设 prompt 的列表（按长度降序排列，优先匹配长的）
-            const allPresets = [];
+            // 构建所有多词预设的 prompt → id 映射（用于合并连续 token）
+            const presetPromptSet = new Map();
             if (typeof presetPickerData !== 'undefined' && presetPickerData.categories) {
                 presetPickerData.categories.forEach(cat => {
                     if (cat.subcategories) {
@@ -1076,7 +1083,7 @@
                             if (sub.presets) {
                                 sub.presets.forEach(p => {
                                     if (p.prompt && p.prompt.includes(',')) {
-                                        allPresets.push({ prompt: p.prompt.trim(), id: p.id });
+                                        presetPromptSet.set(p.prompt.trim(), p.id);
                                     }
                                 });
                             }
@@ -1084,31 +1091,24 @@
                     }
                 });
             }
-            allPresets.sort((a, b) => b.prompt.length - a.prompt.length);
             
-            // 从原始文本中提取完整的多词预设
-            while (remaining.trim() && remaining.trim() !== ',') {
+            // 贪心合并：从左到右扫描 token，尝试将连续 token 组合成已知预设
+            let i = 0;
+            while (i < simpleTokens.length) {
                 let matched = false;
-                for (const preset of allPresets) {
-                    if (remaining.includes(preset.prompt)) {
-                        parts.push(preset.prompt);
-                        remaining = remaining.replace(preset.prompt, ',').replace(/,+,/g, ',').replace(/^,|,$/g, '');
+                // 尝试从当前位置向后组合 2~N 个 token，匹配已知预设
+                for (let len = Math.min(8, simpleTokens.length - i); len >= 2; len--) {
+                    const candidate = simpleTokens.slice(i, i + len).join(', ');
+                    if (presetPromptSet.has(candidate)) {
+                        parts.push(candidate);
+                        i += len;
                         matched = true;
                         break;
                     }
                 }
                 if (!matched) {
-                    // 没有匹配到完整预设，按逗号分拆
-                    const commaIdx = remaining.indexOf(',');
-                    if (commaIdx > -1) {
-                        const token = remaining.substring(0, commaIdx).trim();
-                        if (token) parts.push(token);
-                        remaining = remaining.substring(commaIdx + 1);
-                    } else {
-                        const token = remaining.trim();
-                        if (token && token !== ',') parts.push(token);
-                        remaining = '';
-                    }
+                    parts.push(simpleTokens[i]);
+                    i++;
                 }
             }
             // 过滤空字符串
@@ -1121,24 +1121,25 @@
                 ANIMA_CHAR_DB.forEach(c => charNames.add(c.name.toLowerCase()));
             }
             
-            filteredParts.forEach(part => {
+            filteredParts.forEach((part, idx) => {
                 const safePart = part.replace(/'/g, "\'");
                 const lowerPart = part.toLowerCase();
+                const dd = 'draggable="true" data-idx="' + idx + '" ondragstart="promptTagDragStart(event)" ondragover="promptTagDragOver(event)" ondrop="promptTagDrop(event)" ondragend="promptTagDragEnd(event)"';
 
                 if (part.startsWith('@') || part.startsWith('by ')) {
                     // 画师标签：蓝色背景
                     const name = part.replace(/^@/, '').replace(/^by /, '');
-                    html += '<span class="prompt-tag-anima" data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:pointer;">@' + name + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
                 } else if (charNames.has(lowerPart)) {
                     // 角色标签：紫色背景
-                    html += '<span class="prompt-tag-anima" data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fff;border:1px solid rgba(168,85,247,0.4);cursor:pointer;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fff;border:1px solid rgba(168,85,247,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
                 } else {
                     // 其他标签：优先显示 i18n 中文（若 token 本身含中文则直接显示）
                     const { display, original } = resolveTagDisplay(part);
                     const safeDisplay = display.replace(/</g, '&lt;');
                     const titleHtml = original ? (original.replace(/</g, '&lt;') + ' / ' + display) : part.replace(/</g, '&lt;');
                     const color = original ? '#e0e7ef' : (hasChinese(part) ? '#e0e7ef' : '#9aa3b2');
-                    html += '<span title="' + titleHtml + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:' + color + ';border:1px solid rgba(255,255,255,0.15);">' +
+                    html += '<span title="' + titleHtml + '" class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:' + color + ';border:1px solid rgba(255,255,255,0.15);cursor:grab;">' +
                         '<span>' + safeDisplay + '</span>' +
                         '<button onclick="removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button>' +
                     '</span>';
@@ -1147,6 +1148,145 @@
 
             tagsContainer.innerHTML = html;
             bindAnimaTagHover();
+        }
+
+        // === Tag drag-and-drop reorder (live preview, simplified) ===
+        let _dragState = null; // { fromIdx, tags: [...], promptOriginal }
+        
+        function _mergePresetsForDrag(tokens) {
+            const presetPromptSet = new Map();
+            if (typeof presetPickerData !== 'undefined' && presetPickerData.categories) {
+                presetPickerData.categories.forEach(cat => {
+                    if (cat.subcategories) cat.subcategories.forEach(sub => {
+                        if (sub.presets) sub.presets.forEach(p => {
+                            if (p.prompt && p.prompt.includes(',')) presetPromptSet.set(p.prompt.trim(), true);
+                        });
+                    });
+                });
+            }
+            const merged = [];
+            let i = 0;
+            while (i < tokens.length) {
+                let matched = false;
+                for (let len = Math.min(8, tokens.length - i); len >= 2; len--) {
+                    const candidate = tokens.slice(i, i + len).join(', ');
+                    if (presetPromptSet.has(candidate)) { merged.push(candidate); i += len; matched = true; break; }
+                }
+                if (!matched) { merged.push(tokens[i]); i++; }
+            }
+            return merged;
+        }
+        
+        const _TAG_STYLE_ID = 'prompt-tag-drag-css';
+        if (!document.getElementById(_TAG_STYLE_ID)) {
+            var _ds = document.createElement('style');
+            _ds.id = _TAG_STYLE_ID;
+            _ds.textContent = '.prompt-tag-dragging{opacity:0.25!important;transform:scale(0.92)!important}' +
+                '.prompt-tag-drop-left{box-shadow:-3px 0 0 0 #a855f7!important}' +
+                '.prompt-tag-drop-right{box-shadow:3px 0 0 0 #a855f7!important}' +
+                '@keyframes tagDropBounce{0%{transform:scale(0.9);opacity:0.5}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}' +
+                '.prompt-tag-just-dropped{animation:tagDropBounce 0.3s cubic-bezier(0.2,1,0.3,1)}';
+            document.head.appendChild(_ds);
+        }
+        
+        function _clearDragVisuals() {
+            document.querySelectorAll('.prompt-tag-dragging,.prompt-tag-drop-left,.prompt-tag-drop-right').forEach(el => {
+                el.classList.remove('prompt-tag-dragging', 'prompt-tag-drop-left', 'prompt-tag-drop-right');
+            });
+        }
+        
+        function promptTagDragStart(e) {
+            const el = e.target.closest('[data-idx]');
+            if (!el) return;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', '');
+            const fromIdx = parseInt(el.dataset.idx);
+            const promptInput = document.getElementById('prompt');
+            if (!promptInput) return;
+            const tokens = promptInput.value.split(',').map(p => p.trim()).filter(p => p);
+            const tags = _mergePresetsForDrag(tokens);
+            _dragState = { fromIdx, tags, promptOriginal: promptInput.value, lastOverIdx: -1, lastSide: '' };
+            // Mark original as dragging
+            el.classList.add('prompt-tag-dragging');
+        }
+        
+        function promptTagDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!_dragState) return;
+            // Find closest tag by scanning all tags (more forgiving than e.target.closest)
+            const allTags = document.querySelectorAll('#promptTags [data-idx]');
+            if (!allTags.length) return;
+            let closestEl = null, closestDist = Infinity;
+            allTags.forEach(tag => {
+                const rect = tag.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const dist = Math.abs(e.clientX - cx) + Math.abs(e.clientY - cy) * 0.5;
+                if (dist < closestDist) { closestDist = dist; closestEl = tag; }
+            });
+            if (!closestEl || closestDist > 200) return;
+            const overIdx = parseInt(closestEl.dataset.idx);
+            const rect = closestEl.getBoundingClientRect();
+            const side = e.clientX < rect.left + rect.width / 2 ? 'left' : 'right';
+            if (overIdx === _dragState.lastOverIdx && side === _dragState.lastSide) return;
+            _dragState.lastOverIdx = overIdx;
+            _dragState.lastSide = side;
+            document.querySelectorAll('.prompt-tag-drop-left,.prompt-tag-drop-right').forEach(s => s.classList.remove('prompt-tag-drop-left', 'prompt-tag-drop-right'));
+            if (overIdx !== _dragState.fromIdx) {
+                closestEl.classList.add(side === 'left' ? 'prompt-tag-drop-left' : 'prompt-tag-drop-right');
+            }
+        }
+        
+        function promptTagDrop(e) {
+            e.preventDefault();
+            if (!_dragState) return;
+            // Find target same way as dragOver
+            const allTags = document.querySelectorAll('#promptTags [data-idx]');
+            if (!allTags.length) return;
+            let closestEl = null, closestDist = Infinity;
+            allTags.forEach(tag => {
+                const rect = tag.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const dist = Math.abs(e.clientX - cx) + Math.abs(e.clientY - cy) * 0.5;
+                if (dist < closestDist) { closestDist = dist; closestEl = tag; }
+            });
+            if (!closestEl) return;
+            const toIdx = parseInt(closestEl.dataset.idx);
+            const promptInput = document.getElementById('prompt');
+            if (!promptInput) return;
+            const tags = [..._dragState.tags];
+            const [moved] = tags.splice(_dragState.fromIdx, 1);
+            const rect = closestEl.getBoundingClientRect();
+            const insertIdx = e.clientX < rect.left + rect.width / 2 ? toIdx : toIdx + 1;
+            const adjustedIdx = _dragState.fromIdx < insertIdx ? insertIdx - 1 : insertIdx;
+            tags.splice(adjustedIdx, 0, moved);
+            promptInput.value = tags.join(', ');
+            const droppedIdx = adjustedIdx;
+            _dragState = null;
+            _clearDragVisuals();
+            updatePromptTags();
+            requestAnimationFrame(() => {
+                const dropped = document.querySelector('[data-idx="' + droppedIdx + '"]');
+                if (dropped) {
+                    dropped.classList.add('prompt-tag-just-dropped');
+                    dropped.addEventListener('animationend', () => dropped.classList.remove('prompt-tag-just-dropped'), { once: true });
+                }
+            });
+        }
+        
+        function promptTagDragEnd(e) {
+            if (_dragState) {
+                // Revert
+                const promptInput = document.getElementById('prompt');
+                if (promptInput) {
+                    promptInput.value = _dragState.promptOriginal;
+                    updatePromptTags();
+                }
+            }
+            _clearDragVisuals();
+            _dragState = null;
         }
 
         // 页面初始化时预加载 i18n 表
@@ -1183,8 +1323,10 @@
                 if (typeof ANIMA_CHAR_DB === 'undefined' || !ANIMA_CHAR_DB.length) return '';
                 const item = ANIMA_CHAR_DB.find(c => c.name && c.name.toLowerCase() === name.toLowerCase());
                 if (!item) return '';
-                const raw = item.copyright ? item.name + ', ' + item.copyright : item.name;
-                return 'https://blobs.animadex.net/Outputs/thumbs/' + encodeURIComponent(raw) + '.webp';
+                if (item.thumb_url) return item.thumb_url;
+                const raw = item.trigger || (item.copyright ? item.name + ', ' + item.copyright : item.name);
+                const encoded = encodeURIComponent(raw).replace(/%28/g, '(').replace(/%29/g, ')');
+                return 'https://blobs.animadex.net/Outputs/thumbs/' + encoded + '.webp';
             }
             return '';
         }
@@ -1396,7 +1538,7 @@
                             }
                         } catch(e){}
                     }, 1000);
-                    setTimeout(() => { clearInterval(checkInterval); reject(new Error('超时')); }, 180000);
+                    setTimeout(() => { clearInterval(checkInterval); reject(new Error('超时')); }, 300000);
                 });
 
                 if (ws) try { ws.close(); } catch(e){}
