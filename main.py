@@ -7403,6 +7403,123 @@ async def proxy_comfyui_object_info():
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI object_info 请求失败: {str(e)}")
 
+@app.get("/api/comfyui/loras")
+async def list_comfyui_loras():
+    """从 ComfyUI 获取可用 LoRA 列表（查询 LoraLoaderModelOnly 节点的 lora_name 枚举）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        # 查询 LoraLoaderModelOnly 节点信息
+        url = f"http://{target}/object_info/LoraLoaderModelOnly"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+        if resp.status_code != 200:
+            raise Exception(f"ComfyUI 返回 {resp.status_code}")
+        data = resp.json()
+        # 从节点定义中提取 lora_name 的枚举列表
+        loras = []
+        node_info = data.get("LoraLoaderModelOnly", data)
+        input_params = node_info.get("input", {}).get("required", {})
+        lora_field = input_params.get("lora_name", None)
+        if lora_field and isinstance(lora_field, list) and len(lora_field) > 0:
+            loras = lora_field[0] if isinstance(lora_field[0], list) else []
+        return {"loras": sorted(loras)}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"获取 LoRA 列表失败: {str(e)}")
+
+# --- LoRA Manager 代理端点 ---
+
+@app.get("/api/lora-manager/loras")
+async def proxy_lora_manager_list():
+    """代理 LoRA Manager 的 LoRA 列表（含元数据、封面、触发词）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/api/lm/loras/list"
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url)
+        if resp.status_code != 200:
+            return {"models": [], "error": f"LoRA Manager 返回 {resp.status_code}"}
+        return Response(content=resp.content, media_type="application/json")
+    except Exception as e:
+        return {"models": [], "error": str(e)}
+
+@app.get("/api/lora-manager/preview")
+async def proxy_lora_manager_preview(name: str):
+    """获取 LoRA 封面图"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/api/lm/loras/preview-url"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, params={"name": name})
+        if resp.status_code == 200:
+            data = resp.json()
+            preview_url = data.get("url", "")
+            if preview_url:
+                # 如果是相对路径，拼上 ComfyUI 地址
+                if preview_url.startswith("/"):
+                    preview_url = f"http://{target}{preview_url}"
+                return {"url": preview_url}
+        return {"url": ""}
+    except Exception as e:
+        return {"url": "", "error": str(e)}
+
+@app.get("/api/lora-manager/proxy-preview")
+async def proxy_lora_manager_preview_proxy(url: str):
+    """代理 LoRA Manager 的预览图请求（转发到 ComfyUI）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        # url 是相对路径如 /api/lm/previews?path=...
+        full_url = f"http://{target}{url}" if url.startswith("/") else url
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(full_url)
+        if resp.status_code == 200:
+            ct = resp.headers.get("content-type", "image/jpeg")
+            return Response(content=resp.content, media_type=ct)
+        raise HTTPException(status_code=resp.status_code, detail="预览图获取失败")
+    except httpx.HTTPStatusError:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"代理预览图失败: {str(e)}")
+
+@app.get("/api/lora-manager/metadata")
+async def proxy_lora_manager_metadata(name: str):
+    """获取 LoRA 元数据（触发词、基础模型、描述等）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/api/lm/loras/metadata"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, params={"name": name})
+        if resp.status_code == 200:
+            return Response(content=resp.content, media_type="application/json")
+        return {"metadata": {}}
+    except Exception as e:
+        return {"metadata": {}, "error": str(e)}
+
+@app.get("/api/lora-manager/trigger-words")
+async def proxy_lora_manager_trigger_words(name: str):
+    """获取 LoRA 触发词"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/api/lm/loras/get-trigger-words"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, params={"name": name})
+        if resp.status_code == 200:
+            return Response(content=resp.content, media_type="application/json")
+        return {"triggerWords": []}
+    except Exception as e:
+        return {"triggerWords": [], "error": str(e)}
+
 @app.get("/api/comfyui/history/{prompt_id}")
 async def proxy_comfyui_history(prompt_id: str):
     """代理获取 ComfyUI 任务历史"""

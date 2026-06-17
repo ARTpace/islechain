@@ -279,6 +279,64 @@
             .gen-row #mainGenBtn .btn-text { flex-shrink:0; white-space:nowrap!important; }
             .history-bulk-btn { padding:0 10px!important; min-width:32px; justify-content:center; }
         }
+        /* LoRA 悬浮面板 */
+        .lora-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.2); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+        .lora-overlay.open { display:flex; align-items:center; justify-content:center; }
+        .lora-panel { width:420px; max-height:80vh; overflow-y:auto; background:#fff; border:1px solid rgba(0,0,0,0.1); border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,0.18); padding:20px; animation:loraPanelIn .2s var(--easing); }
+        @keyframes loraPanelIn { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+        body.studio-theme-dark .lora-panel { background:#0d1520; border-color:rgba(0,240,255,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+        .lora-panel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .lora-panel-header h3 { font-size:14px; font-weight:800; margin:0; }
+        .lora-panel-close { width:28px; height:28px; border:none; border-radius:8px; cursor:pointer; background:rgba(0,0,0,0.06); color:#666; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+        .lora-panel-close:hover { background:rgba(0,0,0,0.12); color:#000; }
+        body.studio-theme-dark .lora-panel-close { background:rgba(255,255,255,0.06); color:#8aa0b8; }
+        body.studio-theme-dark .lora-panel-close:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .lora-add-btn { height:30px; padding:0 12px; border:none; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; background:#000; color:#fff; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s; }
+        .lora-add-btn:hover { opacity:0.8; }
+        body.studio-theme-dark .lora-add-btn { background:#00f0ff; color:#0a0e17; }
+        .lora-card { border:1px solid rgba(0,0,0,0.08); border-radius:12px; padding:10px 12px; margin-bottom:8px; background:#fafafa; }
+        body.studio-theme-dark .lora-card { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+        .lora-card-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+        .lora-card-row:last-child { margin-bottom:0; }
+        .lora-select { flex:1; height:30px; padding:0 8px; border:1px solid rgba(0,0,0,0.1); border-radius:8px; font-size:11px; font-weight:600; background:#fff; color:#333; outline:none; min-width:0; }
+        body.studio-theme-dark .lora-select { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
+        .lora-strength-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+        .lora-strength-wrap input[type=range] { width:80px; height:4px; accent-color:#000; }
+        body.studio-theme-dark .lora-strength-wrap input[type=range] { accent-color:#00f0ff; }
+        .lora-strength-val { font-size:11px; font-weight:800; color:#666; width:32px; text-align:right; }
+        body.studio-theme-dark .lora-strength-val { color:#8aa0b8; }
+        .lora-branches { display:flex; gap:4px; }
+        .lora-branch-btn { height:24px; padding:0 8px; border:1px solid rgba(0,0,0,0.1); border-radius:6px; font-size:9px; font-weight:700; cursor:pointer; background:transparent; color:#999; transition:all 0.15s; }
+        .lora-branch-btn.active { background:#000; color:#fff; border-color:#000; }
+        body.studio-theme-dark .lora-branch-btn { border-color:rgba(255,255,255,0.1); color:#6a8fa8; }
+        body.studio-theme-dark .lora-branch-btn.active { background:#00f0ff; color:#0a0e17; border-color:#00f0ff; }
+        .lora-remove-btn { width:24px; height:24px; border:none; border-radius:6px; cursor:pointer; background:rgba(0,0,0,0.06); color:#999; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s; }
+        .lora-remove-btn:hover { background:#ff4444; color:#fff; }
+        body.studio-theme-dark .lora-remove-btn { background:rgba(255,255,255,0.06); }
+        .lora-empty-msg { text-align:center; padding:20px 10px; color:#999; font-size:11px; font-weight:600; }
+        body.studio-theme-dark .lora-empty-msg { color:#4a5a6e; }
+        .lora-builtin-row { display:flex; align-items:center; gap:8px; padding:8px 12px; margin-bottom:8px; border-radius:10px; background:rgba(0,0,0,0.03); }
+        body.studio-theme-dark .lora-builtin-row { background:rgba(255,255,255,0.03); }
+        .lora-builtin-label { font-size:10px; font-weight:700; color:#999; flex-shrink:0; }
+        body.studio-theme-dark .lora-builtin-label { color:#4a5a6e; }
+        .lora-builtin-name { font-size:10px; font-weight:600; color:#666; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        body.studio-theme-dark .lora-builtin-name { color:#8aa0b8; }
+        .lora-preset-btns { display:flex; gap:4px; margin-bottom:12px; }
+        .lora-preset-btn { height:26px; padding:0 10px; border:1px solid rgba(0,0,0,0.1); border-radius:8px; font-size:10px; font-weight:700; cursor:pointer; background:transparent; color:#666; transition:all 0.15s; }
+        .lora-preset-btn:hover { background:rgba(0,0,0,0.05); }
+        body.studio-theme-dark .lora-preset-btn { border-color:rgba(255,255,255,0.1); color:#8aa0b8; }
+        body.studio-theme-dark .lora-preset-btn:hover { background:rgba(255,255,255,0.05); }
+        /* LoRA 卡片预览 */
+        .lora-preview { width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(0,0,0,0.05); }
+        .lora-preview img { width:100%; height:100%; object-fit:cover; }
+        body.studio-theme-dark .lora-preview { background:rgba(255,255,255,0.05); }
+        .lora-trigger-words { display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding:6px 0; }
+        .lora-trigger-tag { display:inline-flex; align-items:center; gap:3px; height:22px; padding:0 8px; border-radius:6px; font-size:10px; font-weight:600; background:rgba(0,0,0,0.06); color:#555; cursor:pointer; transition:all 0.15s; }
+        .lora-trigger-tag:hover { background:rgba(0,0,0,0.12); color:#000; }
+        body.studio-theme-dark .lora-trigger-tag { background:rgba(255,255,255,0.06); color:#8aa0b8; }
+        body.studio-theme-dark .lora-trigger-tag:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .lora-trigger-label { font-size:9px; font-weight:700; color:#999; flex-shrink:0; }
+        body.studio-theme-dark .lora-trigger-label { color:#4a5a6e; }
     </style>
     <link rel="stylesheet" href="/static/theme.css">
 </head>
@@ -325,6 +383,11 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text"> 参考图</span>
                         </button>
                         <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" onchange="refImageHandleUpload(this)">
+                        <!-- LoRA 管理按钮 -->
+                        <button onclick="toggleLoraPanel()" id="loraBtn" class="anima-ctrl" style="display:none;" title="LoRA 管理">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            <span class="btn-text" id="loraBtnText"> LoRA</span>
+                        </button>
                         <button id="translateBtn" class="anima-ctrl" onclick="translatePrompt()" oncontextmenu="event.preventDefault();toggleTranslateDir()" title="左键翻译 · 右键切换方向">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2v3"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
                             <span class="btn-text" id="translateDirLabel"> 中→英</span>
@@ -1466,6 +1529,11 @@
                 }
                 console.log('[BatchCount] model=' + (currentWorkflow.includes('anima') ? 'ANIMA' : 'Z-Image') + ' currentBatchCount=' + currentBatchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size));
 
+                // 注入自定义 LoRA 节点
+                if (currentWorkflow.includes('anima')) {
+                    injectLoraNodes(workflow);
+                }
+
                 currentPromptId = generateUUID();
 
                 // WebSocket
@@ -2027,8 +2095,389 @@
         const savedWf = localStorage.getItem('zimage_workflow');
         if (savedWf && (savedWf === 'Z-Image.json' || savedWf.includes('anima'))) switchWorkflow(savedWf);
         else updateParamsUI();
+
+        // ============================================================
+        // === LoRA 管理 ===
+        // ============================================================
+        const LORA_STORAGE_KEY = 'zimage_lora_config';
+        const LORA_NODE_BASE = 9000; // 动态 LoRA 节点 ID 起始
+
+        // LoRA 状态
+        let loraState = {
+            loraMap: {},         // name → {name, preview, triggerWords, BaseModel, description, ...}
+            available: [],       // LoRA 文件名列表（从 loraMap keys 生成）
+            models: [],          // 解析出的模型分类列表
+            modelFilter: 'all',  // 当前筛选的模型
+            active: []           // 用户添加的 LoRA [{name, strength}]
+        };
+
+        // 加载可用 LoRA 列表（优先走 LoRA Manager，回退到 ComfyUI object_info）
+        async function loadAvailableLoras() {
+            try {
+                // 先尝试 LoRA Manager
+                const res = await fetch('/api/lora-manager/loras');
+                if (res.ok) {
+                    const data = await res.json();
+                    const items = data.items || data.models || [];
+                    if (Array.isArray(items) && items.length > 0) {
+                        const map = {};
+                        const modelSet = new Set();
+                        for (const m of items) {
+                            // LoRA Manager 返回格式：file_name 是纯文件名（无扩展名），需要拼 .safetensors
+                            const folder = m.folder || '';
+                            const fileName = m.file_name || '';
+                            const filePath = m.file_path || '';
+                            // 从 file_path 提取带扩展名的文件名
+                            const fullFileName = filePath ? filePath.split(/\\/).pop().split('/').pop() : (fileName.endsWith('.safetensors') ? fileName : fileName + '.safetensors');
+                            // 工作流中 lora_name 格式：folder\filename.safetensors（ComfyUI 用反斜杠）
+                            const loraName = folder ? `${folder}\\${fullFileName}` : fullFileName;
+                            if (!loraName) continue;
+                            const previewRaw = m.preview_url || '';
+                            // preview_url 是相对路径如 /api/lm/previews?path=...，需要代理
+                            const preview = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
+                            const triggerWords = [];
+                            // 从 civitai 对象提取 trainedWords
+                            const civitai = m.civitai;
+                            if (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords)) {
+                                triggerWords.push(...civitai.trainedWords);
+                            }
+                            map[loraName] = {
+                                name: loraName,
+                                displayName: m.model_name || fileName,
+                                preview,
+                                triggerWords,
+                                baseModel: m.base_model || '',
+                                tags: m.tags || '',
+                                folder
+                            };
+                            modelSet.add(folder || '通用');
+                        }
+                        loraState.loraMap = map;
+                        loraState.available = Object.keys(map).sort();
+                        loraState.models = [...modelSet].sort();
+                        console.log('[LoRA] LoRA Manager 加载成功，共', loraState.available.length, '个');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[LoRA] LoRA Manager 不可用，回退到 ComfyUI:', e);
+            }
+
+            // 回退：从 ComfyUI object_info 获取纯文件列表
+            try {
+                const res = await fetch('/api/comfyui/loras');
+                if (!res.ok) return;
+                const data = await res.json();
+                const raw = data.loras || [];
+                loraState.available = raw;
+                loraState.loraMap = {};
+                const modelSet = new Set();
+                for (const name of raw) {
+                    loraState.loraMap[name] = { name, displayName: name.split('/').pop(), preview: '', triggerWords: [], baseModel: '', folder: '' };
+                    modelSet.add(extractLoraModel(name));
+                }
+                loraState.models = [...modelSet].sort();
+                console.log('[LoRA] ComfyUI 回退加载成功，共', raw.length, '个');
+            } catch (e) {
+                console.warn('[LoRA] 加载可用列表失败:', e);
+            }
+        }
+
+        // 从 LoRA 数据提取模型分类（优先用 folder，回退到路径解析）
+        function extractLoraModel(loraName) {
+            const meta = loraState.loraMap[loraName];
+            if (meta && meta.folder) return meta.folder;
+            if (!loraName) return '通用';
+            const parts = loraName.replace(/\\/g, '/').split('/');
+            if (parts.length > 1) return parts[0];
+            return '通用';
+        }
+
+        // 获取筛选后的 LoRA 列表
+        function getFilteredLoras() {
+            if (!loraState.modelFilter || loraState.modelFilter === 'all') return loraState.available;
+            return loraState.available.filter(name => extractLoraModel(name) === loraState.modelFilter);
+        }
+
+        // 持久化
+        function saveLoraConfig() {
+            try {
+                localStorage.setItem(LORA_STORAGE_KEY, JSON.stringify({
+                    active: loraState.active,
+                    modelFilter: loraState.modelFilter
+                }));
+            } catch (_) {}
+        }
+
+        function loadLoraConfig() {
+            try {
+                const raw = localStorage.getItem(LORA_STORAGE_KEY);
+                if (raw) {
+                    const cfg = JSON.parse(raw);
+                    if (Array.isArray(cfg.active)) loraState.active = cfg.active;
+                    if (cfg.modelFilter) loraState.modelFilter = cfg.modelFilter;
+                }
+            } catch (_) {}
+        }
+
+        // UI: 显示/隐藏 LoRA 按钮（仅 anima 工作流时显示）
+        function updateLoraSwitcherVisibility() {
+            const btn = document.getElementById('loraBtn');
+            if (!btn) return;
+            const isAnima = currentWorkflow.includes('anima');
+            btn.style.display = isAnima ? '' : 'none';
+            // 更新按钮文字显示数量
+            const btnText = document.getElementById('loraBtnText');
+            if (btnText) {
+                const count = loraState.active.length;
+                btnText.textContent = count > 0 ? ` LoRA(${count})` : ' LoRA';
+            }
+        }
+
+        // UI: 切换面板
+        function toggleLoraPanel() {
+            const overlay = document.getElementById('loraOverlay');
+            if (!overlay) return;
+            if (overlay.classList.contains('open')) {
+                closeLoraPanel();
+            } else {
+                openLoraPanel();
+            }
+        }
+
+        function openLoraPanel() {
+            const overlay = document.getElementById('loraOverlay');
+            if (!overlay) return;
+            closeAllMenus();
+            overlay.classList.add('open');
+            renderLoraPanel();
+        }
+
+        function closeLoraPanel() {
+            const overlay = document.getElementById('loraOverlay');
+            if (overlay) overlay.classList.remove('open');
+        }
+
+        // UI: 渲染面板内容
+        function renderLoraPanel() {
+            // 模型筛选下拉
+            const builtinEl = document.getElementById('loraBuiltinInfo');
+            if (builtinEl) {
+                const filterOptions = [
+                    { value: 'all', label: '全部模型' },
+                    ...loraState.models.map(m => ({ value: m, label: m === '通用' ? '通用（根目录）' : m }))
+                ];
+                const filterHtml = filterOptions.map(o =>
+                    `<option value="${o.value}" ${loraState.modelFilter === o.value ? 'selected' : ''}>${o.label}</option>`
+                ).join('');
+                builtinEl.innerHTML = `
+                    <div class="lora-card-row" style="margin-bottom:12px;">
+                        <span style="font-size:10px;font-weight:700;color:#999;flex-shrink:0;">筛选模型</span>
+                        <select class="lora-select" onchange="setLoraModelFilter(this.value)" style="flex:1;">
+                            ${filterHtml}
+                        </select>
+                    </div>
+                `;
+            }
+
+            // 用户 LoRA 列表
+            const filteredLoras = getFilteredLoras();
+            const listEl = document.getElementById('loraCardList');
+            if (!listEl) return;
+            if (loraState.active.length === 0) {
+                listEl.innerHTML = '<div class="lora-empty-msg">点击「添加」按钮添加自定义 LoRA</div>';
+                return;
+            }
+            listEl.innerHTML = loraState.active.map((lora, i) => {
+                const loraModel = extractLoraModel(lora.name);
+                const showInFilter = loraState.modelFilter === 'all' || loraModel === loraState.modelFilter;
+                const meta = loraState.loraMap[lora.name] || {};
+                const preview = meta.preview || '';
+                const triggerWords = meta.triggerWords || [];
+                const baseModel = meta.baseModel || '';
+                const options = filteredLoras.map(name => {
+                    const m = loraState.loraMap[name] || {};
+                    const bm = m.baseModel ? ` (${m.baseModel})` : '';
+                    return `<option value="${name}" ${name === lora.name ? 'selected' : ''}>${m.displayName || name.split('/').pop()}${bm}</option>`;
+                }).join('');
+
+                // 触发词 HTML
+                const triggerHtml = triggerWords.length > 0 ? `
+                    <div class="lora-card-row">
+                        <span class="lora-trigger-label">触发词</span>
+                        <div class="lora-trigger-words">
+                            ${triggerWords.slice(0, 5).map(w =>
+                                `<span class="lora-trigger-tag" onclick="copyTriggerWord(this, '${w.replace(/'/g, "\\'")}')" title="点击复制">${w}</span>`
+                            ).join('')}
+                            ${triggerWords.length > 5 ? `<span class="lora-trigger-tag" style="opacity:0.6;">+${triggerWords.length - 5}</span>` : ''}
+                        </div>
+                    </div>
+                ` : '';
+
+                return `
+                    <div class="lora-card" style="${!showInFilter && lora.name ? 'opacity:0.5;' : ''}">
+                        <div class="lora-card-row">
+                            ${preview ? `<div class="lora-preview"><img src="${preview}" onerror="this.parentElement.innerHTML='<svg width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#ccc\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/></svg>'"></div>` : ''}
+                            <select class="lora-select" onchange="updateLora(${i}, 'name', this.value)" style="${preview ? 'flex:1;' : ''}">
+                                <option value="" disabled ${!lora.name ? 'selected' : ''}>选择 LoRA...</option>
+                                ${options}
+                                ${lora.name && !filteredLoras.includes(lora.name) ? `<option value="${lora.name}" selected>${lora.name}（不在筛选范围）</option>` : ''}
+                            </select>
+                            <button class="lora-remove-btn" onclick="removeLora(${i})" title="移除">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+                        ${triggerHtml}
+                        <div class="lora-card-row">
+                            ${baseModel ? `<span style="font-size:9px;font-weight:700;color:#999;">${baseModel}</span>` : ''}
+                            <div class="lora-strength-wrap" style="margin-left:auto;">
+                                <span style="font-size:10px;font-weight:700;color:#999;">强度</span>
+                                <input type="range" min="0.05" max="1.5" step="0.05" value="${lora.strength}" oninput="updateLora(${i}, 'strength', parseFloat(this.value))">
+                                <span class="lora-strength-val">${lora.strength.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 复制触发词到剪贴板
+        function copyTriggerWord(el, word) {
+            navigator.clipboard.writeText(word).then(() => {
+                const orig = el.textContent;
+                el.textContent = '✓ 已复制';
+                el.style.background = 'rgba(74,222,128,0.15)';
+                el.style.color = '#16a34a';
+                setTimeout(() => {
+                    el.textContent = orig;
+                    el.style.background = '';
+                    el.style.color = '';
+                }, 1200);
+            });
+        }
+
+        // 设置模型筛选
+        function setLoraModelFilter(model) {
+            loraState.modelFilter = model;
+            saveLoraConfig();
+            renderLoraPanel();
+        }
+
+        // 操作
+        function addLora() {
+            loraState.active.push({ name: '', strength: 0.8 });
+            saveLoraConfig();
+            renderLoraPanel();
+            updateLoraSwitcherVisibility();
+        }
+
+        function removeLora(index) {
+            loraState.active.splice(index, 1);
+            saveLoraConfig();
+            renderLoraPanel();
+            updateLoraSwitcherVisibility();
+        }
+
+        function updateLora(index, field, value) {
+            const lora = loraState.active[index];
+            if (!lora) return;
+            lora[field] = value;
+            saveLoraConfig();
+            if (field === 'strength') {
+                const vals = document.querySelectorAll('.lora-strength-val');
+                if (vals[index]) vals[index].textContent = value.toFixed(2);
+            } else {
+                renderLoraPanel();
+            }
+            updateLoraSwitcherVisibility();
+        }
+
+        // === 工作流注入 ===
+        function injectLoraNodes(workflow) {
+            // 清理之前注入的动态节点 (ID >= LORA_NODE_BASE)
+            for (const key of Object.keys(workflow)) {
+                if (parseInt(key) >= LORA_NODE_BASE) delete workflow[key];
+            }
+
+            // 过滤出有效的用户 LoRA
+            const validLoras = loraState.active.filter(l => l.name);
+            if (validLoras.length === 0) return;
+
+            let nodeId = LORA_NODE_BASE;
+
+            // --- KSampler 分支注入 ---
+            const ksamplerNode = workflow['19'];
+            if (ksamplerNode?.inputs) {
+                let currentModelInput = ksamplerNode.inputs.model;
+                for (const lora of validLoras) {
+                    const nid = String(nodeId++);
+                    workflow[nid] = {
+                        inputs: {
+                            lora_name: lora.name,
+                            strength_model: lora.strength,
+                            model: currentModelInput
+                        },
+                        class_type: 'LoraLoaderModelOnly',
+                        _meta: { title: '自定义 LoRA: ' + lora.name.split('/').pop() }
+                    };
+                    currentModelInput = [nid, 0];
+                }
+                ksamplerNode.inputs.model = currentModelInput;
+            }
+
+            // --- Guidance 分支注入 ---
+            const guidanceNode = workflow['50'];
+            if (guidanceNode?.inputs) {
+                let currentModelInput = guidanceNode.inputs.model;
+                for (const lora of validLoras) {
+                    const nid = String(nodeId++);
+                    workflow[nid] = {
+                        inputs: {
+                            lora_name: lora.name,
+                            strength_model: lora.strength,
+                            model: currentModelInput
+                        },
+                        class_type: 'LoraLoaderModelOnly',
+                        _meta: { title: '自定义 LoRA: ' + lora.name.split('/').pop() }
+                    };
+                    currentModelInput = [nid, 0];
+                }
+                guidanceNode.inputs.model = currentModelInput;
+            }
+
+            console.log('[LoRA] 注入完成，用户 LoRA:', validLoras.length);
+        }
+
+        // 页面加载时初始化 LoRA
+        loadLoraConfig();
+        loadAvailableLoras();
+        // 监听工作流切换，更新 LoRA 按钮可见性
+        const _origSwitchWorkflow = switchWorkflow;
+        switchWorkflow = function(name) {
+            _origSwitchWorkflow(name);
+            updateLoraSwitcherVisibility();
+        };
+        updateLoraSwitcherVisibility();
+
         window.onload = () => { GalleryList.load(0); updatePromptTags(); spPickerInit(); spmInit(); };
         updateBatchCountUI();
     </script>
+
+    <!-- LoRA 悬浮面板 -->
+    <div id="loraOverlay" class="lora-overlay" onclick="if(event.target===this)closeLoraPanel()">
+        <div class="lora-panel">
+            <div class="lora-panel-header">
+                <h3>⚡ LoRA 管理</h3>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="lora-add-btn" onclick="addLora()"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>添加 LoRA</button>
+                    <button class="lora-panel-close" onclick="closeLoraPanel()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="loraBuiltinInfo"></div>
+            <div id="loraCardList"></div>
+        </div>
+    </div>
 </body>
 </html>
