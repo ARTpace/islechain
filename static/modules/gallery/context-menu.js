@@ -55,7 +55,21 @@
                 e.stopPropagation();
                 const action = node.dataset.action;
                 hide();
-                if (action && typeof global.GalleryActions[action] === 'function') {
+                if (action === '__view__') {
+                    // 查看大图：触发卡片的 click 事件打开 lightbox
+                    const card = document.querySelector(`#history-${currentRecord.timestamp}`);
+                    if (card) card.click();
+                    else if (currentRecord.images && currentRecord.images[0]) window.open(currentRecord.images[0], '_blank');
+                } else if (action === 'downloadImage') {
+                    // 下载图片：需要传 (imageUrl, filename, event)
+                    const imgUrl = (currentRecord.images && currentRecord.images[0]) || '';
+                    const filename = (currentRecord.timestamp || Date.now()) + '.png';
+                    global.GalleryActions.downloadImage(imgUrl, filename, e);
+                } else if (action === 'toggleFavorite') {
+                    // 收藏：需要传 (record, event, imgUrl)
+                    const imgUrl = (currentRecord.images && currentRecord.images[0]) || '';
+                    global.GalleryActions.toggleFavorite(currentRecord, e, imgUrl);
+                } else if (action && typeof global.GalleryActions[action] === 'function') {
                     global.GalleryActions[action](currentRecord, e);
                 }
             });
@@ -71,6 +85,9 @@
         // 始终提供：用浏览器查看
         items.push({ label: '查看大图', action: '__view__', icon: '🔍' });
         if (features.openFolder)  items.push({ label: '打开文件夹', action: 'openImageFolder', icon: '📁' });
+        if (features.usePrompt)   items.push({ label: '载入提示词', action: 'usePrompt',       icon: '✏️' });
+        if (features.copyPrompt)  items.push({ label: '复制提示词', action: 'copyPrompt',      icon: '📋' });
+        if (features.favorite)    items.push({ label: '收藏',       action: 'toggleFavorite',  icon: '⭐' });
         if (features.download)    items.push({ label: '下载图片',   action: 'downloadImage',   icon: '⬇️' });
         if (features.copyToCanvas) items.push({ label: '复制到画布', action: 'copyToCanvas',    icon: '🎨' });
         if (features.regenerate)  items.push({ label: '重新生成',   action: 'regenerate',      icon: '🔄' });

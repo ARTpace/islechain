@@ -2796,6 +2796,12 @@ def media_preview_cache_paths(path: str, width: int):
         os.path.join(MEDIA_PREVIEW_DIR, f"{key}.png"),
     )
 
+def _etag_for(path: str, stat=None) -> str:
+    """基于文件路径+mtime+size 生成弱 ETag"""
+    if stat is None:
+        stat = os.stat(path)
+    return hashlib.md5(f"{path}|{stat.st_mtime_ns}|{stat.st_size}".encode()).hexdigest()
+
 def is_video_preview_file(path: str) -> bool:
     return os.path.splitext(str(path or "").split("?", 1)[0])[1].lower() in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
 
@@ -5796,7 +5802,12 @@ async def api_get_thumbnail(filename: str):
     # 根据扩展名返回正确的 content-type
     ext = os.path.splitext(filename)[1].lower()
     content_type = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext, "image/png")
-    return FileResponse(thumb_path, media_type=content_type)
+    stat = os.stat(thumb_path)
+    etag = _etag_for(thumb_path, stat)
+    return FileResponse(thumb_path, media_type=content_type, headers={
+        "Cache-Control": "public, max-age=2592000, immutable",
+        "ETag": f'"{etag}"',
+    })
 
 # --- 智能提示词生成 ---
 
@@ -7338,7 +7349,21 @@ class ComfyUIInstancesUpdateRequest(BaseModel):
 @app.get("/api/comfyui/instances")
 async def get_comfyui_instances():
     """获取 ComfyUI 实例列表"""
-    return {"instances": COMFYUI_INSTANCES.copy()}
+    return {"instances": COMFYUI_INSTANCES.copy(), "basePath": COMFYUI_BASE_PATH or ""}
+
+@app.put("/api/comfyui/base-path")
+async def update_comfyui_base_path(req: dict):
+    """更新 ComfyUI 基础路径"""
+    global COMFYUI_BASE_PATH
+    path = str(req.get("path", "")).strip().rstrip("\\").rstrip("/")
+    if path and not os.path.isdir(path):
+        raise HTTPException(status_code=400, detail=f"路径不存在：{path}")
+    try:
+        update_env_values({"COMFYUI_BASE_PATH": path})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存配置失败：{e}")
+    COMFYUI_BASE_PATH = path
+    return {"basePath": COMFYUI_BASE_PATH}
 
 @app.put("/api/comfyui/instances")
 async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
@@ -7405,28 +7430,88 @@ async def proxy_comfyui_object_info():
 
 @app.get("/api/comfyui/loras")
 async def list_comfyui_loras():
-    """从 ComfyUI 获取可用 LoRA 列表（查询 LoraLoaderModelOnly 节点的 lora_name 枚举）"""
+    """从 ComfyUI 获取可用 LoRA 列表（查询 LoraLoader 和 LoraLoaderModelOnly 节点）"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    all_loras = set()
+    node_types = ["LoraLoaderModelOnly", "LoraLoader"]
     try:
-        # 查询 LoraLoaderModelOnly 节点信息
-        url = f"http://{target}/object_info/LoraLoaderModelOnly"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-        if resp.status_code != 200:
-            raise Exception(f"ComfyUI 返回 {resp.status_code}")
-        data = resp.json()
-        # 从节点定义中提取 lora_name 的枚举列表
-        loras = []
-        node_info = data.get("LoraLoaderModelOnly", data)
-        input_params = node_info.get("input", {}).get("required", {})
-        lora_field = input_params.get("lora_name", None)
-        if lora_field and isinstance(lora_field, list) and len(lora_field) > 0:
-            loras = lora_field[0] if isinstance(lora_field[0], list) else []
-        return {"loras": sorted(loras)}
+        async with httpx.AsyncClient(timeout=30) as client:
+            for node_type in node_types:
+                try:
+                    url = f"http://{target}/object_info/{node_type}"
+                    resp = await client.get(url)
+                    if resp.status_code != 200:
+                        continue
+                    data = resp.json()
+                    node_info = data.get(node_type, data)
+                    input_params = node_info.get("input", {}).get("required", {})
+                    lora_field = input_params.get("lora_name", None)
+                    if lora_field and isinstance(lora_field, list) and len(lora_field) > 0:
+                        loras = lora_field[0] if isinstance(lora_field[0], list) else []
+                        all_loras.update(loras)
+                except Exception:
+                    continue
+        return {"loras": sorted(all_loras)}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"获取 LoRA 列表失败: {str(e)}")
+
+@app.get("/api/loras/scan")
+async def scan_lora_folder(subfolder: str = ""):
+    """直接扫描本地 LoRA 文件夹获取完整列表（不依赖 ComfyUI 节点枚举）"""
+    if not COMFYUI_BASE_PATH:
+        raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
+    # 兼容两种路径：ComfyUI 根目录 或 已经是 loras 文件夹
+    normalized = COMFYUI_BASE_PATH.lower().replace("\\", "/").rstrip("/")
+    if normalized.endswith("/models/loras"):
+        lora_dir = COMFYUI_BASE_PATH
+    else:
+        lora_dir = os.path.join(COMFYUI_BASE_PATH, "models", "loras")
+    if subfolder:
+        lora_dir = os.path.join(lora_dir, subfolder)
+    if not os.path.isdir(lora_dir):
+        return {"loras": [], "error": f"目录不存在: {lora_dir}"}
+    extensions = {".safetensors", ".pt", ".pth", ".ckpt", ".bin"}
+    loras = []
+    previews = {}  # rel_path -> preview_url
+    for root, dirs, files in os.walk(lora_dir):
+        for f in files:
+            ext = os.path.splitext(f)[1].lower()
+            if ext in extensions:
+                # 计算相对于 loras 目录的路径
+                full_path = os.path.join(root, f)
+                rel_path = os.path.relpath(full_path, lora_dir)
+                # 统一用反斜杠（ComfyUI 格式）
+                rel_path_bs = rel_path.replace("/", "\\")
+                loras.append(rel_path_bs)
+                # 检查是否有预览图（同名 .png 或 .preview.png）
+                base = os.path.splitext(full_path)[0]
+                for preview_ext in [".png", ".jpg", ".jpeg", ".webp", ".preview.png"]:
+                    preview_path = base + preview_ext
+                    if os.path.isfile(preview_path):
+                        # 返回相对于 ComfyUI 根目录的路径
+                        preview_rel = os.path.relpath(preview_path, COMFYUI_BASE_PATH).replace("\\", "/")
+                        previews[rel_path_bs] = f"/api/loras/preview?path={preview_rel}"
+                        break
+    return {"loras": sorted(loras), "count": len(loras), "path": lora_dir, "previews": previews}
+
+@app.get("/api/loras/preview")
+async def get_lora_preview(path: str):
+    """获取 LoRA 预览图"""
+    if not COMFYUI_BASE_PATH:
+        raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
+    # 安全校验：防止路径遍历
+    if ".." in path:
+        raise HTTPException(status_code=400, detail="无效路径")
+    full_path = os.path.join(COMFYUI_BASE_PATH, path)
+    if not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="预览图不存在")
+    ext = os.path.splitext(full_path)[1].lower()
+    media_type = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext, "image/png")
+    return FileResponse(full_path, media_type=media_type, headers={
+        "Cache-Control": "public, max-age=604800, immutable",
+    })
 
 # --- LoRA Manager 代理端点 ---
 
@@ -7477,11 +7562,20 @@ async def proxy_lora_manager_preview_proxy(url: str):
     try:
         # url 是相对路径如 /api/lm/previews?path=...
         full_url = f"http://{target}{url}" if url.startswith("/") else url
+        # 生成 ETag 基于 URL
+        etag = hashlib.md5(full_url.encode()).hexdigest()
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(full_url)
         if resp.status_code == 200:
             ct = resp.headers.get("content-type", "image/jpeg")
-            return Response(content=resp.content, media_type=ct)
+            return Response(
+                content=resp.content,
+                media_type=ct,
+                headers={
+                    "Cache-Control": "public, max-age=604800, immutable",
+                    "ETag": f'"{etag}"',
+                }
+            )
         raise HTTPException(status_code=resp.status_code, detail="预览图获取失败")
     except httpx.HTTPStatusError:
         raise
@@ -9162,15 +9256,53 @@ async def media_preview(url: str, w: int = 512):
 
         def _save_preview():
             try:
-                img.save(webp_path, format="WEBP", quality=20, method=4)
+                img.save(webp_path, format="WEBP", quality=82, method=4)
                 return webp_path, "image/webp"
             except Exception:
                 img.save(png_path, format="PNG", optimize=True)
                 return png_path, "image/png"
         saved_path, saved_type = await asyncio.to_thread(_save_preview)
-        return FileResponse(saved_path, media_type=saved_type)
+        # 浏览器缓存：文件名含 mtime+size 哈希，内容变了 key 就变，可以安全长缓存
+        etag = _etag_for(saved_path)
+        headers = {
+            "Cache-Control": "public, max-age=2592000, immutable",
+            "ETag": f'"{etag}"',
+        }
+        return FileResponse(saved_path, media_type=saved_type, headers=headers)
     except Exception as exc:
         raise HTTPException(status_code=415, detail=f"无法生成预览图：{exc}") from exc
+
+# --- 缓存管理 API ---
+
+@app.get("/api/cache/info")
+async def api_cache_info():
+    """获取缩略图缓存信息"""
+    if not os.path.isdir(MEDIA_PREVIEW_DIR):
+        return {"count": 0, "size": 0}
+    total_size = 0
+    count = 0
+    for f in os.listdir(MEDIA_PREVIEW_DIR):
+        fp = os.path.join(MEDIA_PREVIEW_DIR, f)
+        if os.path.isfile(fp):
+            total_size += os.path.getsize(fp)
+            count += 1
+    return {"count": count, "size": total_size}
+
+@app.post("/api/cache/clear")
+async def api_cache_clear():
+    """清理缩略图缓存"""
+    if not os.path.isdir(MEDIA_PREVIEW_DIR):
+        return {"message": "缓存目录不存在，无需清理", "cleared": 0}
+    count = 0
+    for f in os.listdir(MEDIA_PREVIEW_DIR):
+        fp = os.path.join(MEDIA_PREVIEW_DIR, f)
+        try:
+            if os.path.isfile(fp):
+                os.remove(fp)
+                count += 1
+        except OSError:
+            pass
+    return {"message": f"已清理 {count} 个缓存文件", "cleared": count}
 
 # --- 云视频上传 API ---
 

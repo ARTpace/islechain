@@ -1,0 +1,438 @@
+/* ========================================================================
+   LoRA 选择器 — 复用 Anima 角色选择器设计系统
+   侧边栏分类 + 卡片网格 + 搜索 + 强度调节
+   ======================================================================== */
+
+/* ============ Modal 容器 ============ */
+.lora-picker-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: oklch(0% 0 0 / 0.7);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    padding: 12px;
+}
+.lora-picker-shell.is-open {
+    display: flex;
+    animation: lora-picker-fade 0.18s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+@keyframes lora-picker-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.lora-picker-window {
+    width: min(1240px, 100%);
+    height: min(760px, 100%);
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(165deg,
+        oklch(18% 0.025 280) 0%,
+        oklch(14% 0.02 285) 100%);
+    border-radius: 16px;
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    box-shadow: 0 30px 80px oklch(0% 0 0 / 0.55), 0 2px 8px oklch(0% 0 0 / 0.3);
+    overflow: hidden;
+    animation: lora-picker-pop 0.22s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+@keyframes lora-picker-pop {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ============ Header ============ */
+.lora-picker-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
+    flex-shrink: 0;
+}
+.lora-picker-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: oklch(95% 0.005 280);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.lora-picker-search {
+    flex: 1;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    border-radius: 10px;
+    background: oklch(20% 0.025 280);
+    color: oklch(95% 0.005 280);
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.lora-picker-search:focus {
+    border-color: oklch(72% 0.18 350 / 0.45);
+}
+.lora-picker-search::placeholder {
+    color: oklch(40% 0.015 280);
+}
+.lora-picker-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: oklch(100% 0 0 / 0.04);
+    color: oklch(75% 0.01 280);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.lora-picker-close:hover {
+    background: oklch(100% 0 0 / 0.08);
+    color: oklch(95% 0.005 280);
+}
+
+/* ============ Body（侧边栏 + 内容区） ============ */
+.lora-picker-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ============ 侧边栏 ============ */
+.lora-picker-sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid oklch(28% 0.02 280 / 0.5);
+    overflow-y: auto;
+    padding: 8px;
+}
+.lora-picker-sidebar::-webkit-scrollbar { width: 4px; }
+.lora-picker-sidebar::-webkit-scrollbar-thumb { background: oklch(28% 0.02 280); border-radius: 4px; }
+
+.lora-cat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: oklch(75% 0.01 280);
+    transition: all 0.15s;
+    user-select: none;
+}
+.lora-cat-item:hover {
+    background: oklch(100% 0 0 / 0.04);
+    color: oklch(95% 0.005 280);
+}
+.lora-cat-item.active {
+    background: oklch(72% 0.18 350 / 0.12);
+    color: oklch(72% 0.18 350);
+}
+.lora-cat-count {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    color: oklch(40% 0.015 280);
+    background: oklch(100% 0 0 / 0.04);
+    padding: 1px 6px;
+    border-radius: 999px;
+}
+.lora-cat-item.active .lora-cat-count {
+    background: oklch(72% 0.18 350 / 0.15);
+    color: oklch(72% 0.18 350);
+}
+
+/* ============ 内容区 ============ */
+.lora-picker-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 已选 LoRA 条 */
+.lora-picker-selected-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid oklch(28% 0.02 280 / 0.3);
+    flex-shrink: 0;
+    min-height: 40px;
+    flex-wrap: wrap;
+}
+.lora-picker-selected-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: oklch(55% 0.012 280);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+}
+.lora-picker-selected-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: oklch(72% 0.18 350 / 0.12);
+    color: oklch(72% 0.18 350);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.lora-picker-selected-chip:hover {
+    background: oklch(72% 0.18 350 / 0.2);
+}
+.lora-picker-selected-chip .chip-x {
+    font-size: 12px;
+    opacity: 0.6;
+}
+.lora-picker-selected-chip .chip-x:hover {
+    opacity: 1;
+}
+.lora-picker-selected-empty {
+    font-size: 11px;
+    color: oklch(40% 0.015 280);
+    font-weight: 600;
+}
+
+/* ============ 卡片网格 ============ */
+.lora-picker-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    align-content: start;
+}
+.lora-picker-grid::-webkit-scrollbar { width: 6px; }
+.lora-picker-grid::-webkit-scrollbar-thumb { background: oklch(28% 0.02 280); border-radius: 6px; }
+
+/* ============ 卡片 ============ */
+.lora-card-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: oklch(20% 0.025 280);
+    border: 1px solid oklch(28% 0.02 280 / 0.3);
+    cursor: pointer;
+    transition: all 0.2s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1));
+    display: flex;
+    flex-direction: column;
+    height: 280px;
+}
+.lora-card-item:hover {
+    border-color: oklch(40% 0.03 280 / 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px oklch(0% 0 0 / 0.3);
+}
+.lora-card-item.selected {
+    border-color: oklch(72% 0.18 350 / 0.45);
+    box-shadow: 0 0 0 1px oklch(72% 0.18 350 / 0.2), 0 8px 24px oklch(0% 0 0 / 0.3);
+}
+
+.lora-card-img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    background: oklch(16% 0.02 280);
+    display: block;
+}
+video.lora-card-img {
+    object-fit: cover;
+}
+.lora-card-img-placeholder {
+    width: 100%;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: oklch(16% 0.02 280);
+    color: oklch(30% 0.015 280);
+}
+
+.lora-card-info {
+    padding: 8px 10px;
+}
+.lora-card-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: oklch(95% 0.005 280);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lora-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+.lora-card-base {
+    font-size: 9px;
+    font-weight: 700;
+    color: oklch(55% 0.012 280);
+    background: oklch(100% 0 0 / 0.04);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.lora-card-tags {
+    font-size: 9px;
+    color: oklch(40% 0.015 280);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* 选中标记 */
+.lora-card-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: oklch(72% 0.18 350);
+    color: oklch(14% 0.02 280);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 900;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.15s;
+}
+.lora-card-item.selected .lora-card-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* 强度滑块覆盖层 */
+.lora-card-strength {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+    background: linear-gradient(to top, oklch(14% 0.02 280 / 0.95), oklch(14% 0.02 280 / 0));
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.lora-card-item.selected .lora-card-strength {
+    opacity: 1;
+}
+.lora-card-strength-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: oklch(72% 0.18 350);
+    flex-shrink: 0;
+}
+.lora-card-strength input[type=range] {
+    flex: 1;
+    height: 3px;
+    accent-color: oklch(72% 0.18 350);
+}
+.lora-card-strength-val {
+    font-size: 10px;
+    font-weight: 800;
+    color: oklch(95% 0.005 280);
+    width: 28px;
+    text-align: right;
+}
+
+/* ============ 空状态 ============ */
+.lora-picker-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: oklch(40% 0.015 280);
+    gap: 8px;
+}
+.lora-picker-empty-icon {
+    font-size: 32px;
+    opacity: 0.4;
+}
+.lora-picker-empty-text {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ============ Footer ============ */
+.lora-picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid oklch(28% 0.02 280 / 0.5);
+    flex-shrink: 0;
+}
+.lora-picker-footer-info {
+    font-size: 11px;
+    color: oklch(55% 0.012 280);
+    font-weight: 600;
+}
+.lora-picker-footer-btns {
+    display: flex;
+    gap: 8px;
+}
+.lora-picker-btn {
+    height: 32px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.lora-picker-btn-cancel {
+    background: oklch(100% 0 0 / 0.04);
+    color: oklch(75% 0.01 280);
+}
+.lora-picker-btn-cancel:hover {
+    background: oklch(100% 0 0 / 0.08);
+    color: oklch(95% 0.005 280);
+}
+.lora-picker-btn-confirm {
+    background: oklch(72% 0.18 350);
+    color: oklch(14% 0.02 280);
+}
+.lora-picker-btn-confirm:hover {
+    opacity: 0.85;
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 768px) {
+    .lora-picker-sidebar { width: 140px; }
+    .lora-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .lora-card-item { height: 240px; }
+    .lora-card-img, .lora-card-img-placeholder { height: 180px; }
+}
+@media (max-width: 480px) {
+    .lora-picker-sidebar { display: none; }
+    .lora-picker-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .lora-card-item { height: 220px; }
+    .lora-card-img, .lora-card-img-placeholder { height: 160px; }
+}

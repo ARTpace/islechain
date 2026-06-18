@@ -274,6 +274,14 @@
                         </div>
                         <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">格式：<span style="font-family:ui-monospace,Menlo,monospace">host:port</span>（如 <span style="font-family:ui-monospace,Menlo,monospace">127.0.0.1:8188</span>）</div>
                     </div>
+                    <div class="side-card">
+                        <div class="side-title">ComfyUI 本地路径</div>
+                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">用于扫描本地 LoRA 文件夹（如 <span style="font-family:ui-monospace,Menlo,monospace">H:\ComfyUI</span>）</div>
+                        <input id="comfyBasePath" type="text" placeholder="留空则不扫描本地文件夹" style="width:100%;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line)'">
+                        <button class="upload-btn" type="button" onclick="saveComfyBasePath()" style="border-style:solid;background:var(--panel);color:var(--text);border-color:var(--text)">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存路径</span>
+                        </button>
+                    </div>
 
                     <div class="side-card">
                         <div class="side-title" data-i18n="comfy.workflowList">工作流列表</div>
@@ -290,6 +298,21 @@
                         <select id="smartPromptProvider" onchange="saveSmartPromptProvider()" style="width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;">
                         </select>
                         <div id="smartPromptStatus" style="font-size:10px;color:var(--faint);font-weight:600"></div>
+                    </div>
+
+                    <div class="side-card">
+                        <div class="side-title">缓存管理</div>
+                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">缩略图缓存存储在服务端，清理后会重新生成</div>
+                        <div id="cacheInfo" style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--soft);border-radius:8px;min-height:40px">
+                            <div style="font-size:10px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em">缓存状态</div>
+                            <div id="cacheSize" style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">--</div>
+                            <div id="cacheCount" style="font-size:10.5px;color:var(--muted);font-weight:600"></div>
+                        </div>
+                        <div style="display:flex;gap:6px">
+                            <button class="upload-btn" type="button" onclick="clearMediaCache()" style="flex:1;border-style:solid;background:var(--panel);color:var(--text);border-color:var(--text)">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>清理缓存</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="side-card" id="previewCard">
@@ -534,7 +557,28 @@
                 const data = await fetch('/api/comfyui/instances').then(r => r.json());
                 comfyInstances = Array.isArray(data.instances) ? data.instances : [];
                 renderComfyInstances();
+                // 加载基础路径
+                const basePathEl = document.getElementById('comfyBasePath');
+                if (basePathEl && data.basePath !== undefined) basePathEl.value = data.basePath;
             } catch(e){ console.error(e); }
+        }
+        async function saveComfyBasePath(){
+            const el = document.getElementById('comfyBasePath');
+            if (!el) return;
+            const path = el.value.trim();
+            setStatus('保存路径...');
+            try {
+                const res = await fetch('/api/comfyui/base-path', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path })
+                });
+                if (!res.ok) throw new Error((await res.json()).detail || '保存失败');
+                setStatus('ComfyUI 路径已保存');
+            } catch(e){
+                alert(e.message || '保存失败');
+                setStatus('保存失败');
+            }
         }
         function renderComfyInstances(){
             const el = document.getElementById('comfyInstancesList');
@@ -577,6 +621,46 @@
             } catch(e){
                 alert(e.message || '保存失败');
                 setStatus('保存失败');
+            }
+        }
+
+        // 缓存管理
+        function formatSize(bytes){
+            if(!bytes || bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0;
+            let size = bytes;
+            while(size >= 1024 && i < units.length - 1){ size /= 1024; i++; }
+            return size.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+        }
+        async function loadCacheInfo(){
+            try {
+                const res = await fetch('/api/cache/info');
+                if(!res.ok) return;
+                const data = await res.json();
+                const sizeEl = document.getElementById('cacheSize');
+                const countEl = document.getElementById('cacheCount');
+                if(sizeEl){
+                    sizeEl.textContent = formatSize(data.size);
+                    sizeEl.style.color = data.size > 100 * 1024 * 1024 ? '#f59e0b' : 'var(--accent)';
+                }
+                if(countEl){
+                    countEl.textContent = data.count > 0 ? `${data.count} 个缓存文件` : '暂无缓存';
+                }
+            } catch(e){}
+        }
+        async function clearMediaCache(){
+            if(!confirm('确定要清理所有缩略图缓存吗？\n清理后下次访问图片时会重新生成。')) return;
+            setStatus('清理中...');
+            try {
+                const res = await fetch('/api/cache/clear', { method:'POST' });
+                if(!res.ok) throw new Error((await res.json()).detail || '清理失败');
+                const data = await res.json();
+                setStatus(data.message || '缓存已清理');
+                loadCacheInfo();
+            } catch(e){
+                alert(e.message || '清理失败');
+                setStatus('清理失败');
             }
         }
 
@@ -1698,6 +1782,7 @@
             loadList();
             loadComfyInstances();
             loadSmartPromptProvider();
+            loadCacheInfo();
         });
     </script>
 </body>

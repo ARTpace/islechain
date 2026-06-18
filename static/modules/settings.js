@@ -206,7 +206,7 @@ class SettingsUI {
             this.buttonEl = sbSettings;
             this.themeBtnEl = sbTheme;
             this.loginBtnEl = sbLogin;
-            if (sbRestart) sbRestart.onclick = () => { if (!confirm('确定要重启服务吗？')) return; fetch('/api/restart', { method: 'POST' }).catch(() => {}); };
+            if (sbRestart) sbRestart.onclick = () => { fetch('/api/restart', { method: 'POST' }).catch(() => {}); setTimeout(() => location.reload(), 2000); };
             this.updateThemeIcon();
             return; // 跳过浮动按钮创建
         }
@@ -376,10 +376,10 @@ class SettingsUI {
             restartBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15))';
         };
         restartBtn.onclick = () => {
-            if (!confirm('确定要重启服务吗？')) return;
             restartBtn.style.opacity = '0.5';
             restartBtn.style.pointerEvents = 'none';
             fetch('/api/restart', { method: 'POST' }).catch(() => {});
+            setTimeout(() => location.reload(), 2000);
         };
         container.appendChild(restartBtn);
         document.body.appendChild(container);

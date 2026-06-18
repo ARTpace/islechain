@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -33,6 +33,8 @@
     <script src="/static/app/anima-artist-picker.js"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css">
     <script src="/static/app/preset-picker.js"></script>
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260617001">
+    <script src="/static/app/lora-picker.js?v=20260618001"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js"></script>
     <script src="/static/app/smart-prompt-picker.js"></script>
@@ -1530,8 +1532,27 @@
                 console.log('[BatchCount] model=' + (currentWorkflow.includes('anima') ? 'ANIMA' : 'Z-Image') + ' currentBatchCount=' + currentBatchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size));
 
                 // 注入自定义 LoRA 节点
-                if (currentWorkflow.includes('anima')) {
+                const wfLower = currentWorkflow.toLowerCase();
+                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image')) {
                     injectLoraNodes(workflow);
+                }
+                // 自动添加 LoRA 触发词到提示词
+                const loraTriggerWords = [];
+                for (const lora of loraState.active) {
+                    if (!lora.name) continue;
+                    const meta = loraState.loraMap[lora.name];
+                    if (meta && meta.triggerWords && meta.triggerWords.length > 0) {
+                        loraTriggerWords.push(...meta.triggerWords);
+                    }
+                }
+                if (loraTriggerWords.length > 0) {
+                    const promptEl = document.getElementById('prompt');
+                    const currentPrompt = promptEl.value.trim();
+                    const newTags = loraTriggerWords.filter(t => !currentPrompt.includes(t));
+                    if (newTags.length > 0) {
+                        promptEl.value = currentPrompt ? currentPrompt + ', ' + newTags.join(', ') : newTags.join(', ');
+                        console.log('[LoRA] 自动添加触发词:', newTags);
+                    }
                 }
 
                 currentPromptId = generateUUID();
@@ -1551,7 +1572,11 @@
                             const msg = JSON.parse(event.data);
                             if (msg.type === 'progress' && msg.data?.prompt_id === currentPromptId) updateRealProgress({status:'sampling',value:msg.data.value,max:msg.data.max});
                             else if (msg.type === 'executing' && msg.data?.prompt_id === currentPromptId) {
-                                if (msg.data.node === null) updateRealProgress({status:'done'});
+                                if (msg.data.node === null) {
+                                    updateRealProgress({status:'done'});
+                                    // WebSocket 检测到执行完成，立即触发结果获取
+                                    if (typeof window._onWfComplete === 'function') window._onWfComplete();
+                                }
                                 else updateRealProgress({status:'executing'});
                             } else if (msg.type === 'execution_start') updateRealProgress({status:'started'});
                         } catch(e){}
@@ -1567,18 +1592,16 @@
 
                 // 等待结果（多张生成：收集所有图片）
                 const finalUrls = await new Promise((resolve, reject) => {
-                    const checkInterval = setInterval(async () => {
+                    let resolved = false;
+                    const collectResult = async () => {
+                        if (resolved) return;
                         try {
                             const r = await fetch('/api/comfyui/history/' + currentPromptId);
                             const history = await r.json();
                             const pd = history[currentPromptId];
                             if (!pd) return;
-                            if (pd.status?.status_str === 'error') { clearInterval(checkInterval); reject(new Error('执行错误')); return; }
+                            if (pd.status?.status_str === 'error') { resolved = true; clearInterval(checkInterval); reject(new Error('执行错误')); return; }
                             if (pd.outputs) {
-                                // 收集所有节点的所有图片
-                                // ⚠ 注意：ANIMA 工作流中 PreviewImage(1) 和 SaveImage(70) 都接 VAEDecode(8)，
-                                //   如果两个都采集会产生 2× 重复。优先只采 SaveImage，
-                                //   如果 workflow 中没有 SaveImage，再退而求其次采集 PreviewImage。
                                 const SAVE_NODE = currentWorkflow.includes('anima') ? '70' : null;
                                 const allImgs = [];
                                 const seenFilenames = new Set();
@@ -1595,43 +1618,51 @@
                                 if (SAVE_NODE && pd.outputs[SAVE_NODE]) {
                                     collectFrom(SAVE_NODE);
                                 } else {
-                                    // 退路：采所有输出节点，并去重
                                     for (const nid in pd.outputs) collectFrom(nid);
                                 }
                                 if (allImgs.length > 0) {
+                                    resolved = true;
                                     clearInterval(checkInterval);
                                     resolve(allImgs);
                                     return;
                                 }
                             }
                         } catch(e){}
-                    }, 1000);
-                    setTimeout(() => { clearInterval(checkInterval); reject(new Error('超时')); }, 300000);
+                    };
+                    // WebSocket 完成信号立即触发获取
+                    window._onWfComplete = collectResult;
+                    // 轮询作为兜底（500ms 间隔，更快响应）
+                    const checkInterval = setInterval(collectResult, 500);
+                    setTimeout(() => { if (!resolved) { clearInterval(checkInterval); reject(new Error('超时')); } }, 300000);
                 });
 
                 if (ws) try { ws.close(); } catch(e){}
 
                 const featureName = currentWorkflow.includes('anima') ? 'anima' : 'zimage';
-                // 多张生成：逐个保存到用户目录
-                const localUrls = [];
-                for (let i = 0; i < finalUrls.length; i++) {
-                    const localUrl = await saveToUserOutput(finalUrls[i], featureName);
-                    localUrls.push(localUrl);
-                    if (finalUrls.length > 1) {
-                        const pct = Math.round(95 + ((i+1)/finalUrls.length) * 5);
-                        const el = document.getElementById('progressFill');
-                        const pctEl = document.getElementById('progressPercent');
-                        const statusEl = document.getElementById('progressStatus');
-                        if (el) el.style.width = pct + '%';
-                        if (pctEl) pctEl.textContent = pct + '%';
-                        if (statusEl) statusEl.textContent = `保存 ${i+1}/${finalUrls.length}...`;
-                    }
-                }
+                // 先用 ComfyUI URL 立即显示（快速）
+                const quickRecord = { timestamp: Date.now(), prompt, images: finalUrls, type: currentWorkflow.includes('anima') ? 'anima' : 'zimage', model: featureName.toUpperCase() };
+                GalleryList.pushNewImage(quickRecord);
                 completeProgress();
+                // 并行保存到用户目录（后台，不阻塞显示）
+                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, featureName).catch(() => u)));
+                // 更新已显示的记录（替换 ComfyUI URL 为本地 URL）
+                const quickTs = quickRecord.timestamp;
+                const quickCard = document.getElementById('history-' + quickTs);
+                if (quickCard) {
+                    quickRecord.images = localUrls;
+                    // 更新卡片内的图片 src
+                    quickCard.querySelectorAll('img[data-original-src]').forEach(img => {
+                        const idx = Array.from(quickCard.querySelectorAll('img[data-original-src]')).indexOf(img);
+                        if (idx >= 0 && idx < localUrls.length) {
+                            img.dataset.originalSrc = localUrls[idx];
+                            img.src = '/api/media-preview?w=768&url=' + encodeURIComponent(localUrls[idx]);
+                        }
+                    });
+                }
                 // 从URL路径提取文件夹名作为类型标识
                 const folderMatch = localUrls[0].match(/\/output\/[^/]+\/([^/]+)\//);
                 const folderName = folderMatch ? folderMatch[1] : featureName;
-                const record = { timestamp: Date.now(), prompt, images: localUrls, type: currentWorkflow.includes('anima') ? 'anima' : 'zimage', model: folderName.toUpperCase() };
+                const record = { timestamp: quickTs, prompt, images: localUrls, type: currentWorkflow.includes('anima') ? 'anima' : 'zimage', model: folderName.toUpperCase() };
                 // 保存到历史记录
                 try {
                     await fetch('/api/history/save', {
@@ -1640,7 +1671,6 @@
                         body: JSON.stringify(record)
                     });
                 } catch(e) { console.error('保存历史记录失败:', e); }
-                GalleryList.pushNewImage(record);
 
                 if (placeholder.parentNode) placeholder.remove();
             } catch(e) {
@@ -1703,7 +1733,7 @@
                     break;
                 case 'favorite':
                     if (window.GalleryActions && GalleryActions.toggleFavorite) {
-                        GalleryActions.toggleFavorite(record, event);
+                        GalleryActions.toggleFavorite(record, event, imgUrl);
                         updateLightboxFavBtn();
                     }
                     break;
@@ -1731,9 +1761,9 @@
         function updateLightboxFavBtn() {
             const btn = document.getElementById('lightboxFavBtn');
             if (!btn || !lightboxCurrentRecord) return;
-            const ts = String(lightboxCurrentRecord.timestamp);
+            const imgUrl = (lightboxCurrentRecord.images && lightboxCurrentRecord.images[lightboxCurrentIndex]) || '';
             const favSet = window.__galleryFavorites || new Set();
-            const isFav = favSet.has(ts);
+            const isFav = favSet.has(imgUrl);
             btn.innerHTML = isFav 
                 ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-amber-400"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
                 : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
@@ -1992,7 +2022,16 @@
         // 初始化收藏 Set（从 localStorage 读取）
         try {
             const arr = JSON.parse(localStorage.getItem('zimage_favorites') || '[]');
-            window.__galleryFavorites = new Set((arr || []).map(String));
+            const items = (arr || []).map(String);
+            // 迁移：旧格式是 timestamp（纯数字），新格式是图片 URL
+            // 如果所有条目都是纯数字，说明是旧格式，清空并提示
+            if (items.length > 0 && items.every(s => /^\d+$/.test(s))) {
+                console.log('[Gallery] 迁移旧收藏格式（timestamp → URL），已清空旧数据');
+                localStorage.removeItem('zimage_favorites');
+                window.__galleryFavorites = new Set();
+            } else {
+                window.__galleryFavorites = new Set(items);
+            }
         } catch (_) { window.__galleryFavorites = new Set(); }
         GalleryList.init({ type:'zimage,anima', container:'#masonry', trigger:'#loadMoreTrigger', pageSize:15, batchSelect:false });
         // 移动工具栏到固定位置
@@ -2039,6 +2078,18 @@
                         document.body.classList.toggle('fav-mode', on);
                         btn.classList.toggle('is-on', on);
                         try { localStorage.setItem('zimage_fav_mode', on ? '1' : '0'); } catch (_) {}
+                        // 收藏模式开启时，强制加载所有可见的 lazy 图片
+                        if (on) {
+                            setTimeout(() => {
+                                document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
+                                    if (!img.complete) {
+                                        const src = img.src;
+                                        img.src = '';
+                                        img.src = src;
+                                    }
+                                });
+                            }, 50);
+                        }
                     }
                 },
                 {
@@ -2061,7 +2112,15 @@
                 setTimeout(() => {
                     const btn = document.querySelector('[data-extra-btn="fav-toggle"]');
                     if (btn) btn.classList.add('is-on');
-                }, 0);
+                    // 强制加载所有收藏图片
+                    document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
+                        if (!img.complete) {
+                            const src = img.src;
+                            img.src = '';
+                            img.src = src;
+                        }
+                    });
+                }, 100);
             }
         } catch (_) {}
         try {
@@ -2111,10 +2170,152 @@
             active: []           // 用户添加的 LoRA [{name, strength}]
         };
 
-        // 加载可用 LoRA 列表（优先走 LoRA Manager，回退到 ComfyUI object_info）
+        // 加载可用 LoRA 列表（优先 ComfyUI API / 本地扫描，LoRA Manager 仅补充元数据）
         async function loadAvailableLoras() {
+            // 1. 优先从 ComfyUI API 获取完整列表
             try {
-                // 先尝试 LoRA Manager
+                const res = await fetch('/api/comfyui/loras');
+                if (res.ok) {
+                    const data = await res.json();
+                    const raw = data.loras || [];
+                    if (raw.length > 0) {
+                        // 同时获取本地扫描数据（带文件夹路径）
+                        let scanPaths = [];
+                        let scanPreviews = {};
+                        try {
+                            const scanRes = await fetch('/api/loras/scan');
+                            if (scanRes.ok) {
+                                const scanData = await scanRes.json();
+                                scanPaths = scanData.loras || [];
+                                scanPreviews = scanData.previews || {};
+                            }
+                        } catch (e) {
+                            console.warn('[LoRA] 本地扫描失败:', e);
+                        }
+
+                        // 构建纯文件名 → 完整路径（带文件夹）的映射
+                        const fileNameToFullPath = {};
+                        for (const fullPath of scanPaths) {
+                            const fileName = fullPath.split('\\').pop();
+                            if (!fileNameToFullPath[fileName]) {
+                                fileNameToFullPath[fileName] = fullPath;
+                            }
+                        }
+
+                        // 用本地扫描的完整路径作为主数据源，只保留 ComfyUI 中存在的
+                        loraState.available = [];
+                        loraState.loraMap = {};
+                        const modelSet = new Set();
+                        for (const comfyName of raw) {
+                            // 优先用带文件夹的完整路径，回退到纯文件名
+                            const fullPath = fileNameToFullPath[comfyName] || comfyName;
+                            loraState.available.push(fullPath);
+
+                            // 从路径中提取文件夹
+                            const parts = fullPath.replace(/\\/g, '/').split('/');
+                            const folder = parts.length > 1 ? parts[0] : '';
+
+                            loraState.loraMap[fullPath] = {
+                                name: fullPath,
+                                displayName: comfyName.split('\\').pop().split('/').pop().replace('.safetensors', ''),
+                                preview: scanPreviews[fullPath] || scanPreviews[comfyName] || '',
+                                triggerWords: [],
+                                baseModel: '',
+                                folder: folder
+                            };
+                            modelSet.add(folder || '通用');
+                        }
+                        loraState.available.sort();
+                        loraState.models = [...modelSet].sort();
+                        console.log('[LoRA] ComfyUI + 本地扫描加载成功，共', loraState.available.length, '个，文件夹', modelSet.size, '个');
+                        // 尝试从 LoRA Manager 补充元数据（预览图、触发词等）
+                        try {
+                            const metaRes = await fetch('/api/lora-manager/loras');
+                            if (metaRes.ok) {
+                                const metaData = await metaRes.json();
+                                const metaItems = metaData.items || metaData.models || [];
+                                if (Array.isArray(metaItems)) {
+                                    for (const m of metaItems) {
+                                        const folder = m.folder || '';
+                                        const fileName = m.file_name || '';
+                                        const filePath = m.file_path || '';
+                                        const fullFileName = filePath ? filePath.split(/\\/).pop().split('/').pop() : (fileName.endsWith('.safetensors') ? fileName : fileName + '.safetensors');
+                                        const loraName = folder ? `${folder}\\${fullFileName}` : fullFileName;
+                                        const loraNameWithFolder = folder ? `${folder}\\${fullFileName}` : fullFileName;
+                                        const matchedKey = loraState.loraMap[loraNameWithFolder] ? loraNameWithFolder : (loraState.loraMap[fullFileName] ? fullFileName : null);
+                                        if (matchedKey && loraState.loraMap[matchedKey]) {
+                                            const previewRaw = m.preview_url || '';
+                                            const preview = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
+                                            // 从 Civitai images 数组中提取视频预览（type === 'video'）
+                                            let videoUrl = '';
+                                            const civImages = m.civitai && m.civitai.images ? m.civitai.images : [];
+                                            for (const img of civImages) {
+                                                if (img.type === 'video' && img.url) {
+                                                    videoUrl = img.url.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(img.url)}` : img.url;
+                                                    break;
+                                                }
+                                            }
+                                            // 兼容旧字段
+                                            if (!videoUrl) {
+                                                const videoRaw = m.video_url || m.animated_preview || m.preview_video || '';
+                                                videoUrl = videoRaw ? (videoRaw.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(videoRaw)}` : videoRaw) : '';
+                                            }
+                                            // 兜底：preview_url 本身可能是视频文件
+                                            if (!videoUrl && previewRaw && /\.((mp4|webm|mov|avi|mkv)(\?|$))/i.test(previewRaw)) {
+                                                videoUrl = preview;
+                                            }
+                                            const triggerWords = [];
+                                            const civitai = m.civitai;
+                                            if (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords)) {
+                                                triggerWords.push(...civitai.trainedWords);
+                                            }
+                                            if (preview) loraState.loraMap[matchedKey].preview = preview;
+                                            if (videoUrl) loraState.loraMap[matchedKey].videoUrl = videoUrl;
+                                            if (triggerWords.length) loraState.loraMap[matchedKey].triggerWords = triggerWords;
+                                            if (m.base_model) loraState.loraMap[matchedKey].baseModel = m.base_model;
+                                            if (m.tags) loraState.loraMap[matchedKey].tags = m.tags;
+                                            if (m.model_name) loraState.loraMap[matchedKey].displayName = m.model_name;
+                                        }
+                                    }
+                                    console.log('[LoRA] LoRA Manager 元数据补充完成');
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('[LoRA] LoRA Manager 元数据补充失败:', e);
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[LoRA] ComfyUI API 失败:', e);
+            }
+
+            // 2. 回退：本地文件夹扫描
+            try {
+                const scanRes = await fetch('/api/loras/scan');
+                if (scanRes.ok) {
+                    const scanData = await scanRes.json();
+                    const raw = scanData.loras || [];
+                    const previews = scanData.previews || {};
+                    if (raw.length > 0) {
+                        loraState.available = raw;
+                        loraState.loraMap = {};
+                        const modelSet = new Set();
+                        for (const name of raw) {
+                            loraState.loraMap[name] = { name, displayName: name.split('\\').pop().split('/').pop(), preview: previews[name] || '', triggerWords: [], baseModel: '', folder: '' };
+                            modelSet.add(extractLoraModel(name));
+                        }
+                        loraState.models = [...modelSet].sort();
+                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个，预览图', Object.keys(previews).length, '个');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[LoRA] 本地扫描失败:', e);
+            }
+
+            // 3. 最后回退：LoRA Manager
+            try {
                 const res = await fetch('/api/lora-manager/loras');
                 if (res.ok) {
                     const data = await res.json();
@@ -2141,10 +2342,24 @@
                             if (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords)) {
                                 triggerWords.push(...civitai.trainedWords);
                             }
+                            // 从 Civitai images 提取视频预览
+                            let videoUrl = '';
+                            const civImages = civitai && civitai.images ? civitai.images : [];
+                            for (const img of civImages) {
+                                if (img.type === 'video' && img.url) {
+                                    videoUrl = img.url.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(img.url)}` : img.url;
+                                    break;
+                                }
+                            }
+                            // 兜底：preview_url 本身可能是视频文件
+                            if (!videoUrl && previewRaw && /\.((mp4|webm|mov|avi|mkv)(\?|$))/i.test(previewRaw)) {
+                                videoUrl = preview;
+                            }
                             map[loraName] = {
                                 name: loraName,
                                 displayName: m.model_name || fileName,
                                 preview,
+                                videoUrl,
                                 triggerWords,
                                 baseModel: m.base_model || '',
                                 tags: m.tags || '',
@@ -2163,7 +2378,30 @@
                 console.warn('[LoRA] LoRA Manager 不可用，回退到 ComfyUI:', e);
             }
 
-            // 回退：从 ComfyUI object_info 获取纯文件列表
+            // 回退：优先扫描本地文件夹（完整列表），再尝试 ComfyUI object_info
+            try {
+                // 先尝试本地扫描
+                const scanRes = await fetch('/api/loras/scan');
+                if (scanRes.ok) {
+                    const scanData = await scanRes.json();
+                    const raw = scanData.loras || [];
+                    if (raw.length > 0) {
+                        loraState.available = raw;
+                        loraState.loraMap = {};
+                        const modelSet = new Set();
+                        for (const name of raw) {
+                            loraState.loraMap[name] = { name, displayName: name.split('\\').pop().split('/').pop(), preview: '', triggerWords: [], baseModel: '', folder: '' };
+                            modelSet.add(extractLoraModel(name));
+                        }
+                        loraState.models = [...modelSet].sort();
+                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[LoRA] 本地扫描失败，尝试 ComfyUI:', e);
+            }
+            // 再尝试 ComfyUI object_info
             try {
                 const res = await fetch('/api/comfyui/loras');
                 if (!res.ok) return;
@@ -2224,8 +2462,9 @@
         function updateLoraSwitcherVisibility() {
             const btn = document.getElementById('loraBtn');
             if (!btn) return;
-            const isAnima = currentWorkflow.includes('anima');
-            btn.style.display = isAnima ? '' : 'none';
+            const lower = currentWorkflow.toLowerCase();
+            const showLora = lower.includes('anima') || lower.includes('z-image') || lower.includes('z_image');
+            btn.style.display = showLora ? '' : 'none';
             // 更新按钮文字显示数量
             const btnText = document.getElementById('loraBtnText');
             if (btnText) {
@@ -2234,34 +2473,20 @@
             }
         }
 
-        // UI: 切换面板
+        // UI: 切换面板（使用 LoRA Picker）
         function toggleLoraPanel() {
-            const overlay = document.getElementById('loraOverlay');
-            if (!overlay) return;
-            if (overlay.classList.contains('open')) {
-                closeLoraPanel();
-            } else {
-                openLoraPanel();
-            }
+            loraPickerOpen(function(selected) {
+                // 用户确认选择后，更新 loraState.active
+                loraState.active = selected;
+                saveLoraConfig();
+                updateLoraSwitcherVisibility();
+            });
         }
 
-        function openLoraPanel() {
-            const overlay = document.getElementById('loraOverlay');
-            if (!overlay) return;
-            closeAllMenus();
-            overlay.classList.add('open');
-            renderLoraPanel();
-        }
+        // UI: 渲染面板内容（已移至 lora-picker.js）
 
-        function closeLoraPanel() {
-            const overlay = document.getElementById('loraOverlay');
-            if (overlay) overlay.classList.remove('open');
-        }
-
-        // UI: 渲染面板内容
-        function renderLoraPanel() {
-            // 模型筛选下拉
-            const builtinEl = document.getElementById('loraBuiltinInfo');
+        // === 工作流注入 ===
+        function injectLoraNodes(workflow) {
             if (builtinEl) {
                 const filterOptions = [
                     { value: 'all', label: '全部模型' },
@@ -2403,14 +2628,24 @@
             const validLoras = loraState.active.filter(l => l.name);
             if (validLoras.length === 0) return;
 
-            let nodeId = LORA_NODE_BASE;
+            let nextNodeId = LORA_NODE_BASE;
 
-            // --- KSampler 分支注入 ---
-            const ksamplerNode = workflow['19'];
-            if (ksamplerNode?.inputs) {
-                let currentModelInput = ksamplerNode.inputs.model;
+            // 动态查找需要注入 LoRA 的节点（按 class_type 匹配）
+            const targetClassTypes = ['KSampler', 'KSamplerAdvanced', 'SamplerCustom'];
+            const injectedNodes = new Set();
+
+            for (const [wNodeId, node] of Object.entries(workflow)) {
+                if (!node?.class_type || !node?.inputs) continue;
+                if (!targetClassTypes.includes(node.class_type)) continue;
+                if (injectedNodes.has(wNodeId)) continue;
+
+                // 查找 model 输入来源
+                const modelInput = node.inputs.model;
+                if (!modelInput || !Array.isArray(modelInput)) continue;
+
+                let currentModelInput = modelInput;
                 for (const lora of validLoras) {
-                    const nid = String(nodeId++);
+                    const nid = String(nextNodeId++);
                     workflow[nid] = {
                         inputs: {
                             lora_name: lora.name,
@@ -2422,27 +2657,8 @@
                     };
                     currentModelInput = [nid, 0];
                 }
-                ksamplerNode.inputs.model = currentModelInput;
-            }
-
-            // --- Guidance 分支注入 ---
-            const guidanceNode = workflow['50'];
-            if (guidanceNode?.inputs) {
-                let currentModelInput = guidanceNode.inputs.model;
-                for (const lora of validLoras) {
-                    const nid = String(nodeId++);
-                    workflow[nid] = {
-                        inputs: {
-                            lora_name: lora.name,
-                            strength_model: lora.strength,
-                            model: currentModelInput
-                        },
-                        class_type: 'LoraLoaderModelOnly',
-                        _meta: { title: '自定义 LoRA: ' + lora.name.split('/').pop() }
-                    };
-                    currentModelInput = [nid, 0];
-                }
-                guidanceNode.inputs.model = currentModelInput;
+                node.inputs.model = currentModelInput;
+                injectedNodes.add(wNodeId);
             }
 
             console.log('[LoRA] 注入完成，用户 LoRA:', validLoras.length);
@@ -2462,22 +2678,5 @@
         window.onload = () => { GalleryList.load(0); updatePromptTags(); spPickerInit(); spmInit(); };
         updateBatchCountUI();
     </script>
-
-    <!-- LoRA 悬浮面板 -->
-    <div id="loraOverlay" class="lora-overlay" onclick="if(event.target===this)closeLoraPanel()">
-        <div class="lora-panel">
-            <div class="lora-panel-header">
-                <h3>⚡ LoRA 管理</h3>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <button class="lora-add-btn" onclick="addLora()"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>添加 LoRA</button>
-                    <button class="lora-panel-close" onclick="closeLoraPanel()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div id="loraBuiltinInfo"></div>
-            <div id="loraCardList"></div>
-        </div>
-    </div>
 </body>
 </html>

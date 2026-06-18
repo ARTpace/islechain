@@ -77,14 +77,19 @@
             body.nsfw-mode .masonry-item[data-nsfw="1"] > img, body.nsfw-mode .masonry-item[data-nsfw="1"] img{filter:blur(24px) saturate(.4);transition:filter .2s}
             body.nsfw-mode .masonry-item[data-nsfw="1"]::before{content:"";position:absolute;inset:0;z-index:11;background:rgba(17,24,39,.32);pointer-events:none;transition:background .2s}
             body.nsfw-mode .masonry-item[data-nsfw="1"]:hover > img{filter:blur(28px) saturate(.3)}
-            /* 屏蔽按钮高亮态 */
-            .history-bulk-btn[data-nsfw-toggle].is-on{background:#dc2626;border-color:#dc2626;color:#fff}
-            .history-bulk-btn[data-nsfw-toggle].is-on:hover{background:#b91c1c;border-color:#b91c1c;color:#fff}
             /* 收藏按钮高亮态 */
-            .history-bulk-btn[data-fav-toggle].is-on{background:#f59e0b;border-color:#f59e0b;color:#fff}
-            .history-bulk-btn[data-fav-toggle].is-on:hover{background:#d97706;border-color:#d97706;color:#fff}
+            .history-bulk-btn[data-extra-btn="fav-toggle"].is-on{background:#f59e0b;border-color:#f59e0b;color:#fff}
+            .history-bulk-btn[data-extra-btn="fav-toggle"].is-on:hover{background:#d97706;border-color:#d97706;color:#fff}
+            .history-bulk-btn[data-extra-btn="nsfw-toggle"].is-on{background:#dc2626;border-color:#dc2626;color:#fff}
+            .history-bulk-btn[data-extra-btn="nsfw-toggle"].is-on:hover{background:#b91c1c;border-color:#b91c1c;color:#fff}
             /* favorite 按钮激活态 */
             .gallery-action-btn.is-fav{background:rgba(245,158,11,.95)!important;color:#fff!important;box-shadow:0 4px 10px rgba(245,158,11,.35)}
+            /* 单张图片收藏星标 */
+            .img-fav-btn.is-fav{background:rgba(245,158,11,.95)!important;color:#fff!important;box-shadow:0 2px 8px rgba(245,158,11,.4)}
+            .img-fav-btn.is-fav svg{width:12px;height:12px}
+            .img-fav-btn svg{width:12px;height:12px}
+            /* 收藏视图下：显示单图收藏星标 */
+            body.fav-mode .img-fav-btn{opacity:1!important}
             /* 仅显示收藏：非收藏卡片隐藏 */
             body.fav-mode .masonry-item[data-fav="0"]{display:none!important}
             /* fav-mode 下的占位提示 */

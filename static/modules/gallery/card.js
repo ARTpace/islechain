@@ -130,16 +130,20 @@
             }
         };
 
-        // 收藏状态标记（zimage 端从 localStorage 同步；其他页默认 0）
-        const isFav = (global.__galleryFavorites && global.__galleryFavorites.has(String(record.timestamp))) ? '1' : '0';
-        card.dataset.fav = isFav;
+        // 收藏状态标记（按图片 URL，支持多图组中只收藏某几张）
+        const favSet = global.__galleryFavorites || new Set();
+        const images = (record.images || []).filter(Boolean);
+        const anyFav = images.some(u => favSet.has(u));
+        card.dataset.fav = anyFav ? '1' : '0';
+        // 每张子图的收藏状态
+        card.dataset.favImages = JSON.stringify(images.map(u => favSet.has(u) ? 1 : 0));
 
         // 构建操作按钮 HTML
         const buttons = [];
         if (features.openFolder)  buttons.push(buttonHTML('openFolder', record));
         if (features.usePrompt)   buttons.push(buttonHTML('usePrompt', record));
         if (features.copyPrompt)  buttons.push(buttonHTML('copyPrompt', record));
-        if (features.favorite)    buttons.push(buttonHTML('favorite', record, { active: isFav === '1' }));
+        if (features.favorite)    buttons.push(buttonHTML('favorite', record, { active: anyFav }));
         if (features.download)    buttons.push(buttonHTML('download', record));
         if (features.copyToCanvas) buttons.push(buttonHTML('copyToCanvas', record));
         if (features.regenerate)  buttons.push(buttonHTML('regenerate', record));
@@ -254,37 +258,51 @@
      * - 4 张：2x2 拼图
      * - 5+ 张：2x2 拼图 + 最后一张叠加 "+N"
      */
+    /** 单张图片收藏星标按钮 HTML */
+    function imgFavBtnHTML(url, isFav) {
+        const svg = isFav ? ICONS.star : ICONS.starOutline;
+        const cls = isFav ? ' is-fav' : '';
+        const qUrl = String(url).replace(/"/g, '&quot;');
+        return '<button data-fav-url="' + qUrl + '" onclick="event.stopPropagation(); GalleryActions.toggleFavorite({}, event, this.dataset.favUrl)" class="img-fav-btn absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity' + cls + '" title="收藏此图">' + svg + '</button>';
+    }
+
+    /**
+     * 渲染卡片内的图片区。
+     * - 1 张：全幅 cover
+     * - 2 张：上下两半
+     * - 3 张：上 1 + 下 2
+     * - 4 张：2x2 拼图
+     * - 5+ 张：2x2 拼图 + 最后一张叠加 "+N"
+     */
     function buildImagesHTML(record, features, onerror) {
         const imgs = (record.images || []).filter(Boolean);
+        const favSet = global.__galleryFavorites || new Set();
         if (imgs.length <= 1) {
-            // 单图：缩略图走 preview 接口，原图保留在 data-original-src 供 lightbox 使用
-            const src = thumbUrl(imgs[0] || '', 384);
-            return `<img src="${src}" data-original-src="${imgs[0] || ''}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">`;
+            const src = thumbUrl(imgs[0] || '', 768);
+            const favBtn = features.favorite ? imgFavBtnHTML(imgs[0] || '', favSet.has(imgs[0] || '')) : '';
+            return '<div class="relative group"><img src="' + src + '" data-original-src="' + (imgs[0] || '') + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + favBtn + '</div>';
         }
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
-            // 2张图：左右并排，缩略图走 preview
-            return `<div class="flex gap-0.5" style="height:auto;">${imgs.slice(0, 2).map(u => 
-                `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full h-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
-            ).join('')}</div>`;
+            return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u) {
+                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+            }).join('') + '</div>';
         } else if (imgs.length === 3) {
-            // 3张图：上1 + 下2
-            return `<div class="flex flex-col gap-0.5" style="height:auto;">
-                <div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(imgs[0], 384)}" data-original-src="${imgs[0]}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>
-                <div class="flex gap-0.5">${imgs.slice(1, 3).map(u => 
-                    `<div class="flex-1 relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;"></div>`
-                ).join('')}</div>
-            </div>`;
+            return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
+                '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
+                '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
+                    return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                }).join('') + '</div>' +
+            '</div>';
         } else {
-            // 4张及以上：2x2网格
-            const cells = imgs.slice(0, 4).map((u, i) => {
-                const isLast = (i === 3 && imgs.length > 4);
-                const overlay = isLast
-                    ? `<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+${imgs.length - 4}</div>`
+            var cells = imgs.slice(0, 4).map(function(u, i) {
+                var isLast = (i === 3 && imgs.length > 4);
+                var overlay = isLast
+                    ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                return `<div class="relative overflow-hidden" style="background:#f5f5f5;"><img src="${thumbUrl(u, 300)}" data-original-src="${u}" class="w-full" loading="lazy" onerror="${onerror}" style="display:block; object-fit:contain;">${overlay}</div>`;
+                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
-            return `<div class="grid grid-cols-2 gap-0.5" style="height:auto;">${cells}</div>`;
+            return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
         }
     }
 
@@ -299,6 +317,9 @@
         let handlerCall;
         if (cfg.action === 'downloadImage') {
             handlerCall = `GalleryActions.${cfg.action}(${q(JSON.stringify(imgUrl))}, ${q(JSON.stringify(String(ts) + '.png'))}, event)`;
+        } else if (cfg.action === 'toggleFavorite') {
+            // 收藏按钮传图片 URL，支持多图组中只收藏某几张
+            handlerCall = `GalleryActions.${cfg.action}(${JSON.stringify(record).replace(/"/g, '&quot;')}, event, ${q(JSON.stringify(imgUrl))})`;
         } else {
             handlerCall = `GalleryActions.${cfg.action}(${JSON.stringify(record).replace(/"/g, '&quot;')}, event)`;
         }
