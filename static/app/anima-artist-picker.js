@@ -66,6 +66,7 @@ function artistPickerLoadData() {
             const endIdx = text.lastIndexOf(']');
             if (startIdx !== -1 && endIdx !== -1) {
                 ANIMA_ARTIST_DB = JSON.parse(text.substring(startIdx, endIdx + 1));
+                window.ANIMA_ARTIST_DB = ANIMA_ARTIST_DB; // 暴露给同页脚本
                 console.log('[AnimaArtistPicker] Loaded ' + ANIMA_ARTIST_DB.length + ' artists');
             }
         })

@@ -45,7 +45,7 @@
   },
   "12": {
     "inputs": {
-      "text": "worst quality, low quality, score_3, score_2, score_1, old, oldest, black hair, head out of frame， animal ears，nsfw， sex， sweat",
+      "text": "worst quality, low quality, score_3, score_2, score_1, old, oldest, black hair, head out of frame，text，watermark， animal ears，nsfw， sex， sweat",
       "clip": [
         "45",
         0

@@ -446,8 +446,7 @@ function pickerLoadData() {
 
 
                 ANIMA_CHAR_DB = JSON.parse(text.substring(startIdx, endIdx + 1));
-
-
+                window.ANIMA_CHAR_DB = ANIMA_CHAR_DB; // 暴露给同页脚本（zimage.html 等用 window[name] 读，避免 let 不挂 window 的问题）
                 console.log('[AnimaPicker] Loaded ' + ANIMA_CHAR_DB.length + ' characters');
 
 

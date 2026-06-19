@@ -161,6 +161,7 @@ function presetPickerLoadData() {
         _stylePickerData = styleData;
         _styleI18n = styleI18n;
         _buildFlatIndex();
+        window._flatIndex = _flatIndex; // 暴露给同页脚本
         console.log('[PresetPicker] Loaded ' + _flatIndex.length + ' presets');
     }).catch(e => console.error('[PresetPicker] Failed to load preset data', e));
 }
