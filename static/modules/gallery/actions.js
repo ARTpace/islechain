@@ -92,6 +92,67 @@
     }
 
     /**
+     * 删除多图组合中的单张图片
+     */
+    async function deleteSingleImage(timestamp, imageUrl, event) {
+        if (event) event.stopPropagation();
+        if (!timestamp || !imageUrl) return;
+        // 两步确认
+        const btn = event && event.target && event.target.closest && event.target.closest('button');
+        if (btn && btn.classList.contains('is-confirming')) {
+            clearTimeout(btn._confirmTimer);
+            btn.classList.remove('is-confirming');
+            btn._confirmTimer = null;
+        } else {
+            if (btn) {
+                document.querySelectorAll('button.is-confirming').forEach(b => {
+                    if (b !== btn) { b.classList.remove('is-confirming'); if (b._confirmTimer) { clearTimeout(b._confirmTimer); b._confirmTimer = null; } }
+                });
+                btn.classList.add('is-confirming');
+                btn._confirmTimer = setTimeout(() => { btn.classList.remove('is-confirming'); btn._confirmTimer = null; }, 3000);
+            }
+            return;
+        }
+        const historyType = (global.GALLERY_CONFIG && global.GALLERY_CONFIG.type) || 'unknown';
+        try {
+            const res = await fetch('/api/history/delete-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timestamp, image_url: imageUrl })
+            });
+            if (!res.ok) throw new Error('删除失败');
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message);
+            // 从 DOM 中移除该图片
+            const card = document.getElementById('history-' + timestamp);
+            if (card) {
+                const imgEl = card.querySelector('img[data-original-src="' + CSS.escape(imageUrl) + '"]');
+                if (imgEl) {
+                    const imgContainer = imgEl.closest('.relative');
+                    if (imgContainer) imgContainer.remove();
+                }
+                // 如果只剩 0 张图，移除整个卡片
+                if (data.remaining === 0) {
+                    card.remove();
+                }
+            }
+            // 更新 allHistory
+            if (global.GalleryList && Array.isArray(GalleryList.allHistory)) {
+                const record = GalleryList.allHistory.find(h => Math.abs(h.timestamp - timestamp) < 0.001);
+                if (record) {
+                    record.images = record.images.filter(u => u !== imageUrl);
+                    if (record.images.length === 0) {
+                        GalleryList.allHistory = GalleryList.allHistory.filter(h => Math.abs(h.timestamp - timestamp) >= 0.001);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[deleteSingleImage]', e);
+            showToast('删除失败: ' + e.message, 'error');
+        }
+    }
+
+    /**
      * 批量删除
      */
     async function deleteSelected(timestamps, event) {
@@ -425,6 +486,7 @@
     global.GalleryActions = {
         openImageFolder,
         deleteHistoryItem,
+        deleteSingleImage,
         deleteSelected,
         downloadImage,
         toggleFavorite,

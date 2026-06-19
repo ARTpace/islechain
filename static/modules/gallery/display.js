@@ -166,6 +166,16 @@
     opacity: 1 !important;
 }
 
+/* === 多图删除按钮 === */
+.img-del-btn {
+    background: rgba(220,38,38,0.8) !important;
+    color: #fff !important;
+}
+.img-del-btn.is-confirming {
+    background: #dc2626 !important;
+    animation: galleryDeleteShake 0.4s ease-in-out infinite alternate;
+}
+
 /* === 缩略图操作按钮：顶部居中，按钮半透明 === */
 .gallery-actions {
     top: 10px !important;
@@ -578,7 +588,19 @@ body.studio-theme-dark .lightbox-thumb.active {
             case 'delete':
                 if (window.GalleryActions && GalleryActions.deleteHistoryItem) {
                     if (confirm('确认删除这张图片？')) {
-                        GalleryActions.deleteHistoryItem(record);
+                        // 直接执行删除，绕过两步确认
+                        const ts = record.timestamp;
+                        const historyType = record.type || (window.GALLERY_CONFIG && GALLERY_CONFIG.type) || 'unknown';
+                        fetch('/api/history/delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ timestamp: ts })
+                        }).catch(() => {});
+                        const el = document.getElementById('history-' + ts);
+                        if (el) el.remove();
+                        if (window.GalleryList && Array.isArray(GalleryList.allHistory)) {
+                            GalleryList.allHistory = GalleryList.allHistory.filter(h => String(h.timestamp) !== String(ts));
+                        }
                         closeLightbox();
                     }
                 }

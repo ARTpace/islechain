@@ -5618,6 +5618,51 @@ async def delete_history(req: DeleteHistoryRequest, token: str = ""):
         return {"success": False, "message": str(e)}
 
 
+class DeleteImageRequest(BaseModel):
+    timestamp: float
+    image_url: str
+
+@app.post("/api/history/delete-image")
+async def delete_single_image(req: DeleteImageRequest, token: str = ""):
+    """从历史记录中删除单张图片（多图组合场景）"""
+    username = get_username_by_token(token)
+    if not os.path.exists(HISTORY_FILE):
+        return {"success": False, "message": "History file not found"}
+    try:
+        with HISTORY_LOCK:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+            target_record = None
+            for item in history:
+                item_ts = item.get("timestamp", 0)
+                if abs(float(item_ts) - float(req.timestamp)) < 0.001:
+                    target_record = item
+                    break
+            if not target_record:
+                return {"success": False, "message": "Record not found"}
+            if username and not is_admin_by_token(token) and target_record.get("user") and target_record.get("user") != username:
+                return {"success": False, "message": "无权操作"}
+            images = target_record.get("images", [])
+            if req.image_url not in images:
+                return {"success": False, "message": "Image not in record"}
+            # 删除本地文件
+            file_path = _url_to_output_path(req.image_url)
+            if file_path and os.path.exists(file_path):
+                try: os.remove(file_path)
+                except: pass
+            # 从记录中移除
+            images.remove(req.image_url)
+            if not images:
+                # 图片全部删完，删除整条记录
+                history = [h for h in history if abs(float(h.get("timestamp", 0)) - float(req.timestamp)) >= 0.001]
+            with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+                json.dump(history[:5000], f, ensure_ascii=False, indent=4)
+            _invalidate_history_cache()
+            return {"success": True, "remaining": len(images)}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
 def _url_to_output_path(url: str) -> Optional[str]:
     """把 /output/... URL 解析为本地绝对路径；不在 OUTPUT_DIR 内则返回 None"""
     if not url or not url.startswith("/output/"):

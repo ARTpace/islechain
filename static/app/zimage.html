@@ -2652,38 +2652,93 @@
         }
 
         // UI: 刷新所有选择器按钮的高亮/数量状态
-        // - 角色、画师、预设按钮：根据已选数量显示高亮 + 角标
-        // - 参考图按钮：根据 refImages 数量显示高亮 + 角标
-        // - LoRA 按钮：调用 updateLoraSwitcherVisibility() 处理
+        // - 直接扫描当前提示词内容来识别各功能是否被使用，不依赖 pickerSelected 内部状态
+        //   这样无论用户通过选择器勾选、还是手动输入/删除 token，按钮角标与高亮都能正确同步
+        // - 角色：prompt 中命中 ANIMA_CHAR_DB 名称 / trigger 的 token 数
+        // - 画师：prompt 中以 @/by 开头且名称命中 ANIMA_ARTIST_DB 的 token 数
+        // - 预设：prompt 中命中预设名或预设 prompt 的项数
+        // - 参考图：根据 refImages 数量
+        // - LoRA：调用 updateLoraSwitcherVisibility() 处理
         function updatePickerButtonsHighlight() {
-            // 角色
+            const promptInput = document.getElementById('prompt');
+            const raw = promptInput ? (promptInput.value || '') : '';
+            const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+            const lowerSet = new Set(parts.map(p => p.toLowerCase()));
+
+            // ---- 角色 ----
             const charBtn = document.getElementById('charPickerBtn');
             const charText = document.getElementById('charPickerBtnText');
-            if (charBtn && typeof pickerSelected !== 'undefined') {
-                const n = pickerSelected.length;
-                if (n > 0) charBtn.classList.add('is-in-use');
+            if (charBtn) {
+                let charCount = 0;
+                try {
+                    if (typeof ANIMA_CHAR_DB !== 'undefined' && ANIMA_CHAR_DB && ANIMA_CHAR_DB.length > 0) {
+                        const charNameSet = new Set(ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+                        const charTriggerSet = new Set();
+                        ANIMA_CHAR_DB.forEach(c => {
+                            if (Array.isArray(c.triggers)) c.triggers.forEach(t => charTriggerSet.add(String(t).toLowerCase()));
+                            else if (typeof c.trigger === 'string') charTriggerSet.add(c.trigger.toLowerCase());
+                        });
+                        parts.forEach(t => {
+                            if (!t) return;
+                            if (t.startsWith('@') || t.startsWith('by ') || t.startsWith('[')) return;
+                            const tl = t.toLowerCase();
+                            if (charNameSet.has(tl) || charTriggerSet.has(tl)) charCount++;
+                        });
+                    }
+                } catch (_) {}
+                if (charCount > 0) charBtn.classList.add('is-in-use');
                 else charBtn.classList.remove('is-in-use');
-                if (charText) charText.textContent = n > 0 ? ` 角色(${n})` : ' 角色';
+                if (charText) charText.textContent = charCount > 0 ? ` 角色(${charCount})` : ' 角色';
             }
-            // 画师
+
+            // ---- 画师 ----
             const artistBtn = document.getElementById('artistPickerBtn');
             const artistText = document.getElementById('artistPickerBtnText');
-            if (artistBtn && typeof artistPickerSelected !== 'undefined') {
-                const n = artistPickerSelected.length;
-                if (n > 0) artistBtn.classList.add('is-in-use');
+            if (artistBtn) {
+                let artistCount = 0;
+                try {
+                    if (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0) {
+                        const artistNameSet = new Set(ANIMA_ARTIST_DB.map(a => (a.name || '').toLowerCase()).filter(Boolean));
+                        parts.forEach(t => {
+                            if (!t) return;
+                            let name = null;
+                            if (t.startsWith('@')) name = t.substring(1).trim();
+                            else if (t.startsWith('by ')) name = t.substring(3).trim();
+                            if (!name) return;
+                            if (artistNameSet.has(name.toLowerCase())) artistCount++;
+                        });
+                    }
+                } catch (_) {}
+                if (artistCount > 0) artistBtn.classList.add('is-in-use');
                 else artistBtn.classList.remove('is-in-use');
-                if (artistText) artistText.textContent = n > 0 ? ` 画师(${n})` : ' 画师';
+                if (artistText) artistText.textContent = artistCount > 0 ? ` 画师(${artistCount})` : ' 画师';
             }
-            // 预设
+
+            // ---- 预设 ----
             const presetBtn = document.getElementById('presetPickerBtn');
             const presetText = document.getElementById('presetPickerBtnText');
-            if (presetBtn && typeof presetPickerSelected !== 'undefined') {
-                const n = presetPickerSelected.length;
-                if (n > 0) presetBtn.classList.add('is-in-use');
+            if (presetBtn) {
+                let presetCount = 0;
+                try {
+                    if (typeof _flatIndex !== 'undefined' && _flatIndex && _flatIndex.length > 0) {
+                        const seenKeys = new Set();
+                        _flatIndex.forEach(p => {
+                            if (!p) return;
+                            const name = (p.name || '').toLowerCase();
+                            const prompt = (p.prompt || '').toLowerCase();
+                            if ((name && lowerSet.has(name)) || (prompt && lowerSet.has(prompt))) {
+                                const key = (p.category_id || p.category || '') + ':' + (p.id || p.name);
+                                if (!seenKeys.has(key)) { seenKeys.add(key); presetCount++; }
+                            }
+                        });
+                    }
+                } catch (_) {}
+                if (presetCount > 0) presetBtn.classList.add('is-in-use');
                 else presetBtn.classList.remove('is-in-use');
-                if (presetText) presetText.textContent = n > 0 ? ` 预设(${n})` : ' 预设';
+                if (presetText) presetText.textContent = presetCount > 0 ? ` 预设(${presetCount})` : ' 预设';
             }
-            // 参考图
+
+            // ---- 参考图 ----
             const refBtn = document.getElementById('refImageBtn');
             const refText = document.getElementById('refImageBtnText');
             if (refBtn && typeof refImages !== 'undefined') {
@@ -2692,6 +2747,7 @@
                 else refBtn.classList.remove('is-in-use');
                 if (refText) refText.textContent = n > 0 ? ` 参考图(${n})` : ' 参考图';
             }
+
             // LoRA
             updateLoraSwitcherVisibility();
         }
@@ -2699,9 +2755,11 @@
         window.updatePickerButtonsHighlight = updatePickerButtonsHighlight;
 
         // === 提示词同步：手动修改/清空提示词时，反向同步各选择器的"已选"状态 ===
-        // - 角色：只保留 prompt 中「真实存在」于 ANIMA_CHAR_DB 的 token
-        // - 画师：只保留 prompt 中以 @/by 开头且名称在艺术家数据库中的 token
-        // - 预设：只保留 prompt 中命中预设名/prompt 的 token
+        // - 角色：双向同步
+        //     ① 提示词中「真实存在」于 ANIMA_CHAR_DB 的 token → 自动加入 pickerSelected
+        //     ② 提示词中已移除的 token → 从 pickerSelected 中删除
+        // - 画师：双向同步，以 @/by 开头的 token 命中艺术家数据库则纳入
+        // - 预设：双向同步，命中预设名/prompt 则纳入
         // - 同时同步各选择器的「上次应用快照」，避免下次打开时被误删普通提示词
         function syncPickerStatesFromPrompt() {
             const promptInput = document.getElementById('prompt');
@@ -2719,12 +2777,39 @@
                         if (Array.isArray(c.triggers)) c.triggers.forEach(t => charTriggerSet.add(String(t).toLowerCase()));
                         else if (typeof c.trigger === 'string') charTriggerSet.add(c.trigger.toLowerCase());
                     });
-                    const newPickerSelected = pickerSelected.filter(name => {
+                    // 1) 移除：pickerSelected 中已不在 prompt 的项（避免与"上次应用快照"不一致）
+                    let newPickerSelected = pickerSelected.filter(name => {
                         if (!name) return false;
                         const nl = name.toLowerCase();
-                        // 名称在 DB 中 → 接受；否则检查 prompt 是否仍包含该 token
                         if (charNameSet.has(nl)) return true;
                         return lowerSet.has(nl);
+                    });
+                    // 2) 添加：prompt 中「确实是角色」的 token 但 pickerSelected 还没有的
+                    const existing = new Set(newPickerSelected.map(n => n.toLowerCase()));
+                    parts.forEach(t => {
+                        if (!t) return;
+                        if (t.startsWith('@') || t.startsWith('by ') || t.startsWith('[')) return;
+                        const tl = t.toLowerCase();
+                        if (charNameSet.has(tl) && !existing.has(tl)) {
+                            // 通过 trigger 找原 name（避免大小写不匹配导致重复）
+                            if (!charTriggerSet.has(tl)) {
+                                newPickerSelected.push(t);
+                                existing.add(tl);
+                            } else {
+                                // 是 trigger：找到对应的真实 name 入库，保持 pickerSelected 用原 name
+                                const hit = ANIMA_CHAR_DB.find(c => (c.trigger || '').toLowerCase() === tl || (Array.isArray(c.triggers) && c.triggers.some(x => String(x).toLowerCase() === tl)));
+                                if (hit && !existing.has(hit.name.toLowerCase())) {
+                                    newPickerSelected.push(hit.name);
+                                    existing.add(hit.name.toLowerCase());
+                                }
+                            }
+                        } else if (charTriggerSet.has(tl) && !existing.has(tl)) {
+                            const hit = ANIMA_CHAR_DB.find(c => (c.trigger || '').toLowerCase() === tl || (Array.isArray(c.triggers) && c.triggers.some(x => String(x).toLowerCase() === tl)));
+                            if (hit && !existing.has(hit.name.toLowerCase())) {
+                                newPickerSelected.push(hit.name);
+                                existing.add(hit.name.toLowerCase());
+                            }
+                        }
                     });
                     pickerSelected = newPickerSelected;
                     // 同步「上次应用快照」：取 pickerSelected 的当前值（取消选中的不再写回）
@@ -2738,11 +2823,26 @@
             try {
                 if (typeof artistPickerSelected !== 'undefined' && typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0) {
                     const artistNameSet = new Set(ANIMA_ARTIST_DB.map(a => (a.name || '').toLowerCase()).filter(Boolean));
-                    const newArtistSel = artistPickerSelected.filter(name => {
+                    // 1) 移除
+                    let newArtistSel = artistPickerSelected.filter(name => {
                         if (!name) return false;
                         const nl = name.toLowerCase();
                         if (artistNameSet.has(nl)) return true;
                         return lowerSet.has('@' + nl) || lowerSet.has('by ' + nl);
+                    });
+                    // 2) 添加：prompt 中以 @/by 开头且名称在 DB 中的
+                    const existingArtist = new Set(newArtistSel.map(n => n.toLowerCase()));
+                    parts.forEach(t => {
+                        if (!t) return;
+                        let name = null;
+                        if (t.startsWith('@')) name = t.substring(1).trim();
+                        else if (t.startsWith('by ')) name = t.substring(3).trim();
+                        if (!name) return;
+                        const nl = name.toLowerCase();
+                        if (artistNameSet.has(nl) && !existingArtist.has(nl)) {
+                            newArtistSel.push(name);
+                            existingArtist.add(nl);
+                        }
                     });
                     artistPickerSelected = newArtistSel;
                     if (typeof artistPickerLastAppliedTokens !== 'undefined') {
@@ -2765,12 +2865,23 @@
                             matchedIds.add((p.category_id || p.category || '') + ':' + (p.id || p.name));
                         }
                     });
-                    presetPickerSelected = presetPickerSelected.filter(p => {
+                    // 1) 移除
+                    let newPresetSel = presetPickerSelected.filter(p => {
                         const key = (p.category_id || p.category || '') + ':' + (p.id || p.name);
                         return matchedIds.has(key);
                     });
+                    // 2) 添加：prompt 命中的预设（但 pickerSelected 中没有的）
+                    const existingKeys = new Set(newPresetSel.map(p => (p.category_id || p.category || '') + ':' + (p.id || p.name)));
+                    idx.forEach(p => {
+                        if (!p) return;
+                        const key = (p.category_id || p.category || '') + ':' + (p.id || p.name);
+                        if (matchedIds.has(key) && !existingKeys.has(key)) {
+                            newPresetSel.push(p);
+                            existingKeys.add(key);
+                        }
+                    });
+                    presetPickerSelected = newPresetSel;
                     if (typeof presetPickerLastAppliedTokens !== 'undefined') {
-                        // 保留 prompt 中命中预设的 token 作为快照
                         const newSet = new Set();
                         idx.forEach(p => {
                             if (!p) return;
