@@ -181,7 +181,16 @@
                 if (!res.ok) throw new Error('History API ' + res.status);
                 const json = await res.json();
                 const norm = normalizeHistoryResponse(json);
-                state.allHistory = norm.items;
+                // 去重：按图片 URL 去重，保留最新的记录
+                const seenUrls = new Set();
+                state.allHistory = norm.items.filter(item => {
+                    const imgs = (item.images || []).filter(Boolean);
+                    if (imgs.length === 0) return true;
+                    const key = imgs[0];
+                    if (seenUrls.has(key)) return false;
+                    seenUrls.add(key);
+                    return true;
+                });
                 state.hasMore = norm.hasMore;
             } else {
                 if (trigger) trigger.innerText = 'Loading...';
@@ -193,7 +202,13 @@
                 const norm = normalizeHistoryResponse(json);
                 // 防御：后端重复返回首页/旧数据时跳过
                 const knownTs = new Set(state.allHistory.map(x => String(x.timestamp)));
-                const fresh = norm.items.filter(x => !knownTs.has(String(x.timestamp)));
+                const knownUrls = new Set(state.allHistory.flatMap(x => (x.images || []).filter(Boolean)));
+                const fresh = norm.items.filter(x => {
+                    if (knownTs.has(String(x.timestamp))) return false;
+                    const imgs = (x.images || []).filter(Boolean);
+                    if (imgs.length > 0 && knownUrls.has(imgs[0])) return false;
+                    return true;
+                });
                 state.allHistory = state.allHistory.concat(fresh);
                 state.hasMore = norm.hasMore;
                 state.currentPage = nextPage;

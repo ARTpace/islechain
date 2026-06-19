@@ -78,7 +78,6 @@
         // 单击 → lightbox（兼容 openLightbox 的两种签名）
         card.onclick = (e) => {
             if (document.body.classList.contains('history-bulk-selecting')) return;
-            // NSFW 屏蔽模式下，已识别的图片不响应点击
             if (document.body.classList.contains('nsfw-mode') && card.dataset.nsfw === '1') return;
             if (e.target.closest('button') || e.target.closest('.batch-checkbox')) return;
             if (typeof global.openLightbox !== 'function') return;

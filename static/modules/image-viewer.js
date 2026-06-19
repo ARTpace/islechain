@@ -148,7 +148,9 @@
         img.style.transform = 'scale(1)';
         img.style.transformOrigin = 'center center';
 
-        img.src = imageList[currentIndex];
+        // 直接加载图片，浏览器缓存会加速后续加载
+        const originalUrl = imageList[currentIndex];
+        img.src = originalUrl;
 
         const handleLoad = () => {
             originalWidth = img.naturalWidth;

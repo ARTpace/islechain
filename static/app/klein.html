@@ -19,8 +19,8 @@
         *::-webkit-scrollbar-thumb:hover { background-color:#c0c0c0!important; }
         *::-webkit-scrollbar-corner { background:transparent!important; }
         * { scrollbar-width:thin!important; scrollbar-color:#d8d8d8 transparent!important; }
-        body { background-color: var(--bg); font-family: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--accent); -webkit-font-smoothing: antialiased; }
-        .container-box { max-width: 1280px; margin: 0 auto; padding: 0 40px; margin-top: 50px; }
+        body { background-color: var(--bg); font-family: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--accent); -webkit-font-smoothing: antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .container-box { max-width: 1280px; width:100%; margin: 0 auto; padding: 0 40px; margin-top: 50px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
         .nano-input { background: var(--card); border: 1px solid #eef0f2; transition: all 0.3s var(--easing); }
         .nano-input:focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
         .upload-item { background: var(--card); border: 1px dashed #e2e8f0; transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
@@ -37,10 +37,21 @@
         .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
         .engine-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
         .engine-btn:not(.active):hover { color: #111827; background: rgba(0,0,0,.04); }
-        .masonry-item:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); }
-        .masonry-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        @media (min-width: 768px) { .masonry-grid { grid-template-columns: repeat(4, 1fr); } }
-        .masonry-item { aspect-ratio: 1 / 1; border-radius: 24px; overflow: hidden; background: #fff; border: 1px solid #f1f5f9; transition: all 0.5s var(--easing); }
+        .masonry-grid { column-count:2; column-gap:12px; }
+        .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
+        .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
+        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+        @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
+        @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
+        @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
+        .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
+        .masonry-grid.thumb-medium{ /* 默认 */ }
+        .masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
+        @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
+        @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
+        @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
+        .masonry-item { border-radius:24px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
+        .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,0.08); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes b-loading { 0%{transform:scale(1);background:#000} 50%{transform:scale(1.15);background:#444} 100%{transform:scale(1);background:#000} }
         .loading-box { width: 10px; height: 10px; animation: b-loading 1s infinite var(--easing); }
@@ -92,6 +103,24 @@
             border-color: #1a2a3a !important;
         }
         
+        body.studio-theme-dark #toolbarFixed {
+            background: rgba(10, 14, 23, 0.95) !important;
+            border-color: rgba(240, 255, 255, 0.08) !important;
+        }
+        body.studio-theme-dark .masonry-item {
+            background: #0d1520 !important;
+            border-color: #1a2a3a !important;
+        }
+        body.studio-theme-dark .masonry-grid .date-separator .sep-line {
+            background: rgba(255,255,255,0.08);
+        }
+        body.studio-theme-dark .masonry-grid .date-separator .sep-label {
+            color: #4a6a80;
+        }
+        body.studio-theme-dark #loadMoreTrigger {
+            color: #4a6a80;
+        }
+        
         body.studio-theme-dark #imgCount {
             background: rgba(0, 240, 255, 0.15) !important;
             color: #00d9ff !important;
@@ -134,6 +163,7 @@
     <script src="/static/modules/gallery/list.js?v=20260611"></script>
     <script src="/static/modules/gallery/card.js?v=20260611"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
+    <script src="/static/modules/gallery/display.js?v=20260619"></script>
 </head>
 
 <body class="antialiased transition-colors duration-300">
@@ -145,7 +175,7 @@
             </div>
         </header>
 
-        <main class="grid grid-cols-2 gap-12 max-w-6xl mx-auto w-full">
+        <section class="grid grid-cols-2 gap-12 max-w-6xl mx-auto w-full" style="flex-shrink:0;">
             <!-- 左侧：图片上传区域 -->
             <div class="space-y-6">
                 <div class="flex items-center gap-2 text-gray-400">
@@ -230,38 +260,25 @@
                     </div>
                 </div>
             </div>
-        </main>
-
-        <section class="mt-32">
-            <div class="flex items-center justify-between mb-4 gap-2">
-                <div class="flex items-center gap-6">
-                    <h2 class="text-[11px] font-black uppercase tracking-[0.5em]">Archive</h2>
-                    <div class="h-px flex-1 bg-black/5"></div>
-                </div>
-            <div id="masonry" class="masonry-grid"></div>
         </section>
+
+        <!-- 工具栏吸顶 -->
+        <div id="toolbarFixed" class="sticky top-0 z-30 backdrop-blur-sm border-b border-gray-100" style="flex-shrink:0; background:rgba(255,255,255,0.95);">
+            <div style="max-width:1280px;margin:0 auto;padding:8px 40px;">
+                <div id="toolbarPlaceholder"></div>
+            </div>
+        </div>
+
+        <!-- 图片归档区 -->
+        <main class="flex-1 overflow-y-auto min-h-0">
+            <div style="max-width:1280px;margin:0 auto;padding:12px 40px 0;">
+                <div id="masonry" class="masonry-grid"></div>
+            </div>
+            <div id="loadMoreTrigger" class="py-12 text-center text-gray-300 text-[10px] font-bold uppercase tracking-widest cursor-pointer hidden">加载更多归档</div>
+        </main>
     </div>
 
-    <div id="lightbox" onclick="handleOutsideClick(event)" class="hidden fixed inset-0 z-50 gallery-lightbox bg-white/95 backdrop-blur-3xl flex items-center justify-center p-8 overflow-auto">
-        <button onclick="closeLightbox()" class="absolute top-10 right-10 p-2 hover:rotate-90 transition-transform duration-500">
-            <i data-lucide="x" class="w-8 h-8"></i>
-        </button>
-        <button id="lightboxPrevBtn" onclick="ImageViewer.prevImage()" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all opacity-0 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m15 18-6-6 6-6"/>
-            </svg>
-        </button>
-        <button id="lightboxNextBtn" onclick="ImageViewer.nextImage()" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all opacity-0 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m9 18 6-6-6-6"/>
-            </svg>
-        </button>
-        <img id="lightboxImg" src="" class="max-h-[80vh] rounded-3xl shadow-2xl">
-        <div id="lightboxRes" class="absolute top-4 left-4 bg-black/30 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-full text-[10px] font-medium tracking-wider opacity-0 transition-opacity duration-300 pointer-events-none z-30"></div>
-        <button onclick="downloadImage()" class="absolute top-10 right-20 p-2 bg-black text-white rounded-xl hover:scale-105 transition-transform">
-            <i data-lucide="download" class="w-5 h-5"></i>
-        </button>
-    </div>
+    <!-- gallery-display.js auto-injects lightbox, scrollToTop, loadMore -->
 
     <script>
         lucide.createIcons();
@@ -660,71 +677,8 @@
             GalleryList.pushNewImage(record);
         }
 
-        function renderCard(data, isNew = false) {
-            const masonry = document.getElementById('masonry');
-            if (document.getElementById(`k-${data.timestamp}`)) return;
-            const card = document.createElement('div');
-            card.id = `k-${data.timestamp}`;
-            card.className = 'masonry-item group cursor-zoom-in';
-            card.onclick = () => {
-                const historyRes = fetch('/api/history?type=klein').then(res => res.json());
-                historyRes.then(history => {
-                    const allImages = history.map(item => item.images[0]);
-                    const startIndex = history.findIndex(item => item.timestamp === data.timestamp);
-                    openLightbox(data.images[0], allImages, startIndex);
-                });
-            };
-            card.innerHTML = `
-                <img src="${data.images[0]}" class="w-full h-full object-cover" loading="lazy">
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onclick="deleteHistoryItem('${data.timestamp}', event)" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-black hover:text-white rounded-lg flex items-center justify-center transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                    </button>
-                </div>`;
-            isNew ? masonry.prepend(card) : masonry.appendChild(card);
-        }
-
-        function openLightbox(url, images, startIndex) {
-            // 不设默认参数：让 function.length === 3，让 card.js 走 3 参分支
-            // 避免 prompt 字符串被误当成图片列表传入 ImageViewer
-            const imgList = (images && images.length > 1) ? images : [url];
-            const idx = (images && images.length > 1) ? (startIndex || 0) : 0;
-            ImageViewer.init(imgList, idx);
-            document.getElementById('lightboxPrevBtn').style.display = imgList.length > 1 ? '' : 'none';
-            document.getElementById('lightboxNextBtn').style.display = imgList.length > 1 ? '' : 'none';
-        }
-        function closeLightbox() {
-            const lightbox = document.getElementById('lightbox');
-            lightbox.classList.add('hidden');
-            document.body.style.overflow = '';
-            setTimeout(() => {
-                document.getElementById('lightboxImg').src = '';
-                document.getElementById('lightboxRes').style.opacity = '0';
-            }, 300);
-        }
-        function handleOutsideClick(e) { if (e.target.id === 'lightbox') closeLightbox(); }
-        async function downloadImage() {
-            const img = document.getElementById('lightboxImg');
-            if (!img.src) return;
-            
-            try {
-                const response = await fetch(img.src);
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `klein_${Date.now()}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                console.error('下载失败:', e);
-                window.open(img.src, '_blank');
-            }
-        }
+        // renderCard / openLightbox / closeLightbox / handleOutsideClick / downloadImage
+        // are now provided by gallery-display.js
         const WORKFLOW_CONFIG = {
             name: "图像编辑",
             type: "klein",
@@ -768,36 +722,23 @@
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);
-            // 统一缩略图模块配置（一处改全处同步）
-            window.GALLERY_CONFIG = {
-                type: 'klein',
-                container: '#masonry',
-                trigger: '#loadMoreTrigger',
-                pageSize: 15,
-                batchSelectBtn: '#batchSelectBtn',
-                deleteSelectedBtn: '#deleteSelectedBtn',
-                selectedCount: '#selectedCount',
-                features: {
+            // 统一由 gallery-display.js 初始化
+            GalleryDisplay.init({
+                historyType: 'klein',
+                favoritesStorageKey: 'gallery_favorites',
+                galleryFeatures: {
                     delete: true,
-                    openFolder: true,
+                    openFolder: false,
                     download: true,
-                    copyToCanvas: true,
-                    regenerate: true,
+                    copyToCanvas: false,
+                    regenerate: false,
                     batchSelect: true,
-                    contextMenu: true,
-                    imageFallback: true,
-                    modelBadge: null
-                }
-            };
-            GalleryList.init({
-                type: 'klein',
-                container: '#masonry',
-                trigger: '#loadMoreTrigger',
-                pageSize: 15,
-                batchSelect: true
+                    favorite: false,
+                    copyPrompt: false,
+                    usePrompt: false,
+                    modelBadge: null,
+                },
             });
-            GalleryList.load(0);
-            window.HistoryBulkManager?.attach({masonry:'#masonry'});
             lucide.createIcons();
             toggleIgnoreRef();
         };

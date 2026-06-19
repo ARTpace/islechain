@@ -27,14 +27,15 @@
     <script src="/static/modules/gallery/card.js?v=20260614-3"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260613"></script>
     <script src="/static/modules/image-viewer.js?v=20260521006"></script>
-    <link rel="stylesheet" href="/static/app/anima-character-picker.css">
-    <script src="/static/app/anima-character-picker.js"></script>
+    <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260619019">
+    <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css">
-    <script src="/static/app/anima-artist-picker.js"></script>
+    <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css">
-    <script src="/static/app/preset-picker.js"></script>
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260617001">
-    <script src="/static/app/lora-picker.js?v=20260618001"></script>
+    <script src="/static/app/preset-picker.js?v=20260619024"></script>
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260619012">
+    <script src="/static/app/lora-picker.js?v=20260619015"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js"></script>
     <script src="/static/app/smart-prompt-picker.js"></script>
@@ -128,6 +129,9 @@
         .anima-ctrl:hover { background:#e5e5e5; }
         .anima-ctrl.active { background:#000; color:#fff; }
         .anima-ctrl.seed-locked { background:#000; color:#fff; }
+        /* 选择器按钮在使用中（已选/已加载）的高亮状态：蓝色背景 */
+        .anima-ctrl.is-in-use { background: linear-gradient(135deg, #00b4d8, #0077b6); color:#fff; box-shadow: 0 0 0 1px rgba(0,180,216,0.4), 0 2px 8px rgba(0,180,216,0.25); }
+        .anima-ctrl.is-in-use:hover { background: linear-gradient(135deg, #00c8ed, #0088c8); }
         /* 引擎来源 / 模型下拉按钮：固定宽度,选择不同选项不会撑变 */
         #engineSwitcher > .anima-ctrl,
         #modelSwitcher  > .anima-ctrl { width:150px; justify-content:flex-start; }
@@ -336,6 +340,39 @@
         body.studio-theme-dark .lora-trigger-tag:hover { background:rgba(255,255,255,0.12); color:#fff; }
         .lora-trigger-label { font-size:9px; font-weight:700; color:#999; flex-shrink:0; }
         body.studio-theme-dark .lora-trigger-label { color:#4a5a6e; }
+    /* === 模型选择面板 === */
+    .model-picker-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+    .model-picker-overlay.open { display:flex; align-items:center; justify-content:center; }
+    .model-picker-panel { width:480px; max-width:92vw; max-height:80vh; overflow-y:auto; background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:20px; box-shadow:0 24px 64px rgba(0,0,0,0.18); padding:24px; animation: modelPickerIn .2s ease; }
+    @keyframes modelPickerIn { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+    body.studio-theme-dark .model-picker-panel { background:#0d1520; border-color:rgba(240,255,255,0.1); box-shadow:0 24px 64px rgba(0,0,0,0.5); }
+    .model-picker-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .model-picker-header h3 { font-size:14px; font-weight:800; margin:0; }
+    .model-picker-close { width:28px; height:28px; border:none; border-radius:8px; cursor:pointer; background:rgba(0,0,0,0.06); color:#666; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+    .model-picker-close:hover { background:rgba(0,0,0,0.12); color:#000; }
+    body.studio-theme-dark .model-picker-close { background:rgba(255,255,255,0.06); color:#8aa0b8; }
+    body.studio-theme-dark .model-picker-close:hover { background:rgba(255,255,255,0.12); color:#fff; }
+    .model-picker-group-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:.08em; padding:8px 0 6px; }
+    body.studio-theme-dark .model-picker-group-label { color:#6a8fa8; }
+    .model-picker-card { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(0,0,0,0.06); border-radius:14px; cursor:pointer; transition:all .2s; margin-bottom:8px; }
+    .model-picker-card:hover { border-color:#000; background:rgba(0,0,0,0.02); transform:translateY(-1px); }
+    .model-picker-card.active { border-color:#000; background:#000; color:#fff; }
+    body.studio-theme-dark .model-picker-card { border-color:rgba(255,255,255,0.08); background:rgba(255,255,255,0.02); color:#c8d0dc; }
+    body.studio-theme-dark .model-picker-card:hover { border-color:#00f0ff; background:rgba(0,240,255,0.05); }
+    body.studio-theme-dark .model-picker-card.active { border-color:#00f0ff; background:rgba(0,240,255,0.1); color:#00f0ff; }
+    .model-picker-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .model-picker-card.active .model-picker-icon { background:rgba(255,255,255,0.15); }
+    .model-picker-card:not(.active) .model-picker-icon { background:rgba(0,0,0,0.05); }
+    body.studio-theme-dark .model-picker-card:not(.active) .model-picker-icon { background:rgba(255,255,255,0.06); }
+    .model-picker-info { flex:1; min-width:0; }
+    .model-picker-name { font-size:12px; font-weight:700; }
+    .model-picker-desc { font-size:10px; color:#999; margin-top:2px; }
+    body.studio-theme-dark .model-picker-desc { color:#6a8fa8; }
+    .model-picker-check { width:20px; height:20px; border-radius:50%; border:2px solid rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; }
+    .model-picker-card.active .model-picker-check { border-color:#fff; background:#fff; }
+    .model-picker-card.active .model-picker-check::after { content:'✓'; font-size:11px; font-weight:800; color:#000; }
+    body.studio-theme-dark .model-picker-card.active .model-picker-check { border-color:#00f0ff; background:#00f0ff; }
+    body.studio-theme-dark .model-picker-card.active .model-picker-check::after { color:#0a0e17; }
     </style>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
@@ -374,14 +411,14 @@
                             <span id="spCurrentLabel" class="btn-text" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;">默认</span>
                         </button>
                         <div id="animaTagSwitcher" style="display:none;">
-                            <button onclick="pickerOpen()" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text"> 角色</span></button>
-                            <button onclick="artistPickerOpen()" class="anima-ctrl" style="border-radius:0 10px 10px 0;" title="画师选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg><span class="btn-text"> 画师</span></button>
+                            <button onclick="pickerOpen()" id="charPickerBtn" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text" id="charPickerBtnText"> 角色</span></button>
+                            <button onclick="artistPickerOpen()" id="artistPickerBtn" class="anima-ctrl" style="border-radius:0 10px 10px 0;" title="画师选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg><span class="btn-text" id="artistPickerBtnText"> 画师</span></button>
                         </div>
-                        <button onclick="presetPickerOpen()" class="anima-ctrl" title="提示词预设">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="btn-text"> 预设</span>
+                        <button onclick="presetPickerOpen()" id="presetPickerBtn" class="anima-ctrl" title="提示词预设">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="btn-text" id="presetPickerBtnText"> 预设</span>
                         </button>
-                        <button onclick="document.getElementById('refImageInput').click()" class="anima-ctrl" title="添加参考图">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text"> 参考图</span>
+                        <button onclick="document.getElementById('refImageInput').click()" id="refImageBtn" class="anima-ctrl" title="添加参考图">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text" id="refImageBtnText"> 参考图</span>
                         </button>
                         <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" onchange="refImageHandleUpload(this)">
                         <!-- LoRA 管理按钮 -->
@@ -420,6 +457,7 @@
                         </div>
                         <div class="flex flex-col">
                             <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">模型</span>
+                            <div class="flex items-end gap-1">
                             <div class="anima-ctrl-wrap" id="modelSwitcher">
                                 <button onclick="toggleMenu('modelMenu')" id="modelBtn" class="anima-ctrl">
                                     <span id="modelText">Z-Image</span>
@@ -437,6 +475,10 @@
                                         <span class="chk" style="opacity:0">✓</span>
                                     </div>
                                 </div>
+                            </div>
+                            <button onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            </button>
                             </div>
                         </div>
                         <div id="dynamicParams"></div>
@@ -471,71 +513,31 @@
             </div>
         </div>
     </header>
-    <div id="toolbarFixed" class="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm border-b border-gray-100" style="flex-shrink:0;">
+    <div id="toolbarFixed" class="sticky top-0 z-30" style="flex-shrink:0;background:transparent;">
         <div class="layout-container py-2">
             <div id="toolbarPlaceholder"></div>
         </div>
     </div>
     <main class="flex-1 overflow-y-auto min-h-0">
         <div class="layout-container" style="padding-top:12px;"><div id="masonry" class="masonry-grid"></div></div>
-        <div id="loadMoreTrigger" class="py-12 text-center text-gray-300 text-[10px] font-bold uppercase tracking-widest cursor-pointer hidden">加载更多归档</div>
     </main>
 
-    <div id="lightbox" onclick="handleOutsideClick(event)" class="hidden fixed inset-0 z-50 gallery-lightbox flex flex-col items-center justify-center">
-        <button onclick="closeLightbox()" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 text-gray-400 hover:text-white transition-colors p-1"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-        <button id="lightboxPrevBtn" onclick="ImageViewer.prevImage()" class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-50 bg-black/50 hover:bg-black/80 text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all opacity-0 pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
-        <button id="lightboxNextBtn" onclick="ImageViewer.nextImage()" class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-50 bg-black/50 hover:bg-black/80 text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all opacity-0 pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
-        <div class="flex flex-col w-full max-h-[100vh] sm:max-h-[90vh]">
-            <div id="lightboxImgContainer" class="flex items-center justify-center p-2 sm:p-4 overflow-hidden relative" style="height:65vh; min-height:0;">
-                <img id="lightboxImg" src="" class="object-contain rounded-lg sm:rounded-2xl shadow-2xl" style="transition: transform 0.1s ease-out; position:relative; z-index:1; max-width:100%; max-height:100%;">
+    <!-- gallery-display.js auto-injects lightbox, scrollToTop, loadMore -->
+
+    <!-- 模型选择面板 -->
+    <div id="modelPickerOverlay" class="model-picker-overlay" onclick="if(event.target===this)closeModelPicker()">
+        <div class="model-picker-panel">
+            <div class="model-picker-header">
+                <h3>选择模型</h3>
+                <button onclick="closeModelPicker()" class="model-picker-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
-            <div id="lightboxActions" class="z-50 flex gap-1.5 justify-center flex-shrink-0" style="display:none;">
-                <button onclick="lightboxAction('openFolder')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="打开文件夹"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-                <button onclick="lightboxAction('download')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-green-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="下载图片"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                <button onclick="lightboxAction('favorite')" id="lightboxFavBtn" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-amber-400 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="收藏"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-                <button onclick="lightboxAction('copyPrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-cyan-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="复制提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
-                <button onclick="lightboxAction('usePrompt')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-indigo-600 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="载入提示词"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-                <button onclick="lightboxAction('delete')" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-black hover:text-white rounded-lg flex items-center justify-center transition-colors" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
-            </div>
-            <div id="lightboxPrompt" class="bg-black/40 backdrop-blur-sm text-white px-5 py-3 sm:px-6 sm:py-4 rounded-xl text-[12px] sm:text-[13px] leading-relaxed overflow-y-auto text-center flex-shrink-0" style="display:none; max-width:min(88vw, 580px); margin:0 auto; max-height:clamp(60px, 12vh, 140px); min-height:0;">
-                <div id="lightboxPromptEn" class="opacity-90"></div>
-                <div id="lightboxPromptCn" class="opacity-50 text-[11px] sm:text-[12px] mt-1.5"></div>
-            </div>
-            <div id="lightboxRes" class="text-center text-white/70 text-[10px] sm:text-[11px] font-bold tracking-wider py-1" style="display:none;"></div>
-            <div id="lightboxThumbnails" class="flex overflow-x-auto" style="display:none; width:100%; max-width:min(95vw, 800px); margin:0 auto;"></div>
+            <div id="modelPickerList"></div>
         </div>
     </div>
 
-    <button id="scrollToTopBtn" onclick="document.querySelector('main').scrollTo({top:0,behavior:'smooth'})" class="fixed bottom-8 right-8 z-40 w-10 h-10 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center shadow-lg transition-all opacity-0 pointer-events-none hover:bg-black/80 hover:scale-110" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-    </button>
-
     <script>
-        // 回到顶部按钮
-        (function() {
-            const btn = document.getElementById('scrollToTopBtn');
-            if (!btn) return;
-            let ticking = false;
-            const mainEl = document.querySelector('main');
-            if (!mainEl) return;
-            mainEl.addEventListener('scroll', function() {
-                if (!ticking) {
-                    window.requestAnimationFrame(function() {
-                        if (mainEl.scrollTop > 400) {
-                            btn.style.display = '';
-                            btn.style.opacity = '1';
-                            btn.style.pointerEvents = 'auto';
-                        } else {
-                            btn.style.opacity = '0';
-                            btn.style.pointerEvents = 'none';
-                            setTimeout(() => { if (btn.style.opacity === '0') btn.style.display = 'none'; }, 300);
-                        }
-                        ticking = false;
-                    });
-                    ticking = true;
-                }
-            });
-        })();
         lucide.createIcons();
 
         function generateUUID() {
@@ -579,6 +581,83 @@
                 if (chk) chk.style.opacity = isOn ? '1' : '0';
             });
             updateParamsUI();
+        }
+
+        // === 模型选择面板（UNET 模型文件） ===
+        let selectedUnetModel = '';  // 用户选择的 UNET 模型文件名
+        let unetModelsCache = null;  // 缓存：首次加载后不再重复请求
+
+        function openModelPicker() {
+            closeAllMenus();
+            const overlay = document.getElementById('modelPickerOverlay');
+            const list = document.getElementById('modelPickerList');
+            if (!overlay || !list) return;
+            overlay.classList.add('open');
+            if (unetModelsCache) {
+                renderModelPickerList(list, unetModelsCache);
+                return;
+            }
+            list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">加载模型列表中...</div>';
+            fetchUnetModels().then(groups => {
+                unetModelsCache = groups;
+                renderModelPickerList(list, groups);
+            }).catch(e => {
+                list.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;font-size:12px;">加载失败: ${e.message}</div>`;
+            });
+        }
+
+        function renderModelPickerList(list, groups) {
+            list.innerHTML = groups.map(g => {
+                const cards = g.items.map(name => {
+                    const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
+                    const isActive = selectedUnetModel === name;
+                    return `<div class="model-picker-card${isActive ? ' active' : ''}" onclick="selectUnetModel('${name.replace(/'/g, "\\'")}')">
+                        <div class="model-picker-icon">📦</div>
+                        <div class="model-picker-info">
+                            <div class="model-picker-name">${shortName}</div>
+                            <div class="model-picker-desc">${g.label}</div>
+                        </div>
+                        <div class="model-picker-check"></div>
+                    </div>`;
+                }).join('');
+                return `<div class="model-picker-group-label">${g.label}</div>${cards}`;
+            }).join('') || '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">未找到可用模型</div>';
+        }
+
+        async function fetchUnetModels() {
+            const groups = [];
+            // 直接查轻量接口，避免全量 object_info 响应过大超时
+            const endpoints = [
+                { url: '/api/comfyui/object_info/UNETLoader', key: 'UNETLoader', field: 'unet_name', label: 'UNET 模型' },
+                { url: '/api/comfyui/object_info/LoadDiffusionModelShared%20%2F%2F%2FInspire', key: 'LoadDiffusionModelShared //Inspire', field: 'model_name', label: 'Shared Diffusion 模型' },
+            ];
+            for (const ep of endpoints) {
+                try {
+                    const res = await fetch(ep.url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    const node = data[ep.key];
+                    const models = node?.input?.required?.[ep.field]?.[0];
+                    if (Array.isArray(models) && models.length) {
+                        groups.push({ label: ep.label, items: models });
+                    }
+                } catch (e) {}
+            }
+            return groups;
+        }
+
+        function selectUnetModel(name) {
+            selectedUnetModel = name;
+            closeModelPicker();
+            // 更新按钮显示：保留工作流名 + 模型名
+            const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
+            const txt = document.getElementById('modelText');
+            if (txt) txt.textContent = shortName;
+        }
+
+        function closeModelPicker() {
+            const overlay = document.getElementById('modelPickerOverlay');
+            if (overlay) overlay.classList.remove('open');
         }
 
         // === 通用下拉菜单助手(取代 4 套重复的 toggle*Menu/select* 逻辑) ===
@@ -666,7 +745,7 @@
                         <!-- 比例 -->
                         <div class="anima-ctrl-wrap">
                             <button onclick="toggleMenu('ratioMenu')" id="ratioBtn" class="anima-ctrl">
-                                <span id="ratioText">9:16</span>
+                                <span id="ratioText">${animaRatioW}:${animaRatioH}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div id="ratioMenu" class="anima-ctrl-menu">
@@ -687,12 +766,12 @@
                         <!-- 分辨率 -->
                         <div class="anima-ctrl-wrap">
                             <button onclick="toggleMenu('resMenu')" id="resBtn" class="anima-ctrl">
-                                <span id="resText">1K</span>
+                                <span id="resText">${animaRes===2?'2K':'1K'}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div id="resMenu" class="anima-ctrl-menu">
-                                <div onclick="selectRes(1)" data-res-key="1" class="anima-ctrl-menu-item active"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">1K</span><span class="chk">✓</span></div>
-                                <div onclick="selectRes(2)" data-res-key="2" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">2K</span><span class="chk" style="opacity:0">✓</span></div>
+                                <div onclick="selectRes(1)" data-res-key="1" class="anima-ctrl-menu-item${animaRes===1?' active':''}"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">1K</span><span class="chk" style="opacity:${animaRes===1?1:0}">✓</span></div>
+                                <div onclick="selectRes(2)" data-res-key="2" class="anima-ctrl-menu-item${animaRes===2?' active':''}"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">2K</span><span class="chk" style="opacity:${animaRes===2?1:0}">✓</span></div>
                             </div>
                         </div>`;
             }
@@ -718,8 +797,9 @@
                 ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
                 : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
             if (isFixed && animaFixedSeed > 0) inp.value = animaFixedSeed;
+            else if (!isFixed) inp.value = '';
             inp.disabled = !isFixed;
-            inp.style.opacity = isFixed ? '1' : '0.35';
+            inp.style.opacity = isFixed ? '1' : '0.5';
             inp.style.cursor = isFixed ? 'text' : 'not-allowed';
         }
         function onSeedInput(v) {
@@ -865,6 +945,8 @@
             input.value = '';
             refImageRenderPreviews();
             refImageAutoSwitch();
+            // 刷新主界面按钮高亮
+            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
         }
 
         function refImageRenderPreviews() {
@@ -908,6 +990,8 @@
                 refImages.splice(index, 1);
                 refImageRenderPreviews();
                 refImageAutoSwitch();
+                // 刷新主界面按钮高亮
+                if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
             }
         }
 
@@ -916,6 +1000,8 @@
             refImages = [];
             refImageRenderPreviews();
             refImageAutoSwitch();
+            // 刷新主界面按钮高亮
+            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
         }
 
         // 自动切换工作流：有参考图→图生图，无参考图→文生图
@@ -1415,6 +1501,19 @@
             loadPresetI18n();
         }
 
+        // 页面初始化时刷新一次按钮高亮（已选过的本地数据会在加载完成后显示高亮）
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+                }, 500);
+            });
+        } else {
+            setTimeout(function() {
+                if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+            }, 500);
+        }
+
         // 暴露到 window，供历史记录 usePrompt 等跨模块调用
         window.updatePromptTags = updatePromptTags;
         window.loadPresetI18n = loadPresetI18n;
@@ -1532,9 +1631,13 @@
             isGenerating = true;
             setLoading(true);
             startProgress();
+            // 锁定当前工作流，生成期间切换模型不影响保存路径
+            const lockedWorkflow = currentWorkflow;
+            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : 'zimage';
 
             const placeholder = document.createElement('div');
             placeholder.className = 'masonry-item bg-gray-50 flex flex-col items-center justify-center border-dashed border-2 border-gray-200';
+            placeholder.style.minHeight = '180px';
             placeholder.innerHTML = '<div class="w-6 h-6 border-2 border-gray-100 border-t-black rounded-full animate-spin mb-3"></div><span class="text-[8px] font-bold text-gray-400 uppercase">Rendering...</span>';
             document.getElementById('masonry').prepend(placeholder);
 
@@ -1544,7 +1647,23 @@
                 if (!wfRes.ok) throw new Error('工作流加载失败');
                 const wfEnvelope = await wfRes.json();
                 const workflow = wfEnvelope.workflow || wfEnvelope;
-                const seed = Math.floor(Math.random() * 10**15);
+                const seed = (animaSeedMode === 'fixed' && animaFixedSeed > 0) ? animaFixedSeed : Math.floor(Math.random() * 10**15);
+
+                // 注入用户选择的 UNET 模型
+                if (selectedUnetModel) {
+                    for (const nid in workflow) {
+                        const node = workflow[nid];
+                        if (!node || !node.inputs) continue;
+                        // UNETLoader 节点
+                        if (node.class_type === 'UNETLoader' && node.inputs.unet_name !== undefined) {
+                            node.inputs.unet_name = selectedUnetModel;
+                        }
+                        // LoadDiffusionModelShared //Inspire 节点
+                        if (node.class_type && node.class_type.includes('LoadDiffusionModel') && node.inputs.model_name !== undefined) {
+                            node.inputs.model_name = selectedUnetModel;
+                        }
+                    }
+                }
 
                 if (currentWorkflow.includes('anima')) {
                     // 解析提示词，分离角色和画师标签
@@ -1692,13 +1811,12 @@
 
                 if (ws) try { ws.close(); } catch(e){}
 
-                const featureName = currentWorkflow.includes('anima') ? 'anima' : 'zimage';
                 // 先用 ComfyUI URL 立即显示（快速）
-                const quickRecord = { timestamp: Date.now(), prompt, images: finalUrls, type: currentWorkflow.includes('anima') ? 'anima' : 'zimage', model: featureName.toUpperCase() };
+                const _qs = Date.now(); const _sz = getAnimaSize(); const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
                 GalleryList.pushNewImage(quickRecord);
                 completeProgress();
                 // 并行保存到用户目录（后台，不阻塞显示）
-                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, featureName).catch(() => u)));
+                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, lockedFeatureName).catch(() => u)));
                 // 更新已显示的记录（替换 ComfyUI URL 为本地 URL）
                 const quickTs = quickRecord.timestamp;
                 const quickCard = document.getElementById('history-' + quickTs);
@@ -1715,8 +1833,27 @@
                 }
                 // 从URL路径提取文件夹名作为类型标识
                 const folderMatch = localUrls[0].match(/\/output\/[^/]+\/([^/]+)\//);
-                const folderName = folderMatch ? folderMatch[1] : featureName;
-                const record = { timestamp: quickTs, prompt, images: localUrls, type: currentWorkflow.includes('anima') ? 'anima' : 'zimage', model: folderName.toUpperCase() };
+                const folderName = folderMatch ? folderMatch[1] : lockedFeatureName;
+                const size = getAnimaSize();
+                const record = {
+                    timestamp: quickTs,
+                    prompt,
+                    images: localUrls,
+                    type: lockedFeatureName === 'anima' ? 'anima' : 'zimage',
+                    model: folderName.toUpperCase(),
+                    genParams: {
+                        workflow: lockedWorkflow,
+                        seed: seed,
+                        width: size.width,
+                        height: size.height,
+                        ratioW: animaRatioW,
+                        ratioH: animaRatioH,
+                        resolution: animaRes,
+                        batchCount: currentBatchCount,
+                        loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })),
+                        engine: currentEngine,
+                    }
+                };
                 // 保存到历史记录
                 try {
                     await fetch('/api/history/save', {
@@ -1768,50 +1905,7 @@
         let lightboxCurrentIndex = 0;
         let lightboxCurrentRecord = null;
 
-        function lightboxAction(action) {
-            if (!lightboxCurrentRecord) return;
-            const record = lightboxCurrentRecord;
-            const imgUrl = (record.images && record.images[lightboxCurrentIndex]) || '';
-            const ts = record.timestamp;
-
-            switch (action) {
-                case 'openFolder':
-                    if (window.GalleryActions && GalleryActions.openImageFolder) {
-                        GalleryActions.openImageFolder(record, event);
-                    }
-                    break;
-                case 'download':
-                    if (window.GalleryActions && GalleryActions.downloadImage) {
-                        GalleryActions.downloadImage(imgUrl, String(ts) + '.png', event);
-                    }
-                    break;
-                case 'favorite':
-                    if (window.GalleryActions && GalleryActions.toggleFavorite) {
-                        GalleryActions.toggleFavorite(record, event, imgUrl);
-                        updateLightboxFavBtn();
-                    }
-                    break;
-                case 'copyPrompt':
-                    if (window.GalleryActions && GalleryActions.copyPrompt) {
-                        GalleryActions.copyPrompt(record, event);
-                    }
-                    break;
-                case 'usePrompt':
-                    if (window.GalleryActions && GalleryActions.usePrompt) {
-                        GalleryActions.usePrompt(record, event);
-                    }
-                    break;
-                case 'delete':
-                    if (window.GalleryActions && GalleryActions.deleteHistoryItem) {
-                        if (confirm('确认删除这张图片？')) {
-                            GalleryActions.deleteHistoryItem(record, event);
-                            closeLightbox();
-                        }
-                    }
-                    break;
-            }
-        }
-
+        // --- Lightbox functions moved to gallery-display.js ---
         function updateLightboxFavBtn() {
             const btn = document.getElementById('lightboxFavBtn');
             if (!btn || !lightboxCurrentRecord) return;
@@ -1906,305 +2000,120 @@
             }
         };
 
-        function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam) {
-            const promptEl = document.getElementById('lightboxPrompt');
-            const promptCnEl = document.getElementById('lightboxPromptCn');
-            const promptEnEl = document.getElementById('lightboxPromptEn');
-            const actionsEl = document.getElementById('lightboxActions');
+        // Lightbox functions are now in gallery-display.js
 
-            // 查找当前图片对应的 record
-            function findRecord(imgUrl) {
-                try {
-                    const allHistory = (window.GalleryList && window.GalleryList.allHistory) || [];
-                    for (const h of allHistory) {
-                        if (h.images && h.images.includes(imgUrl)) {
-                            return h;
-                        }
-                    }
-                } catch (e) {}
-                return null;
-            }
-
-            // 切图后回调：更新提示词、缩略图和操作按钮
-            const onImageChange = (idx, imgUrl, newPrompt) => {
-                lightboxCurrentIndex = idx;
-                lightboxCurrentRecord = findRecord(imgUrl);
-                updateLightboxThumbnails();
-                updateLightboxFavBtn();
-                if (!promptEl) return;
-                currentLightboxPrompt = newPrompt || '';
-                if (!currentLightboxPrompt) {
-                    promptEl.style.display = 'none';
+        // === 初始化（统一由 gallery-display.js 处理） ===
+        GalleryDisplay.init({
+            historyType: 'zimage,anima',
+            favoritesStorageKey: 'zimage_favorites',
+            nsfwEnabled: true,
+            galleryFeatures: { modelBadge: 'auto' },
+            onPromptDisplay: (prompt) => {
+                if (typeof loadPresetI18n === 'function' && typeof translatePromptToEn === 'function') {
+                    return { en: loadPresetI18n().then(() => translatePromptToEn(prompt)) };
+                }
+                return { en: '' };
+            },
+            onUsePrompt: async (record) => {
+                const p = record.genParams;
+                if (!p) {
+                    const el = document.getElementById('prompt');
+                    if (el) { el.value = record.prompt || ''; el.dispatchEvent(new Event('input', {bubbles:true})); }
                     return;
                 }
-                const raw = currentLightboxPrompt;
-                if (promptEnEl) promptEnEl.textContent = '';
-                if (promptCnEl) promptCnEl.textContent = raw;
-                promptEl.style.display = '';
-                loadPresetI18n().then(() => {
-                    if (promptEnEl && document.getElementById('lightbox') && !document.getElementById('lightbox').classList.contains('hidden')) {
-                        promptEnEl.textContent = translatePromptToEn(raw);
-                    }
-                });
-            };
-
-            // 初始记录
-            const firstImgUrl = Array.isArray(imagesOrPrompt) ? (imagesOrPrompt[startIndexOrPrompt || 0] || url) : url;
-            lightboxCurrentRecord = findRecord(firstImgUrl);
-            if (actionsEl) {
-                actionsEl.style.display = lightboxCurrentRecord ? 'flex' : 'none';
-            }
-            updateLightboxFavBtn();
-
-            // 获取所有历史记录的图片列表
-            function getAllHistoryImages() {
-                const allHistory = (window.GalleryList && window.GalleryList.allHistory) || [];
-                const allImages = [];
-                allHistory.forEach(h => {
-                    if (h.images && h.images.length) {
-                        h.images.forEach(u => { if (u) allImages.push(u); });
-                    }
-                });
-                return allImages;
-            }
-
-            if (Array.isArray(imagesOrPrompt)) {
-                // 3/4/5 param版本：openLightbox(image, allImages, startIndex[, prompt[, allPrompts]])
-                // 4 参版本 promptParam 是当前首图 prompt；5 参版本 allPrompts 包含每张图对应的 prompt
-                currentLightboxPrompt = promptParam || '';
-                // 使用所有历史记录的图片
-                lightboxImages = getAllHistoryImages();
-                // 找到当前图片在所有图片中的索引
-                lightboxCurrentIndex = lightboxImages.indexOf(firstImgUrl);
-                if (lightboxCurrentIndex === -1) lightboxCurrentIndex = 0;
-                if (lightboxImages.length > 1) {
-                    // 从 allHistory 获取所有图片的提示词
-                    let prompts = [];
+                // 1. 提示词
+                const el = document.getElementById('prompt');
+                if (el) { el.value = record.prompt || ''; el.dispatchEvent(new Event('input', {bubbles:true})); }
+                // 1.5 解析角色和画师，设置到选择器
+                if (typeof pickerSelected !== 'undefined' && typeof artistPickerSelected !== 'undefined') {
+                    const tokens = (record.prompt || '').split(PROMPT_TAG_SPLITTER).map(t => t.trim()).filter(Boolean);
+                    // 只把「在角色数据库中真实存在」的 token 视为角色，避免将普通提示词误判为角色
+                    let charNameSet = null, charTriggerSet = null;
                     try {
-                        const allHistory = (window.GalleryList && window.GalleryList.allHistory) || [];
-                        const historyByImage = new Map();
-                        allHistory.forEach(h => {
-                            if (h.images && h.images.length) {
-                                h.images.forEach(u => { if (u) historyByImage.set(u, h); });
-                            }
-                        });
-                        prompts = lightboxImages.map(imgUrl => {
-                            const h = historyByImage.get(imgUrl);
-                            return (h && h.prompt) || '';
-                        });
-                    } catch (e) {}
-                    // 如果调用方传入了 5 参 allPrompts，用它覆写（更准确）
-                    if (arguments.length >= 5 && Array.isArray(arguments[4]) && arguments[4].length === imagesOrPrompt.length) {
-                        prompts = arguments[4];
-                    }
-                    ImageViewer.init(lightboxImages, lightboxCurrentIndex, { prompts, onShow: onImageChange });
-                    document.getElementById('lightboxPrevBtn').style.display = '';
-                    document.getElementById('lightboxNextBtn').style.display = '';
-                } else {
-                    lightboxImages = getAllHistoryImages();
-                    lightboxCurrentIndex = lightboxImages.indexOf(url);
-                    if (lightboxCurrentIndex === -1) lightboxCurrentIndex = 0;
-                    ImageViewer.init(lightboxImages, lightboxCurrentIndex);
-                    document.getElementById('lightboxPrevBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                    document.getElementById('lightboxNextBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                }
-            } else {
-                // 2 param版本：openLightbox(image, prompt) — url 也可能是图片数组
-                currentLightboxPrompt = imagesOrPrompt || '';
-                if (Array.isArray(url)) {
-                    lightboxImages = getAllHistoryImages();
-                    lightboxCurrentIndex = lightboxImages.indexOf(url[0]);
-                    if (lightboxCurrentIndex === -1) lightboxCurrentIndex = 0;
-                    ImageViewer.init(lightboxImages, lightboxCurrentIndex);
-                    document.getElementById('lightboxPrevBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                    document.getElementById('lightboxNextBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                } else {
-                    lightboxImages = getAllHistoryImages();
-                    lightboxCurrentIndex = lightboxImages.indexOf(url);
-                    if (lightboxCurrentIndex === -1) lightboxCurrentIndex = 0;
-                    ImageViewer.init(lightboxImages, lightboxCurrentIndex);
-                    document.getElementById('lightboxPrevBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                    document.getElementById('lightboxNextBtn').style.display = lightboxImages.length > 1 ? '' : 'none';
-                }
-            }
-            updateLightboxThumbnails();
-            if (promptEl) {
-                if (currentLightboxPrompt) {
-                    const raw = currentLightboxPrompt;
-                    // 第一行：翻译前的英文 prompt（中文 token 通过反向表还原回英文）
-                    // 第二行：原文（可能是中文，淡色辅助显示）
-                    if (promptEnEl) promptEnEl.textContent = ''; // 等待翻译
-                    if (promptCnEl) promptCnEl.textContent = raw;
-                    promptEl.style.display = '';
-                    // 异步等待 i18n 表加载完再填英文
-                    loadPresetI18n().then(() => {
-                        if (promptEnEl && document.getElementById('lightbox') && !document.getElementById('lightbox').classList.contains('hidden')) {
-                            promptEnEl.textContent = translatePromptToEn(raw);
+                        if (typeof ANIMA_CHAR_DB !== 'undefined' && ANIMA_CHAR_DB && ANIMA_CHAR_DB.length > 0) {
+                            charNameSet = new Set(ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+                            charTriggerSet = new Set();
+                            ANIMA_CHAR_DB.forEach(c => {
+                                if (Array.isArray(c.triggers)) c.triggers.forEach(t => charTriggerSet.add(String(t).toLowerCase()));
+                                else if (typeof c.trigger === 'string') charTriggerSet.add(c.trigger.toLowerCase());
+                            });
                         }
-                    });
-                } else {
-                    promptEl.style.display = 'none';
+                    } catch (_) {}
+                    const isCharToken = (t) => {
+                        if (!charNameSet) return false;
+                        if (t.startsWith('@') || t.startsWith('by ')) return false;
+                        const tl = t.toLowerCase();
+                        return charNameSet.has(tl) || (charTriggerSet && charTriggerSet.has(tl));
+                    };
+                    pickerSelected = tokens.filter(isCharToken);
+                    // 同步初始化「上次应用写入的角色 token 快照」，避免关闭时把非角色 token 一并清掉
+                    if (typeof pickerLastAppliedTokens !== 'undefined') {
+                        pickerLastAppliedTokens = new Set(pickerSelected.map(t => t.toLowerCase()));
+                    }
+                    artistPickerSelected = tokens.filter(t => t.startsWith('@')).map(t => t.substring(1));
+                    if (typeof artistPickerLastAppliedTokens !== 'undefined') {
+                        artistPickerLastAppliedTokens = new Set(
+                            tokens.filter(t => t.startsWith('@') || t.startsWith('by ')).map(t => t.toLowerCase())
+                        );
+                    }
+                    if (typeof pickerRenderGrid === 'function') pickerRenderGrid();
+                    if (typeof artistPickerRenderGrid === 'function') artistPickerRenderGrid();
+                    if (typeof updatePickerUI === 'function') updatePickerUI();
                 }
-            }
-        }
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.add('hidden');
-            document.body.style.overflow = '';
-            const actionsEl = document.getElementById('lightboxActions');
-            if (actionsEl) actionsEl.style.display = 'none';
-            lightboxCurrentRecord = null;
-            setTimeout(() => { document.getElementById('lightboxImg').src = ''; }, 300);
-        }
-        function handleOutsideClick(e) { if (e.target.id === 'lightbox') closeLightbox(); }
-        function downloadImage() {
-            const img = document.getElementById('lightboxImg');
-            if (!img.src) return;
-            const a = document.createElement('a');
-            a.href = img.src; a.download = 'generated_' + Date.now() + '.png';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
-        window.openLightbox = openLightbox;
-
-        // === 初始化 ===
-        window.GALLERY_CONFIG = {
-            type: 'zimage,anima',
-            container: '#masonry',
-            trigger: '#loadMoreTrigger',
-            pageSize: 15,
-            features: { delete: true, openFolder: true, download: true, copyToCanvas: false, regenerate: false, batchSelect: false, contextMenu: true, imageFallback: true, modelBadge: 'auto', favorite: true, copyPrompt: true, usePrompt: true }
-        };
-        // 初始化收藏 Set（从 localStorage 读取）
-        try {
-            const arr = JSON.parse(localStorage.getItem('zimage_favorites') || '[]');
-            const items = (arr || []).map(String);
-            // 迁移：旧格式是 timestamp（纯数字），新格式是图片 URL
-            // 如果所有条目都是纯数字，说明是旧格式，清空并提示
-            if (items.length > 0 && items.every(s => /^\d+$/.test(s))) {
-                console.log('[Gallery] 迁移旧收藏格式（timestamp → URL），已清空旧数据');
-                localStorage.removeItem('zimage_favorites');
-                window.__galleryFavorites = new Set();
-            } else {
-                window.__galleryFavorites = new Set(items);
-            }
-        } catch (_) { window.__galleryFavorites = new Set(); }
-        GalleryList.init({ type:'zimage,anima', container:'#masonry', trigger:'#loadMoreTrigger', pageSize:15, batchSelect:false });
+                // 2. 工作流
+                if (p.workflow && typeof switchWorkflow === 'function') switchWorkflow(p.workflow);
+                // 3. 比例和分辨率
+                if (p.ratioW) { animaRatioW = p.ratioW; animaRatioH = p.ratioH; }
+                if (p.resolution) { animaRes = p.resolution; }
+                // 4. 种子（设为固定模式）
+                if (p.seed) {
+                    animaSeedMode = 'fixed';
+                    animaFixedSeed = p.seed;
+                    try {
+                        localStorage.setItem('anima_seed_mode', 'fixed');
+                        localStorage.setItem('anima_fixed_seed', String(p.seed));
+                    } catch(_){}
+                    if (typeof updateSeedUI === 'function') updateSeedUI();
+                }
+                // 5. 批量数量
+                if (p.batchCount) { currentBatchCount = p.batchCount; localStorage.setItem('zimage_batch_count', String(p.batchCount)); if (typeof updateBatchCountUI === 'function') updateBatchCountUI(); }
+                // 6. LoRA（过滤掉工作流内置的，避免重复注入）
+                if (Array.isArray(p.loras) && p.workflow) {
+                    try {
+                        const wfRes = await fetch('/api/workflows/' + encodeURIComponent(p.workflow));
+                        if (wfRes.ok) {
+                            const wfEnv = await wfRes.json();
+                            const wf = wfEnv.workflow || wfEnv;
+                            // 收集工作流里已有的 LoRA 名称
+                            const builtinNames = new Set();
+                            for (const nid in wf) {
+                                const n = wf[nid];
+                                if (n && n.class_type && n.class_type.includes('LoraLoader') && n.inputs && n.inputs.lora_name) {
+                                    builtinNames.add(n.inputs.lora_name);
+                                }
+                            }
+                            loraState.active = p.loras.filter(l => !builtinNames.has(l.name));
+                        } else {
+                            loraState.active = p.loras;
+                        }
+                    } catch(_) {
+                        loraState.active = p.loras;
+                    }
+                    try { localStorage.setItem('zimage_lora_config', JSON.stringify(loraState.active)); } catch(_){}
+                }
+                // 7. 刷新参数面板 + 滚到顶部
+                if (typeof updateParamsUI === 'function') updateParamsUI();
+                // 8. 刷新按钮高亮（LoRA 数量变化等）
+                if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+                try { document.querySelector('main')?.scrollTo({top:0, behavior:'smooth'}); } catch(_){}
+            },
+        });
         // 移动工具栏到固定位置
         setTimeout(() => {
             const toolbar = document.querySelector('.history-bulk-toolbar');
             const placeholder = document.getElementById('toolbarPlaceholder');
-            if (toolbar && placeholder) {
-                placeholder.appendChild(toolbar);
-            }
+            if (toolbar && placeholder) placeholder.appendChild(toolbar);
         }, 100);
-        // MutationObserver 监听新图片插入，不再强制重新布局
-        // CSS columns 会自动处理新插入的元素
-        window.HistoryBulkManager?.attach({
-            masonry: '#masonry',
-            extraButtons: [
-                {
-                    id: 'thumb-size',
-                    label: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-                    title: '切换缩略图尺寸（默认）',
-                    onClick: (btn) => {
-                        const modes = ['thumb-large', 'thumb-medium', 'thumb-small'];
-                        const icons = [
-                            '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>',
-                            '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-                            '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1" opacity="0.6"/><rect x="1" y="7" width="5" height="5" rx="1" opacity="0.6"/><rect x="7" y="7" width="5" height="5" rx="1" opacity="0.4"/></svg>'
-                        ];
-                        const grid = document.getElementById('masonry');
-                        if (!grid) return;
-                        const cur = modes.findIndex(m => grid.classList.contains(m));
-                        const next = (cur + 1) % modes.length;
-                        modes.forEach(m => grid.classList.remove(m));
-                        grid.classList.add(modes[next]);
-                        btn.innerHTML = icons[next];
-                        btn.title = ['大图', '默认', '小图'][next];
-                        try { localStorage.setItem('zimage_thumb_size', String(next)); } catch (_) {}
-                    }
-                },
-                {
-                    id: 'fav-toggle',
-                    label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="btn-text"> 收藏</span>',
-                    title: '仅显示已收藏的图',
-                    onClick: (btn) => {
-                        const on = !document.body.classList.contains('fav-mode');
-                        document.body.classList.toggle('fav-mode', on);
-                        btn.classList.toggle('is-on', on);
-                        try { localStorage.setItem('zimage_fav_mode', on ? '1' : '0'); } catch (_) {}
-                        // 收藏模式开启时，强制加载所有可见的 lazy 图片
-                        if (on) {
-                            setTimeout(() => {
-                                document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
-                                    if (!img.complete) {
-                                        const src = img.src;
-                                        img.src = '';
-                                        img.src = src;
-                                    }
-                                });
-                            }, 50);
-                        }
-                    }
-                },
-                {
-                    id: 'nsfw-toggle',
-                    label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> 屏蔽 NSFW</span>',
-                    title: '将 prompt 中含 NSFW 关键词的生成图替换为蒙版',
-                    onClick: (btn) => {
-                        const on = !document.body.classList.contains('nsfw-mode');
-                        document.body.classList.toggle('nsfw-mode', on);
-                        btn.classList.toggle('is-on', on);
-                        try { localStorage.setItem('zimage_nsfw_block', on ? '1' : '0'); } catch (_) {}
-                    }
-                }
-            ]
-        });
-        // 恢复 NSFW / 收藏过滤偏好
-        try {
-            if (localStorage.getItem('zimage_fav_mode') === '1') {
-                document.body.classList.add('fav-mode');
-                setTimeout(() => {
-                    const btn = document.querySelector('[data-extra-btn="fav-toggle"]');
-                    if (btn) btn.classList.add('is-on');
-                    // 强制加载所有收藏图片
-                    document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
-                        if (!img.complete) {
-                            const src = img.src;
-                            img.src = '';
-                            img.src = src;
-                        }
-                    });
-                }, 100);
-            }
-        } catch (_) {}
-        try {
-            if (localStorage.getItem('zimage_nsfw_block') === '1') {
-                document.body.classList.add('nsfw-mode');
-                // 等工具栏注入后同步按钮态
-                setTimeout(() => {
-                    const btn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
-                    if (btn) btn.classList.add('is-on');
-                }, 0);
-            }
-        } catch (_) {}
-        // 恢复缩略图尺寸偏好
-        try {
-            const savedThumb = parseInt(localStorage.getItem('zimage_thumb_size')) || 0;
-            if (savedThumb >= 0 && savedThumb <= 2) {
-                const modes = ['thumb-large', 'thumb-medium', 'thumb-small'];
-                const icons = [
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1" opacity="0.6"/><rect x="1" y="7" width="5" height="5" rx="1" opacity="0.6"/><rect x="7" y="7" width="5" height="5" rx="1" opacity="0.4"/></svg>'
-                ];
-                setTimeout(() => {
-                    const grid = document.getElementById('masonry');
-                    const btn = document.querySelector('[data-extra-btn="thumb-size"]');
-                    if (grid) { grid.classList.add(modes[savedThumb]); }
-                    if (btn) { btn.innerHTML = icons[savedThumb]; btn.title = ['大图', '默认', '小图'][savedThumb]; }
-                }, 0);
-            }
-        } catch (_) {}
         const savedWf = localStorage.getItem('zimage_workflow');
         if (savedWf && (savedWf === 'Z-Image.json' || savedWf.includes('anima'))) switchWorkflow(savedWf);
         else updateParamsUI();
@@ -2723,10 +2632,13 @@
             btn.style.display = showLora ? '' : 'none';
             // 更新按钮文字显示数量
             const btnText = document.getElementById('loraBtnText');
+            const count = loraState.active.length;
             if (btnText) {
-                const count = loraState.active.length;
                 btnText.textContent = count > 0 ? ` LoRA(${count})` : ' LoRA';
             }
+            // 高亮：已选 LoRA 时蓝色高亮
+            if (count > 0) btn.classList.add('is-in-use');
+            else btn.classList.remove('is-in-use');
         }
 
         // UI: 切换面板（使用 LoRA Picker）
@@ -2738,6 +2650,164 @@
                 updateLoraSwitcherVisibility();
             });
         }
+
+        // UI: 刷新所有选择器按钮的高亮/数量状态
+        // - 角色、画师、预设按钮：根据已选数量显示高亮 + 角标
+        // - 参考图按钮：根据 refImages 数量显示高亮 + 角标
+        // - LoRA 按钮：调用 updateLoraSwitcherVisibility() 处理
+        function updatePickerButtonsHighlight() {
+            // 角色
+            const charBtn = document.getElementById('charPickerBtn');
+            const charText = document.getElementById('charPickerBtnText');
+            if (charBtn && typeof pickerSelected !== 'undefined') {
+                const n = pickerSelected.length;
+                if (n > 0) charBtn.classList.add('is-in-use');
+                else charBtn.classList.remove('is-in-use');
+                if (charText) charText.textContent = n > 0 ? ` 角色(${n})` : ' 角色';
+            }
+            // 画师
+            const artistBtn = document.getElementById('artistPickerBtn');
+            const artistText = document.getElementById('artistPickerBtnText');
+            if (artistBtn && typeof artistPickerSelected !== 'undefined') {
+                const n = artistPickerSelected.length;
+                if (n > 0) artistBtn.classList.add('is-in-use');
+                else artistBtn.classList.remove('is-in-use');
+                if (artistText) artistText.textContent = n > 0 ? ` 画师(${n})` : ' 画师';
+            }
+            // 预设
+            const presetBtn = document.getElementById('presetPickerBtn');
+            const presetText = document.getElementById('presetPickerBtnText');
+            if (presetBtn && typeof presetPickerSelected !== 'undefined') {
+                const n = presetPickerSelected.length;
+                if (n > 0) presetBtn.classList.add('is-in-use');
+                else presetBtn.classList.remove('is-in-use');
+                if (presetText) presetText.textContent = n > 0 ? ` 预设(${n})` : ' 预设';
+            }
+            // 参考图
+            const refBtn = document.getElementById('refImageBtn');
+            const refText = document.getElementById('refImageBtnText');
+            if (refBtn && typeof refImages !== 'undefined') {
+                const n = refImages.length;
+                if (n > 0) refBtn.classList.add('is-in-use');
+                else refBtn.classList.remove('is-in-use');
+                if (refText) refText.textContent = n > 0 ? ` 参考图(${n})` : ' 参考图';
+            }
+            // LoRA
+            updateLoraSwitcherVisibility();
+        }
+        // 暴露到 window 供各选择器脚本调用
+        window.updatePickerButtonsHighlight = updatePickerButtonsHighlight;
+
+        // === 提示词同步：手动修改/清空提示词时，反向同步各选择器的"已选"状态 ===
+        // - 角色：只保留 prompt 中「真实存在」于 ANIMA_CHAR_DB 的 token
+        // - 画师：只保留 prompt 中以 @/by 开头且名称在艺术家数据库中的 token
+        // - 预设：只保留 prompt 中命中预设名/prompt 的 token
+        // - 同时同步各选择器的「上次应用快照」，避免下次打开时被误删普通提示词
+        function syncPickerStatesFromPrompt() {
+            const promptInput = document.getElementById('prompt');
+            if (!promptInput) return;
+            const raw = promptInput.value || '';
+            const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+            const lowerSet = new Set(parts.map(p => p.toLowerCase()));
+
+            // ---- 角色 ----
+            try {
+                if (typeof pickerSelected !== 'undefined' && typeof ANIMA_CHAR_DB !== 'undefined' && ANIMA_CHAR_DB && ANIMA_CHAR_DB.length > 0) {
+                    const charNameSet = new Set(ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+                    const charTriggerSet = new Set();
+                    ANIMA_CHAR_DB.forEach(c => {
+                        if (Array.isArray(c.triggers)) c.triggers.forEach(t => charTriggerSet.add(String(t).toLowerCase()));
+                        else if (typeof c.trigger === 'string') charTriggerSet.add(c.trigger.toLowerCase());
+                    });
+                    const newPickerSelected = pickerSelected.filter(name => {
+                        if (!name) return false;
+                        const nl = name.toLowerCase();
+                        // 名称在 DB 中 → 接受；否则检查 prompt 是否仍包含该 token
+                        if (charNameSet.has(nl)) return true;
+                        return lowerSet.has(nl);
+                    });
+                    pickerSelected = newPickerSelected;
+                    // 同步「上次应用快照」：取 pickerSelected 的当前值（取消选中的不再写回）
+                    if (typeof pickerLastAppliedTokens !== 'undefined') {
+                        pickerLastAppliedTokens = new Set(pickerSelected.map(t => t.toLowerCase()));
+                    }
+                }
+            } catch (_) {}
+
+            // ---- 画师 ----
+            try {
+                if (typeof artistPickerSelected !== 'undefined' && typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0) {
+                    const artistNameSet = new Set(ANIMA_ARTIST_DB.map(a => (a.name || '').toLowerCase()).filter(Boolean));
+                    const newArtistSel = artistPickerSelected.filter(name => {
+                        if (!name) return false;
+                        const nl = name.toLowerCase();
+                        if (artistNameSet.has(nl)) return true;
+                        return lowerSet.has('@' + nl) || lowerSet.has('by ' + nl);
+                    });
+                    artistPickerSelected = newArtistSel;
+                    if (typeof artistPickerLastAppliedTokens !== 'undefined') {
+                        const currentArtistTokens = parts.filter(p => p.startsWith('@') || p.startsWith('by '));
+                        artistPickerLastAppliedTokens = new Set(currentArtistTokens.map(t => t.toLowerCase()));
+                    }
+                }
+            } catch (_) {}
+
+            // ---- 预设 ----
+            try {
+                if (typeof presetPickerSelected !== 'undefined' && typeof _flatIndex !== 'undefined' && _flatIndex && _flatIndex.length > 0) {
+                    const idx = _flatIndex;
+                    const matchedIds = new Set();
+                    idx.forEach(p => {
+                        if (!p) return;
+                        const name = (p.name || '').toLowerCase();
+                        const prompt = (p.prompt || '').toLowerCase();
+                        if ((name && lowerSet.has(name)) || (prompt && lowerSet.has(prompt))) {
+                            matchedIds.add((p.category_id || p.category || '') + ':' + (p.id || p.name));
+                        }
+                    });
+                    presetPickerSelected = presetPickerSelected.filter(p => {
+                        const key = (p.category_id || p.category || '') + ':' + (p.id || p.name);
+                        return matchedIds.has(key);
+                    });
+                    if (typeof presetPickerLastAppliedTokens !== 'undefined') {
+                        // 保留 prompt 中命中预设的 token 作为快照
+                        const newSet = new Set();
+                        idx.forEach(p => {
+                            if (!p) return;
+                            const key = (p.category_id || p.category || '') + ':' + (p.id || p.name);
+                            if (matchedIds.has(key)) {
+                                const t = (p.prompt || p.name || p.id || '').trim().toLowerCase();
+                                if (t) newSet.add(t);
+                            }
+                        });
+                        presetPickerLastAppliedTokens = newSet;
+                    }
+                }
+            } catch (_) {}
+
+            // ---- 刷新按钮高亮/角标 ----
+            if (typeof updatePickerButtonsHighlight === 'function') {
+                updatePickerButtonsHighlight();
+            }
+        }
+        // 暴露到 window，方便其他模块/调试调用
+        window.syncPickerStatesFromPrompt = syncPickerStatesFromPrompt;
+
+        // 监听 prompt 输入变化：用户手动修改或清空时，反向同步选择器状态
+        document.addEventListener('DOMContentLoaded', () => {
+            const promptEl = document.getElementById('prompt');
+            if (promptEl) {
+                promptEl.addEventListener('input', () => {
+                    // 防抖：避免每个字符都重算，60ms 一次足够
+                    clearTimeout(window.__syncPickerStatesTimer);
+                    window.__syncPickerStatesTimer = setTimeout(() => {
+                        if (typeof syncPickerStatesFromPrompt === 'function') {
+                            syncPickerStatesFromPrompt();
+                        }
+                    }, 60);
+                });
+            }
+        });
 
         // UI: 渲染面板内容（已移至 lora-picker.js）
 
@@ -2931,7 +3001,7 @@
         };
         updateLoraSwitcherVisibility();
 
-        window.onload = () => { GalleryList.load(0); updatePromptTags(); spPickerInit(); spmInit(); };
+        window.onload = () => { updatePromptTags(); spPickerInit(); spmInit(); };
         updateBatchCountUI();
     </script>
 </body>

@@ -219,6 +219,51 @@
     overflow: hidden;
 }
 
+/* 工具栏：tag 大类 + 排序下拉（同行） */
+.lora-picker-toolbar {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(16% 0.025 280 / 0.4);
+    flex-shrink: 0;
+    min-height: 36px;
+}
+.lora-picker-toolbar .lora-picker-tagbar {
+    flex: 1;
+    min-width: 0;
+    border-bottom: none;
+    background: transparent;
+    max-height: 96px;
+}
+.lora-picker-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    flex-shrink: 0;
+    border-left: 1px solid oklch(28% 0.02 280 / 0.5);
+    color: oklch(75% 0.01 280);
+}
+.lora-picker-sort select {
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(20% 0.025 280);
+    color: oklch(85% 0.01 280);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.lora-picker-sort select:hover {
+    border-color: oklch(50% 0.08 280);
+}
+.lora-picker-sort select:focus {
+    border-color: oklch(72% 0.18 350);
+}
+
 /* 已选 LoRA 条 */
 .lora-picker-selected-bar {
     display: flex;
@@ -280,6 +325,79 @@
 }
 .lora-picker-grid::-webkit-scrollbar { width: 6px; }
 .lora-picker-grid::-webkit-scrollbar-thumb { background: oklch(28% 0.02 280); border-radius: 6px; }
+
+/* ============ 固定分页条（贴在网格下方，始终可见） ============ */
+.lora-picker-pager {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(18% 0.02 280 / 0.6);
+    backdrop-filter: blur(8px);
+}
+.lora-picker-pager:empty { display: none; }
+.lora-picker-page-btn {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(20% 0.025 280);
+    color: oklch(80% 0.01 280);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    transition: background .15s, color .15s;
+}
+.lora-picker-page-btn:hover:not(:disabled) {
+    background: oklch(28% 0.03 280);
+    color: oklch(90% 0.01 280);
+}
+.lora-picker-page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.lora-picker-pages {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+.lora-picker-page-num {
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 6px;
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(20% 0.025 280);
+    color: oklch(80% 0.01 280);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    transition: background .15s, color .15s;
+}
+.lora-picker-page-num:hover {
+    background: oklch(28% 0.03 280);
+    color: oklch(90% 0.01 280);
+}
+.lora-picker-page-num.active {
+    background: oklch(72% 0.16 60 / 0.95);
+    color: oklch(20% 0.05 60);
+    border-color: transparent;
+    cursor: default;
+}
+.lora-picker-page-ellipsis {
+    color: oklch(50% 0.01 280);
+    font-size: 11px;
+    padding: 0 2px;
+}
+.lora-picker-page-info {
+    font-size: 11px;
+    color: oklch(60% 0.01 280);
+    font-weight: 600;
+    margin-left: 4px;
+}
 
 /* ============ 卡片 ============ */
 .lora-card-item {
@@ -492,6 +610,26 @@ video.lora-card-img {
     background: linear-gradient(135deg, oklch(70% 0.18 295 / 0.95), oklch(62% 0.22 320 / 0.95));
     color: oklch(98% 0.005 280);
     box-shadow: 0 2px 8px oklch(60% 0.18 295 / 0.4);
+    pointer-events: none;
+}
+
+/* 使用次数角标（位于右上角，与版本角标不冲突；版本角标在左上） */
+.lora-card-usage-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 4;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+    background: oklch(72% 0.16 60 / 0.95);
+    color: oklch(20% 0.05 60);
+    box-shadow: 0 2px 6px oklch(20% 0.02 280 / 0.4);
     pointer-events: none;
 }
 

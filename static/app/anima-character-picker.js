@@ -35,6 +35,9 @@
 
 
 let pickerSelected = [];
+// 上次写入提示词的角色 tokens 快照（用于「取消选择」时同步从提示词中删除）
+let pickerLastAppliedTokens = new Set();
+let pickerLastAppliedMode = 'name'; // 记录上次写入时的应用模式，确保模式变化时也能清旧 token
 
 
 let pickerCategory = 'all';
@@ -343,7 +346,7 @@ function pickerUpdateSelectedChips() {
     const countEl = document.getElementById('pickerSelectedCount');
 
 
-    if (countEl) countEl.textContent = pickerSelected.length;
+    if (countEl) countEl.textContent = '已选 ' + pickerSelected.length;
 
 
     if (!wrap) return;
@@ -1099,7 +1102,9 @@ function pickerFilterChars() {
     const q = (document.getElementById('pickerSearch')?.value || '').toLowerCase().trim();
 
 
-    let list = ANIMA_CHAR_DB.filter(c => {
+    // 用锁定顺序作为源（点击不会重排），未设置时回退到 ANIMA_CHAR_DB
+    const source = pickerFrozenOrder || ANIMA_CHAR_DB;
+    let list = source.filter(c => {
 
 
         if (pickerCategory === 'history') {
@@ -1198,42 +1203,38 @@ function pickerFilterChars() {
     });
 
 
-    if (pickerSortType === 'name') {
-
-
-        list.sort((a, b) => pickerSortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
-
-
-    } else if (pickerSortType === 'copyright') {
-
-
-        list.sort((a, b) => {
-
-
-            const cmp = (a.copyright || '').localeCompare(b.copyright || '');
-
-
-            if (cmp !== 0) return pickerSortAsc ? cmp : -cmp;
-
-
-            return pickerSortAsc ? a.post_count - b.post_count : b.post_count - a.post_count;
-
-
-        });
-
-
-    } else {
-
-
-        list.sort((a, b) => pickerSortAsc ? a.post_count - b.post_count : b.post_count - a.post_count);
-
-
-    }
+    // 排序已由 pickerFrozenOrder 提供，filter 中不再重排（避免点击后置顶失效）
 
 
     return list;
 
 
+}
+
+// 锁定顺序：打开选择器时计算一次（front-pin + 用户排序），运行期间点击不重排
+// 切换排序/分类/搜索时不动 pickerFrozenOrder，关闭时清空
+let pickerFrozenOrder = null;
+
+
+// 按当前 pickerSortType / pickerSortAsc 对全部角色排序，再把已选 pin 到前面
+function pickerBuildFrozenOrder() {
+    let list = ANIMA_CHAR_DB.slice();
+    if (pickerSortType === 'name') {
+        list.sort((a, b) => pickerSortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+    } else if (pickerSortType === 'copyright') {
+        list.sort((a, b) => {
+            const cmp = (a.copyright || '').localeCompare(b.copyright || '');
+            if (cmp !== 0) return pickerSortAsc ? cmp : -cmp;
+            return pickerSortAsc ? a.post_count - b.post_count : b.post_count - a.post_count;
+        });
+    } else {
+        list.sort((a, b) => pickerSortAsc ? a.post_count - b.post_count : b.post_count - a.post_count);
+    }
+    if (pickerSelected.length > 0) {
+        const _selSet = new Set(pickerSelected);
+        list = list.filter(c => _selSet.has(c.name)).concat(list.filter(c => !_selSet.has(c.name)));
+    }
+    return list;
 }
 
 
@@ -1825,9 +1826,8 @@ function pickerToggle(name) {
     }
 
 
-    document.getElementById('pickerSelectedCount').textContent = pickerSelected.length;
-
-
+    const countEl = document.getElementById('pickerSelectedCount');
+    if (countEl) countEl.textContent = '已选 ' + pickerSelected.length;
     pickerRenderGrid();
 
 
@@ -2018,80 +2018,56 @@ function pickerGetApplyText() {
 
 
 function pickerApply() {
-
-
     if (pickerSelected.length > 0) {
-
-
         pickerSelected.slice().reverse().forEach(name => {
-
-
             const idx = pickerHistory.indexOf(name);
-
-
             if (idx > -1) pickerHistory.splice(idx, 1);
-
-
             pickerHistory.unshift(name);
-
-
         });
-
-
         if (pickerHistory.length > PICKER_HISTORY_MAX) pickerHistory = pickerHistory.slice(0, PICKER_HISTORY_MAX);
-
-
         try { localStorage.setItem('anima-char-history', JSON.stringify(pickerHistory)); } catch (_) {}
-
-
     }
-
 
     const applyText = pickerGetApplyText();
 
-
     if (pickerCallback) {
-
-
         pickerCallback(pickerSelected.slice(), applyText);
-
-
     } else {
-
-
         const promptInput = document.getElementById('prompt');
-
-
         if (promptInput) {
-
-
             const current = promptInput.value.trim();
-
-
             const parts = current.split(',').map(p => p.trim()).filter(p => p);
-
-
-            const artistParts = parts.filter(p => p.startsWith('@') || p.startsWith('by '));
-
-
-            const allParts = [...artistParts, ...applyText.split(',').map(s => s.trim()).filter(s => s)];
-
-
-            promptInput.value = [...new Set(allParts)].join(', ');
-
-
+            // 1) 先把"上次应用写入的 token"全部移除（实现取消选择时同步删除）
+            //    同时当应用模式变化时也清空旧模式写入的 token，避免残留
+            const lastSetLower = new Set([...pickerLastAppliedTokens].map(s => s.toLowerCase()));
+            const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
+            // 2) 新写入的 token 来自当前 applyText
+            const newApplyTokens = applyText.split(',').map(s => s.trim()).filter(Boolean);
+            // 3) 记录本次写入的 token 集合（去重 + 保留大小写原值）
+            const seen = new Set();
+            const orderedApplyParts = [];
+            newApplyTokens.forEach(t => {
+                const tl = t.toLowerCase();
+                if (!seen.has(tl)) { seen.add(tl); orderedApplyParts.push(t); }
+            });
+            pickerLastAppliedTokens = new Set(orderedApplyParts.map(t => t.toLowerCase()));
+            pickerLastAppliedMode = pickerApplyModeType;
+            // 4) 拼回：保留所有非角色 token（如 unreal engine 5 / amazing quality 等普通提示词），
+            //    再追加本次选中的角色 token，末尾附加画师 token（保持原有的角色+画师拼接顺序）
+            const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
+            const preservedParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by '));
+            // 去重合并（大小写不敏感，保留先出现的原值）
+            const mergeSeen = new Set();
+            const finalParts = [];
+            [...preservedParts, ...orderedApplyParts, ...artistParts].forEach(t => {
+                const tl = t.toLowerCase();
+                if (!mergeSeen.has(tl)) { mergeSeen.add(tl); finalParts.push(t); }
+            });
+            promptInput.value = finalParts.filter(p => p).join(', ');
         }
-
-
     }
 
-
-    pickerClose();
-
-
     if (typeof updatePromptTags === 'function') updatePromptTags();
-
-
 }
 
 
@@ -2099,27 +2075,44 @@ function pickerApply() {
 
 
 function pickerOpen(callback) {
-
-
     pickerCallback = callback || null;
-
 
     const promptInput = document.getElementById('prompt');
 
-
     if (promptInput) {
-
-
         const parts = promptInput.value.split(',').map(p => p.trim()).filter(p => p);
-
-
-        pickerSelected = parts.filter(p => !p.startsWith('@') && !p.startsWith('by '));
-
-
+        // 只把「确实在角色数据库里」的 token 视为已选角色
+        // 避免 "sex" / "amazing quality" / "unreal engine 5" 这类普通提示词被误识别
+        if (ANIMA_CHAR_DB && ANIMA_CHAR_DB.length > 0) {
+            const nameSet = new Set(ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+            const triggerSet = new Set();
+            ANIMA_CHAR_DB.forEach(c => {
+                if (Array.isArray(c.triggers)) c.triggers.forEach(t => triggerSet.add(String(t).toLowerCase()));
+                else if (typeof c.trigger === 'string') triggerSet.add(c.trigger.toLowerCase());
+            });
+            pickerSelected = parts.filter(p => {
+                if (p.startsWith('@') || p.startsWith('by ')) return false;
+                const pl = p.toLowerCase();
+                return nameSet.has(pl) || triggerSet.has(pl);
+            });
+        } else {
+            pickerSelected = [];
+        }
+        // 把当前 prompt 中「属于角色」的 token 全部登记为「上次应用写入的」快照
+        // 这样首次打开即取消勾选某个角色，关闭时该角色的 token 也会同步从提示词中删除
+        pickerLastAppliedTokens = new Set(
+            pickerSelected.map(t => t.toLowerCase())
+        );
     }
 
 
-    document.getElementById('pickerSelectedCount').textContent = pickerSelected.length;
+    // 计算锁定顺序：用户排序 + 已选置顶
+    // 之后运行期间点击只切换状态，不重排
+    pickerFrozenOrder = pickerBuildFrozenOrder();
+
+
+    const _countEl = document.getElementById('pickerSelectedCount');
+    if (_countEl) _countEl.textContent = '已选 ' + pickerSelected.length;
 
 
     pickerUpdateSelectedChips();
@@ -2165,17 +2158,20 @@ function pickerOpen(callback) {
 
 
 function pickerClose() {
-
+    // 关闭即应用（与 LoRA 选择器一致：选择后关闭即直接使用）
+    pickerApply();
 
     pickerDetailClose();
 
-
+    // 清空锁定顺序，下次打开时重新计算
+    pickerFrozenOrder = null;
     const modal = document.getElementById('characterPickerModal');
-
-
     if (modal) modal.classList.remove('is-open');
 
-
+    // 关闭后刷新主界面按钮高亮状态
+    if (typeof window.updatePickerButtonsHighlight === 'function') {
+        window.updatePickerButtonsHighlight();
+    }
 }
 
 
@@ -2371,7 +2367,7 @@ function pickerInit() {
                     <div class="picker-footer-left">
 
 
-                        <button id="pickerCancelBtn" class="picker-text-btn">取消</button>
+                        <span id="pickerSelectedCount" class="picker-selected-count">已选 0</span>
 
 
                         <div id="pickerSelectedChips" class="picker-selected-chips"></div>
@@ -2416,18 +2412,6 @@ function pickerInit() {
                         </div>
 
 
-                        <button id="pickerApplyBtn" class="picker-fab">
-
-
-                            <span>应用到节点</span>
-
-
-                            <span class="picker-fab-count" id="pickerSelectedCount">0</span>
-
-
-                        </button>
-
-
                     </div>
 
 
@@ -2468,22 +2452,10 @@ function pickerInit() {
 
 
         modal.addEventListener('click', (e) => {
-
-
             if (e.target === modal) pickerClose();
-
-
         });
 
-
         document.getElementById('pickerCloseBtn').onclick = pickerClose;
-
-
-        document.getElementById('pickerCancelBtn').onclick = pickerClose;
-
-
-        document.getElementById('pickerApplyBtn').onclick = pickerApply;
-
 
         // 应用模式下拉菜单
 
@@ -2635,6 +2607,12 @@ function pickerInit() {
             typeBtn.querySelector('.picker-chip-text').textContent = next.label;
 
 
+            // 重新计算锁定顺序（用户主动改了排序）
+
+
+            pickerFrozenOrder = pickerBuildFrozenOrder();
+
+
             pickerPage = 1; pickerRenderGrid();
 
 
@@ -2660,6 +2638,12 @@ function pickerInit() {
 
 
             dirBtn.title = pickerSortAsc ? '升序' : '降序';
+
+
+            // 重新计算锁定顺序（用户主动改了升降序）
+
+
+            pickerFrozenOrder = pickerBuildFrozenOrder();
 
 
             pickerPage = 1; pickerRenderGrid();

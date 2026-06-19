@@ -20,6 +20,92 @@ let loraPickerCallback = null;     // 确认回调
 let loraPickerInitialized = false;
 let loraPickerPage = 1;            // 当前页码
 const loraPickerPageSize = 50;     // 每页数量
+let loraPickerSortBy = 'default';  // 排序模式：default/name-asc/name-desc/recent/most-used/folder-name
+
+// 锁定顺序：打开选择器时计算一次（front-pin + 用户排序），运行期间点击不重排
+// 关闭时清空
+let loraPickerFrozenOrder = null;
+
+// 排序模式 → 显示名
+const LORA_PICKER_SORTS = [
+    { key: 'default',     label: '默认顺序' },
+    { key: 'name-asc',    label: '名称 A→Z' },
+    { key: 'name-desc',   label: '名称 Z→A' },
+    { key: 'recent',      label: '最近使用' },
+    { key: 'most-used',   label: '使用次数' },
+    { key: 'folder-name', label: '文件夹 + 名称' }
+];
+
+// LoRA 使用统计（持久化到 localStorage）
+// 结构：{ [name]: { lastUsed: ms, count: n } }
+const LORA_USAGE_STORAGE_KEY = 'loraUsageStats';
+function loraPickerGetUsageStats() {
+    try {
+        const raw = localStorage.getItem(LORA_USAGE_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+}
+function loraPickerSetUsageStats(stats) {
+    try { localStorage.setItem(LORA_USAGE_STORAGE_KEY, JSON.stringify(stats)); } catch (e) {}
+}
+// 记录本次确认选中的 LoRA（多版本组用 modelRoot 作 key）
+function loraPickerRecordUsage(selectedItems) {
+    if (!Array.isArray(selectedItems) || selectedItems.length === 0) return;
+    const stats = loraPickerGetUsageStats();
+    const now = Date.now();
+    for (const it of selectedItems) {
+        const key = it.modelRoot || it.name;
+        if (!key) continue;
+        if (!stats[key]) stats[key] = { lastUsed: now, count: 0 };
+        stats[key].lastUsed = now;
+        stats[key].count = (stats[key].count || 0) + 1;
+    }
+    loraPickerSetUsageStats(stats);
+    // 使用次数变化，清掉缓存让角标即时更新
+    loraPickerClearCardCache();
+}
+// 获取某张卡的使用统计（兼容 group / single）
+function loraPickerItemUsage(item) {
+    const stats = loraPickerGetUsageStats();
+    const key = item.modelRoot || item.name;
+    return stats[key] || { lastUsed: 0, count: 0 };
+}
+
+// ── 卡片 HTML 缓存（按 itemKey） ────────────────────────────────
+// 同一张卡在筛选/排序/翻页时复用已渲染的 HTML 字符串，避免重复字符串拼接
+// 也减少 DOM 抖动，让浏览器更容易命中已缓存的图片/视频
+const loraPickerCardHtmlCache = new Map();
+function loraPickerGetItemKey(item) {
+    return item.isGroup ? ('g::' + (item.modelRoot || '')) : ('s::' + (item.name || ''));
+}
+function loraPickerClearCardCache() { loraPickerCardHtmlCache.clear(); }
+
+// ── 预览预热（保守策略） ──────────────────────────────────────
+// 只预热当前页可见的卡片，且每批最多 6 个并发，避免同时 200+ 请求压垮浏览器。
+// 不再用隐藏 <video>（videos 体积大、metadata 也可能拉很久），视频交给
+// 真正渲染到 <video> 元素时按需加载；用过的卡片走 ETag/304 命中缓存。
+const loraPickerPrewarmedSet = new Set();
+function loraPickerPrewarmPreviews(items, max) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    const limit = Math.min(items.length, max || 12);
+    let i = 0;
+    const inFlight = new Set();
+    const launch = () => {
+        while (inFlight.size < 6 && i < limit) {
+            const item = items[i++];
+            if (!item || !item.preview) continue;
+            if (loraPickerPrewarmedSet.has(item.preview)) continue;
+            loraPickerPrewarmedSet.add(item.preview);
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = item.preview;
+            inFlight.add(img);
+            img.onload = img.onerror = () => inFlight.delete(img);
+        }
+    };
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 30));
+    idle(() => launch());
+}
 
 // ── 文件夹名 → 中文显示名 ──────────────────────────────────────────
 const _PICKER_FOLDER_CN = {
@@ -184,9 +270,18 @@ function loraPickerInit() {
             <div class="lora-picker-body">
                 <div class="lora-picker-sidebar" id="loraPickerSidebar"></div>
                 <div class="lora-picker-content">
-                    <div class="lora-picker-tagbar" id="loraPickerTagbar"></div>
+                    <div class="lora-picker-toolbar">
+                        <div class="lora-picker-tagbar" id="loraPickerTagbar"></div>
+                        <div class="lora-picker-sort">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.7"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                            <select id="loraPickerSortSel" onchange="loraPickerOnSortChange(this.value)" title="排序方式">
+                                ${LORA_PICKER_SORTS.map(s => `<option value="${s.key}" ${s.key === loraPickerSortBy ? 'selected' : ''}>${s.label}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
                     <div class="lora-picker-selected-bar" id="loraPickerSelectedBar"></div>
                     <div class="lora-picker-grid" id="loraPickerGrid"></div>
+                    <div class="lora-picker-pager" id="loraPickerPager"></div>
                 </div>
             </div>
             <div class="lora-picker-footer">
@@ -220,6 +315,10 @@ async function loraPickerOpen(callback) {
     loraPickerSearch = '';
     loraPickerCategory = 'all';
     loraPickerTagCategory = 'all';
+    loraPickerRestoreSort();  // 恢复上次选择的排序模式
+    // 同步排序下拉的显示
+    const sortSel = document.getElementById('loraPickerSortSel');
+    if (sortSel) sortSel.value = loraPickerSortBy;
 
     // 复制当前已选状态
     if (typeof loraState !== 'undefined') {
@@ -291,17 +390,8 @@ async function loraPickerOpen(callback) {
                 resolvedName: cur ? cur.name : ''
             };
         });
-        // 多版本组排前，单文件排后
+        // 多版本组排前，单文件排后（具体排序规则由 loraPickerSortList 应用）
         loraPickerAllItems = [...groupCards, ...singles];
-        // 打开时已选排前（仅本次会话排序一次）
-        if (loraPickerSelected.length > 0) {
-            const selSet = new Set(loraPickerSelected.map(s => s.name));
-            loraPickerAllItems.sort((a, b) => {
-                const aKey = a.isGroup ? a.resolvedName : a.name;
-                const bKey = b.isGroup ? b.resolvedName : b.name;
-                return (selSet.has(aKey) ? 0 : 1) - (selSet.has(bKey) ? 0 : 1);
-            });
-        }
     } else {
         loraPickerSelected = [];
         loraPickerAllItems = [];
@@ -311,10 +401,17 @@ async function loraPickerOpen(callback) {
     document.getElementById('loraPickerShell').classList.add('is-open');
     document.body.style.overflow = 'hidden';
 
+    // 计算锁定顺序：用户排序 + 已选置顶
+    // 之后运行期间点击只切换状态，不重排
+    loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
+
     loraPickerRenderTagbar();
     loraPickerRenderSidebar();
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
+    // 预热：只预热当前实际可见的一页（最多 12 张，6 并发），不再灌全部 233 个
+    const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
+    if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
     loraPickerUpdateFooter();
 }
 
@@ -323,9 +420,15 @@ function loraPickerClose() {
     if (loraPickerCallback) {
         loraPickerCallback(loraPickerSelected);
     }
+    // 清空锁定顺序，下次打开时重新计算
+    loraPickerFrozenOrder = null;
     document.getElementById('loraPickerShell').classList.remove('is-open');
     document.body.style.overflow = '';
     loraPickerCallback = null;
+    // 关闭后刷新主界面按钮高亮状态
+    if (typeof window.updatePickerButtonsHighlight === 'function') {
+        window.updatePickerButtonsHighlight();
+    }
 }
 
 // ── 搜索 ─────────────────────────────────────────────────────────
@@ -334,6 +437,24 @@ function loraPickerOnSearch(val) {
     loraPickerPage = 1;
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+}
+
+// ── 排序 ─────────────────────────────────────────────────────────
+const LORA_PICKER_SORT_STORAGE_KEY = 'loraPickerSortBy';
+function loraPickerOnSortChange(val) {
+    loraPickerSortBy = val || 'default';
+    try { localStorage.setItem(LORA_PICKER_SORT_STORAGE_KEY, loraPickerSortBy); } catch (e) {}
+    loraPickerPage = 1;
+    // 重新计算锁定顺序（用户主动改了排序）
+    loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
+    loraPickerRenderGrid();
+    loraPickerUpdateFooter();
+}
+function loraPickerRestoreSort() {
+    try {
+        const v = localStorage.getItem(LORA_PICKER_SORT_STORAGE_KEY);
+        if (v && LORA_PICKER_SORTS.some(s => s.key === v)) loraPickerSortBy = v;
+    } catch (e) {}
 }
 
 // ── 获取分类列表 ──────────────────────────────────────────────────
@@ -390,9 +511,17 @@ function loraPickerSelectTagCategory(key) {
     loraPickerUpdateFooter();
 }
 
+// ── 锁定顺序：按当前排序对全部 LoRA 排序，并把已选 pin 到前面 ──
+function loraPickerBuildFrozenOrder() {
+    return loraPickerSortList(loraPickerAllItems);
+}
+
 // ── 获取过滤后的列表 ─────────────────────────────────────────────
 function loraPickerGetFiltered() {
-    let list = loraPickerAllItems;
+    // 用锁定顺序作为源（点击不会重排），未设置时回退到全部
+    let list = loraPickerFrozenOrder
+        ? loraPickerFrozenOrder.slice()
+        : loraPickerAllItems;
     // 1) folder 维度
     if (loraPickerCategory !== 'all') {
         list = list.filter(item => (item.folder || '通用') === loraPickerCategory);
@@ -410,7 +539,56 @@ function loraPickerGetFiltered() {
             (item.baseModel || '').toLowerCase().includes(loraPickerSearch)
         );
     }
+    // 排序和已选置顶已由 loraPickerFrozenOrder 提供，filter 中不再重排
+    // （避免点击后置顶失效）
     return list;
+}
+
+// 应用排序（已选 pin 到前面 + 用户选定的排序规则）
+function loraPickerSortList(list) {
+    const arr = list.slice();
+    const selSet = new Set(loraPickerSelected.map(s => s.name));
+    const keyOf = (item) => item.displayName || item.name || '';
+    // 先按用户选定的规则排序
+    switch (loraPickerSortBy) {
+        case 'name-asc':
+            arr.sort((a, b) => keyOf(a).localeCompare(keyOf(b), 'zh-Hans-CN'));
+            break;
+        case 'name-desc':
+            arr.sort((a, b) => keyOf(b).localeCompare(keyOf(a), 'zh-Hans-CN'));
+            break;
+        case 'recent':
+            arr.sort((a, b) => loraPickerItemUsage(b).lastUsed - loraPickerItemUsage(a).lastUsed);
+            break;
+        case 'most-used':
+            arr.sort((a, b) => {
+                const dc = loraPickerItemUsage(b).count - loraPickerItemUsage(a).count;
+                return dc !== 0 ? dc : keyOf(a).localeCompare(keyOf(b), 'zh-Hans-CN');
+            });
+            break;
+        case 'folder-name':
+            arr.sort((a, b) => {
+                const fc = (a.folder || '通用').localeCompare(b.folder || '通用', 'zh-Hans-CN');
+                return fc !== 0 ? fc : keyOf(a).localeCompare(keyOf(b), 'zh-Hans-CN');
+            });
+            break;
+        case 'default':
+        default:
+            // 默认顺序：多版本组排前 → 已选排前 → 原序
+            arr.sort((a, b) => {
+                if (a.isGroup !== b.isGroup) return a.isGroup ? -1 : 1;
+                return 0;
+            });
+            break;
+    }
+    // 已选置顶（所有排序模式通用，确保锁定顺序生效）
+    if (selSet.size > 0) {
+        const isSel = (it) => selSet.has(it.isGroup ? it.resolvedName : it.name);
+        const selected = arr.filter(isSel);
+        const unselected = arr.filter(it => !isSel(it));
+        return selected.concat(unselected);
+    }
+    return arr;
 }
 
 // ── 渲染侧边栏 ──────────────────────────────────────────────────
@@ -468,7 +646,89 @@ function loraPickerRenderSelectedBar() {
     el.innerHTML = html;
 }
 
-// ── 渲染卡片网格 ────────────────────────────────────────────────
+// ── 构建单张卡片 HTML（带缓存） ─────────────────────────────────
+function loraPickerBuildCardHtml(item) {
+    const key = loraPickerGetItemKey(item);
+    // 缓存命中：直接复用。同一张卡在筛选/排序/翻页时复用同字符串，
+    // 浏览器命中已缓存的图片/视频几乎零延迟。
+    if (loraPickerCardHtmlCache.has(key)) {
+        return loraPickerCardHtmlCache.get(key);
+    }
+    // 多版本组的 key 用 "g::" 前缀，避免与具体文件路径冲突
+    const itemKey = item.isGroup ? ('g::' + item.modelRoot) : item.name;
+    const safeName = itemKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+    // 优先显示视频，其次图片，最后占位符
+    // 视频只拉 metadata（不解码首帧），避免多卡时浏览器把首帧都解码一遍
+    let mediaHtml = '';
+    if (item.videoUrl) {
+        mediaHtml = '<video class="lora-card-img" src="' + item.videoUrl + '" autoplay loop muted playsinline preload="metadata" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"></video>';
+    } else if (item.preview) {
+        mediaHtml = '<img class="lora-card-img" src="' + item.preview + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+    }
+    const placeholderDisplay = (item.videoUrl || item.preview) ? 'none' : 'flex';
+
+    // 多版本组：当前显示的版本标签（右上角小角标）
+    let versionBadgeHtml = '';
+    if (item.isGroup && item.versions && item.versions.length > 0) {
+        const cur = item.versions[item.currentVersionIdx] || item.versions[0];
+        versionBadgeHtml = '<div class="lora-card-version-badge" title="当前显示版本">' + (cur.label || '?') + '</div>';
+    }
+
+    // 使用次数小角标（仅在 count > 0 时显示）
+    const usage = loraPickerItemUsage(item);
+    let usageBadgeHtml = '';
+    if (usage.count > 0) {
+        usageBadgeHtml = '<div class="lora-card-usage-badge" title="已使用 ' + usage.count + ' 次">' + usage.count + '</div>';
+    }
+
+    // 多版本组：底部悬停版本条
+    let versionsBarHtml = '';
+    if (item.isGroup && item.versions && item.versions.length > 0) {
+        const btnParts = item.versions.map((v, i) => {
+            const safeRoot = (item.modelRoot || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const active = (i === item.currentVersionIdx) ? 'active' : '';
+            return '<button type="button" class="lora-card-version-btn ' + active + '" onclick="event.stopPropagation();loraPickerSwitchVersion(\'' + safeRoot + '\',' + i + ')" title="' + v.name + '">' + (v.label || 'v' + (i+1)) + '</button>';
+        }).join('');
+        versionsBarHtml = '<div class="lora-card-versions" onclick="event.stopPropagation()">' +
+            btnParts +
+        '</div>';
+    }
+
+    // 卡片基础结构（不含 selected class、不含强度条）
+    // 通过在根 div 上加 data-key 标识，方便后续局部更新选中状态
+    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')" title="' + item.displayName + '\n' + (item.baseModel || '') + '\n' + (item.tags || '') + '">' +
+        mediaHtml +
+        versionBadgeHtml +
+        usageBadgeHtml +
+        '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
+            '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
+        '</div>' +
+        '<div class="lora-card-check" style="display:none">✓</div>' +
+        versionsBarHtml +
+        '<div class="lora-card-info">' +
+            '<div class="lora-card-name">' + item.displayName + '</div>' +
+            '<div class="lora-card-meta">' +
+                (item.baseModel ? '<span class="lora-card-base">' + item.baseModel + '</span>' : '') +
+                (item.tags ? '<span class="lora-card-tags">' + item.tags + '</span>' : '') +
+            '</div>' +
+        '</div>' +
+        '<div class="lora-card-strength-wrap"></div>' +
+    '</div>';
+
+    loraPickerCardHtmlCache.set(key, html);
+    return html;
+}
+
+// 强度条（仅在选中时插入）
+function loraPickerBuildStrengthHtml(selIdx, strength) {
+    return '<div class="lora-card-strength" onclick="event.stopPropagation()">' +
+        '<div class="lora-card-strength-track"><input type="range" min="0.2" max="1.2" step="0.05" value="' + strength + '" style="--lora-strength-pct:' + ((strength - 0.2) / 1.0 * 100).toFixed(1) + '%" oninput="loraPickerUpdateStrength(' + selIdx + ', parseFloat(this.value));var p=((parseFloat(this.value)-0.2)/1.0*100).toFixed(1);this.style.setProperty(\'--lora-strength-pct\',p+\'%\');this.closest(\'.lora-card-strength\').querySelector(\'.lora-card-strength-val\').textContent=parseFloat(this.value).toFixed(2)"></div>' +
+        '<span class="lora-card-strength-val">' + strength.toFixed(2) + '</span>' +
+    '</div>';
+}
+
+// ── 渲染卡片网格（只渲染卡片，分页条交给 renderPager） ──────────────
 function loraPickerRenderGrid() {
     const el = document.getElementById('loraPickerGrid');
     if (!el) return;
@@ -479,6 +739,7 @@ function loraPickerRenderGrid() {
             '<div class="lora-picker-empty-icon">📭</div>' +
             '<div class="lora-picker-empty-text">' + (loraPickerSearch ? '没有匹配的 LoRA' : '暂无 LoRA 数据') + '</div>' +
         '</div>';
+        loraPickerRenderPager();
         return;
     }
 
@@ -495,75 +756,67 @@ function loraPickerRenderGrid() {
         const selIdx = loraPickerSelected.findIndex(s => s.name === (item.isGroup ? item.resolvedName : item.name));
         const isSelected = selIdx >= 0;
         const strength = isSelected ? loraPickerSelected[selIdx].strength : 0.8;
-        // 多版本组的 key 用 "g::" 前缀，避免与具体文件路径冲突
-        const itemKey = item.isGroup ? ('g::' + item.modelRoot) : item.name;
-        const safeName = itemKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-        // 优先显示视频，其次图片，最后占位符
-        let mediaHtml = '';
-        if (item.videoUrl) {
-            mediaHtml = '<video class="lora-card-img" src="' + item.videoUrl + '" autoplay loop muted playsinline onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"></video>';
-        } else if (item.preview) {
-            mediaHtml = '<img class="lora-card-img" src="' + item.preview + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-        }
-        const placeholderDisplay = (item.videoUrl || item.preview) ? 'none' : 'flex';
-
-        // 多版本组：当前显示的版本标签（右上角小角标）
-        let versionBadgeHtml = '';
-        if (item.isGroup && item.versions && item.versions.length > 0) {
-            const cur = item.versions[item.currentVersionIdx] || item.versions[0];
-            versionBadgeHtml = '<div class="lora-card-version-badge" title="当前显示版本">' + (cur.label || '?') + '</div>';
-        }
-
-        // 多版本组：底部悬停版本条
-        let versionsBarHtml = '';
-        if (item.isGroup && item.versions && item.versions.length > 0) {
-            const btnParts = item.versions.map((v, i) => {
-                const safeRoot = (item.modelRoot || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                const active = (i === item.currentVersionIdx) ? 'active' : '';
-                return '<button type="button" class="lora-card-version-btn ' + active + '" onclick="event.stopPropagation();loraPickerSwitchVersion(\'' + safeRoot + '\',' + i + ')" title="' + v.name + '">' + (v.label || 'v' + (i+1)) + '</button>';
-            }).join('');
-            versionsBarHtml = '<div class="lora-card-versions" onclick="event.stopPropagation()">' +
-                btnParts +
-            '</div>';
-        }
-
-        html += '<div class="lora-card-item ' + (isSelected ? 'selected' : '') + (item.isGroup ? ' is-group' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')" title="' + item.displayName + '\n' + (item.baseModel || '') + '\n' + (item.tags || '') + '">' +
-            mediaHtml +
-            versionBadgeHtml +
-            '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
-                '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
-            '</div>' +
-            '<div class="lora-card-check" style="display:none">✓</div>' +
-            versionsBarHtml +
-            '<div class="lora-card-info">' +
-                '<div class="lora-card-name">' + item.displayName + '</div>' +
-                '<div class="lora-card-meta">' +
-                    (item.baseModel ? '<span class="lora-card-base">' + item.baseModel + '</span>' : '') +
-                    (item.tags ? '<span class="lora-card-tags">' + item.tags + '</span>' : '') +
-                '</div>' +
-            '</div>';
-
+        let cardHtml = loraPickerBuildCardHtml(item);
+        // 选中态：补丁到根 div class
         if (isSelected) {
-            html += '<div class="lora-card-strength" onclick="event.stopPropagation()">' +
-                '<div class="lora-card-strength-track"><input type="range" min="0.2" max="1.2" step="0.05" value="' + strength + '" style="--lora-strength-pct:' + ((strength - 0.2) / 1.0 * 100).toFixed(1) + '%" oninput="loraPickerUpdateStrength(' + selIdx + ', parseFloat(this.value));var p=((parseFloat(this.value)-0.2)/1.0*100).toFixed(1);this.style.setProperty(\'--lora-strength-pct\',p+\'%\');this.closest(\'.lora-card-strength\').querySelector(\'.lora-card-strength-val\').textContent=parseFloat(this.value).toFixed(2)"></div>' +
-                '<span class="lora-card-strength-val">' + strength.toFixed(2) + '</span>' +
-            '</div>';
+            cardHtml = cardHtml.replace('class="lora-card-item', 'class="lora-card-item selected');
+            // 在强度条槽位插入 slider
+            cardHtml = cardHtml.replace(
+                '<div class="lora-card-strength-wrap"></div>',
+                '<div class="lora-card-strength-wrap">' + loraPickerBuildStrengthHtml(selIdx, strength) + '</div>'
+            );
         }
-
-        html += '</div>';
-    }
-
-    // 分页控件
-    if (totalPages > 1) {
-        html += '<div class="lora-picker-pagination" style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0;">' +
-            '<button class="lora-picker-page-btn" onclick="loraPickerGoPage(' + (loraPickerPage - 1) + ')" ' + (loraPickerPage <= 1 ? 'disabled' : '') + ' style="padding:4px 10px;border-radius:6px;border:1px solid oklch(28% 0.02 280 / 0.5);background:oklch(20% 0.025 280);color:oklch(80% 0.01 280);cursor:pointer;font-size:11px;font-weight:700;">上一页</button>' +
-            '<span style="font-size:11px;color:oklch(60% 0.01 280);font-weight:600;">' + loraPickerPage + ' / ' + totalPages + '</span>' +
-            '<button class="lora-picker-page-btn" onclick="loraPickerGoPage(' + (loraPickerPage + 1) + ')" ' + (loraPickerPage >= totalPages ? 'disabled' : '') + ' style="padding:4px 10px;border-radius:6px;border:1px solid oklch(28% 0.02 280 / 0.5);background:oklch(20% 0.025 280);color:oklch(80% 0.01 280);cursor:pointer;font-size:11px;font-weight:700;">下一页</button>' +
-        '</div>';
+        html += cardHtml;
     }
 
     el.innerHTML = html;
+    // 独立渲染分页条（在网格下方固定可见，不随滚动消失）
+    loraPickerRenderPager();
+}
+
+// ── 渲染固定分页条 ──────────────────────────────────────────────
+// 始终贴在网格下方，不随网格滚动；总页数 ≤ 1 时不显示
+function loraPickerRenderPager() {
+    const el = document.getElementById('loraPickerPager');
+    if (!el) return;
+    const filtered = loraPickerGetFiltered();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / loraPickerPageSize));
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    if (loraPickerPage > totalPages) loraPickerPage = totalPages;
+    if (loraPickerPage < 1) loraPickerPage = 1;
+
+    // 数字页码：总页数 ≤ 7 全显示；> 7 时窗口化
+    let pageBtns = '';
+    const winSize = 7;
+    let startP, endP;
+    if (totalPages <= winSize) {
+        startP = 1; endP = totalPages;
+    } else if (loraPickerPage <= 4) {
+        startP = 1; endP = 7;
+    } else if (loraPickerPage >= totalPages - 3) {
+        startP = totalPages - 6; endP = totalPages;
+    } else {
+        startP = loraPickerPage - 3; endP = loraPickerPage + 3;
+    }
+    if (startP > 1) {
+        pageBtns += '<button class="lora-picker-page-num" onclick="loraPickerGoPage(1)">1</button>';
+        if (startP > 2) pageBtns += '<span class="lora-picker-page-ellipsis">…</span>';
+    }
+    for (let p = startP; p <= endP; p++) {
+        const active = p === loraPickerPage ? ' active' : '';
+        pageBtns += '<button class="lora-picker-page-num' + active + '" onclick="loraPickerGoPage(' + p + ')">' + p + '</button>';
+    }
+    if (endP < totalPages) {
+        if (endP < totalPages - 1) pageBtns += '<span class="lora-picker-page-ellipsis">…</span>';
+        pageBtns += '<button class="lora-picker-page-num" onclick="loraPickerGoPage(' + totalPages + ')">' + totalPages + '</button>';
+    }
+
+    el.innerHTML =
+        '<button class="lora-picker-page-btn" onclick="loraPickerGoPage(' + (loraPickerPage - 1) + ')" ' + (loraPickerPage <= 1 ? 'disabled' : '') + '>‹ 上一页</button>' +
+        '<div class="lora-picker-pages">' + pageBtns + '</div>' +
+        '<button class="lora-picker-page-btn" onclick="loraPickerGoPage(' + (loraPickerPage + 1) + ')" ' + (loraPickerPage >= totalPages ? 'disabled' : '') + '>下一页 ›</button>' +
+        '<span class="lora-picker-page-info">' + loraPickerPage + ' / ' + totalPages + ' · 共 ' + filtered.length + ' 个</span>';
 }
 
 function loraPickerGoPage(page) {
@@ -590,7 +843,7 @@ function loraPickerToggleItem(itemKey) {
     } else {
         loraPickerSelected.push({ name: entryName, strength: 0.8 });
     }
-    loraPickerPage = 1;
+    // 不要再 loraPickerPage = 1：选中后强度条就出现在这张卡上，强行跳回首页会让用户失去当前页上下文
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
@@ -641,6 +894,8 @@ function loraPickerSwitchVersion(modelRoot, idx) {
         }
         return s;
     });
+    // 切换版本后预览图/视频变了，清掉这张卡的缓存让新版本生效
+    loraPickerCardHtmlCache.delete('g::' + modelRoot);
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
 }

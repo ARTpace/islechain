@@ -30,6 +30,7 @@ from PIL import Image, ImageOps
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1443,15 +1444,19 @@ async def serve_output_file(path: str):
         ".m4a": "audio/mp4",
     }.get(ext, "application/octet-stream")
     
-    return StarletteFileResponse(
-        full_path,
-        media_type=media_type,
-        headers={
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
+    is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mov')
+    if is_media:
+        mtime = os.path.getmtime(full_path)
+        import hashlib as _hl
+        etag = _hl.md5(f"{full_path}:{int(mtime)}".encode()).hexdigest()
+        cache_h = {
+            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'ETag': f'"{etag}"',
+            'Last-Modified': time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(mtime)),
         }
-    )
+    else:
+        cache_h = {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
+    return StarletteFileResponse(full_path, media_type=media_type, headers=cache_h)
 
 @app.get("/assets/{path:path}")
 async def serve_asset_file(path: str):
@@ -1479,15 +1484,19 @@ async def serve_asset_file(path: str):
         ".txt": "text/plain",
     }.get(ext, "application/octet-stream")
     
-    return StarletteFileResponse(
-        full_path,
-        media_type=media_type,
-        headers={
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
+    is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif')
+    if is_media:
+        mtime = os.path.getmtime(full_path)
+        import hashlib as _hl
+        etag = _hl.md5(f"{full_path}:{int(mtime)}".encode()).hexdigest()
+        cache_h = {
+            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'ETag': f'"{etag}"',
+            'Last-Modified': time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(mtime)),
         }
-    )
+    else:
+        cache_h = {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
+    return StarletteFileResponse(full_path, media_type=media_type, headers=cache_h)
 
 # --- Pydantic 模型 ---
 
@@ -5425,6 +5434,7 @@ class SaveHistoryRequest(BaseModel):
     model: Optional[str] = None
     params: Optional[Dict[str, Any]] = None
     timestamp: Optional[float] = None
+    genParams: Optional[Dict[str, Any]] = None  # 完整生成参数，用于载入提示词恢复
 
 @app.post("/api/history/save")
 async def save_history(req: SaveHistoryRequest, token: str = ""):
@@ -5472,6 +5482,10 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
                 new_images.append(img_url)
         record["images"] = new_images
     
+    # 确保 user 字段不被前端数据覆盖
+    record["user"] = username
+    if req.genParams:
+        record["genParams"] = req.genParams
     save_to_history(record)
     return {"success": True, "timestamp": record["timestamp"]}
 
@@ -5696,6 +5710,242 @@ async def purge_orphan_records(token: str = "", dry_run: bool = False):
     except Exception as e:
         print(f"Purge orphans error: {e}")
         return {"success": False, "message": str(e)}
+
+
+@app.get("/api/gallery/scan-new")
+async def scan_new_images(type: str = "", token: str = ""):
+    """扫描用户 output 文件夹，找出还没入库的图片，自动创建历史记录"""
+    username = get_username_by_token(token)
+    if not username:
+        return {"success": False, "message": "未登录"}
+
+    user_dirname = get_user_dirname(username)
+    user_output = os.path.join(OUTPUT_DIR, user_dirname)
+    if not os.path.isdir(user_output):
+        return {"success": True, "imported": 0}
+
+    # 收集已入库的图片 URL
+    existing_images = set()
+    with HISTORY_LOCK:
+        try:
+            data = _load_history_cached()
+            for item in data:
+                for img in (item.get("images") or []):
+                    existing_images.add(img)
+        except: pass
+
+    IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'}
+
+    def extract_prompt_from_png(fpath):
+        """从 ComfyUI PNG 元数据提取正面 prompt + genParams，直接匹配工具参数"""
+        import struct as _struct, json as _json
+        def _read_workflow(fpath):
+            with open(fpath, 'rb') as f:
+                data = f.read(1024 * 1024)
+            idx = data.find(b'prompt')
+            if idx < 0: return None
+            chunk_start = idx - 8
+            if chunk_start < 0: return None
+            length = _struct.unpack('>I', data[chunk_start:chunk_start+4])[0]
+            chunk_data = data[chunk_start+8:chunk_start+8+length]
+            marker = b'prompt\x00'
+            pidx = chunk_data.find(marker)
+            if pidx < 0: return None
+            raw = chunk_data[pidx+len(marker):].decode('utf-8', errors='ignore').rstrip('\x00').strip()
+            return _json.loads(raw)
+
+        def _resolve(node_id, wf, depth=0):
+            """追踪引用链拿到文本"""
+            if depth > 8: return ''
+            nid = str(node_id)
+            node = wf.get(nid)
+            if not isinstance(node, dict): return ''
+            inputs = node.get('inputs', {})
+            ct = node.get('class_type', '')
+            # CLIPTextEncode → text
+            if ct.startswith('CLIPTextEncode'):
+                t = inputs.get('text', '')
+                if isinstance(t, str) and t.strip(): return t.strip()
+                if isinstance(t, list) and len(t) == 2: return _resolve(t[0], wf, depth+1)
+                return ''
+            # 自定义节点 → 常见文本字段
+            for k in ('character_tags', 'text', 'prompt', 'opt_prompt'):
+                v = inputs.get(k, '')
+                if isinstance(v, str) and v.strip(): return v.strip()
+            # 递归引用
+            for v in inputs.values():
+                if isinstance(v, list) and len(v) == 2:
+                    r = _resolve(v[0], wf, depth+1)
+                    if r: return r
+            return ''
+
+        try:
+            wf = _read_workflow(fpath)
+            if not wf: return '', {}
+
+            prompt_text = ''
+            seed = None
+            width = height = None
+            batch = 1
+            loras = []
+            is_anima = False
+
+            for nid, node in wf.items():
+                if not isinstance(node, dict): continue
+                ct = node.get('class_type', '')
+                inp = node.get('inputs', {})
+
+                # 识别工作流类型
+                if ct == 'AnimaCharacterTagSelector':
+                    is_anima = True
+
+                # 采样器 → seed + positive prompt
+                if ct in ('KSampler', 'KSamplerAdvanced') and 'positive' in inp:
+                    ref = inp['positive']
+                    if isinstance(ref, list) and len(ref) == 2:
+                        prompt_text = _resolve(ref[0], wf)
+                    seed = inp.get('seed') or inp.get('noise_seed')
+
+                # CFGGuider → positive prompt
+                elif ct == 'CFGGuider' and 'positive' in inp:
+                    ref = inp['positive']
+                    if isinstance(ref, list) and len(ref) == 2:
+                        prompt_text = _resolve(ref[0], wf)
+
+                # RandomNoise → seed
+                elif ct == 'RandomNoise':
+                    seed = inp.get('noise_seed')
+
+                # Latent → 尺寸 + batch
+                elif ct in ('EmptyLatentImage',) or 'EmptyFlux' in ct:
+                    width = inp.get('width')
+                    height = inp.get('height')
+                    bs = inp.get('batch_size')
+                    if isinstance(bs, int) and bs > 0: batch = bs
+
+                # LoRA
+                elif 'LoraLoader' in ct:
+                    name = inp.get('lora_name', '')
+                    strength = float(inp.get('strength_model', 1.0))
+                    if name:
+                        loras.append({'name': name, 'strength': strength})
+
+            # 从尺寸推算 ratio + resolution
+            ratio_w, ratio_h, resolution = 9, 16, 1
+            if width and height:
+                from math import gcd
+                g = gcd(width, height)
+                rw, rh = width // g, height // g
+                # 标准化到常见比例
+                _known = {(1,1),(4,3),(3,4),(16,9),(9,16),(3,2),(2,3)}
+                if (rw, rh) not in _known:
+                    rw, rh = min(_known, key=lambda k: abs(k[0]/k[1] - rw/rh))
+                ratio_w, ratio_h = rw, rh
+                resolution = 2 if max(width, height) > 1200 else 1
+
+            gen_params = {
+                'workflow': 'anima 动漫文生图.json' if is_anima else 'Z-Image.json',
+                'ratioW': ratio_w, 'ratioH': ratio_h,
+                'resolution': resolution,
+                'batchCount': batch,
+                'loras': loras,
+            }
+            if seed is not None: gen_params['seed'] = seed
+            if width: gen_params['width'] = width
+            if height: gen_params['height'] = height
+
+            return prompt_text, gen_params
+        except:
+            return '', {}
+
+    new_records = []
+
+    # 遍历 output/{user}/{feature}/{date}/ 目录
+    for feature_dir in os.listdir(user_output):
+        feature_path = os.path.join(user_output, feature_dir)
+        if not os.path.isdir(feature_path):
+            continue
+        # 按 type 过滤
+        if type:
+            types = [t.strip() for t in type.split(',')]
+            if feature_dir not in types:
+                continue
+        for date_dir in os.listdir(feature_path):
+            date_path = os.path.join(feature_path, date_dir)
+            if not os.path.isdir(date_path):
+                continue
+            for fname in os.listdir(date_path):
+                ext = os.path.splitext(fname)[1].lower()
+                if ext not in IMAGE_EXTS:
+                    continue
+                img_url = f"/output/{user_dirname}/{feature_dir}/{date_dir}/{fname}"
+                if img_url in existing_images:
+                    continue
+                # 新图片：创建记录
+                fpath = os.path.join(date_path, fname)
+                try:
+                    mtime = os.path.getmtime(fpath)
+                except:
+                    mtime = time.time()
+                # 尝试从 PNG 元数据提取 prompt 和参数
+                prompt_text = ''
+                gen_params = {}
+                if ext == '.png':
+                    prompt_text, gen_params = extract_prompt_from_png(fpath)
+                record = {
+                    "prompt": prompt_text or f"[自动导入] {feature_dir}",
+                    "images": [img_url],
+                    "type": feature_dir,
+                    "timestamp": mtime * 1000,
+                    "user": username,
+                    "model": feature_dir.upper(),
+                    "auto_imported": True
+                }
+                if gen_params:
+                    record['genParams'] = gen_params
+                new_records.append(record)
+                existing_images.add(img_url)
+
+    # 批量写入新记录
+    updated_old = 0
+    with HISTORY_LOCK:
+        try:
+            data = _load_history_cached()
+            data = list(data)
+        except:
+            data = []
+        # 更新旧的自动导入记录（prompt 还是 [自动导入] 的）
+        for item in data:
+            if not item.get('auto_imported'):
+                continue
+            if not item.get('prompt', '').startswith('[自动导入]'):
+                continue
+            images = item.get('images', [])
+            if not images:
+                continue
+            img_url = images[0]
+            if not img_url.startswith('/output/'):
+                continue
+            fpath = _url_to_output_path(img_url)
+            if not fpath or not os.path.isfile(fpath):
+                continue
+            ext = os.path.splitext(fpath)[1].lower()
+            if ext != '.png':
+                continue
+            prompt_text, gen_params = extract_prompt_from_png(fpath)
+            if prompt_text:
+                item['prompt'] = prompt_text
+                updated_old += 1
+            if gen_params:
+                item['genParams'] = gen_params
+        for rec in new_records:
+            data.insert(0, rec)
+        data.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data[:5000], f, ensure_ascii=False, indent=4)
+        _invalidate_history_cache()
+
+    return {"success": True, "imported": len(new_records), "updated": updated_old}
 
 
 # --- 提示词预设（委托 preset_manager 模块）---
@@ -7472,14 +7722,16 @@ async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
 # --- ComfyUI 代理端点（供前端在 non-local 模式下使用） ---
 
 @app.get("/api/comfyui/object_info")
-async def proxy_comfyui_object_info():
-    """代理获取 ComfyUI 节点信息（含模型列表等）"""
+@app.get("/api/comfyui/object_info/{node_type:path}")
+async def proxy_comfyui_object_info(node_type: str = None):
+    """代理获取 ComfyUI 节点信息（含模型列表等），支持按节点类型查询"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
     try:
-        url = f"http://{target}/object_info"
-        async with httpx.AsyncClient(timeout=30) as client:
+        base = f"http://{target}/object_info"
+        url = f"{base}/{node_type}" if node_type else base
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url)
         return Response(content=resp.content, media_type="application/json")
     except Exception as e:
@@ -7589,7 +7841,7 @@ async def scan_lora_folder(subfolder: str = ""):
     }
 
 @app.get("/api/loras/preview")
-async def get_lora_preview(path: str):
+async def get_lora_preview(path: str, request: Request):
     """获取 LoRA 预览图"""
     if not COMFYUI_BASE_PATH:
         raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
@@ -7599,6 +7851,20 @@ async def get_lora_preview(path: str):
     full_path = os.path.join(COMFYUI_BASE_PATH, path)
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="预览图不存在")
+    # ETag + Last-Modified 走条件请求，重复访问秒返 304
+    try:
+        st = os.stat(full_path)
+        mtime_ts = int(st.st_mtime)
+        size = st.st_size
+        etag = f'W/"lora-{mtime_ts}-{size}"'
+        last_modified = datetime.fromtimestamp(mtime_ts, tz=timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    except OSError:
+        etag = None
+        last_modified = None
+    if etag and request.headers.get('if-none-match') == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=604800, immutable"})
+    if last_modified and request.headers.get('if-modified-since') == last_modified:
+        return Response(status_code=304, headers={"Last-Modified": last_modified, "Cache-Control": "public, max-age=604800, immutable"})
     ext = os.path.splitext(full_path)[1].lower()
     media_type = {
         ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
@@ -7606,7 +7872,7 @@ async def get_lora_preview(path: str):
         ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"
     }.get(ext, "image/png")
     # 视频走分块传输 + 接受 Range 请求，便于 <video> 拖动进度
-    return FileResponse(
+    resp = FileResponse(
         full_path,
         media_type=media_type,
         headers={
@@ -7614,6 +7880,9 @@ async def get_lora_preview(path: str):
             "Accept-Ranges": "bytes",
         }
     )
+    if etag: resp.headers["ETag"] = etag
+    if last_modified: resp.headers["Last-Modified"] = last_modified
+    return resp
 
 # --- LoRA Manager 代理端点 ---
 
