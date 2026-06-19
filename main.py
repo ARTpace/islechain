@@ -29,7 +29,7 @@ os.environ.setdefault('NO_PROXY', '127.0.0.1,localhost,::1,0.0.0.0')
 from PIL import Image, ImageOps
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse, RedirectResponse
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
@@ -8122,20 +8122,78 @@ async def proxy_comfyui_prompt(request: Request):
         raise HTTPException(status_code=502, detail=f"ComfyUI prompt 请求失败: {str(e)}")
 
 @app.get("/api/comfyui/view")
-async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str = "output"):
-    """代理获取 ComfyUI 输出图片"""
+async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str = "output", w: int = 0):
+    """代理 ComfyUI /view，支持缩略图与流式透传
+
+    性能要点（解决大图秒显问题）：
+    - w=0（默认）：用 StreamingResponse 边下边传给浏览器，并加 immutable 缓存头
+      （ComfyUI 输出 filename 是 hash 唯一标识，安全 long-cache）
+    - w>0：先查 WebP 缓存，命中直接 FileResponse 秒出；未命中则下载原图 +
+      PIL 缩放 + 写 WebP 缓存，后续同 (filename, w) 直接秒出
+    """
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    if not filename:
+        raise HTTPException(status_code=400, detail="缺少 filename")
+
+    width = max(0, min(2048, int(w or 0)))
+    params = {"filename": filename, "subfolder": subfolder, "type": type}
+    url = f"http://{target}/view"
+
+    immutable_headers = {"Cache-Control": "public, max-age=2592000, immutable"}
+
+    # === 缩略图分支：缓存命中秒出 ===
+    if width > 0:
+        cache_key = hashlib.sha1(
+            f"comfyui|{target}|{type}|{subfolder}|{filename}|w={width}".encode("utf-8", "ignore")
+        ).hexdigest()
+        cache_dir = os.path.join(MEDIA_PREVIEW_DIR, "comfyui")
+        webp_path = os.path.join(cache_dir, f"{cache_key}.webp")
+        if os.path.exists(webp_path):
+            headers = {**immutable_headers, "ETag": f'"{cache_key}"'}
+            return FileResponse(webp_path, media_type="image/webp", headers=headers)
+
+    # === 原图：302 重定向到 ComfyUI（浏览器直连，零代理开销） ===
+    if width == 0:
+        # 1536x2048 PNG 走代理流式传输 36s → 302 重定向直连 ComfyUI 3-5s（本地）
+        from urllib.parse import quote
+        redirect_url = f"http://{target}/view?filename={quote(filename, safe='')}&subfolder={quote(subfolder, safe='')}&type={quote(type, safe='')}"
+        print(f"[comfyui-redirect] {filename[:40]}")
+        return RedirectResponse(redirect_url, status_code=302)
+
+    # === 缩略图：缓存未命中，下载 + 缩放 + 写 WebP 缓存 ===
+    import time as _t
+    _t_dl = _t.perf_counter()
     try:
-        params = {"filename": filename, "subfolder": subfolder, "type": type}
-        url = f"http://{target}/view"
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url, params=params)
-        ct = resp.headers.get("Content-Type", "image/png")
-        return Response(content=resp.content, media_type=ct)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail=f"ComfyUI 返回 {resp.status_code}")
+        _t_dl_cost = (_t.perf_counter() - _t_dl) * 1000
+
+        _t_pil = _t.perf_counter()
+        def _process_and_save():
+            src = Image.open(io.BytesIO(resp.content))
+            src = ImageOps.exif_transpose(src)
+            has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
+            if src.width > width:
+                src.thumbnail((width, width), Image.BILINEAR)  # LANCZOS 最慢，BILINEAR 5-10x 更快
+            out = src.convert("RGBA" if has_alpha else "RGB")
+            os.makedirs(cache_dir, exist_ok=True)
+            # method=0 (fastest) + quality=70：768px 缩略图 < 200ms 编码
+            out.save(webp_path, format="WEBP", quality=70, method=0)
+
+        await asyncio.to_thread(_process_and_save)
+        _t_pil_cost = (_t.perf_counter() - _t_pil) * 1000
+        print(f"[comfyui-thumb] dl={_t_dl_cost:.0f}ms pil={_t_pil_cost:.0f}ms {width}px {filename[:40]} ({len(resp.content)//1024}KB)")
+
+        headers = {**immutable_headers, "ETag": f'"{cache_key}"'}
+        return FileResponse(webp_path, media_type="image/webp", headers=headers)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI view 请求失败: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"生成 ComfyUI 缩略图失败: {str(e)}")
 
 
 @app.get("/api/comfyui/open-folder")
@@ -8218,22 +8276,24 @@ async def proxy_download_to_output(url: str = "", token: str = "", feature: str 
 
 @app.get("/api/comfyui/save-to-output")
 async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: str = "output", token: str = "", feature: str = "其他"):
-    """将 ComfyUI 的图片保存到用户 output 目录，返回本地 URL"""
+    """将 ComfyUI 的图片保存到用户 output 目录，返回本地 URL
+
+    性能优化（解决 47s 慢问题）：
+    - 用 client.stream() 边下边写盘，避免内存中转大图（1-2MB 一次性加载）
+    - timeout 60s（原 15s 太短，ComfyUI 慢时容易超时）
+    """
+    import time as _t
+    _t_start = _t.perf_counter()
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    
+
     try:
-        # 从 ComfyUI 下载图片
+        # 从 ComfyUI 流式下载到磁盘
         params = {"filename": filename, "subfolder": subfolder, "type": type}
         url = f"http://{target}/view"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url, params=params)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="从 ComfyUI 获取图片失败")
-        
+
         # 存到用户文件夹: output/{user}/{feature}/YYYY-MM-DD/
-        content = resp.content
         ext = os.path.splitext(filename)[1] or ".png"
         now = time.localtime()
         username = get_username_by_token(token)
@@ -8247,9 +8307,47 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
         os.makedirs(save_dir, exist_ok=True)
         local_name = f"{feature}_{uuid.uuid4().hex[:10]}{ext}"
         local_path = os.path.join(save_dir, local_name)
-        with open(local_path, "wb") as f:
-            f.write(content)
-        
+
+        _t_dl = _t.perf_counter()
+        bytes_written = 0
+        async with httpx.AsyncClient(timeout=60) as client:
+            async with client.stream("GET", url, params=params) as resp:
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=502, detail="从 ComfyUI 获取图片失败")
+                with open(local_path, "wb") as f:
+                    async for chunk in resp.aiter_bytes(64 * 1024):
+                        f.write(chunk)
+                        bytes_written += len(chunk)
+        _t_dl_cost = (_t.perf_counter() - _t_dl) * 1000
+        _t_total = (_t.perf_counter() - _t_start) * 1000
+        print(f"[comfyui-save] dl={_t_dl_cost:.0f}ms total={_t_total:.0f}ms bytes={bytes_written//1024}KB {filename[:40]}")
+
+        # === 预生成 WebP 缩略图（下次 ?w=768 秒出） ===
+        # fire-and-forget 不阻塞返回
+        async def _prewarm_thumb():
+            try:
+                from PIL import Image, ImageOps
+                def _gen():
+                    # w=768 缩略图 + w=300 小图（列表用）
+                    for w_target in (768, 300):
+                        cache_key = f"{filename}|{w_target}"
+                        webp_path = os.path.join(COMFYUI_THUMB_CACHE_DIR, f"{hashlib.md5(cache_key.encode()).hexdigest()}.webp")
+                        if os.path.exists(webp_path):
+                            continue
+                        with Image.open(local_path) as src:
+                            src = ImageOps.exif_transpose(src)
+                            has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
+                            if src.width > w_target:
+                                src.thumbnail((w_target, w_target), Image.BILINEAR)
+                            out = src.convert("RGBA" if has_alpha else "RGB")
+                            os.makedirs(COMFYUI_THUMB_CACHE_DIR, exist_ok=True)
+                            out.save(webp_path, format="WEBP", quality=70, method=0)
+                    print(f"[comfyui-thumb-prewarm] ok {filename[:40]}")
+                await asyncio.to_thread(_gen)
+            except Exception as e:
+                print(f"[comfyui-thumb-prewarm] failed {filename[:40]}: {e}")
+        asyncio.create_task(_prewarm_thumb())
+
         return {"url": f"/output/{date_path}/{local_name}", "path": local_path}
     except HTTPException:
         raise
@@ -9708,6 +9806,16 @@ def build_canvas_workflow_archive(payload: CanvasWorkflowExportRequest) -> Tuple
 
 @app.get("/api/media-preview")
 async def media_preview(url: str, w: int = 512):
+    # ComfyUI 图片（如 /api/comfyui/view?filename=...）直接走 ComfyUI 代理缩略图
+    if url.startswith("/api/comfyui/view"):
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(url)
+        qs = parse_qs(parsed.query)
+        filename = qs.get("filename", [""])[0]
+        subfolder = qs.get("subfolder", [""])[0]
+        ctype = qs.get("type", ["output"])[0]
+        return await proxy_comfyui_view(filename=filename, subfolder=subfolder, type=ctype, w=w)
+
     path = output_file_from_url(url)
     if not path or not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="媒体文件不存在")

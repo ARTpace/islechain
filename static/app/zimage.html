@@ -23,8 +23,8 @@
     <script src="/static/history-bulk-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260613">
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
-    <script src="/static/modules/gallery/list.js?v=20260614-1"></script>
-    <script src="/static/modules/gallery/card.js?v=20260614-3"></script>
+    <script src="/static/modules/gallery/list.js?v=20260620-1"></script>
+    <script src="/static/modules/gallery/card.js?v=20260620-1"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260613"></script>
     <script src="/static/modules/image-viewer.js?v=20260521006"></script>
     <script src="/static/modules/gallery/display.js?v=20260619"></script>
@@ -751,15 +751,10 @@
         function switchWorkflow(name) {
             currentWorkflow = name;
             localStorage.setItem('zimage_workflow', name);
-            // 同步上拉菜单的选中态 + 按钮文本
-            const displayMap = {
-                'Z-Image.json': 'Z-Image',
-                'anima_图生图.json': 'Anima 图生图',
-                'anima 动漫文生图.json': 'ANIMA',
-            };
-            const display = displayMap[name] || name.replace('.json', '');
+            // 按钮只显示类型名（Z-Image / ANIMA），不再显示具体工作流名
+            // —— 避免选 UNET 模型 / 从历史载入工作流时把按钮文本覆盖成具体名
             const txt = document.getElementById('modelText');
-            if (txt) txt.textContent = display;
+            if (txt) txt.textContent = getCurrentModelMode();
             const items = document.querySelectorAll('#modelMenu .anima-ctrl-menu-item');
             items.forEach(it => {
                 const isOn = it.getAttribute('data-model-key') === name;
@@ -797,7 +792,9 @@
                 const cards = g.items.map(name => {
                     const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
                     const isActive = selectedUnetModel === name;
-                    return `<div class="model-picker-card${isActive ? ' active' : ''}" onclick="selectUnetModel('${name.replace(/'/g, "\\'")}')">
+                    // 用 data-full-name + 事件委托：避免 HTML inline onclick 解析 JS 字符串时
+                    // 把反斜杠（'anima\foo'）等不合法转义序列吞掉导致前缀被吃
+                    return `<div class="model-picker-card${isActive ? ' active' : ''}" data-full-name="${encodeURIComponent(name)}">
                         <div class="model-picker-icon">📦</div>
                         <div class="model-picker-info">
                             <div class="model-picker-name">${shortName}</div>
@@ -808,6 +805,13 @@
                 }).join('');
                 return `<div class="model-picker-group-label">${g.label}</div>${cards}`;
             }).join('') || '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">未找到可用模型</div>';
+            // 一次性事件委托：保证反斜杠/单引号/换行等特殊字符能原样传回
+            list.querySelectorAll('.model-picker-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const fullName = decodeURIComponent(card.dataset.fullName || '');
+                    selectUnetModel(fullName);
+                });
+            });
         }
 
         async function fetchUnetModels() {
@@ -835,10 +839,8 @@
         function selectUnetModel(name) {
             selectedUnetModel = name;
             closeModelPicker();
-            // 更新按钮显示：保留工作流名 + 模型名
-            const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
-            const txt = document.getElementById('modelText');
-            if (txt) txt.textContent = shortName;
+            // 不再修改 modelText —— 按钮只显示类型名（Z-Image / ANIMA），
+            // UNET 模型文件名只用于生成时传给后端，不要污染 UI 上的类型标识
         }
 
         function closeModelPicker() {
@@ -1798,10 +1800,26 @@
             const lockedWorkflow = currentWorkflow;
             const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : 'zimage';
 
+            // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
+            const _aspectSize = getAnimaSize();
+            const _aspectRatio = _aspectSize.width + ' / ' + _aspectSize.height;
             const placeholder = document.createElement('div');
             placeholder.className = 'masonry-item bg-gray-50 flex flex-col items-center justify-center border-dashed border-2 border-gray-200';
             placeholder.style.minHeight = '180px';
-            placeholder.innerHTML = '<div class="w-6 h-6 border-2 border-gray-100 border-t-black rounded-full animate-spin mb-3"></div><span class="text-[8px] font-bold text-gray-400 uppercase">Rendering...</span>';
+            placeholder.style.aspectRatio = _aspectRatio;
+            placeholder.style.transition = 'all 0.4s ease';
+            placeholder.innerHTML = `
+                <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+                    <div style="position:absolute;inset:0;border-3px:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>
+                    <div style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>
+                    <div style="width:8px;height:8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:50%;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:renderPulse 1.2s ease-in-out infinite;"></div>
+                </div>
+                <span class="text-[8px] font-bold text-gray-400 uppercase mt-3">Rendering...</span>
+                <style>
+                    @keyframes renderSpin { to { transform: rotate(360deg); } }
+                    @keyframes renderPulse { 0%,100% { transform:scale(1);opacity:1; } 50% { transform:scale(1.4);opacity:0.7; } }
+                </style>
+            `;
             document.getElementById('masonry').prepend(placeholder);
 
             try {
@@ -1974,26 +1992,132 @@
 
                 if (ws) try { ws.close(); } catch(e){}
 
-                // 先用 ComfyUI URL 立即显示（快速）
-                const _qs = Date.now(); const _sz = getAnimaSize(); const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
-                GalleryList.pushNewImage(quickRecord);
-                completeProgress();
-                // 并行保存到用户目录（后台，不阻塞显示）
-                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, lockedFeatureName).catch(() => u)));
-                // 更新已显示的记录（替换 ComfyUI URL 为本地 URL）
-                const quickTs = quickRecord.timestamp;
-                const quickCard = document.getElementById('history-' + quickTs);
-                if (quickCard) {
-                    quickRecord.images = localUrls;
-                    // 更新卡片内的图片 src
-                    quickCard.querySelectorAll('img[data-original-src]').forEach(img => {
-                        const idx = Array.from(quickCard.querySelectorAll('img[data-original-src]')).indexOf(img);
-                        if (idx >= 0 && idx < localUrls.length) {
-                            img.dataset.originalSrc = localUrls[idx];
-                            img.src = '/api/media-preview?w=768&url=' + encodeURIComponent(localUrls[idx]);
-                        }
+                // 用 ComfyUI URL 立即显示（快速）—— 直接在 placeholder 内渲染，不调 pushNewImage 避免重复卡片
+                const _qs = Date.now();
+                const _t0 = performance.now();
+                const _sz = getAnimaSize();
+                const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
+                console.log('[IMG-PERF] ① ComfyUI 返回 URL 数量:', finalUrls.length, '耗时:', (performance.now() - _t0).toFixed(1) + 'ms');
+                console.log('[IMG-PERF] ② sample URL:', finalUrls[0]);
+                // 把 record 同步到 allHistory（用 pushNewImage 的 noop 变体）
+                if (window.GalleryList) GalleryList.pushNewImage(quickRecord, { eagerFirstImage: true, _skipRender: true });
+                // 预取：fetch WebP 缩略图到 HTTP 缓存
+                try {
+                    finalUrls.forEach(u => {
+                        const sep = u.indexOf('?') >= 0 ? '&' : '?';
+                        fetch(u + sep + 'w=768', { credentials: 'same-origin', cache: 'force-cache' }).catch(() => {});
                     });
+                    console.log('[IMG-PERF] ③.⑤ 预取 WebP 缩略图已发起');
+                } catch(e) {}
+                // --- 原地升级：placeholder 直接变成图片卡片（grid 双层叠加）---
+                if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
+                    // 用 render 创建临时卡片（带 onclick / dataset / 子元素事件），再 wrapper 替换 placeholder
+                    const tempContainer = document.createElement('div');
+                    window.GalleryCard.render(Object.assign({ container: tempContainer, record: quickRecord, isNew: true }, { eagerFirstImage: true }));
+                    const tempCard = tempContainer.querySelector('.masonry-item');
+                    if (tempCard) {
+                        tempCard.id = 'history-' + _qs;
+                        // 继承 placeholder 的宽高比，避免 layout 跳变
+                        tempCard.style.aspectRatio = _aspectRatio;
+                        // grid 叠加：spinner 前景 + 图片卡片 背景（保留 tempCard 的 onclick/事件）
+                        tempCard.style.position = 'relative';
+                        tempCard.style.display = 'grid';
+                        tempCard.style.background = '#f5f5f5';
+                        tempCard.style.borderRadius = '8px';
+                        tempCard.style.overflow = 'hidden';
+
+                        // spinner 层（创建真实 DOM 元素）
+                        const spinnerEl = document.createElement('div');
+                        spinnerEl.className = 'ph-spinner';
+                        spinnerEl.style.cssText = 'grid-area:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px;transition:opacity 0.35s ease;';
+                        spinnerEl.innerHTML =
+                            '<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">' +
+                                '<div style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>' +
+                                '<div style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>' +
+                                '<div style="width:8px;height:8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:50%;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:renderPulse 1.2s ease-in-out infinite;"></div>' +
+                            '</div>' +
+                            '<span class="text-[8px] font-bold text-gray-400 uppercase mt-3">Rendering...</span>';
+
+                        // 在卡片内容前插入 spinner 层，再包裹 image 层为 grid 子元素
+                        const imageWrap = document.createElement('div');
+                        imageWrap.className = 'ph-image';
+                        imageWrap.style.cssText = 'grid-area:1/1;opacity:0;transition:opacity 0.5s ease 0.15s;';
+                        while (tempCard.firstChild) imageWrap.appendChild(tempCard.firstChild);
+                        tempCard.appendChild(spinnerEl);
+                        tempCard.appendChild(imageWrap);
+
+                        // 用 tempCard 替换 placeholder
+                        placeholder.parentNode.replaceChild(tempCard, placeholder);
+
+                        const _img = imageWrap.querySelector('img');
+                        if (_img) {
+                            _img.src = _img.src.replace(/[?&]w=\d+(&|$)/, function(_, tail) { return tail === '&' ? '?' : ''; });
+                            console.log('[IMG-PERF] ④ 卡片 img.src =', _img.src, 'loading=', _img.loading, 'fetchpriority=', _img.getAttribute('fetchpriority'), '← 流式直连 + 原地升级');
+                            const _loadStart = performance.now();
+                            const _fadeIn = function() {
+                                const sp = tempCard.querySelector('.ph-spinner');
+                                const im = tempCard.querySelector('.ph-image');
+                                if (sp) sp.style.opacity = '0';
+                                if (im) im.style.opacity = '1';
+                                // 过渡完成后只移除 spinner 层、解除 image-wrap 嵌套
+                                // 保留 grid 布局和 aspectRatio，避免 layout 跳变
+                                setTimeout(function() {
+                                    if (sp && sp.parentNode) sp.remove();
+                                    if (im) {
+                                        im.style.opacity = '';
+                                        im.style.transition = '';
+                                        im.style.gridArea = '';
+                                        while (im.firstChild) tempCard.appendChild(im.firstChild);
+                                        im.remove();
+                                    }
+                                    // grid 布局 + aspectRatio 保留，让图片自然填满，无尺寸跳变
+                                }, 500);
+                                console.log('[IMG-PERF] ⑤ 浏览器加载图片完成 耗时:', (performance.now() - _loadStart).toFixed(1) + 'ms, size:', _img.naturalWidth + 'x' + _img.naturalHeight);
+                            };
+                            if (_img.complete) { _fadeIn(); }
+                            else {
+                                _img.addEventListener('load', _fadeIn, { once: true });
+                                _img.addEventListener('error', function() {
+                                    const sp = tempCard.querySelector('.ph-spinner');
+                                    const im = tempCard.querySelector('.ph-image');
+                                    if (sp) sp.style.opacity = '0';
+                                    if (im) im.style.opacity = '1';
+                                    setTimeout(function() {
+                                        if (sp && sp.parentNode) sp.remove();
+                                        if (im) {
+                                            im.style.opacity = '';
+                                            im.style.transition = '';
+                                            im.style.gridArea = '';
+                                            while (im.firstChild) tempCard.appendChild(im.firstChild);
+                                            im.remove();
+                                        }
+                                    }, 500);
+                                    console.log('[IMG-PERF] ⑤❌ 浏览器加载图片失败');
+                                }, { once: true });
+                            }
+                        }
+                    }
                 }
+                completeProgress();
+                // 图片卡已就位，进度条立即隐藏
+                hideProgress();
+                // 图片已显示：按钮立即可点击（不阻塞 UI），但 isGenerating 锁继续保留
+                // 直到 saveToUserOutput 完成（finally 中释放），避免重复触发
+                setLoading(false);
+                // ④ 已切换为流式 URL（w=0），浏览器从 ComfyUI 边下边显
+                // —— 不修改 img.src（流式 URL 已生效），不重置 dataset.originalSrc
+                // —— ComfyUI URL 带 long-cache 头 (immutable)，下次刷新秒出
+                // —— 后台 await saveToUserOutput 仅用于把图片持久化到本地 (history 记录用本地路径)
+                const _t2 = performance.now();
+                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, lockedFeatureName).catch((err) => {
+                    console.warn('[IMG-PERF] saveToUserOutput 失败 (非致命):', err);
+                    return u;
+                })));
+                console.log('[IMG-PERF] ⑥ saveToUserOutput 耗时:', (performance.now() - _t2).toFixed(1) + 'ms');
+                // 不替换 img.src —— 浏览器已下载完 ComfyUI 缩略图，替换会触发重新下载
+                // 7 步被彻底删除（替换 src 是导致"图片很久才显示"的元凶）
+                quickRecord.images = localUrls; // 仅更新 record 引用，历史记录用本地路径
+                const quickTs = _qs; // 兼容下面 record.timestamp
                 // 从URL路径提取文件夹名作为类型标识
                 const folderMatch = localUrls[0].match(/\/output\/[^/]+\/([^/]+)\//);
                 const folderName = folderMatch ? folderMatch[1] : lockedFeatureName;
@@ -2025,8 +2149,6 @@
                         body: JSON.stringify(record)
                     });
                 } catch(e) { console.error('保存历史记录失败:', e); }
-
-                if (placeholder.parentNode) placeholder.remove();
             } catch(e) {
                 if (placeholder.parentNode) placeholder.remove();
                 alert(e.message || "生成失败");
@@ -2039,10 +2161,11 @@
 
         function setLoading(isLoading) {
             const btn = document.getElementById('mainGenBtn');
-            btn.disabled = isLoading;
+            if (!btn) return;
+            btn.disabled = !!isLoading;
             if (isLoading) { btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="btn-text">处理中</span>'; }
             else { btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400"></i><span class="btn-text">生成</span>'; }
-            lucide.createIcons();
+            try { if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons(); } catch(e) {}
         }
 
         // === 批量生成数量 ===

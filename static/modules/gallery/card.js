@@ -194,8 +194,11 @@
 
         const onerror = `this.onerror=null;this.closest('.masonry-item')?.remove()`;
 
+        // 新生成（prepend）首图：禁用懒加载 + 高优先级，避免 Edge 的 placeholder 替换
+        const eager = !!opts.eagerFirstImage;
+
         card.innerHTML = `
-            ${buildImagesHTML(record, features, onerror)}
+            ${buildImagesHTML(record, features, onerror, { eagerFirstImage: eager })}
             ${fallbackHTML}
             ${badgeHTML}
             ${batchHTML}
@@ -212,6 +215,18 @@
                     global.GalleryContextMenu.show(e.clientX, e.clientY, record, features);
                 }
             });
+        }
+
+        // Hover 预取原图：用户把鼠标移到缩略图上时就开始拉原图，
+        // 点开大图时原图已进浏览器缓存，秒显。{once:true} 每个卡片只触发一次。
+        if (images.length > 0) {
+            card.addEventListener('mouseenter', () => {
+                images.forEach(u => {
+                    if (!u) return;
+                    const pre = new Image();
+                    pre.src = u;
+                });
+            }, { once: true, passive: true });
         }
 
         if (isNew) containerEl.prepend(card);
@@ -273,22 +288,28 @@
      * - 4 张：2x2 拼图
      * - 5+ 张：2x2 拼图 + 最后一张叠加 "+N"
      */
-    function buildImagesHTML(record, features, onerror) {
+    function buildImagesHTML(record, features, onerror, opts) {
+        opts = opts || {};
+        const eager = !!opts.eagerFirstImage;
+        // eager 时首图用 loading="eager" fetchpriority="high"（避免 Edge lazy placeholder 替换）
+        // 其它图仍 lazy
+        const ldAttr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
         const imgs = (record.images || []).filter(Boolean);
         const favSet = global.__galleryFavorites || new Set();
         if (imgs.length <= 1) {
             const src = thumbUrl(imgs[0] || '', 768);
             const favBtn = features.favorite ? imgFavBtnHTML(imgs[0] || '', favSet.has(imgs[0] || '')) : '';
-            return '<div class="relative group"><img src="' + src + '" data-original-src="' + (imgs[0] || '') + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + favBtn + '</div>';
+            return '<div class="relative group"><img src="' + src + '" data-original-src="' + (imgs[0] || '') + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + favBtn + '</div>';
         }
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
-            return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u) {
-                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+            return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u, i) {
+                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('') + '</div>';
         } else if (imgs.length === 3) {
             return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
-                '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
+                '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
                 '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
                     return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
                 }).join('') + '</div>' +
@@ -299,7 +320,8 @@
                 var overlay = isLast
                     ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
             return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
         }
@@ -344,6 +366,11 @@
         w = w || 512;
         var raw = String(url || '');
         if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+        // ComfyUI 代理：直接给 w 参数让后端返回 WebP 缩略图（秒出，不再加载原图）
+        if (raw.indexOf('/api/comfyui/view') === 0) {
+            var q = raw.split('?')[1] || '';
+            return '/api/comfyui/view?w=' + w + (q ? '&' + q : '');
+        }
         if (!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
         if (!/\.(png|jpe?g|webp|gif|bmp|avif)(\?|#|$)/i.test(raw)) return raw;
         return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(raw);

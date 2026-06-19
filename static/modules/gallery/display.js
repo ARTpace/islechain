@@ -752,15 +752,14 @@ body.studio-theme-dark .lightbox-thumb.active {
     }
 
     /* ============================================================
-     *  自动扫描新图片
+     *  自动扫描新图片（已禁用：pushNewImage 已实时推送，重复 load(0) 导致 UI 卡顿）
      * ============================================================ */
     let _scanTimer = null;
 
     function startAutoScan() {
-        // 首次延迟 5 秒扫描（等页面加载完）
-        setTimeout(() => { scanNewImages(); }, 5000);
-        // 之后每 30 秒扫描一次
-        _scanTimer = setInterval(() => { scanNewImages(); }, 30000);
+        // 自动扫描已禁用 —— 图片由 pushNewImage 实时推送，无需全量 reload
+        // setTimeout(() => { scanNewImages(); }, 5000);
+        // _scanTimer = setInterval(() => { scanNewImages(); }, 30000);
     }
 
     async function scanNewImages() {

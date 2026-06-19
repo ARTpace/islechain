@@ -14,6 +14,11 @@
     let currentScale = 1;
     let originalWidth = 0;
     let originalHeight = 0;
+    // 预取的 fullImage 缓存：key = originalUrl, value = Image 实例
+    // 用于切图时复用已下载的原图，避免重复 IO
+    const _fullImageCache = new Map();
+    // 当前正在等待的原图 URL（用于切图时丢弃过期加载）
+    let _pendingFullUrl = null;
 
     function init(images, startIndex = 0, options = {}) {
         imageList = images;
@@ -148,23 +153,59 @@
         img.style.transform = 'scale(1)';
         img.style.transformOrigin = 'center center';
 
-        // 直接加载图片，浏览器缓存会加速后续加载
+        // 双层加载：先用 media-preview 1280 缩略图占位（秒出，受 max-height:70vh 限制画质已够），
+        // 后台异步预取原图，到位后无缝替换。切图时若原图已在缓存中则直接显示原图。
         const originalUrl = imageList[currentIndex];
-        img.src = originalUrl;
+        _pendingFullUrl = originalUrl;
 
-        const handleLoad = () => {
-            originalWidth = img.naturalWidth;
-            originalHeight = img.naturalHeight;
+        // 如果原图已预取完成（来自 hover 预取或上一次切换），直接显示
+        const cachedFull = _fullImageCache.get(originalUrl);
+        if (cachedFull && cachedFull.complete && cachedFull.naturalWidth > 0) {
+            img.src = originalUrl;
+            originalWidth = cachedFull.naturalWidth;
+            originalHeight = cachedFull.naturalHeight;
             if (res) {
                 res.style.display = '';
-                res.textContent = `${img.naturalWidth}×${img.naturalHeight} (${currentIndex + 1}/${imageList.length})`;
+                res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
             }
             applyZoom();
-        };
-
-        img.onload = handleLoad;
-        if (img.complete && img.naturalWidth > 0) {
-            handleLoad();
+        } else {
+            // 先用 1280px 缩略图占位（走 media-preview 缓存，几乎秒出）
+            img.src = '/api/media-preview?w=1280&url=' + encodeURIComponent(originalUrl);
+            // 缩略图到达时记录尺寸，让缩放在缩略图阶段也能用；原图到达后会再覆写一次
+            img.onload = () => {
+                if (originalWidth === 0 && _pendingFullUrl === originalUrl) {
+                    originalWidth = img.naturalWidth;
+                    originalHeight = img.naturalHeight;
+                    if (res) {
+                        res.style.display = '';
+                        res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
+                    }
+                }
+            };
+            // 后台预取原图
+            const fullImg = new Image();
+            fullImg.onload = () => {
+                _fullImageCache.set(originalUrl, fullImg);
+                // 仅当用户还停留在这张图时才替换（避免快速切图时闪烁）
+                if (_pendingFullUrl === originalUrl) {
+                    const liveImg = document.getElementById('lightboxImg');
+                    if (liveImg) {
+                        liveImg.src = originalUrl;
+                        originalWidth = fullImg.naturalWidth;
+                        originalHeight = fullImg.naturalHeight;
+                        if (res) {
+                            res.style.display = '';
+                            res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
+                        }
+                        applyZoom();
+                    }
+                }
+            };
+            fullImg.onerror = () => {
+                // 原图加载失败，缩略图保留显示，不报错打扰用户
+            };
+            fullImg.src = originalUrl;
         }
 
         // 切图后回调：把当前 index / url / prompt 通知上层
@@ -257,6 +298,9 @@
         currentScale = 1;
         originalWidth = 0;
         originalHeight = 0;
+        _pendingFullUrl = null;
+        // 关闭时清空预取缓存，避免长会话内存累积（原图可能数 MB × 数十张）
+        _fullImageCache.clear();
     }
 
     function goTo(index) {

@@ -276,10 +276,14 @@
      * 接收到后端推送的新图片时调用
      * 新图 prepend 到容器最前,根据"容器内第一张旧图"的日期决定是否需要分隔线
      */
-    function pushNewImage(record) {
+    function pushNewImage(record, opts) {
         if (!record || !record.timestamp) return;
         if (document.getElementById(`history-${record.timestamp}`)) return;
         state.allHistory.unshift(record);
+        if (opts && opts._skipRender) {
+            // zimage.html 在生成新图时自己接管 DOM 渲染（原地升级 placeholder），避免重复卡片
+            return;
+        }
         if (state.container) {
             const newKey = getDateKey(record.timestamp);
             const firstKey = getFirstRenderedDateKey();
@@ -291,7 +295,8 @@
             }
         }
         if (global.GalleryCard && typeof global.GalleryCard.render === 'function') {
-            global.GalleryCard.render({ container: state.container, record, isNew: true });
+            // 转发 opts（eagerFirstImage 等）到 render，否则 zimage.html 传的 eagerFirstImage=true 会被丢弃
+            global.GalleryCard.render(Object.assign({ container: state.container, record, isNew: true }, opts || {}));
         }
         state.currentIndex++;
     }
