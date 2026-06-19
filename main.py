@@ -24,6 +24,8 @@ from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
 import websockets as ws_client
+# 强制本地地址绕过系统代理（VPN 等），避免 httpx 误走代理导致 502
+os.environ.setdefault('NO_PROXY', '127.0.0.1,localhost,::1,0.0.0.0')
 from PIL import Image, ImageOps
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form
 from fastapi.staticfiles import StaticFiles
@@ -1501,6 +1503,7 @@ class GenerateRequest(BaseModel):
     convert_to_jpg: bool = False
     prompt_id: str = ""
     canvas_id: str = ""  # 新增：画布ID，可选
+    extra_pnginfo: Optional[Dict[str, Any]] = None  # ComfyUI extra_pnginfo，用于 GJJ_MultiImageLoader 等节点
 
 class WorkflowField(BaseModel):
     id: str = ""
@@ -6155,6 +6158,57 @@ async def test_translate():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+# --- 用户提示词字典 ---
+
+USER_PROMPT_DICT_FILE = os.path.join(BASE_DIR, "data", "user-prompt-dict.json")
+
+def load_user_prompt_dict() -> dict:
+    if os.path.exists(USER_PROMPT_DICT_FILE):
+        try:
+            with open(USER_PROMPT_DICT_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"zh2en": {}, "en2zh": {}}
+
+def save_user_prompt_dict(data: dict):
+    os.makedirs(os.path.dirname(USER_PROMPT_DICT_FILE), exist_ok=True)
+    with open(USER_PROMPT_DICT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+@app.get("/api/prompt-dict")
+async def get_prompt_dict():
+    return {"success": True, "dict": load_user_prompt_dict()}
+
+@app.post("/api/prompt-dict/learn")
+async def learn_prompt_dict(payload: dict):
+    """自动学习：将翻译结果的词条对写入用户字典"""
+    entries = payload.get("entries", {})
+    if not entries:
+        return {"success": False, "error": "无词条数据"}
+    user_dict = load_user_prompt_dict()
+    added = 0
+    skipped = 0
+    for direction in ["zh2en", "en2zh"]:
+        pairs = entries.get(direction, {})
+        if not pairs:
+            continue
+        if direction not in user_dict:
+            user_dict[direction] = {}
+        for src, tgt in pairs.items():
+            src = src.strip()
+            tgt = tgt.strip()
+            if not src or not tgt:
+                skipped += 1
+                continue
+            if src in user_dict[direction]:
+                skipped += 1
+                continue
+            user_dict[direction][src] = tgt
+            added += 1
+    save_user_prompt_dict(user_dict)
+    return {"success": True, "added": added, "skipped": skipped}
+
 # --- ModelScope 角度控制 ---
 
 @app.post("/api/angle/poll_status")
@@ -6645,6 +6699,9 @@ def generate(req: GenerateRequest, token: str = ""):
 
         comfy_client_id = req.client_id or CLIENT_ID
         p = {"prompt": workflow, "client_id": comfy_client_id}
+        if req.extra_pnginfo:
+            # GJJ_MultiImageLoader 等节点通过 extra_pnginfo.workflow.nodes[].properties 读取 selected_images
+            p["extra_data"] = {"extra_pnginfo": req.extra_pnginfo}
         data = json.dumps(p).encode('utf-8')
         try:
             post_req = urllib.request.Request(f"http://{target_backend}/prompt", data=data)
@@ -7475,6 +7532,20 @@ async def scan_lora_folder(subfolder: str = ""):
     extensions = {".safetensors", ".pt", ".pth", ".ckpt", ".bin"}
     loras = []
     previews = {}  # rel_path -> preview_url
+    # entries: 每条 LoRA 的完整信息（含 modelRoot / versionLabel，用于前端版本合并）
+    entries = []
+
+    # 版本号识别：剥掉文件 basename 末尾的「下划线或连字符」接版本号，剩余部分即"模型根名"
+    # 覆盖：xxx_v1 / xxx-v11 / xxx_v0.1 / xxx-v2.3
+    import re as _re
+    _VERSION_TAIL_RE = _re.compile(r'[-_][vV](\d+(?:\.\d+)*)$')
+
+    def _split_model_root(base_name: str):
+        m = _VERSION_TAIL_RE.search(base_name)
+        if m:
+            return base_name[: m.start()], m.group(0).lstrip('_-')  # 根名 + 标签如 v11
+        return base_name, ''
+
     for root, dirs, files in os.walk(lora_dir):
         for f in files:
             ext = os.path.splitext(f)[1].lower()
@@ -7485,16 +7556,37 @@ async def scan_lora_folder(subfolder: str = ""):
                 # 统一用反斜杠（ComfyUI 格式）
                 rel_path_bs = rel_path.replace("/", "\\")
                 loras.append(rel_path_bs)
-                # 检查是否有预览图（同名 .png 或 .preview.png）
+                # 检查是否有预览（同名的图片或视频）
+                # 视频后缀也作为"预览"返回，对齐 ComfyUI-Lora-Manager 的 find_preview_file 行为
                 base = os.path.splitext(full_path)[0]
-                for preview_ext in [".png", ".jpg", ".jpeg", ".webp", ".preview.png"]:
+                # 顺序：长后缀优先（.preview.png 优先于 .png），视频后缀与图片后缀混排
+                for preview_ext in [
+                    ".preview.png", ".preview.jpg", ".preview.jpeg", ".preview.webp",
+                    ".preview.mp4", ".preview.webm",
+                    ".png", ".jpg", ".jpeg", ".webp",
+                    ".mp4", ".webm", ".gif"
+                ]:
                     preview_path = base + preview_ext
                     if os.path.isfile(preview_path):
                         # 返回相对于 ComfyUI 根目录的路径
                         preview_rel = os.path.relpath(preview_path, COMFYUI_BASE_PATH).replace("\\", "/")
                         previews[rel_path_bs] = f"/api/loras/preview?path={preview_rel}"
                         break
-    return {"loras": sorted(loras), "count": len(loras), "path": lora_dir, "previews": previews}
+                # 拆分 modelRoot + versionLabel，用于前端合并多版本
+                file_stem = os.path.splitext(f)[0]
+                model_root, version_label = _split_model_root(file_stem)
+                entries.append({
+                    "name": rel_path_bs,
+                    "modelRoot": model_root,
+                    "versionLabel": version_label,
+                })
+    return {
+        "loras": sorted(loras),
+        "count": len(loras),
+        "path": lora_dir,
+        "previews": previews,
+        "entries": entries,  # 含 modelRoot/versionLabel，供前端版本合并
+    }
 
 @app.get("/api/loras/preview")
 async def get_lora_preview(path: str):
@@ -7508,28 +7600,100 @@ async def get_lora_preview(path: str):
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="预览图不存在")
     ext = os.path.splitext(full_path)[1].lower()
-    media_type = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext, "image/png")
-    return FileResponse(full_path, media_type=media_type, headers={
-        "Cache-Control": "public, max-age=604800, immutable",
-    })
+    media_type = {
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"
+    }.get(ext, "image/png")
+    # 视频走分块传输 + 接受 Range 请求，便于 <video> 拖动进度
+    return FileResponse(
+        full_path,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=604800, immutable",
+            "Accept-Ranges": "bytes",
+        }
+    )
 
 # --- LoRA Manager 代理端点 ---
 
 @app.get("/api/lora-manager/loras")
 async def proxy_lora_manager_list():
-    """代理 LoRA Manager 的 LoRA 列表（含元数据、封面、触发词）"""
+    """代理 LoRA Manager 的 LoRA 列表，自动遍历所有分页返回完整数据（含 tags、civitai 元数据）"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
     try:
-        url = f"http://{target}/api/lm/loras/list"
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url)
-        if resp.status_code != 200:
-            return {"models": [], "error": f"LoRA Manager 返回 {resp.status_code}"}
-        return Response(content=resp.content, media_type="application/json")
+        all_items = []
+        page = 1
+        total_pages = 1
+        async with httpx.AsyncClient(timeout=60) as client:
+            while page <= total_pages and page <= 30:  # 最多 30 页 = 3000 个 LoRA
+                url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    return {"items": all_items, "total": len(all_items), "error": f"LoRA Manager 返回 {resp.status_code}"}
+                data = resp.json()
+                items = data.get("items", [])
+                all_items.extend(items)
+                total_pages = data.get("total_pages", 1)
+                if not items:
+                    break
+                page += 1
+        return {"items": all_items, "total": len(all_items), "page": 1, "page_size": len(all_items), "total_pages": 1}
     except Exception as e:
-        return {"models": [], "error": str(e)}
+        return {"items": [], "error": str(e)}
+
+
+@app.post("/api/lora-manager/fetch-all-civitai")
+async def proxy_lora_manager_fetch_all_civitai():
+    """触发 LoRA Manager 批量从 civitai 拉取元数据（用于补全 tags）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/api/lm/loras/fetch-all-civitai"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json={})
+        return Response(content=resp.content, media_type="application/json", status_code=resp.status_code)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/lora-manager/tags-stats")
+async def proxy_lora_manager_tags_stats():
+    """统计 LoRA Manager 中各 tag 大类的 LoRA 数量"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        all_items = []
+        page = 1
+        total_pages = 1
+        async with httpx.AsyncClient(timeout=60) as client:
+            while page <= total_pages and page <= 30:
+                url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    return {"tags": {}, "total": 0, "error": f"LoRA Manager 返回 {resp.status_code}"}
+                data = resp.json()
+                items = data.get("items", [])
+                all_items.extend(items)
+                total_pages = data.get("total_pages", 1)
+                if not items:
+                    break
+                page += 1
+        # 统计每个 tag 的 LoRA 数量
+        tag_count = {}
+        for it in all_items:
+            for t in (it.get("tags") or []):
+                if isinstance(t, str):
+                    tag_count[t] = tag_count.get(t, 0) + 1
+        # 排序返回 top 200
+        top_tags = sorted(tag_count.items(), key=lambda x: -x[1])[:200]
+        return {"tags": dict(top_tags), "total_loras": len(all_items), "tagged_loras": sum(1 for it in all_items if it.get("tags"))}
+    except Exception as e:
+        return {"tags": {}, "total": 0, "error": str(e)}
 
 @app.get("/api/lora-manager/preview")
 async def proxy_lora_manager_preview(name: str):

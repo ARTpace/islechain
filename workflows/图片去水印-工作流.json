@@ -1,0 +1,59 @@
+{
+  "14": {
+    "inputs": {
+      "prompt": "clean all watermark,text,logo,signature,caption,overlay",
+      "negative_prompt": "",
+      "unet_name": "flux2-klein\\flux-2-klein-4b-fp8.safetensors",
+      "clip_name": "qwen_3_4b.safetensors",
+      "vae_name": "flux2-vae.safetensors",
+      "working_megapixels": 1,
+      "output_size_mode": "保持输入尺寸",
+      "scale_method": "nearest-exact",
+      "steps": 4,
+      "cfg": 1,
+      "seed": 182895518617785,
+      "auto_save": false,
+      "filename_prefix": "GJJ/批量去水印",
+      "filename_regex": "",
+      "image": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "GJJ_BatchWatermarkRemover",
+    "_meta": {
+      "title": "GJJ · 🧼 批量图片去水印"
+    }
+  },
+  "17": {
+    "inputs": {
+      "sequence_range": ""
+    },
+    "class_type": "GJJ_MultiImageLoader",
+    "_meta": {
+      "title": "GJJ · 🧡·📂 批量多图加载浏览,队列执行"
+    }
+  },
+  "19": {
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "20": {
+    "inputs": {
+      "gjj_text_input_markdown": "",
+      "text": "## [🌏 模型下载](https:\nComfyUI/\n├──📁 models/\n│   ├──📁 diffusion_models/\n│   │   └──⚫ flux-2-klein-4b-fp8.safetensors\n│   ├──📁 text_encoders/\n│   │   └──⚫ qwen_3_4b.safetensors\n│   ├──📁 vae/\n│   │   └──⚫ flux2-vae.safetensors\n│   ├──📁 clip_vision/\n│   │   ├──🔵 flux-2-klein-4b-fp8.safetensors\n│   │   └──🔵 qwen_3_4b.safetensors\n│   └──📁 controlnet/\n│       └──🟦 flux2-vae.safetensors"
+    },
+    "class_type": "GJJ_TextInput",
+    "_meta": {
+      "title": "GJJ · 📝 文本输入、预览(Markdown)"
+    }
+  }
+}

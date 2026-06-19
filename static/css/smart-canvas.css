@@ -81,7 +81,10 @@ body.smart-node-drag .image-wrap:hover .image-resolution-badge { opacity:0 !impo
 .image-node.prompt-smart-node.selected, .image-node.loop-smart-node.selected { box-shadow:0 0 0 1px var(--strong), 0 14px 36px var(--shadow); }
 .prompt-smart-node .node-body, .loop-smart-node .node-body { align-items:stretch; justify-content:stretch; padding:0; height:100%; min-height:0; }
 .prompt-node-card { width:100%; height:100%; min-height:0; display:flex; flex-direction:column; gap:8px; }
+.prompt-node-text-wrap { position:relative; flex:1; min-height:72px; display:flex; }
+.prompt-node-text-wrap .prompt-node-text { flex:1; }
 .prompt-node-text { flex:1; min-height:72px; width:100%; resize:none; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; border:1px solid rgba(148,163,184,.32); border-radius:13px; background:rgba(255,255,255,.74); color:var(--text); outline:none; padding:10px; font-size:11.2px; line-height:1.45; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.45) transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.55); }
+.prompt-node-text:focus { border-color:var(--strong); background:var(--card); }
 .theme-dark .prompt-node-text { background:rgba(15,23,42,.42); border-color:rgba(148,163,184,.24); box-shadow:none; }
 .prompt-node-text::-webkit-scrollbar, .prompt-node-llm textarea::-webkit-scrollbar { width:7px; height:7px; }
 .prompt-node-text::-webkit-scrollbar-track, .prompt-node-llm textarea::-webkit-scrollbar-track { background:transparent; }

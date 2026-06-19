@@ -1,0 +1,126 @@
+/* ──────────────────────────────────────────────────────────────
+ * 提示词翻译按钮：浮在 textarea 右下角
+ * 共享给 zimage.html 和 smart-canvas.html
+ * ────────────────────────────────────────────────────────────── */
+.prompt-translate-corner {
+    position:absolute;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:26px;
+    height:26px;
+    padding:0;
+    border:1px solid transparent;
+    border-radius:8px;
+    background:rgba(0,0,0,0.06);
+    color:#555;
+    cursor:pointer;
+    user-select:none;
+    transition:all 0.15s;
+    line-height:1;
+    z-index:2;
+}
+.prompt-translate-corner:hover {
+    background:rgba(0,0,0,0.12);
+    color:#000;
+}
+.prompt-translate-corner:disabled {
+    cursor:default;
+    pointer-events:none;
+}
+.prompt-translate-corner span,
+.prompt-translate-corner .btn-text {
+    white-space:nowrap;
+}
+.prompt-translate-corner i,
+.prompt-translate-corner svg {
+    width:14px;
+    height:14px;
+}
+
+/* 颜色方案：中文=红，英文=蓝 */
+.prompt-translate-corner[data-lang="cn"] {
+    color:#e53935;
+}
+.prompt-translate-corner[data-lang="en"] {
+    color:#1e88e5;
+}
+.prompt-translate-corner[data-lang="cn"]:hover {
+    background:rgba(229,57,53,0.12);
+}
+.prompt-translate-corner[data-lang="en"]:hover {
+    background:rgba(30,136,229,0.12);
+}
+
+/* 状态反馈：loading / ok / fail */
+.prompt-translate-corner[data-state="loading"] svg {
+    animation: pt-spin 0.9s linear infinite;
+    opacity:0.7;
+}
+.prompt-translate-corner[data-state="ok"] {
+    color:#16a34a !important;
+}
+.prompt-translate-corner[data-state="fail"] {
+    color:#dc2626 !important;
+}
+@keyframes pt-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* smart-canvas 节点内的按钮（更紧凑） */
+.prompt-node-text-wrap .prompt-translate-corner {
+    right:6px;
+    bottom:6px;
+    height:22px;
+    padding:0 7px;
+    border-radius:8px;
+    border-color:rgba(148,163,184,.34);
+    background:rgba(255,255,255,.82);
+    color:var(--muted, #555);
+}
+.prompt-node-text-wrap .prompt-translate-corner:hover {
+    background:var(--card, #fff);
+    color:var(--strong, #000);
+    border-color:var(--strong, #000);
+}
+.prompt-node-text-wrap .prompt-translate-corner i,
+.prompt-node-text-wrap .prompt-translate-corner svg {
+    width:11px;
+    height:11px;
+}
+
+/* zimage.html 主输入框内的按钮（让出右侧"清空"按钮位置） */
+.prompt-wrapper .prompt-translate-corner {
+    bottom:6px;
+    right:34px;
+}
+
+/* 深色主题 */
+body.studio-theme-dark .prompt-translate-corner,
+.theme-dark .prompt-translate-corner {
+    background:rgba(255,255,255,0.08);
+    color:#8aa0b8;
+}
+body.studio-theme-dark .prompt-translate-corner:hover,
+.theme-dark .prompt-translate-corner:hover {
+    background:rgba(255,255,255,0.16);
+    color:#fff;
+}
+body.studio-theme-dark .prompt-translate-corner[data-lang="cn"],
+.theme-dark .prompt-translate-corner[data-lang="cn"] {
+    color:#ef5350;
+}
+body.studio-theme-dark .prompt-translate-corner[data-lang="en"],
+.theme-dark .prompt-translate-corner[data-lang="en"] {
+    color:#42a5f5;
+}
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner {
+    background:rgba(15,23,42,.62);
+    border-color:rgba(148,163,184,.26);
+}
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover {
+    background:rgba(15,23,42,.92);
+    color:#fff;
+    border-color:var(--strong, #fff);
+}

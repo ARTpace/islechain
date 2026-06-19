@@ -5473,6 +5473,10 @@ function openSmartCanvasShortcuts(){
 function closeSmartCanvasShortcuts(){
     smartShortcutModal?.classList.remove('open');
 }
+
+// 提示词翻译已抽到 /static/js/prompt-translate.js（window.PromptTranslate），
+// 这里只保留 scheduleSave 等节点缓存副作用，翻译主流程统一走模块。
+
 function promptNodeBodyHtml(node){
     node.llmProvider = resolveChatProviderId(node.llmProvider || '');
     node.llmModel = resolveChatModel(node.llmModel || '', node.llmProvider);
@@ -5496,10 +5500,12 @@ function promptNodeBodyHtml(node){
             ${node.llmSystemEnabled ? `<textarea class="prompt-node-control prompt-llm-system" placeholder="${escapeHtml(tr('smart.promptLlmSystemPlaceholder'))}">${escapeHtml(systemPrompt || 'You are a helpful prompt assistant.')}</textarea>` : ''}
         </div>` : '';
     return `<div class="prompt-node-card">
-        <textarea class="prompt-node-text prompt-node-control" ${readonly} placeholder="${escapeHtml(tr('smart.promptPlaceholderNode'))}">${escapeHtml(node.text || '')}</textarea>
+        <div class="prompt-node-text-wrap">
+            <textarea class="prompt-node-text prompt-node-control" ${readonly} placeholder="${escapeHtml(tr('smart.promptPlaceholderNode'))}">${escapeHtml(node.text || '')}</textarea>
+            <button class="prompt-translate-corner prompt-translate-btn" type="button" data-action="translate" title="点击切换方向 · 长按或双击翻译"><i data-lucide="languages"></i><span>中→英</span></button>
+        </div>
         <div class="prompt-node-tools">
             <button class="prompt-node-pill prompt-node-control prompt-preset-edit ${templateActive ? 'active' : ''}" type="button"><i data-lucide="library"></i><span>模板库</span></button>
-            <button class="prompt-node-pill prompt-node-control prompt-translate-btn" type="button" data-action="translate"><i data-lucide="languages"></i><span>翻译</span></button>
             <button class="prompt-node-pill prompt-llm-toggle ${node.llmEnabled ? 'active' : ''}" type="button"><i data-lucide="sparkles"></i><span>LLM</span></button>
         </div>
         ${node.llmEnabled ? inputThumbs : ''}
@@ -6109,47 +6115,55 @@ function bindPromptNodeControls(el, node){
     if(runEl) runEl.onclick = e => { e.preventDefault(); e.stopPropagation(); runPromptLLMNode(node.id); };
     const translateEl = el.querySelector('.prompt-translate-btn');
     if(translateEl) {
-        // 更新翻译按钮方向标签
-        const trDir = localStorage.getItem('translate_dir') || 'zh2en';
+        // 简化交互：单击翻译，不长按/双击/菜单
         const trSpan = translateEl.querySelector('span');
-        if(trSpan) trSpan.textContent = trDir === 'zh2en' ? '中→英' : '英→中';
-        // 右键切换方向
-        translateEl.addEventListener('contextmenu', e => {
-            e.preventDefault(); e.stopPropagation();
-            const cur = localStorage.getItem('translate_dir') || 'zh2en';
-            const next = cur === 'zh2en' ? 'en2zh' : 'zh2en';
-            localStorage.setItem('translate_dir', next);
-            const s = translateEl.querySelector('span');
-            if(s) s.textContent = next === 'zh2en' ? '中→英' : '英→中';
-        });
+        function updateDirLabel() {
+            if(!trSpan) return;
+            const d = window.PromptTranslate.getDirection();
+            trSpan.textContent = window.PromptTranslate.directionLabel(d);
+        }
+        updateDirLabel();
         translateEl.onclick = e => {
             e.preventDefault(); e.stopPropagation();
-            const text = node.text || '';
-            if(!text.trim()) return;
-            const direction = localStorage.getItem('translate_dir') || 'zh2en';
-            const span = translateEl.querySelector('span');
-            const orig = span?.textContent || '';
-            if(span) span.textContent = '翻译中…';
-            translateEl.style.opacity = '0.5';
-            translateEl.style.pointerEvents = 'none';
-            fetch('/api/translate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ text, direction })
-            }).then(r => r.json()).then(data => {
-                if(data.success && data.result){
-                    node.text = data.result;
-                    const textArea = el.querySelector('.prompt-node-text');
-                    if(textArea) textArea.value = data.result;
-                    scheduleSave();
-                }
-            }).catch(() => {}).finally(() => {
-                if(span) span.textContent = orig;
-                translateEl.style.opacity = '';
-                translateEl.style.pointerEvents = '';
-            });
+            doTranslate(el, node, translateEl);
         };
     }
+}
+async function doTranslate(el, node, btn) {
+    const text = node.text || '';
+    if(!text.trim()) return;
+    console.log('[翻译] 用户触发翻译:', text.substring(0, 50));
+    const span = btn.querySelector('span');
+    const orig = span?.textContent || '';
+    if(span) span.textContent = '…';
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    try {
+        const result = await window.PromptTranslate.translate(text, null, {
+            cacheSource: node
+        });
+        if(result) {
+            node.text = result.text;
+            const textArea = el.querySelector('.prompt-node-text');
+            if(textArea) textArea.value = result.text;
+            // 翻译结果已写入节点的 textOriginal/textTranslated 缓存字段，触发画布保存
+            if (typeof scheduleSave === 'function') scheduleSave();
+            console.log('[翻译] 翻译完成:', result.text.substring(0, 50),
+                result.fromCache ? '(缓存)' :
+                result.fromDict ? '(字典)' : '(API)');
+            if(span) span.textContent = '✓';
+        } else {
+            if(span) span.textContent = '✗';
+        }
+    } catch(e) {
+        console.error('[翻译] 翻译错误:', e);
+        if(span) span.textContent = '✗';
+    }
+    setTimeout(() => {
+        if(span) span.textContent = orig;
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+    }, 1200);
 }
 function bindLoopNodeControls(el, node){
     el.querySelectorAll('.loop-smart-control').forEach(control => {

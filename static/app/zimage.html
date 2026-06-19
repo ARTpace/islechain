@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -39,6 +39,7 @@
     <script src="/static/app/style-preset-panel.js"></script>
     <script src="/static/app/smart-prompt-picker.js"></script>
     <script src="/static/app/smart-prompt-manager.js"></script>
+    <script src="/static/js/prompt-translate.js?v=20260618001"></script>
     <style>
         :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #000000; }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
@@ -179,12 +180,8 @@
         #clearPromptBtn:hover { background:rgba(239,68,68,0.15)!important; color:#ef4444!important; }
         body.studio-theme-dark #clearPromptBtn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
         body.studio-theme-dark #clearPromptBtn:hover { background:rgba(239,68,68,0.2)!important; color:#f87171!important; }
-        #toggleLangBtn { background:rgba(0,0,0,0.08); color:#999; }
-        #toggleLangBtn:hover { background:rgba(0,180,216,0.15)!important; color:#0891b2!important; }
-        #toggleLangBtn.lang-active { background:rgba(0,180,216,0.2); color:#0891b2; }
-        body.studio-theme-dark #toggleLangBtn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
-        body.studio-theme-dark #toggleLangBtn:hover { background:rgba(0,180,216,0.25)!important; color:#22d3ee!important; }
-        body.studio-theme-dark #toggleLangBtn.lang-active { background:rgba(0,180,216,0.3); color:#22d3ee; }
+        #translateDirLabel { transition:color .15s, font-weight .15s; }
+        body.studio-theme-dark #translateDirLabel { color:#8aa0b8; }
         .anima-ctrl-split-left { border-right:1px solid rgba(0,0,0,0.1) !important; }
         body.studio-theme-dark .anima-ctrl-split-left { border-right-color:rgba(255,255,255,0.1) !important; }
         .seed-toggle-btn.seed-locked { background:#000; color:#fff; }
@@ -341,6 +338,7 @@
         body.studio-theme-dark .lora-trigger-label { color:#4a5a6e; }
     </style>
     <link rel="stylesheet" href="/static/theme.css">
+    <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
 </head>
 <body class="antialiased">
     <header class="pt-5 pb-4" style="flex-shrink:1; min-height:0; overflow-y:auto;">
@@ -357,12 +355,13 @@
                     <!-- 参考图预览区 -->
                     <div id="refImagePreview" class="flex flex-wrap gap-2 mb-2" style="display:none;"></div>
                     <div class="prompt-wrapper" style="position:relative;">
-                        <textarea id="prompt" rows="2" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
+                        <textarea id="prompt" rows="2" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
                         <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
-                        <button onclick="togglePromptLang()" id="toggleLangBtn" title="切换中英文" style="position:absolute;bottom:6px;right:34px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;background:rgba(0,0,0,0.08);color:#999;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <!-- 翻译按键：仅在有内容时显示 -->
+                        <button id="translateBtn" onclick="promptTranslateDo(event)" class="prompt-translate-corner" oncontextmenu="event.preventDefault()" title="翻译提示词（自动同步标签语言）" style="display:none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
                         </button>
                     </div>
                     <div class="flex items-center gap-2 mt-2 prompt-row">
@@ -389,10 +388,6 @@
                         <button onclick="toggleLoraPanel()" id="loraBtn" class="anima-ctrl" style="display:none;" title="LoRA 管理">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                             <span class="btn-text" id="loraBtnText"> LoRA</span>
-                        </button>
-                        <button id="translateBtn" class="anima-ctrl" onclick="translatePrompt()" oncontextmenu="event.preventDefault();toggleTranslateDir()" title="左键翻译 · 右键切换方向">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2v3"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-                            <span class="btn-text" id="translateDirLabel"> 中→英</span>
                         </button>
                         <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
@@ -732,48 +727,104 @@
             localStorage.setItem('anima_fixed_seed', animaFixedSeed);
         }
 
-        // === 翻译提示词 ===
-        let translateDir = localStorage.getItem('translate_dir') || 'zh2en';
-        function updateTranslateLabel() {
-            const label = document.getElementById('translateDirLabel');
-            if (label) label.textContent = translateDir === 'zh2en' ? ' 中→英' : ' 英→中';
+        // === 提示词翻译（Toggle 模式）===
+        // 单击 = 在 [原文, 译文] 两态间切换，永远不重复调 API。
+        //   - 当前 == 原文 → 切到译文
+        //   - 当前 == 译文 → 切回原文
+        //   - 都不匹配（用户改了 prompt）→ 视为新输入，调 API 翻译
+        // 标签语言跟着切（en ↔ cn）。
+        let _lastOriginalText = null;    // 上一次翻译前的原文
+        let _lastTranslatedText = null;  // 上一次翻译后的译文
+        function setPromptTagsLangByText(t) {
+            const hasChinese = /[\u4e00-\u9fa5]/.test(t);
+            window.PROMPT_TAGS_LANG_MODE = hasChinese ? 'cn' : 'en';
+            localStorage.setItem('prompt_tags_lang_mode', window.PROMPT_TAGS_LANG_MODE);
+            // 同步翻译按钮的 data-lang（控制颜色：中文=红 / 英文=蓝）
+            const tBtn = document.getElementById('translateBtn');
+            if (tBtn) tBtn.setAttribute('data-lang', window.PROMPT_TAGS_LANG_MODE);
+            if (typeof updatePromptTags === 'function') updatePromptTags();
         }
-        function toggleTranslateDir() {
-            translateDir = translateDir === 'zh2en' ? 'en2zh' : 'zh2en';
-            localStorage.setItem('translate_dir', translateDir);
-            updateTranslateLabel();
+        function applyTranslateResult(text) {
+            const promptInput = document.getElementById('prompt');
+            if (!promptInput) return;
+            // 规范化：把中文标点（顿号、分号、全角逗号）替换成英文逗号+空格
+            // —— 1) 避免 "黑发、金发" 被识别成一段
+            // —— 2) 保持 toggle 模式原文/译文严格匹配
+            const normalized = String(text)
+                .replace(/[，、；;]/g, ', ')
+                .replace(/\s*,\s*/g, ', ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            promptInput.value = normalized;
+            promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+            setPromptTagsLangByText(normalized);
         }
-        updateTranslateLabel();
-        async function translatePrompt() {
+        // tag 分隔符：英文逗号 + 中文标点（顿号、；，）
+        const PROMPT_TAG_SPLITTER = /[，,、；;]/;
+        // 反馈状态：用于按钮 SVG 颜色/旋转
+        function _setTranslateBtnState(state) {
+            const btn = document.getElementById('translateBtn');
+            if (!btn) return;
+            btn.setAttribute('data-state', state || '');
+        }
+        async function promptTranslateDo(e) {
+            if (e) e.stopPropagation();
             const promptInput = document.getElementById('prompt');
             const btn = document.getElementById('translateBtn');
             if (!promptInput || !btn) return;
             const text = promptInput.value.trim();
             if (!text) return;
+
+            // ① Toggle：当前是译文 → 切回原文（0 API）
+            if (_lastTranslatedText !== null && _lastOriginalText !== null
+                && text === _lastTranslatedText) {
+                applyTranslateResult(_lastOriginalText);
+                _setTranslateBtnState('ok');
+                setTimeout(() => _setTranslateBtnState(''), 1200);
+                return;
+            }
+
+            // ② Toggle：当前是原文 → 切到译文（0 API）
+            if (_lastOriginalText !== null && _lastTranslatedText !== null
+                && text === _lastOriginalText) {
+                applyTranslateResult(_lastTranslatedText);
+                _setTranslateBtnState('ok');
+                setTimeout(() => _setTranslateBtnState(''), 1200);
+                return;
+            }
+
+            // ③ 都不匹配 → 视为新输入，调 API 翻译
+            _setTranslateBtnState('loading');
             btn.disabled = true;
-            const span = btn.querySelector('.btn-text');
-            const origText = span.textContent;
-            span.textContent = ' 翻译中…';
             try {
-                const res = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ text, direction: translateDir })
-                });
-                const data = await res.json();
-                if (data.success && data.result) {
-                    promptInput.value = data.result;
-                    promptInput.dispatchEvent(new Event('input', { bubbles: true }));
-                } else {
-                    alert(data.error || '翻译失败');
+                const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+                const targetDir = hasChinese ? 'zh2en' : 'en2zh';
+                if (window.PromptTranslate.setDirection) {
+                    window.PromptTranslate.setDirection(targetDir);
                 }
-            } catch(e) {
-                alert('翻译请求失败: ' + e.message);
+                const result = await window.PromptTranslate.translate(text, null, {
+                    cacheSource: null
+                });
+                if (result) {
+                    applyTranslateResult(result.text);
+                    _lastOriginalText = text;
+                    _lastTranslatedText = result.text;
+                    _setTranslateBtnState('ok');
+                } else {
+                    _setTranslateBtnState('fail');
+                }
+                setTimeout(() => _setTranslateBtnState(''), 1200);
+            } catch (err) {
+                console.error('[translate] 错误:', err);
+                _setTranslateBtnState('fail');
+                setTimeout(() => _setTranslateBtnState(''), 1500);
             } finally {
                 btn.disabled = false;
-                span.textContent = origText;
+                btn.style.opacity = '';
             }
         }
+        // 兼容旧引用
+        const translatePrompt = promptTranslateDo;
 
         // === 提示词预设（通过预设选择器管理） ===
         function getActivePresetPrompts() {
@@ -968,7 +1019,7 @@
                 raw = raw.replace(tag, '');
             }
             // 清理多余的逗号和空格
-            raw = raw.split(',').map(p => p.trim()).filter(p => p).join(', ');
+            raw = raw.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p).join(', ');
             promptInput.value = raw;
             // 隐藏悬浮预览
             if (typeof hideAnimaTagPreview === 'function') {
@@ -1014,7 +1065,7 @@
         function translatePromptToCn(prompt) {
             if (!prompt) return '';
             const i18n = PRESET_I18N_MAP || {};
-            return prompt.split(',').map(p => p.trim()).filter(Boolean).map(token => {
+            return prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(Boolean).map(token => {
                 if (hasChinese(token)) {
                     // 中文 token 优先查预设双向表（精准反查预设原 id），其余保留中文
                     if (PRESET_NAME_TO_ID && PRESET_NAME_TO_ID[token]) {
@@ -1033,7 +1084,7 @@
         function translatePromptToEn(prompt) {
             if (!prompt) return '';
             const cn2en = PRESET_CN_TO_EN || {};
-            return prompt.split(',').map(p => p.trim()).filter(Boolean).map(token => {
+            return prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(Boolean).map(token => {
                 if (hasChinese(token)) {
                     // 优先预设名（精准），再回退到 i18n 反向表
                     if (PRESET_NAME_TO_ID && PRESET_NAME_TO_ID[token]) return PRESET_NAME_TO_ID[token];
@@ -1117,16 +1168,19 @@
             const tagsContainer = document.getElementById('promptTags');
             if (!promptInput || !tagsContainer) return;
 
-            // 显示/隐藏清空 + 切换键
+            // 同步翻译按钮语言色（中文=红 / 英文=蓝）
+            const tBtn = document.getElementById('translateBtn');
+            if (tBtn) {
+                const hasCn = /[\u4e00-\u9fa5]/.test(promptInput.value);
+                tBtn.setAttribute('data-lang', hasCn ? 'cn' : 'en');
+            }
+
+            // 显示/隐藏清空按钮
             const hasText = !!promptInput.value.trim();
             const clearBtn = document.getElementById('clearPromptBtn');
             if (clearBtn) clearBtn.style.display = hasText ? 'flex' : 'none';
-            const langBtn = document.getElementById('toggleLangBtn');
-            if (langBtn) {
-                langBtn.style.display = hasText ? 'flex' : 'none';
-                langBtn.title = window.PROMPT_TAGS_LANG_MODE === 'en' ? '切换为中文' : '切换为英文';
-                langBtn.classList.toggle('lang-active', window.PROMPT_TAGS_LANG_MODE === 'en');
-            }
+            // 翻译按键：有内容时才显示
+            if (tBtn) tBtn.style.display = hasText ? 'inline-flex' : 'none';
 
             // i18n 还没加载好时，等加载完再渲染（避免首屏预设应用时显示原文）
             if (PRESET_I18N_MAP === null) {
@@ -1136,7 +1190,7 @@
 
             // 智能分拆：按逗号分拆后，尝试合并连续 token 还原多词预设，保持原始顺序
             const raw = promptInput.value;
-            const simpleTokens = raw.split(',').map(p => p.trim()).filter(p => p);
+            const simpleTokens = raw.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
             const parts = [];
             
             // 构建所有多词预设的 prompt → id 映射（用于合并连续 token）
@@ -1268,7 +1322,7 @@
             const fromIdx = parseInt(el.dataset.idx);
             const promptInput = document.getElementById('prompt');
             if (!promptInput) return;
-            const tokens = promptInput.value.split(',').map(p => p.trim()).filter(p => p);
+            const tokens = promptInput.value.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
             const tags = _mergePresetsForDrag(tokens);
             _dragState = { fromIdx, tags, promptOriginal: promptInput.value, lastOverIdx: -1, lastSide: '' };
             // Mark original as dragging
@@ -1494,7 +1548,7 @@
 
                 if (currentWorkflow.includes('anima')) {
                     // 解析提示词，分离角色和画师标签
-                    const parts = prompt.split(',').map(p => p.trim()).filter(p => p);
+                    const parts = prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
                     const charTags = parts.filter(p => !p.startsWith('by ') && !p.startsWith('@')).join(', ');
                     const artistTags = parts.filter(p => p.startsWith('by ') || p.startsWith('@')).map(p => '@' + p.replace(/^by /, '').replace(/^@/, '')).join(', ');
                     
@@ -2163,12 +2217,69 @@
 
         // LoRA 状态
         let loraState = {
-            loraMap: {},         // name → {name, preview, triggerWords, BaseModel, description, ...}
+            loraMap: {},         // name → {name, preview, videoUrl, triggerWords, baseModel, description, ...}
             available: [],       // LoRA 文件名列表（从 loraMap keys 生成）
             models: [],          // 解析出的模型分类列表
             modelFilter: 'all',  // 当前筛选的模型
             active: []           // 用户添加的 LoRA [{name, strength}]
         };
+
+        // 文件夹名 → 中文显示名（未匹配的原样返回）
+        const FOLDER_CN_MAP = {
+            'anima': '动画角色', 'custom_anima': '自定义动画',
+            'flux1': 'FLUX1', 'flux2': 'FLUX2', 'custom_flux2': '自定义FLUX2',
+            'qwen': 'Qwen', 'qwen-edit': 'Qwen编辑',
+            'custom_qwen': '自定义Qwen', 'custom_qwen_edit': '自定义Qwen编辑',
+            'z-image': 'Z-Image', 'zimage': 'ZImage', 'custom_zimage': '自定义ZImage',
+            'recipes': '配方', 'character': '角色', 'style': '风格',
+            'lighting': '光影', 'concept': '概念', 'poses': '姿势',
+            'clothing': '服装', 'background': '背景', 'composition': '构图',
+            'detail': '细节', 'emotion': '表情', 'hair': '发型',
+            'camera': '镜头', 'texture': '材质', 'effect': '特效',
+            'person': '人物', 'scene': '场景', 'animal': '动物',
+            'architect': '建筑', 'food': '食物', 'vehicle': '载具',
+            'fantasy': '幻想', 'sci-fi': '科幻', 'cyberpunk': '赛博朋克',
+            'watercolor': '水彩', 'oil-painting': '油画', 'sketch': '素描',
+            'anime': '动漫', 'realistic': '写实', '3d': '3D', '2d': '2D',
+            'sd1': 'SD1.5', 'sd2': 'SD2', 'sdxl': 'SDXL', 'sd3': 'SD3',
+            'flux': 'FLUX', 'lora': 'LoRA', 'embedding': 'Embedding',
+            'controlnet': 'ControlNet', 'upscale': '放大', 'inpaint': '局部绘制'
+        };
+        function cnFolder(name) { return FOLDER_CN_MAP[name] || name; }
+
+        // 判断一个 URL 路径是否指向视频文件（用于 LoRA 预览）
+        // 对齐 ComfyUI-Lora-Manager 的做法：preview_url 字段既能放图也能放视频，靠后缀适配
+        // 注意：经 art-canvas 代理后，原始后缀被移到 query string（如 ?url=...mp4），
+        //      需要同时检查 query 里的 url= 参数本体
+        const LORA_VIDEO_EXT_RE = /\.(mp4|webm|mov|avi|mkv)(\?|&|$|%|$)/i;
+        function _loraIsVideoUrl(url) {
+            if (!url) return false;
+            const s = String(url);
+            // 1) 路径后缀（直链 /api/foo.mp4）
+            const noQuery = s.split('?')[0];
+            if (LORA_VIDEO_EXT_RE.test(noQuery)) return true;
+            // 2) 整 URL 内是否含视频扩展名（覆盖 ?url=...mp4 的代理场景）
+            if (LORA_VIDEO_EXT_RE.test(s)) return true;
+            // 3) 解码后的 query 路径（兜底：双层编码 %2520 等）
+            try {
+                const u = new URL(s, window.location.origin);
+                const innerUrl = u.searchParams.get('url') || '';
+                if (innerUrl) {
+                    const decoded = decodeURIComponent(innerUrl);
+                    if (LORA_VIDEO_EXT_RE.test(decoded.split('?')[0])) return true;
+                    if (LORA_VIDEO_EXT_RE.test(decoded)) return true;
+                }
+            } catch (e) { /* 忽略 URL 解析错误 */ }
+            return false;
+        }
+        // 把代理后的 preview URL 按是否为视频分配到 preview / videoUrl
+        function _loraSplitPreview(proxyUrl, rawUrl) {
+            if (!proxyUrl) return { preview: '', videoUrl: '' };
+            if (_loraIsVideoUrl(rawUrl || proxyUrl)) {
+                return { preview: '', videoUrl: proxyUrl };
+            }
+            return { preview: proxyUrl, videoUrl: '' };
+        }
 
         // 加载可用 LoRA 列表（优先 ComfyUI API / 本地扫描，LoRA Manager 仅补充元数据）
         async function loadAvailableLoras() {
@@ -2227,6 +2338,8 @@
                         }
                         loraState.available.sort();
                         loraState.models = [...modelSet].sort();
+                        // 把同 modelRoot 的多个 LoRA 合并为"多版本组"
+                        groupLoraVersions();
                         console.log('[LoRA] ComfyUI + 本地扫描加载成功，共', loraState.available.length, '个，文件夹', modelSet.size, '个');
                         // 尝试从 LoRA Manager 补充元数据（预览图、触发词等）
                         try {
@@ -2245,9 +2358,11 @@
                                         const matchedKey = loraState.loraMap[loraNameWithFolder] ? loraNameWithFolder : (loraState.loraMap[fullFileName] ? fullFileName : null);
                                         if (matchedKey && loraState.loraMap[matchedKey]) {
                                             const previewRaw = m.preview_url || '';
-                                            const preview = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
-                                            // 从 Civitai images 数组中提取视频预览（type === 'video'）
-                                            let videoUrl = '';
+                                            const previewProxy = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
+                                            // preview_url 可能是视频文件，按后缀自动拆分到 preview / videoUrl
+                                            const split = _loraSplitPreview(previewProxy, previewRaw);
+                                            let { preview, videoUrl } = split;
+                                            // 从 Civitai images 数组中提取视频预览（type === 'video'），优先级高于本地 preview_url
                                             const civImages = m.civitai && m.civitai.images ? m.civitai.images : [];
                                             for (const img of civImages) {
                                                 if (img.type === 'video' && img.url) {
@@ -2258,11 +2373,9 @@
                                             // 兼容旧字段
                                             if (!videoUrl) {
                                                 const videoRaw = m.video_url || m.animated_preview || m.preview_video || '';
-                                                videoUrl = videoRaw ? (videoRaw.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(videoRaw)}` : videoRaw) : '';
-                                            }
-                                            // 兜底：preview_url 本身可能是视频文件
-                                            if (!videoUrl && previewRaw && /\.((mp4|webm|mov|avi|mkv)(\?|$))/i.test(previewRaw)) {
-                                                videoUrl = preview;
+                                                if (videoRaw) {
+                                                    videoUrl = videoRaw.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(videoRaw)}` : videoRaw;
+                                                }
                                             }
                                             const triggerWords = [];
                                             const civitai = m.civitai;
@@ -2302,11 +2415,38 @@
                         loraState.loraMap = {};
                         const modelSet = new Set();
                         for (const name of raw) {
-                            loraState.loraMap[name] = { name, displayName: name.split('\\').pop().split('/').pop(), preview: previews[name] || '', triggerWords: [], baseModel: '', folder: '' };
-                            modelSet.add(extractLoraModel(name));
+                            const pv = previews[name] || '';
+                            // 本地扫描的 preview URL 也按后缀自动拆分到 preview / videoUrl
+                            const split = _loraSplitPreview(pv, pv);
+                            // 从路径中提取文件夹（与 ComfyUI 主路径一致）
+                            const parts = name.replace(/\\/g, '/').split('/');
+                            const folder = parts.length > 1 ? parts[0] : '';
+                            loraState.loraMap[name] = {
+                                name,
+                                displayName: name.split('\\').pop().split('/').pop(),
+                                preview: split.preview,
+                                videoUrl: split.videoUrl,
+                                triggerWords: [],
+                                baseModel: '',
+                                folder: folder
+                            };
+                            modelSet.add(folder || '通用');
                         }
                         loraState.models = [...modelSet].sort();
-                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个，预览图', Object.keys(previews).length, '个');
+                        // 设置 scanEntries 供 groupLoraVersions 使用
+                        const stemRe = /[-_][vV](\d+(?:\.\d+)*)$/;
+                        loraState.scanEntries = raw.map(name => {
+                            const fileName = name.split('\\').pop().split('/').pop();
+                            const stem = fileName.replace(/\.(safetensors|ckpt|pt|bin|pth)$/i, '');
+                            const m = stemRe.exec(stem);
+                            return {
+                                name,
+                                modelRoot: m ? stem.slice(0, m.index) : stem,
+                                versionLabel: m ? m[0].replace(/^[-_]/, '') : ''
+                            };
+                        });
+                        groupLoraVersions();
+                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个，预览图', Object.keys(previews).length, '个，文件夹', modelSet.size, '个');
                         return;
                     }
                 }
@@ -2335,15 +2475,18 @@
                             if (!loraName) continue;
                             const previewRaw = m.preview_url || '';
                             // preview_url 是相对路径如 /api/lm/previews?path=...，需要代理
-                            const preview = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
+                            const previewProxy = previewRaw ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}` : '';
+                            // preview_url 可能是视频，按后缀自动拆分
+                            const split = _loraSplitPreview(previewProxy, previewRaw);
+                            const preview = split.preview;
+                            let videoUrl = split.videoUrl;
                             const triggerWords = [];
                             // 从 civitai 对象提取 trainedWords
                             const civitai = m.civitai;
                             if (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords)) {
                                 triggerWords.push(...civitai.trainedWords);
                             }
-                            // 从 Civitai images 提取视频预览
-                            let videoUrl = '';
+                            // 从 Civitai images 提取视频预览，优先级高于本地 preview_url
                             const civImages = civitai && civitai.images ? civitai.images : [];
                             for (const img of civImages) {
                                 if (img.type === 'video' && img.url) {
@@ -2351,9 +2494,12 @@
                                     break;
                                 }
                             }
-                            // 兜底：preview_url 本身可能是视频文件
-                            if (!videoUrl && previewRaw && /\.((mp4|webm|mov|avi|mkv)(\?|$))/i.test(previewRaw)) {
-                                videoUrl = preview;
+                            // 兼容旧字段
+                            if (!videoUrl) {
+                                const videoRaw = m.video_url || m.animated_preview || m.preview_video || '';
+                                if (videoRaw) {
+                                    videoUrl = videoRaw.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(videoRaw)}` : videoRaw;
+                                }
                             }
                             map[loraName] = {
                                 name: loraName,
@@ -2370,6 +2516,8 @@
                         loraState.loraMap = map;
                         loraState.available = Object.keys(map).sort();
                         loraState.models = [...modelSet].sort();
+                        // Manager 数据里通常没有 modelRoot/versionLabel，groupLoraVersions() 会兜底从 name 自行提取
+                        groupLoraVersions();
                         console.log('[LoRA] LoRA Manager 加载成功，共', loraState.available.length, '个');
                         return;
                     }
@@ -2385,16 +2533,34 @@
                 if (scanRes.ok) {
                     const scanData = await scanRes.json();
                     const raw = scanData.loras || [];
+                    const previews = scanData.previews || {};
+                    const entries = scanData.entries || [];  // 含 modelRoot/versionLabel
                     if (raw.length > 0) {
                         loraState.available = raw;
                         loraState.loraMap = {};
                         const modelSet = new Set();
                         for (const name of raw) {
-                            loraState.loraMap[name] = { name, displayName: name.split('\\').pop().split('/').pop(), preview: '', triggerWords: [], baseModel: '', folder: '' };
-                            modelSet.add(extractLoraModel(name));
+                            const pv = previews[name] || '';
+                            const split = _loraSplitPreview(pv, pv);
+                            const parts = name.replace(/\\/g, '/').split('/');
+                            const folder = parts.length > 1 ? parts[0] : '';
+                            loraState.loraMap[name] = {
+                                name,
+                                displayName: name.split('\\').pop().split('/').pop().replace('.safetensors', ''),
+                                preview: split.preview,
+                                videoUrl: split.videoUrl,
+                                triggerWords: [],
+                                baseModel: '',
+                                folder: folder
+                            };
+                            modelSet.add(folder || '通用');
                         }
+                        // 保存后端 entries，供多版本合并使用
+                        loraState.scanEntries = entries;
+                        // 把同 modelRoot 的多个 LoRA 合并为"多版本组"
+                        groupLoraVersions();
                         loraState.models = [...modelSet].sort();
-                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个');
+                        console.log('[LoRA] 本地扫描加载成功，共', raw.length, '个，文件夹', modelSet.size, '个');
                         return;
                     }
                 }
@@ -2411,13 +2577,103 @@
                 loraState.loraMap = {};
                 const modelSet = new Set();
                 for (const name of raw) {
-                    loraState.loraMap[name] = { name, displayName: name.split('/').pop(), preview: '', triggerWords: [], baseModel: '', folder: '' };
-                    modelSet.add(extractLoraModel(name));
+                    // 从路径中提取文件夹
+                    const parts = name.replace(/\\/g, '/').split('/');
+                    const folder = parts.length > 1 ? parts[0] : '';
+                    loraState.loraMap[name] = { name, displayName: name.split('/').pop(), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder: folder };
+                    modelSet.add(folder || '通用');
                 }
                 loraState.models = [...modelSet].sort();
-                console.log('[LoRA] ComfyUI 回退加载成功，共', raw.length, '个');
+                console.log('[LoRA] ComfyUI 回退加载成功，共', raw.length, '个，文件夹', modelSet.size, '个');
             } catch (e) {
                 console.warn('[LoRA] 加载可用列表失败:', e);
+            }
+        }
+
+        // 把同 modelRoot 的多个 LoRA 合并为"多版本组"
+        // 数据来源：loraState.scanEntries（后端 /api/loras/scan 返回的 entries）
+        // 合并后：loraState.groups[root] = { isGroup, modelRoot, displayName, name, preview, videoUrl, ..., versions: [{name,label,preview,videoUrl,baseModel}], currentVersionIdx }
+        function groupLoraVersions() {
+            let entries = loraState.scanEntries || [];
+            // 兜底：LoRA Manager / ComfyUI 等分支没有 scanEntries 时，从 loraMap.name 自行提取
+            if (entries.length === 0 && loraState.loraMap) {
+                const stemRe = /[-_][vV](\d+(?:\.\d+)*)$/;
+                const newEntries = [];
+                for (const name of Object.keys(loraState.loraMap)) {
+                    const fileName = name.split('\\').pop().split('/').pop();
+                    const stem = fileName.replace(/\.(safetensors|ckpt|pt|bin|pth)$/i, '');
+                    const m = stemRe.exec(stem);
+                    newEntries.push({
+                        name,
+                        modelRoot: m ? stem.slice(0, m.index) : stem,
+                        versionLabel: m ? m[0].replace(/^[-_]/, '') : ''
+                    });
+                }
+                entries = newEntries;
+            }
+            // 1. 按 modelRoot 分组（只统计有 versionLabel 的 entries）
+            const buckets = {};
+            for (const e of entries) {
+                if (!e.modelRoot) continue;
+                if (!buckets[e.modelRoot]) buckets[e.modelRoot] = [];
+                buckets[e.modelRoot].push(e);
+            }
+            // 2. 版本号智能比较：v0.2 > v0.1 > v0.0.1；V2 > V1；v11 > v2（按数字段）
+            const compareVersion = (a, b) => {
+                const parse = (s) => (s || '').replace(/^[vV]/, '').split('.').map(n => parseInt(n, 10) || 0);
+                const arrA = parse(a);
+                const arrB = parse(b);
+                const maxLen = Math.max(arrA.length, arrB.length);
+                for (let i = 0; i < maxLen; i++) {
+                    const x = arrA[i] || 0;
+                    const y = arrB[i] || 0;
+                    if (x !== y) return y - x; // 降序：新的在前
+                }
+                return 0;
+            };
+            loraState.groups = {};
+            for (const [root, list] of Object.entries(buckets)) {
+                // 至少 2 个、且至少有 2 个非空 versionLabel，才算真正的"多版本组"
+                if (list.length < 2) continue;
+                const distinctVer = new Set(list.map(x => (x.versionLabel || '').toLowerCase()).filter(Boolean));
+                if (distinctVer.size < 2) continue;
+                list.sort((a, b) => compareVersion(a.versionLabel, b.versionLabel));
+                const versions = list.map(e => {
+                    const meta = loraState.loraMap[e.name] || {};
+                    return {
+                        name: e.name,
+                        label: e.versionLabel,
+                        preview: meta.preview || '',
+                        videoUrl: meta.videoUrl || '',
+                        baseModel: meta.baseModel || '',
+                        triggerWords: meta.triggerWords || [],
+                        folder: meta.folder || ''
+                    };
+                });
+                const defaultVer = versions[0]; // 最新版本
+                // 根名同名的所有 LoRA 共用同一个"displayName"（不再带版本号）
+                // 组的 folder 用 versions 里第一个非空 folder（兼容 v0.2 在根目录 + v0.1 在子目录的情况）
+                const groupFolder = versions.map(v => v.folder).find(f => f) || '';
+                loraState.groups[root] = {
+                    isGroup: true,
+                    modelRoot: root,
+                    name: defaultVer.name,  // 默认指向最新版本
+                    displayName: root,
+                    preview: defaultVer.preview,
+                    videoUrl: defaultVer.videoUrl,
+                    baseModel: defaultVer.baseModel,
+                    triggerWords: defaultVer.triggerWords,
+                    folder: groupFolder,
+                    versions,
+                    currentVersionIdx: 0
+                };
+                // 同时在 loraState.loraMap 里插入 modelRoot 合并条目（用 modelRoot 作为 key）
+                // 这样 lora-picker 能直接通过 loraMap[modelRoot] 取到带 versions 的合并卡片
+                loraState.loraMap[root] = loraState.groups[root];
+            }
+            const groupCount = Object.keys(loraState.groups).length;
+            if (groupCount > 0) {
+                console.log('[LoRA] 多版本组合并完成，共', groupCount, '组:', Object.keys(loraState.groups));
             }
         }
 
@@ -2486,11 +2742,11 @@
         // UI: 渲染面板内容（已移至 lora-picker.js）
 
         // === 工作流注入 ===
-        function injectLoraNodes(workflow) {
+        function renderLoraPanel() {
             if (builtinEl) {
                 const filterOptions = [
                     { value: 'all', label: '全部模型' },
-                    ...loraState.models.map(m => ({ value: m, label: m === '通用' ? '通用（根目录）' : m }))
+                    ...loraState.models.map(m => ({ value: m, label: m === '通用' ? '通用（根目录）' : cnFolder(m) }))
                 ];
                 const filterHtml = filterOptions.map(o =>
                     `<option value="${o.value}" ${loraState.modelFilter === o.value ? 'selected' : ''}>${o.label}</option>`
