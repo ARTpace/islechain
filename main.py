@@ -8322,16 +8322,17 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
         _t_total = (_t.perf_counter() - _t_start) * 1000
         print(f"[comfyui-save] dl={_t_dl_cost:.0f}ms total={_t_total:.0f}ms bytes={bytes_written//1024}KB {filename[:40]}")
 
-        # === 预生成 WebP 缩略图（下次 ?w=768 秒出） ===
-        # fire-and-forget 不阻塞返回
+
+
+        # === 预生成 WebP 缩略图（与 /api/media-preview 共用缓存，刷新秒出） ===
         async def _prewarm_thumb():
             try:
                 from PIL import Image, ImageOps
                 def _gen():
-                    # w=768 缩略图 + w=300 小图（列表用）
-                    for w_target in (768, 300):
-                        cache_key = f"{filename}|{w_target}"
-                        webp_path = os.path.join(COMFYUI_THUMB_CACHE_DIR, f"{hashlib.md5(cache_key.encode()).hexdigest()}.webp")
+                    # 用 media_preview_cache_paths 生成与画廊一致的缓存
+                    os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
+                    for w_target in (512, 768):
+                        webp_path, _ = media_preview_cache_paths(local_path, w_target)
                         if os.path.exists(webp_path):
                             continue
                         with Image.open(local_path) as src:
@@ -8340,8 +8341,7 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
                             if src.width > w_target:
                                 src.thumbnail((w_target, w_target), Image.BILINEAR)
                             out = src.convert("RGBA" if has_alpha else "RGB")
-                            os.makedirs(COMFYUI_THUMB_CACHE_DIR, exist_ok=True)
-                            out.save(webp_path, format="WEBP", quality=70, method=0)
+                            out.save(webp_path, format="WEBP", quality=82, method=4)
                     print(f"[comfyui-thumb-prewarm] ok {filename[:40]}")
                 await asyncio.to_thread(_gen)
             except Exception as e:

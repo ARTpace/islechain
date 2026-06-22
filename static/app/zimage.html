@@ -125,7 +125,7 @@
         body.studio-theme-dark .mode-btn.active { color:#00f0ff!important; }
         body.studio-theme-dark .mode-glider { background:rgba(0,240,255,0.1)!important; }
         /* 统一控件按钮样式 */
-        .anima-ctrl { height:32px; padding:0 12px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; background:#f1f1f1; color:#333; transition:all 0.15s; white-space:nowrap; }
+        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:#f1f1f1; color:#333; transition:all 0.15s; white-space:nowrap; }
         .anima-ctrl:hover { background:#e5e5e5; }
         .anima-ctrl.active { background:#000; color:#fff; }
         .anima-ctrl.seed-locked { background:#000; color:#fff; }
@@ -134,7 +134,7 @@
         .anima-ctrl.is-in-use:hover { background: linear-gradient(135deg, #00c8ed, #0088c8); }
         /* 引擎来源 / 模型下拉按钮：固定宽度,选择不同选项不会撑变 */
         #engineSwitcher > .anima-ctrl,
-        #modelSwitcher  > .anima-ctrl { width:150px; justify-content:flex-start; }
+        #modelSwitcher  > .anima-ctrl { width:110px; justify-content:flex-start; }
         #engineSwitcher > .anima-ctrl > #engineText,
         #modelSwitcher  > .anima-ctrl > #modelText { flex:1; text-align:left; }
         body.studio-theme-dark .anima-ctrl { background:rgba(255,255,255,0.08); color:#c8d0dc; }
@@ -234,6 +234,20 @@
         .progress-bar-percent { font-size:13px; font-weight:700; color:#00c9a7; min-width:42px; text-align:right; font-variant-numeric:tabular-nums; }
         .progress-bar-status { margin-top:8px; font-size:10px; font-weight:600; color:#9ca3af; letter-spacing:0.02em; }
         input::-webkit-inner-spin-button { display:none; }
+        /* === Control bar: always one row === */
+        .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; overflow-x:auto; padding:8px 12px; justify-content:space-between; }
+        /* 紧凑模式：下拉变切换 */
+        .compact-toggle .anima-ctrl-menu { display:none!important; }
+        .compact-toggle .anima-ctrl > svg:last-child { display:none; }
+        .compact-toggle .anima-ctrl-wrap { position:static; }
+        .compact-toggle .anima-ctrl { padding:0 8px!important; min-width:0; }
+        .compact-toggle label.text-\[9px\] { display:none; }
+        .control-bar > .ctrl-top-row { display:flex; flex-wrap:nowrap; gap:8px; width:auto; flex-shrink:1; min-width:0; align-items:center; }
+        .control-bar .mode-switcher { width:auto; min-width:0; flex:0 0 auto; }
+        .control-bar #modelSwitcher { width:auto; min-width:0; flex:0 0 auto; }
+        .gen-row { display:flex; width:auto; justify-content:flex-start; flex-wrap:nowrap; gap:8px; align-items:center; flex-shrink:0; }
+        .gen-row #animaControls { flex-wrap:nowrap; flex-shrink:0; display:flex; align-items:center; }
+        .gen-row #mainGenBtn { flex-shrink:0; min-width:80px; height:32px; }
         /* === Responsive === */
         @media(max-width:768px) {
             .console-card { border-radius:20px!important; }
@@ -244,14 +258,14 @@
             textarea#prompt { font-size:18px!important; }
             .prompt-row { flex-wrap:wrap; }
             .prompt-row .smart-prompt-btn { flex-shrink:0; }
-            .control-bar { flex-direction:column!important; align-items:stretch!important; gap:10px!important; }
-
-            .control-bar > .ctrl-top-row { flex-wrap:wrap; gap:10px!important; width:100%; }
-            .control-bar .mode-switcher { width:auto!important; min-width:0; flex:1; }
-            .control-bar #modelSwitcher { width:auto!important; min-width:120px; flex:1; }
-            .gen-row { width:100%!important; justify-content:flex-start!important; flex-wrap:wrap; gap:8px!important; align-items:center; }
-            .gen-row #animaControls { flex-wrap:wrap; flex-shrink:0; display:flex; align-items:center; }
-            .gen-row #mainGenBtn { flex-shrink:0; min-width:100px; height:32px; }
+            .control-bar { flex-direction:row!important; align-items:center!important; gap:8px!important; flex-wrap:nowrap!important; overflow-x:auto; padding:8px 12px!important; justify-content:space-between!important; }
+            .control-bar > .ctrl-top-row { flex-wrap:nowrap!important; gap:8px!important; width:auto; flex-shrink:1; min-width:0; }
+            .control-bar .mode-switcher { width:auto!important; min-width:0; flex:0 0 auto; }
+            .control-bar #modelSwitcher { width:auto!important; min-width:0; flex:0 0 auto; }
+            .gen-row { width:auto!important; justify-content:flex-start!important; flex-wrap:nowrap!important; gap:8px!important; align-items:center; flex-shrink:0; margin-left:8px; }
+            .gen-row #animaControls { flex-wrap:nowrap!important; flex-shrink:0; display:flex; align-items:center; }
+            .gen-row #mainGenBtn { flex-shrink:0; min-width:80px; height:32px; }
+            .anima-ctrl { margin:0; }
         }
         @media(max-width:480px) {
             .bg-gray-50\/50 { padding:12px!important; }
@@ -503,13 +517,6 @@
                         </button>
                     </div>
                 </div>
-                <div id="progressInline" class="progress-inline">
-                    <div class="progress-bar-wrap">
-                        <div class="progress-bar-track"><div id="progressFill" class="progress-bar-fill"></div></div>
-                        <span id="progressPercent" class="progress-bar-percent">0%</span>
-                    </div>
-                    <div id="progressStatus" class="progress-bar-status">准备中...</div>
-                </div>
             </div>
         </div>
     </header>
@@ -737,6 +744,48 @@
         let currentPromptId = null;
         const COMFYUI_WS_URL = `${window.location.protocol==='https:'?'wss:':'ws:'}//${window.location.host}/api/comfyui/ws?client_id=${CLIENT_ID}`;
 
+        // === 共享 WebSocket：实时进度分发 ===
+        const _activeTasks = new Map(); // promptId → { card, onDone }
+        let _sharedWs = null;
+        let _wsReconnectTimer = null;
+        function _ensureWs() {
+            if (_sharedWs && _sharedWs.readyState <= 1) return;
+            try {
+                _sharedWs = new WebSocket(COMFYUI_WS_URL);
+                _sharedWs.onmessage = (e) => {
+                    try {
+                        if (typeof e.data !== 'string') return;
+                        const msg = JSON.parse(e.data);
+                        const pid = msg.data?.prompt_id;
+                        if (!pid) return;
+                        const task = _activeTasks.get(pid);
+                        if (!task) return;
+                        if (msg.type === 'progress') {
+                            updateCardProgress(task.card, { status: 'sampling', value: msg.data.value, max: msg.data.max });
+                        } else if (msg.type === 'executing') {
+                            if (msg.data.node === null) {
+                                updateCardProgress(task.card, { status: 'done' });
+                                if (task.onDone) task.onDone();
+                            } else {
+                                updateCardProgress(task.card, { status: 'executing' });
+                            }
+                        } else if (msg.type === 'execution_start') {
+                            updateCardProgress(task.card, { status: 'started' });
+                        }
+                    } catch(err) {}
+                };
+                _sharedWs.onclose = () => { _wsReconnectTimer = setTimeout(_ensureWs, 2000); };
+                _sharedWs.onerror = () => {};
+            } catch(e) {}
+        }
+        function _registerTask(promptId, card, onDone) {
+            _activeTasks.set(promptId, { card, onDone });
+            _ensureWs();
+        }
+        function _unregisterTask(promptId) {
+            _activeTasks.delete(promptId);
+        }
+
         // === 工作流切换 ===
         let currentWorkflow = 'Z-Image.json';
         // 获取当前模型模式（供预设选择器过滤用）
@@ -745,8 +794,8 @@
             if (currentWorkflow.includes('anima')) return 'ANIMA';
             return 'Z-Image';
         }
-        let currentEngine = 'local';
-        let currentBatchCount = parseInt(localStorage.getItem('zimage_batch_count')) || 1;
+        let currentEngine = localStorage.getItem('zimage_engine') || 'local';
+        let currentBatchCount = 1;
 
         function switchWorkflow(name) {
             currentWorkflow = name;
@@ -893,6 +942,7 @@
 
         function switchEngine(mode) {
             currentEngine = mode;
+            localStorage.setItem('zimage_engine', mode);
             // 同步上拉菜单的按钮文本、图标
             const txt = document.getElementById('engineText');
             const icon = document.getElementById('engineIcon');
@@ -967,12 +1017,11 @@
         }
 
         // === 种子模式 ===
-        let animaSeedMode = localStorage.getItem('anima_seed_mode') || 'random';
-        let animaFixedSeed = parseInt(localStorage.getItem('anima_fixed_seed')) || 0;
+        let animaSeedMode = 'random';
+        let animaFixedSeed = 0;
 
         function toggleSeedMode() {
             animaSeedMode = animaSeedMode === 'random' ? 'fixed' : 'random';
-            localStorage.setItem('anima_seed_mode', animaSeedMode);
             updateSeedUI();
         }
         function updateSeedUI() {
@@ -992,7 +1041,6 @@
         }
         function onSeedInput(v) {
             animaFixedSeed = parseInt(v) || 0;
-            localStorage.setItem('anima_fixed_seed', animaFixedSeed);
         }
 
         // === 提示词翻译（Toggle 模式）===
@@ -1226,6 +1274,8 @@
                 
                 if (data.success && data.prompt) {
                     promptInput.value = data.prompt;
+                    // 先同步选择器状态，再渲染标签
+                    if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
                     updatePromptTags();
                     // 显示负向提示词提示
                     if (data.negative) {
@@ -1243,11 +1293,15 @@
         }
 
         // === 智能提示词配置（已集成到 API 设置页面） ===
-        let animaRatioW = 9, animaRatioH = 16, animaRes = 1;
+        let animaRatioW = parseInt(localStorage.getItem('anima_ratio_w')) || 9;
+        let animaRatioH = parseInt(localStorage.getItem('anima_ratio_h')) || 16;
+        let animaRes = parseInt(localStorage.getItem('anima_res')) || 1;
 
         function selectRatio(label, w, h) {
             animaRatioW = w;
             animaRatioH = h;
+            localStorage.setItem('anima_ratio_w', w);
+            localStorage.setItem('anima_ratio_h', h);
             document.getElementById('ratioText').textContent = label;
             setActiveMenuItem('ratioMenu', 'ratio-key', label);
             closeAllMenus();
@@ -1255,6 +1309,7 @@
 
         function selectRes(res) {
             animaRes = res;
+            localStorage.setItem('anima_res', res);
             document.getElementById('resText').textContent = res + 'K';
             setActiveMenuItem('resMenu', 'res-key', String(res));
             closeAllMenus();
@@ -1299,6 +1354,8 @@
             if (typeof hideAnimaTagPreview === 'function') {
                 hideAnimaTagPreview();
             }
+            // 先同步选择器状态，再渲染标签
+            if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
             updatePromptTags();
         }
         
@@ -1505,12 +1562,24 @@
                 const dd = 'draggable="true" data-idx="' + idx + '" ondragstart="promptTagDragStart(event)" ondragover="promptTagDragOver(event)" ondrop="promptTagDrop(event)" ondragend="promptTagDragEnd(event)"';
 
                 if (part.startsWith('@') || part.startsWith('by ')) {
-                    // 画师标签：蓝色背景
                     const name = part.replace(/^@/, '').replace(/^by /, '');
-                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    // 判断是否为已知画师标签：查 ANIMA_ARTIST_DB
+                    const _artistNameLower = name.toLowerCase();
+                    const _isKnownArtist = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0) ?
+                        ANIMA_ARTIST_DB.some(a => (a.name || '').toLowerCase() === _artistNameLower) : false;
+                    if (_isKnownArtist) {
+                        // 画师标签：蓝色背景
+                        html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    } else {
+                        // LoRA 触发词：橙色背景
+                        html += '<span class="prompt-tag-anima prompt-tag-lora prompt-tag-drag" ' + dd + ' data-tag-type="lora" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,140,50,0.3);color:#fff;border:1px solid rgba(255,140,50,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    }
                 } else if (charNames.has(lowerPart)) {
                     // 角色标签：紫色背景
                     html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fff;border:1px solid rgba(168,85,247,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                } else if (_isLoraFallbackTag(lowerPart)) {
+                    // 没有触发词的 LoRA：用文件名作为标签，橙色背景
+                    html += '<span class="prompt-tag-anima prompt-tag-lora prompt-tag-drag" ' + dd + ' data-tag-type="lora" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,140,50,0.3);color:#fff;border:1px solid rgba(255,140,50,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
                 } else {
                     // 其他标签：优先显示 i18n 中文（若 token 本身含中文则直接显示）
                     const { display, original } = resolveTagDisplay(part);
@@ -1711,38 +1780,188 @@
                 const encoded = encodeURIComponent(raw).replace(/%28/g, '(').replace(/%29/g, ')');
                 return 'https://blobs.animadex.net/Outputs/thumbs/' + encoded + '.webp';
             }
+            if (type === 'lora') {
+                const lowerName = name.toLowerCase().replace(/^@/, '');
+                // 1) 优先用 triggerWordMap 快速查找（O(1)）
+                if (typeof loraState !== 'undefined' && loraState && loraState.triggerWordMap && loraState.triggerWordMap[lowerName]) {
+                    return loraState.triggerWordMap[lowerName].preview || '';
+                }
+                // 2) 回退：遍历 loraMap 按触发词或 displayName/文件名匹配
+                if (typeof loraState !== 'undefined' && loraState && loraState.loraMap) {
+                    for (const key of Object.keys(loraState.loraMap)) {
+                        const entry = loraState.loraMap[key];
+                        if (!entry) continue;
+                        // 按触发词匹配
+                        const tw = entry.triggerWords || [];
+                        if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lowerName)) {
+                            return entry.preview || '';
+                        }
+                        // 按 displayName 或文件名匹配（兜底：没有触发词的 LoRA）
+                        const dn = (entry.displayName || '').toLowerCase();
+                        const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
+                        if (dn === lowerName || fn === lowerName) {
+                            return entry.preview || '';
+                        }
+                    }
+                }
+                return '';
+            }
             return '';
         }
 
         let animaTagPreviewEl = null;
+        let _previewHovered = false;
+        let _hidePreviewTimer = null;
         function getAnimaTagPreviewEl() {
             if (animaTagPreviewEl) return animaTagPreviewEl;
             animaTagPreviewEl = document.createElement('div');
             animaTagPreviewEl.id = 'animaTagPreview';
-            animaTagPreviewEl.style.cssText = 'position:absolute;z-index:9999;pointer-events:none;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);';
+            animaTagPreviewEl.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);';
+            // 鼠标移入预览框时保持显示（支持操作滑块）
+            animaTagPreviewEl.onmouseenter = () => { _previewHovered = true; _cancelHidePreview(); };
+            animaTagPreviewEl.onmouseleave = () => { _previewHovered = false; hideAnimaTagPreview(); };
             document.body.appendChild(animaTagPreviewEl);
             return animaTagPreviewEl;
         }
 
+        // 判断一个普通标签是否匹配某个 LoRA
+        // 覆盖三种情况：有触发词（无@前缀）、无触发词用文件名兜底、displayName 匹配
+        function _isLoraFallbackTag(tagLower) {
+            if (!tagLower || !loraState || !loraState.loraMap) return false;
+            for (const key of Object.keys(loraState.loraMap)) {
+                const entry = loraState.loraMap[key];
+                if (!entry) continue;
+                // 1) 按触发词匹配（不管有没有 @ 前缀都能命中）
+                const tw = entry.triggerWords || [];
+                if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === tagLower)) return true;
+                // 2) 按 displayName 或文件名匹配（无触发词的兜底）
+                const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
+                if (dn === tagLower) return true;
+            }
+            return false;
+        }
+
+        // LoRA 预览滑块：全局 handler（避免内联引号转义问题）
+        function _onLoraPreviewStrength(inputEl, idx) {
+            const v = parseFloat(inputEl.value);
+            const p = ((v - 0.2) / 1.0 * 100).toFixed(1);
+            inputEl.style.setProperty('--lora-preview-pct', p + '%');
+            const valEl = inputEl.closest('#animaTagPreview').querySelector('.lora-preview-strength-val');
+            if (valEl) valEl.textContent = v.toFixed(2);
+            if (idx === -1) {
+                // LoRA 不在 active 中，从 data 属性取 name 并加入
+                const name = inputEl.dataset.loraName;
+                if (name && loraState && loraState.active) {
+                    loraState.active.push({ name: name, strength: v });
+                    inputEl.dataset.loraPreviewIdx = loraState.active.length - 1;
+                }
+            } else if (loraState && loraState.active && loraState.active[idx]) {
+                loraState.active[idx].strength = v;
+            }
+        }
+
+        // LoRA 预览滑块样式（只注入一次）
+        (function _injectLoraPreviewSliderCss() {
+            if (document.getElementById('loraPreviewSliderCss')) return;
+            const s = document.createElement('style');
+            s.id = 'loraPreviewSliderCss';
+            s.textContent =
+                '#animaTagPreview input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:999px;background:linear-gradient(to right,rgba(255,140,50,0.7) 0%,rgba(255,140,50,0.7) var(--lora-preview-pct,50%),rgba(255,140,50,0.15) var(--lora-preview-pct,50%),rgba(255,140,50,0.15) 100%)}' +
+                '#animaTagPreview input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff8c32,#ff6b1a);box-shadow:0 2px 8px rgba(255,100,20,0.5),0 0 0 2px rgba(255,140,50,0.3);margin-top:-5px;transition:transform 0.15s}' +
+                '#animaTagPreview input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}' +
+                '#animaTagPreview input[type=range]::-moz-range-track{height:6px;border-radius:999px;background:rgba(255,140,50,0.15)}' +
+                '#animaTagPreview input[type=range]::-moz-range-progress{height:6px;border-radius:999px;background:rgba(255,140,50,0.7)}' +
+                '#animaTagPreview input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff8c32,#ff6b1a);box-shadow:0 2px 8px rgba(255,100,20,0.5),0 0 0 2px rgba(255,140,50,0.3)}';
+            document.head.appendChild(s);
+        })();
+
+        // 根据触发词查找对应的活跃 LoRA 条目（返回 {index, entry} 或 null）
+        function _findActiveLoraByTrigger(triggerName) {
+            if (!triggerName || !loraState) return null;
+            const lower = triggerName.toLowerCase().replace(/^@/, '');
+            // 优先查 loraState.active（有强度信息）
+            if (loraState.active) {
+                for (let i = 0; i < loraState.active.length; i++) {
+                    const a = loraState.active[i];
+                    if (!a || !a.name) continue;
+                    const meta = loraState.loraMap && loraState.loraMap[a.name];
+                    if (!meta) continue;
+                    const tw = meta.triggerWords || [];
+                    if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) {
+                        return { index: i, entry: a, meta: meta };
+                    }
+                    const dn = (meta.displayName || '').toLowerCase();
+                    const fn = a.name.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
+                    if (dn === lower || fn === lower) {
+                        return { index: i, entry: a, meta: meta };
+                    }
+                }
+            }
+            // 回退：查 loraState.loraMap 全量（未加入 active 的也能找到）
+            if (loraState.loraMap) {
+                for (const key of Object.keys(loraState.loraMap)) {
+                    const entry = loraState.loraMap[key];
+                    if (!entry) continue;
+                    const tw = entry.triggerWords || [];
+                    if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) {
+                        return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
+                    }
+                    const dn = (entry.displayName || '').toLowerCase();
+                    const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
+                    if (dn === lower || fn === lower) {
+                        return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
+                    }
+                }
+            }
+            return null;
+        }
+
         function showAnimaTagPreview(tagEl) {
+            _previewHovered = false;
             const type = tagEl.dataset.tagType;
             const name = tagEl.dataset.tagName;
             if (!type || !name) return;
             const url = buildAnimaTagThumbUrl(type, name);
             const el = getAnimaTagPreviewEl();
-            const label = type === 'artist' ? '画师' : '角色';
+            const label = type === 'artist' ? '画师' : type === 'lora' ? 'LoRA' : '角色';
             const safeName = name.replace(/</g, '&lt;');
             // 角色/画师缩略图是 2:3 竖图：用高 200px 的容器（宽度自适应到 133px 左右）
             const imgHeight = 200;
             const imgWidth = Math.round(imgHeight * 2 / 3);
+
+            // LoRA 标签：查找对应的活跃条目，显示强度滑块
+            let strengthHtml = '';
+            if (type === 'lora') {
+                const found = _findActiveLoraByTrigger(name);
+                if (found) {
+                    const s = found.entry.strength || 0.8;
+                    const pct = ((s - 0.2) / 1.0 * 100).toFixed(1);
+                    const idx = found.index;
+                    strengthHtml =
+                        '<div style="padding:6px 4px 2px;max-width:' + imgWidth + 'px;" onclick="event.stopPropagation()">' +
+                            '<div style="display:flex;align-items:center;gap:6px;">' +
+                                '<span style="font-size:9px;font-weight:700;color:#ff8c32;flex-shrink:0;">STR</span>' +
+                                '<div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">' +
+                                    '<input type="range" min="0.2" max="1.2" step="0.05" value="' + s + '"' +
+                                    ' style="width:100%;height:6px;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;--lora-preview-pct:' + pct + '%;"' +
+                                    ' data-lora-name="' + (found.entry.name || '').replace(/"/g, '&quot;') + '"' +
+                                    ' oninput="_onLoraPreviewStrength(this,' + idx + ')"' +
+                                '/>' +
+                            '</div>' +
+                            '<span class="lora-preview-strength-val" style="font-size:10px;font-weight:900;color:#e0e7ef;background:rgba(255,140,50,0.18);padding:2px 6px;border-radius:6px;min-width:32px;text-align:center;flex-shrink:0;">' + s.toFixed(2) + '</span>' +
+                        '</div>';
+                }
+            }
+
             el.innerHTML =
-                '<div style="font-size:10px;font-weight:700;color:' + (type === 'artist' ? '#00b4d8' : '#a855f7') + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;padding:0 4px;">' + label + '</div>' +
+                '<div style="font-size:10px;font-weight:700;color:' + (type === 'artist' ? '#00b4d8' : type === 'lora' ? '#ff8c32' : '#a855f7') + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;padding:0 4px;">' + label + '</div>' +
                 '<div style="position:relative;width:' + imgWidth + 'px;height:' + imgHeight + 'px;border-radius:8px;overflow:hidden;background:#1f2235;">' +
                     (url
                         ? '<img src="' + url + '" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="this.onerror=null;this.src=\'' + ANIMA_TAG_PREVIEW_SVG + '\';this.style.objectFit=\'contain\';this.style.opacity=\'0.55\';"/>'
                         : '<img src="' + ANIMA_TAG_PREVIEW_SVG + '" style="width:100%;height:100%;object-fit:contain;opacity:0.7;display:block;"/>') +
                 '</div>' +
-                '<div style="font-size:12px;font-weight:600;color:#e0e7ef;padding:6px 4px 2px;text-align:center;max-width:' + imgWidth + 'px;word-break:break-word;">' + safeName + '</div>';
+                '<div style="font-size:12px;font-weight:600;color:#e0e7ef;padding:6px 4px 2px;text-align:center;max-width:' + imgWidth + 'px;word-break:break-word;">' + safeName + '</div>' +
+                strengthHtml;
 
             const rect = tagEl.getBoundingClientRect();
             const top = rect.bottom + window.scrollY;
@@ -1753,28 +1972,67 @@
         }
 
         function hideAnimaTagPreview() {
-            const el = animaTagPreviewEl || document.getElementById('animaTagPreview');
-            if (el) el.style.opacity = '0';
+            if (_previewHovered) return;
+            // 延迟 150ms 再隐藏，给鼠标移到预览框的时间
+            clearTimeout(_hidePreviewTimer);
+            _hidePreviewTimer = setTimeout(() => {
+                if (_previewHovered) return;
+                const el = animaTagPreviewEl || document.getElementById('animaTagPreview');
+                if (el) el.style.opacity = '0';
+            }, 150);
+        }
+
+        function _cancelHidePreview() {
+            clearTimeout(_hidePreviewTimer);
+            _hidePreviewTimer = null;
         }
 
         function bindAnimaTagHover() {
             const tags = document.querySelectorAll('.prompt-tag-anima');
             tags.forEach(t => {
-                t.onmouseenter = () => showAnimaTagPreview(t);
+                t.onmouseenter = () => { _cancelHidePreview(); showAnimaTagPreview(t); };
                 t.onmouseleave = hideAnimaTagPreview;
             });
         }
         
         // === 进度条 ===
-        function startProgress() { const el=document.getElementById('progressInline'); if(el) el.classList.add('active'); }
-        function updateRealProgress(msg) {
-            const fill=document.getElementById('progressFill'), pct=document.getElementById('progressPercent'), status=document.getElementById('progressStatus');
-            if(msg.status==='sampling'){const v=msg.value||0,m=msg.max||1,p=10+Math.round((v/m)*80);fill.style.width=p+'%';pct.textContent=p+'%';status.textContent='采样中 '+v+'/'+m;}
-            else if(msg.status==='done'){fill.style.width='95%';pct.textContent='95%';status.textContent='解码保存中...';}
-            else if(msg.status==='started'){fill.style.width='2%';pct.textContent='2%';status.textContent='开始执行...';}
+        // === 卡片内进度更新（CSS 圆环风格） ===
+        function updateCardProgress(card, status) {
+            if (!card) return;
+            const label = card.querySelector('.card-progress-label');
+            const pctEl = card.querySelector('.card-progress-pct');
+            const outer = card.querySelector('.pg-ring-outer');
+            const inner = card.querySelector('.pg-ring-inner');
+            if (!label) return;
+            if (status.status === 'started' || status.status === 'executing') {
+                // 无真实进度：隐藏百分比，只显示文字
+                if (pctEl) pctEl.style.visibility = 'hidden';
+                label.textContent = '生成中...';
+            } else if (status.status === 'sampling') {
+                const v = status.value || 0, m = status.max || 1;
+                const p = Math.round((v / m) * 100);
+                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = p + '%'; }
+                const speed = Math.max(0.3, 1 - p * 0.007);
+                if (outer) outer.style.animationDuration = speed + 's';
+                if (inner) inner.style.animationDuration = (speed * 0.6) + 's';
+                label.textContent = '采样 ' + v + '/' + m;
+            } else if (status.status === 'done') {
+                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = '95%'; }
+                label.textContent = '解码中...';
+            } else if (status.status === 'complete') {
+                // 呼吸动画：缓慢旋转 + 透明度脉冲
+                if (outer) { outer.style.animation = 'breathSpin 3s ease-in-out infinite'; outer.style.borderColor = '#8b5cf6'; }
+                if (inner) { inner.style.animation = 'breathSpin 3s ease-in-out infinite reverse'; inner.style.borderColor = '#06b6d4'; }
+                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = '100%'; }
+                label.textContent = '完成!';
+                label.style.color = '#8b5cf6';
+            }
         }
-        function completeProgress(){const el=document.getElementById('progressFill');if(el)el.style.width='100%';document.getElementById('progressPercent').textContent='100%';document.getElementById('progressStatus').textContent='生成完成!';}
-        function hideProgress(){const el=document.getElementById('progressInline');if(el)el.classList.remove('active');}
+        // 兼容旧引用（空操作）
+        function startProgress() {}
+        function updateRealProgress() {}
+        function completeProgress() {}
+        function hideProgress() {}
 
         async function saveToUserOutput(comfyUrl, featureName) {
             try {
@@ -1791,10 +2049,8 @@
             const prompt = document.getElementById('prompt').value.trim();
             if (!prompt) return alert("请输入提示词");
             if (currentEngine !== 'local') return alert("请切换到 COMFYUI 引擎");
-            if (isGenerating) return;
 
-            isGenerating = true;
-            setLoading(true);
+            // 不再锁定按钮，允许连续点击排队
             startProgress();
             // 锁定当前工作流，生成期间切换模型不影响保存路径
             const lockedWorkflow = currentWorkflow;
@@ -1809,25 +2065,35 @@
             placeholder.style.aspectRatio = _aspectRatio;
             placeholder.style.transition = 'all 0.4s ease';
             placeholder.innerHTML = `
-                <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
-                    <div style="position:absolute;inset:0;border-3px:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>
-                    <div style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>
-                    <div style="width:8px;height:8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:50%;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:renderPulse 1.2s ease-in-out infinite;"></div>
+                <div class="card-progress" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
+                    <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+                        <div class="pg-ring-outer" style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>
+                        <div class="pg-ring-inner" style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>
+                        <span class="card-progress-pct" style="position:absolute;font-size:9px;font-weight:700;color:#6b7280;">0%</span>
+                    </div>
+                    <span class="card-progress-label" style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">排队中...</span>
+                    <style>
+                        @keyframes renderSpin { to { transform: rotate(360deg); } }
+                        @keyframes renderPulse { 0%,100% { transform:scale(1);opacity:1; } 50% { transform:scale(1.4);opacity:0.7; } }
+                        @keyframes breathSpin { 0%{transform:rotate(0deg) scale(0.9);opacity:0.4;} 50%{transform:rotate(180deg) scale(1.05);opacity:1;} 100%{transform:rotate(360deg) scale(0.9);opacity:0.4;} }
+                    </style>
                 </div>
-                <span class="text-[8px] font-bold text-gray-400 uppercase mt-3">Rendering...</span>
-                <style>
-                    @keyframes renderSpin { to { transform: rotate(360deg); } }
-                    @keyframes renderPulse { 0%,100% { transform:scale(1);opacity:1; } 50% { transform:scale(1.4);opacity:0.7; } }
-                </style>
             `;
             document.getElementById('masonry').prepend(placeholder);
 
             try {
-                // 加载工作流
-                const wfRes = await fetch('/api/workflows/' + encodeURIComponent(currentWorkflow));
-                if (!wfRes.ok) throw new Error('工作流加载失败');
-                const wfEnvelope = await wfRes.json();
-                const workflow = wfEnvelope.workflow || wfEnvelope;
+                // 加载工作流（带缓存，避免重复请求）
+                if (!window._wfCache) window._wfCache = {};
+                let workflow;
+                if (window._wfCache[currentWorkflow]) {
+                    workflow = JSON.parse(JSON.stringify(window._wfCache[currentWorkflow]));
+                } else {
+                    const wfRes = await fetch('/api/workflows/' + encodeURIComponent(currentWorkflow));
+                    if (!wfRes.ok) throw new Error('工作流加载失败');
+                    const wfEnvelope = await wfRes.json();
+                    window._wfCache[currentWorkflow] = wfEnvelope.workflow || wfEnvelope;
+                    workflow = JSON.parse(JSON.stringify(window._wfCache[currentWorkflow]));
+                }
                 const seed = (animaSeedMode === 'fixed' && animaFixedSeed > 0) ? animaFixedSeed : Math.floor(Math.random() * 10**15);
 
                 // 注入用户选择的 UNET 模型
@@ -1890,71 +2156,35 @@
                 if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image')) {
                     injectLoraNodes(workflow);
                 }
-                // 自动添加 LoRA 触发词到提示词
-                const loraTriggerWords = [];
-                for (const lora of loraState.active) {
-                    if (!lora.name) continue;
-                    const meta = loraState.loraMap[lora.name];
-                    if (meta && meta.triggerWords && meta.triggerWords.length > 0) {
-                        loraTriggerWords.push(...meta.triggerWords);
-                    }
-                }
-                if (loraTriggerWords.length > 0) {
-                    const promptEl = document.getElementById('prompt');
-                    const currentPrompt = promptEl.value.trim();
-                    const newTags = loraTriggerWords.filter(t => !currentPrompt.includes(t));
-                    if (newTags.length > 0) {
-                        promptEl.value = currentPrompt ? currentPrompt + ', ' + newTags.join(', ') : newTags.join(', ');
-                        console.log('[LoRA] 自动添加触发词:', newTags);
-                    }
-                }
+                // LoRA 触发词已在选择器勾选/取消时实时同步到提示词框，此处无需重复添加
 
-                currentPromptId = generateUUID();
+                // 为本次任务生成独立 ID
+                const localPromptId = generateUUID();
 
-                // WebSocket
-                let ws = null;
-                try {
-                    ws = await new Promise((resolve, reject) => {
-                        const socket = new WebSocket(COMFYUI_WS_URL);
-                        socket.onopen = () => resolve(socket);
-                        socket.onerror = () => reject(new Error('WebSocket连接失败'));
-                        setTimeout(() => reject(new Error('WebSocket连接超时')), 5000);
-                    });
-                    ws.onmessage = (event) => {
-                        try {
-                            if (typeof event.data !== 'string') return;
-                            const msg = JSON.parse(event.data);
-                            if (msg.type === 'progress' && msg.data?.prompt_id === currentPromptId) updateRealProgress({status:'sampling',value:msg.data.value,max:msg.data.max});
-                            else if (msg.type === 'executing' && msg.data?.prompt_id === currentPromptId) {
-                                if (msg.data.node === null) {
-                                    updateRealProgress({status:'done'});
-                                    // WebSocket 检测到执行完成，立即触发结果获取
-                                    if (typeof window._onWfComplete === 'function') window._onWfComplete();
-                                }
-                                else updateRealProgress({status:'executing'});
-                            } else if (msg.type === 'execution_start') updateRealProgress({status:'started'});
-                        } catch(e){}
-                    };
-                } catch(e) { ws = null; }
-
-                // 提交
+                // 提交到 ComfyUI
                 const res = await fetch('/api/comfyui/prompt', {
                     method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ prompt: workflow, client_id: CLIENT_ID, prompt_id: currentPromptId })
+                    body: JSON.stringify({ prompt: workflow, client_id: CLIENT_ID, prompt_id: localPromptId })
                 });
                 if (!res.ok) throw new Error('提交失败: ' + await res.text());
+                const submitResult = await res.json();
+                const taskPid = submitResult.prompt_id || localPromptId;
+                console.log('[Queue] 任务已提交，prompt_id:', taskPid);
+                // 注册到共享 WebSocket，接收实时进度
+                _registerTask(taskPid, placeholder, null);
 
-                // 等待结果（多张生成：收集所有图片）
+                // 等待结果：先查队列位置，执行中再高频轮询
                 const finalUrls = await new Promise((resolve, reject) => {
                     let resolved = false;
+                    let timer = null;
                     const collectResult = async () => {
                         if (resolved) return;
                         try {
-                            const r = await fetch('/api/comfyui/history/' + currentPromptId);
+                            const r = await fetch('/api/comfyui/history/' + taskPid);
                             const history = await r.json();
-                            const pd = history[currentPromptId];
+                            const pd = history[taskPid];
                             if (!pd) return;
-                            if (pd.status?.status_str === 'error') { resolved = true; clearInterval(checkInterval); reject(new Error('执行错误')); return; }
+                            if (pd.status?.status_str === 'error') { resolved = true; clearInterval(timer); _unregisterTask(taskPid); reject(new Error('执行错误')); return; }
                             if (pd.outputs) {
                                 const SAVE_NODE = currentWorkflow.includes('anima') ? '70' : null;
                                 const allImgs = [];
@@ -1976,21 +2206,47 @@
                                 }
                                 if (allImgs.length > 0) {
                                     resolved = true;
-                                    clearInterval(checkInterval);
+                                    clearInterval(timer);
+                                    _unregisterTask(taskPid);
                                     resolve(allImgs);
                                     return;
                                 }
                             }
                         } catch(e){}
                     };
-                    // WebSocket 完成信号立即触发获取
-                    window._onWfComplete = collectResult;
-                    // 轮询作为兜底（500ms 间隔，更快响应）
-                    const checkInterval = setInterval(collectResult, 500);
-                    setTimeout(() => { if (!resolved) { clearInterval(checkInterval); reject(new Error('超时')); } }, 300000);
+                    // 智能轮询：队列中低频（2s），执行中高频（500ms）
+                    let inQueue = true;
+                    let lastProgressStatus = '';
+                    const poll = async () => {
+                        if (resolved) return;
+                        if (inQueue) {
+                            try {
+                                const qs = await fetch('/api/queue_status?client_id=' + encodeURIComponent(CLIENT_ID));
+                                const qd = await qs.json();
+                                if (qd.total === 0 || qd.position === 0) {
+                                    inQueue = false;
+                                    clearInterval(timer);
+                                    timer = setInterval(collectResult, 500);
+                                } else {
+                                    // 排队中：显示位置
+                                    updateCardProgress(placeholder, {status:'sampling', value: 0, max: 1});
+                                    const lbl = placeholder.querySelector('.card-progress-label');
+                                    if (lbl) lbl.textContent = '排队 ' + qd.position + '/' + qd.total;
+                                }
+                            } catch(e) {}
+                        }
+                        if (!inQueue) await collectResult();
+                    };
+                    timer = setInterval(poll, 2000);
+                    // 超时保护
+                    setTimeout(() => { if (!resolved) { clearInterval(timer); reject(new Error('超时')); } }, 300000);
                 });
 
-                if (ws) try { ws.close(); } catch(e){}
+                // WebSocket 已移除，结果通过轮询获取
+
+                // 显示完成进度
+                updateCardProgress(placeholder, {status:'complete'});
+                await new Promise(r => setTimeout(r, 300));
 
                 // 用 ComfyUI URL 立即显示（快速）—— 直接在 placeholder 内渲染，不调 pushNewImage 避免重复卡片
                 const _qs = Date.now();
@@ -2005,105 +2261,69 @@
                 try {
                     finalUrls.forEach(u => {
                         const sep = u.indexOf('?') >= 0 ? '&' : '?';
-                        fetch(u + sep + 'w=768', { credentials: 'same-origin', cache: 'force-cache' }).catch(() => {});
+                        fetch(u + sep + 'w=512', { credentials: 'same-origin', cache: 'force-cache' }).catch(() => {});
                     });
                     console.log('[IMG-PERF] ③.⑤ 预取 WebP 缩略图已发起');
                 } catch(e) {}
-                // --- 原地升级：placeholder 直接变成图片卡片（grid 双层叠加）---
+                // --- Blur-up 两阶段加载：先显示 64px 模糊缩略图，再替换为高清图 ---
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
-                    // 用 render 创建临时卡片（带 onclick / dataset / 子元素事件），再 wrapper 替换 placeholder
                     const tempContainer = document.createElement('div');
                     window.GalleryCard.render(Object.assign({ container: tempContainer, record: quickRecord, isNew: true }, { eagerFirstImage: true }));
                     const tempCard = tempContainer.querySelector('.masonry-item');
                     if (tempCard) {
-                        tempCard.id = 'history-' + _qs;
-                        // 继承 placeholder 的宽高比，避免 layout 跳变
                         tempCard.style.aspectRatio = _aspectRatio;
-                        // grid 叠加：spinner 前景 + 图片卡片 背景（保留 tempCard 的 onclick/事件）
-                        tempCard.style.position = 'relative';
-                        tempCard.style.display = 'grid';
-                        tempCard.style.background = '#f5f5f5';
-                        tempCard.style.borderRadius = '8px';
-                        tempCard.style.overflow = 'hidden';
+                        const _fullImg = tempCard.querySelector('img');
+                        if (_fullImg) {
+                            // 第一阶段：用 64px 极小缩略图（瞬间加载）
+                            const _blurUrl = _fullImg.src.replace(/\/api\/comfyui\/view\?/, '/api/comfyui/view?w=64&');
+                            const _blurImg = new Image();
+                            _blurImg.src = _blurUrl;
+                            _blurImg.style.cssText = 'width:100%;height:100%;object-fit:cover;filter:blur(20px);transform:scale(1.2);transition:filter 1s ease,transform 1s ease;';
+                            // 第二阶段：预加载高清图
+                            const _hdImg = new Image();
+                            _hdImg.src = _fullImg.src;
 
-                        // spinner 层（创建真实 DOM 元素）
-                        const spinnerEl = document.createElement('div');
-                        spinnerEl.className = 'ph-spinner';
-                        spinnerEl.style.cssText = 'grid-area:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px;transition:opacity 0.35s ease;';
-                        spinnerEl.innerHTML =
-                            '<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">' +
-                                '<div style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>' +
-                                '<div style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>' +
-                                '<div style="width:8px;height:8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:50%;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:renderPulse 1.2s ease-in-out infinite;"></div>' +
-                            '</div>' +
-                            '<span class="text-[8px] font-bold text-gray-400 uppercase mt-3">Rendering...</span>';
-
-                        // 在卡片内容前插入 spinner 层，再包裹 image 层为 grid 子元素
-                        const imageWrap = document.createElement('div');
-                        imageWrap.className = 'ph-image';
-                        imageWrap.style.cssText = 'grid-area:1/1;opacity:0;transition:opacity 0.5s ease 0.15s;';
-                        while (tempCard.firstChild) imageWrap.appendChild(tempCard.firstChild);
-                        tempCard.appendChild(spinnerEl);
-                        tempCard.appendChild(imageWrap);
-
-                        // 用 tempCard 替换 placeholder
-                        placeholder.parentNode.replaceChild(tempCard, placeholder);
-
-                        const _img = imageWrap.querySelector('img');
-                        if (_img) {
-                            _img.src = _img.src.replace(/[?&]w=\d+(&|$)/, function(_, tail) { return tail === '&' ? '?' : ''; });
-                            console.log('[IMG-PERF] ④ 卡片 img.src =', _img.src, 'loading=', _img.loading, 'fetchpriority=', _img.getAttribute('fetchpriority'), '← 流式直连 + 原地升级');
-                            const _loadStart = performance.now();
-                            const _fadeIn = function() {
-                                const sp = tempCard.querySelector('.ph-spinner');
-                                const im = tempCard.querySelector('.ph-image');
-                                if (sp) sp.style.opacity = '0';
-                                if (im) im.style.opacity = '1';
-                                // 过渡完成后只移除 spinner 层、解除 image-wrap 嵌套
-                                // 保留 grid 布局和 aspectRatio，避免 layout 跳变
-                                setTimeout(function() {
-                                    if (sp && sp.parentNode) sp.remove();
-                                    if (im) {
-                                        im.style.opacity = '';
-                                        im.style.transition = '';
-                                        im.style.gridArea = '';
-                                        while (im.firstChild) tempCard.appendChild(im.firstChild);
-                                        im.remove();
-                                    }
-                                    // grid 布局 + aspectRatio 保留，让图片自然填满，无尺寸跳变
-                                }, 500);
-                                console.log('[IMG-PERF] ⑤ 浏览器加载图片完成 耗时:', (performance.now() - _loadStart).toFixed(1) + 'ms, size:', _img.naturalWidth + 'x' + _img.naturalHeight);
+                            const _showBlur = () => {
+                                // 显示模糊缩略图
+                                const blurWrap = document.createElement('div');
+                                blurWrap.style.cssText = 'position:absolute;inset:0;z-index:2;';
+                                blurWrap.appendChild(_blurImg);
+                                placeholder.style.position = 'relative';
+                                placeholder.appendChild(blurWrap);
+                                // 移除环形动画
+                                const progress = placeholder.querySelector('.card-progress');
+                                if (progress) progress.remove();
+                                placeholder.classList.remove('bg-gray-50', 'border-dashed', 'border-2', 'border-gray-200');
+                                // 高清图加载完后：聚焦模糊图 + 替换为高清
+                                const _blurStartTime = Date.now();
+                                const _showHD = () => {
+                                    // 强制让模糊图至少显示 800ms，让用户看清过渡
+                                    const elapsed = Date.now() - _blurStartTime;
+                                    const wait = Math.max(0, 800 - elapsed);
+                                    setTimeout(() => {
+                                        // 聚焦：模糊图变清晰
+                                        _blurImg.style.filter = 'blur(0)';
+                                        _blurImg.style.transform = 'scale(1)';
+                                        // 聚焦完成后：直接用 tempCard 替换，opacity=1 避免闪烁
+                                        setTimeout(() => {
+                                            tempCard.style.opacity = '1';
+                                            if (placeholder.parentNode) {
+                                                placeholder.parentNode.replaceChild(tempCard, placeholder);
+                                            }
+                                        }, 1000);
+                                    }, wait);
+                                };
+                                if (_hdImg.complete) _showHD();
+                                else _hdImg.addEventListener('load', _showHD, { once: true });
                             };
-                            if (_img.complete) { _fadeIn(); }
-                            else {
-                                _img.addEventListener('load', _fadeIn, { once: true });
-                                _img.addEventListener('error', function() {
-                                    const sp = tempCard.querySelector('.ph-spinner');
-                                    const im = tempCard.querySelector('.ph-image');
-                                    if (sp) sp.style.opacity = '0';
-                                    if (im) im.style.opacity = '1';
-                                    setTimeout(function() {
-                                        if (sp && sp.parentNode) sp.remove();
-                                        if (im) {
-                                            im.style.opacity = '';
-                                            im.style.transition = '';
-                                            im.style.gridArea = '';
-                                            while (im.firstChild) tempCard.appendChild(im.firstChild);
-                                            im.remove();
-                                        }
-                                    }, 500);
-                                    console.log('[IMG-PERF] ⑤❌ 浏览器加载图片失败');
-                                }, { once: true });
-                            }
+                            if (_blurImg.complete) _showBlur();
+                            else _blurImg.addEventListener('load', _showBlur, { once: true });
                         }
                     }
                 }
                 completeProgress();
                 // 图片卡已就位，进度条立即隐藏
                 hideProgress();
-                // 图片已显示：按钮立即可点击（不阻塞 UI），但 isGenerating 锁继续保留
-                // 直到 saveToUserOutput 完成（finally 中释放），避免重复触发
-                setLoading(false);
                 // ④ 已切换为流式 URL（w=0），浏览器从 ComfyUI 边下边显
                 // —— 不修改 img.src（流式 URL 已生效），不重置 dataset.originalSrc
                 // —— ComfyUI URL 带 long-cache 头 (immutable)，下次刷新秒出
@@ -2114,6 +2334,12 @@
                     return u;
                 })));
                 console.log('[IMG-PERF] ⑥ saveToUserOutput 耗时:', (performance.now() - _t2).toFixed(1) + 'ms');
+                // 预热本地缩略图缓存，刷新页面秒出
+                localUrls.forEach(u => {
+                    if (u && u.startsWith('/output/')) {
+                        fetch('/api/media-preview?w=512&url=' + encodeURIComponent(u), { credentials: 'same-origin' }).catch(() => {});
+                    }
+                });
                 // 不替换 img.src —— 浏览器已下载完 ComfyUI 缩略图，替换会触发重新下载
                 // 7 步被彻底删除（替换 src 是导致"图片很久才显示"的元凶）
                 quickRecord.images = localUrls; // 仅更新 record 引用，历史记录用本地路径
@@ -2153,8 +2379,6 @@
                 if (placeholder.parentNode) placeholder.remove();
                 alert(e.message || "生成失败");
             } finally {
-                isGenerating = false;
-                setLoading(false);
                 setTimeout(() => hideProgress(), 2000);
             }
         }
@@ -2171,7 +2395,7 @@
         // === 批量生成数量 ===
         function selectBatchCount(v) {
             currentBatchCount = v;
-            localStorage.setItem('zimage_batch_count', v.toString());
+
             updateBatchCountUI();
             closeAllMenus();
         }
@@ -2345,14 +2569,10 @@
                 if (p.seed) {
                     animaSeedMode = 'fixed';
                     animaFixedSeed = p.seed;
-                    try {
-                        localStorage.setItem('anima_seed_mode', 'fixed');
-                        localStorage.setItem('anima_fixed_seed', String(p.seed));
-                    } catch(_){}
                     if (typeof updateSeedUI === 'function') updateSeedUI();
                 }
                 // 5. 批量数量
-                if (p.batchCount) { currentBatchCount = p.batchCount; localStorage.setItem('zimage_batch_count', String(p.batchCount)); if (typeof updateBatchCountUI === 'function') updateBatchCountUI(); }
+                if (p.batchCount) { currentBatchCount = p.batchCount; if (typeof updateBatchCountUI === 'function') updateBatchCountUI(); }
                 // 6. LoRA（过滤掉工作流内置的，避免重复注入）
                 if (Array.isArray(p.loras) && p.workflow) {
                     try {
@@ -2375,7 +2595,7 @@
                     } catch(_) {
                         loraState.active = p.loras;
                     }
-                    try { localStorage.setItem('zimage_lora_config', JSON.stringify(loraState.active)); } catch(_){}
+
                 }
                 // 7. 刷新参数面板 + 滚到顶部
                 if (typeof updateParamsUI === 'function') updateParamsUI();
@@ -2403,11 +2623,31 @@
         // LoRA 状态
         let loraState = {
             loraMap: {},         // name → {name, preview, videoUrl, triggerWords, baseModel, description, ...}
+            triggerWordMap: {},  // triggerWord(小写) → {preview, name, displayName}（反查索引）
             available: [],       // LoRA 文件名列表（从 loraMap keys 生成）
             models: [],          // 解析出的模型分类列表
             modelFilter: 'all',  // 当前筛选的模型
             active: []           // 用户添加的 LoRA [{name, strength}]
         };
+        // 重建 triggerWordMap：从 loraMap 中提取所有触发词 → 预览图映射
+        function _rebuildTriggerWordMap() {
+            loraState.triggerWordMap = {};
+            if (!loraState.loraMap) return;
+            for (const key of Object.keys(loraState.loraMap)) {
+                const entry = loraState.loraMap[key];
+                if (!entry || !entry.triggerWords || !entry.triggerWords.length) continue;
+                for (const tw of entry.triggerWords) {
+                    const twLower = String(tw).toLowerCase().replace(/^@/, '');
+                    if (twLower && !loraState.triggerWordMap[twLower]) {
+                        loraState.triggerWordMap[twLower] = {
+                            preview: entry.preview || '',
+                            name: entry.name,
+                            displayName: entry.displayName || entry.name
+                        };
+                    }
+                }
+            }
+        }
 
         // 文件夹名 → 中文显示名（未匹配的原样返回）
         const FOLDER_CN_MAP = {
@@ -2655,7 +2895,8 @@
                             if (metaRes.ok) {
                                 const metaData = await metaRes.json();
                                 _loraEnrichFromManager(metaData.items || metaData.models || []);
-                                console.log('[LoRA] LoRA Manager 元数据补充完成');
+                                _rebuildTriggerWordMap();
+                                console.log('[LoRA] LoRA Manager 元数据补充完成，触发词索引', Object.keys(loraState.triggerWordMap).length, '个');
                             }
                         } catch (e) {
                             console.warn('[LoRA] LoRA Manager 元数据补充失败:', e);
@@ -2680,6 +2921,7 @@
                     // 设置 scanEntries 供 groupLoraVersions 使用
                     loraState.scanEntries = _loraBuildScanEntries(scan.paths);
                     groupLoraVersions();
+                    _rebuildTriggerWordMap();
                     console.log('[LoRA] 本地扫描加载成功，共', scan.paths.length, '个，预览图', Object.keys(scan.previews).length, '个，文件夹', loraState.models.length, '个');
                     return;
                 }
@@ -2704,7 +2946,8 @@
                         loraState.models = [...new Set(loraState.available.map(n => _loraExtractFolder(n) || '通用'))].sort();
                         // Manager 数据里通常没有 modelRoot/versionLabel，groupLoraVersions() 会兜底从 name 自行提取
                         groupLoraVersions();
-                        console.log('[LoRA] LoRA Manager 加载成功，共', loraState.available.length, '个');
+                        _rebuildTriggerWordMap();
+                        console.log('[LoRA] LoRA Manager 加载成功，共', loraState.available.length, '个，触发词索引', Object.keys(loraState.triggerWordMap).length, '个');
                         return;
                     }
                 }
@@ -2723,6 +2966,7 @@
                     }
                     loraState.scanEntries = scan.entries;
                     groupLoraVersions();
+                    _rebuildTriggerWordMap();
                     loraState.models = [...new Set(scan.paths.map(n => _loraExtractFolder(n) || '通用'))].sort();
                     console.log('[LoRA] 本地扫描加载成功，共', scan.paths.length, '个，文件夹', loraState.models.length, '个');
                     return;
@@ -2854,26 +3098,9 @@
             return loraState.available.filter(name => extractLoraModel(name) === loraState.modelFilter);
         }
 
-        // 持久化
-        function saveLoraConfig() {
-            try {
-                localStorage.setItem(LORA_STORAGE_KEY, JSON.stringify({
-                    active: loraState.active,
-                    modelFilter: loraState.modelFilter
-                }));
-            } catch (_) {}
-        }
-
-        function loadLoraConfig() {
-            try {
-                const raw = localStorage.getItem(LORA_STORAGE_KEY);
-                if (raw) {
-                    const cfg = JSON.parse(raw);
-                    if (Array.isArray(cfg.active)) loraState.active = cfg.active;
-                    if (cfg.modelFilter) loraState.modelFilter = cfg.modelFilter;
-                }
-            } catch (_) {}
-        }
+        // 持久化（已禁用，每次刷新重置）
+        function saveLoraConfig() {}
+        function loadLoraConfig() {}
 
         // UI: 显示/隐藏 LoRA 按钮（仅 anima 工作流时显示）
         function updateLoraSwitcherVisibility() {
@@ -2893,11 +3120,75 @@
             else btn.classList.remove('is-in-use');
         }
 
+        // ── LoRA 触发词实时同步 ──────────────────────────────────────────────
+        // 用户在 LoRA 选择器中勾选/取消时，即时把对应的 triggerWords 写入/移出提示词框
+        // _loraActiveTriggerWords: 记录当前由 LoRA 注入到提示词中的所有词（用于精准删除）
+        let _loraActiveTriggerWords = new Set();
+
+        function _loraCollectTriggerWords(selectedArr) {
+            const words = [];
+            for (const lora of (selectedArr || [])) {
+                if (!lora.name) continue;
+                const meta = loraState.loraMap[lora.name];
+                if (meta && Array.isArray(meta.triggerWords) && meta.triggerWords.length > 0) {
+                    // 只取第一个触发词（主触发词），避免大量触发词淹没提示词
+                    words.push(meta.triggerWords[0]);
+                } else {
+                    // 没有触发词时，用 LoRA 文件名（去扩展名）作为兜底标签
+                    const fallbackName = (meta && meta.displayName) ? meta.displayName : lora.name.split('/').pop().replace(/\.safetensors$/i, '');
+                    if (fallbackName) words.push(fallbackName);
+                }
+            }
+            return words;
+        }
+
+        function _loraSyncTriggerWords(selectedArr) {
+            const promptEl = document.getElementById('prompt');
+            if (!promptEl) return;
+            const newTriggerWords = _loraCollectTriggerWords(selectedArr);
+            const newSet = new Set(newTriggerWords);
+
+            // 1) 移除：旧的 LoRA 触发词中，不再被任何活跃 LoRA 使用的
+            if (_loraActiveTriggerWords.size > 0) {
+                const parts = splitPrompt(promptEl.value);
+                const filtered = parts.filter(p => !_loraActiveTriggerWords.has(p.toLowerCase()));
+                promptEl.value = filtered.join(', ');
+            }
+
+            // 2) 添加：新的触发词中，提示词里还没有的
+            if (newTriggerWords.length > 0) {
+                const currentParts = splitPrompt(promptEl.value);
+                const currentLowerSet = new Set(currentParts.map(p => p.toLowerCase()));
+                const toAdd = newTriggerWords.filter(t => !currentLowerSet.has(t.toLowerCase()));
+                if (toAdd.length > 0) {
+                    const cur = promptEl.value.trim();
+                    promptEl.value = cur ? cur + ', ' + toAdd.join(', ') : toAdd.join(', ');
+                }
+            }
+
+            // 3) 更新记录
+            _loraActiveTriggerWords = newSet;
+
+            // 4) 刷新标签显示（.value 赋值不触发 oninput，需手动调用）
+            if (typeof updatePromptTags === 'function') updatePromptTags();
+            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+        }
+
         // UI: 切换面板（使用 LoRA Picker）
         function toggleLoraPanel() {
+            // 打开前：记录当前提示词中由 LoRA 注入的触发词，便于取消时精准移除
+            _loraActiveTriggerWords = new Set(_loraCollectTriggerWords(loraState.active));
+
+            // 设置实时回调：每次勾选/取消即时同步触发词
+            loraPickerOnSelectionChange = function(selected) {
+                _loraSyncTriggerWords(selected);
+            };
+
             loraPickerOpen(function(selected) {
-                // 用户确认选择后，更新 loraState.active
+                // 确认后：最终同步 + 更新状态
+                loraPickerOnSelectionChange = null;
                 loraState.active = selected;
+                _loraSyncTriggerWords(selected);
                 saveLoraConfig();
                 updateLoraSwitcherVisibility();
             });
@@ -3058,7 +3349,12 @@
                     });
                     artistPickerSelected = newArtistSel;
                     if (typeof artistPickerLastAppliedTokens !== 'undefined') {
-                        const currentArtistTokens = parts.filter(promptHasArtistToken);
+                        // 只记录已知画师的 @ token，排除 LoRA 触发词
+                        const currentArtistTokens = parts.filter(p => {
+                            if (!promptHasArtistToken(p)) return false;
+                            const n = extractArtistName(p);
+                            return n && _artistNameSet.has(n.toLowerCase());
+                        });
                         artistPickerLastAppliedTokens = new Set(currentArtistTokens.map(t => t.toLowerCase()));
                     }
                 }
@@ -3100,6 +3396,56 @@
                             });
                             presetPickerLastAppliedTokens = newSet;
                         }
+                    }
+                }
+            } catch (_) {}
+
+            // ---- LoRA：双向同步（手动增删触发词/文件名 ↔ loraState.active） ----
+            try {
+                if (loraState && loraState.loraMap) {
+                    const prevCount = (loraState.active || []).length;
+
+                    // ① 移除：active 中触发词/文件名已不在 prompt 里的
+                    loraState.active = (loraState.active || []).filter(a => {
+                        if (!a || !a.name) return false;
+                        const meta = loraState.loraMap[a.name];
+                        const tw = (meta && meta.triggerWords) || [];
+                        if (tw.length > 0) {
+                            return tw.some(w => {
+                                const wl = String(w).toLowerCase().replace(/^@/, '');
+                                return lowerSet.has(wl) || lowerSet.has('@' + wl);
+                            });
+                        } else {
+                            const dn = (meta && meta.displayName ? meta.displayName : a.name.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
+                            return lowerSet.has(dn);
+                        }
+                    });
+
+                    // ② 添加：prompt 中出现的触发词/文件名但 active 里还没有的
+                    const activeNames = new Set(loraState.active.map(a => a.name));
+                    for (const key of Object.keys(loraState.loraMap)) {
+                        if (activeNames.has(key)) continue;
+                        const entry = loraState.loraMap[key];
+                        if (!entry) continue;
+                        const tw = entry.triggerWords || [];
+                        let matched = false;
+                        if (tw.length > 0) {
+                            matched = tw.some(w => {
+                                const wl = String(w).toLowerCase().replace(/^@/, '');
+                                return lowerSet.has(wl) || lowerSet.has('@' + wl);
+                            });
+                        } else {
+                            const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
+                            matched = lowerSet.has(dn);
+                        }
+                        if (matched) {
+                            loraState.active.push({ name: key, strength: 0.8 });
+                        }
+                    }
+
+                    // ③ 同步触发词记录
+                    if (loraState.active.length !== prevCount) {
+                        _loraActiveTriggerWords = new Set(_loraCollectTriggerWords(loraState.active));
                     }
                 }
             } catch (_) {}

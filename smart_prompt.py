@@ -125,10 +125,18 @@ def build_system_prompt(knowledge: str, preset: Optional[Dict[str, Any]] = None)
             negative = preset['negative_default']
         if preset.get('system_prompt'):
             custom_rules = preset['system_prompt']
+    # LoRA 触发词保护规则（始终注入，无论是否自定义预设）
+    lora_protection = """
+## LoRA 触发词保护（强制规则，不可覆盖）
+- 用户输入中所有以 `@` 开头的标签，**必须原样保留在输出中，不做任何修改、合并、重写或删除**
+- 这些是 LoRA 模型的触发词（trigger word），如果丢失或被改写，LoRA 效果会完全失效
+- 即使 `@xxx` 看起来像画师标签，只要它出现在用户输入中，就视为 LoRA 触发词，必须原样保留
+- 输出时将它们放在标签列表的末尾，与其他标签用逗号分隔
+"""
     # 如果预设有自定义 system_prompt，直接使用
     if custom_rules:
         return f"""{custom_rules}
-
+{lora_protection}
 ## 质量词
 {quality}
 
@@ -152,9 +160,10 @@ def build_system_prompt(knowledge: str, preset: Optional[Dict[str, Any]] = None)
 1. **只输出标签**：不要输出解释、说明、编号或其他文字
 2. **英文标签**：所有标签必须是英文
 3. **逗号分隔**：标签之间用逗号+空格分隔
-4. **标签顺序**：质量词在前，然后是角色特征、服装、姿势、场景、光影、构图
+4. **标签顺序**：质量词在前，然后是角色特征、服装、姿势、场景、光影、构图，**LoRA 触发词放最后**
 5. **不要重复**：不要重复相同的标签
 6. **不要用句子**：用短语标签，不要用完整句子
+7. **LoRA 触发词必须原样保留**：用户输入中以 `@` 开头的标签是 LoRA 触发词，绝对不能修改、删除或替换
 
 ## 标签规范
 
@@ -164,6 +173,12 @@ def build_system_prompt(knowledge: str, preset: Optional[Dict[str, Any]] = None)
 ### 负向提示词（单独一行，以 [NEG] 开头）
 - `{negative}`
 
+### LoRA 触发词保护（最重要）
+- 用户输入中所有以 `@` 开头的标签，**必须原样保留在输出中，不做任何修改、合并、重写或删除**
+- 这些是 LoRA 模型的触发词（trigger word），如果丢失或被改写，LoRA 效果会完全失效
+- 即使 `@xxx` 看起来像画师标签，只要它出现在用户输入中，就视为 LoRA 触发词，必须原样保留
+- 输出时将它们放在标签列表的末尾，与其他标签用逗号分隔
+
 ## 示例
 
 用户输入：一个粉色头发的女孩在夕阳下的海滩上微笑，穿着白色连衣裙
@@ -171,6 +186,14 @@ def build_system_prompt(knowledge: str, preset: Optional[Dict[str, Any]] = None)
 masterpiece, best quality, ultra detailed, highres, 1girl, pink hair, long hair, smile, white dress, beach, sunset, golden hour, sand, ocean, waves, from side, upper body, wind, hair flowing
 
 [NEG] worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry
+
+用户输入：一个蓝发少女，酷酷的表情，穿着黑色皮衣，使用了 @748cmstyle 风格
+输出：
+masterpiece, best quality, ultra detailed, highres, 1girl, blue hair, short hair, cool expression, black leather jacket, standing, upper body, @748cmstyle
+
+[NEG] worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry
+
+注意：上面的 @748cmstyle 是 LoRA 触发词，必须原样保留在输出中。
 
 ---
 

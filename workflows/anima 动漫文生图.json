@@ -67,8 +67,8 @@
   },
   "19": {
     "inputs": {
-      "seed": 704745772643630,
-      "steps": 12,
+      "seed": 689569793656749,
+      "steps": 10,
       "cfg": 1,
       "sampler_name": "er_sde",
       "scheduler": "simple",
@@ -116,31 +116,17 @@
       "title": "加载CLIP"
     }
   },
-  "46": {
-    "inputs": {
-      "lora_name": "anima-turbo-lora-v0.2.safetensors",
-      "strength_model": 0.8,
-      "model": [
-        "44",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoRA加载器(仅模型)"
-    }
-  },
   "50": {
     "inputs": {
       "scale": 2,
-      "tau": 2.5,
+      "tau": 2,
       "alpha": 0.5,
       "start_percent": 0,
       "end_percent": 0.5,
       "only_anima": true,
       "optimize_outside_range": true,
       "model": [
-        "72",
+        "76",
         0
       ]
     },
@@ -171,18 +157,6 @@
       "title": "Anima 画师 Tag 选择器"
     }
   },
-  "64": {
-    "inputs": {
-      "resolution": "832x1216 (0.68)",
-      "batch_size": 1,
-      "width_override": 0,
-      "height_override": 0
-    },
-    "class_type": "SDXLEmptyLatentSizePicker+",
-    "_meta": {
-      "title": "SDXL空Latent尺寸选择"
-    }
-  },
   "69": {
     "inputs": {
       "width": 864,
@@ -205,20 +179,6 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "保存图像"
-    }
-  },
-  "72": {
-    "inputs": {
-      "lora_name": "Wuli-Qwen-Image-2512-Turbo-LoRA-4steps-V3.0-bf16.safetensors",
-      "strength_model": 0.8,
-      "model": [
-        "76",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoRA加载器(仅模型)"
     }
   },
   "73": {
@@ -250,7 +210,7 @@
   },
   "76": {
     "inputs": {
-      "lora_name": "anima-turbo-lora-v0.2.safetensors",
+      "lora_name": "Anima\\anima-turbo-lora-v0.2.safetensors",
       "strength_model": 0.8,
       "model": [
         "44",
@@ -260,6 +220,23 @@
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
       "title": "LoRA加载器(仅模型)"
+    }
+  },
+  "78": {
+    "inputs": {
+      "boolean": true,
+      "on_true": [
+        "74",
+        0
+      ],
+      "on_false": [
+        "76",
+        0
+      ]
+    },
+    "class_type": "Switch any [Crystools]",
+    "_meta": {
+      "title": "切换任意"
     }
   }
 }

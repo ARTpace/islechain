@@ -17,6 +17,7 @@ let loraPickerCategory = 'all';    // 当前 folder 分类
 let loraPickerTagCategory = 'all'; // 当前 tag 大类分类
 let loraPickerSearch = '';         // 搜索关键词
 let loraPickerCallback = null;     // 确认回调
+let loraPickerOnSelectionChange = null; // 实时选中变化回调（每次 toggle/remove 时触发）
 let loraPickerInitialized = false;
 let loraPickerPage = 1;            // 当前页码
 const loraPickerPageSize = 50;     // 每页数量
@@ -54,21 +55,38 @@ function loraPickerRecordUsage(selectedItems) {
     const stats = loraPickerGetUsageStats();
     const now = Date.now();
     for (const it of selectedItems) {
-        const key = it.modelRoot || it.name;
-        if (!key) continue;
-        if (!stats[key]) stats[key] = { lastUsed: now, count: 0 };
-        stats[key].lastUsed = now;
-        stats[key].count = (stats[key].count || 0) + 1;
+        // 同时记录 name 和 modelRoot（多版本组用 modelRoot 作 key 才能匹配卡片）
+        const keys = new Set();
+        if (it.name) keys.add(it.name);
+        // 从 loraState 反查 modelRoot
+        if (it.name && loraState && loraState.groups) {
+            for (const root of Object.keys(loraState.groups)) {
+                const g = loraState.groups[root];
+                if (g && g.versions && g.versions.some(v => v.name === it.name)) {
+                    keys.add(root);
+                }
+            }
+        }
+        for (const key of keys) {
+            if (!key) continue;
+            if (!stats[key]) stats[key] = { lastUsed: now, count: 0 };
+            stats[key].lastUsed = now;
+            stats[key].count = (stats[key].count || 0) + 1;
+        }
     }
     loraPickerSetUsageStats(stats);
-    // 使用次数变化，清掉缓存让角标即时更新
     loraPickerClearCardCache();
 }
 // 获取某张卡的使用统计（兼容 group / single）
 function loraPickerItemUsage(item) {
     const stats = loraPickerGetUsageStats();
     const key = item.modelRoot || item.name;
-    return stats[key] || { lastUsed: 0, count: 0 };
+    const entry = stats[key] || null;
+    // 多版本组：也检查 resolvedName（当前激活版本的文件路径）
+    if (!entry && item.isGroup && item.resolvedName) {
+        return stats[item.resolvedName] || { lastUsed: 0, count: 0 };
+    }
+    return entry || { lastUsed: 0, count: 0 };
 }
 
 // ── 卡片 HTML 缓存（按 itemKey） ────────────────────────────────
@@ -418,6 +436,8 @@ async function loraPickerOpen(callback) {
 // ── 关闭选择器 ─────────────────────────────────────────────────────
 function loraPickerClose() {
     if (loraPickerCallback) {
+        // 记录使用统计（供“最近使用”排序）
+        loraPickerRecordUsage(loraPickerSelected);
         loraPickerCallback(loraPickerSelected);
     }
     // 清空锁定顺序，下次打开时重新计算
@@ -425,6 +445,7 @@ function loraPickerClose() {
     document.getElementById('loraPickerShell').classList.remove('is-open');
     document.body.style.overflow = '';
     loraPickerCallback = null;
+    loraPickerOnSelectionChange = null;
     // 关闭后刷新主界面按钮高亮状态
     if (typeof window.updatePickerButtonsHighlight === 'function') {
         window.updatePickerButtonsHighlight();
@@ -675,12 +696,7 @@ function loraPickerBuildCardHtml(item) {
         versionBadgeHtml = '<div class="lora-card-version-badge" title="当前显示版本">' + (cur.label || '?') + '</div>';
     }
 
-    // 使用次数小角标（仅在 count > 0 时显示）
-    const usage = loraPickerItemUsage(item);
     let usageBadgeHtml = '';
-    if (usage.count > 0) {
-        usageBadgeHtml = '<div class="lora-card-usage-badge" title="已使用 ' + usage.count + ' 次">' + usage.count + '</div>';
-    }
 
     // 多版本组：底部悬停版本条
     let versionsBarHtml = '';
@@ -847,6 +863,10 @@ function loraPickerToggleItem(itemKey) {
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+    // 实时回调：通知外部选中已变化
+    if (typeof loraPickerOnSelectionChange === 'function') {
+        try { loraPickerOnSelectionChange([...loraPickerSelected]); } catch(e) { console.error('[LoRA Picker] onSelectionChange error:', e); }
+    }
 }
 
 // ── 多版本组：切换显示版本（不动选中，只换卡片预览） ──────────────
@@ -906,6 +926,10 @@ function loraPickerRemoveSelected(index) {
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+    // 实时回调：通知外部选中已变化
+    if (typeof loraPickerOnSelectionChange === 'function') {
+        try { loraPickerOnSelectionChange([...loraPickerSelected]); } catch(e) { console.error('[LoRA Picker] onSelectionChange error:', e); }
+    }
 }
 
 // ── 更新强度 ─────────────────────────────────────────────────────

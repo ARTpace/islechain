@@ -7,13 +7,17 @@
             done:'Done',
             delete:'Delete',
             selected:'selected',
-            cancel:'Cancel'
+            cancel:'Cancel',
+            selectAll:'Select All',
+            deselectAll:'Deselect All'
         } : {
             manage:'批量管理',
             done:'完成',
             delete:'删除',
             selected:'已选择',
-            cancel:'取消'
+            cancel:'取消',
+            selectAll:'全选',
+            deselectAll:'取消全选'
         };
     };
 
@@ -31,7 +35,9 @@
             .history-bulk-btn.danger{background:#111827;color:#fff;border-color:#111827}
             .history-bulk-btn.danger:disabled{opacity:.38;cursor:not-allowed}
             .history-bulk-btn[data-bulk-delete]{display:none}
+            .history-bulk-btn[data-bulk-selectall]{display:none}
             .history-bulk-toolbar.is-selecting .history-bulk-btn[data-bulk-delete]{display:inline-flex}
+            .history-bulk-toolbar.is-selecting .history-bulk-btn[data-bulk-selectall]{display:inline-flex}
             .history-bulk-count{font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em}
             /* 搜索框 */
             .history-search-wrap{display:flex;align-items:center;gap:0;transition:width .25s ease,opacity .25s ease;width:0;opacity:0;overflow:hidden}
@@ -215,6 +221,7 @@
             <span class="bulk-spacer"></span>
             <span class="history-bulk-count" data-bulk-count></span>
             ${extraHtml}
+            <button class="history-bulk-btn" type="button" data-bulk-selectall><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg><span class="btn-text"> ${L.selectAll}</span></button>
             <button class="history-bulk-btn danger" type="button" data-bulk-delete disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg><span class="btn-text"> ${L.delete}</span></button>
             <button class="history-bulk-btn" type="button" data-bulk-toggle><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="btn-text"> ${L.manage}</span></button>
         `;
@@ -259,6 +266,7 @@
             }
         }
         const deleteBtn = toolbar.querySelector('[data-bulk-delete]');
+        const selectAllBtn = toolbar.querySelector('[data-bulk-selectall]');
         const countEl = toolbar.querySelector('[data-bulk-count]');
         // 绑定 extra 按钮
         (options.extraButtons || []).forEach(b => {
@@ -292,6 +300,13 @@
             toolbar.classList.toggle('is-selecting', selecting);
             surface.classList.toggle('is-selecting', selecting);
             document.body.classList.toggle('history-bulk-selecting', selecting);
+            // 全选按钮状态
+            if(selectAllBtn){
+                const cards = selectableCards();
+                const allSelected = cards.length > 0 && cards.every(c => selected.has(cardTs(c)));
+                const saText = selectAllBtn.querySelector('.btn-text');
+                if(saText) saText.textContent = allSelected ? ' ' + l.deselectAll : ' ' + l.selectAll;
+            }
             selectableCards().forEach(card => {
                 card.classList.toggle('bulk-selected', selected.has(cardTs(card)));
                 if(!card.querySelector('.bulk-check')){
@@ -306,6 +321,16 @@
             if(!selecting) selected.clear();
             sync();
         }
+        function selectAll(){
+            const cards = selectableCards();
+            const allSelected = cards.length > 0 && cards.every(c => selected.has(cardTs(c)));
+            if(allSelected){
+                selected.clear();
+            } else {
+                cards.forEach(c => { const ts = cardTs(c); if(ts) selected.add(ts); });
+            }
+            sync();
+        }
         function toggleCard(card){
             const ts = cardTs(card);
             if(!ts) return;
@@ -313,6 +338,7 @@
             sync();
         }
         toggleBtn.onclick = () => setSelecting(!selecting);
+        selectAllBtn.onclick = () => selectAll();
         deleteBtn.onclick = async () => {
             if(!selected.size) return;
             const targets = [...selected];

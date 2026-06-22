@@ -5,7 +5,7 @@
 
 // 状态
 let artistPickerSelected = [];
-// 上次写入提示词的画师 tokens 快照（用于「取消选择」时同步从提示词中删除）
+// 上次写入提示词的画师 tokens 快照(用于「取消选择」时同步从提示词中删除)
 let artistPickerLastAppliedTokens = new Set();
 let artistPickerPage = 1;
 const ARTIST_PICKER_PAGE_SIZE = 60;
@@ -13,12 +13,12 @@ const ARTIST_PICKER_HISTORY_MAX = 50;
 let artistPickerShowSelected = false;
 
 
-// 锁定顺序：打开选择器时计算一次（front-pin + 用户排序），运行期间点击不重排
+// 锁定顺序:打开选择器时计算一次(front-pin + 用户排序),运行期间点击不重排
 // 关闭时清空
 let artistPickerFrozenOrder = null;
 
 
-// 按当前 sort 对全部画师排序，再把已选 pin 到前面
+// 按当前 sort 对全部画师排序,再把已选 pin 到前面
 function artistPickerBuildFrozenOrder() {
     let list = ANIMA_ARTIST_DB.slice();
     const sort = document.getElementById('artistPickerSort')?.value || 'post_count';
@@ -39,7 +39,7 @@ let artistPickerCategory = 'all';
 let artistPickerFavorites = JSON.parse(localStorage.getItem('anima-artist-favorites') || '[]');
 let artistPickerHistory = JSON.parse(localStorage.getItem('anima-artist-history') || '[]');
 
-// 分类定义（按作品数量分级）
+// 分类定义(按作品数量分级)
 const ARTIST_CATEGORIES = [
     { id: 'all', label: '全部画师' },
     { id: 'legend', label: '传奇画师', min: 5000, desc: '5000+作品' },
@@ -51,7 +51,7 @@ const ARTIST_CATEGORIES = [
 // 画师数据
 let ANIMA_ARTIST_DB = [];
 
-// 图片URL（使用mooshieblob CDN）
+// 图片URL(使用mooshieblob CDN)
 function artistPickerImgUrl(item) {
     return item.image_url || '';
 }
@@ -77,7 +77,7 @@ function artistPickerLoadData() {
 function artistPickerRenderCategories() {
     const el = document.getElementById('artistPickerCategories');
     if (!el) return;
-    
+
     // 计算每个分类的数量
     const counts = {
         all: ANIMA_ARTIST_DB.length,
@@ -86,8 +86,8 @@ function artistPickerRenderCategories() {
         active: ANIMA_ARTIST_DB.filter(a => a.post_count >= 100 && a.post_count < 1000).length,
         rising: ANIMA_ARTIST_DB.filter(a => a.post_count >= 10 && a.post_count < 100).length
     };
-    
-    el.innerHTML = 
+
+    el.innerHTML =
         // 我的固定分组(收藏 / 历史)
         '<div class="artist-picker-cat' + (artistPickerCategory === 'favorites' ? ' active' : '') + '" onclick="artistPickerSetCategory(\'favorites\')">' +
             '<span>★ 我的收藏</span><span class="count">' + artistPickerFavorites.length + '</span></div>' +
@@ -112,9 +112,9 @@ function artistPickerSetCategory(cat) {
 
 // 渲染网格
 function artistPickerRenderGrid() {
-    // 用锁定顺序作为源（点击不会重排），未设置时回退到 ANIMA_ARTIST_DB
+    // 用锁定顺序作为源(点击不会重排),未设置时回退到 ANIMA_ARTIST_DB
     let list = artistPickerFrozenOrder ? artistPickerFrozenOrder.slice() : [...ANIMA_ARTIST_DB];
-    
+
     // 特殊分类:收藏 / 历史
     if (artistPickerCategory === 'favorites') {
         list = list.filter(a => artistPickerFavorites.includes(a.name));
@@ -133,37 +133,37 @@ function artistPickerRenderGrid() {
         const [min, max] = ranges[artistPickerCategory] || [0, Infinity];
         list = list.filter(a => a.post_count >= min && a.post_count < max);
     }
-    
+
     // 搜索过滤
     const q = (document.getElementById('artistPickerSearch')?.value || '').toLowerCase();
     if (q) {
         list = list.filter(a => a.name.toLowerCase().includes(q));
     }
-    
+
     // 只看已选
     if (artistPickerShowSelected) {
         list = list.filter(a => artistPickerSelected.includes(a.name));
     }
-    
-    // 排序和已选置顶已由 artistPickerFrozenOrder 提供，filter 中不再重排
-    // （避免点击后置顶失效）
+
+    // 排序和已选置顶已由 artistPickerFrozenOrder 提供,filter 中不再重排
+    // (避免点击后置顶失效)
 
     const total = list.length;
     const totalPages = Math.max(1, Math.ceil(total / ARTIST_PICKER_PAGE_SIZE));
     if (artistPickerPage > totalPages) artistPickerPage = totalPages;
     const start = (artistPickerPage - 1) * ARTIST_PICKER_PAGE_SIZE;
     const pageItems = list.slice(start, start + ARTIST_PICKER_PAGE_SIZE);
-    
+
     // 更新统计
     const totalEl = document.getElementById('artistPickerTotalCount');
     const pageInfoEl = document.getElementById('artistPickerPageInfo');
     if (totalEl) totalEl.textContent = '共 ' + total + ' 个画师';
-    if (pageInfoEl) pageInfoEl.textContent = '显示 ' + (start + 1) + '-' + Math.min(start + ARTIST_PICKER_PAGE_SIZE, total) + '，共 ' + total + ' 项';
-    
+    if (pageInfoEl) pageInfoEl.textContent = '显示 ' + (start + 1) + '-' + Math.min(start + ARTIST_PICKER_PAGE_SIZE, total) + ',共 ' + total + ' 项';
+
     // 渲染卡片
     const grid = document.getElementById('artistPickerGrid');
     if (!grid) return;
-    
+
     grid.innerHTML = '<div class="artist-picker-grid">' +
         pageItems.map(a => {
             const sel = artistPickerSelected.includes(a.name);
@@ -183,13 +183,13 @@ function artistPickerRenderGrid() {
                 '<div class="artist-picker-check">' + (sel ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div>' +
                 '</div>';
         }).join('') + '</div>';
-    
+
     // 分页
     const prevBtn = document.getElementById('artistPickerPrevBtn');
     const nextBtn = document.getElementById('artistPickerNextBtn');
     if (prevBtn) prevBtn.disabled = artistPickerPage <= 1;
     if (nextBtn) nextBtn.disabled = artistPickerPage >= totalPages;
-    
+
     const pagesEl = document.getElementById('artistPickerPages');
     if (pagesEl) {
         pagesEl.innerHTML = Array.from({length: Math.min(totalPages, 7)}, (_, i) => {
@@ -232,7 +232,7 @@ function artistPickerCopySelected() { navigator.clipboard.writeText(artistPicker
 function artistPickerClearAll() { artistPickerSelected = []; document.getElementById('artistPickerSelectedCount').textContent = 0; const _sumElClear = document.getElementById('artistPickerSelectedSummary'); if (_sumElClear) _sumElClear.textContent = '已选 0 个画师'; artistPickerRenderGrid(); }
 
 function artistPickerApply() {
-    // 写历史（去重，最近的在前面，限制 ARTIST_PICKER_HISTORY_MAX 条）
+    // 写历史(去重,最近的在前面,限制 ARTIST_PICKER_HISTORY_MAX 条)
     if (artistPickerSelected.length > 0) {
         artistPickerSelected.slice().reverse().forEach(name => {
             const idx = artistPickerHistory.indexOf(name);
@@ -248,21 +248,32 @@ function artistPickerApply() {
     if (artistPickerCallback) {
         artistPickerCallback(artistPickerSelected.slice());
     } else {
-        // 更新 prompt 输入框：保留角色标签，替换画师标签
+        // 更新 prompt 输入框:保留角色标签,替换画师标签
         const promptInput = document.getElementById('prompt');
         if (promptInput) {
             const current = promptInput.value.trim();
             const parts = current.split(',').map(p => p.trim()).filter(p => p);
-            // 1) 先把"上次应用写入的画师 token"全部移除
+            // 1) 先把“上次应用写入的画师 token”全部移除（只移除已知画师，保留 LoRA 触发词）
             const lastSetLower = new Set([...artistPickerLastAppliedTokens].map(s => s.toLowerCase()));
-            const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
-            // 2) 保留角色标签（不以@或by开头的部分）
-            const charParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by '));
-            // 3) 合并：角色标签 + 新的画师标签
+            const knownNames = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB) ?
+                new Set(ANIMA_ARTIST_DB.map(a => a.name.toLowerCase())) : new Set();
+            const partsAfterRemove = parts.filter(t => {
+                if (!lastSetLower.has(t.toLowerCase())) return true;
+                // 即使在 lastApplied 中，如果是 LoRA 触发词（不在画师库中）也要保留
+                const n = t.replace(/^@/, '').replace(/^by /, '').toLowerCase();
+                return !knownNames.has(n);
+            });
+            // 2) 保留：角色标签 + LoRA 触发词（@/by 开头但不在画师库中的）
+            const charAndLoraParts = partsAfterRemove.filter(p => {
+                if (!p.startsWith('@') && !p.startsWith('by ')) return true; // 普通标签
+                const n = p.replace(/^@/, '').replace(/^by /, '').toLowerCase();
+                return !knownNames.has(n); // 不是已知画师 → LoRA 触发词，保留
+            });
+            // 3) 合并：角色/LoRA 标签 + 新的画师标签
             const artistParts = artistPickerSelected.map(a => '@' + a);
             // 4) 记录本次写入的画师 token
             artistPickerLastAppliedTokens = new Set(artistParts.map(t => t.toLowerCase()));
-            const allParts = [...charParts, ...artistParts];
+            const allParts = [...charAndLoraParts, ...artistParts];
             promptInput.value = allParts.filter(p => p).join(', ');
         }
     }
@@ -271,10 +282,10 @@ function artistPickerApply() {
 }
 
 function artistPickerClose() {
-    // 关闭即应用（与 LoRA 选择器一致：选择后关闭即直接使用）
+    // 关闭即应用(与 LoRA 选择器一致:选择后关闭即直接使用)
     artistPickerApply();
 
-    // 清空锁定顺序，下次打开时重新计算
+    // 清空锁定顺序,下次打开时重新计算
     artistPickerFrozenOrder = null;
     const modal = document.getElementById('artistPickerModal');
     if (modal) modal.style.display = 'none';
@@ -287,18 +298,22 @@ function artistPickerClose() {
 
 function artistPickerOpen(callback) {
     artistPickerCallback = callback || null;
-    // 从提示词中读取已有的画师标签（只匹配预定义列表中的）
+    // 从提示词中读取已有的画师标签(只匹配预定义列表中的)
     const promptInput = document.getElementById('prompt');
     if (promptInput) {
         const parts = promptInput.value.split(',').map(p => p.trim()).filter(p => p);
         const knownNames = new Set(ANIMA_ARTIST_DB.map(a => a.name.toLowerCase()));
-        // 画师标签：以@或by开头，且在预定义列表中存在的
+        // 画师标签:以@或by开头,且在预定义列表中存在的
         artistPickerSelected = parts
             .filter(p => (p.startsWith('@') || p.startsWith('by ')) && knownNames.has(p.replace(/^@/, '').replace(/^by /, '').toLowerCase()))
             .map(p => p.replace(/^@/, '').replace(/^by /, ''));
-        // 把当前 prompt 中「属于画师」的全部 token 登记为「上次应用写入的」快照
-        // 这样首次打开即取消勾选某个画师，关闭时该画师的 token 也会同步从提示词中删除
-        const currentArtistTokens = parts.filter(p => p.startsWith('@') || p.startsWith('by '));
+        // 只把「已知画师」的 @ token 登记为「上次应用写入的」快照
+        // LoRA 触发词(@ 开头但不在 ANIMA_ARTIST_DB 中)不计入,避免关闭时被误删
+        const currentArtistTokens = parts.filter(p => {
+            if (!p.startsWith('@') && !p.startsWith('by ')) return false;
+            const n = p.replace(/^@/, '').replace(/^by /, '').toLowerCase();
+            return knownNames.has(n);
+        });
         artistPickerLastAppliedTokens = new Set(currentArtistTokens.map(t => t.toLowerCase()));
     }
     document.getElementById('artistPickerSelectedCount').textContent = artistPickerSelected.length;
@@ -316,8 +331,8 @@ function artistPickerOpen(callback) {
             artistPickerRenderGrid();
         });
     } else {
-        // 计算锁定顺序：用户排序 + 已选置顶
-        // 之后运行期间点击只切换状态，不重排
+        // 计算锁定顺序:用户排序 + 已选置顶
+        // 之后运行期间点击只切换状态,不重排
         artistPickerFrozenOrder = artistPickerBuildFrozenOrder();
         artistPickerRenderCategories();
         artistPickerRenderGrid();
@@ -331,7 +346,7 @@ function artistPickerOpen(callback) {
 // 初始化
 function artistPickerInit() {
     artistPickerLoadData();
-    
+
     if (!document.getElementById('artistPickerModal')) {
         const modalHTML = `
         <div id="artistPickerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);">
@@ -355,7 +370,7 @@ function artistPickerInit() {
                         <button onclick="artistPickerClose()" style="padding: 6px 10px; background: none; border: none; cursor: pointer; font-size: 20px; color: #666;">&times;</button>
                     </div>
                 </div>
-                
+
                 <!-- 主体内容 -->
                 <div style="display: flex; flex: 1; overflow: hidden;">
                     <!-- 左侧分类 -->
@@ -369,11 +384,11 @@ function artistPickerInit() {
                             <div style="font-size: 18px; font-weight: 700; color: #00b4d8;" id="artistPickerSelectedCount">0</div>
                         </div>
                     </div>
-                    
+
                     <!-- 右侧网格 -->
                     <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
                         <div id="artistPickerGrid" style="flex: 1; overflow-y: auto; padding: 16px 20px;"></div>
-                        
+
                         <!-- 分页 -->
                         <div style="padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
                             <span id="artistPickerPageInfo" style="font-size: 12px; color: #666;"></span>
@@ -385,7 +400,7 @@ function artistPickerInit() {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 底部操作栏 -->
                 <div style="padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.3); flex-shrink: 0;">
                     <div id="artistPickerSelectedSummary" style="font-size: 12px; color: #888;">已选 0 个画师</div>
@@ -395,7 +410,7 @@ function artistPickerInit() {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
-    
+
     // 绑定事件
     document.getElementById('artistPickerSearch')?.addEventListener('input', () => { artistPickerPage = 1; artistPickerRenderGrid(); });
     document.getElementById('artistPickerSort')?.addEventListener('change', () => { artistPickerPage = 1; artistPickerFrozenOrder = artistPickerBuildFrozenOrder(); artistPickerRenderGrid(); });

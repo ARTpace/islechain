@@ -455,6 +455,10 @@
         target.value = text;
         target.dispatchEvent(new Event('input',  { bubbles: true }));
         target.dispatchEvent(new Event('change', { bubbles: true }));
+        // 先同步 LoRA/画师/角色选择器状态，再渲染标签（否则 LoRA 触发词识别不到）
+        if (typeof global.syncPickerStatesFromPrompt === 'function') {
+            try { global.syncPickerStatesFromPrompt(); } catch (_) {}
+        }
         if (typeof global.updatePromptTags === 'function') {
             try { global.updatePromptTags(); } catch (_) {}
         }
