@@ -72,6 +72,7 @@
         .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
         .masonry-grid.thumb-medium{ /* 默认 */ }
         .masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
+        .masonry-grid.thumb-small .model-badge{ display:none!important; }
         @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
         @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
@@ -134,7 +135,7 @@
         .anima-ctrl.is-in-use:hover { background: linear-gradient(135deg, #00c8ed, #0088c8); }
         /* 引擎来源 / 模型下拉按钮：固定宽度,选择不同选项不会撑变 */
         #engineSwitcher > .anima-ctrl,
-        #modelSwitcher  > .anima-ctrl { width:110px; justify-content:flex-start; }
+        #modelSwitcher  > .anima-ctrl { width:auto; min-width:90px; justify-content:flex-start; }
         #engineSwitcher > .anima-ctrl > #engineText,
         #modelSwitcher  > .anima-ctrl > #modelText { flex:1; text-align:left; }
         body.studio-theme-dark .anima-ctrl { background:rgba(255,255,255,0.08); color:#c8d0dc; }
@@ -235,13 +236,25 @@
         .progress-bar-status { margin-top:8px; font-size:10px; font-weight:600; color:#9ca3af; letter-spacing:0.02em; }
         input::-webkit-inner-spin-button { display:none; }
         /* === Control bar: always one row === */
-        .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; overflow-x:auto; padding:8px 12px; justify-content:space-between; }
+        .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; padding:8px 12px; justify-content:space-between; }
         /* 紧凑模式：下拉变切换 */
         .compact-toggle .anima-ctrl-menu { display:none!important; }
         .compact-toggle .anima-ctrl > svg:last-child { display:none; }
         .compact-toggle .anima-ctrl-wrap { position:static; }
         .compact-toggle .anima-ctrl { padding:0 8px!important; min-width:0; }
-        .compact-toggle label.text-\[9px\] { display:none; }
+        .compact-toggle .flex.flex-col > span:first-child { display:none; }
+        /* 紧凑模式按钮样式 */
+        .compact-toggle .anima-ctrl-wrap > .anima-ctrl { padding:0 10px!important; min-width:auto!important; width:auto!important; }
+        .compact-toggle #engineText { display:none!important; }
+        .compact-toggle #engineBtn { padding:0 10px!important; }
+        .compact-toggle #engineIcon, .compact-toggle #engineBtn i { display:inline-block!important; }
+        .compact-toggle #modelText { font-size:10px!important; }
+        .compact-toggle #ratioText { display:inline!important; font-size:10px!important; }
+        .compact-toggle #resText { display:inline!important; font-size:10px!important; }
+        .compact-toggle .ratio-icon-svg, .compact-toggle .res-icon-svg { display:none!important; }
+        .compact-toggle #ratioBtn, .compact-toggle #resBtn { padding:0 10px!important; }
+        .compact-toggle button[onclick*="openModelPicker"] { display:flex!important; padding:0 8px!important; min-width:32px!important; justify-content:center!important; }
+
         .control-bar > .ctrl-top-row { display:flex; flex-wrap:nowrap; gap:8px; width:auto; flex-shrink:1; min-width:0; align-items:center; }
         .control-bar .mode-switcher { width:auto; min-width:0; flex:0 0 auto; }
         .control-bar #modelSwitcher { width:auto; min-width:0; flex:0 0 auto; }
@@ -258,7 +271,7 @@
             textarea#prompt { font-size:18px!important; }
             .prompt-row { flex-wrap:wrap; }
             .prompt-row .smart-prompt-btn { flex-shrink:0; }
-            .control-bar { flex-direction:row!important; align-items:center!important; gap:8px!important; flex-wrap:nowrap!important; overflow-x:auto; padding:8px 12px!important; justify-content:space-between!important; }
+            .control-bar { flex-direction:row!important; align-items:center!important; gap:8px!important; flex-wrap:nowrap!important; overflow-x:auto; padding:6px 10px!important; justify-content:space-between!important; }
             .control-bar > .ctrl-top-row { flex-wrap:nowrap!important; gap:8px!important; width:auto; flex-shrink:1; min-width:0; }
             .control-bar .mode-switcher { width:auto!important; min-width:0; flex:0 0 auto; }
             .control-bar #modelSwitcher { width:auto!important; min-width:0; flex:0 0 auto; }
@@ -406,7 +419,7 @@
                     <!-- 参考图预览区 -->
                     <div id="refImagePreview" class="flex flex-wrap gap-2 mb-2" style="display:none;"></div>
                     <div class="prompt-wrapper" style="position:relative;">
-                        <textarea id="prompt" rows="2" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
+                        <textarea id="prompt" rows="3" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;min-height:80px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
                         <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
@@ -443,14 +456,14 @@
                         <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
                     </div>
-                    <div id="promptTags" class="flex flex-wrap gap-2 mt-2 min-h-[24px]"></div>
+                    <div id="promptTags" class="flex flex-wrap gap-2 mt-2 min-h-[36px] max-h-[120px] overflow-y-auto"></div>
                 </div>
                 <div class="flex flex-col md:flex-row items-center justify-between p-4 px-6 gap-6 control-bar">
                     <div class="flex items-center gap-8 ctrl-top-row">
                         <div class="flex flex-col">
                             <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">引擎来源</span>
                             <div class="anima-ctrl-wrap" id="engineSwitcher">
-                                <button onclick="toggleMenu('engineMenu')" id="engineBtn" class="anima-ctrl">
+                                <button onclick="if(!compactEngineToggle())toggleMenu('engineMenu')" id="engineBtn" class="anima-ctrl">
                                     <i id="engineIcon" data-lucide="monitor" class="w-3 h-3"></i>
                                     <span id="engineText">COMFYUI</span>
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
@@ -473,7 +486,7 @@
                             <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">模型</span>
                             <div class="flex items-end gap-1">
                             <div class="anima-ctrl-wrap" id="modelSwitcher">
-                                <button onclick="toggleMenu('modelMenu')" id="modelBtn" class="anima-ctrl">
+                                <button onclick="if(!compactModelToggle())toggleMenu('modelMenu')" id="modelBtn" class="anima-ctrl">
                                     <span id="modelText">Z-Image</span>
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
@@ -500,7 +513,7 @@
                     <div class="flex items-center gap-2 gen-row">
                         <div id="animaControls" class="flex items-center gap-2"></div>
                         <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('batchCountMenu')" id="batchCountBtn" class="anima-ctrl" title="一次生成张数">
+                            <button onclick="if(!compactBatchToggle())toggleMenu('batchCountMenu')" id="batchCountBtn" class="anima-ctrl" title="一次生成张数">
                                 <span id="batchCountText">×1</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
@@ -934,6 +947,50 @@
         }
 
         // === 模型上拉菜单 ===
+        // === 紧凑切换模式 ===
+        const COMPACT_WIDTH = 900;
+        function isCompact() { return window.innerWidth <= COMPACT_WIDTH; }
+        function applyCompactMode() {
+            const bar = document.querySelector('.control-bar');
+            if (!bar) return;
+            if (isCompact()) {
+                bar.classList.add('compact-toggle');
+            } else {
+                bar.classList.remove('compact-toggle');
+            }
+        }
+        window.addEventListener('resize', applyCompactMode);
+        document.addEventListener('DOMContentLoaded', applyCompactMode);
+
+        // 紧凑模式下按钮直接切换
+        const _modelOptions = ['Z-Image.json', 'anima 动漫文生图.json'];
+        const _modelLabels = ['Z-Image', 'ANIMA'];
+        function _isCompact() { return document.querySelector('.control-bar')?.classList.contains('compact-toggle') || window.innerWidth <= 900; }
+        function compactModelToggle() {
+            if (!_isCompact()) return false;
+            const idx = _modelOptions.indexOf(currentWorkflow);
+            const next = (idx + 1) % _modelOptions.length;
+            selectModel(_modelOptions[next]);
+            return true;
+        }
+        const _engineOptions = ['local', 'cloud'];
+        const _engineLabels = ['COMFYUI', 'ModelScope'];
+        function compactEngineToggle() {
+            if (!_isCompact()) return false;
+            const idx = _engineOptions.indexOf(currentEngine);
+            const next = (idx + 1) % _engineOptions.length;
+            selectEngine(_engineOptions[next]);
+            return true;
+        }
+        const _batchOptions = [1, 2, 3, 4];
+        function compactBatchToggle() {
+            if (!_isCompact()) return false;
+            const idx = _batchOptions.indexOf(currentBatchCount);
+            const next = (idx + 1) % _batchOptions.length;
+            selectBatchCount(_batchOptions[next]);
+            return true;
+        }
+
         function selectModel(name) {
             switchWorkflow(name);
             closeAllMenus();
@@ -982,7 +1039,8 @@
                 ctrlEl.innerHTML = `
                         <!-- 比例 -->
                         <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('ratioMenu')" id="ratioBtn" class="anima-ctrl">
+                            <button onclick="if(!compactRatioToggle())toggleMenu('ratioMenu')" id="ratioBtn" class="anima-ctrl">
+                                <svg class="ratio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
                                 <span id="ratioText">${animaRatioW}:${animaRatioH}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
@@ -1003,7 +1061,8 @@
                         </div>
                         <!-- 分辨率 -->
                         <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('resMenu')" id="resBtn" class="anima-ctrl">
+                            <button onclick="if(!compactResToggle())toggleMenu('resMenu')" id="resBtn" class="anima-ctrl">
+                                <svg class="res-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                                 <span id="resText">${animaRes===2?'2K':'1K'}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
@@ -1296,6 +1355,31 @@
         let animaRatioW = parseInt(localStorage.getItem('anima_ratio_w')) || 9;
         let animaRatioH = parseInt(localStorage.getItem('anima_ratio_h')) || 16;
         let animaRes = parseInt(localStorage.getItem('anima_res')) || 1;
+
+        const _ratioOptions = [['4:3',4,3],['3:4',3,4],['16:9',16,9],['9:16',9,16],['1:1',1,1]];
+        const _resOptions = [1, 2];
+        function compactRatioToggle() {
+            if (!_isCompact()) return false;
+            try {
+                const cur = animaRatioW + ':' + animaRatioH;
+                let idx = _ratioOptions.findIndex(r => r[0] === cur);
+                if (idx < 0) idx = 0;
+                const next = (idx + 1) % _ratioOptions.length;
+                const r = _ratioOptions[next];
+                selectRatio(r[0], r[1], r[2]);
+            } catch(e) { console.error('compactRatioToggle error:', e); }
+            return true;
+        }
+        function compactResToggle() {
+            if (!_isCompact()) return false;
+            try {
+                let idx = _resOptions.indexOf(animaRes);
+                if (idx < 0) idx = 0;
+                const next = (idx + 1) % _resOptions.length;
+                selectRes(_resOptions[next]);
+            } catch(e) { console.error('compactResToggle error:', e); }
+            return true;
+        }
 
         function selectRatio(label, w, h) {
             animaRatioW = w;
