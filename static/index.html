@@ -168,6 +168,40 @@
             width: 220px;
         }
 
+        /* 锁定态：不展开，只显示图标 */
+        .sidebar.locked,
+        .sidebar.locked:hover {
+            width: 80px;
+        }
+        .sidebar.locked .sidebar-nav,
+        .sidebar.locked .sidebar-bottom {
+            padding-left: 0;
+            align-items: center;
+        }
+        .sidebar.locked .nav-item {
+            width: 48px;
+            padding-left: 0;
+            justify-content: center;
+        }
+        .sidebar.locked .nav-parent {
+            width: 48px;
+            padding-left: 0 !important;
+            justify-content: center;
+            border-left: none !important;
+        }
+        .sidebar.locked .nav-text,
+        .sidebar.locked .nav-arrow {
+            display: none;
+        }
+        /* 浮动栏不受锁定影响，始终显示图标+文字 */
+        .submenu .nav-child .nav-text {
+            display: inline !important;
+            width: auto !important;
+            opacity: 1 !important;
+            margin-left: 8px !important;
+            padding: 0 !important;
+        }
+
         body.theme-dark .sidebar {
             border-right-color: rgba(0, 240, 255, 0.1);
             box-shadow: inset -1px 0 0 rgba(0, 240, 255, 0.05);
@@ -264,7 +298,7 @@
             position: fixed;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.2s ease;
             z-index: 60;
             background: var(--sidebar-bg);
             border: 1px solid var(--border);
@@ -273,12 +307,12 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
-            width: max-content;
-            min-width: 140px;
+            width: fit-content;
+            min-width: 150px;
             max-height: calc(100vh - 32px);
             overflow-y: auto;
-            overflow-x: hidden;
             box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            will-change: opacity;
         }
 
         body.theme-dark .submenu {
@@ -292,14 +326,7 @@
             pointer-events: auto;
         }
 
-        .sidebar:not(:hover) .submenu.expanded {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .sidebar:hover .submenu.expanded {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        /* 去掉 sidebar:hover 控制 submenu 显隐，完全由 JS 控制 */
 
         /* 子菜单项 - 单列对齐 */
         .nav-child {
@@ -317,7 +344,6 @@
             border: 1px solid transparent;
             font-size: 12px;
             opacity: 0.85;
-            overflow: hidden;
             flex-shrink: 0;
             gap: 8px;
         }
@@ -359,7 +385,8 @@
         }
 
         .nav-parent.has-active-child {
-            background: rgba(8, 145, 178, 0.08);
+            background: var(--accent);
+            color: #fff;
         }
 
         .sidebar:hover .nav-parent.has-active-child {
@@ -368,7 +395,8 @@
         }
 
         body.theme-dark .nav-parent.has-active-child {
-            background: rgba(0, 240, 255, 0.06);
+            background: rgba(0, 240, 255, 0.15);
+            color: #00f0ff;
         }
 
         body.theme-dark .sidebar:hover .nav-parent.has-active-child {
@@ -756,9 +784,6 @@
                     </div>
                 </div>
 
-                <!-- 分隔线 -->
-                <div style="width:32px;height:1px;background:var(--border);margin:8px auto;transition:background 0.3s;"></div>
-
                 <div class="nav-item" onclick="switchUI(this, 'online')" title="在线生图">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"></path>
@@ -793,6 +818,11 @@
             <div class="sidebar-bottom">
                 <!-- 分隔线 -->
                 <div style="width:32px;height:1px;background:var(--border);margin:8px auto;transition:background 0.3s;"></div>
+                <div class="nav-item" id="sidebar-lock-btn" title="锁定侧边栏" onclick="toggleSidebarLock()">
+                    <svg id="icon-lock-open" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    <svg id="icon-lock-closed" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+                    <span class="nav-text">锁定</span>
+                </div>
                 <div class="nav-item" id="sidebar-settings-btn" title="设置">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     <span class="nav-text">设置</span>
@@ -878,15 +908,29 @@
             // If this is a child item (has parentId)
             if (parentId) {
                 el.classList.add('submenu-active');
+                // 同步图标到父按钮
+                const parent = document.getElementById('nav-comfy');
+                if (parent) {
+                    const childSvg = el.querySelector('svg');
+                    const parentSvg = parent.querySelector('svg:first-child');
+                    if (childSvg && parentSvg) {
+                        // 只替换 path 的 d 属性，SVG 结构完全不动
+                        const childPath = childSvg.querySelector('path');
+                        const parentPath = parentSvg.querySelector('path');
+                        if (childPath && parentPath) {
+                            parentPath.setAttribute('d', childPath.getAttribute('d'));
+                        }
+                    }
+                }
                 // Collapse submenu after selecting a child
                 const submenu = document.getElementById('comfyui-submenu');
                 if (submenu) {
                     submenu.classList.remove('expanded');
                 }
-                const parent = document.getElementById('nav-comfy');
+                triggerCooldown();
                 if (parent) {
-                    parent.classList.remove('expanded', 'has-active-child', 'active');
-                    parent.classList.add('collapsed');
+                    parent.classList.add('has-active-child');
+                    parent.classList.remove('expanded', 'collapsed');
                 }
             } else {
                 // Top-level nav item
@@ -917,15 +961,35 @@
 
         function positionSubmenu() {
             const submenu = document.getElementById('comfyui-submenu');
-            const navParent = document.getElementById('nav-comfy');
-            if (!submenu || !navParent) return;
-            const rect = navParent.getBoundingClientRect();
-            let top = rect.top;
-            // 防止超出底部
+            const sidebar = document.querySelector('.sidebar');
+            if (!submenu || !sidebar) return;
+            const rect = sidebar.getBoundingClientRect();
+            let top = rect.top + 40;
             const maxTop = window.innerHeight - submenu.offsetHeight - 16;
             if (top > maxTop) top = Math.max(16, maxTop);
-            submenu.style.left = (rect.right + 6) + 'px';
+            submenu.style.left = (rect.right + 2) + 'px';
             submenu.style.top = top + 'px';
+        }
+
+        // 侧边栏锁定功能
+        function toggleSidebarLock() {
+            const sidebar = document.querySelector('.sidebar');
+            const iconOpen = document.getElementById('icon-lock-open');
+            const iconClosed = document.getElementById('icon-lock-closed');
+            if (!sidebar) return;
+            const isLocked = sidebar.classList.toggle('locked');
+            localStorage.setItem('sidebarLocked', isLocked);
+            if (iconOpen) iconOpen.style.display = isLocked ? 'none' : 'block';
+            if (iconClosed) iconClosed.style.display = isLocked ? 'block' : 'none';
+        }
+        // 启动时恢复锁定状态
+        if (localStorage.getItem('sidebarLocked') === 'true') {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.add('locked');
+            const iconOpen = document.getElementById('icon-lock-open');
+            const iconClosed = document.getElementById('icon-lock-closed');
+            if (iconOpen) iconOpen.style.display = 'none';
+            if (iconClosed) iconClosed.style.display = 'block';
         }
 
         function toggleSubmenu(el) {
@@ -946,15 +1010,68 @@
             }
         }
 
-        // sidebar hover 时自动定位浮动栏
-        const sidebarEl = document.querySelector('.sidebar');
-        if (sidebarEl) {
-            sidebarEl.addEventListener('mouseenter', () => {
+        // hover 延迟展开浮动栏
+        let comfyHoverTimer = null;
+        let submenuPinned = false;
+        let submenuCooldown = false;
+        const navComfy = document.getElementById('nav-comfy');
+        const comfySubmenu = document.getElementById('comfyui-submenu');
+
+        function closeComfySubmenu() {
+            const submenu = document.getElementById('comfyui-submenu');
+            if (submenu) submenu.classList.remove('expanded');
+        }
+
+        // 检测鼠标是否同时离开了 nav-comfy 和浮动栏
+        function checkShouldClose() {
+            clearTimeout(comfyHoverTimer);
+            comfyHoverTimer = setTimeout(() => {
                 const submenu = document.getElementById('comfyui-submenu');
-                if (submenu && submenu.classList.contains('expanded')) {
+                if (!submenu || !submenu.classList.contains('expanded')) return;
+                const submenuRect = submenu.getBoundingClientRect();
+                const navRect = navComfy.getBoundingClientRect();
+                const mx = lastMouseX, my = lastMouseY;
+                const pad = 20; // 20px 容差，防止间隙触发关闭
+                const inNav = mx >= navRect.left - pad && mx <= navRect.right + pad && my >= navRect.top - pad && my <= navRect.bottom + pad;
+                const inSub = mx >= submenuRect.left - pad && mx <= submenuRect.right + pad && my >= submenuRect.top - pad && my <= submenuRect.bottom + pad;
+                if (!inNav && !inSub) {
+                    closeComfySubmenu();
+                    submenuPinned = false;
+                }
+            }, 150);
+        }
+
+        let lastMouseX = 0, lastMouseY = 0;
+        document.addEventListener('mousemove', (e) => { lastMouseX = e.clientX; lastMouseY = e.clientY; });
+
+        if (navComfy) {
+            navComfy.addEventListener('mouseenter', () => {
+                clearTimeout(comfyHoverTimer);
+                if (submenuCooldown) return;
+                const submenu = document.getElementById('comfyui-submenu');
+                if (submenu && !submenu.classList.contains('expanded')) {
+                    submenuPinned = false;
+                    comfyHoverTimer = setTimeout(() => {
+                        positionSubmenu();
+                        submenuPinned = true;
+                        submenu.classList.add('expanded');
+                        navComfy.classList.add('expanded');
+                    }, 800);
+                } else if (submenu && submenu.classList.contains('expanded') && !submenuPinned) {
                     positionSubmenu();
+                    submenuPinned = true;
                 }
             });
+            navComfy.addEventListener('mouseleave', checkShouldClose);
+        }
+
+        function triggerCooldown() {
+            submenuCooldown = true;
+            setTimeout(() => { submenuCooldown = false; }, 500);
+        }
+
+        if (comfySubmenu) {
+            comfySubmenu.addEventListener('mouseleave', checkShouldClose);
         }
         window.addEventListener('resize', positionSubmenu);
 
@@ -1075,6 +1192,16 @@
                             const childNav = document.querySelector(`.nav-child[onclick*="'${id}'"]`);
                             if (childNav) {
                                 childNav.classList.add('submenu-active');
+                                // 同步图标到父按钮
+                                const childSvg = childNav.querySelector('svg');
+                                const parentSvg = parent.querySelector('svg:first-child');
+                                if (childSvg && parentSvg) {
+                                    const childPath = childSvg.querySelector('path');
+                                    const parentPath = parentSvg.querySelector('path');
+                                    if (childPath && parentPath) {
+                                        parentPath.setAttribute('d', childPath.getAttribute('d'));
+                                    }
+                                }
                             }
                         } else {
                             // Top-level nav item
