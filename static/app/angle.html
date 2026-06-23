@@ -693,44 +693,6 @@
         /* ===== 画廊样式 ===== */
         .hidden { display: none !important; }
 
-        .masonry-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-        @media (min-width: 768px) {
-            .masonry-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-
-        .masonry-item {
-            aspect-ratio: 1 / 1;
-            border-radius: 24px;
-            overflow: hidden;
-            background: #eee;
-            border: 1px solid #f1f5f9;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            cursor: zoom-in;
-        }
-
-        .masonry-item:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-        }
-
-        .masonry-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .gallery-lightbox {
-            background: rgba(255, 255, 255, 0.99);
-        }
-
-        .gallery-lightbox:hover #lightboxPrevBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
-        .gallery-lightbox:hover #lightboxNextBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
-
         /* 加载更多触发器 */
         .load-more-trigger {
             padding: 48px 20px;
@@ -749,15 +711,7 @@
         }
 
         /* 暗色模式适配 */
-        body.studio-theme-dark .masonry-item {
-            background: #111d2a;
-            border-color: rgba(0, 240, 255, 0.08);
-        }
-
-        body.studio-theme-dark .gallery-lightbox {
-            background: rgba(10, 14, 23, 0.99);
-        }
-
+        body.studio-theme-dark .masonry-item img {
         body.studio-theme-dark .masonry-item img {
             opacity: 0.9;
         }
@@ -773,6 +727,7 @@
     <script src="/static/modules/gallery/list.js?v=20260611"></script>
     <script src="/static/modules/gallery/card.js?v=20260611"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
+    <script src="/static/modules/gallery/display.js?v=20260619"></script>
 </head>
 <body>
     <div class="app-container">
@@ -932,32 +887,6 @@
         </div>
     </div>
 
-    <!-- 灯箱预览 -->
-    <div id="lightbox" onclick="handleOutsideClick(event)" class="hidden fixed inset-0 z-50 gallery-lightbox bg-white/95 backdrop-blur-3xl flex items-center justify-center p-8 overflow-auto">
-        <button onclick="closeLightbox()" class="absolute top-10 right-10 p-2 hover:rotate-90 transition-transform duration-500">
-            <span style="font-size: 2rem;">&times;</span>
-        </button>
-        <button id="lightboxPrevBtn" onclick="ImageViewer.prevImage()" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all opacity-0 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m15 18-6-6 6-6"/>
-            </svg>
-        </button>
-        <button id="lightboxNextBtn" onclick="ImageViewer.nextImage()" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all opacity-0 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m9 18 6-6-6-6"/>
-            </svg>
-        </button>
-        <img id="lightboxImg" src="" class="max-h-[80vh] rounded-3xl shadow-2xl">
-        <div id="lightboxRes" class="absolute top-4 left-4 bg-black/30 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-full text-[10px] font-medium tracking-wider opacity-0 transition-opacity duration-300 pointer-events-none z-30"></div>
-        <button onclick="downloadImage()" class="absolute top-10 right-20 p-2 bg-black text-white rounded-xl hover:scale-105 transition-transform">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" x2="12" y1="15" y2="3"/>
-            </svg>
-        </button>
-    </div>
-
     <script src="/static/modules/image-viewer.js?v=20260522001"></script>
     <script src="/static/three.min.js?v=20260521001"></script>
     <script src="/static/OrbitControls.js?v=20260521001"></script>
@@ -996,10 +925,12 @@
                 modelBadge: 'auto'
             }
         };
-        GalleryList.init({
-            type: 'angle',
-            container: '#masonry',
-            trigger: '#loadMoreTrigger',
+        GalleryDisplay.init({
+            historyType: 'angle',
+            masonrySelector: '#masonry',
+            loadMoreSelector: '#loadMoreTrigger',
+            favoritesEnabled: true,
+        });
             pageSize: 15,
             batchSelect: true
         });
@@ -1304,32 +1235,6 @@
                 check();
             });
         }
-
-        function openLightbox(url, images, startIndex) {
-            // 不设默认参数：让 function.length === 3，让 card.js 走 3 参分支
-            if (images && images.length > 1) {
-                ImageViewer.init(images, startIndex || 0);
-                document.getElementById('lightboxPrevBtn').style.display = '';
-                document.getElementById('lightboxNextBtn').style.display = '';
-            } else {
-                ImageViewer.init([url], 0);
-                document.getElementById('lightboxPrevBtn').style.display = 'none';
-                document.getElementById('lightboxNextBtn').style.display = 'none';
-            }
-        }
-        function closeLightbox() { ImageViewer.closeLightbox(); }
-
-        function handleOutsideClick(e) {
-            if (e.target.id === 'lightbox') {
-                closeLightbox();
-            }
-        }
-
-        async function downloadImage() {
-            const img = document.getElementById('lightboxImg');
-            if (!img.src) return;
-            
-            try {
                 const response = await fetch(img.src);
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
@@ -1347,11 +1252,10 @@
                 window.open(img.src, '_blank');
             }
         }
-            } catch (e) {
-                console.error('删除失败:', e);
-                alert('删除失败，请重试');
-            }
-        }
+        async function deleteHistoryItem(timestamp, event) {
+            if (event) event.stopPropagation();
+            if (!confirm('确定要删除这条记录吗？')) return;
+            try {
                 });
             };
 

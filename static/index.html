@@ -202,6 +202,17 @@
             padding: 0 !important;
         }
 
+        /* submenu 内的 nav-item 覆盖基础样式，确保对齐 */
+        .submenu .nav-item {
+            width: auto !important;
+            margin: 2px 0 !important;
+            padding: 0 12px !important;
+            overflow: visible !important;
+            height: 36px !important;
+            border-radius: 10px !important;
+            border: 1px solid transparent !important;
+        }
+
         body.theme-dark .sidebar {
             border-right-color: rgba(0, 240, 255, 0.1);
             box-shadow: inset -1px 0 0 rgba(0, 240, 255, 0.05);
@@ -248,6 +259,15 @@
 
         .sidebar:hover .nav-item {
             width: 190px;
+        }
+
+        .sidebar.locked:hover .sidebar-nav .nav-item,
+        .sidebar.locked .sidebar-nav .nav-item,
+        .sidebar.locked:hover .sidebar-bottom .nav-item,
+        .sidebar.locked .sidebar-bottom .nav-item {
+            width: 48px;
+            padding-left: 0;
+            justify-content: center;
         }
 
         .nav-item:hover {
@@ -310,7 +330,7 @@
             width: fit-content;
             min-width: 150px;
             max-height: calc(100vh - 32px);
-            overflow-y: auto;
+            overflow: visible;
             box-shadow: 0 8px 32px rgba(0,0,0,0.12);
             will-change: opacity;
         }
@@ -346,6 +366,7 @@
             opacity: 0.85;
             flex-shrink: 0;
             gap: 8px;
+            overflow: visible;
         }
 
         .nav-child svg {
@@ -722,7 +743,7 @@
 
             <nav class="sidebar-nav">
                 <!-- ComfyUI Applications - Collapsible Parent -->
-                <div class="nav-item nav-parent expanded has-active-child" id="nav-comfy" onclick="toggleSubmenu(this)" title="ComfyUI应用">
+                <div class="nav-item nav-parent" id="nav-comfy" onclick="toggleSubmenu(this)" title="ComfyUI应用">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
@@ -732,64 +753,20 @@
                     </svg>
                 </div>
 
-                <!-- Submenu Container -->
-                <div id="comfyui-submenu" class="submenu expanded">
-                    <div class="nav-item nav-child submenu-active" onclick="switchUI(this, 'zimage', 'comfy')" title="文生图">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">文生图</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'klein', 'comfy')" title="图片编辑">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">图片编辑</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'angle', 'comfy')" title="3D视角变换">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">3D视角变换</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'cgstyle', 'comfy')" title="CG一键细化">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20.18 9l-5 4.18L16.36 20 12 17.27 7.64 20l1.18-6.82L3.82 9l6.09-.74L12 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">CG一键细化</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, '2dstyle', 'comfy')" title="2D风格细化">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 2l7.586 7.586" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">2D风格细化</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'watermark-removal', 'comfy')" title="图片去水印">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3l18 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 5.5l-3 3l11 11l3 -3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 8.5l3 -3l8 8l-3 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 21H3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">图片去水印</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'rmbg', 'comfy')" title="一键抠图">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3v12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">一键抠图</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'gaoqingxiufu', 'comfy')" title="高清修复">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="11" y1="8" x2="11" y2="14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="11" x2="14" y2="11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">高清修复</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'kuotu', 'comfy')" title="扩图">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="9 21 3 21 3 15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="3" x2="14" y2="10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="10" y2="14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">扩图</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'promptgen', 'comfy')" title="图像反推">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">图像反推</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'textmatting', 'comfy')" title="文字抠图">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="20" x2="15" y2="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="4" x2="12" y2="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">文字抠图</span>
-                    </div>
-                    <div class="nav-item nav-child" onclick="switchUI(this, 'yichuwuti', 'comfy')" title="万物移除">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="10" y1="11" x2="10" y2="17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="nav-text">万物移除</span>
-                    </div>
-                </div>
-
                 <div class="nav-item" onclick="switchUI(this, 'online')" title="在线生图">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"></path>
                         <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                     </svg>
                     <span class="nav-text">在线生图</span>
+                </div>
+                <div class="nav-item" onclick="switchUI(this, 'tts')" title="TTS 语音合成">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
+                    <span class="nav-text">TTS 语音</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'gpt-chat')" title="GPT 对话">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -813,6 +790,58 @@
                     <span class="nav-text">素材库</span>
                 </div>
             </nav>
+
+            <!-- Submenu Container - 放在 sidebar-nav 外面避免 overflow-x:hidden 裁切 -->
+            <div id="comfyui-submenu" class="submenu">
+                <div class="nav-item nav-child" onclick="switchUI(this, 'zimage', 'comfy')" title="文生图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">文生图</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'klein', 'comfy')" title="图片编辑">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">图片编辑</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'angle', 'comfy')" title="3D视角变换">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">3D视角变换</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'cgstyle', 'comfy')" title="CG一键细化">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20.18 9l-5 4.18L16.36 20 12 17.27 7.64 20l1.18-6.82L3.82 9l6.09-.74L12 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">CG一键细化</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, '2dstyle', 'comfy')" title="2D风格细化">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 2l7.586 7.586" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">2D风格细化</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'watermark-removal', 'comfy')" title="图片去水印">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3l18 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 5.5l-3 3l11 11l3 -3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 8.5l3 -3l8 8l-3 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 21H3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">图片去水印</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'rmbg', 'comfy')" title="一键抠图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3v12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">一键抠图</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'gaoqingxiufu', 'comfy')" title="高清修复">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="11" y1="8" x2="11" y2="14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="11" x2="14" y2="11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">高清修复</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'kuotu', 'comfy')" title="扩图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="9 21 3 21 3 15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="3" x2="14" y2="10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="10" y2="14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">扩图</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'promptgen', 'comfy')" title="图像反推">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">图像反推</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'textmatting', 'comfy')" title="文字抠图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="20" x2="15" y2="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="4" x2="12" y2="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">文字抠图</span>
+                </div>
+                <div class="nav-item nav-child" onclick="switchUI(this, 'yichuwuti', 'comfy')" title="万物移除">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="10" y1="11" x2="10" y2="17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">万物移除</span>
+                </div>
+            </div>
 
             <!-- 底部功能按钮 -->
             <div class="sidebar-bottom">
@@ -845,7 +874,7 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" src="/static/app/zimage.html?v=20260619034" class="active"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20260619034"></iframe>
             <iframe id="frame-klein" data-src="/static/app/klein.html?v=20260526003"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20260525001"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20260520004"></iframe>
@@ -858,6 +887,7 @@
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
             <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20260522002"></iframe>
             <iframe id="frame-online" data-src="/static/online.html?v=20260529002"></iframe>
+            <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
             <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20260526008"></iframe>
             <iframe id="frame-canvas" data-src="/static/canvas.html?v=20260526008"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html"></iframe>
@@ -908,18 +938,17 @@
             // If this is a child item (has parentId)
             if (parentId) {
                 el.classList.add('submenu-active');
-                // 同步图标到父按钮
+                // 同步图标到父按钮：保存原始图标，替换为子项图标
                 const parent = document.getElementById('nav-comfy');
                 if (parent) {
                     const childSvg = el.querySelector('svg');
                     const parentSvg = parent.querySelector('svg:first-child');
                     if (childSvg && parentSvg) {
-                        // 只替换 path 的 d 属性，SVG 结构完全不动
-                        const childPath = childSvg.querySelector('path');
-                        const parentPath = parentSvg.querySelector('path');
-                        if (childPath && parentPath) {
-                            parentPath.setAttribute('d', childPath.getAttribute('d'));
-                        }
+                        // 首次保存原始图标
+                        if (!parentSvg._originalHTML) parentSvg._originalHTML = parentSvg.innerHTML;
+                        // 保存当前子项的原始内容（避免被污染）
+                        if (!childSvg._originalHTML) childSvg._originalHTML = childSvg.innerHTML;
+                        parentSvg.innerHTML = childSvg._originalHTML;
                     }
                 }
                 // Collapse submenu after selecting a child
@@ -1170,6 +1199,12 @@
             const theme = window.StudioTheme ? window.StudioTheme.get() : 'dark';
             updateThemeIcon(theme);
 
+            // 非管理员隐藏设置按钮
+            if (typeof AuthManager !== 'undefined' && !AuthManager.isAdmin()) {
+                const settingsBtn = document.getElementById('sidebar-settings-btn');
+                if (settingsBtn) settingsBtn.style.display = 'none';
+            }
+
             // Restore last selected app
             const saved = localStorage.getItem('lastSelectedApp');
             if (saved) {
@@ -1179,27 +1214,21 @@
                         // If it was a comfyui child item
                         if (parentId === 'comfy') {
                             const parent = document.getElementById('nav-comfy');
-                            const submenu = document.getElementById('comfyui-submenu');
                             if (parent) {
-                                parent.classList.add('expanded', 'has-active-child');
-                                parent.classList.remove('collapsed');
+                                parent.classList.add('has-active-child');
                             }
-                            if (submenu) {
-                                positionSubmenu();
-                                submenu.classList.add('expanded');
-                            }
-                            // Find and activate the child nav item
+                            // 找到并激活对应的子菜单项（但不展开 submenu）
                             const childNav = document.querySelector(`.nav-child[onclick*="'${id}'"]`);
                             if (childNav) {
                                 childNav.classList.add('submenu-active');
                                 // 同步图标到父按钮
-                                const childSvg = childNav.querySelector('svg');
-                                const parentSvg = parent.querySelector('svg:first-child');
-                                if (childSvg && parentSvg) {
-                                    const childPath = childSvg.querySelector('path');
-                                    const parentPath = parentSvg.querySelector('path');
-                                    if (childPath && parentPath) {
-                                        parentPath.setAttribute('d', childPath.getAttribute('d'));
+                                if (parent) {
+                                    const childSvg = childNav.querySelector('svg');
+                                    const parentSvg = parent.querySelector('svg:first-child');
+                                    if (childSvg && parentSvg) {
+                                        if (!parentSvg._originalHTML) parentSvg._originalHTML = parentSvg.innerHTML;
+                                        if (!childSvg._originalHTML) childSvg._originalHTML = childSvg.innerHTML;
+                                        parentSvg.innerHTML = childSvg._originalHTML;
                                     }
                                 }
                             }
@@ -1221,6 +1250,18 @@
                 } catch (e) {
                     console.error('Failed to restore last selected app:', e);
                 }
+            }
+
+            // Fallback: if no app is active yet, default to zimage
+            if (!document.querySelector('iframe.active')) {
+                const zimageFrame = document.getElementById('frame-zimage');
+                if (zimageFrame) {
+                    zimageFrame.classList.add('active');
+                    if (!zimageFrame.src) zimageFrame.src = zimageFrame.dataset.src;
+                    syncThemeToFrame(zimageFrame);
+                }
+                const zimageNav = document.querySelector(`.nav-item[onclick*="'zimage'"]`);
+                if (zimageNav) zimageNav.classList.add('active');
             }
         });
 

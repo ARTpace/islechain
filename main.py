@@ -1844,6 +1844,38 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
             return comfy_url_path.replace("/view", "/api/view", 1)
         return full_url
 
+
+def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, username=None):
+    """从 ComfyUI 下载音频文件"""
+    # 根据 URL 推断扩展名
+    ext = ".wav"
+    if ".flac" in comfy_url_path.lower():
+        ext = ".flac"
+    elif ".mp3" in comfy_url_path.lower():
+        ext = ".mp3"
+    elif ".ogg" in comfy_url_path.lower():
+        ext = ".ogg"
+    
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
+    if canvas:
+        canvas_output_dir = get_canvas_output_dir(canvas)
+    elif username:
+        canvas_output_dir, _ = get_user_output_dir(username)
+    else:
+        canvas_output_dir = OUTPUT_DIR
+    os.makedirs(canvas_output_dir, exist_ok=True)
+    local_path = os.path.join(canvas_output_dir, filename)
+    full_url = f"http://{comfy_address}{comfy_url_path}"
+    try:
+        with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+        return build_output_url(canvas, filename, username)
+    except Exception as e:
+        print(f"下载音频失败: {e}")
+        if comfy_url_path.startswith("/view"):
+            return comfy_url_path.replace("/view", "/api/view", 1)
+        return full_url
+
 def save_to_history(record):
     with HISTORY_LOCK:
         history = []
@@ -5512,8 +5544,8 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
         # 按用户过滤
         if username:
             data = [item for item in data if item.get("user") == username]
-        # Support both image and text outputs: keep records with images OR text
-        data = [item for item in data if item.get("images") or item.get("text")]
+        # Support image, text and audio outputs: keep records with images OR text OR audio
+        data = [item for item in data if item.get("images") or item.get("text") or item.get("audio")]
 
         # 服务端搜索：按 prompt / model / text 关键词过滤
         # 英文整词匹配（\b），中文/非ASCII子串匹配
@@ -5598,8 +5630,8 @@ async def delete_history(req: DeleteHistoryRequest, token: str = ""):
                     json.dump(new_history, f, ensure_ascii=False, indent=4)
 
         if target_record:
+            # 删除图片文件
             for img_url in target_record.get("images", []):
-                # 支持任意层级的子目录，如 /output/{user}/{feature}/{date}/{file}.png
                 file_path = _url_to_output_path(img_url)
                 if not file_path:
                     continue
@@ -5610,6 +5642,18 @@ async def delete_history(req: DeleteHistoryRequest, token: str = ""):
                         print(f"Failed to delete file {file_path}: {e}")
                 else:
                     print(f"File not found (skipping): {file_path}")
+            # 删除音频文件
+            for audio_url in target_record.get("audio", []):
+                file_path = _url_to_output_path(audio_url)
+                if not file_path:
+                    continue
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        print(f"Failed to delete audio file {file_path}: {e}")
+                else:
+                    print(f"Audio file not found (skipping): {file_path}")
             return {"success": True}
         else:
             return {"success": False, "message": "Record not found"}
@@ -7020,6 +7064,7 @@ def generate(req: GenerateRequest, token: str = ""):
             raise Exception("ComfyUI 渲染超时")
 
         local_urls = []
+        audio_urls = []
         output_text = ""
         current_timestamp = time.time()
         if 'outputs' in history_data:
@@ -7040,6 +7085,16 @@ def generate(req: GenerateRequest, token: str = ""):
                         if req.convert_to_jpg:
                             local_path = convert_output_to_jpg(local_path)
                         local_urls.append(local_path)
+                
+                # Extract audio outputs (TTS)
+                if 'audio' in node_output:
+                    for aud in node_output['audio']:
+                        comfy_url_path = f"/view?filename={aud['filename']}&subfolder={aud.get('subfolder', '')}&type={aud.get('type', 'temp')}"
+                        # 使用自定义前缀或默认前缀
+                        save_prefix = req.params.get('save_prefix', 'tts') if req.params else 'tts'
+                        prefix = f"{save_prefix}_{int(current_timestamp)}_"
+                        local_path = download_audio(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username)
+                        audio_urls.append(local_path)
                 
                 # Extract text output from ShowText and text-based nodes
                 # 只有 promptgen 类型才保存文本输出（图像反推等）
@@ -7074,7 +7129,7 @@ def generate(req: GenerateRequest, token: str = ""):
             print(f"[TextOutput] WARNING: No text extracted from ComfyUI history")
             text_url = ""
         
-        if not local_urls and not output_text:
+        if not local_urls and not audio_urls and not output_text:
             comfy_error = ""
             if isinstance(history_data, dict):
                 status_info = history_data.get("status", {})
@@ -7087,11 +7142,12 @@ def generate(req: GenerateRequest, token: str = ""):
                             break
             if comfy_error:
                 raise Exception(f"ComfyUI 执行失败: {comfy_error}")
-            raise Exception("ComfyUI 未返回图像，请检查工作流配置或确认模型已安装")
+            raise Exception("ComfyUI 未返回输出，请检查工作流配置或确认模型已安装")
         
         result = {
             "prompt": req.prompt if req.prompt else "Detail Enhance",
             "images": local_urls,
+            "audio": audio_urls,
             "text": output_text,
             "text_url": text_url,
             "seed": seed,
@@ -7102,14 +7158,14 @@ def generate(req: GenerateRequest, token: str = ""):
             "params": req.params
         }
         save_to_history(result)
-        # Broadcast if there are images OR text output
+        # Broadcast if there are images, audio OR text output
         # 但ps.json和ps_send.json工作流不广播，由前端自行处理
-        if GLOBAL_LOOP and (local_urls or output_text) and req.workflow_json not in ('ps.json', 'ps_send.json'):
+        if GLOBAL_LOOP and (local_urls or audio_urls or output_text) and req.workflow_json not in ('ps.json', 'ps_send.json'):
             asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(result), GLOBAL_LOOP)
         return result
 
     except Exception as e:
-        return {"images": [], "error": str(e)}
+        return {"images": [], "audio": [], "error": str(e)}
     finally:
         if target_backend:
             with LOAD_LOCK:
@@ -7766,18 +7822,30 @@ async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
 
 # --- ComfyUI 代理端点（供前端在 non-local 模式下使用） ---
 
+# object_info 缓存：避免每次请求都向 ComfyUI 拉全量数据（数据量大且响应慢）
+_object_info_cache = {"data": None, "ts": 0}
+_OBJECT_INFO_CACHE_TTL = 30  # 秒
+
 @app.get("/api/comfyui/object_info")
 @app.get("/api/comfyui/object_info/{node_type:path}")
 async def proxy_comfyui_object_info(node_type: str = None):
     """代理获取 ComfyUI 节点信息（含模型列表等），支持按节点类型查询"""
+    import time
+    now = time.time()
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
     try:
+        # 无 node_type 时使用缓存
+        if node_type is None and _object_info_cache["data"] and (now - _object_info_cache["ts"] < _OBJECT_INFO_CACHE_TTL):
+            return Response(content=_object_info_cache["data"], media_type="application/json")
         base = f"http://{target}/object_info"
         url = f"{base}/{node_type}" if node_type else base
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url)
+        if node_type is None:
+            _object_info_cache["data"] = resp.content
+            _object_info_cache["ts"] = now
         return Response(content=resp.content, media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI object_info 请求失败: {str(e)}")
@@ -8654,6 +8722,363 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"运行工作流失败: {str(e)}")
+
+
+# ==================== TTS API 路由 ====================
+
+TTS_VOICE_DIR = os.path.join(DATA_DIR, "tts_voices")
+os.makedirs(TTS_VOICE_DIR, exist_ok=True)
+
+# 音色库子目录
+VOICE_CATEGORIES = ["genshin", "custom", "import", "record"]
+
+# 音色库索引文件（全局共享）
+VOICE_INDEX_FILE = os.path.join(TTS_VOICE_DIR, "voices.json")
+
+TTS_WORKFLOW_DIR = os.path.join(WORKFLOW_DIR, "TTS")
+
+# TTS 工作流模板映射
+TTS_WORKFLOW_TEMPLATES = {
+    "clone": "omnivoice-clone_workflow.json",
+    "design": "omnivoice-design_workflow.json",
+    "auto": "omnivoice-auto_workflow.json",
+    "longform": "omnivoice-longform_workflow.json",
+    "multi": "omnivoice-multi_workflow.json",
+}
+
+
+def _load_voice_index() -> dict:
+    """加载音色库索引（全局共享）"""
+    if not os.path.exists(VOICE_INDEX_FILE):
+        return {}
+    try:
+        with open(VOICE_INDEX_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_voice_index(index: dict):
+    """保存音色库索引（全局共享）"""
+    with open(VOICE_INDEX_FILE, 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+
+@app.get("/api/tts/voices")
+async def get_tts_voices():
+    """获取音色库列表（全局共享）"""
+    index = _load_voice_index()
+    return {"voices": index}
+
+
+@app.post("/api/tts/voices")
+async def save_tts_voice(
+    name: str = Form(...),
+    instruct: str = Form(""),
+    category: str = Form("custom"),
+    file: UploadFile = File(...),
+):
+    """保存音色到音色库（全局共享）"""
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="音色名称不能为空")
+    
+    # 保存音频文件到分类目录
+    category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
+    os.makedirs(category_dir, exist_ok=True)
+    
+    ext = os.path.splitext(file.filename or "voice.wav")[1] or ".wav"
+    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())[:60]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{safe_name}_{timestamp}{ext}"
+    file_path = os.path.join(category_dir, filename)
+    
+    content = await file.read()
+    with open(file_path, 'wb') as f:
+        f.write(content)
+    
+    # 更新索引（存储相对路径）
+    index = _load_voice_index()
+    index[name.strip()] = {
+        "file": f"audio/{category}/{filename}",
+        "instruct": instruct,
+        "category": category,
+        "duration": 0,
+        "created": timestamp,
+    }
+    _save_voice_index(index)
+    
+    return {"success": True, "name": name.strip(), "filename": f"audio/{category}/{filename}"}
+
+
+@app.post("/api/tts/voices/import")
+async def import_tts_voices(
+    source_dir: str = Form(...),
+    category: str = Form("genshin"),
+):
+    """批量导入音色（全局共享）"""
+    # 创建分类目录
+    category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
+    os.makedirs(category_dir, exist_ok=True)
+    
+    if not os.path.exists(source_dir):
+        raise HTTPException(status_code=400, detail="源目录不存在")
+    
+    index = _load_voice_index()
+    imported = 0
+    skipped = 0
+    errors = []
+    
+    # 扫描角色文件夹
+    for character_name in os.listdir(source_dir):
+        character_dir = os.path.join(source_dir, character_name)
+        if not os.path.isdir(character_dir):
+            continue
+        
+        # 获取所有音频文件
+        audio_files = [f for f in os.listdir(character_dir) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
+        if not audio_files:
+            continue
+        
+        # 按文件大小排序，选择中间的
+        audio_files_with_size = []
+        for af in audio_files:
+            try:
+                size = os.path.getsize(os.path.join(character_dir, af))
+                audio_files_with_size.append((af, size))
+            except:
+                continue
+        
+        if not audio_files_with_size:
+            continue
+        
+        audio_files_with_size.sort(key=lambda x: x[1])
+        mid_idx = len(audio_files_with_size) // 2
+        selected_file = audio_files_with_size[mid_idx][0]
+        
+        # 跳过已存在的
+        voice_name = f"原神·{character_name}"
+        if voice_name in index:
+            skipped += 1
+            continue
+        
+        try:
+            # 复制音频文件到分类目录
+            src_path = os.path.join(character_dir, selected_file)
+            ext = os.path.splitext(selected_file)[1]
+            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", character_name)[:60]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest_filename = f"{safe_name}_{timestamp}{ext}"
+            dest_path = os.path.join(category_dir, dest_filename)
+            
+            shutil.copy2(src_path, dest_path)
+            
+            # 更新索引（存储相对路径）
+            index[voice_name] = {
+                "file": f"audio/{category}/{dest_filename}",
+                "instruct": "女，高音调",
+                "category": category,
+                "created": timestamp,
+            }
+            imported += 1
+        except Exception as e:
+            errors.append(f"{character_name}: {str(e)}")
+    
+    _save_voice_index(index)
+    
+    return {
+        "success": True,
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors[:10],  # 只返回前10个错误
+    }
+
+
+@app.get("/api/tts/voices/file/{filename}")
+async def get_tts_voice_file(filename: str):
+    """获取音色音频文件（全局共享）"""
+    # filename 现在是 audio/category/file 格式
+    file_path = os.path.join(TTS_VOICE_DIR, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    # 根据扩展名设置 Content-Type
+    ext = os.path.splitext(filename)[1].lower()
+    content_type_map = {
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".flac": "audio/flac",
+        ".ogg": "audio/ogg",
+    }
+    content_type = content_type_map.get(ext, "audio/wav")
+    
+    return FileResponse(file_path, media_type=content_type)
+
+
+@app.delete("/api/tts/voices/{voice_name}")
+async def delete_tts_voice(voice_name: str):
+    """删除音色（全局共享）"""
+    index = _load_voice_index()
+    
+    entry = index.pop(voice_name, None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="音色不存在")
+    
+    # 删除音频文件
+    file_path = os.path.join(TTS_VOICE_DIR, entry.get("file", ""))
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    _save_voice_index(index)
+    return {"success": True}
+
+
+@app.get("/api/tts/modes")
+async def get_tts_modes():
+    """获取支持的 TTS 模式列表"""
+    return {
+        "modes": [
+            {
+                "id": "clone",
+                "name": "Voice Clone",
+                "description": "短文本声音克隆",
+                "needs_ref": True,
+            },
+            {
+                "id": "design",
+                "name": "Voice Design",
+                "description": "文字设计声音",
+                "needs_ref": False,
+            },
+            {
+                "id": "longform",
+                "name": "Longform",
+                "description": "长文本分块生成",
+                "needs_ref": True,
+            },
+            {
+                "id": "multi",
+                "name": "Multi-Speaker",
+                "description": "多人对话",
+                "needs_ref": True,
+                "multi_speaker": True,
+            },
+        ]
+    }
+
+
+@app.post("/api/tts/generate")
+async def tts_generate(
+    text: str = Form(...),
+    mode: str = Form("clone"),
+    instruct: str = Form(""),
+    ref_text: str = Form(""),
+    speed: float = Form(1.0),
+    steps: int = Form(32),
+    guidance_scale: float = Form(2.0),
+    seed: int = Form(0),
+    language: str = Form(""),
+    audio_format: str = Form("wav"),
+    sample_rate: int = Form(24000),
+    t_shift: float = Form(0.1),
+    position_temperature: float = Form(5.0),
+    class_temperature: float = Form(0.0),
+    layer_penalty_factor: float = Form(5.0),
+    duration: Optional[float] = Form(None),
+    denoise: bool = Form(True),
+    normalize: bool = Form(False),
+    preprocess: bool = Form(True),
+    postprocess: bool = Form(True),
+    save_prefix: str = Form("tts"),
+    ref_audio: Optional[UploadFile] = File(None),
+    token: str = ""
+):
+    """TTS 生成接口"""
+    username = get_username_by_token(token)
+    
+    # 校验模式
+    if mode not in TTS_WORKFLOW_TEMPLATES:
+        raise HTTPException(status_code=400, detail=f"不支持的模式: {mode}")
+    
+    # 加载工作流模板
+    workflow_name = TTS_WORKFLOW_TEMPLATES[mode]
+    workflow_path = os.path.join(TTS_WORKFLOW_DIR, workflow_name)
+    if not os.path.exists(workflow_path):
+        raise HTTPException(status_code=404, detail=f"工作流模板不存在: {workflow_name}")
+    
+    with open(workflow_path, 'r', encoding='utf-8') as f:
+        workflow = json.load(f)
+    
+    # 上传参考音频到 ComfyUI（如果有）
+    ref_audio_filename = ""
+    if ref_audio and mode in ("clone", "longform", "multi"):
+        content = await ref_audio.read()
+        ref_audio_filename = f"tts_ref_{int(time.time())}_{ref_audio.filename or 'audio.wav'}"
+        # 上传到 ComfyUI input 目录
+        target = COMFYUI_ADDRESS
+        if target:
+            try:
+                files_data = {'image': (ref_audio_filename, content, ref_audio.content_type or 'audio/wav')}
+                requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+            except Exception as e:
+                print(f"[TTS] 上传参考音频失败: {e}")
+    
+    # 替换工作流中的变量
+    # 查找关键节点并替换参数
+    for node_id, node_content in workflow.items():
+        if not isinstance(node_content, dict):
+            continue
+        inputs = node_content.get("inputs", {})
+        class_type = node_content.get("class_type", "")
+        
+        # OmniVoice TTS 节点
+        if class_type in ("OmniVoiceVoiceCloneTTS", "OmniVoiceLongformTTS", "OmniVoiceVoiceDesignTTS"):
+            inputs["text"] = text
+            inputs["instruct"] = instruct
+            inputs["speed"] = speed
+            inputs["steps"] = steps
+            inputs["guidance_scale"] = guidance_scale
+            inputs["t_shift"] = t_shift
+            inputs["position_temperature"] = position_temperature
+            inputs["class_temperature"] = class_temperature
+            inputs["layer_penalty_factor"] = layer_penalty_factor
+            inputs["denoise"] = denoise
+            inputs["preprocess_prompt"] = preprocess
+            inputs["postprocess_output"] = postprocess
+            inputs["seed"] = seed if seed > 0 else 0
+            if duration is not None:
+                inputs["duration"] = duration
+            if mode in ("clone", "longform") and ref_text:
+                inputs["ref_text"] = ref_text
+        
+        # LoadAudio 节点（参考音频）
+        if class_type == "LoadAudio" and ref_audio_filename:
+            inputs["audio"] = ref_audio_filename
+    
+    # 提交到 ComfyUI
+    generate_req = GenerateRequest(
+        prompt=text,
+        workflow_data=workflow,
+        params={
+            "denoise": denoise,
+            "normalize": normalize,
+            "preprocess": preprocess,
+            "postprocess": postprocess,
+            "save_prefix": save_prefix,
+            "mode": mode,
+            "instruct": instruct,
+            "duration": duration,
+        },
+        type="tts",
+        client_id="",
+    )
+    
+    result = generate(generate_req, token=token)
+    
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
 
 
 # ==================== 素材库 API 路由 ====================

@@ -118,6 +118,28 @@
 }
 .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
+/* === Masonry Grid（共享样式，覆盖所有页面） === */
+.masonry-grid { column-count:2; column-gap:12px; }
+.masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
+.masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
+.masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+body.studio-theme-dark .masonry-grid .date-separator .sep-line { background:rgba(255,255,255,0.08); }
+body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80; }
+@media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
+@media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
+@media(min-width:1024px){ .masonry-grid{ column-count:4; } }
+.masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
+.masonry-grid.thumb-medium{ /* 默认 */ }
+.masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
+.masonry-grid.thumb-small .model-badge{ display:none!important; }
+@media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
+@media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
+@media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
+.masonry-item { border-radius:24px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.5s cubic-bezier(0.4,0,0.2,1); position:relative; break-inside:avoid; margin-bottom:12px; }
+.masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,0.08); }
+body.studio-theme-dark .masonry-item { background:#0d1520; border-color:rgba(0,240,255,0.1); }
+body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,255,0.06); }
+
 /* === Scroll to Top === */
 #galleryScrollToTop {
     position: fixed;
