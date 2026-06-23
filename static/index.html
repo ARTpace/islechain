@@ -118,12 +118,13 @@
             transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s, border-color 0.3s;
             z-index: 50;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         /* 侧边栏导航容器 */
         .sidebar-nav {
             flex: 1;
+            min-height: 180px;
             overflow-y: auto;
             overflow-x: hidden;
             width: 100%;
@@ -258,91 +259,96 @@
             transform: rotate(0deg);
         }
 
-        /* Downward submenu within sidebar */
+        /* 浮动工具栏容器 - 从侧边栏右侧弹出 */
         .submenu {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            position: fixed;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 60;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: max-content;
+            min-width: 140px;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+
+        body.theme-dark .submenu {
+            background: rgba(13, 21, 32, 0.95);
+            border-color: rgba(0, 240, 255, 0.12);
+            box-shadow: 0 8px 32px rgba(0, 240, 255, 0.08);
         }
 
         .submenu.expanded {
-            max-height: 600px;
-            overflow-y: auto;
-            overflow-x: hidden;
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        /* 折叠态下子菜单自动收起，hover 展开时恢复 */
         .sidebar:not(:hover) .submenu.expanded {
-            max-height: 0;
-            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
         }
         .sidebar:hover .submenu.expanded {
-            max-height: 600px;
-            overflow-y: auto;
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        /* 子菜单滚动条样式 */
-        .submenu::-webkit-scrollbar {
-            width: 4px !important;
-        }
-        .submenu::-webkit-scrollbar-thumb {
-            background-color: var(--scrollbar) !important;
-            border-radius: 2px !important;
-            border: none !important;
-        }
-
+        /* 子菜单项 - 单列对齐 */
         .nav-child {
-            width: 190px;
-            height: 40px;
-            margin: 2px 0;
+            width: 100%;
+            height: 36px;
+            margin: 0;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            border-radius: 14px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.2s, color 0.2s;
             color: var(--muted);
-            padding-left: 14px;
+            padding: 0 12px;
             border: 1px solid transparent;
-            font-size: 11px;
-            opacity: 0.7;
+            font-size: 12px;
+            opacity: 0.85;
             overflow: hidden;
+            flex-shrink: 0;
+            gap: 8px;
+        }
+
+        .nav-child svg {
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
             flex-shrink: 0;
         }
 
-        .sidebar:hover .nav-child {
-            width: 190px;
-        }
-
-        .sidebar:not(:hover) .nav-child .nav-text {
-            opacity: 0;
-        }
-
-        .sidebar:hover .nav-child .nav-text {
-            opacity: 0.7;
-        }
-
-        .sidebar:hover .nav-child:hover .nav-text {
+        .nav-child .nav-text {
             opacity: 1;
+            white-space: nowrap;
+            font-weight: 500;
         }
 
         .nav-child:hover {
             opacity: 1;
             background: var(--nav-hover-bg);
             color: var(--accent);
-            border-color: rgba(8, 145, 178, 0.15);
         }
 
         body.theme-dark .nav-child:hover {
             border-color: rgba(0, 240, 255, 0.12);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.05);
         }
 
         .nav-child.submenu-active {
             opacity: 1;
             background: var(--accent);
             color: #fff;
-            box-shadow: 0 4px 20px rgba(8, 145, 178, 0.3);
             border-color: transparent;
         }
 
@@ -350,7 +356,6 @@
             background: rgba(0, 240, 255, 0.12);
             color: #00f0ff;
             border-color: rgba(0, 240, 255, 0.3);
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
         }
 
         .nav-parent.has-active-child {
@@ -700,7 +705,7 @@
                 </div>
 
                 <!-- Submenu Container -->
-                <div class="submenu expanded">
+                <div id="comfyui-submenu" class="submenu expanded">
                     <div class="nav-item nav-child submenu-active" onclick="switchUI(this, 'zimage', 'comfy')" title="文生图">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <span class="nav-text">文生图</span>
@@ -874,7 +879,7 @@
             if (parentId) {
                 el.classList.add('submenu-active');
                 // Collapse submenu after selecting a child
-                const submenu = document.querySelector('.submenu');
+                const submenu = document.getElementById('comfyui-submenu');
                 if (submenu) {
                     submenu.classList.remove('expanded');
                 }
@@ -910,9 +915,22 @@
             localStorage.setItem('lastSelectedApp', JSON.stringify({ id, parentId }));
         }
 
+        function positionSubmenu() {
+            const submenu = document.getElementById('comfyui-submenu');
+            const navParent = document.getElementById('nav-comfy');
+            if (!submenu || !navParent) return;
+            const rect = navParent.getBoundingClientRect();
+            let top = rect.top;
+            // 防止超出底部
+            const maxTop = window.innerHeight - submenu.offsetHeight - 16;
+            if (top > maxTop) top = Math.max(16, maxTop);
+            submenu.style.left = (rect.right + 6) + 'px';
+            submenu.style.top = top + 'px';
+        }
+
         function toggleSubmenu(el) {
-            const submenu = el.nextElementSibling;
-            if (!submenu || !submenu.classList.contains('submenu')) return;
+            const submenu = document.getElementById('comfyui-submenu');
+            if (!submenu) return;
 
             const isExpanded = submenu.classList.contains('expanded');
 
@@ -921,11 +939,24 @@
                 el.classList.add('collapsed');
                 el.classList.remove('expanded');
             } else {
+                positionSubmenu();
                 submenu.classList.add('expanded');
                 el.classList.add('expanded');
                 el.classList.remove('collapsed');
             }
         }
+
+        // sidebar hover 时自动定位浮动栏
+        const sidebarEl = document.querySelector('.sidebar');
+        if (sidebarEl) {
+            sidebarEl.addEventListener('mouseenter', () => {
+                const submenu = document.getElementById('comfyui-submenu');
+                if (submenu && submenu.classList.contains('expanded')) {
+                    positionSubmenu();
+                }
+            });
+        }
+        window.addEventListener('resize', positionSubmenu);
 
         async function syncStatus() {
             try {
@@ -1031,12 +1062,13 @@
                         // If it was a comfyui child item
                         if (parentId === 'comfy') {
                             const parent = document.getElementById('nav-comfy');
-                            const submenu = document.querySelector('.submenu');
+                            const submenu = document.getElementById('comfyui-submenu');
                             if (parent) {
                                 parent.classList.add('expanded', 'has-active-child');
                                 parent.classList.remove('collapsed');
                             }
                             if (submenu) {
+                                positionSubmenu();
                                 submenu.classList.add('expanded');
                             }
                             // Find and activate the child nav item
