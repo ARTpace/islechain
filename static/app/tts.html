@@ -841,8 +841,7 @@
                                 </button>
                                 <div id="modeMenu" class="anima-ctrl-menu">
                                     <div onclick="selectMode('clone')" data-mode-key="clone" class="anima-ctrl-menu-item active"><span>声音克隆</span><span class="chk">✓</span></div>
-                                    <div onclick="selectMode('design')" data-mode-key="design" class="anima-ctrl-menu-item"><span>音色设计</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div onclick="selectMode('auto')" data-mode-key="auto" class="anima-ctrl-menu-item"><span>自动配音</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectMode('design')" data-mode-key="design" class="anima-ctrl-menu-item"><span>智能配音</span><span class="chk" style="opacity:0">✓</span></div>
                                     <div onclick="selectMode('multi')" data-mode-key="multi" class="anima-ctrl-menu-item"><span>多人对话</span><span class="chk" style="opacity:0">✓</span></div>
                                 </div>
                             </div>
@@ -1518,8 +1517,7 @@
         });
         document.getElementById('modeText').textContent = {
             clone: '声音克隆',
-            design: '音色设计',
-            auto: '自动配音',
+            design: '智能配音',
             multi: '多人对话'
         }[mode];
         document.getElementById('modeMenu').style.display = 'none';
@@ -1531,32 +1529,56 @@
         const multiPanel = document.getElementById('multiSpeakerPanel');
         const descriptions = {
             clone: '声音克隆（自动适配长文本）',
-            design: '文字设计声音（无需参考音频）',
-            auto: '自动选择声音（无需参考音频和指令）',
+            design: '智能配音（无需参考音频）',
             multi: '多人对话'
         };
         document.getElementById('modeDescription').textContent = descriptions[currentMode];
-        // design 和 auto 模式不需要参考音频
-        const noRefModes = ['design', 'auto'];
-        refSection.style.opacity = noRefModes.includes(currentMode) ? '0.5' : '1';
-        refSection.style.pointerEvents = noRefModes.includes(currentMode) ? 'none' : 'auto';
-        // multi 模式：隐藏单人参考音频区（含风格指令），显示多人面板
+        // design 模式不需要参考音频，但需要风格指令
+        const noRefModes = ['design'];
+        
+        // 获取参考音频上传区域和风格指令区域
+        const refAudioUpload = document.getElementById('audioUploadZone');
+        const refAudioPreview = document.getElementById('audioPreviewCard');
         const instructSection = document.getElementById('instructSection');
+        
+        if (currentMode === 'design') {
+            // 智能配音模式：禁用参考音频上传，但保留风格指令
+            if (refAudioUpload) refAudioUpload.style.opacity = '0.4';
+            if (refAudioUpload) refAudioUpload.style.pointerEvents = 'none';
+            if (refAudioPreview) refAudioPreview.style.opacity = '0.4';
+            if (refAudioPreview) refAudioPreview.style.pointerEvents = 'none';
+            if (instructSection) instructSection.style.display = '';
+            // 显示风格指令区域
+            refSection.style.display = '';
+            refSection.style.opacity = '1';
+            refSection.style.pointerEvents = 'auto';
+        } else if (currentMode === 'multi') {
+            // 多人对话模式：隐藏单人参考音频区
+            refSection.style.display = 'none';
+        } else {
+            // 声音克隆模式：正常显示
+            if (refAudioUpload) refAudioUpload.style.opacity = '1';
+            if (refAudioUpload) refAudioUpload.style.pointerEvents = 'auto';
+            if (refAudioPreview) refAudioPreview.style.opacity = '1';
+            if (refAudioPreview) refAudioPreview.style.pointerEvents = 'auto';
+            if (instructSection) instructSection.style.display = '';
+            refSection.style.display = '';
+            refSection.style.opacity = '1';
+            refSection.style.pointerEvents = 'auto';
+        }
+        
+        // multi 模式：显示多人面板
         const multiToolbar = document.getElementById('multiSpeakerToolbar');
         const synthTextarea = document.getElementById('synthText');
         if (currentMode === 'multi') {
-            refSection.style.display = 'none';
             multiPanel.style.display = 'block';
             if (multiToolbar) multiToolbar.style.display = '';
             if (synthTextarea) synthTextarea.placeholder = '[Speaker_1]: 你好\n[Speaker_2]: 你好你好';
             renderSpeakerCards();
         } else {
-            refSection.style.display = '';
             multiPanel.style.display = 'none';
             if (multiToolbar) multiToolbar.style.display = 'none';
             if (synthTextarea) synthTextarea.placeholder = '输入要合成的文本...';
-            // 单人模式：风格指令显示在参考音频区内
-            if (instructSection) instructSection.style.display = '';
         }
         updateSpeakerHighlight();
     }
@@ -2721,7 +2743,7 @@
         }
 
         // design 和 auto 模式不需要参考音频
-        const noRefModes = ['design', 'auto'];
+        const noRefModes = ['design'];
         if (!noRefModes.includes(currentMode) && currentMode !== 'multi' && !currentRefAudioFile) {
             alert('请先上传参考音频');
             return;
@@ -2890,7 +2912,7 @@
                     <canvas class="audio-waveform-active" id="fxCanvas-${cardId}"></canvas>
                 </div>
                 <div class="audio-result-footer">
-                    <span class="audio-mode-badge">${mode === 'design' ? '音色设计' : mode === 'multi' ? '多人对话' : mode === 'auto' ? '自动配音' : '声音克隆'}</span>
+                    <span class="audio-mode-badge">${mode === 'design' ? '智能配音' : mode === 'multi' ? '多人对话' : '声音克隆'}</span>
                     <span class="audio-duration" id="duration-${cardId}">--:--</span>
                     <span class="audio-timestamp">${new Date(timestamp * 1000).toLocaleTimeString()}</span>
                 </div>

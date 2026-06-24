@@ -9502,7 +9502,7 @@ async def _tts_generate_inner(request: Request, token: str):
         class_type = node_content.get("class_type", "")
         
         # OmniVoice TTS 节点
-        if class_type in ("OmniVoiceVoiceCloneTTS", "OmniVoiceLongformTTS", "OmniVoiceVoiceDesignTTS"):
+        if class_type in ("OmniVoiceVoiceCloneTTS", "OmniVoiceLongformTTS"):
             inputs["text"] = text
             inputs["instruct"] = instruct
             inputs["speed"] = speed
@@ -9520,6 +9520,27 @@ async def _tts_generate_inner(request: Request, token: str):
                 inputs["duration"] = duration
             if mode in ("clone", "longform") and ref_text:
                 inputs["ref_text"] = ref_text
+        
+        # OmniVoice VoiceDesign TTS 节点（智能配音）
+        if class_type == "OmniVoiceVoiceDesignTTS":
+            inputs["text"] = text
+            # 智能配音模式：如果没有 instruct，使用默认值
+            if mode == "design" and not instruct:
+                inputs["voice_instruct"] = "female, moderate pitch"  # 默认：女声，中音调
+            else:
+                inputs["voice_instruct"] = instruct
+            inputs["speed"] = speed
+            inputs["steps"] = steps
+            inputs["guidance_scale"] = guidance_scale
+            inputs["t_shift"] = t_shift
+            inputs["position_temperature"] = position_temperature
+            inputs["class_temperature"] = class_temperature
+            inputs["layer_penalty_factor"] = layer_penalty_factor
+            inputs["denoise"] = denoise
+            inputs["postprocess_output"] = postprocess
+            inputs["seed"] = seed if seed > 0 else 0
+            if duration is not None:
+                inputs["duration"] = duration
         
         # OmniVoiceMultiSpeakerTTS 节点
         if class_type == "OmniVoiceMultiSpeakerTTS":
