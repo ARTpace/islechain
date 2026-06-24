@@ -68,61 +68,248 @@
         body.studio-theme-dark .anima-ctrl.active { background:#00f0ff; color:#0a0e17; }
         /* === 下拉菜单（复用 zimage） === */
         .anima-ctrl-wrap { position:relative; }
-        .anima-ctrl-menu { display:none; position:absolute; bottom:calc(100% + 4px); left:0; background:#2a2a2a; border-radius:12px; padding:6px; z-index:100; min-width:140px; box-shadow:0 -8px 24px rgba(0,0,0,0.3); }
+        .anima-ctrl-menu { display:none; position:fixed; background:#2a2a2a; border-radius:12px; padding:6px; z-index:9999; min-width:140px; box-shadow:0 8px 24px rgba(0,0,0,0.3); max-height:70vh; overflow-y:auto; }
         .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:#999; font-size:12px; transition:all 0.15s; }
         .anima-ctrl-menu-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
         .anima-ctrl-menu-item.active { color:#fff; background:rgba(74,222,128,0.10); }
         .anima-ctrl-menu-item .chk { margin-left:auto; }
-        body.studio-theme-dark .anima-ctrl-menu { background:#162030; box-shadow:0 -8px 32px rgba(0,0,0,0.5); }
+        body.studio-theme-dark .anima-ctrl-menu { background:#162030; box-shadow:0 8px 32px rgba(0,0,0,0.5); }
         body.studio-theme-dark .anima-ctrl-menu-item { color:#9aa8b8; }
         body.studio-theme-dark .anima-ctrl-menu-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
         /* === 控制栏（复用 zimage） === */
         .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; padding:8px 12px; justify-content:space-between; }
         /* === 输入框 === */
-        .tts-input { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0,0,0,0.1); border-radius:10px; background:rgba(255,255,255,0.8); outline:none; transition:all 0.15s; }
+        .tts-input { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0,0,0,0.1); border-radius:10px; background:#ffffff; color:#1a202c; outline:none; transition:all 0.15s; -webkit-appearance:none; -moz-appearance:none; appearance:none; }
         .tts-input:focus { border-color:rgba(0,180,216,0.5); box-shadow:0 0 0 3px rgba(0,180,216,0.1); }
-        body.studio-theme-dark .tts-input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
+        .tts-input option { color:#1a202c; background:#ffffff; padding:6px; }
+        .tts-input optgroup { color:#6b7280; background:#ffffff; font-style:normal; font-weight:600; }
+        body.studio-theme-dark .tts-input { background:rgba(15,23,42,0.6); border-color:rgba(0,240,255,0.18); color:#e0e7ef; }
         body.studio-theme-dark .tts-input:focus { border-color:rgba(0,240,255,0.5); box-shadow:0 0 0 3px rgba(0,240,255,0.1); }
         body.studio-theme-dark .tts-input::placeholder { color:#4a5a6e; }
-        .tts-textarea { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0,0,0,0.1); border-radius:10px; background:rgba(255,255,255,0.8); outline:none; resize:none; transition:all 0.15s; min-height:80px; }
-        .tts-textarea:focus { border-color:rgba(0,180,216,0.5); box-shadow:0 0 0 3px rgba(0,180,216,0.1); }
-        body.studio-theme-dark .tts-textarea { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
+        body.studio-theme-dark .tts-input option { color:#e0e7ef; background:#0f172a; padding:6px; }
+        body.studio-theme-dark .tts-input option:checked { background:linear-gradient(90deg, rgba(0,180,216,0.35), rgba(0,201,167,0.25)); color:#ffffff; }
+        body.studio-theme-dark .tts-input optgroup { color:#94a3b8; background:#0f172a; font-weight:600; }
+        /* select 包裹容器：右侧放自定义箭头，避免 background-image 在 select 上被平铺 */
+        .tts-select-wrap { position:relative; display:block; width:100%; }
+        .tts-select-wrap::after { content:''; position:absolute; right:12px; top:50%; width:10px; height:10px; transform:translateY(-50%) rotate(45deg); border-right:2px solid #00b4d8; border-bottom:2px solid #00b4d8; pointer-events:none; transition:border-color 0.15s; }
+        .tts-select-wrap:hover::after { border-right-color:#00c9a7; border-bottom-color:#00c9a7; }
+        body.studio-theme-dark .tts-select-wrap::after { border-right-color:#00f0ff; border-bottom-color:#00f0ff; }
+        body.studio-theme-dark .tts-select-wrap:hover::after { border-right-color:#5cf6ff; border-bottom-color:#5cf6ff; }
+        .tts-select-wrap select.tts-input { padding-right:30px; cursor:pointer; }
+        /* 数字输入框微调：去掉原生 spinner 的灰白色 */
+        input[type=number].tts-input::-webkit-inner-spin-button, input[type=number].tts-input::-webkit-outer-spin-button { opacity:0.5; }
+        input[type=number].tts-input:hover::-webkit-inner-spin-button, input[type=number].tts-input:hover::-webkit-outer-spin-button { opacity:1; }
+        .tts-textarea { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0,0,0,0.1); border-radius:10px; background:#ffffff; color:#1a202c; outline:none; resize:none; transition:all 0.15s; min-height:120px; padding-bottom:36px; }
+        body.studio-theme-dark .tts-textarea { background:rgba(15,23,42,0.6); border-color:rgba(0,240,255,0.18); color:#e0e7ef; }
         body.studio-theme-dark .tts-textarea:focus { border-color:rgba(0,240,255,0.5); box-shadow:0 0 0 3px rgba(0,240,255,0.1); }
         body.studio-theme-dark .tts-textarea::placeholder { color:#4a5a6e; }
-        /* === 参考音频紧凑布局 === */
-        .ref-audio-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; background:rgba(0,0,0,0.02); border:1px solid rgba(0,0,0,0.06); }
-        body.studio-theme-dark .ref-audio-row { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.06); }
-        .ref-audio-row.drag-over { border-color:#00b4d8; background:rgba(0,180,216,0.05); }
-        body.studio-theme-dark .ref-audio-row.drag-over { border-color:#00f0ff; background:rgba(0,240,255,0.05); }
-        .ref-audio-placeholder { display:flex; align-items:center; gap:8px; width:100%; }
-        .ref-audio-placeholder svg { color:#999; flex-shrink:0; }
-        body.studio-theme-dark .ref-audio-placeholder svg { color:#6a8fa8; }
-        .ref-audio-btn { height:24px; padding:0 10px; border:none; border-radius:6px; font-size:10px; font-weight:500; cursor:pointer; transition:all 0.15s; background:rgba(0,0,0,0.05); color:#666; flex-shrink:0; }
-        .ref-audio-btn:hover { background:rgba(0,180,216,0.1); color:#00b4d8; }
-        body.studio-theme-dark .ref-audio-btn { background:rgba(255,255,255,0.08); color:#8aa0b8; }
-        body.studio-theme-dark .ref-audio-btn:hover { background:rgba(0,240,255,0.1); color:#00f0ff; }
-        .ref-record-btn { background:rgba(239,68,68,0.1); color:#ef4444; }
-        .ref-record-btn:hover { background:rgba(239,68,68,0.2); }
-        .ref-record-btn.recording { animation:pulse-recording 1s infinite; }
-        .ref-audio-recording { display:flex; align-items:center; gap:8px; width:100%; }
-        .recording-dot { width:8px; height:8px; border-radius:50%; background:#ef4444; animation:blink 1s infinite; flex-shrink:0; }
-        .recording-waveform-mini { flex:1; height:24px; background:rgba(239,68,68,0.05); border-radius:4px; overflow:hidden; }
-        .ref-audio-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
-        .ref-audio-waveform { width:100px; height:24px; background:rgba(0,0,0,0.03); border-radius:4px; cursor:pointer; flex-shrink:0; position:relative; }
-        body.studio-theme-dark .ref-audio-waveform { background:rgba(255,255,255,0.05); }
-        .ref-audio-waveform::after { content:''; position:absolute; top:0; left:var(--mouse-x, 50%); width:1px; height:100%; background:rgba(0,180,216,0.5); pointer-events:none; opacity:0; transition:opacity 0.15s; }
+        .tts-textarea-wrapper { position:relative; }
+        .tts-textarea-wrapper select { height:26px; border:1px solid rgba(0,0,0,0.06); border-radius:5px 0 0 5px; background:rgba(0,0,0,0.04); color:#555; font-size:10px; padding:0 4px; outline:none; cursor:pointer; }
+        .tts-textarea-wrapper select:focus { border-color:rgba(0,180,216,0.3); }
+        body.studio-theme-dark .tts-textarea-wrapper select { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.08); color:#8aa0b8; }
+        body.studio-theme-dark .tts-textarea-wrapper select:focus { border-color:rgba(0,240,255,0.3); }
+        body.studio-theme-dark .tts-textarea-wrapper select option { background:#0f172a; color:#e0e7ef; }
+        .tts-corner-btn { position:absolute; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border:1px solid rgba(0,0,0,0.06); border-radius:7px; background:rgba(0,0,0,0.04); color:#666; cursor:pointer; user-select:none; transition:all 0.15s; z-index:2; }
+        .tts-corner-btn:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.3); color:#00b4d8; transform:translateY(-1px); }
+        .tts-corner-btn:active { transform:scale(0.9); }
+        .tts-corner-btn svg { width:14px; height:14px; }
+        .tts-corner-btn[data-state="loading"] svg { animation:pt-spin 0.9s linear infinite; opacity:0.7; }
+        .tts-corner-btn[data-state="ok"] { color:#16a34a !important; border-color:rgba(22,163,74,0.3) !important; background:rgba(22,163,74,0.08) !important; }
+        .tts-corner-btn[data-state="fail"] { color:#dc2626 !important; border-color:rgba(220,38,38,0.3) !important; background:rgba(220,38,38,0.08) !important; }
+        .studio-theme-dark .tts-corner-btn { background:rgba(255,255,255,0.06) !important; border-color:rgba(255,255,255,0.08) !important; color:#8aa0b8 !important; }
+        .studio-theme-dark .tts-corner-btn:hover { background:rgba(0,240,255,0.1) !important; border-color:rgba(0,240,255,0.3) !important; color:#00f0ff !important; }
+        .studio-theme-dark .tts-corner-btn[data-state="ok"] { color:#4ade80 !important; background:rgba(74,222,128,0.1) !important; border-color:rgba(74,222,128,0.3) !important; }
+        .studio-theme-dark .tts-corner-btn[data-state="fail"] { color:#f87171 !important; background:rgba(248,113,113,0.1) !important; border-color:rgba(248,113,113,0.3) !important; }
+        @keyframes pt-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .tts-textarea:focus { border-color:rgba(0,180,216,0.5); box-shadow:0 0 0 3px rgba(0,180,216,0.1); }
+        /* === 参数面板项的 label === */
+        .advanced-item label { color:#475569 !important; }
+        body.studio-theme-dark .advanced-item label { color:#94a3b8 !important; }
+        /* === 多人对话：说话人卡片 === */
+        .speaker-card { padding:10px 12px; border-radius:12px; border:1.5px solid rgba(0,180,216,0.15); background:linear-gradient(180deg, rgba(0,180,216,0.03), rgba(0,201,167,0.01)); transition:all 0.2s; }
+        .speaker-card:hover { border-color:rgba(0,180,216,0.3); }
+        body.studio-theme-dark .speaker-card { border-color:rgba(0,240,255,0.15); background:linear-gradient(180deg, rgba(0,240,255,0.03), rgba(0,201,167,0.01)); }
+        body.studio-theme-dark .speaker-card:hover { border-color:rgba(0,240,255,0.3); }
+        .speaker-card-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .speaker-badge { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; flex-shrink:0; }
+        .speaker-badge-1 { background:linear-gradient(135deg, #00b4d8, #0096c7); }
+        .speaker-badge-2 { background:linear-gradient(135deg, #00c9a7, #00b4d8); }
+        .speaker-badge-3 { background:linear-gradient(135deg, #f59e0b, #f97316); }
+        .speaker-badge-4 { background:linear-gradient(135deg, #a855f7, #6366f1); }
+        body.studio-theme-dark .speaker-badge-1 { background:linear-gradient(135deg, #00f0ff, #00b4d8); }
+        body.studio-theme-dark .speaker-badge-2 { background:linear-gradient(135deg, #34d399, #00f0ff); }
+        body.studio-theme-dark .speaker-badge-3 { background:linear-gradient(135deg, #fbbf24, #f97316); }
+        body.studio-theme-dark .speaker-badge-4 { background:linear-gradient(135deg, #c084fc, #818cf8); }
+        .speaker-name-input { flex:1; height:22px; padding:0 6px; border:1px solid rgba(0,0,0,0.08); border-radius:6px; font-size:11px; font-weight:600; background:rgba(255,255,255,0.6); outline:none; }
+        .speaker-name-input:focus { border-color:rgba(0,180,216,0.5); }
+        body.studio-theme-dark .speaker-name-input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
+        .speaker-audio-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+        .speaker-audio-btn { height:22px; padding:0 8px; border:1px dashed rgba(0,0,0,0.15); border-radius:6px; font-size:9.5px; cursor:pointer; background:rgba(255,255,255,0.5); color:#666; display:flex; align-items:center; gap:3px; transition:all 0.15s; white-space:nowrap; }
+        .speaker-audio-btn:hover { border-color:rgba(0,180,216,0.5); color:#00b4d8; background:rgba(0,180,216,0.05); }
+        body.studio-theme-dark .speaker-audio-btn { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); color:#8aa0b8; }
+        body.studio-theme-dark .speaker-audio-btn:hover { border-color:rgba(0,240,255,0.5); color:#00f0ff; }
+        .speaker-audio-name { font-size:10px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
+        .speaker-fields { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+        .speaker-field-input { height:22px; padding:0 6px; border:1px solid rgba(0,0,0,0.08); border-radius:6px; font-size:10px; background:rgba(255,255,255,0.6); outline:none; }
+        .speaker-field-input::placeholder { color:#bbb; }
+        .speaker-field-input:focus { border-color:rgba(0,180,216,0.5); }
+        body.studio-theme-dark .speaker-field-input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
+        .speaker-field-input::placeholder { color:#4a5a6e; }
+        /* === 参考音频：固定高度容器，防止导入前后布局跳动 === */
+        .ref-audio-holder { position:relative; min-height:54px; display:flex; flex-direction:column; }
+        /* === 参考音频：空状态（极致紧凑） === */
+        .ref-audio-empty { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:3px; padding:4px 6px 5px; border-radius:7px; background:linear-gradient(180deg, rgba(0,180,216,0.04), rgba(0,201,167,0.02)); border:1.5px dashed rgba(0,0,0,0.10); cursor:pointer; transition:all 0.2s var(--easing); margin-top:3px; flex:1; }
+        .ref-audio-empty:hover { border-color:rgba(0,180,216,0.5); background:linear-gradient(180deg, rgba(0,180,216,0.08), rgba(0,201,167,0.04)); }
+        .ref-audio-empty.drag-over { border-color:#00b4d8; background:rgba(0,180,216,0.10); transform:scale(1.005); }
+        body.studio-theme-dark .ref-audio-empty { background:linear-gradient(180deg, rgba(0,240,255,0.04), rgba(0,201,167,0.02)); border-color:rgba(255,255,255,0.10); }
+        body.studio-theme-dark .ref-audio-empty:hover { border-color:rgba(0,240,255,0.5); background:linear-gradient(180deg, rgba(0,240,255,0.08), rgba(0,201,167,0.04)); }
+        body.studio-theme-dark .ref-audio-empty.drag-over { border-color:#00f0ff; background:rgba(0,240,255,0.10); }
+        /* 空状态：单行紧凑布局（图标 + 文案 + 按钮） */
+        .ref-audio-empty-row { display:flex; align-items:center; gap:6px; min-height:22px; }
+        .ref-audio-empty-icon { width:18px; height:18px; border-radius:5px; background:linear-gradient(135deg, rgba(0,180,216,0.14), rgba(0,201,167,0.14)); display:flex; align-items:center; justify-content:center; color:#00b4d8; transition:all 0.2s; flex-shrink:0; }
+        .ref-audio-empty:hover .ref-audio-empty-icon { transform:scale(1.05); }
+        body.studio-theme-dark .ref-audio-empty-icon { background:linear-gradient(135deg, rgba(0,240,255,0.16), rgba(0,201,167,0.16)); color:#00f0ff; }
+        .ref-audio-empty-text { font-size:10.5px; color:#64748b; font-weight:500; flex:1; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        body.studio-theme-dark .ref-audio-empty-text { color:#8aa0b8; }
+        .ref-audio-empty-actions { display:flex; gap:5px; }
+        .ref-action-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 6px; border:1px solid rgba(0,0,0,0.08); border-radius:5px; font-size:9.5px; font-weight:500; cursor:pointer; background:#fff; color:#444; transition:all 0.15s; }
+        .ref-action-btn:hover { background:rgba(0,180,216,0.08); border-color:rgba(0,180,216,0.3); color:#00b4d8; }
+        .ref-action-btn-lg { height:26px; padding:0 10px; font-size:11px; font-weight:600; border-radius:6px; gap:4px; }
+        .ref-action-btn-record { color:#ef4444; border-color:rgba(239,68,68,0.2); background:rgba(239,68,68,0.06); }
+        .ref-action-btn-record:hover { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.4); color:#dc2626; }
+        .ref-action-btn-voice { color:#00b4d8; border-color:rgba(0,180,216,0.2); background:rgba(0,180,216,0.06); }
+        .ref-action-btn-voice:hover { background:rgba(0,180,216,0.12); border-color:rgba(0,180,216,0.4); color:#0096b7; }
+        body.studio-theme-dark .ref-action-btn { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:#c8d0dc; }
+        body.studio-theme-dark .ref-action-btn:hover { background:rgba(0,240,255,0.1); border-color:rgba(0,240,255,0.3); color:#00f0ff; }
+        body.studio-theme-dark .ref-action-btn-record { color:#fca5a5; border-color:rgba(239,68,68,0.25); background:rgba(239,68,68,0.08); }
+        body.studio-theme-dark .ref-action-btn-record:hover { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); color:#fca5a5; }
+        body.studio-theme-dark .ref-action-btn-voice { color:#00f0ff; border-color:rgba(0,240,255,0.25); background:rgba(0,240,255,0.08); }
+        body.studio-theme-dark .ref-action-btn-voice:hover { background:rgba(0,240,255,0.15); border-color:rgba(0,240,255,0.4); color:#5cf6ff; }
+        /* === 参考音频：录音中状态 === */
+        .ref-audio-recording { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:7px; background:linear-gradient(90deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border:1px solid rgba(239,68,68,0.15); width:100%; }
+        .recording-dot { width:6px; height:6px; border-radius:50%; background:#ef4444; animation:blink 1s infinite; flex-shrink:0; box-shadow:0 0 0 3px rgba(239,68,68,0.15); }
+        .recording-waveform-mini { flex:1; height:18px; background:rgba(239,68,68,0.04); border-radius:4px; overflow:hidden; }
+        .recording-text { font-size:10px; font-weight:600; color:#ef4444; }
+        .recording-time { font-size:10px; color:#ef4444; font-variant-numeric:tabular-nums; font-weight:500; }
+        /* === 参考音频：已上传卡片（极致紧凑，约为原版一半） === */
+        .ref-audio-card { position:relative; margin-top:3px; padding:6px 8px; border-radius:8px; background:linear-gradient(180deg, #fff 0%, #f8fafc 100%); border:1px solid rgba(0,0,0,0.06); box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:all 0.25s var(--easing); overflow:hidden; display:flex; align-items:center; gap:6px; }
+        .ref-audio-card::before { content:''; position:absolute; top:-8px; right:-4px; width:32px; height:32px; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300b4d8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); background-repeat:no-repeat; background-size:contain; opacity:0.05; transform:rotate(15deg); pointer-events:none; }
+        .ref-audio-card:hover { box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+        body.studio-theme-dark .ref-audio-card { background:linear-gradient(180deg, #0d1520 0%, #0a0e17 100%); border-color:rgba(0,240,255,0.1); box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+        body.studio-theme-dark .ref-audio-card::before { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f0ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); opacity:0.08; }
+        body.studio-theme-dark .ref-audio-card:hover { box-shadow:0 2px 8px rgba(0,0,255,0.4); }
+        /* .ref-audio-card-top removed — card is now a single flex row */
+        .ref-play-btn-lg { width:30px; height:30px; border-radius:7px; border:1px solid rgba(0,0,0,0.08); background:rgba(0,0,0,0.03); color:#555; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s var(--easing); flex-shrink:0; position:relative; }
+        .ref-play-btn-lg:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.3); color:#00b4d8; transform:scale(1.06); }
+        .ref-play-btn-lg:active { transform:scale(0.92); }
+        .ref-play-btn-lg.playing { background:rgba(0,180,216,0.12); border-color:rgba(0,180,216,0.35); color:#00b4d8; animation:record-pulse-cyan 1.8s ease-out infinite; }
+        body.studio-theme-dark .ref-play-btn-lg { border-color:rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:#8aa0b8; }
+        body.studio-theme-dark .ref-play-btn-lg:hover { background:rgba(0,240,255,0.1); border-color:rgba(0,240,255,0.3); color:#00f0ff; }
+        body.studio-theme-dark .ref-play-btn-lg.playing { background:rgba(0,240,255,0.12); border-color:rgba(0,240,255,0.35); color:#00f0ff; animation:record-pulse-cyan-dark 1.8s ease-out infinite; }
+        /* 单行信息：文件名 + 时间紧凑并排 */
+        .ref-audio-info { flex:0 1 auto; min-width:0; display:flex; align-items:center; gap:5px; overflow:hidden; }
+        .ref-audio-info-name { font-size:10.5px; font-weight:600; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; flex:0 1 auto; max-width:120px; min-width:0; }
+        body.studio-theme-dark .ref-audio-info-name { color:#e0e7ef; }
+        .ref-audio-info-time { font-size:9px; color:#9ca3af; font-variant-numeric:tabular-nums; letter-spacing:0.02em; line-height:1.1; flex-shrink:0; white-space:nowrap; }
+        body.studio-theme-dark .ref-audio-info-time { color:#6a8fa8; }
+        .ref-audio-actions { display:flex; gap:3px; flex-shrink:0; }
+        .ref-icon-btn { width:28px; height:28px; border:none; border-radius:6px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.06); color:#666; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.18s var(--easing); }
+        .ref-icon-btn:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.3); color:#00b4d8; transform:translateY(-1px); }
+        .ref-icon-btn:active { transform:scale(0.9) translateY(0); }
+        .ref-icon-btn-danger:hover { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#ef4444; }
+        body.studio-theme-dark .ref-icon-btn { color:#8aa0b8; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+        body.studio-theme-dark .ref-icon-btn:hover { background:rgba(0,240,255,0.12); border-color:rgba(0,240,255,0.3); color:#00f0ff; }
+        body.studio-theme-dark .ref-icon-btn-danger:hover { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.35); color:#fca5a5; }
+        /* === 波形音轨（极致紧凑） === */
+        .ref-audio-waveform { position:relative; flex:1; min-width:0; height:36px; background:linear-gradient(180deg, rgba(0,180,216,0.04), rgba(0,201,167,0.02)); border-radius:4px; cursor:pointer; overflow:hidden; }
+        .ref-audio-waveform::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(0,180,216,0.2), transparent); }
+        body.studio-theme-dark .ref-audio-waveform { background:linear-gradient(180deg, rgba(0,240,255,0.04), rgba(0,201,167,0.02)); }
+        .ref-audio-waveform::after { content:''; position:absolute; top:0; left:var(--mouse-x, 50%); width:2px; height:100%; background:linear-gradient(180deg, transparent, rgba(0,180,216,0.7), transparent); pointer-events:none; opacity:0; transition:opacity 0.15s; z-index:3; }
         .ref-audio-waveform:hover::after { opacity:1; }
-        .ref-waveform-canvas { width:100%; height:100%; display:block; }
-        .ref-audio-time { font-size:10px; color:#999; font-variant-numeric:tabular-nums; flex-shrink:0; }
-        body.studio-theme-dark .ref-audio-time { color:#6a8fa8; }
-        .ref-play-btn { width:24px; height:24px; border-radius:50%; border:none; background:linear-gradient(135deg, #00b4d8, #00c9a7); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; flex-shrink:0; }
-        .ref-play-btn:hover { transform:scale(1.1); }
-        .ref-play-btn.playing { animation:pulse-play 1.5s infinite; }
+        .ref-waveform-canvas { position:absolute; top:0; left:0; width:100%; height:100%; display:block; z-index:1; }
+        .ref-waveform-progress { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(0,180,216,0.14), rgba(0,201,167,0.10)); pointer-events:none; transition:width 0.1s linear; z-index:2; }
+        body.studio-theme-dark .ref-waveform-progress { background:linear-gradient(90deg, rgba(0,240,255,0.18), rgba(0,201,167,0.12)); }
+        /* === 音色库操作栏（紧凑） === */
+        .ref-voice-row { display:flex; align-items:stretch; gap:2px; margin-top:3px; }
+        .ref-voice-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 7px; border:1px solid transparent; border-radius:5px; font-size:9.5px; font-weight:600; cursor:pointer; transition:all 0.18s var(--easing); position:relative; overflow:hidden; }
+        .ref-voice-btn svg { flex-shrink:0; }
+        /* 音色库：主按钮，撑满 */
+        .ref-voice-btn-primary { flex:1; justify-content:center; background:linear-gradient(135deg, #00b4d8 0%, #00c9a7 100%); color:#fff; border-color:rgba(0,180,216,0.4); box-shadow:0 1.5px 5px rgba(0,180,216,0.28); position:relative; }
+        .ref-voice-btn-primary::before { content:''; position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg, rgba(255,255,255,0.22), transparent); pointer-events:none; border-radius:5px 5px 0 0; }
+        .ref-voice-btn-primary::after { content:''; position:absolute; inset:0; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' opacity='0.18'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); background-repeat:no-repeat; background-position:right -2px center; background-size:22px 22px; pointer-events:none; }
+        .ref-voice-btn-primary:hover { transform:translateY(-1px); box-shadow:0 3px 10px rgba(0,180,216,0.42); border-color:rgba(0,180,216,0.6); }
+        .ref-voice-btn-primary:active { transform:translateY(0); }
+        body.studio-theme-dark .ref-voice-btn-primary { background:linear-gradient(135deg, #00f0ff 0%, #00c9a7 100%); box-shadow:0 2px 6px rgba(0,240,255,0.32); border-color:rgba(0,240,255,0.4); }
+        body.studio-theme-dark .ref-voice-btn-primary::after { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' opacity='0.25'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); }
+        body.studio-theme-dark .ref-voice-btn-primary:hover { box-shadow:0 3px 10px rgba(0,240,255,0.5); }
+        /* 收藏：次要按钮 */
+        .ref-voice-btn-save { background:linear-gradient(135deg, rgba(245,158,11,0.16) 0%, rgba(251,191,36,0.14) 100%); color:#b45309; border-color:rgba(245,158,11,0.35); box-shadow:0 1px 2px rgba(245,158,11,0.1); }
+        .ref-voice-btn-save:hover { background:linear-gradient(135deg, rgba(245,158,11,0.26) 0%, rgba(251,191,36,0.22) 100%); color:#92400e; border-color:rgba(245,158,11,0.55); transform:translateY(-1px); box-shadow:0 2px 5px rgba(245,158,11,0.22); }
+        .ref-voice-btn-save:active { transform:translateY(0); }
+        body.studio-theme-dark .ref-voice-btn-save { background:linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.14) 100%); color:#fbbf24; border-color:rgba(251,191,36,0.4); box-shadow:0 1px 2px rgba(251,191,36,0.12); }
+        body.studio-theme-dark .ref-voice-btn-save:hover { background:linear-gradient(135deg, rgba(251,191,36,0.28) 0%, rgba(245,158,11,0.22) 100%); color:#fcd34d; border-color:rgba(251,191,36,0.65); box-shadow:0 2px 6px rgba(251,191,36,0.28); }
+        /* 导入：次要按钮 */
+        .ref-voice-btn-import { background:linear-gradient(135deg, rgba(0,201,167,0.14) 0%, rgba(16,185,129,0.12) 100%); color:#008766; border-color:rgba(0,201,167,0.32); box-shadow:0 1px 2px rgba(0,201,167,0.08); }
+        .ref-voice-btn-import:hover { background:linear-gradient(135deg, rgba(0,201,167,0.22) 0%, rgba(16,185,129,0.18) 100%); color:#006b51; border-color:rgba(0,201,167,0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(0,201,167,0.18); }
+        .ref-voice-btn-import:active { transform:translateY(0); }
+        body.studio-theme-dark .ref-voice-btn-import { background:linear-gradient(135deg, rgba(0,201,167,0.16) 0%, rgba(16,185,129,0.14) 100%); color:#10e0b0; border-color:rgba(0,201,167,0.4); box-shadow:0 1px 2px rgba(0,201,167,0.12); }
+        body.studio-theme-dark .ref-voice-btn-import:hover { background:linear-gradient(135deg, rgba(0,201,167,0.26) 0%, rgba(16,185,129,0.22) 100%); color:#4cf0c5; border-color:rgba(0,201,167,0.6); box-shadow:0 2px 6px rgba(0,201,167,0.25); }
+        /* === 空状态下的音色入口（极简） === */
+        .ref-voice-mini-row { display:flex; align-items:center; gap:3px; }
+        .ref-voice-mini-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 7px; border:1px solid transparent; border-radius:5px; font-size:9.5px; font-weight:600; cursor:pointer; transition:all 0.18s var(--easing); }
+        .ref-voice-mini-btn-primary { background:linear-gradient(135deg, rgba(0,180,216,0.12) 0%, rgba(0,201,167,0.12) 100%); color:#0089a8; border-color:rgba(0,180,216,0.28); }
+        .ref-voice-mini-btn-primary:hover { background:linear-gradient(135deg, rgba(0,180,216,0.22) 0%, rgba(0,201,167,0.22) 100%); color:#006d87; border-color:rgba(0,180,216,0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(0,180,216,0.18); }
+        .ref-voice-mini-btn-import { background:linear-gradient(135deg, rgba(0,201,167,0.12) 0%, rgba(16,185,129,0.10) 100%); color:#008766; border-color:rgba(0,201,167,0.28); margin-left:auto; }
+        .ref-voice-mini-btn-import:hover { background:linear-gradient(135deg, rgba(0,201,167,0.22) 0%, rgba(16,185,129,0.18) 100%); color:#006b51; border-color:rgba(0,201,167,0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(0,201,167,0.18); }
+        body.studio-theme-dark .ref-voice-mini-btn-primary { background:linear-gradient(135deg, rgba(0,240,255,0.14) 0%, rgba(0,201,167,0.14) 100%); color:#00f0ff; border-color:rgba(0,240,255,0.32); }
+        body.studio-theme-dark .ref-voice-mini-btn-primary:hover { background:linear-gradient(135deg, rgba(0,240,255,0.24) 0%, rgba(0,201,167,0.24) 100%); color:#7df9ff; border-color:rgba(0,240,255,0.6); box-shadow:0 2px 6px rgba(0,240,255,0.25); }
+        body.studio-theme-dark .ref-voice-mini-btn-import { background:linear-gradient(135deg, rgba(0,201,167,0.14) 0%, rgba(16,185,129,0.12) 100%); color:#10e0b0; border-color:rgba(0,201,167,0.36); }
+        body.studio-theme-dark .ref-voice-mini-btn-import:hover { background:linear-gradient(135deg, rgba(0,201,167,0.24) 0%, rgba(16,185,129,0.20) 100%); color:#4cf0c5; border-color:rgba(0,201,167,0.6); box-shadow:0 2px 6px rgba(0,201,167,0.25); }
         /* === 音频播放器 === */
         audio { width:100%; }
-        /* === 高级参数面板 === */
-        .advanced-panel { overflow:hidden; max-height:0; transition:max-height 0.4s ease; padding:0 12px; }
-        .advanced-panel.open { max-height:800px; padding:12px; }
+        /* === 高级参数面板（悬浮弹窗） === */
+        .advanced-overlay { position:fixed; inset:0; z-index:9998; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); backdrop-filter:blur(16px); }
+        .advanced-overlay.open { display:flex; }
+        .advanced-window { width:min(560px, 92%); max-height:80vh; display:flex; flex-direction:column; background:linear-gradient(165deg, #1a1a2e 0%, #0f0f1a 100%); border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 30px 80px rgba(0,0,0,0.5); overflow:hidden; animation:adv-pop 0.18s ease-out; }
+        @keyframes adv-pop { from { transform:scale(0.96); opacity:0; } to { transform:scale(1); opacity:1; } }
+        .advanced-window-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .advanced-window-title { margin:0; font-size:14px; color:#fff; font-weight:600; }
+        .advanced-close-btn { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:rgba(255,255,255,0.7); cursor:pointer; transition:all 0.15s; }
+        .advanced-close-btn:hover { background:rgba(255,80,80,0.18); border-color:rgba(255,80,80,0.4); color:#ff6b6b; }
+        .advanced-window-body { flex:1; overflow-y:auto; padding:16px 18px 20px; }
+        .advanced-window-body::-webkit-scrollbar { width:8px!important; }
+        .advanced-window-body::-webkit-scrollbar-thumb { background-color:rgba(255,255,255,0.15)!important; border:2px solid transparent!important; background-clip:padding-box!important; border-radius:8px!important; }
+        .advanced-window-body .text-gray-400 { color:#9aa8b8 !important; }
+        .advanced-window-body .text-gray-500 { color:#a8b8c8 !important; }
+        .advanced-window-body .text-gray-600 { color:#c8d0dc !important; }
+        .advanced-window-body .text-xs { color:#c8d0dc; }
+        .advanced-window-body .text-\\[10px\\] { color:#9aa8b8; }
+        .advanced-window-body input[type=range] { background:rgba(255,255,255,0.12) !important; }
+        .advanced-window-body input[type=range]::-webkit-slider-thumb { background:#00f0ff !important; }
+        .advanced-window-body .tts-input { background:rgba(15,23,42,0.6) !important; border-color:rgba(0,240,255,0.18) !important; color:#e0e7ef !important; }
+        .advanced-window-body .tts-input:focus { border-color:rgba(0,240,255,0.5) !important; box-shadow:0 0 0 3px rgba(0,240,255,0.1) !important; }
+        .advanced-window-body .tts-input::placeholder { color:#4a5a6e !important; }
+        .advanced-window-body .tts-input option { color:#e0e7ef !important; background:#0f172a !important; }
+        .advanced-window-body .tts-input option:checked { background:linear-gradient(90deg, rgba(0,180,216,0.35), rgba(0,201,167,0.25)) !important; color:#ffffff !important; }
+        .advanced-window-body .tts-input optgroup { color:#94a3b8 !important; background:#0f172a !important; }
+        .advanced-window-body input[type=checkbox] { accent-color:#00f0ff !important; }
+        .advanced-window-body .tts-select-wrap::after { border-right-color:#00f0ff !important; border-bottom-color:#00f0ff !important; }
+        .advanced-window-body .tts-select-wrap:hover::after { border-right-color:#5cf6ff !important; border-bottom-color:#5cf6ff !important; }
+        .advanced-window-body #seedInput,
+        .advanced-window-body #durationInput,
+        .advanced-window-body #savePrefix { background:rgba(15,23,42,0.6); border:1px solid rgba(0,240,255,0.18); color:#e0e7ef; }
+        .advanced-window-body #seedInput::placeholder,
+        .advanced-window-body #durationInput::placeholder,
+        .advanced-window-body #savePrefix::placeholder { color:#4a5a6e; }
+        .advanced-window-body #stepsValue,
+        .advanced-window-body #cfgValue,
+        .advanced-window-body #speedValue,
+        .advanced-window-body #tShiftValue,
+        .advanced-window-body #posTempValue,
+        .advanced-window-body #classTempValue,
+        .advanced-window-body #layerPenaltyValue { color:#a8b8c8; }
+        .advanced-window-body button.text-cyan-500,
+        .advanced-window-body .text-cyan-500 { color:#00f0ff !important; }
         /* === Masonry 网格（复用 zimage） === */
         .masonry-grid { column-count:2; column-gap:12px; }
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
@@ -153,7 +340,10 @@
         .voice-card.selected { border-color:#00f0ff; background:rgba(0,240,255,0.1); }
         .voice-card-name { color:#fff; font-size:13px; font-weight:600; margin-bottom:4px; }
         .voice-card-instruct { color:rgba(255,255,255,0.5); font-size:11px; }
-        .voice-picker-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); }
+        .voice-picker-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); }
+        .voice-picker-hint { font-size:11px; color:rgba(0,240,255,0.7); display:inline-flex; align-items:center; gap:4px; }
+        .voice-picker-hint::before { content:''; width:6px; height:6px; border-radius:50%; background:#00f0ff; box-shadow:0 0 6px #00f0ff; animation:pulse-hint 1.6s infinite; }
+        @keyframes pulse-hint { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.85); } }
         .voice-picker-categories { display:flex; gap:6px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,0.06); overflow-x:auto; }
         .voice-cat-btn { padding:4px 12px; border-radius:8px; border:none; background:rgba(255,255,255,0.06); color:#8aa0b8; font-size:11px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
         .voice-cat-btn:hover { background:rgba(255,255,255,0.1); color:#e0e7ef; }
@@ -164,17 +354,23 @@
         .voice-card-preview:hover { background:rgba(0,240,255,0.4); transform:scale(1.1); }
         .voice-card-preview.playing { opacity:1; background:rgba(0,240,255,0.4); animation:pulse-play 1.5s infinite; }
         /* === 文本工具栏 === */
-        .text-toolbar { display:flex; align-items:center; justify-content:space-between; padding:4px 8px; margin-top:4px; background:rgba(0,0,0,0.02); border-radius:8px 8px 0 0; border:1px solid rgba(0,0,0,0.06); border-bottom:none; }
-        body.studio-theme-dark .text-toolbar { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.06); }
-        .text-toolbar-left { display:flex; align-items:center; gap:4px; }
-        .text-toolbar-label { font-size:10px; color:#999; margin-right:2px; }
+        .text-toolbar { display:flex; align-items:center; padding:6px 10px; margin-top:4px; background:linear-gradient(180deg, rgba(0,0,0,0.025), rgba(0,0,0,0.01)); border-radius:8px 8px 0 0; border:1px solid rgba(0,0,0,0.06); border-bottom:none; flex-wrap:wrap; gap:4px; }
+        body.studio-theme-dark .text-toolbar { background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border-color:rgba(255,255,255,0.06); }
+        .text-toolbar-left { display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+        .text-toolbar-sep { width:1px; height:16px; background:rgba(0,0,0,0.08); margin:0 3px; flex-shrink:0; }
+        body.studio-theme-dark .text-toolbar-sep { background:rgba(255,255,255,0.08); }
+        .text-toolbar-label { font-size:10px; color:#999; margin-right:2px; font-weight:500; }
         body.studio-theme-dark .text-toolbar-label { color:#6a8fa8; }
-        .text-tag { height:22px; padding:0 6px; border:none; border-radius:4px; font-size:12px; cursor:pointer; background:transparent; color:#666; transition:all 0.12s; display:inline-flex; align-items:center; gap:2px; }
-        .text-tag:hover { background:rgba(0,180,216,0.1); color:#00b4d8; }
-        body.studio-theme-dark .text-tag { color:#8aa0b8; }
-        body.studio-theme-dark .text-tag:hover { background:rgba(0,240,255,0.1); color:#00f0ff; }
-        .text-toolbar-divider { width:1px; height:16px; background:rgba(0,0,0,0.08); margin:0 2px; }
-        body.studio-theme-dark .text-toolbar-divider { background:rgba(255,255,255,0.08); }
+        .text-tag { height:24px; padding:0 8px; border:1px solid rgba(0,0,0,0.06); border-radius:5px; font-size:11px; font-weight:500; cursor:pointer; background:rgba(255,255,255,0.6); color:#555; transition:all 0.15s var(--easing); display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+        .text-tag:hover { background:rgba(0,180,216,0.08); border-color:rgba(0,180,216,0.25); color:#00b4d8; transform:translateY(-1px); }
+        .text-tag:active { transform:scale(0.95) translateY(0); }
+        body.studio-theme-dark .text-tag { color:#8aa0b8; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.06); }
+        body.studio-theme-dark .text-tag:hover { background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.25); color:#00f0ff; }
+        .text-tag-primary { background:linear-gradient(135deg, rgba(0,180,216,0.08), rgba(0,201,167,0.06)); border-color:rgba(0,180,216,0.2); color:#0096b7; font-weight:600; }
+        .text-tag-primary:hover { background:linear-gradient(135deg, rgba(0,180,216,0.14), rgba(0,201,167,0.1)); border-color:rgba(0,180,216,0.4); color:#00839e; }
+        body.studio-theme-dark .text-tag-primary { background:linear-gradient(135deg, rgba(0,240,255,0.1), rgba(0,201,167,0.08)); border-color:rgba(0,240,255,0.25); color:#00d4e6; }
+        body.studio-theme-dark .text-tag-primary:hover { background:linear-gradient(135deg, rgba(0,240,255,0.18), rgba(0,201,167,0.12)); border-color:rgba(0,240,255,0.4); color:#00f0ff; }
+        .text-toolbar-divider { display:none; }
         /* === 合成文本框（连接工具栏） === */
         .tts-textarea { border-radius:0 0 10px 10px !important; border-top:none !important; }
         /* === 情绪面板 === */
@@ -208,8 +404,14 @@
         .audio-result-card:hover { transform:translateY(-3px); box-shadow:0 12px 32px rgba(0,0,0,0.08); }
         body.studio-theme-dark .audio-result-card { background:linear-gradient(180deg, #0d1520 0%, #0a0e17 100%); border-color:rgba(0,240,255,0.1); }
         .audio-result-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
-        .audio-result-icon { width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, rgba(0,180,216,0.12), rgba(0,201,167,0.12)); display:flex; align-items:center; justify-content:center; color:#00b4d8; flex-shrink:0; }
+        .audio-result-icon { width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, rgba(0,180,216,0.12), rgba(0,201,167,0.12)); display:flex; align-items:center; justify-content:center; color:#00b4d8; flex-shrink:0; transition:all 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .audio-result-icon.play-btn { cursor:pointer; border:1px solid transparent; }
+        .audio-result-icon.play-btn:hover { background:linear-gradient(135deg, #00b4d8, #00c9a7); color:#fff; transform:scale(1.08); box-shadow:0 4px 16px rgba(0,180,216,0.35); }
+        .audio-result-icon.play-btn:active { transform:scale(0.94); }
+        .audio-result-icon.play-btn.playing { background:linear-gradient(135deg, #00c9a7, #00b4d8); color:#fff; box-shadow:0 4px 16px rgba(0,180,216,0.4); animation:pulse-play 2s ease-in-out infinite; }
         body.studio-theme-dark .audio-result-icon { background:linear-gradient(135deg, rgba(0,240,255,0.12), rgba(0,201,167,0.12)); color:#00f0ff; }
+        body.studio-theme-dark .audio-result-icon.play-btn:hover { background:linear-gradient(135deg, #00f0ff, #00c9a7); box-shadow:0 4px 16px rgba(0,240,255,0.4); }
+        body.studio-theme-dark .audio-result-icon.play-btn.playing { background:linear-gradient(135deg, #00c9a7, #00f0ff); box-shadow:0 4px 16px rgba(0,240,255,0.5); }
         .audio-result-info { flex:1; min-width:0; }
         .audio-result-title { display:block; font-size:13px; font-weight:600; color:#1a1a1a; letter-spacing:0.01em; }
         body.studio-theme-dark .audio-result-title { color:#e0e7ef; }
@@ -217,15 +419,53 @@
         body.studio-theme-dark .audio-result-instruct { color:#c8d0dc; }
         .audio-mode-badge { font-size:9px; font-weight:600; color:#00b4d8; background:rgba(0,180,216,0.1); padding:2px 8px; border-radius:6px; letter-spacing:0.03em; }
         body.studio-theme-dark .audio-mode-badge { color:#00f0ff; background:rgba(0,240,255,0.1); }
-        .audio-result-actions { display:flex; gap:8px; flex-shrink:0; }
-        .audio-action-btn { width:34px; height:34px; border-radius:11px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.04); color:#666; transition:all 0.2s cubic-bezier(0.4,0,0.2,1); text-decoration:none; }
-        .audio-action-btn:hover { background:rgba(0,0,0,0.08); color:#333; transform:scale(1.05); }
-        .audio-action-btn.play-btn { background:linear-gradient(135deg, #00b4d8, #00c9a7); color:#fff; box-shadow:0 2px 8px rgba(0,180,216,0.25); }
-        .audio-action-btn.play-btn:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(0,180,216,0.35); }
-        .audio-action-btn.play-btn:active { transform:scale(0.95); }
+        .audio-result-actions { display:flex; gap:4px; flex-shrink:0; }
+        .audio-action-btn { width:32px; height:32px; border-radius:8px; border:1px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.03); color:#888; transition:all 0.2s cubic-bezier(0.4,0,0.2,1); text-decoration:none; position:relative; }
+        .audio-action-btn:hover { background:rgba(0,180,216,0.08); border-color:rgba(0,180,216,0.2); color:#00b4d8; transform:translateY(-1px); }
+        .audio-action-btn:active { transform:scale(0.92) translateY(0); }
+        .audio-action-btn.play-btn { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #00b4d8, #00c9a7); color:#fff; border:none; box-shadow:0 2px 8px rgba(0,180,216,0.25); }
+        .audio-action-btn.play-btn:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(0,180,216,0.4); background:linear-gradient(135deg, #0096b7, #00b89c); }
+        .audio-action-btn.play-btn:active { transform:scale(0.94); }
         .audio-action-btn.play-btn.playing { background:linear-gradient(135deg, #00c9a7, #00b4d8); animation:pulse-play 2s ease-in-out infinite; }
-        .audio-action-btn.delete-btn:hover { background:rgba(239,68,68,0.15)!important; color:#ef4444!important; }
-        .audio-action-btn.is-confirming { background:rgba(239,68,68,0.2)!important; color:#ef4444!important; animation:shake 0.4s ease-in-out infinite alternate; }
+        .audio-action-btn.fav-btn { color:#d4a017; }
+        .audio-action-btn.fav-btn:hover { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.3); color:#f59e0b; }
+        .audio-action-btn.fav-btn[data-fav="1"] { color:#f59e0b; background:rgba(245,158,11,0.1); }
+        body.studio-theme-dark .audio-action-btn { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.06); color:#8aa0b8; }
+        body.studio-theme-dark .audio-action-btn:hover { background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.2); color:#00f0ff; }
+        body.studio-theme-dark .audio-action-btn.play-btn { box-shadow:0 2px 8px rgba(0,240,255,0.3); }
+        body.studio-theme-dark .audio-action-btn.play-btn:hover { box-shadow:0 4px 16px rgba(0,240,255,0.5); }
+        body.studio-theme-dark .audio-action-btn.fav-btn { color:#b8860b; }
+        body.studio-theme-dark .audio-action-btn.fav-btn:hover { background:rgba(245,158,11,0.12); color:#fbbf24; }
+        body.studio-theme-dark .audio-action-btn.fav-btn[data-fav="1"] { color:#fbbf24; background:rgba(245,158,11,0.12); }
+        .audio-action-btn.delete-btn:hover { background:rgba(239,68,68,0.1)!important; border-color:rgba(239,68,68,0.3)!important; color:#ef4444!important; }
+        .audio-action-btn.is-confirming { background:rgba(239,68,68,0.15)!important; border-color:rgba(239,68,68,0.4)!important; color:#ef4444!important; animation:shake 0.4s ease-in-out infinite alternate; }
+        /* === 音频预览弹窗 === */
+        .audio-preview-overlay { position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); backdrop-filter:blur(20px); opacity:0; transition:opacity 0.25s; }
+        .audio-preview-overlay.is-open { display:flex; opacity:1; }
+        .audio-preview-modal { width:min(640px, 90vw); background:linear-gradient(165deg, #1a1a2e 0%, #0f0f1a 100%); border-radius:20px; border:1px solid rgba(255,255,255,0.08); box-shadow:0 30px 80px rgba(0,0,0,0.5); overflow:hidden; transform:translateY(20px) scale(0.96); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .audio-preview-overlay.is-open .audio-preview-modal { transform:translateY(0) scale(1); }
+        .audio-preview-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+        .audio-preview-header-title { font-size:13px; font-weight:600; color:#e0e7ef; display:flex; align-items:center; gap:8px; }
+        .audio-preview-close { width:28px; height:28px; border-radius:8px; border:none; background:rgba(255,255,255,0.06); color:#8aa0b8; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+        .audio-preview-close:hover { background:rgba(239,68,68,0.15); color:#f87171; }
+        .audio-preview-body { padding:20px; }
+        .audio-preview-text { font-size:16px; line-height:1.8; color:#e0e7ef; padding:16px 20px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06); margin-bottom:16px; max-height:200px; overflow-y:auto; word-break:break-all; }
+        .audio-preview-text em { font-style:normal; color:#00f0ff; font-weight:600; }
+        .audio-preview-waveform { position:relative; width:100%; height:64px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid rgba(255,255,255,0.06); cursor:pointer; overflow:hidden; margin-bottom:16px; }
+        .audio-preview-waveform canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
+        .audio-preview-waveform-progress { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(0,240,255,0.15), rgba(0,201,167,0.1)); pointer-events:none; transition:width 0.1s linear; z-index:2; }
+        .audio-preview-controls { display:flex; align-items:center; gap:12px; }
+        .audio-preview-play { width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg, #00f0ff, #00c9a7); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,240,255,0.3); transition:all 0.2s; flex-shrink:0; }
+        .audio-preview-play:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(0,240,255,0.4); }
+        .audio-preview-play:active { transform:scale(0.94); }
+        .audio-preview-play.playing { animation:pulse-play 2s ease-in-out infinite; }
+        .audio-preview-time { font-size:12px; color:#8aa0b8; font-variant-numeric:tabular-nums; flex-shrink:0; }
+        .audio-preview-meta { display:flex; gap:8px; margin-left:auto; }
+        .audio-preview-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; background:rgba(0,240,255,0.1); color:#00f0ff; }
+        .audio-preview-actions { display:flex; gap:8px; padding:12px 20px; border-top:1px solid rgba(255,255,255,0.06); justify-content:flex-end; }
+        .audio-preview-action-btn { height:30px; padding:0 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:#8aa0b8; cursor:pointer; font-size:11px; font-weight:500; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s; }
+        .audio-preview-action-btn:hover { background:rgba(255,255,255,0.08); color:#e0e7ef; border-color:rgba(255,255,255,0.2); }
+        .audio-preview-action-btn svg { width:13px; height:13px; }
         @keyframes shake { from { transform:translateX(0); } to { transform:translateX(2px); } }
         .audio-action-btn.is-fav { color:#f59e0b!important; }
         .audio-action-btn.is-fav svg { fill:#f59e0b; }
@@ -273,17 +513,24 @@
         body.studio-theme-dark .context-menu-item:hover { background:rgba(255,255,255,0.06); }
         .context-menu-danger { color:#ef4444; }
         .context-menu-danger:hover { background:rgba(239,68,68,0.1)!important; }
+        .context-menu-danger.is-confirming { background:rgba(239,68,68,0.18)!important; color:#dc2626; }
         .context-menu-divider { height:1px; background:rgba(0,0,0,0.06); margin:4px 0; }
         body.studio-theme-dark .context-menu-divider { background:rgba(255,255,255,0.06); }
         @keyframes pulse-play { 0%, 100% { box-shadow:0 2px 8px rgba(0,180,216,0.25); } 50% { box-shadow:0 2px 8px rgba(0,180,216,0.25), 0 0 0 6px rgba(0,180,216,0.1); } }
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+        @keyframes record-pulse { 0% { box-shadow:0 0 0 0 rgba(239,68,68,0.5); } 70% { box-shadow:0 0 0 8px rgba(239,68,68,0); } 100% { box-shadow:0 0 0 0 rgba(239,68,68,0); } }
+        @keyframes record-pulse-cyan { 0% { box-shadow:0 0 0 0 rgba(0,180,216,0.4); } 70% { box-shadow:0 0 0 8px rgba(0,180,216,0); } 100% { box-shadow:0 0 0 0 rgba(0,180,216,0); } }
+        @keyframes record-pulse-cyan-dark { 0% { box-shadow:0 0 0 0 rgba(0,240,255,0.4); } 70% { box-shadow:0 0 0 8px rgba(0,240,255,0); } 100% { box-shadow:0 0 0 0 rgba(0,240,255,0); } }
+        .ref-action-btn-record.recording-active { animation:record-pulse 1.2s ease-out infinite; background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.5); }
         body.studio-theme-dark .audio-action-btn { background:rgba(255,255,255,0.06); color:#8aa0b8; }
         body.studio-theme-dark .audio-action-btn:hover { background:rgba(255,255,255,0.1); color:#e0e7ef; }
         /* 波形容器 */
         .audio-waveform-container { position:relative; height:68px; border-radius:12px; overflow:hidden; background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01)); cursor:pointer; }
-        .audio-waveform-container::after { content:''; position:absolute; top:0; left:var(--mouse-x, 50%); width:2px; height:100%; background:rgba(0,180,216,0.5); pointer-events:none; opacity:0; transition:opacity 0.15s; }
+        .audio-waveform-container::after { content:''; position:absolute; top:0; left:var(--mouse-x, 50%); width:1px; height:100%; background:rgba(0,180,216,0.4); pointer-events:none; opacity:0; transition:opacity 0.15s; }
         .audio-waveform-container:hover::after { opacity:1; }
         body.studio-theme-dark .audio-waveform-container { background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); }
-        body.studio-theme-dark .audio-waveform-container::after { background:rgba(0,240,255,0.5); }
+        body.studio-theme-dark .audio-waveform-container::after { background:rgba(0,240,255,0.4); }
+        .audio-waveform-active { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:3; }
         .audio-waveform { width:100%; height:100%; display:block; }
         .audio-progress-overlay { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(0,180,216,0.25), rgba(0,201,167,0.25)); pointer-events:none; transition:width 0.1s linear; }
         body.studio-theme-dark .audio-progress-overlay { background:linear-gradient(90deg, rgba(0,240,255,0.25), rgba(0,201,167,0.25)); }
@@ -310,61 +557,93 @@
                         </div>
                     </div>
 
-                    <!-- 合成文本（置顶） -->
-                    <div>
-                        <label class="text-[9px] font-bold text-gray-400 uppercase">合成文本</label>
-                        <!-- 文本工具栏 -->
-                        <div class="text-toolbar">
-                            <div class="text-toolbar-left">
-                                <span class="text-toolbar-label">情绪:</span>
-                                <button onclick="insertTag('[laughter]')" class="text-tag" title="笑声">😂</button>
-                                <button onclick="insertTag('[sigh]')" class="text-tag" title="叹气">😮‍💨</button>
-                                <button onclick="insertTag('[dissatisfaction-hnn]')" class="text-tag" title="不满">😤</button>
-                                <button onclick="insertTag('[question-ah]')" class="text-tag" title="疑问">❓</button>
-                                <button onclick="insertTag('[surprise-wa]')" class="text-tag" title="惊讶">🤩</button>
-                                <div class="text-toolbar-divider"></div>
-                                <div class="anima-ctrl-wrap">
-                                    <button onclick="toggleMenu('moreTagMenu')" class="text-tag" title="更多标签">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                                    </button>
-                                    <div id="moreTagMenu" class="anima-ctrl-menu" style="min-width:140px;">
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[confirmation-en]')">👍 确认</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-en]')">❓ 疑问</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-oh]')">哦？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-ei]')">诶？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-yi]')">咦？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-ah]')">😲 啊！</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-oh]')">😮 哦！</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-yo]')">😏 哟！</div>
+                    <!-- 参考音频上传区 -->
+                    <div id="refAudioSection" class="mt-3">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase">参考音频</label>
+                        <!-- 固定高度容器，防止导入前后布局跳动 -->
+                        <div class="ref-audio-holder">
+                            <!-- 未上传状态 -->
+                            <div id="audioUploadZone" class="ref-audio-empty"
+                                 onclick="document.getElementById('refAudioInput').click()"
+                                 ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('drag-over')"
+                                 ondragleave="this.classList.remove('drag-over')"
+                                 ondrop="handleAudioDrop(event)">
+                                <input id="refAudioInput" type="file" accept="audio/*" style="display:none" onchange="handleRefAudioUpload(this)">
+                                <div class="ref-audio-empty-row">
+                                    <div class="ref-audio-empty-icon">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                    </div>
+                                    <div class="ref-audio-empty-text">拖拽或点击上传音频</div>
+                                    <div class="ref-audio-empty-actions" onclick="event.stopPropagation()">
+                                        <button onclick="event.stopPropagation(); startRecording()" class="ref-action-btn ref-action-btn-lg ref-action-btn-record" id="recordBtn" title="开始录音">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                            <span>录音</span>
+                                        </button>
+                                        <button onclick="event.stopPropagation(); openVoicePicker()" class="ref-action-btn ref-action-btn-lg ref-action-btn-voice" title="从音色库选择">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                            <span>音色库</span>
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="anima-ctrl-wrap">
-                                <button onclick="toggleMenu('pinyinMenu')" class="text-tag" title="拼音纠错">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                                    <span>拼音</span>
-                                </button>
-                                <div id="pinyinMenu" class="anima-ctrl-menu" style="min-width:200px;">
-                                    <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE2')" style="font-family:monospace;">ZHE2 <span class="text-gray-400 text-[10px]">折</span></div>
-                                    <div class="anima-ctrl-menu-item" onclick="insertTag('SHE2')" style="font-family:monospace;">SHE2 <span class="text-gray-400 text-[10px]">蛇</span></div>
-                                    <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE1')" style="font-family:monospace;">ZHE1 <span class="text-gray-400 text-[10px]">遮</span></div>
-                                    <div class="anima-ctrl-menu-item" style="font-size:10px;color:#999;padding:6px 12px;">英文: [B EY1 S] bass</div>
+                                <!-- 录音中状态 -->
+                                <div id="recordingUI" style="display:none;" class="ref-audio-recording" onclick="event.stopPropagation()">
+                                    <div class="recording-dot"></div>
+                                    <span class="recording-text">录音中</span>
+                                    <span class="recording-time" id="recordingTime">0:00</span>
+                                    <div class="recording-waveform-mini" id="recordingWaveform"></div>
+                                    <button onclick="event.stopPropagation(); stopRecording()" class="ref-action-btn ref-action-btn-record" style="height:20px; padding:0 8px; font-size:9.5px;">停止</button>
                                 </div>
                             </div>
-                        </div>
-                        <textarea id="synthText" rows="4" class="tts-textarea" placeholder="输入要合成的文本..."></textarea>
-                    </div>
 
-                    <!-- 风格指令 -->
-                    <div class="mt-3">
-                        <div class="flex items-center gap-2">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase">风格指令</label>
+                            <!-- 已上传状态 -->
+                            <div id="audioPreviewCard" class="ref-audio-card" style="display:none;">
+                                <button onclick="toggleRefPlay()" id="refPlayBtn" class="ref-play-btn-lg">
+                                    <svg id="refPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="position:relative;z-index:1;"><polygon points="8,5 20,12 8,19"/></svg>
+                                </button>
+                                <span class="ref-audio-info-name" id="audioFileName" title="reference.wav">reference.wav</span>
+                                <div class="ref-audio-waveform" id="refWaveform" onclick="seekRefAudio(event)">
+                                    <canvas class="ref-waveform-canvas" id="refWaveformCanvas"></canvas>
+                                    <div class="ref-waveform-progress" id="refProgressFill"></div>
+                                </div>
+                                <span class="ref-audio-info-time" id="audioFileMeta"><span id="refCurrentTime">0:00</span> / <span id="refDuration">0:00</span></span>
+                                <div class="ref-audio-actions">
+                                    <button onclick="startRecording()" class="ref-icon-btn" title="重新录音" style="color:#ef4444;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                    </button>
+                                    <button onclick="openVoicePicker()" class="ref-icon-btn" title="从音色库替换" style="color:#00b4d8;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                    </button>
+                                    <button onclick="document.getElementById('refAudioInput').click()" class="ref-icon-btn" title="替换音频文件">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                    </button>
+                                    <button onclick="removeRefAudio()" class="ref-icon-btn ref-icon-btn-danger" title="移除音频">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
+                                <audio id="refAudioPlayer" preload="metadata" style="display:none;"
+                                    onloadedmetadata="onRefAudioLoaded()"
+                                    ontimeupdate="onRefAudioProgress()"
+                                    onended="onRefAudioEnded()"></audio>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 mt-1">
-                            <input id="instructInput" type="text" class="tts-input flex-1" placeholder="如: 女，低音调，四川话">
+
+                        <!-- 参考文本（内联） -->
+                        <div id="refTextSection" class="flex items-center gap-2 mt-2">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">文本</span>
+                            <input id="refTextInput" type="text" class="tts-input flex-1" placeholder="参考音频说了什么（留空则自动生成）" style="padding:4px 8px; font-size:11px; height:28px;">
+                            <button onclick="runAsr()" id="asrBtn" class="anima-ctrl" title="识别参考音频文本" style="height:28px; padding:0 8px; gap:3px;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                <span id="asrBtnText">识别</span>
+                            </button>
+                        </div>
+
+                        <!-- 风格指令（与参考音频内联） -->
+                        <div id="instructSection" class="flex items-center gap-2 mt-2">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">风格</span>
+                            <input id="instructInput" type="text" class="tts-input flex-1" placeholder="如: 女，低音调，四川话" style="padding:4px 8px; font-size:11px; height:28px;">
                             <div class="anima-ctrl-wrap">
-                                <button onclick="toggleMenu('styleMenu')" class="anima-ctrl" title="添加风格标签">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                                <button onclick="toggleMenu('styleMenu')" class="anima-ctrl" title="添加风格标签" style="height:28px; padding:0 8px;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                                 </button>
                                 <div id="styleMenu" class="anima-ctrl-menu" style="min-width:180px; max-height:320px; overflow-y:auto;">
                                     <div class="emotion-menu-section">👤 性别</div>
@@ -413,147 +692,201 @@
                                 </div>
                             </div>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-1">点击 + 号选择标签，或直接输入。中文用全角逗号，英文用逗号+空格。</p>
                     </div>
 
-                    <!-- 参考音频上传区 -->
-                    <div id="refAudioSection">
-                        <label class="text-[9px] font-bold text-gray-400 uppercase">参考音频</label>
-                        
-                        <!-- 未上传状态 -->
-                        <div id="audioUploadZone" class="ref-audio-row mt-1" 
-                             ondragover="event.preventDefault(); this.classList.add('drag-over')"
-                             ondragleave="this.classList.remove('drag-over')"
-                             ondrop="handleAudioDrop(event)">
-                            <input id="refAudioInput" type="file" accept="audio/*" style="display:none" onchange="handleRefAudioUpload(this)">
-                            <div id="audioUploadPlaceholder" class="ref-audio-placeholder">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                                <span class="text-xs text-gray-500">拖拽或点击上传</span>
-                                <button onclick="event.stopPropagation(); document.getElementById('refAudioInput').click()" class="ref-audio-btn">选择</button>
-                                <button onclick="event.stopPropagation(); startRecording()" class="ref-audio-btn ref-record-btn" id="recordBtn">录音</button>
-                            </div>
-                            <!-- 录音中状态 -->
-                            <div id="recordingUI" style="display:none;" class="ref-audio-recording">
-                                <div class="recording-dot"></div>
-                                <span class="recording-text">录音中</span>
-                                <span class="recording-time" id="recordingTime">0:00</span>
-                                <div class="recording-waveform-mini" id="recordingWaveform"></div>
-                                <button onclick="event.stopPropagation(); stopRecording()" class="ref-audio-btn ref-record-btn">停止</button>
+                    <!-- ==================== 多人对话面板 ==================== -->
+                    <div id="multiSpeakerPanel" class="mt-3" style="display:none;">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase">说话人设置</label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-gray-500">人数</span>
+                                <div class="anima-ctrl-wrap">
+                                    <button onclick="toggleMenu('speakerCountMenu')" id="speakerCountBtn" class="anima-ctrl" style="height:26px;padding:0 8px;font-size:10px;">
+                                        <span id="speakerCountText">2 人</span>
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div id="speakerCountMenu" class="anima-ctrl-menu" style="right:0;left:auto;">
+                                        <div onclick="setSpeakerCount(2)" class="anima-ctrl-menu-item active"><span>2 人</span><span class="chk">✓</span></div>
+                                        <div onclick="setSpeakerCount(3)" class="anima-ctrl-menu-item"><span>3 人</span><span class="chk" style="opacity:0">✓</span></div>
+                                        <div onclick="setSpeakerCount(4)" class="anima-ctrl-menu-item"><span>4 人</span><span class="chk" style="opacity:0">✓</span></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- 已上传状态 -->
-                        <div id="audioPreviewCard" class="ref-audio-row mt-1" style="display:none;">
-                            <button onclick="toggleRefPlay()" id="refPlayBtn" class="ref-play-btn">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            </button>
-                            <div class="ref-audio-info">
-                                <span class="text-xs text-gray-600" id="audioFileName">reference.wav</span>
-                                <span class="text-[10px] text-gray-400" id="audioFileMeta">WAV · 12.5s</span>
-                            </div>
-                            <div class="ref-audio-waveform" id="refWaveform" onclick="seekRefAudio(event)">
-                                <canvas class="ref-waveform-canvas" id="refWaveformCanvas"></canvas>
-                            </div>
-                            <div class="ref-audio-time">
-                                <span id="refCurrentTime">0:00</span>/<span id="refDuration">0:00</span>
-                            </div>
-                            <button onclick="removeRefAudio()" class="ref-audio-btn" title="移除">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            </button>
-                            <audio id="refAudioPlayer" preload="metadata" style="display:none;"
-                                onloadedmetadata="onRefAudioLoaded()"
-                                ontimeupdate="onRefAudioProgress()"
-                                onended="onRefAudioEnded()"></audio>
+                        <!-- 说话人卡片容器 -->
+                        <div id="speakerCards" class="flex flex-col gap-2">
+                            <!-- 动态生成 -->
                         </div>
 
-                        <!-- 音色库 -->
-                        <div class="flex items-center gap-2 mt-3">
-                            <button onclick="openVoicePicker()" class="anima-ctrl" title="打开音色库">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                <span class="btn-text">音色库</span>
-                            </button>
-                            <button onclick="saveCurrentAsVoice()" class="anima-ctrl" title="保存当前音频为音色" id="saveVoiceBtn" style="display:none;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                <span class="btn-text">收藏</span>
-                            </button>
-                            <button onclick="importGenshinVoices()" class="anima-ctrl" title="导入原神角色音色">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                                <span class="btn-text">导入</span>
-                            </button>
+                        <!-- 说话人间距 -->
+                        <div class="flex items-center gap-3 mt-2">
+                            <label class="text-[10px] text-gray-500 whitespace-nowrap">说话人间距</label>
+                            <input id="pauseSlider" type="range" min="0" max="2" step="0.1" value="0.3" class="flex-1" style="height:4px;">
+                            <span id="pauseValue" class="text-[10px] font-mono text-gray-500 w-8 text-right">0.3s</span>
                         </div>
 
-                        <!-- 自动识别 -->
-                        <div class="flex items-center gap-2 mt-3">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="autoAsr" onchange="toggleAutoAsr()">
-                                <span class="text-xs text-gray-600">自动识别参考文本</span>
-                            </label>
+                        <p class="text-[10px] text-gray-400 mt-2">合成文本中用 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[speaker1]</code> <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[speaker2]</code> 等标记说话人。</p>
+                    </div>
+
+
+
+                    <!-- 合成文本（置顶） -->
+                    <div class="mt-3">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase">合成文本</label>
+                        <!-- 文本工具栏 -->
+                        <div class="text-toolbar">
+                            <div class="text-toolbar-left">
+                                <!-- 合成模式 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('modeMenu')" id="modeBtn" class="text-tag text-tag-primary" title="合成模式">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                    <span id="modeText">声音克隆</span>
+                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div id="modeMenu" class="anima-ctrl-menu">
+                                    <div onclick="selectMode('clone')" data-mode-key="clone" class="anima-ctrl-menu-item active"><span>声音克隆</span><span class="chk">✓</span></div>
+                                    <div onclick="selectMode('design')" data-mode-key="design" class="anima-ctrl-menu-item"><span>音色设计</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectMode('auto')" data-mode-key="auto" class="anima-ctrl-menu-item"><span>自动配音</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectMode('longform')" data-mode-key="longform" class="anima-ctrl-menu-item"><span>长文本</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectMode('multi')" data-mode-key="multi" class="anima-ctrl-menu-item"><span>多人对话</span><span class="chk" style="opacity:0">✓</span></div>
+                                </div>
+                            </div>
+                            <!-- 预设 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('presetMenu')" id="presetBtn" class="text-tag" title="参数预设">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                                    <span id="presetText">自定义</span>
+                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div id="presetMenu" class="anima-ctrl-menu" style="min-width:180px;">
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('custom')"><span>🔧 自定义</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('fast_preview')"><span>⚡ 极速预览</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('balanced')"><span>⚖️ 均衡推荐</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('high_quality')"><span>✨ 高质量</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('clone_focused')"><span>🎯 克隆相似度优先</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('emotion_focused')"><span>💓 情绪表现优先</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('longtext_stable')"><span>📜 长文本稳定</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('low_vram')"><span>💾 低显存模式</span></div>
+                                </div>
+                            </div>
+                            <!-- 批量 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('batchMenu')" id="batchBtn" class="text-tag" title="批量生成">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="13" height="13" rx="2"/><path d="M3 9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2"/></svg>
+                                    <span id="batchText">×1</span>
+                                </button>
+                                <div id="batchMenu" class="anima-ctrl-menu">
+                                    <div onclick="selectBatch(1)" class="anima-ctrl-menu-item active"><span>×1 单次</span><span class="chk">✓</span></div>
+                                    <div onclick="selectBatch(2)" class="anima-ctrl-menu-item"><span>×2 双倍</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectBatch(3)" class="anima-ctrl-menu-item"><span>×3 三倍</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div onclick="selectBatch(4)" class="anima-ctrl-menu-item"><span>×4 四倍</span><span class="chk" style="opacity:0">✓</span></div>
+                                </div>
+                            </div>
+                            <!-- 示例 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('exampleMenu')" id="exampleBtn" class="text-tag" title="示例模板">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                                    <span>示例</span>
+                                </button>
+                                <div id="exampleMenu" class="anima-ctrl-menu" style="min-width:160px;">
+                                    <div class="anima-ctrl-menu-item" onclick="loadExample('gentle_female')"><span>🎀 温柔女声</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="loadExample('news_anchor')"><span>📺 新闻播音</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="loadExample('storyteller')"><span>📖 故事讲述</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="loadExample('dialect_sichuan')"><span>🌶️ 四川话</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="loadExample('dialect_dongbei')"><span>❄️ 东北话</span></div>
+                                </div>
+                            </div>
+                            <!-- AI 精修 -->
+                            <button onclick="smartTtsEnhance()" class="text-tag" title="AI 智能精修文本" id="smartTtsBtn">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
+                                <span>AI 精修</span>
+                            </button>
+
+                            <!-- 参数 -->
+                            <button onclick="toggleAdvancedPanel()" class="text-tag" title="高级参数" id="advancedBtn">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                <span>参数</span>
+                            </button>
+                            <div class="text-toolbar-sep"></div>
+                            <!-- 拼音 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('pinyinMenu')" class="text-tag" title="拼音纠错">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                                    <span>拼音</span>
+                                </button>
+                                <div id="pinyinMenu" class="anima-ctrl-menu" style="min-width:200px;">
+                                    <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE2')" style="font-family:monospace;">ZHE2 <span class="text-gray-400 text-[10px]">折</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="insertTag('SHE2')" style="font-family:monospace;">SHE2 <span class="text-gray-400 text-[10px]">蛇</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE1')" style="font-family:monospace;">ZHE1 <span class="text-gray-400 text-[10px]">遮</span></div>
+                                    <div class="anima-ctrl-menu-item" style="font-size:10px;color:#999;padding:6px 12px;">英文: [B EY1 S] bass</div>
+                                </div>
+                            </div>
+                            <div class="text-toolbar-sep"></div>
+                            <!-- 情绪 -->
+                                <span class="text-toolbar-label">情绪</span>
+                                <button onclick="insertTag('[laughter]')" class="text-tag" title="笑声">😂 笑</button>
+                                <button onclick="insertTag('[sigh]')" class="text-tag" title="叹气">😮‍💨 叹</button>
+                                <button onclick="insertTag('[dissatisfaction-hnn]')" class="text-tag" title="不满">😤 哼</button>
+                                <button onclick="insertTag('[question-ah]')" class="text-tag" title="疑问">❓ 疑</button>
+                                <button onclick="insertTag('[surprise-wa]')" class="text-tag" title="惊讶">🤩 惊</button>
+                                <div class="anima-ctrl-wrap">
+                                    <button onclick="toggleMenu('moreTagMenu')" class="text-tag" title="更多情绪标签">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                                        <span>更多</span>
+                                    </button>
+                                    <div id="moreTagMenu" class="anima-ctrl-menu" style="min-width:140px;">
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[confirmation-en]')">👍 确认</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-en]')">❓ 疑问</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-oh]')">哦？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-ei]')">诶？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-yi]')">咦？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-ah]')">😲 啊！</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-oh]')">😮 哦！</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-yo]')">😏 哟！</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="refTextSection" style="display:none;">
-                            <input id="refTextInput" type="text" class="tts-input mt-2" placeholder="参考音频的文本内容">
+                        <div class="tts-textarea-wrapper">
+                            <textarea id="synthText" rows="6" class="tts-textarea" placeholder="输入要合成的文本..." oninput="onSynthTextInput()"></textarea>
+                            <button onclick="clearSynthText()" id="clearSynthTextBtn" class="tts-corner-btn" title="清空文本" style="bottom:6px;right:6px;display:none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                            <div style="position:absolute;bottom:6px;right:36px;display:none;" id="translateBtnWrap">
+                                <div style="display:flex;align-items:center;gap:2px;">
+                                    <select id="translateLangSelect" style="height:26px;border:1px solid rgba(0,0,0,0.06);border-radius:5px 0 0 5px;background:rgba(0,0,0,0.04);color:#555;font-size:10px;padding:0 4px;outline:none;cursor:pointer;" onchange="document.getElementById('languageSelect').value=this.value">
+                                        <option value="en">🇺🇸 英语</option>
+                                        <option value="ja">🇯🇵 日语</option>
+                                        <option value="ko">🇰🇷 韩语</option>
+                                        <option value="zh">🇨🇳 中文</option>
+                                        <option value="fr">🇫🇷 法语</option>
+                                        <option value="de">🇩🇪 德语</option>
+                                        <option value="es">🇪🇸 西班牙语</option>
+                                        <option value="ru">🇷🇺 俄语</option>
+                                        <option value="ar">🇸🇦 阿拉伯语</option>
+                                        <option value="th">🇹🇭 泰语</option>
+                                        <option value="vi">🇻🇳 越南语</option>
+                                    </select>
+                                    <button onclick="translateSynthText(event)" id="translateSynthBtn" class="tts-corner-btn" title="翻译文本" style="bottom:0;right:0;position:static;border-radius:0 5px 5px 0;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 控制栏：模式 + 语言 + 批量 + 高级 + 示例 -->
-                    <div class="flex items-center gap-2 mt-3 flex-wrap">
-                        <span class="text-[9px] font-bold text-gray-400 uppercase">合成模式</span>
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('modeMenu')" id="modeBtn" class="anima-ctrl">
-                                <span id="modeText">Voice Clone</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div id="modeMenu" class="anima-ctrl-menu">
-                                <div onclick="selectMode('clone')" data-mode-key="clone" class="anima-ctrl-menu-item active"><span>Voice Clone</span><span class="chk">✓</span></div>
-                                <div onclick="selectMode('design')" data-mode-key="design" class="anima-ctrl-menu-item"><span>Voice Design</span><span class="chk" style="opacity:0">✓</span></div>
-                                <div onclick="selectMode('auto')" data-mode-key="auto" class="anima-ctrl-menu-item"><span>Auto Voice</span><span class="chk" style="opacity:0">✓</span></div>
-                                <div onclick="selectMode('longform')" data-mode-key="longform" class="anima-ctrl-menu-item"><span>Longform</span><span class="chk" style="opacity:0">✓</span></div>
-                                <div onclick="selectMode('multi')" data-mode-key="multi" class="anima-ctrl-menu-item"><span>Multi-Speaker</span><span class="chk" style="opacity:0">✓</span></div>
+                    <!-- 高级生成设置面板（悬浮弹窗） -->
+                    <div id="advancedPanel" class="advanced-overlay" onclick="if(event.target===this)toggleAdvancedPanel()">
+                        <div class="advanced-window" onclick="event.stopPropagation()">
+                            <div class="advanced-window-header">
+                                <h3 class="advanced-window-title">高级参数设置</h3>
+                                <button onclick="toggleAdvancedPanel()" class="advanced-close-btn" title="关闭">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
                             </div>
-                        </div>
-
-                        <div class="w-px h-5 bg-gray-200"></div>
-
-                        <span class="text-[9px] font-bold text-gray-400 uppercase">批量</span>
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('batchMenu')" id="batchBtn" class="anima-ctrl">
-                                <span id="batchText">×1</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div id="batchMenu" class="anima-ctrl-menu">
-                                <div onclick="selectBatch(1)" class="anima-ctrl-menu-item active"><span>×1</span><span class="chk">✓</span></div>
-                                <div onclick="selectBatch(2)" class="anima-ctrl-menu-item"><span>×2</span><span class="chk" style="opacity:0">✓</span></div>
-                                <div onclick="selectBatch(3)" class="anima-ctrl-menu-item"><span>×3</span><span class="chk" style="opacity:0">✓</span></div>
-                                <div onclick="selectBatch(4)" class="anima-ctrl-menu-item"><span>×4</span><span class="chk" style="opacity:0">✓</span></div>
-                            </div>
-                        </div>
-
-                        <div class="w-px h-5 bg-gray-200"></div>
-
-                        <button onclick="toggleAdvancedPanel()" class="anima-ctrl text-[10px]" id="advancedBtn">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <span>参数</span>
-                        </button>
-
-                        <div class="w-px h-5 bg-gray-200"></div>
-
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('exampleMenu')" id="exampleBtn" class="anima-ctrl text-[10px]">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                                <span>示例</span>
-                            </button>
-                            <div id="exampleMenu" class="anima-ctrl-menu" style="min-width:180px;">
-                                <div class="anima-ctrl-menu-item" onclick="loadExample('gentle_female')"><span>🎀 温柔女声</span></div>
-                                <div class="anima-ctrl-menu-item" onclick="loadExample('news_anchor')"><span>📺 新闻播音</span></div>
-                                <div class="anima-ctrl-menu-item" onclick="loadExample('storyteller')"><span>📖 故事讲述</span></div>
-                                <div class="anima-ctrl-menu-item" onclick="loadExample('dialect_sichuan')"><span>🌶️ 四川话</span></div>
-                                <div class="anima-ctrl-menu-item" onclick="loadExample('dialect_dongbei')"><span>❄️ 东北话</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 高级生成设置面板（折叠） -->
-                    <div id="advancedPanel" class="advanced-panel">
-                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-3">高级生成设置</div>
+                            <div class="advanced-window-body">
+                                <div class="text-[10px] font-bold text-gray-400 uppercase mb-3">高级生成设置</div>
                         
                         <!-- 推理步数 -->
                         <div class="advanced-item">
@@ -660,42 +993,46 @@
                             <p class="text-[10px] text-gray-400 mt-0.5">深层码本层惩罚，鼓励较低层先解掩码。</p>
                         </div>
 
-                        <!-- 语言 ID -->
-                        <div class="advanced-item">
-                            <label class="text-xs font-medium text-gray-600 block mb-1">目标语言</label>
-                            <select id="languageSelect" class="tts-input">
-                                <option value="">自动检测</option>
-                                <option value="zh">中文</option>
-                                <option value="en">英文</option>
-                                <option value="ja">日文</option>
-                                <option value="ko">韩文</option>
-                                <option value="fr">法文</option>
-                                <option value="de">德文</option>
-                                <option value="es">西班牙文</option>
-                                <option value="pt">葡萄牙文</option>
-                                <option value="ru">俄文</option>
-                                <option value="ar">阿拉伯文</option>
-                                <option value="hi">印地文</option>
-                            </select>
-                        </div>
-
-                        <!-- 音频格式和采样率 -->
-                        <div class="grid grid-cols-2 gap-3 mt-3">
-                            <div>
-                                <label class="text-xs font-medium text-gray-600 block mb-1">音频格式</label>
-                                <select id="audioFormatSelect" class="tts-input">
-                                    <option value="wav">WAV</option>
-                                    <option value="mp3">MP3</option>
-                                    <option value="flac">FLAC</option>
-                                </select>
+                        <!-- 语言 / 格式 / 采样率：三列一行 -->
+                        <div class="grid grid-cols-3 gap-2 mt-3">
+                            <div class="advanced-item">
+                                <label class="text-xs font-medium text-gray-600 block mb-1">目标语言</label>
+                                <span class="tts-select-wrap">
+                                    <select id="languageSelect" class="tts-input" onchange="document.getElementById('translateLangSelect').value=this.value || 'en'">
+                                        <option value="">自动检测</option>
+                                        <option value="zh">中文</option>
+                                        <option value="en">英文</option>
+                                        <option value="ja">日文</option>
+                                        <option value="ko">韩文</option>
+                                        <option value="fr">法文</option>
+                                        <option value="de">德文</option>
+                                        <option value="es">西班牙文</option>
+                                        <option value="pt">葡萄牙文</option>
+                                        <option value="ru">俄文</option>
+                                        <option value="ar">阿拉伯文</option>
+                                        <option value="hi">印地文</option>
+                                    </select>
+                                </span>
                             </div>
-                            <div>
+                            <div class="advanced-item">
+                                <label class="text-xs font-medium text-gray-600 block mb-1">音频格式</label>
+                                <span class="tts-select-wrap">
+                                    <select id="audioFormatSelect" class="tts-input">
+                                        <option value="wav">WAV</option>
+                                        <option value="mp3">MP3</option>
+                                        <option value="flac">FLAC</option>
+                                    </select>
+                                </span>
+                            </div>
+                            <div class="advanced-item">
                                 <label class="text-xs font-medium text-gray-600 block mb-1">采样率</label>
-                                <select id="sampleRateSelect" class="tts-input">
-                                    <option value="24000">24000 Hz</option>
-                                    <option value="44100">44100 Hz</option>
-                                    <option value="48000">48000 Hz</option>
-                                </select>
+                                <span class="tts-select-wrap">
+                                    <select id="sampleRateSelect" class="tts-input">
+                                        <option value="24000">24000 Hz</option>
+                                        <option value="44100">44100 Hz</option>
+                                        <option value="48000">48000 Hz</option>
+                                    </select>
+                                </span>
                             </div>
                         </div>
 
@@ -703,6 +1040,8 @@
                         <div class="mt-3">
                             <label class="text-xs font-medium text-gray-600 block mb-1">保存前缀</label>
                             <input id="savePrefix" type="text" class="tts-input" value="tts" placeholder="文件名前缀">
+                        </div>
+                            </div>
                         </div>
                     </div>
 
@@ -781,10 +1120,59 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             <span>打开文件夹</span>
         </div>
+        <div class="context-menu-item" onclick="contextMenuAction('saveVoice')" style="color:#f59e0b;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span>保存为音色</span>
+        </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item context-menu-danger" onclick="contextMenuAction('delete')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             <span>删除</span>
+        </div>
+    </div>
+
+    <!-- 音频预览弹窗 -->
+    <div id="audioPreviewOverlay" class="audio-preview-overlay" onclick="if(event.target===this)closeAudioPreview()">
+        <div class="audio-preview-modal">
+            <div class="audio-preview-header">
+                <div class="audio-preview-header-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    <span>音频预览</span>
+                </div>
+                <button onclick="closeAudioPreview()" class="audio-preview-close">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="audio-preview-body">
+                <div class="audio-preview-text" id="previewText"></div>
+                <div class="audio-preview-waveform" id="previewWaveform" onclick="seekPreviewAudio(event)">
+                    <canvas id="previewWaveformCanvas"></canvas>
+                    <div class="audio-preview-waveform-progress" id="previewProgressFill"></div>
+                </div>
+                <div class="audio-preview-controls">
+                    <button onclick="togglePreviewPlay()" id="previewPlayBtn" class="audio-preview-play">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>
+                    </button>
+                    <span class="audio-preview-time"><span id="previewCurrentTime">0:00</span> / <span id="previewDuration">0:00</span></span>
+                    <div class="audio-preview-meta">
+                        <span class="audio-preview-badge" id="previewModeBadge"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="audio-preview-actions">
+                <button onclick="downloadPreviewAudio()" class="audio-preview-action-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    下载
+                </button>
+                <button onclick="copyPreviewText()" class="audio-preview-action-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    复制文本
+                </button>
+            </div>
+            <audio id="previewAudio" preload="metadata" style="display:none;"
+                onloadedmetadata="onPreviewLoaded()"
+                ontimeupdate="onPreviewProgress()"
+                onended="onPreviewEnded()"></audio>
         </div>
     </div>
 
@@ -803,6 +1191,7 @@
                 <button onclick="filterByCategory('custom')" class="voice-cat-btn" data-cat="custom">⭐ 自定义</button>
                 <button onclick="filterByCategory('import')" class="voice-cat-btn" data-cat="import">📥 导入</button>
                 <button onclick="filterByCategory('record')" class="voice-cat-btn" data-cat="record">🎤 录音</button>
+                <button onclick="toggleVoiceStarredFilter()" class="voice-cat-btn" id="voiceStarFilterBtn" data-cat="starred">🌟 星标</button>
             </div>
             <div class="voice-picker-body">
                 <div id="voicePickerGrid" class="voice-picker-grid">
@@ -810,8 +1199,14 @@
                 </div>
             </div>
             <div class="voice-picker-footer">
-                <button onclick="deleteSelectedVoice()" class="anima-ctrl" style="background:rgba(239,68,68,0.2);color:#ef4444;">删除</button>
-                <button onclick="loadSelectedVoice()" class="anima-ctrl" style="background:rgba(0,240,255,0.2);color:#00f0ff;">加载</button>
+                <span class="voice-picker-hint">点击卡片直接作为参考音频导入</span>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="importGenshinVoices()" class="anima-ctrl" style="background:rgba(0,180,216,0.15);color:#00b4d8;border:1px solid rgba(0,180,216,0.3);gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                        导入原神音色
+                    </button>
+                    <button onclick="deleteSelectedVoice()" class="anima-ctrl" style="background:rgba(239,68,68,0.2);color:#ef4444;">删除</button>
+                </div>
             </div>
         </div>
     </div>
@@ -982,7 +1377,28 @@
         const isOpen = menu.style.display === 'block';
         // 关闭所有菜单
         document.querySelectorAll('.anima-ctrl-menu').forEach(m => m.style.display = 'none');
-        if (!isOpen) menu.style.display = 'block';
+        if (!isOpen) {
+            menu.style.display = 'block';
+            // 定位到触发按钮下方
+            const btn = menu.previousElementSibling || menu.parentElement.querySelector('button');
+            if (btn) {
+                const rect = btn.getBoundingClientRect();
+                let top = rect.bottom + 4;
+                let left = rect.left;
+                // 边界检测：如果超出右边界，向左对齐
+                const menuWidth = menu.offsetWidth || 160;
+                if (left + menuWidth > window.innerWidth - 8) {
+                    left = window.innerWidth - menuWidth - 8;
+                }
+                // 边界检测：如果超出底部，改为向上展开
+                const menuHeight = menu.offsetHeight || 200;
+                if (top + menuHeight > window.innerHeight - 8) {
+                    top = rect.top - menuHeight - 4;
+                }
+                menu.style.left = left + 'px';
+                menu.style.top = Math.max(4, top) + 'px';
+            }
+        }
     }
 
     function selectMode(mode) {
@@ -993,11 +1409,11 @@
             item.querySelector('.chk').style.opacity = item.dataset.modeKey === mode ? '1' : '0';
         });
         document.getElementById('modeText').textContent = {
-            clone: 'Voice Clone',
-            design: 'Voice Design',
-            auto: 'Auto Voice',
-            longform: 'Longform',
-            multi: 'Multi-Speaker'
+            clone: '声音克隆',
+            design: '音色设计',
+            auto: '自动配音',
+            longform: '长文本',
+            multi: '多人对话'
         }[mode];
         document.getElementById('modeMenu').style.display = 'none';
         updateModeUI();
@@ -1005,6 +1421,7 @@
 
     function updateModeUI() {
         const refSection = document.getElementById('refAudioSection');
+        const multiPanel = document.getElementById('multiSpeakerPanel');
         const descriptions = {
             clone: '短文本声音克隆',
             design: '文字设计声音（无需参考音频）',
@@ -1017,6 +1434,18 @@
         const noRefModes = ['design', 'auto'];
         refSection.style.opacity = noRefModes.includes(currentMode) ? '0.5' : '1';
         refSection.style.pointerEvents = noRefModes.includes(currentMode) ? 'none' : 'auto';
+        // multi 模式：隐藏单人参考音频区（含风格指令），显示多人面板
+        const instructSection = document.getElementById('instructSection');
+        if (currentMode === 'multi') {
+            refSection.style.display = 'none';
+            multiPanel.style.display = 'block';
+            renderSpeakerCards();
+        } else {
+            refSection.style.display = '';
+            multiPanel.style.display = 'none';
+            // 单人模式：风格指令显示在参考音频区内
+            if (instructSection) instructSection.style.display = '';
+        }
     }
 
     // ==================== 录音功能 ====================
@@ -1058,9 +1487,9 @@
             recordingTimer = setInterval(updateRecordingTime, 100);
             
             // 切换 UI
-            document.getElementById('audioUploadPlaceholder').style.display = 'none';
-            document.getElementById('recordingUI').style.display = 'block';
-            document.getElementById('recordBtn').classList.add('recording');
+            document.getElementById('audioUploadZone').style.display = 'none';
+            document.getElementById('recordingUI').style.display = 'flex';
+            document.getElementById('recordBtn').classList.add('recording', 'recording-active');
         } catch(e) {
             alert('无法访问麦克风: ' + e.message);
         }
@@ -1072,9 +1501,9 @@
         }
         clearInterval(recordingTimer);
         // 恢复 UI
-        document.getElementById('audioUploadPlaceholder').style.display = '';
+        document.getElementById('audioUploadZone').style.display = '';
         document.getElementById('recordingUI').style.display = 'none';
-        document.getElementById('recordBtn').classList.remove('recording');
+        document.getElementById('recordBtn').classList.remove('recording', 'recording-active');
     }
 
     function updateRecordingTime() {
@@ -1128,16 +1557,24 @@
         }
     }
 
-    function loadRefAudio(file, url = null, blobSize = null) {
+    function loadRefAudio(file, url = null, blobSize = null, displayName = null) {
+        // 释放上一次的 blob URL，避免内存泄漏
+        if (currentRefAudio && currentRefAudio.startsWith('blob:')) {
+            try { URL.revokeObjectURL(currentRefAudio); } catch(e) {}
+        }
         currentRefAudioFile = file;
         const audioUrl = url || URL.createObjectURL(file);
         currentRefAudio = audioUrl;
         
         // 更新 UI
         document.getElementById('audioUploadZone').style.display = 'none';
-        document.getElementById('audioPreviewCard').style.display = 'block';
-        document.getElementById('audioFileName').textContent = file.name;
-        document.getElementById('saveVoiceBtn').style.display = 'inline-flex';
+        document.getElementById('audioPreviewCard').style.display = 'flex';
+        const nameEl = document.getElementById('audioFileName');
+        const showName = displayName || file.name;
+        nameEl.textContent = showName;
+        nameEl.title = displayName ? `${displayName} · ${file.name}` : file.name;
+        const saveBtn = document.getElementById('saveVoiceBtn');
+        if (saveBtn) saveBtn.style.display = 'inline-flex';
         
         // 设置音频（blob URL 不需要 token，远程 URL 需要）
         const player = document.getElementById('refAudioPlayer');
@@ -1149,22 +1586,32 @@
             player.src = audioUrl + separator + 'token=' + encodeURIComponent(token);
         }
         
-        // 显示文件信息
+        // 显示文件信息（audioFileMeta 容器里现在放的是时间显示，由其他函数维护；
+        // 把文件大小放到文件名 title 上，悬停可见）
         const size = blobSize || file.size || 0;
-        const sizeStr = size < 1024 * 1024 
+        const sizeStr = size < 1024 * 1024
             ? (size / 1024).toFixed(1) + ' KB'
             : (size / (1024 * 1024)).toFixed(1) + ' MB';
-        document.getElementById('audioFileMeta').textContent = `${file.name.split('.').pop().toUpperCase()} · ${sizeStr}`;
+        const nameEl2 = document.getElementById('audioFileName');
+        if (!displayName) {
+            nameEl2.textContent = file.name;
+        }
+        nameEl2.title = displayName ? `${displayName} · ${file.name} · ${sizeStr}` : `${file.name} · ${sizeStr}`;
     }
 
     function removeRefAudio() {
+        // 释放 blob URL
+        if (currentRefAudio && currentRefAudio.startsWith('blob:')) {
+            try { URL.revokeObjectURL(currentRefAudio); } catch(e) {}
+        }
         currentRefAudioFile = null;
         currentRefAudio = null;
         document.getElementById('refAudioPlayer').pause();
         document.getElementById('refAudioPlayer').src = '';
         document.getElementById('audioUploadZone').style.display = '';
         document.getElementById('audioPreviewCard').style.display = 'none';
-        document.getElementById('saveVoiceBtn').style.display = 'none';
+        const saveBtn = document.getElementById('saveVoiceBtn');
+        if (saveBtn) saveBtn.style.display = 'none';
         document.getElementById('refAudioInput').value = '';
     }
 
@@ -1172,13 +1619,16 @@
     function toggleRefPlay() {
         const audio = document.getElementById('refAudioPlayer');
         const btn = document.getElementById('refPlayBtn');
+        const icon = document.getElementById('refPlayIcon');
+        const musicNoteSvg = '<polygon points="8,5 20,12 8,19"/>';
+        const pauseSvg = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
         if (audio.paused) {
             audio.play();
-            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+            if (icon) icon.innerHTML = pauseSvg; else btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="position:relative;z-index:1;">${pauseSvg}</svg>`;
             btn.classList.add('playing');
         } else {
             audio.pause();
-            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+            if (icon) icon.innerHTML = musicNoteSvg; else btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="position:relative;z-index:1;">${musicNoteSvg}</svg>`;
             btn.classList.remove('playing');
         }
     }
@@ -1205,7 +1655,9 @@
 
     function onRefAudioEnded() {
         const btn = document.getElementById('refPlayBtn');
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+        const icon = document.getElementById('refPlayIcon');
+        const musicNoteSvg = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
+        if (icon) icon.innerHTML = musicNoteSvg; else btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="position:relative;z-index:1;">${musicNoteSvg}</svg>`;
         btn.classList.remove('playing');
         document.getElementById('refProgressFill').style.width = '0%';
     }
@@ -1220,9 +1672,58 @@
         }
     }
 
-    function toggleAutoAsr() {
-        const checked = document.getElementById('autoAsr').checked;
-        document.getElementById('refTextSection').style.display = checked ? 'block' : 'none';
+    async function runAsr() {
+        const input = document.getElementById('refTextInput');
+        const btn = document.getElementById('asrBtn');
+        const btnText = document.getElementById('asrBtnText');
+        if (!currentRefAudioFile) {
+            btn.style.background = 'rgba(239,68,68,0.15)';
+            btn.style.color = '#ef4444';
+            btnText.textContent = '请先上传音频';
+            setTimeout(() => {
+                btn.style.background = '';
+                btn.style.color = '';
+                btnText.textContent = '识别';
+            }, 2000);
+            return;
+        }
+        // 调用后端 ASR
+        btn.disabled = true;
+        btn.style.background = 'rgba(0,180,216,0.15)';
+        btn.style.color = '#00b4d8';
+        btnText.textContent = '识别中...';
+        input.placeholder = '正在识别...';
+        try {
+            const formData = new FormData();
+            formData.append('audio', currentRefAudioFile);
+            const res = await fetch('/api/tts/asr' + window.location.search, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.text && data.text.trim()) {
+                input.value = data.text.trim();
+                btn.style.background = 'rgba(34,197,94,0.15)';
+                btn.style.color = '#22c55e';
+                btnText.textContent = '✓ 完成';
+            } else {
+                btnText.textContent = data.note || '未识别到文本';
+                btn.style.background = 'rgba(245,158,11,0.15)';
+                btn.style.color = '#f59e0b';
+            }
+        } catch(e) {
+            btnText.textContent = '识别失败';
+            btn.style.background = 'rgba(239,68,68,0.15)';
+            btn.style.color = '#ef4444';
+        } finally {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.style.background = '';
+                btn.style.color = '';
+                btnText.textContent = '识别';
+                input.placeholder = '参考音频说了什么（留空则自动生成）';
+            }, 2000);
+        }
     }
 
     // ==================== 音色库 ====================
@@ -1262,13 +1763,26 @@
         renderVoiceGrid(document.getElementById('voiceSearchInput').value);
     }
 
+    let voiceFilterStarred = false;
+
+    function toggleVoiceStarredFilter() {
+        voiceFilterStarred = !voiceFilterStarred;
+        const btn = document.getElementById('voiceStarFilterBtn');
+        if (btn) btn.classList.toggle('active', voiceFilterStarred);
+        renderVoiceGrid(document.getElementById('voiceSearchInput')?.value || '');
+    }
+
     function renderVoiceGrid(filter = '') {
         const grid = document.getElementById('voicePickerGrid');
-        const voices = Object.entries(voiceLibrary).filter(([name, info]) => {
-            const matchSearch = !filter || name.toLowerCase().includes(filter.toLowerCase());
+        let voices = Object.entries(voiceLibrary).filter(([name, info]) => {
+            const matchSearch = !filter || name.toLowerCase().includes(filter.toLowerCase()) || (info.note || '').toLowerCase().includes(filter.toLowerCase());
             const matchCat = currentCategory === 'all' || info.category === currentCategory;
-            return matchSearch && matchCat;
+            const matchStar = !voiceFilterStarred || info.starred;
+            return matchSearch && matchCat && matchStar;
         });
+
+        // 星标优先排序
+        voices.sort((a, b) => (b[1].starred ? 1 : 0) - (a[1].starred ? 1 : 0));
         
         if (voices.length === 0) {
             grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">暂无音色</div>';
@@ -1280,8 +1794,13 @@
                 <button class="voice-card-preview" onclick="event.stopPropagation(); previewVoice('${name}', this)" title="试听">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
-                <div class="voice-card-name">${name}</div>
+                <div class="voice-card-name">${info.starred ? '⭐ ' : ''}${name}</div>
                 <div class="voice-card-instruct">${info.instruct || '-'}</div>
+                ${info.note ? `<div class="voice-card-note" style="font-size:10px;color:#999;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${info.note}">${info.note}</div>` : ''}
+                <div class="voice-card-actions" style="display:flex;gap:4px;margin-top:4px;">
+                    <button onclick="event.stopPropagation(); toggleVoiceStarred('${name.replace(/'/g, "\\'")}')" class="ref-action-btn" style="height:18px;padding:0 5px;font-size:9px;" title="星标">${info.starred ? '⭐' : '☆'}</button>
+                    <button onclick="event.stopPropagation(); editVoiceNote('${name.replace(/'/g, "\\'")}')" class="ref-action-btn" style="height:18px;padding:0 5px;font-size:9px;" title="备注">📝</button>
+                </div>
             </div>
         `).join('');
     }
@@ -1289,6 +1808,8 @@
     function selectVoice(name) {
         selectedVoiceName = name;
         renderVoiceGrid(document.getElementById('voiceSearchInput').value);
+        // 点击即导入：直接加载为参考音频
+        loadSelectedVoice();
     }
 
     function filterVoices(query) {
@@ -1326,28 +1847,36 @@
     async function loadSelectedVoice() {
         if (!selectedVoiceName || !voiceLibrary[selectedVoiceName]) return;
         const info = voiceLibrary[selectedVoiceName];
-        
+
         // 设置 instruct
         if (info.instruct) {
-            document.getElementById('instructInput').value = info.instruct;
+            const instructInput = document.getElementById('instructInput');
+            if (instructInput) instructInput.value = info.instruct;
         }
-        
+
         // 加载音频文件
         if (info.file) {
             try {
-                const audioUrl = `/api/tts/voices/file/${encodeURIComponent(info.file)}` + window.location.search;
+                // 同一份 token 透传：auth-token.js 已处理 window.fetch 拦截，
+                // 这里只需构造合法路径即可。直接用原始路径（含 /），
+                // 后端 {filename:path} 会匹配上。
+                const audioUrl = `/api/tts/voices/file/${info.file}`;
                 const response = await fetch(audioUrl);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const file = new File([blob], info.file, { type: blob.type || 'audio/wav' });
-                    loadRefAudio(file, audioUrl, blob.size);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                const fileName = info.file.split(/[\\/]/).pop();
+                const file = new File([blob], fileName, { type: blob.type || 'audio/wav' });
+                // 用 blob URL 喂给 player
+                const blobUrl = URL.createObjectURL(file);
+                loadRefAudio(file, blobUrl, blob.size, selectedVoiceName);
+                closeVoicePicker();
             } catch(e) {
                 console.error('加载音色音频失败:', e);
+                alert('加载音色失败: ' + e.message);
             }
+        } else {
+            closeVoicePicker();
         }
-        
-        closeVoicePicker();
     }
 
     async function deleteSelectedVoice() {
@@ -1425,7 +1954,78 @@
 
     // ==================== 高级参数 ====================
     function toggleAdvancedPanel() {
-        document.getElementById('advancedPanel').classList.toggle('open');
+        const panel = document.getElementById('advancedPanel');
+        const isOpen = panel.classList.toggle('open');
+        // 打开时锁定 body 滚动，关闭时恢复
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+
+    // ==================== 多人对话 ====================
+    let speakerCount = 2;
+    let speakerData = [
+        { audioFile: null, refText: '', instruct: '' },
+        { audioFile: null, refText: '', instruct: '' },
+        { audioFile: null, refText: '', instruct: '' },
+        { audioFile: null, refText: '', instruct: '' }
+    ];
+
+    function setSpeakerCount(n) {
+        speakerCount = n;
+        document.getElementById('speakerCountText').textContent = n + ' 人';
+        document.querySelectorAll('#speakerCountMenu .anima-ctrl-menu-item').forEach((item, i) => {
+            item.classList.toggle('active', i + 1 === n);
+            item.querySelector('.chk').style.opacity = i + 1 === n ? '1' : '0';
+        });
+        document.getElementById('speakerCountMenu').style.display = 'none';
+        renderSpeakerCards();
+    }
+
+    function renderSpeakerCards() {
+        const container = document.getElementById('speakerCards');
+        const colors = ['speaker-badge-1', 'speaker-badge-2', 'speaker-badge-3', 'speaker-badge-4'];
+        let html = '';
+        for (let i = 0; i < speakerCount; i++) {
+            const idx = i + 1;
+            const data = speakerData[i] || { audioFile: null, refText: '', instruct: '' };
+            speakerData[i] = data;
+            const fileName = data.audioFile ? data.audioFile.name : '';
+            html += `
+                <div class="speaker-card">
+                    <div class="speaker-card-header">
+                        <div class="speaker-badge ${colors[i]}">S${idx}</div>
+                        <input class="speaker-name-input" type="text" placeholder="说话人${idx}名称" value="${data.name || ''}" onchange="speakerData[${i}].name=this.value">
+                    </div>
+                    <div class="speaker-audio-row">
+                        <label class="speaker-audio-btn">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            ${fileName ? '已选择' : '选择音频'}
+                            <input type="file" accept="audio/*" style="display:none" onchange="handleSpeakerAudio(this.files, ${i})">
+                        </label>
+                        ${fileName ? `<span class="speaker-audio-name" title="${fileName}">${fileName}</span>` : ''}
+                        <label class="speaker-audio-btn" style="border-style:solid;color:#ef4444;" onclick="event.preventDefault(); recordSpeaker(${i})">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg>
+                            录音
+                        </label>
+                    </div>
+                    <div class="speaker-fields">
+                        <input class="speaker-field-input" type="text" placeholder="参考文本 (ref_text)" value="${data.refText || ''}" onchange="speakerData[${i}].refText=this.value">
+                        <input class="speaker-field-input" type="text" placeholder="风格指令 (instruct)" value="${data.instruct || ''}" onchange="speakerData[${i}].instruct=this.value">
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    }
+
+    function handleSpeakerAudio(files, index) {
+        if (!files || !files[0]) return;
+        speakerData[index].audioFile = files[0];
+        renderSpeakerCards();
+    }
+
+    function recordSpeaker(index) {
+        // 暂存当前说话人索引，录音完成后回填
+        alert('录音功能：请使用浏览器录音，录音完成后音频将自动填入说话人 ' + (index + 1) + '。');
     }
 
     // ==================== 生成 ====================
@@ -1440,9 +2040,17 @@
 
         // design 和 auto 模式不需要参考音频
         const noRefModes = ['design', 'auto'];
-        if (!noRefModes.includes(currentMode) && !currentRefAudioFile) {
+        if (!noRefModes.includes(currentMode) && currentMode !== 'multi' && !currentRefAudioFile) {
             alert('请先上传参考音频');
             return;
+        }
+        // multi 模式：检查说话人音频
+        if (currentMode === 'multi') {
+            const hasAnyAudio = speakerData.slice(0, speakerCount).some(s => s.audioFile);
+            if (!hasAnyAudio) {
+                alert('请至少为一个说话人上传参考音频');
+                return;
+            }
         }
 
         isGenerating = true;
@@ -1472,8 +2080,21 @@
         const duration = document.getElementById('durationInput')?.value;
         if (duration) formData.append('duration', duration);
         
-        if (currentRefAudioFile && !noRefModes.includes(currentMode)) {
+        if (currentRefAudioFile && !noRefModes.includes(currentMode) && currentMode !== 'multi') {
             formData.append('ref_audio', currentRefAudioFile);
+        }
+        // 多人对话：附加每个说话人的音频和参数
+        if (currentMode === 'multi') {
+            formData.append('num_speakers', speakerCount);
+            formData.append('pause_between_speakers', document.getElementById('pauseSlider')?.value || '0.3');
+            for (let i = 0; i < speakerCount; i++) {
+                const sd = speakerData[i] || {};
+                if (sd.audioFile) {
+                    formData.append(`speaker_${i + 1}_audio`, sd.audioFile);
+                }
+                formData.append(`speaker_${i + 1}_ref_text`, sd.refText || '');
+                formData.append(`speaker_${i + 1}_instruct`, sd.instruct || '');
+            }
         }
 
         try {
@@ -1538,6 +2159,7 @@
         const timestamp = result.timestamp || Date.now() / 1000;
         const mode = result.params?.mode || 'clone';
         const instruct = result.params?.instruct || '';
+        const synthText = result.text || result.prompt || '';
         const cardId = `audio-card-${timestamp}`;
         // 防止重复
         if (document.getElementById(`history-${timestamp}`)) return;
@@ -1553,27 +2175,29 @@
             <div class="audio-result-card" onclick="if(ttsBatchMode)toggleBatchSelect('${cardId}', ${timestamp})" oncontextmenu="showAudioContextMenu(event, '${cardId}', ${timestamp}, '${rawAudioUrl}')" style="cursor:${ttsBatchMode ? 'pointer' : 'default'}">
                 <div class="audio-batch-checkbox"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg></div>
                 <div class="audio-result-header">
-                    <div class="audio-result-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    <div class="audio-result-icon play-btn" onclick="togglePlay('${cardId}')" id="iconPlay-${cardId}" title="播放" style="cursor:pointer;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>
                     </div>
                     <div class="audio-result-info">
                         ${instruct ? `<span class="audio-result-instruct">${instruct}</span>` : ''}
+                        ${synthText ? `<span class="audio-result-synthtext" style="display:none">${synthText}</span>` : ''}
                     </div>
                     <div class="audio-result-actions">
-                        <button onclick="togglePlay('${cardId}')" class="audio-action-btn play-btn" id="play-${cardId}" title="播放">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <button onclick="openAudioPreview('${cardId}', '${rawAudioUrl}')" class="audio-action-btn" title="预览详情">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 9l3 3-3 3"/></svg>
                         </button>
                         <button onclick="toggleAudioFavorite(this, '${cardId}')" class="audio-action-btn fav-btn" title="收藏" data-fav="0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         </button>
                     </div>
                 </div>
                 <div class="audio-waveform-container" id="waveform-${cardId}" onclick="seekAudio(event, '${cardId}')">
                     <canvas class="audio-waveform" data-audio="${audioUrl}"></canvas>
                     <div class="audio-progress-overlay" id="progress-${cardId}"></div>
+                    <canvas class="audio-waveform-active" id="fxCanvas-${cardId}"></canvas>
                 </div>
                 <div class="audio-result-footer">
-                    <span class="audio-mode-badge">${mode === 'design' ? 'Voice Design' : mode === 'longform' ? 'Longform' : mode === 'multi' ? 'Multi-Speaker' : 'Voice Clone'}</span>
+                    <span class="audio-mode-badge">${mode === 'design' ? '音色设计' : mode === 'longform' ? '长文本' : mode === 'multi' ? '多人对话' : mode === 'auto' ? '自动配音' : '声音克隆'}</span>
                     <span class="audio-duration" id="duration-${cardId}">--:--</span>
                     <span class="audio-timestamp">${new Date(timestamp * 1000).toLocaleTimeString()}</span>
                 </div>
@@ -1602,22 +2226,24 @@
         }, 100);
     }
 
-    async function deleteAudioCard(cardId, timestamp) {
-        const btn = event && event.target && event.target.closest && event.target.closest('button');
-        // 两步确认：第一次点击变红，3秒内再点才删除
-        if (btn && btn.classList.contains('is-confirming')) {
-            clearTimeout(btn._confirmTimer);
-            btn.classList.remove('is-confirming');
-            btn._confirmTimer = null;
-        } else {
-            if (btn) {
-                document.querySelectorAll('button.is-confirming').forEach(b => {
-                    if (b !== btn) { b.classList.remove('is-confirming'); if (b._confirmTimer) { clearTimeout(b._confirmTimer); b._confirmTimer = null; } }
-                });
-                btn.classList.add('is-confirming');
-                btn._confirmTimer = setTimeout(() => { btn.classList.remove('is-confirming'); btn._confirmTimer = null; }, 3000);
+    async function deleteAudioCard(cardId, timestamp, skipConfirm = false) {
+        const btn = event && event.target && event.target.closest && event.target.closest('button, .context-menu-item');
+        // 二次确认：仅用于按钮点击，右键菜单跳过
+        if (!skipConfirm) {
+            if (btn && btn.classList.contains('is-confirming')) {
+                clearTimeout(btn._confirmTimer);
+                btn.classList.remove('is-confirming');
+                btn._confirmTimer = null;
+            } else {
+                if (btn) {
+                    document.querySelectorAll('.is-confirming').forEach(b => {
+                        if (b !== btn) { b.classList.remove('is-confirming'); if (b._confirmTimer) { clearTimeout(b._confirmTimer); b._confirmTimer = null; } }
+                    });
+                    btn.classList.add('is-confirming');
+                    btn._confirmTimer = setTimeout(() => { btn.classList.remove('is-confirming'); btn._confirmTimer = null; }, 3000);
+                }
+                return;
             }
-            return;
         }
         
         try {
@@ -1734,12 +2360,13 @@
     }
 
     function filterTtsHistory(query) {
+        const q = query.toLowerCase();
         const cards = document.querySelectorAll('.masonry-item');
         cards.forEach(card => {
             const instruct = card.querySelector('.audio-result-instruct')?.textContent || '';
-            const title = card.querySelector('.audio-result-title')?.textContent || '';
-            const text = (instruct + ' ' + title).toLowerCase();
-            card.style.display = text.includes(query.toLowerCase()) ? '' : 'none';
+            const synthText = card.querySelector('.audio-result-synthtext')?.textContent || '';
+            const text = (instruct + ' ' + synthText).toLowerCase();
+            card.style.display = text.includes(q) ? '' : 'none';
         });
     }
 
@@ -1814,6 +2441,164 @@
         document.getElementById('audioContextMenu').style.display = 'none';
     }
 
+    // ==================== 合成文本工具 ====================
+    let _lastSynthOriginal = null;
+    let _lastSynthTranslated = null;
+    let _lastSynthTargetLang = null;
+
+    function onSynthTextInput() {
+        const text = document.getElementById('synthText').value;
+        const clearBtn = document.getElementById('clearSynthTextBtn');
+        const translateWrap = document.getElementById('translateBtnWrap');
+        if (clearBtn) clearBtn.style.display = text.length > 0 ? 'inline-flex' : 'none';
+        if (translateWrap) translateWrap.style.display = text.length > 0 ? 'block' : 'none';
+    }
+
+    function clearSynthText() {
+        const ta = document.getElementById('synthText');
+        ta.value = '';
+        _lastSynthOriginal = null;
+        _lastSynthTranslated = null;
+        _lastSynthTargetLang = null;
+        onSynthTextInput();
+        ta.focus();
+    }
+
+    async function translateSynthText(e) {
+        if (e) e.stopPropagation();
+        const ta = document.getElementById('synthText');
+        const btn = document.getElementById('translateSynthBtn');
+        if (!ta || !btn) return;
+        const text = ta.value.trim();
+        if (!text) return;
+
+        // 切回原文
+        if (_lastSynthTranslated !== null && _lastSynthOriginal !== null && text === _lastSynthTranslated) {
+            ta.value = _lastSynthOriginal;
+            btn.setAttribute('data-state', 'ok');
+            setTimeout(() => btn.setAttribute('data-state', ''), 1200);
+            onSynthTextInput();
+            return;
+        }
+        // 切到译文
+        if (_lastSynthOriginal !== null && _lastSynthTranslated !== null && text === _lastSynthOriginal) {
+            ta.value = _lastSynthTranslated;
+            btn.setAttribute('data-state', 'ok');
+            setTimeout(() => btn.setAttribute('data-state', ''), 1200);
+            onSynthTextInput();
+            return;
+        }
+
+        // 调 API
+        btn.setAttribute('data-state', 'loading');
+        btn.disabled = true;
+        try {
+            const targetLang = document.getElementById('translateLangSelect')?.value || 'en';
+            const langNames = { en:'英语', ja:'日语', ko:'韩语', zh:'中文', fr:'法语', de:'德语', es:'西班牙语', ru:'俄语', ar:'阿拉伯语', th:'泰语', vi:'越南语' };
+            const targetName = langNames[targetLang] || targetLang;
+            // 自动检测方向：中文→目标语言，其他→中文
+            const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+            let direction;
+            if (hasChinese) {
+                direction = targetLang === 'zh' ? 'zh2en' : `zh2${targetLang}`;
+            } else {
+                direction = targetLang === 'zh' ? 'en2zh' : `en2${targetLang}`;
+            }
+            const res = await fetch('/api/translate' + window.location.search, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, direction })
+            });
+            const data = await res.json();
+            if (data.success && data.result) {
+                ta.value = data.result;
+                _lastSynthOriginal = text;
+                _lastSynthTranslated = data.result;
+                _lastSynthTargetLang = targetLang;
+                btn.setAttribute('data-state', 'ok');
+            } else {
+                btn.setAttribute('data-state', 'fail');
+                console.error('[translate]', data.error || '翻译失败');
+            }
+        } catch(err) {
+            btn.setAttribute('data-state', 'fail');
+            console.error('[translate]', err);
+        } finally {
+            btn.disabled = false;
+            setTimeout(() => btn.setAttribute('data-state', ''), 1500);
+            onSynthTextInput();
+        }
+    }
+
+    // ==================== AI 文本精修 ====================
+    async function smartTtsEnhance() {
+        const ta = document.getElementById('synthText');
+        const btn = document.getElementById('smartTtsBtn');
+        if (!ta || !btn) return;
+        const text = ta.value.trim();
+        if (!text) return alert('请先输入要合成的文本');
+
+        btn.disabled = true;
+        const span = btn.querySelector('span');
+        const oldText = span.textContent;
+        span.textContent = '精修中...';
+        btn.style.opacity = '0.6';
+
+        try {
+            const res = await fetch('/api/smart-tts' + window.location.search, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json();
+
+            if (data.success && data.enhanced_text) {
+                // 应用优化后的文本
+                ta.value = data.enhanced_text;
+                onSynthTextInput();
+
+                // 应用推荐参数
+                if (data.suggested_params) {
+                    const p = data.suggested_params;
+                    if (p.speed !== undefined) {
+                        const slider = document.getElementById('speedSlider');
+                        if (slider) { slider.value = p.speed; document.getElementById('speedValue').textContent = p.speed; }
+                    }
+                    if (p.steps !== undefined) {
+                        const slider = document.getElementById('stepsSlider');
+                        if (slider) { slider.value = p.steps; document.getElementById('stepsValue').textContent = p.steps; }
+                    }
+                    if (p.cfg !== undefined) {
+                        const slider = document.getElementById('cfgSlider');
+                        if (slider) { slider.value = p.cfg; document.getElementById('cfgValue').textContent = p.cfg; }
+                    }
+                }
+
+                // 显示修改摘要
+                if (data.changes && data.changes.length > 0) {
+                    const summary = data.changes.join('\n');
+                    // 用 toast 提示
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 18px;border-radius:10px;font-size:12px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.3);max-width:400px;white-space:pre-line;line-height:1.5;';
+                    toast.textContent = '✨ AI 精修完成\n' + summary;
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 3000);
+                    setTimeout(() => toast.remove(), 3500);
+                }
+            } else {
+                alert(data.error || 'AI 精修失败');
+            }
+        } catch(e) {
+            alert('请求失败: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            span.textContent = oldText;
+            btn.style.opacity = '';
+        }
+    }
+
+
+
     // ==================== 文本标签插入 ====================
     function insertTag(tag) {
         const textarea = document.getElementById('synthText');
@@ -1867,8 +2652,11 @@
             case 'folder':
                 openAudioFolder(audioUrl);
                 break;
+            case 'saveVoice':
+                saveResultAsVoice(cardId, audioUrl);
+                break;
             case 'delete':
-                deleteAudioCard(cardId, timestamp);
+                deleteAudioCard(cardId, timestamp, true);
                 break;
         }
     }
@@ -1924,57 +2712,518 @@
         }
     });
 
+    // ==================== 音波动效系统 ====================
+    const _fxAnimations = {};
+
     function onAudioLoaded(cardId, audio) {
         document.getElementById(`duration-${cardId}`).textContent = formatDuration(audio.duration);
+        // 用真实音频数据绘制波形
+        const canvas = document.querySelector(`#history-${cardId.replace('audio-card-', '')} .audio-waveform`);
+        if (canvas) drawRealWaveform(canvas, audio);
+    }
+
+    function drawRealWaveform(canvas, audio) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            fetch(canvas.dataset.audio).then(r => r.arrayBuffer()).then(buf => {
+                return ctx.decodeAudioData(buf);
+            }).then(audioBuf => {
+                const c = canvas.getContext('2d');
+                const w = canvas.width = canvas.offsetWidth * 2;
+                const h = canvas.height = canvas.offsetHeight * 2;
+                c.scale(2, 2);
+                const data = audioBuf.getChannelData(0);
+                const step = Math.ceil(data.length / (canvas.offsetWidth));
+                const amp = canvas.offsetHeight / 2;
+                const isDark = document.body.classList.contains('studio-theme-dark');
+                const grad = c.createLinearGradient(0, 0, canvas.offsetWidth, 0);
+                if (isDark) {
+                    grad.addColorStop(0, 'rgba(0,240,255,0.7)');
+                    grad.addColorStop(0.5, 'rgba(0,201,167,0.7)');
+                    grad.addColorStop(1, 'rgba(0,240,255,0.7)');
+                } else {
+                    grad.addColorStop(0, 'rgba(0,180,216,0.6)');
+                    grad.addColorStop(0.5, 'rgba(0,201,167,0.6)');
+                    grad.addColorStop(1, 'rgba(0,180,216,0.6)');
+                }
+                c.fillStyle = grad;
+                for (let i = 0; i < canvas.offsetWidth; i++) {
+                    let min = 1.0, max = -1.0;
+                    for (let j = 0; j < step; j++) {
+                        const datum = data[(i * step) + j];
+                        if (datum < min) min = datum;
+                        if (datum > max) max = datum;
+                    }
+                    c.fillRect(i, (1 + min) * amp, 1.5, Math.max(1, (max - min) * amp));
+                }
+                ctx.close();
+            }).catch(() => drawFallbackWaveform(canvas));
+        } catch(e) {
+            drawFallbackWaveform(canvas);
+        }
+    }
+
+    function drawFallbackWaveform(canvas) {
+        const c = canvas.getContext('2d');
+        const w = canvas.width = canvas.offsetWidth * 2;
+        const h = canvas.height = canvas.offsetHeight * 2;
+        c.scale(2, 2);
+        const isDark = document.body.classList.contains('studio-theme-dark');
+        c.fillStyle = isDark ? 'rgba(0,240,255,0.3)' : 'rgba(0,180,216,0.3)';
+        for (let i = 0; i < canvas.offsetWidth; i += 3) {
+            const barH = Math.random() * canvas.offsetHeight * 0.7 + canvas.offsetHeight * 0.1;
+            c.fillRect(i, (canvas.offsetHeight - barH) / 2, 2, barH);
+        }
     }
 
     function onAudioProgress(cardId, audio) {
         const progress = document.getElementById(`progress-${cardId}`);
-        if (progress && audio.duration) {
-            const percent = (audio.currentTime / audio.duration) * 100;
-            progress.style.width = percent + '%';
+        const fxCanvas = document.getElementById(`fxCanvas-${cardId}`);
+        if (!audio.duration) return;
+        const pct = audio.currentTime / audio.duration;
+        if (progress) progress.style.width = (pct * 100) + '%';
+        // 启动粒子动效
+        if (fxCanvas) {
+            if (!_fxAnimations[cardId]) {
+                _fxAnimations[cardId] = { particles: [], running: true };
+                animateFx(cardId);
+            }
+            _fxAnimations[cardId].pct = pct;
+            _fxAnimations[cardId].running = true;
         }
     }
 
+    function animateFx(cardId) {
+        const fx = _fxAnimations[cardId];
+        if (!fx || !fx.running) return;
+        const canvas = document.getElementById(`fxCanvas-${cardId}`);
+        if (!canvas) return;
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
+        const w = rect.width;
+        const h = rect.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const pct = fx.pct || 0;
+        const cursorX = pct * w;
+
+        // 绘制光标线
+        const lineGrad = ctx.createLinearGradient(0, 0, 0, h);
+        lineGrad.addColorStop(0, 'rgba(0,240,255,0)');
+        lineGrad.addColorStop(0.3, 'rgba(0,240,255,0.9)');
+        lineGrad.addColorStop(0.7, 'rgba(0,240,255,0.9)');
+        lineGrad.addColorStop(1, 'rgba(0,240,255,0)');
+        ctx.fillStyle = lineGrad;
+        ctx.fillRect(cursorX - 1, 0, 2, h);
+
+        // 光标光晕
+        const glowGrad = ctx.createRadialGradient(cursorX, h / 2, 0, cursorX, h / 2, 40);
+        glowGrad.addColorStop(0, 'rgba(0,240,255,0.25)');
+        glowGrad.addColorStop(0.5, 'rgba(0,240,255,0.08)');
+        glowGrad.addColorStop(1, 'rgba(0,240,255,0)');
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(cursorX - 40, 0, 80, h);
+
+        // 生成粒子
+        if (Math.random() < 0.6) {
+            const count = 1 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < count; i++) {
+                fx.particles.push({
+                    x: cursorX,
+                    y: h / 2 + (Math.random() - 0.5) * h * 0.5,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: -Math.random() * 2 - 0.5,
+                    life: 1,
+                    decay: 0.015 + Math.random() * 0.02,
+                    size: 1 + Math.random() * 2.5,
+                    hue: Math.random() > 0.5 ? 180 : 165 // 青色或绿色
+                });
+            }
+        }
+
+        // 更新和绘制粒子
+        fx.particles = fx.particles.filter(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.02; // 微重力
+            p.life -= p.decay;
+            if (p.life <= 0) return false;
+
+            const alpha = p.life * 0.8;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, ${alpha})`;
+            ctx.fill();
+
+            // 粒子光晕
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life * 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, ${alpha * 0.2})`;
+            ctx.fill();
+
+            return true;
+        });
+
+        requestAnimationFrame(() => animateFx(cardId));
+    }
+
     function onAudioEnded(cardId) {
-        const btn = document.getElementById(`play-${cardId}`);
+        const btn = document.getElementById(`iconPlay-${cardId}`);
         if (btn) {
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
             btn.classList.remove('playing');
+        }
+        if (_fxAnimations[cardId]) {
+            _fxAnimations[cardId].running = false;
+            _fxAnimations[cardId].particles = [];
+        }
+        const fxCanvas = document.getElementById(`fxCanvas-${cardId}`);
+        if (fxCanvas) {
+            const ctx = fxCanvas.getContext('2d');
+            ctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         }
         const progress = document.getElementById(`progress-${cardId}`);
         if (progress) progress.style.width = '0%';
     }
 
+    // ==================== 音频预览弹窗 ====================
+    let _previewAudioUrl = '';
+    let _previewSynthText = '';
+    let _previewMode = '';
+
+    function openAudioPreview(cardId, audioUrl) {
+        const overlay = document.getElementById('audioPreviewOverlay');
+        const audio = document.getElementById('previewAudio');
+        
+        // 获取卡片数据
+        const card = document.getElementById('history-' + cardId.replace('audio-card-', ''));
+        const instruct = card?.querySelector('.audio-result-instruct')?.textContent || '';
+        const synthText = card?.querySelector('.audio-result-synthtext')?.textContent || '';
+        const modeBadge = card?.querySelector('.audio-mode-badge')?.textContent || '';
+        const duration = card?.querySelector('.audio-duration')?.textContent || '--:--';
+        
+        _previewAudioUrl = audioUrl;
+        _previewSynthText = synthText || instruct;
+        _previewMode = modeBadge;
+        
+        // 设置文本
+        const textEl = document.getElementById('previewText');
+        if (_previewSynthText) {
+            textEl.textContent = _previewSynthText;
+        } else {
+            textEl.textContent = '（无文本信息）';
+        }
+        
+        // 设置模式
+        document.getElementById('previewModeBadge').textContent = modeBadge;
+        document.getElementById('previewDuration').textContent = duration;
+        
+        // 加载音频
+        audio.src = audioUrl;
+        
+        // 绘制波形
+        const canvas = document.getElementById('previewWaveformCanvas');
+        setTimeout(() => drawPreviewWaveform(canvas, audioUrl), 100);
+        
+        // 显示弹窗
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => overlay.classList.add('is-open'));
+    }
+
+    function closeAudioPreview() {
+        const overlay = document.getElementById('audioPreviewOverlay');
+        const audio = document.getElementById('previewAudio');
+        audio.pause();
+        audio.src = '';
+        overlay.classList.remove('is-open');
+        setTimeout(() => overlay.style.display = 'none', 300);
+        
+        // 重置播放按钮
+        const btn = document.getElementById('previewPlayBtn');
+        btn.classList.remove('playing');
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
+    }
+
+    function togglePreviewPlay() {
+        const audio = document.getElementById('previewAudio');
+        const btn = document.getElementById('previewPlayBtn');
+        if (audio.paused) {
+            audio.play();
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+            btn.classList.add('playing');
+        } else {
+            audio.pause();
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
+            btn.classList.remove('playing');
+        }
+    }
+
+    function onPreviewLoaded() {
+        const audio = document.getElementById('previewAudio');
+        document.getElementById('previewDuration').textContent = formatDuration(audio.duration);
+        const canvas = document.getElementById('previewWaveformCanvas');
+        if (canvas && _previewAudioUrl) {
+            drawPreviewWaveform(canvas, _previewAudioUrl);
+        }
+    }
+
+    function onPreviewProgress() {
+        const audio = document.getElementById('previewAudio');
+        const progress = document.getElementById('previewProgressFill');
+        const timeEl = document.getElementById('previewCurrentTime');
+        if (audio.duration) {
+            progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
+        }
+        timeEl.textContent = formatDuration(audio.currentTime);
+    }
+
+    function onPreviewEnded() {
+        const btn = document.getElementById('previewPlayBtn');
+        btn.classList.remove('playing');
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
+        document.getElementById('previewProgressFill').style.width = '0%';
+    }
+
+    function seekPreviewAudio(e) {
+        const audio = document.getElementById('previewAudio');
+        const waveform = document.getElementById('previewWaveform');
+        if (!audio.duration) return;
+        const rect = waveform.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        audio.currentTime = pct * audio.duration;
+    }
+
+    function drawPreviewWaveform(canvas, audioUrl) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        ctx.scale(2, 2);
+        const w = rect.width;
+        const h = rect.height;
+        
+        // 生成随机波形（后续可以用真实波形替换）
+        ctx.clearRect(0, 0, w, h);
+        const barCount = Math.floor(w / 4);
+        for (let i = 0; i < barCount; i++) {
+            const x = i * 4;
+            const amplitude = Math.random() * 0.6 + 0.1;
+            const barH = amplitude * h * 0.8;
+            const y = (h - barH) / 2;
+            const gradient = ctx.createLinearGradient(0, y, 0, y + barH);
+            gradient.addColorStop(0, 'rgba(0,240,255,0.6)');
+            gradient.addColorStop(0.5, 'rgba(0,201,167,0.8)');
+            gradient.addColorStop(1, 'rgba(0,240,255,0.6)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, 2.5, barH);
+        }
+    }
+
+    function downloadPreviewAudio() {
+        if (!_previewAudioUrl) return;
+        const a = document.createElement('a');
+        a.href = _previewAudioUrl;
+        a.download = '';
+        a.click();
+    }
+
+    function copyPreviewText() {
+        if (!_previewSynthText) return;
+        navigator.clipboard.writeText(_previewSynthText).then(() => {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.3);';
+            toast.textContent = '已复制文本';
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 1500);
+            setTimeout(() => toast.remove(), 2000);
+        });
+    }
+
+    // ESC 关闭预览
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('audioPreviewOverlay');
+            if (overlay && overlay.classList.contains('is-open')) {
+                closeAudioPreview();
+            }
+        }
+    });
+
+    // ==================== 播放控制 ====================
     function togglePlay(cardId) {
         const audio = document.getElementById(`audio-${cardId}`);
-        const btn = document.getElementById(`play-${cardId}`);
+        const btn = document.getElementById(`iconPlay-${cardId}`);
         if (!audio || !btn) return;
         
         // 暂停其他所有音频
         document.querySelectorAll('.audio-result-card audio').forEach(a => {
             if (a.id !== `audio-${cardId}`) {
                 a.pause();
-                const otherBtn = a.closest('.audio-result-card')?.querySelector('.play-btn');
-                if (otherBtn) {
-                    otherBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-                    otherBtn.classList.remove('playing');
+                const otherIcon = a.closest('.audio-result-card')?.querySelector('.audio-result-icon.play-btn');
+                if (otherIcon) {
+                    otherIcon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
+                    otherIcon.classList.remove('playing');
                 }
+                // 停止其他音频的动效
+                const otherCardId = a.id.replace('audio-', '');
+                if (_fxAnimations[otherCardId]) {
+                    _fxAnimations[otherCardId].running = false;
+                    _fxAnimations[otherCardId].particles = [];
+                }
+                const otherFx = document.getElementById(`fxCanvas-${otherCardId}`);
+                if (otherFx) { const c = otherFx.getContext('2d'); c.clearRect(0, 0, otherFx.width, otherFx.height); }
             }
         });
         
         if (audio.paused) {
             audio.play();
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
             btn.classList.add('playing');
         } else {
             audio.pause();
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 20,12 8,19"/></svg>';
             btn.classList.remove('playing');
+            // 停止当前音频的动效
+            if (_fxAnimations[cardId]) {
+                _fxAnimations[cardId].running = false;
+                _fxAnimations[cardId].particles = [];
+            }
+            const fxCanvas = document.getElementById(`fxCanvas-${cardId}`);
+            if (fxCanvas) { const c = fxCanvas.getContext('2d'); c.clearRect(0, 0, fxCanvas.width, fxCanvas.height); }
         }
     }
 
-    // 点击菜单外部关闭
+    // ==================== 参数预设 ====================
+    const PRESETS = {
+        custom:         { steps: 32, cfg: 2.0, speed: 1.0, denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '自定义' },
+        fast_preview:   { steps: 8,  cfg: 1.5, speed: 1.2, denoise: false, normalize: false, preprocess: false, postprocess: false, label: '极速预览' },
+        balanced:       { steps: 32, cfg: 2.0, speed: 1.0, denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '均衡推荐' },
+        high_quality:   { steps: 64, cfg: 2.5, speed: 1.0, denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '高质量' },
+        clone_focused:  { steps: 40, cfg: 3.0, speed: 1.0, denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '克隆相似度优先' },
+        emotion_focused:{ steps: 48, cfg: 2.8, speed: 0.95,denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '情绪表现优先' },
+        longtext_stable:{ steps: 32, cfg: 2.0, speed: 0.9, denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '长文本稳定' },
+        low_vram:       { steps: 16, cfg: 1.8, speed: 1.0, denoise: false, normalize: false, preprocess: false, postprocess: false, label: '低显存模式' }
+    };
+
+    let currentPreset = 'custom';
+
+    function applyPreset(key) {
+        const p = PRESETS[key];
+        if (!p) return;
+        currentPreset = key;
+        // 应用参数
+        setSlider('stepsSlider', 'stepsValue', p.steps);
+        setSlider('cfgSlider', 'cfgValue', p.cfg);
+        setSlider('speedSlider', 'speedValue', p.speed);
+        setCheckbox('denoiseCheck', p.denoise);
+        setCheckbox('normalizeCheck', p.normalize);
+        setCheckbox('preprocessCheck', p.preprocess);
+        setCheckbox('postprocessCheck', p.postprocess);
+        // 更新按钮文字
+        document.getElementById('presetText').textContent = p.label;
+        document.getElementById('presetMenu').style.display = 'none';
+    }
+
+    function setSlider(sliderId, valueId, value) {
+        const slider = document.getElementById(sliderId);
+        const display = document.getElementById(valueId);
+        if (slider) slider.value = value;
+        if (display) display.textContent = value;
+    }
+
+    function setCheckbox(id, checked) {
+        const el = document.getElementById(id);
+        if (el) el.checked = checked;
+    }
+
+    // ==================== 保存生成结果为音色 ====================
+    async function saveResultAsVoice(cardId, audioUrl) {
+        const name = prompt('请输入音色名称，将此音频保存到音色库:');
+        if (!name || !name.trim()) return;
+
+        // 获取当前 instruct 作为音色描述
+        const instruct = document.getElementById('instructInput')?.value || '';
+
+        try {
+            // 下载音频文件
+            const token = localStorage.getItem('xy_auth_token') || '';
+            const sep = audioUrl.includes('?') ? '&' : '?';
+            const fetchUrl = audioUrl + sep + 'token=' + encodeURIComponent(token);
+            const response = await fetch(fetchUrl);
+            if (!response.ok) throw new Error('下载音频失败');
+            const blob = await response.blob();
+
+            // 上传到音色库
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            formData.append('instruct', instruct);
+            formData.append('category', 'custom');
+            formData.append('file', blob, `design_${Date.now()}.wav`);
+
+            const res = await fetch('/api/tts/voices' + window.location.search, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                voiceLibrary[name.trim()] = { file: data.filename, instruct, category: 'custom' };
+                // 给卡片加标记
+                const card = document.getElementById(`history-${cardId.replace('audio-card-', '')}`);
+                if (card) {
+                    const badge = document.createElement('span');
+                    badge.className = 'audio-mode-badge';
+                    badge.style.cssText = 'background:rgba(245,158,11,0.15);color:#f59e0b;margin-left:4px;';
+                    badge.textContent = '★ 已存为音色';
+                    const footer = card.querySelector('.audio-result-footer');
+                    if (footer) footer.appendChild(badge);
+                }
+                alert(`音色「${name.trim()}」已保存到音色库！`);
+            } else {
+                throw new Error(data.detail || '保存失败');
+            }
+        } catch(e) {
+            alert('保存音色失败: ' + e.message);
+        }
+    }
+
+    // ==================== 音色库增强：星标 + 备注 ====================
+    async function toggleVoiceStarred(name) {
+        const info = voiceLibrary[name];
+        if (!info) return;
+        info.starred = !info.starred;
+        try {
+            await fetch(`/api/tts/voices/${encodeURIComponent(name)}/meta` + window.location.search, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ starred: info.starred })
+            });
+        } catch(e) {}
+        renderVoiceGrid(document.getElementById('voiceSearchInput')?.value || '');
+    }
+
+    async function editVoiceNote(name) {
+        const info = voiceLibrary[name];
+        if (!info) return;
+        const note = prompt('编辑备注:', info.note || '');
+        if (note === null) return;
+        info.note = note;
+        try {
+            await fetch(`/api/tts/voices/${encodeURIComponent(name)}/meta` + window.location.search, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note })
+            });
+        } catch(e) {}
+        renderVoiceGrid(document.getElementById('voiceSearchInput')?.value || '');
+    }
+
+    // ==================== 点击菜单外部关闭 ====================
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.anima-ctrl-wrap')) {
             document.querySelectorAll('.anima-ctrl-menu').forEach(m => m.style.display = 'none');

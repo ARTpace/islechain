@@ -6154,6 +6154,7 @@ async def api_get_thumbnail(filename: str):
 # --- 智能提示词生成 ---
 
 from smart_prompt import generate_smart_prompt, load_config
+import smart_tts as smart_tts_module
 
 class SmartPromptRequest(BaseModel):
     prompt: str
@@ -6316,6 +6317,25 @@ async def smart_prompt(req: SmartPromptRequest):
     except Exception as e:
         return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
 
+# --- 智能 TTS 文本精修 ---
+class SmartTTSRequest(BaseModel):
+    text: str = ""
+    config: Optional[Dict[str, Any]] = None
+
+@app.post("/api/smart-tts")
+async def smart_tts_enhance(req: SmartTTSRequest):
+    """智能 TTS 文本精修"""
+    try:
+        config = load_config()
+        if req.config:
+            config.update(req.config)
+        if not config.get('api_key'):
+            return {"success": False, "enhanced_text": "", "suggested_params": {}, "changes": [], "raw": "", "error": "未配置 API Key"}
+        result = smart_tts_module.generate_smart_tts(req.text, config)
+        return result
+    except Exception as e:
+        return {"success": False, "enhanced_text": "", "suggested_params": {}, "changes": [], "raw": "", "error": str(e)}
+
 # --- 翻译模型 ---
 TRANSLATE_CONFIG_FILE = os.path.join(BASE_DIR, "data", "translate-config.json")
 
@@ -6370,7 +6390,7 @@ async def translate_with_baidu(text: str, from_lang: str, to_lang: str, app_id: 
     salt = str(int(time.time() * 1000))
     sign_str = app_id + text + salt + secret_key
     sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
-    lang_map = {"zh": "zh", "en": "en", "ja": "ja", "ko": "ko", "fr": "fra", "de": "de", "ru": "ru", "es": "spa", "pt": "pt", "it": "it", "ar": "ara", "th": "th", "vi": "vie"}
+    lang_map = {"zh": "zh", "en": "en", "ja": "jp", "ko": "kor", "fr": "fra", "de": "de", "ru": "ru", "es": "spa", "pt": "pt", "it": "it", "ar": "ara", "th": "th", "vi": "vie"}
     from_lang_baidu = lang_map.get(from_lang, from_lang)
     to_lang_baidu = lang_map.get(to_lang, to_lang)
     params = urllib.parse.urlencode({
@@ -6418,10 +6438,11 @@ async def translate_with_ai(text: str, from_lang: str, to_lang: str, provider_id
     if not model:
         chat_models = provider.get("chat_models") or []
         model = chat_models[0] if chat_models else "gpt-4o-mini"
-    lang_names = {"zh": "中文", "en": "英文", "ja": "日文", "ko": "韩文", "fr": "法文", "de": "德文", "ru": "俄文", "es": "西班牙文"}
+    lang_names = {"zh": "中文", "en": "英文", "ja": "日文", "ko": "韩文", "fr": "法文", "de": "德文", "ru": "俄文", "es": "西班牙文", "pt": "葡萄牙文", "ar": "阿拉伯文", "th": "泰文", "vi": "越南文"}
     from_name = lang_names.get(from_lang, from_lang)
     to_name = lang_names.get(to_lang, to_lang)
-    prompt = template.replace("{text}", text).replace("{from}", from_name).replace("{to}", to_name)
+    # 构建翻译 prompt，明确指定源语言和目标语言
+    prompt = f"将以下{from_name}文本翻译成{to_name}，只输出翻译结果，不要任何解释：\n\n{text}"
     if base_url.endswith('/v1'):
         url = f"{base_url}/chat/completions"
     else:
@@ -6448,10 +6469,19 @@ async def translate_text(payload: dict):
     if not text:
         return {"success": False, "error": "请输入要翻译的文本"}
     cfg = load_translate_config()
-    if direction == "zh2en":
-        from_lang, to_lang = cfg.get("source_lang", "zh"), cfg.get("target_lang", "en")
+    # 解析方向：zh2en, en2ja, zh2fr 等
+    lang_map = {
+        'zh': '中文', 'en': '英语', 'ja': '日语', 'ko': '韩语',
+        'fr': '法语', 'de': '德语', 'es': '西班牙语', 'pt': '葡萄牙语',
+        'ru': '俄语', 'ar': '阿拉伯语', 'th': '泰语', 'vi': '越南语'
+    }
+    parts = direction.split('2')
+    if len(parts) == 2 and parts[0] in lang_map and parts[1] in lang_map:
+        from_lang, to_lang = parts[0], parts[1]
+    elif direction == 'zh2en':
+        from_lang, to_lang = cfg.get('source_lang', 'zh'), cfg.get('target_lang', 'en')
     else:
-        from_lang, to_lang = cfg.get("target_lang", "en"), cfg.get("source_lang", "zh")
+        from_lang, to_lang = 'zh', 'en'
     provider_type = cfg.get("provider_type", "ai")
     try:
         if provider_type == "baidu":
@@ -8804,6 +8834,8 @@ async def save_tts_voice(
         "category": category,
         "duration": 0,
         "created": timestamp,
+        "starred": False,
+        "note": "",
     }
     _save_voice_index(index)
     
@@ -8893,12 +8925,17 @@ async def import_tts_voices(
     }
 
 
-@app.get("/api/tts/voices/file/{filename}")
+@app.get("/api/tts/voices/file/{filename:path}")
 async def get_tts_voice_file(filename: str):
     """获取音色音频文件（全局共享）"""
+    # 路径安全检查：禁止路径穿越
+    if ".." in filename or filename.startswith("/") or filename.startswith("\\"):
+        raise HTTPException(status_code=400, detail="非法路径")
     # filename 现在是 audio/category/file 格式
-    file_path = os.path.join(TTS_VOICE_DIR, filename)
-    
+    file_path = os.path.abspath(os.path.join(TTS_VOICE_DIR, filename))
+    voice_dir_abs = os.path.abspath(TTS_VOICE_DIR)
+    if not file_path.startswith(voice_dir_abs + os.sep) and file_path != voice_dir_abs:
+        raise HTTPException(status_code=403, detail="禁止访问目录外文件")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="文件不存在")
     
@@ -8931,6 +8968,168 @@ async def delete_tts_voice(voice_name: str):
     
     _save_voice_index(index)
     return {"success": True}
+
+
+@app.put("/api/tts/voices/{voice_name}/meta")
+async def update_tts_voice_meta(voice_name: str, body: dict):
+    """更新音色元数据（星标、备注等）"""
+    index = _load_voice_index()
+    entry = index.get(voice_name)
+    if not entry:
+        raise HTTPException(status_code=404, detail="音色不存在")
+    
+    if "starred" in body:
+        entry["starred"] = bool(body["starred"])
+    if "note" in body:
+        entry["note"] = str(body["note"])
+    
+    index[voice_name] = entry
+    _save_voice_index(index)
+    return {"success": True, "voice": entry}
+
+
+# Whisper ASR 模型缓存
+_asr_pipeline = None
+
+
+def _find_whisper_model_path():
+    """在 ComfyUI audio_encoders 目录中查找已下载的 Whisper 模型"""
+    # 从 .env 读取 ComfyUI 路径
+    comfy_base = os.environ.get("COMFYUI_BASE_PATH", "")
+    # COMFYUI_BASE_PATH 指向 models/loras，往上推到 ComfyUI 根目录
+    if comfy_base:
+        # H:\AI-Tools\ComfyUI-aio-V9.0\ComfyUI\models\loras -> H:\AI-Tools\ComfyUI-aio-V9.0\ComfyUI
+        comfy_root = os.path.normpath(os.path.join(comfy_base, "..", ".."))
+    else:
+        # fallback: 从 COMFYUI_ADDRESS 推断
+        comfy_root = os.path.normpath(os.path.join(os.getcwd(), ".."))
+    
+    audio_encoders_dir = os.path.join(comfy_root, "models", "audio_encoders")
+    if not os.path.isdir(audio_encoders_dir):
+        print(f"[ASR] audio_encoders 目录不存在: {audio_encoders_dir}")
+        return None
+    
+    # 优先找 whisper-large-v3-turbo
+    preferred = ["openai_whisper-large-v3-turbo", "openai_whisper-large-v3"]
+    for name in preferred:
+        path = os.path.join(audio_encoders_dir, name)
+        if os.path.isdir(path):
+            return path
+    
+    # 找任意 whisper 模型
+    for entry in os.listdir(audio_encoders_dir):
+        if "whisper" in entry.lower():
+            path = os.path.join(audio_encoders_dir, entry)
+            if os.path.isdir(path):
+                return path
+    
+    print(f"[ASR] 未找到 Whisper 模型，请将模型放到: {audio_encoders_dir}")
+    return None
+
+
+def _get_asr_pipeline():
+    """懒加载 Whisper ASR pipeline（单例，从 ComfyUI 路径加载）"""
+    global _asr_pipeline
+    if _asr_pipeline is not None:
+        return _asr_pipeline
+    
+    model_path = _find_whisper_model_path()
+    if not model_path:
+        raise RuntimeError("未找到 Whisper 模型，请先在 ComfyUI 中加载一次 OmniVoice 工作流以触发模型下载")
+    
+    import torch
+    from transformers import pipeline as hf_pipeline
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+    
+    _asr_pipeline = hf_pipeline(
+        "automatic-speech-recognition",
+        model=model_path,
+        device=device,
+        torch_dtype=dtype,
+    )
+    print(f"[ASR] Whisper 模型加载完成: {model_path} (device={device})")
+    return _asr_pipeline
+
+
+@app.post("/api/tts/asr")
+async def tts_asr(
+    request: Request,
+    token: str = Form(""),
+):
+    """真正的 ASR：用 Whisper 转写参考音频为文本"""
+    form = await request.form()
+    audio_file = form.get("audio")
+    if not audio_file or not hasattr(audio_file, 'read'):
+        raise HTTPException(status_code=400, detail="请上传音频文件")
+    
+    content = await audio_file.read()
+    if len(content) < 100:
+        raise HTTPException(status_code=400, detail="音频文件太小")
+    
+    # 保存临时文件
+    tmp_path = os.path.join(TTS_VOICE_DIR, f"_asr_{int(time.time())}.wav")
+    try:
+        with open(tmp_path, 'wb') as f:
+            f.write(content)
+        
+        # 在 ComfyUI 的 Python 环境中运行 ASR
+        comfy_python = os.path.join(
+            os.path.dirname(COMFYUI_ADDRESS.split(":")[0]) if ":" in COMFYUI_ADDRESS else "",
+            "..", "..", "..", "python", "python.exe"
+        )
+        # 尝试用 ComfyUI Python 环境（有 omnivoice）
+        # fallback: 用当前环境的 transformers pipeline
+        try:
+            import torch
+            import numpy as np
+            import soundfile as sf
+            from transformers import pipeline as hf_pipeline
+            
+            # 读取音频
+            audio_data, sr = sf.read(tmp_path)
+            if len(audio_data.shape) > 1:
+                audio_data = audio_data.mean(axis=1)  # 转单声道
+            
+            # 重采样到 16kHz（Whisper 要求）
+            if sr != 16000:
+                import scipy.signal
+                audio_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / sr))
+                sr = 16000
+            
+            # 加载模型并转写
+            pipe = _get_asr_pipeline()
+            result = pipe(audio_data, generate_kwargs={"language": None})
+            text = result.get("text", "").strip()
+            
+            return {"text": text}
+        except Exception as e:
+            print(f"[ASR] 转写失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"text": "", "note": f"ASR 失败: {e}"}
+    finally:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except:
+            pass
+
+
+@app.get("/api/tts/presets")
+async def get_tts_presets():
+    """获取 TTS 参数预设列表"""
+    return {
+        "presets": [
+            {"id": "fast_preview", "label": "极速预览", "steps": 8, "cfg": 1.5, "speed": 1.2, "denoise": False, "normalize": False, "preprocess": False, "postprocess": False},
+            {"id": "balanced", "label": "均衡推荐", "steps": 32, "cfg": 2.0, "speed": 1.0, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
+            {"id": "high_quality", "label": "高质量", "steps": 64, "cfg": 2.5, "speed": 1.0, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
+            {"id": "clone_focused", "label": "克隆相似度优先", "steps": 40, "cfg": 3.0, "speed": 1.0, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
+            {"id": "emotion_focused", "label": "情绪表现优先", "steps": 48, "cfg": 2.8, "speed": 0.95, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
+            {"id": "longtext_stable", "label": "长文本稳定", "steps": 32, "cfg": 2.0, "speed": 0.9, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
+            {"id": "low_vram", "label": "低显存模式", "steps": 16, "cfg": 1.8, "speed": 1.0, "denoise": False, "normalize": False, "preprocess": False, "postprocess": False},
+        ]
+    }
 
 
 @app.get("/api/tts/modes")
@@ -8968,32 +9167,36 @@ async def get_tts_modes():
 
 
 @app.post("/api/tts/generate")
-async def tts_generate(
-    text: str = Form(...),
-    mode: str = Form("clone"),
-    instruct: str = Form(""),
-    ref_text: str = Form(""),
-    speed: float = Form(1.0),
-    steps: int = Form(32),
-    guidance_scale: float = Form(2.0),
-    seed: int = Form(0),
-    language: str = Form(""),
-    audio_format: str = Form("wav"),
-    sample_rate: int = Form(24000),
-    t_shift: float = Form(0.1),
-    position_temperature: float = Form(5.0),
-    class_temperature: float = Form(0.0),
-    layer_penalty_factor: float = Form(5.0),
-    duration: Optional[float] = Form(None),
-    denoise: bool = Form(True),
-    normalize: bool = Form(False),
-    preprocess: bool = Form(True),
-    postprocess: bool = Form(True),
-    save_prefix: str = Form("tts"),
-    ref_audio: Optional[UploadFile] = File(None),
-    token: str = ""
-):
+async def tts_generate(request: Request, token: str = Form("")):
     """TTS 生成接口"""
+    # 解析 multipart form data
+    form = await request.form()
+    text = form.get("text", "")
+    mode = form.get("mode", "clone")
+    instruct = form.get("instruct", "")
+    ref_text = form.get("ref_text", "")
+    speed = float(form.get("speed", 1.0))
+    steps = int(form.get("steps", 32))
+    guidance_scale = float(form.get("guidance_scale", 2.0))
+    seed = int(form.get("seed", 0))
+    language = form.get("language", "")
+    audio_format = form.get("audio_format", "wav")
+    sample_rate = int(form.get("sample_rate", 24000))
+    t_shift = float(form.get("t_shift", 0.1))
+    position_temperature = float(form.get("position_temperature", 5.0))
+    class_temperature = float(form.get("class_temperature", 0.0))
+    layer_penalty_factor = float(form.get("layer_penalty_factor", 5.0))
+    duration_raw = form.get("duration")
+    duration = float(duration_raw) if duration_raw else None
+    denoise = str(form.get("denoise", "false")).lower() in ("true", "1", "yes")
+    normalize = str(form.get("normalize", "false")).lower() in ("true", "1", "yes")
+    preprocess = str(form.get("preprocess", "false")).lower() in ("true", "1", "yes")
+    postprocess = str(form.get("postprocess", "false")).lower() in ("true", "1", "yes")
+    save_prefix = form.get("save_prefix", "tts")
+    # 多人对话参数
+    num_speakers = int(form.get("num_speakers", 2))
+    pause_between_speakers = float(form.get("pause_between_speakers", 0.3))
+    
     username = get_username_by_token(token)
     
     # 校验模式
@@ -9011,10 +9214,10 @@ async def tts_generate(
     
     # 上传参考音频到 ComfyUI（如果有）
     ref_audio_filename = ""
-    if ref_audio and mode in ("clone", "longform", "multi"):
+    ref_audio = form.get("ref_audio")
+    if ref_audio and hasattr(ref_audio, 'read') and mode in ("clone", "longform"):
         content = await ref_audio.read()
         ref_audio_filename = f"tts_ref_{int(time.time())}_{ref_audio.filename or 'audio.wav'}"
-        # 上传到 ComfyUI input 目录
         target = COMFYUI_ADDRESS
         if target:
             try:
@@ -9022,6 +9225,35 @@ async def tts_generate(
                 requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
             except Exception as e:
                 print(f"[TTS] 上传参考音频失败: {e}")
+    
+    # 多人对话：上传每个说话人的音频
+    speaker_audio_filenames = {}
+    if mode == "multi":
+        target = COMFYUI_ADDRESS
+        for i in range(1, num_speakers + 1):
+            spk_audio = form.get(f"speaker_{i}_audio")
+            spk_ref_text = form.get(f"speaker_{i}_ref_text", "")
+            spk_instruct = form.get(f"speaker_{i}_instruct", "")
+            if spk_audio and hasattr(spk_audio, 'read'):
+                content = await spk_audio.read()
+                fname = f"tts_spk{i}_{int(time.time())}_{spk_audio.filename or 'audio.wav'}"
+                speaker_audio_filenames[i] = {
+                    "filename": fname,
+                    "ref_text": spk_ref_text,
+                    "instruct": spk_instruct,
+                }
+                if target:
+                    try:
+                        files_data = {'image': (fname, content, spk_audio.content_type or 'audio/wav')}
+                        requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+                    except Exception as e:
+                        print(f"[TTS] 上传说话人{i}音频失败: {e}")
+            else:
+                speaker_audio_filenames[i] = {
+                    "filename": "",
+                    "ref_text": spk_ref_text,
+                    "instruct": spk_instruct,
+                }
     
     # 替换工作流中的变量
     # 查找关键节点并替换参数
@@ -9051,9 +9283,43 @@ async def tts_generate(
             if mode in ("clone", "longform") and ref_text:
                 inputs["ref_text"] = ref_text
         
-        # LoadAudio 节点（参考音频）
-        if class_type == "LoadAudio" and ref_audio_filename:
+        # OmniVoiceMultiSpeakerTTS 节点
+        if class_type == "OmniVoiceMultiSpeakerTTS":
+            inputs["text"] = text
+            inputs["num_speakers"] = num_speakers
+            inputs["speed"] = speed
+            inputs["steps"] = steps
+            inputs["guidance_scale"] = guidance_scale
+            inputs["t_shift"] = t_shift
+            inputs["position_temperature"] = position_temperature
+            inputs["class_temperature"] = class_temperature
+            inputs["layer_penalty_factor"] = layer_penalty_factor
+            inputs["denoise"] = denoise
+            inputs["preprocess_prompt"] = preprocess
+            inputs["postprocess_output"] = postprocess
+            inputs["seed"] = seed if seed > 0 else 0
+            inputs["pause_between_speakers"] = pause_between_speakers
+            if duration is not None:
+                inputs["duration"] = duration
+            # 设置每个说话人的参数
+            for i in range(1, num_speakers + 1):
+                spk = speaker_audio_filenames.get(i, {})
+                inputs[f"speaker_{i}_ref_text"] = spk.get("ref_text", "")
+                inputs[f"speaker_{i}_instruct"] = spk.get("instruct", "")
+        
+        # LoadAudio 节点（参考音频 - 单人模式）
+        if class_type == "LoadAudio" and ref_audio_filename and node_id == "5":
             inputs["audio"] = ref_audio_filename
+        
+        # LoadAudio 节点（多人对话 - 说话人音频）
+        if class_type == "LoadAudio" and mode == "multi":
+            title = node_content.get("_meta", {}).get("title", "")
+            for i in range(1, num_speakers + 1):
+                if f"说话人{i}" in title and i in speaker_audio_filenames:
+                    fname = speaker_audio_filenames[i].get("filename")
+                    if fname:
+                        inputs["audio"] = fname
+                    break
     
     # 提交到 ComfyUI
     generate_req = GenerateRequest(
