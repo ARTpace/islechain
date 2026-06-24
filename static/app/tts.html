@@ -130,6 +130,13 @@
         .speaker-card:hover { border-color:rgba(0,180,216,0.3); }
         body.studio-theme-dark .speaker-card { border-color:rgba(0,240,255,0.15); background:linear-gradient(180deg, rgba(0,240,255,0.03), rgba(0,201,167,0.01)); }
         body.studio-theme-dark .speaker-card:hover { border-color:rgba(0,240,255,0.3); }
+        /* 播客风格按钮 */
+        .podcast-style-btn { padding:4px 10px; border-radius:6px; border:1px solid rgba(168,85,247,0.2); background:rgba(168,85,247,0.05); color:#a855f7; font-size:10px; cursor:pointer; transition:all 0.15s; }
+        .podcast-style-btn:hover { background:rgba(168,85,247,0.15); border-color:rgba(168,85,247,0.4); }
+        .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168,85,247,0.25), rgba(139,92,246,0.2)); border-color:rgba(168,85,247,0.5); color:#c084fc; font-weight:600; }
+        body.studio-theme-dark .podcast-style-btn { background:rgba(168,85,247,0.08); color:#c084fc; border-color:rgba(168,85,247,0.25); }
+        body.studio-theme-dark .podcast-style-btn:hover { background:rgba(168,85,247,0.18); }
+        body.studio-theme-dark .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168,85,247,0.3), rgba(139,92,246,0.25)); color:#d8b4fe; }
         .speaker-card-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
         .speaker-badge { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; flex-shrink:0; }
         .speaker-badge-1 { background:linear-gradient(135deg, #00b4d8, #0096c7); }
@@ -149,6 +156,16 @@
         body.studio-theme-dark .speaker-audio-btn { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); color:#8aa0b8; }
         body.studio-theme-dark .speaker-audio-btn:hover { border-color:rgba(0,240,255,0.5); color:#00f0ff; }
         .speaker-audio-name { font-size:10px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
+        /* 说话人音频卡片（复用 ref-audio-card 风格） */
+        .speaker-audio-card { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.7), rgba(248,250,252,0.7)); border:1px solid rgba(0,0,0,0.06); margin-top:4px; }
+        body.studio-theme-dark .speaker-audio-card { background:linear-gradient(180deg, rgba(13,21,32,0.8), rgba(10,14,23,0.8)); border-color:rgba(0,240,255,0.1); }
+        .speaker-audio-card .ref-play-btn-lg { width:26px; height:26px; border-radius:6px; }
+        .speaker-audio-card .ref-play-btn-lg svg { width:12px; height:12px; }
+        .speaker-audio-card .ref-audio-info-name { font-size:10px; max-width:80px; }
+        .speaker-audio-card .ref-audio-waveform { height:24px; flex:1; min-width:60px; }
+        .speaker-audio-card .ref-audio-actions { gap:2px; }
+        .speaker-audio-card .ref-icon-btn { width:22px; height:22px; }
+        .speaker-audio-card .ref-icon-btn svg { width:11px; height:11px; }
         .speaker-fields { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
         .speaker-field-input { height:22px; padding:0 6px; border:1px solid rgba(0,0,0,0.08); border-radius:6px; font-size:10px; background:rgba(255,255,255,0.6); outline:none; }
         .speaker-field-input::placeholder { color:#bbb; }
@@ -283,7 +300,7 @@
         .advanced-window-body .text-gray-500 { color:#a8b8c8 !important; }
         .advanced-window-body .text-gray-600 { color:#c8d0dc !important; }
         .advanced-window-body .text-xs { color:#c8d0dc; }
-        .advanced-window-body .text-\\[10px\\] { color:#9aa8b8; }
+        .advanced-window-body .text-\[10px\] { color:#9aa8b8; }
         .advanced-window-body input[type=range] { background:rgba(255,255,255,0.12) !important; }
         .advanced-window-body input[type=range]::-webkit-slider-thumb { background:#00f0ff !important; }
         .advanced-window-body .tts-input { background:rgba(15,23,42,0.6) !important; border-color:rgba(0,240,255,0.18) !important; color:#e0e7ef !important; }
@@ -328,18 +345,35 @@
         /* === 音色库弹窗 === */
         .voice-picker-overlay { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); backdrop-filter:blur(16px); }
         .voice-picker-overlay.is-open { display:flex; }
-        .voice-picker-window { width:min(800px, 100%); max-height:70vh; display:flex; flex-direction:column; background:linear-gradient(165deg, #1a1a2e 0%, #0f0f1a 100%); border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 30px 80px rgba(0,0,0,0.5); overflow:hidden; }
+        .voice-picker-window { width:min(900px, 100%); max-height:75vh; display:flex; flex-direction:column; background:linear-gradient(165deg, #1a1a2e 0%, #0f0f1a 100%); border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 30px 80px rgba(0,0,0,0.5); overflow:hidden; }
         .voice-picker-header { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.1); }
         .voice-picker-search { flex:1; height:36px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:999px; padding:0 12px; color:#fff; font-size:13px; outline:none; }
         .voice-picker-search:focus { border-color:rgba(0,240,255,0.5); }
         .voice-picker-search::placeholder { color:rgba(255,255,255,0.4); }
-        .voice-picker-body { flex:1; overflow-y:auto; padding:12px; }
-        .voice-picker-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; }
-        .voice-card { padding:12px; border-radius:12px; background:rgba(255,255,255,0.05); border:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+        .voice-picker-body { flex:1; display:flex; overflow:hidden; }
+        /* 侧边栏分类 */
+        .voice-picker-sidebar { width:180px; flex-shrink:0; border-right:1px solid rgba(255,255,255,0.08); padding:8px 0; overflow-y:auto; background:rgba(0,0,0,0.15); }
+        .voice-sidebar-section { padding:4px 12px 2px; font-size:9px; font-weight:700; color:#6a8fa8; text-transform:uppercase; letter-spacing:0.08em; margin-top:4px; }
+        .voice-sidebar-item { display:flex; align-items:center; gap:8px; padding:7px 12px; margin:1px 6px; border-radius:8px; cursor:pointer; transition:all 0.15s; font-size:12px; color:#8aa0b8; }
+        .voice-sidebar-item:hover { background:rgba(255,255,255,0.06); color:#e0e7ef; }
+        .voice-sidebar-item.active { background:rgba(0,240,255,0.12); color:#00f0ff; }
+        .voice-sidebar-item .count { margin-left:auto; font-size:10px; color:rgba(255,255,255,0.3); }
+        .voice-sidebar-divider { height:1px; background:rgba(255,255,255,0.06); margin:6px 12px; }
+        /* 主内容区 */
+        .voice-picker-content { flex:1; overflow-y:auto; padding:12px; }
+        .voice-picker-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px; }
+        /* 角色卡片 */
+        .voice-card { padding:10px; border-radius:12px; background:rgba(255,255,255,0.05); border:2px solid transparent; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; }
         .voice-card:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.1); }
         .voice-card.selected { border-color:#00f0ff; background:rgba(0,240,255,0.1); }
-        .voice-card-name { color:#fff; font-size:13px; font-weight:600; margin-bottom:4px; }
-        .voice-card-instruct { color:rgba(255,255,255,0.5); font-size:11px; }
+        .voice-card-avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid rgba(255,255,255,0.1); margin-bottom:6px; background:rgba(255,255,255,0.05); }
+        .voice-card-avatar-placeholder { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, rgba(0,240,255,0.15), rgba(0,201,167,0.15)); display:flex; align-items:center; justify-content:center; margin-bottom:6px; color:rgba(255,255,255,0.4); font-size:18px; }
+        .voice-card-name { color:#fff; font-size:12px; font-weight:600; margin-bottom:3px; line-height:1.3; }
+        .voice-card-instruct { color:rgba(255,255,255,0.45); font-size:10px; line-height:1.3; }
+        .voice-card-tags { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; justify-content:center; }
+        .voice-card-tag { font-size:9px; padding:1px 5px; border-radius:4px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.5); }
+        .voice-card-tag.female { background:rgba(255,105,180,0.15); color:#ff69b4; }
+        .voice-card-tag.male { background:rgba(0,180,216,0.15); color:#00b4d8; }
         .voice-picker-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); }
         .voice-picker-hint { font-size:11px; color:rgba(0,240,255,0.7); display:inline-flex; align-items:center; gap:4px; }
         .voice-picker-hint::before { content:''; width:6px; height:6px; border-radius:50%; background:#00f0ff; box-shadow:0 0 6px #00f0ff; animation:pulse-hint 1.6s infinite; }
@@ -348,8 +382,7 @@
         .voice-cat-btn { padding:4px 12px; border-radius:8px; border:none; background:rgba(255,255,255,0.06); color:#8aa0b8; font-size:11px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
         .voice-cat-btn:hover { background:rgba(255,255,255,0.1); color:#e0e7ef; }
         .voice-cat-btn.active { background:rgba(0,240,255,0.15); color:#00f0ff; }
-        .voice-card { position:relative; }
-        .voice-card-preview { position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:rgba(0,240,255,0.2); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:all 0.15s; }
+        .voice-card-preview { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(0,240,255,0.2); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:all 0.15s; }
         .voice-card:hover .voice-card-preview { opacity:1; }
         .voice-card-preview:hover { background:rgba(0,240,255,0.4); transform:scale(1.1); }
         .voice-card-preview.playing { opacity:1; background:rgba(0,240,255,0.4); animation:pulse-play 1.5s infinite; }
@@ -373,6 +406,24 @@
         .text-toolbar-divider { display:none; }
         /* === 合成文本框（连接工具栏） === */
         .tts-textarea { border-radius:0 0 10px 10px !important; border-top:none !important; }
+        /* 多人对话：高亮叠层 */
+        .tts-textarea-highlight {
+            position:absolute; top:0; left:0; right:0; bottom:0;
+            padding:8px 12px; font-size:13px; line-height:1.5; font-family:inherit;
+            border:1px solid transparent; border-radius:0 0 10px 10px;
+            white-space:pre-wrap; word-wrap:break-word;
+            overflow-y:auto; pointer-events:none;
+            color:transparent; /* textarea 文字透明，只显示 caret */
+        }
+        .tts-textarea-highlight .spk-1 { color:#0096c7; font-weight:600; }
+        .tts-textarea-highlight .spk-2 { color:#009688; font-weight:600; }
+        .tts-textarea-highlight .spk-3 { color:#d97706; font-weight:600; }
+        .tts-textarea-highlight .spk-4 { color:#7c3aed; font-weight:600; }
+        body.studio-theme-dark .tts-textarea-highlight .spk-1 { color:#00d4ff; }
+        body.studio-theme-dark .tts-textarea-highlight .spk-2 { color:#34d399; }
+        body.studio-theme-dark .tts-textarea-highlight .spk-3 { color:#fbbf24; }
+        body.studio-theme-dark .tts-textarea-highlight .spk-4 { color:#c084fc; }
+        .tts-textarea-highlight .spk-tag { opacity:0.5; }
         /* === 情绪面板 === */
 
         .emotion-menu-section { padding:6px 12px 4px; font-size:9px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:0.08em; }
@@ -583,6 +634,10 @@
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                                             <span>音色库</span>
                                         </button>
+                                        <button onclick="event.stopPropagation(); randomVoice()" class="ref-action-btn ref-action-btn-lg" style="background:linear-gradient(135deg, rgba(245,158,11,0.15), rgba(251,191,36,0.12)); border-color:rgba(245,158,11,0.35); color:#f59e0b;" title="随机选择音色">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+                                            <span>随机</span>
+                                        </button>
                                     </div>
                                 </div>
                                 <!-- 录音中状态 -->
@@ -607,6 +662,9 @@
                                 </div>
                                 <span class="ref-audio-info-time" id="audioFileMeta"><span id="refCurrentTime">0:00</span> / <span id="refDuration">0:00</span></span>
                                 <div class="ref-audio-actions">
+                                    <button onclick="randomVoice()" class="ref-icon-btn" title="随机选择音色" style="color:#f59e0b;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+                                    </button>
                                     <button onclick="startRecording()" class="ref-icon-btn" title="重新录音" style="color:#ef4444;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                                     </button>
@@ -699,6 +757,14 @@
                         <div class="flex items-center justify-between mb-2">
                             <label class="text-[9px] font-bold text-gray-400 uppercase">说话人设置</label>
                             <div class="flex items-center gap-2">
+                                <button onclick="convertToPodcast()" id="toPodcastBtn" class="text-tag" style="background:linear-gradient(135deg, rgba(168,85,247,0.15), rgba(139,92,246,0.12)); border-color:rgba(168,85,247,0.35); color:#a855f7; font-weight:600;" title="AI 将文本转换为播客对话格式">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
+                                    <span>AI转播客</span>
+                                </button>
+                                <button onclick="randomVoicesForSpeakers()" class="text-tag" style="background:linear-gradient(135deg, rgba(245,158,11,0.15), rgba(251,191,36,0.12)); border-color:rgba(245,158,11,0.35); color:#f59e0b; font-weight:600;" title="随机选择所有说话人音色">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+                                    <span>随机音色</span>
+                                </button>
                                 <span class="text-[10px] text-gray-500">人数</span>
                                 <div class="anima-ctrl-wrap">
                                     <button onclick="toggleMenu('speakerCountMenu')" id="speakerCountBtn" class="anima-ctrl" style="height:26px;padding:0 8px;font-size:10px;">
@@ -709,8 +775,37 @@
                                         <div onclick="setSpeakerCount(2)" class="anima-ctrl-menu-item active"><span>2 人</span><span class="chk">✓</span></div>
                                         <div onclick="setSpeakerCount(3)" class="anima-ctrl-menu-item"><span>3 人</span><span class="chk" style="opacity:0">✓</span></div>
                                         <div onclick="setSpeakerCount(4)" class="anima-ctrl-menu-item"><span>4 人</span><span class="chk" style="opacity:0">✓</span></div>
+                                        <div onclick="setSpeakerCount(5)" class="anima-ctrl-menu-item"><span>5 人</span><span class="chk" style="opacity:0">✓</span></div>
+                                        <div onclick="setSpeakerCount(6)" class="anima-ctrl-menu-item"><span>6 人</span><span class="chk" style="opacity:0">✓</span></div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- 播客风格选择（转播客时展开） -->
+                        <div id="podcastStylePanel" style="display:none;" class="mb-3 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
+                                <span class="text-xs font-bold text-purple-400">播客风格</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button onclick="setPodcastStyle('default')" class="podcast-style-btn active" data-style="default" title="主持人和嘉宾轻松交流">🎙️ 自然对话</button>
+                                <button onclick="setPodcastStyle('news')" class="podcast-style-btn" data-style="news" title="语言正式、节奏明快">📰 新闻播报</button>
+                                <button onclick="setPodcastStyle('casual')" class="podcast-style-btn" data-style="casual" title="像朋友聊天一样随意">☕ 轻松闲聊</button>
+                                <button onclick="setPodcastStyle('interview')" class="podcast-style-btn" data-style="interview" title="主持人追问细节">🎤 深度采访</button>
+                                <button onclick="setPodcastStyle('debate')" class="podcast-style-btn" data-style="debate" title="正反方观点碰撞">⚔️ 观点碰撞</button>
+                                <button onclick="setPodcastStyle('storytelling')" class="podcast-style-btn" data-style="storytelling" title="用叙事方式展开">📖 故事讲述</button>
+                                <button onclick="setPodcastStyle('educational')" class="podcast-style-btn" data-style="educational" title="循序渐进解释概念">📚 教学讲解</button>
+                            </div>
+                            <div class="flex items-center gap-2 mt-3">
+                                <button onclick="executePodcastConvert()" id="executePodcastBtn" class="text-tag" style="background:linear-gradient(135deg, #a855f7, #7c3aed); color:#fff; border:none; height:32px; font-size:12px; font-weight:600; padding:0 16px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    开始转换
+                                </button>
+                                <span id="podcastStatus" class="text-[10px] text-purple-400"></span>
+                            </div>
+                            <div class="mt-2 text-[9px] text-gray-500">
+                                💡 转换后会自动添加停顿标记 [pause] 和情绪标记，让 TTS 生成更自然的节奏
                             </div>
                         </div>
 
@@ -726,7 +821,7 @@
                             <span id="pauseValue" class="text-[10px] font-mono text-gray-500 w-8 text-right">0.3s</span>
                         </div>
 
-                        <p class="text-[10px] text-gray-400 mt-2">合成文本中用 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[speaker1]</code> <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[speaker2]</code> 等标记说话人。</p>
+                        <p class="text-[10px] text-gray-400 mt-2">点击上方 <b class="text-[#0096c7]">S1</b> <b class="text-[#009688]">S2</b> 按钮插入角色标签，或直接在文本中输入 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[Speaker_1]:</code> <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">[Speaker_2]:</code></p>
                     </div>
 
 
@@ -748,7 +843,6 @@
                                     <div onclick="selectMode('clone')" data-mode-key="clone" class="anima-ctrl-menu-item active"><span>声音克隆</span><span class="chk">✓</span></div>
                                     <div onclick="selectMode('design')" data-mode-key="design" class="anima-ctrl-menu-item"><span>音色设计</span><span class="chk" style="opacity:0">✓</span></div>
                                     <div onclick="selectMode('auto')" data-mode-key="auto" class="anima-ctrl-menu-item"><span>自动配音</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div onclick="selectMode('longform')" data-mode-key="longform" class="anima-ctrl-menu-item"><span>长文本</span><span class="chk" style="opacity:0">✓</span></div>
                                     <div onclick="selectMode('multi')" data-mode-key="multi" class="anima-ctrl-menu-item"><span>多人对话</span><span class="chk" style="opacity:0">✓</span></div>
                                 </div>
                             </div>
@@ -767,6 +861,11 @@
                                     <div class="anima-ctrl-menu-item" onclick="applyPreset('clone_focused')"><span>🎯 克隆相似度优先</span></div>
                                     <div class="anima-ctrl-menu-item" onclick="applyPreset('emotion_focused')"><span>💓 情绪表现优先</span></div>
                                     <div class="anima-ctrl-menu-item" onclick="applyPreset('longtext_stable')"><span>📜 长文本稳定</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('broadcast')"><span>📺 新闻播报</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('storytelling')"><span>📖 有声书</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('whisper')"><span>🤫 耳语</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('advertising')"><span>📢 广告配音</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="applyPreset('meditation')"><span>🧘 冥想放松</span></div>
                                     <div class="anima-ctrl-menu-item" onclick="applyPreset('low_vram')"><span>💾 低显存模式</span></div>
                                 </div>
                             </div>
@@ -848,8 +947,18 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- 多人对话：说话人快捷标签（仅 multi 模式显示） -->
+                        <div id="multiSpeakerToolbar" class="text-toolbar" style="display:none;border-top:none;border-radius:0 0 8px 8px;margin-top:-4px;">
+                            <span class="text-toolbar-label">角色</span>
+                            <button onclick="insertSpeakerTag(1)" class="text-tag" style="background:linear-gradient(135deg,rgba(0,180,216,0.1),rgba(0,150,199,0.06));border-color:rgba(0,180,216,0.25);color:#0096c7;font-weight:600;">S1</button>
+                            <button onclick="insertSpeakerTag(2)" class="text-tag" style="background:linear-gradient(135deg,rgba(0,201,167,0.1),rgba(0,180,216,0.06));border-color:rgba(0,201,167,0.25);color:#009688;font-weight:600;">S2</button>
+                            <button onclick="insertSpeakerTag(3)" class="text-tag" style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(249,115,22,0.06));border-color:rgba(245,158,11,0.25);color:#d97706;font-weight:600;">S3</button>
+                            <button onclick="insertSpeakerTag(4)" class="text-tag" style="background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(99,102,241,0.06));border-color:rgba(168,85,247,0.25);color:#7c3aed;font-weight:600;">S4</button>
+                            <span class="text-[9px] text-gray-400 ml-1">选中文本点按钮加角色前缀</span>
+                        </div>
                         <div class="tts-textarea-wrapper">
-                            <textarea id="synthText" rows="6" class="tts-textarea" placeholder="输入要合成的文本..." oninput="onSynthTextInput()"></textarea>
+                            <div id="synthTextHighlight" class="tts-textarea-highlight"></div>
+                            <textarea id="synthText" rows="6" class="tts-textarea" placeholder="输入要合成的文本..." oninput="onSynthTextInput()" onscroll="updateSpeakerHighlight()" style="position:relative;z-index:1;"></textarea>
                             <button onclick="clearSynthText()" id="clearSynthTextBtn" class="tts-corner-btn" title="清空文本" style="bottom:6px;right:6px;display:none;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                             </button>
@@ -1050,7 +1159,8 @@
                 <!-- 底部控制栏 -->
                 <div class="flex items-center justify-between p-4 px-6 control-bar">
                     <div class="flex items-center gap-2">
-                        <span id="modeDescription" class="text-[10px] text-gray-500">短文本声音克隆</span>
+                        <span id="modeDescription" class="text-[10px] text-gray-500">声音克隆（自动适配长文本）</span>
+                        <span id="actualModeTag" class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400" style="display:none;"></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button id="mainGenBtn" onclick="handleGenerate()" class="h-8 px-5 btn-render rounded-xl font-bold text-[11px] uppercase flex items-center justify-center gap-2">
@@ -1181,25 +1291,23 @@
         <div class="voice-picker-window">
             <div class="voice-picker-header">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <input id="voiceSearchInput" type="text" class="voice-picker-search" placeholder="搜索音色..." oninput="filterVoices(this.value)">
+                <input id="voiceSearchInput" type="text" class="voice-picker-search" placeholder="搜索角色名、分类、指令..." oninput="filterVoices(this.value)">
                 <button onclick="closeVoicePicker()" class="anima-ctrl" style="background:rgba(255,255,255,0.1);color:#fff;">关闭</button>
             </div>
-            <!-- 分类筛选 -->
-            <div class="voice-picker-categories">
-                <button onclick="filterByCategory('all')" class="voice-cat-btn active" data-cat="all">全部</button>
-                <button onclick="filterByCategory('genshin')" class="voice-cat-btn" data-cat="genshin">🎮 原神</button>
-                <button onclick="filterByCategory('custom')" class="voice-cat-btn" data-cat="custom">⭐ 自定义</button>
-                <button onclick="filterByCategory('import')" class="voice-cat-btn" data-cat="import">📥 导入</button>
-                <button onclick="filterByCategory('record')" class="voice-cat-btn" data-cat="record">🎤 录音</button>
-                <button onclick="toggleVoiceStarredFilter()" class="voice-cat-btn" id="voiceStarFilterBtn" data-cat="starred">🌟 星标</button>
-            </div>
             <div class="voice-picker-body">
-                <div id="voicePickerGrid" class="voice-picker-grid">
+                <!-- 侧边栏分类 -->
+                <div class="voice-picker-sidebar" id="voiceSidebar">
                     <!-- 动态填充 -->
+                </div>
+                <!-- 主内容区 -->
+                <div class="voice-picker-content">
+                    <div id="voicePickerGrid" class="voice-picker-grid">
+                        <!-- 动态填充 -->
+                    </div>
                 </div>
             </div>
             <div class="voice-picker-footer">
-                <span class="voice-picker-hint">点击卡片直接作为参考音频导入</span>
+                <span class="voice-picker-hint">点击卡片导入音色（多人模式下导入到当前说话人）</span>
                 <div style="display:flex;gap:6px;">
                     <button onclick="importGenshinVoices()" class="anima-ctrl" style="background:rgba(0,180,216,0.15);color:#00b4d8;border:1px solid rgba(0,180,216,0.3);gap:4px;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
@@ -1412,7 +1520,6 @@
             clone: '声音克隆',
             design: '音色设计',
             auto: '自动配音',
-            longform: '长文本',
             multi: '多人对话'
         }[mode];
         document.getElementById('modeMenu').style.display = 'none';
@@ -1423,10 +1530,9 @@
         const refSection = document.getElementById('refAudioSection');
         const multiPanel = document.getElementById('multiSpeakerPanel');
         const descriptions = {
-            clone: '短文本声音克隆',
+            clone: '声音克隆（自动适配长文本）',
             design: '文字设计声音（无需参考音频）',
             auto: '自动选择声音（无需参考音频和指令）',
-            longform: '长文本分块生成',
             multi: '多人对话'
         };
         document.getElementById('modeDescription').textContent = descriptions[currentMode];
@@ -1436,16 +1542,23 @@
         refSection.style.pointerEvents = noRefModes.includes(currentMode) ? 'none' : 'auto';
         // multi 模式：隐藏单人参考音频区（含风格指令），显示多人面板
         const instructSection = document.getElementById('instructSection');
+        const multiToolbar = document.getElementById('multiSpeakerToolbar');
+        const synthTextarea = document.getElementById('synthText');
         if (currentMode === 'multi') {
             refSection.style.display = 'none';
             multiPanel.style.display = 'block';
+            if (multiToolbar) multiToolbar.style.display = '';
+            if (synthTextarea) synthTextarea.placeholder = '[Speaker_1]: 你好\n[Speaker_2]: 你好你好';
             renderSpeakerCards();
         } else {
             refSection.style.display = '';
             multiPanel.style.display = 'none';
+            if (multiToolbar) multiToolbar.style.display = 'none';
+            if (synthTextarea) synthTextarea.placeholder = '输入要合成的文本...';
             // 单人模式：风格指令显示在参考音频区内
             if (instructSection) instructSection.style.display = '';
         }
+        updateSpeakerHighlight();
     }
 
     // ==================== 录音功能 ====================
@@ -1478,7 +1591,24 @@
                 stream.getTracks().forEach(t => t.stop());
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
                 const file = new File([blob], `recording_${Date.now()}.webm`, { type: 'audio/webm' });
-                loadRefAudio(file);
+                if (recordingTargetSpeaker >= 0) {
+                    // 录音回填到指定说话人
+                    const idx = recordingTargetSpeaker;
+                    const old = speakerData[idx];
+                    if (old && old.blobUrl && old.blobUrl.startsWith('blob:')) {
+                        try { URL.revokeObjectURL(old.blobUrl); } catch(e) {}
+                    }
+                    const blobUrl = URL.createObjectURL(blob);
+                    speakerData[idx].audioFile = file;
+                    speakerData[idx].blobUrl = blobUrl;
+                    speakerData[idx].voiceName = '';
+                    recordingTargetSpeaker = -1;
+                    renderSpeakerCards();
+                    const audio = document.getElementById('spkAudio' + idx);
+                    if (audio) audio.src = blobUrl;
+                } else {
+                    loadRefAudio(file);
+                }
                 if (audioContext) { audioContext.close(); audioContext = null; }
             };
             
@@ -1726,6 +1856,71 @@
         }
     }
 
+    // ==================== 角色头像映射 ====================
+    const CHARACTER_AVATARS = {};
+    
+    // 从 animadex 加载头像映射
+    async function loadAvatarMap() {
+        try {
+            const res = await fetch('/api/animadex/characters?copyright=genshin_impact&limit=500');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.characters) {
+                    for (const char of data.characters) {
+                        if (char.thumb_url) {
+                            const nameMatch = char.name.match(/^(.+?)\s*\(genshin impact\)$/i);
+                            if (nameMatch) {
+                                CHARACTER_AVATARS[nameMatch[1].trim()] = char.thumb_url;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            console.log('加载头像映射失败，使用默认头像');
+        }
+    }
+    
+    // 去除角色名前缀
+    function stripVoiceNamePrefix(name) {
+        if (name.startsWith('原神·')) {
+            return name.substring(3);
+        }
+        return name;
+    }
+    
+    // 获取角色头像URL
+    function getCharacterAvatar(name) {
+        const cleanName = stripVoiceNamePrefix(name);
+        if (CHARACTER_AVATARS[cleanName]) {
+            return CHARACTER_AVATARS[cleanName];
+        }
+        return null;
+    }
+    
+    // 从 instruct 字段解析性别
+    function parseGenderFromInstruct(instruct) {
+        if (!instruct) return 'unknown';
+        if (instruct.includes('女')) return 'female';
+        if (instruct.includes('男')) return 'male';
+        return 'unknown';
+    }
+    
+    // 从 instruct 字段解析年龄/音调等级
+    function parseAgeFromInstruct(instruct) {
+        if (!instruct) return 'unknown';
+        if (instruct.includes('极高音调') || instruct.includes('幼')) return 'child';
+        if (instruct.includes('高音调')) return 'young';
+        if (instruct.includes('中音调')) return 'adult';
+        if (instruct.includes('低音调')) return 'mature';
+        return 'adult';
+    }
+    
+    // 获取性别标签文字
+    function getGenderLabel(gender) {
+        return { female: '♀ 女', male: '♂ 男', unknown: '?' }[gender] || '?';
+    }
+    
     // ==================== 音色库 ====================
     let currentCategory = 'all';
     let previewAudio = null;
@@ -1739,77 +1934,334 @@
         } catch(e) {
             console.error('加载音色库失败:', e);
         }
+        // 加载头像映射
+        await loadAvatarMap();
     }
 
     function openVoicePicker() {
+        voicePickerTargetSpeaker = -1;
         currentCategory = 'all';
-        document.querySelectorAll('.voice-cat-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.cat === 'all');
-        });
+        voiceFilterGender = null;
+        voiceFilterAge = null;
+        voiceFilterStarred = false;
+        renderSidebar();
+        renderVoiceGrid();
+        document.getElementById('voicePickerOverlay').classList.add('is-open');
+    }
+
+    function openVoicePickerForSpeaker(index) {
+        voicePickerTargetSpeaker = index;
+        currentCategory = 'all';
+        voiceFilterGender = null;
+        voiceFilterAge = null;
+        voiceFilterStarred = false;
+        renderSidebar();
         renderVoiceGrid();
         document.getElementById('voicePickerOverlay').classList.add('is-open');
     }
 
     function closeVoicePicker() {
         document.getElementById('voicePickerOverlay').classList.remove('is-open');
+        voicePickerTargetSpeaker = -1;
         stopPreview();
     }
 
+    // ==================== 侧边栏分类 ====================
+    function renderSidebar() {
+        const sidebar = document.getElementById('voiceSidebar');
+        if (!sidebar) return;
+        
+        // 统计各分类数量
+        const categories = {};
+        const genders = { female: 0, male: 0, unknown: 0 };
+        const ages = { child: 0, young: 0, adult: 0, mature: 0, unknown: 0 };
+        let totalCount = 0;
+        
+        for (const [name, info] of Object.entries(voiceLibrary)) {
+            const cat = info.category || 'custom';
+            categories[cat] = (categories[cat] || 0) + 1;
+            
+            const gender = parseGenderFromInstruct(info.instruct);
+            genders[gender] = (genders[gender] || 0) + 1;
+            
+            const age = parseAgeFromInstruct(info.instruct);
+            ages[age] = (ages[age] || 0) + 1;
+            
+            totalCount++;
+        }
+        
+        const categoryLabels = {
+            genshin: '🎮 原神',
+            custom: '⭐ 自定义',
+            import: '📥 导入',
+            record: '🎤 录音'
+        };
+        
+        let html = `
+            <div class="voice-sidebar-section">来源</div>
+            <div class="voice-sidebar-item ${currentCategory === 'all' ? 'active' : ''}" onclick="filterByCategory('all')">
+                <span>📋 全部</span>
+                <span class="count">${totalCount}</span>
+            </div>
+        `;
+        
+        for (const [cat, count] of Object.entries(categories)) {
+            if (count === 0) continue;
+            html += `
+                <div class="voice-sidebar-item ${currentCategory === cat ? 'active' : ''}" onclick="filterByCategory('${cat}')">
+                    <span>${categoryLabels[cat] || cat}</span>
+                    <span class="count">${count}</span>
+                </div>
+            `;
+        }
+        
+        html += `<div class="voice-sidebar-divider"></div>`;
+        html += `<div class="voice-sidebar-section">性别</div>`;
+        
+        const genderLabels = { female: '♀ 女性', male: '♂ 男性', unknown: '❓ 未知' };
+        for (const [gender, count] of Object.entries(genders)) {
+            if (count === 0) continue;
+            html += `
+                <div class="voice-sidebar-item ${currentCategory === 'gender_' + gender ? 'active' : ''}" onclick="filterByCategory('gender_${gender}')">
+                    <span>${genderLabels[gender]}</span>
+                    <span class="count">${count}</span>
+                </div>
+            `;
+        }
+        
+        html += `<div class="voice-sidebar-divider"></div>`;
+        html += `<div class="voice-sidebar-section">年龄/音调</div>`;
+        
+        const ageLabels = { child: '👶 幼', young: '🧒 少', adult: '👤 成', mature: '🧓 熟', unknown: '❓ 未知' };
+        for (const [age, count] of Object.entries(ages)) {
+            if (count === 0) continue;
+            html += `
+                <div class="voice-sidebar-item ${currentCategory === 'age_' + age ? 'active' : ''}" onclick="filterByCategory('age_${age}')">
+                    <span>${ageLabels[age]}</span>
+                    <span class="count">${count}</span>
+                </div>
+            `;
+        }
+        
+        html += `<div class="voice-sidebar-divider"></div>`;
+        html += `
+            <div class="voice-sidebar-section">收藏</div>
+            <div class="voice-sidebar-item ${voiceFilterStarred ? 'active' : ''}" onclick="toggleVoiceStarredFilter()">
+                <span>🌟 星标</span>
+            </div>
+        `;
+        
+        sidebar.innerHTML = html;
+    }
+    
     function filterByCategory(cat) {
-        currentCategory = cat;
-        document.querySelectorAll('.voice-cat-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.cat === cat);
-        });
+        // 处理性别分类
+        if (cat.startsWith('gender_')) {
+            currentCategory = 'all';
+            voiceFilterGender = cat.replace('gender_', '');
+            voiceFilterAge = null;
+        } else if (cat.startsWith('age_')) {
+            currentCategory = 'all';
+            voiceFilterAge = cat.replace('age_', '');
+            voiceFilterGender = null;
+        } else {
+            currentCategory = cat;
+            voiceFilterGender = null;
+            voiceFilterAge = null;
+        }
+        renderSidebar();
         renderVoiceGrid(document.getElementById('voiceSearchInput').value);
     }
-
-    let voiceFilterStarred = false;
-
+    
+    let voiceFilterGender = null;
+    let voiceFilterAge = null;
+    
     function toggleVoiceStarredFilter() {
         voiceFilterStarred = !voiceFilterStarred;
-        const btn = document.getElementById('voiceStarFilterBtn');
-        if (btn) btn.classList.toggle('active', voiceFilterStarred);
+        voiceFilterGender = null;
+        voiceFilterAge = null;
+        renderSidebar();
         renderVoiceGrid(document.getElementById('voiceSearchInput')?.value || '');
     }
-
+    
     function renderVoiceGrid(filter = '') {
         const grid = document.getElementById('voicePickerGrid');
         let voices = Object.entries(voiceLibrary).filter(([name, info]) => {
-            const matchSearch = !filter || name.toLowerCase().includes(filter.toLowerCase()) || (info.note || '').toLowerCase().includes(filter.toLowerCase());
+            const displayName = stripVoiceNamePrefix(name);
+            const matchSearch = !filter || 
+                displayName.toLowerCase().includes(filter.toLowerCase()) || 
+                name.toLowerCase().includes(filter.toLowerCase()) ||
+                (info.instruct || '').toLowerCase().includes(filter.toLowerCase()) ||
+                (info.note || '').toLowerCase().includes(filter.toLowerCase());
             const matchCat = currentCategory === 'all' || info.category === currentCategory;
             const matchStar = !voiceFilterStarred || info.starred;
-            return matchSearch && matchCat && matchStar;
+            
+            // 性别筛选
+            let matchGender = true;
+            if (voiceFilterGender) {
+                const gender = parseGenderFromInstruct(info.instruct);
+                matchGender = gender === voiceFilterGender;
+            }
+            
+            // 年龄筛选
+            let matchAge = true;
+            if (voiceFilterAge) {
+                const age = parseAgeFromInstruct(info.instruct);
+                matchAge = age === voiceFilterAge;
+            }
+            
+            return matchSearch && matchCat && matchStar && matchGender && matchAge;
         });
 
-        // 星标优先排序
-        voices.sort((a, b) => (b[1].starred ? 1 : 0) - (a[1].starred ? 1 : 0));
+        // 星标优先排序，然后按名字排序
+        voices.sort((a, b) => {
+            if (a[1].starred !== b[1].starred) return (b[1].starred ? 1 : 0) - (a[1].starred ? 1 : 0);
+            return stripVoiceNamePrefix(a[0]).localeCompare(stripVoiceNamePrefix(b[0]), 'zh');
+        });
         
         if (voices.length === 0) {
-            grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">暂无音色</div>';
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.4);padding:32px 0;font-size:13px;">暂无匹配的音色</div>';
             return;
         }
 
-        grid.innerHTML = voices.map(([name, info]) => `
-            <div class="voice-card ${selectedVoiceName === name ? 'selected' : ''}" onclick="selectVoice('${name}')">
-                <button class="voice-card-preview" onclick="event.stopPropagation(); previewVoice('${name}', this)" title="试听">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                </button>
-                <div class="voice-card-name">${info.starred ? '⭐ ' : ''}${name}</div>
-                <div class="voice-card-instruct">${info.instruct || '-'}</div>
-                ${info.note ? `<div class="voice-card-note" style="font-size:10px;color:#999;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${info.note}">${info.note}</div>` : ''}
-                <div class="voice-card-actions" style="display:flex;gap:4px;margin-top:4px;">
-                    <button onclick="event.stopPropagation(); toggleVoiceStarred('${name.replace(/'/g, "\\'")}')" class="ref-action-btn" style="height:18px;padding:0 5px;font-size:9px;" title="星标">${info.starred ? '⭐' : '☆'}</button>
-                    <button onclick="event.stopPropagation(); editVoiceNote('${name.replace(/'/g, "\\'")}')" class="ref-action-btn" style="height:18px;padding:0 5px;font-size:9px;" title="备注">📝</button>
+        grid.innerHTML = voices.map(([name, info]) => {
+            const displayName = stripVoiceNamePrefix(name);
+            const avatarUrl = getCharacterAvatar(name);
+            const gender = parseGenderFromInstruct(info.instruct);
+            const genderClass = gender === 'female' ? 'female' : gender === 'male' ? 'male' : '';
+            const genderText = getGenderLabel(gender);
+            
+            return `
+                <div class="voice-card ${selectedVoiceName === name ? 'selected' : ''}" onclick="selectVoice('${name.replace(/'/g, "\\'")}')">
+                    <button class="voice-card-preview" onclick="event.stopPropagation(); previewVoice('${name.replace(/'/g, "\\'")}', this)" title="试听">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </button>
+                    ${avatarUrl 
+                        ? `<img class="voice-card-avatar" src="${avatarUrl}" alt="${displayName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                           <div class="voice-card-avatar-placeholder" style="display:none;">${displayName.charAt(0)}</div>`
+                        : `<div class="voice-card-avatar-placeholder">${displayName.charAt(0)}</div>`
+                    }
+                    <div class="voice-card-name">${info.starred ? '⭐ ' : ''}${displayName}</div>
+                    <div class="voice-card-instruct">${info.instruct || '-'}</div>
+                    <div class="voice-card-tags">
+                        <span class="voice-card-tag ${genderClass}">${genderText}</span>
+                        ${info.starred ? '<span class="voice-card-tag">🌟</span>' : ''}
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+    }
+    
+    // ==================== 随机音色选择 ====================
+    async function randomVoice() {
+        const voices = Object.entries(voiceLibrary);
+        if (voices.length === 0) {
+            alert('音色库为空，请先导入音色');
+            return;
+        }
+        
+        // 随机选择一个音色
+        const randomIndex = Math.floor(Math.random() * voices.length);
+        const [name, info] = voices[randomIndex];
+        
+        console.log('随机选择音色:', name);
+        
+        // 直接加载为参考音频
+        selectedVoiceName = name;
+        await loadSelectedVoice();
+    }
+    
+    async function randomVoicesForSpeakers() {
+        const voices = Object.entries(voiceLibrary);
+        if (voices.length === 0) {
+            alert('音色库为空，请先导入音色');
+            return;
+        }
+        
+        // 打乱音色列表
+        const shuffled = [...voices].sort(() => Math.random() - 0.5);
+        
+        // 为每个说话人分配随机音色
+        for (let i = 0; i < speakerCount; i++) {
+            const voiceIndex = i % shuffled.length;
+            const [name, info] = shuffled[voiceIndex];
+            
+            console.log(`说话人${i + 1} 随机音色:`, name);
+            
+            try {
+                const audioUrl = `/api/tts/voices/file/${info.file}`;
+                const response = await fetch(audioUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                const fileName = info.file.split(/[\\/]/).pop();
+                const file = new File([blob], fileName, { type: blob.type || 'audio/wav' });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                speakerData[i].audioFile = file;
+                speakerData[i].blobUrl = blobUrl;
+                speakerData[i].voiceName = name;
+                if (info.instruct) {
+                    speakerData[i].instruct = info.instruct;
+                }
+            } catch(e) {
+                console.error(`加载音色 ${name} 失败:`, e);
+            }
+        }
+        
+        // 刷新说话人卡片
+        renderSpeakerCards();
+        
+        // 设置音频 src
+        for (let i = 0; i < speakerCount; i++) {
+            const data = speakerData[i];
+            if (data && data.blobUrl) {
+                const audio = document.getElementById('spkAudio' + i);
+                if (audio) audio.src = data.blobUrl;
+            }
+        }
     }
 
     function selectVoice(name) {
         selectedVoiceName = name;
         renderVoiceGrid(document.getElementById('voiceSearchInput').value);
-        // 点击即导入：直接加载为参考音频
-        loadSelectedVoice();
+        // 多人对话模式：加载到对应说话人
+        if (voicePickerTargetSpeaker >= 0) {
+            loadVoiceToSpeaker(name, voicePickerTargetSpeaker);
+        } else {
+            // 单人模式：直接加载为参考音频
+            loadSelectedVoice();
+        }
+    }
+
+    async function loadVoiceToSpeaker(name, speakerIndex) {
+        const info = voiceLibrary[name];
+        if (!info || !info.file) {
+            closeVoicePicker();
+            return;
+        }
+        try {
+            const audioUrl = `/api/tts/voices/file/${info.file}`;
+            const response = await fetch(audioUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const blob = await response.blob();
+            const fileName = info.file.split(/[\\/]/).pop();
+            const file = new File([blob], fileName, { type: blob.type || 'audio/wav' });
+            const blobUrl = URL.createObjectURL(blob);
+            speakerData[speakerIndex].audioFile = file;
+            speakerData[speakerIndex].blobUrl = blobUrl;
+            speakerData[speakerIndex].voiceName = name;
+            if (info.instruct) {
+                speakerData[speakerIndex].instruct = info.instruct;
+            }
+            renderSpeakerCards();
+            // 设置音频 src
+            const audio = document.getElementById('spkAudio' + speakerIndex);
+            if (audio) audio.src = blobUrl;
+            closeVoicePicker();
+        } catch(e) {
+            console.error('加载音色到说话人失败:', e);
+            alert('加载音色失败: ' + e.message);
+        }
     }
 
     function filterVoices(query) {
@@ -1963,11 +2415,87 @@
     // ==================== 多人对话 ====================
     let speakerCount = 2;
     let speakerData = [
-        { audioFile: null, refText: '', instruct: '' },
-        { audioFile: null, refText: '', instruct: '' },
-        { audioFile: null, refText: '', instruct: '' },
-        { audioFile: null, refText: '', instruct: '' }
+        { audioFile: null, blobUrl: null, refText: '', instruct: '' },
+        { audioFile: null, blobUrl: null, refText: '', instruct: '' },
+        { audioFile: null, blobUrl: null, refText: '', instruct: '' },
+        { audioFile: null, blobUrl: null, refText: '', instruct: '' }
     ];
+    // 当前正在选择音色的说话人索引（-1 表示单人模式）
+    let voicePickerTargetSpeaker = -1;
+    let podcastStyle = 'default';
+    
+    // ==================== 播客转换 ====================
+    function convertToPodcast() {
+        const panel = document.getElementById('podcastStylePanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    function setPodcastStyle(style) {
+        podcastStyle = style;
+        document.querySelectorAll('.podcast-style-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.style === style);
+        });
+    }
+    
+    async function executePodcastConvert() {
+        const textarea = document.getElementById('synthText');
+        const text = textarea.value.trim();
+        if (!text) {
+            alert('请先在下方文本框输入要转换的文章内容');
+            return;
+        }
+        
+        const btn = document.getElementById('executePodcastBtn');
+        const status = document.getElementById('podcastStatus');
+        btn.disabled = true;
+        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 转换中...`;
+        status.textContent = '正在调用 AI 转换为播客格式...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('num_speakers', speakerCount);
+            formData.append('style', podcastStyle);
+            
+            const res = await fetch('/api/tts/to-podcast' + window.location.search, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || '转换失败');
+            }
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                textarea.value = data.podcast_text;
+                status.textContent = `✓ 转换完成！检测到 ${data.original_speakers.length} 位说话人：${data.original_speakers.join('、')}`;
+                
+                // 更新说话人名称
+                if (data.original_speakers) {
+                    for (let i = 0; i < Math.min(data.original_speakers.length, speakerCount); i++) {
+                        speakerData[i].name = data.original_speakers[i];
+                    }
+                    renderSpeakerCards();
+                }
+                
+                // 隐藏风格面板
+                setTimeout(() => {
+                    document.getElementById('podcastStylePanel').style.display = 'none';
+                }, 2000);
+            } else {
+                throw new Error(data.error || '转换失败');
+            }
+        } catch(e) {
+            status.textContent = `✕ ${e.message}`;
+            alert('播客转换失败: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 开始转换`;
+        }
+    }
 
     function setSpeakerCount(n) {
         speakerCount = n;
@@ -1988,25 +2516,58 @@
             const idx = i + 1;
             const data = speakerData[i] || { audioFile: null, refText: '', instruct: '' };
             speakerData[i] = data;
+            const voiceName = data.voiceName || '';
             const fileName = data.audioFile ? data.audioFile.name : '';
+            const hasAudio = !!data.audioFile;
+            const displayName = voiceName || fileName || '';
+
             html += `
                 <div class="speaker-card">
                     <div class="speaker-card-header">
                         <div class="speaker-badge ${colors[i]}">S${idx}</div>
                         <input class="speaker-name-input" type="text" placeholder="说话人${idx}名称" value="${data.name || ''}" onchange="speakerData[${i}].name=this.value">
                     </div>
-                    <div class="speaker-audio-row">
-                        <label class="speaker-audio-btn">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                            ${fileName ? '已选择' : '选择音频'}
-                            <input type="file" accept="audio/*" style="display:none" onchange="handleSpeakerAudio(this.files, ${i})">
-                        </label>
-                        ${fileName ? `<span class="speaker-audio-name" title="${fileName}">${fileName}</span>` : ''}
-                        <label class="speaker-audio-btn" style="border-style:solid;color:#ef4444;" onclick="event.preventDefault(); recordSpeaker(${i})">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg>
-                            录音
-                        </label>
-                    </div>
+                    ${hasAudio ? `
+                        <div class="speaker-audio-card">
+                            <button class="ref-play-btn-lg" onclick="toggleSpeakerPlay(${i})" id="spkPlayBtn${i}">
+                                <svg id="spkPlayIcon${i}" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="position:relative;z-index:1;"><polygon points="8,5 20,12 8,19"/></svg>
+                            </button>
+                            <span class="ref-audio-info-name" title="${displayName}">${displayName}</span>
+                            <div class="ref-audio-waveform" onclick="seekSpeakerAudio(event, ${i})">
+                                <canvas class="ref-waveform-canvas" id="spkWaveform${i}"></canvas>
+                                <div class="ref-waveform-progress" id="spkProgress${i}"></div>
+                            </div>
+                            <span class="ref-audio-info-time" id="spkTime${i}" style="font-size:9px;white-space:nowrap;"><span id="spkCurTime${i}">0:00</span></span>
+                            <div class="ref-audio-actions">
+                                <button onclick="openVoicePickerForSpeaker(${i})" class="ref-icon-btn" title="换音色" style="color:#00b4d8;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </button>
+                                <button onclick="clearSpeakerAudio(${i})" class="ref-icon-btn ref-icon-btn-danger" title="移除">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                            <audio id="spkAudio${i}" preload="metadata" style="display:none;"
+                                onloadedmetadata="onSpeakerAudioLoaded(${i})"
+                                ontimeupdate="onSpeakerAudioProgress(${i})"
+                                onended="onSpeakerAudioEnded(${i})"></audio>
+                        </div>
+                    ` : `
+                        <div class="speaker-audio-row">
+                            <label class="speaker-audio-btn">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                上传音频
+                                <input type="file" accept="audio/*" style="display:none" onchange="handleSpeakerAudio(this.files, ${i})">
+                            </label>
+                            <button class="speaker-audio-btn" onclick="openVoicePickerForSpeaker(${i})" title="从音色库选择">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                音色库
+                            </button>
+                            <label class="speaker-audio-btn" style="border-style:solid;color:#ef4444;" onclick="event.preventDefault(); recordSpeaker(${i})">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg>
+                                录音
+                            </label>
+                        </div>
+                    `}
                     <div class="speaker-fields">
                         <input class="speaker-field-input" type="text" placeholder="参考文本 (ref_text)" value="${data.refText || ''}" onchange="speakerData[${i}].refText=this.value">
                         <input class="speaker-field-input" type="text" placeholder="风格指令 (instruct)" value="${data.instruct || ''}" onchange="speakerData[${i}].instruct=this.value">
@@ -2015,17 +2576,138 @@
             `;
         }
         container.innerHTML = html;
+        // 为已有音频的说话人恢复音频 src + 绘制波形
+        for (let i = 0; i < speakerCount; i++) {
+            const data = speakerData[i];
+            if (data && data.audioFile && data.blobUrl) {
+                const audio = document.getElementById('spkAudio' + i);
+                if (audio) {
+                    audio.src = data.blobUrl;
+                    // 如果音频已缓存，直接绘制波形
+                    if (audio.readyState >= 1) {
+                        const canvas = document.getElementById('spkWaveform' + i);
+                        if (canvas) drawWaveform(canvas, data.blobUrl);
+                    }
+                }
+            }
+        }
+    }
+
+    // ==================== 说话人音频播放控制 ====================
+    function toggleSpeakerPlay(idx) {
+        const audio = document.getElementById('spkAudio' + idx);
+        const btn = document.getElementById('spkPlayBtn' + idx);
+        const icon = document.getElementById('spkPlayIcon' + idx);
+        if (!audio) return;
+        // 如果 src 还没设，从 speakerData 恢复
+        if (!audio.src && speakerData[idx] && speakerData[idx].blobUrl) {
+            audio.src = speakerData[idx].blobUrl;
+        }
+        if (!audio.src) return;
+        const pauseSvg = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+        const playSvg = '<polygon points="8,5 20,12 8,19"/>';
+        if (audio.paused) {
+            // 先停掉其他说话人的播放
+            for (let j = 0; j < speakerCount; j++) {
+                if (j !== idx) {
+                    const other = document.getElementById('spkAudio' + j);
+                    if (other && !other.paused) { other.pause(); }
+                    const otherBtn = document.getElementById('spkPlayBtn' + j);
+                    const otherIcon = document.getElementById('spkPlayIcon' + j);
+                    if (otherIcon) otherIcon.innerHTML = playSvg;
+                    if (otherBtn) otherBtn.classList.remove('playing');
+                }
+            }
+            audio.play().catch(() => {});
+            if (icon) icon.innerHTML = pauseSvg;
+            if (btn) btn.classList.add('playing');
+        } else {
+            audio.pause();
+            if (icon) icon.innerHTML = playSvg;
+            if (btn) btn.classList.remove('playing');
+        }
+    }
+
+    function onSpeakerAudioLoaded(idx) {
+        const audio = document.getElementById('spkAudio' + idx);
+        const timeEl = document.getElementById('spkTime' + idx);
+        if (audio && timeEl) timeEl.innerHTML = `<span id="spkCurTime${idx}">0:00</span> / ${formatDuration(audio.duration)}`;
+        // 绘制波形
+        const data = speakerData[idx];
+        if (data && data.blobUrl) {
+            const canvas = document.getElementById('spkWaveform' + idx);
+            if (canvas) drawWaveform(canvas, data.blobUrl);
+        }
+    }
+
+    function onSpeakerAudioProgress(idx) {
+        const audio = document.getElementById('spkAudio' + idx);
+        const fill = document.getElementById('spkProgress' + idx);
+        const time = document.getElementById('spkCurTime' + idx);
+        if (audio && audio.duration && fill) {
+            fill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+            if (time) time.textContent = formatDuration(audio.currentTime);
+        }
+    }
+
+    function onSpeakerAudioEnded(idx) {
+        const btn = document.getElementById('spkPlayBtn' + idx);
+        const icon = document.getElementById('spkPlayIcon' + idx);
+        const playSvg = '<polygon points="8,5 20,12 8,19"/>';
+        if (icon) icon.innerHTML = playSvg;
+        if (btn) btn.classList.remove('playing');
+        const fill = document.getElementById('spkProgress' + idx);
+        if (fill) fill.style.width = '0%';
+    }
+
+    function seekSpeakerAudio(e, idx) {
+        const bar = e.currentTarget;
+        const audio = document.getElementById('spkAudio' + idx);
+        if (!audio || !audio.duration) return;
+        const rect = bar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = percent * audio.duration;
+    }
+
+    function clearSpeakerAudio(idx) {
+        const data = speakerData[idx];
+        if (!data) return;
+        // 释放 blob URL
+        if (data.blobUrl && data.blobUrl.startsWith('blob:')) {
+            try { URL.revokeObjectURL(data.blobUrl); } catch(e) {}
+        }
+        data.audioFile = null;
+        data.blobUrl = null;
+        data.voiceName = '';
+        renderSpeakerCards();
     }
 
     function handleSpeakerAudio(files, index) {
         if (!files || !files[0]) return;
-        speakerData[index].audioFile = files[0];
+        const file = files[0];
+        // 释放旧 blob URL
+        const old = speakerData[index];
+        if (old && old.blobUrl && old.blobUrl.startsWith('blob:')) {
+            try { URL.revokeObjectURL(old.blobUrl); } catch(e) {}
+        }
+        const blobUrl = URL.createObjectURL(file);
+        speakerData[index].audioFile = file;
+        speakerData[index].blobUrl = blobUrl;
+        speakerData[index].voiceName = '';
         renderSpeakerCards();
+        // 设置音频 src 并绘制波形
+        const audio = document.getElementById('spkAudio' + index);
+        if (audio) {
+            audio.src = blobUrl;
+        }
     }
 
+    let recordingTargetSpeaker = -1;
+
     function recordSpeaker(index) {
-        // 暂存当前说话人索引，录音完成后回填
-        alert('录音功能：请使用浏览器录音，录音完成后音频将自动填入说话人 ' + (index + 1) + '。');
+        recordingTargetSpeaker = index;
+        // 复用已有的录音功能，录音完成后回填到对应说话人
+        startRecording();
     }
 
     // ==================== 生成 ====================
@@ -2116,6 +2798,17 @@
                     throw new Error(result.error);
                 }
 
+                // 显示实际使用的模式
+                if (result.params?.actual_mode) {
+                    const actualMode = result.params.actual_mode;
+                    const modeTag = document.getElementById('actualModeTag');
+                    if (modeTag) {
+                        modeTag.textContent = actualMode === 'longform' ? '长文本模式' : '声音克隆模式';
+                        modeTag.style.display = 'inline-block';
+                        setTimeout(() => { modeTag.style.display = 'none'; }, 3000);
+                    }
+                }
+
                 // 显示结果
                 if (result.audio && result.audio.length > 0) {
                     addAudioCard(result);
@@ -2197,7 +2890,7 @@
                     <canvas class="audio-waveform-active" id="fxCanvas-${cardId}"></canvas>
                 </div>
                 <div class="audio-result-footer">
-                    <span class="audio-mode-badge">${mode === 'design' ? '音色设计' : mode === 'longform' ? '长文本' : mode === 'multi' ? '多人对话' : mode === 'auto' ? '自动配音' : '声音克隆'}</span>
+                    <span class="audio-mode-badge">${mode === 'design' ? '音色设计' : mode === 'multi' ? '多人对话' : mode === 'auto' ? '自动配音' : '声音克隆'}</span>
                     <span class="audio-duration" id="duration-${cardId}">--:--</span>
                     <span class="audio-timestamp">${new Date(timestamp * 1000).toLocaleTimeString()}</span>
                 </div>
@@ -2452,6 +3145,36 @@
         const translateWrap = document.getElementById('translateBtnWrap');
         if (clearBtn) clearBtn.style.display = text.length > 0 ? 'inline-flex' : 'none';
         if (translateWrap) translateWrap.style.display = text.length > 0 ? 'block' : 'none';
+        updateSpeakerHighlight();
+    }
+
+    // 多人对话：高亮叠层渲染
+    function updateSpeakerHighlight() {
+        const ta = document.getElementById('synthText');
+        const hl = document.getElementById('synthTextHighlight');
+        if (!ta || !hl) return;
+        if (currentMode !== 'multi') {
+            hl.innerHTML = '';
+            ta.style.color = '';
+            return;
+        }
+        // textarea 文字透明，显示 caret
+        ta.style.color = 'transparent';
+        ta.style.caretColor = '';
+        const text = ta.value;
+        // 先转义 HTML，再对 Speaker 标签着色
+        let html = escHtml(text);
+        html = html.replace(
+            /^(\[Speaker_(\d+)\]:\s*)/gm,
+            (match, tag, num) => `<span class="spk-tag spk-${num}">${tag}</span>`
+        );
+        hl.innerHTML = html;
+        // 同步滚动
+        hl.scrollTop = ta.scrollTop;
+        hl.scrollLeft = ta.scrollLeft;
+    }
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     function clearSynthText() {
@@ -2557,30 +3280,22 @@
                 ta.value = data.enhanced_text;
                 onSynthTextInput();
 
-                // 应用推荐参数
-                if (data.suggested_params) {
-                    const p = data.suggested_params;
-                    if (p.speed !== undefined) {
-                        const slider = document.getElementById('speedSlider');
-                        if (slider) { slider.value = p.speed; document.getElementById('speedValue').textContent = p.speed; }
-                    }
-                    if (p.steps !== undefined) {
-                        const slider = document.getElementById('stepsSlider');
-                        if (slider) { slider.value = p.steps; document.getElementById('stepsValue').textContent = p.steps; }
-                    }
-                    if (p.cfg !== undefined) {
-                        const slider = document.getElementById('cfgSlider');
-                        if (slider) { slider.value = p.cfg; document.getElementById('cfgValue').textContent = p.cfg; }
-                    }
+                // 应用推荐预设（完整预设，包含所有参数）
+                if (data.recommended_preset && PRESETS[data.recommended_preset]) {
+                    applyPreset(data.recommended_preset);
                 }
 
                 // 显示修改摘要
-                if (data.changes && data.changes.length > 0) {
-                    const summary = data.changes.join('\n');
-                    // 用 toast 提示
+                const presetLabel = data.recommended_preset && PRESETS[data.recommended_preset]
+                    ? PRESETS[data.recommended_preset].label
+                    : '';
+                const summaryParts = [];
+                if (presetLabel) summaryParts.push('预设: ' + presetLabel);
+                if (data.changes && data.changes.length > 0) summaryParts.push(...data.changes);
+                if (summaryParts.length > 0) {
                     const toast = document.createElement('div');
                     toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 18px;border-radius:10px;font-size:12px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.3);max-width:400px;white-space:pre-line;line-height:1.5;';
-                    toast.textContent = '✨ AI 精修完成\n' + summary;
+                    toast.textContent = '✨ AI 精修完成\n' + summaryParts.join('\n');
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 3000);
                     setTimeout(() => toast.remove(), 3500);
@@ -2607,6 +3322,33 @@
         const text = textarea.value;
         textarea.value = text.substring(0, start) + tag + text.substring(end);
         textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+        textarea.focus();
+    }
+
+    // 多人对话：给选中文本加说话人标签，没选中则插入新标签
+    function insertSpeakerTag(n) {
+        const textarea = document.getElementById('synthText');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const selected = text.substring(start, end);
+        const tag = '[Speaker_' + n + ']: ';
+        if (selected.trim()) {
+            // 有选中文本：找到选区所在行的行首，插入标签
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            const newText = text.substring(0, lineStart) + tag + text.substring(lineStart);
+            textarea.value = newText;
+            // 选区偏移 tag 长度
+            textarea.selectionStart = start + tag.length;
+            textarea.selectionEnd = end + tag.length;
+        } else {
+            // 无选中：换行 + 插入标签
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            const prefix = (start > lineStart) ? '\n' : '';
+            const insert = prefix + tag;
+            textarea.value = text.substring(0, start) + insert + text.substring(start);
+            textarea.selectionStart = textarea.selectionEnd = start + insert.length;
+        }
         textarea.focus();
     }
 
@@ -3108,6 +3850,11 @@
         clone_focused:  { steps: 40, cfg: 3.0, speed: 1.0, denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '克隆相似度优先' },
         emotion_focused:{ steps: 48, cfg: 2.8, speed: 0.95,denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '情绪表现优先' },
         longtext_stable:{ steps: 32, cfg: 2.0, speed: 0.9, denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '长文本稳定' },
+        broadcast:      { steps: 40, cfg: 2.2, speed: 1.1, denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '新闻播报' },
+        storytelling:   { steps: 48, cfg: 2.5, speed: 0.92,denoise: true,  normalize: false, preprocess: true,  postprocess: true,  label: '有声书' },
+        whisper:        { steps: 40, cfg: 2.3, speed: 0.8, denoise: false, normalize: false, preprocess: false, postprocess: true,  label: '耳语' },
+        advertising:    { steps: 48, cfg: 2.6, speed: 1.05,denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '广告配音' },
+        meditation:     { steps: 32, cfg: 2.0, speed: 0.78,denoise: true,  normalize: true,  preprocess: true,  postprocess: true,  label: '冥想放松' },
         low_vram:       { steps: 16, cfg: 1.8, speed: 1.0, denoise: false, normalize: false, preprocess: false, postprocess: false, label: '低显存模式' }
     };
 

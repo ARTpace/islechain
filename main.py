@@ -7170,6 +7170,12 @@ def generate(req: GenerateRequest, token: str = ""):
                         if isinstance(node_out, dict) and "error" in node_out:
                             comfy_error = str(node_out["error"])
                             break
+            # 打印完整 ComfyUI 响应用于调试
+            print(f"[ComfyUI-Debug] history_data keys: {list(history_data.keys()) if isinstance(history_data, dict) else type(history_data)}")
+            if isinstance(history_data, dict):
+                print(f"[ComfyUI-Debug] status: {history_data.get('status', {})}")
+                for nid, nout in history_data.get("outputs", {}).items():
+                    print(f"[ComfyUI-Debug] node {nid} output: {json.dumps(nout, ensure_ascii=False)[:500]}")
             if comfy_error:
                 raise Exception(f"ComfyUI 执行失败: {comfy_error}")
             raise Exception("ComfyUI 未返回输出，请检查工作流配置或确认模型已安装")
@@ -8774,6 +8780,11 @@ TTS_WORKFLOW_TEMPLATES = {
     "auto": "omnivoice-auto_workflow.json",
     "longform": "omnivoice-longform_workflow.json",
     "multi": "omnivoice-multi_workflow.json",
+    "multi-2": "omnivoice-multi_workflow.json",
+    "multi-3": "omnivoice-multi-3_workflow.json",
+    "multi-4": "omnivoice-multi-4_workflow.json",
+    "multi-5": "omnivoice-multi-5_workflow.json",
+    "multi-6": "omnivoice-multi-6_workflow.json",
 }
 
 
@@ -8799,6 +8810,188 @@ async def get_tts_voices():
     """获取音色库列表（全局共享）"""
     index = _load_voice_index()
     return {"voices": index}
+
+
+# 缓存 animadex 角色数据
+_animadex_cache = None
+_animadex_cache_time = 0
+
+@app.get("/api/animadex/characters")
+async def get_animadex_characters(
+    copyright: str = "",
+    limit: int = 200
+):
+    """获取 animadex 角色数据（用于头像映射）"""
+    global _animadex_cache, _animadex_cache_time
+    import time
+    
+    # 缓存 10 分钟
+    if _animadex_cache is None or (time.time() - _animadex_cache_time) > 600:
+        try:
+            animadex_path = os.path.join(DATA_DIR, "animadex-characters.json")
+            if os.path.exists(animadex_path):
+                with open(animadex_path, 'r', encoding='utf-8') as f:
+                    _animadex_cache = json.load(f)
+                    _animadex_cache_time = time.time()
+        except Exception as e:
+            print(f"加载 animadex 数据失败: {e}")
+            _animadex_cache = {"characters": []}
+    
+    characters = _animadex_cache.get("characters", []) if _animadex_cache else []
+    
+    # 按 copyright 过滤
+    if copyright:
+        characters = [c for c in characters if c.get("copyright") == copyright]
+    
+    # 限制数量
+    characters = characters[:limit]
+    
+    return {"characters": characters, "count": len(characters)}
+
+
+# ==================== AI 转播客 ====================
+PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人，擅长将文章转化为引人入胜的多人对话节目。
+
+## 对话结构要求
+
+### 开场（必须包含）
+- 主持人用一句话吸引听众注意力（可以是问题、惊人事实、或悬念）
+- 简要介绍本期话题和嘉宾
+
+### 主体内容
+- 将文章核心内容分解为 3-5 个话题点
+- 每个话题由主持人引出，嘉宾展开讨论
+- 使用自然的口语表达，避免书面语
+- 适当加入：
+  - 追问（"这让我好奇..."、"能具体说说吗？"）
+  - 感叹（"哇，这太有意思了！"、"原来如此！"）
+  - 总结（"所以你的意思是..."、"换句话说..."）
+  - 类比（"这就像..."、"打个比方..."）
+  - 个人经历（"我之前遇到过类似的情况..."）
+
+### 结尾（必须包含）
+- 总结核心观点
+- 给听众一个行动建议或思考题
+- 自然的结束语（"感谢收听"、"下期见"等）
+
+## 节奏控制
+- 每句话控制在 15-40 字
+- 每 3-5 句话后插入一个停顿标记 [pause:0.5]
+- 重要观点前插入 [pause:1.0] 表示强调
+- 换话题时插入 [pause:1.5] 表示段落分隔
+
+## 情绪标注（可选，提升表现力）
+在合适位置插入情绪标记：
+- [excited] 兴奋
+- [thoughtful] 思考
+- [surprised] 惊讶
+- [serious] 严肃
+- [warm] 温暖
+- [curious] 好奇
+
+## 输出格式
+严格按以下格式输出，不要添加任何其他内容：
+
+[角色A]: 开场白内容...
+[pause:0.5]
+[角色B]: 回应内容...
+[pause:1.0]
+[角色A]: [excited] 惊讶的回应...
+
+## 角色设定
+- 角色A：主持人，负责引导话题、提问、总结
+- 角色B：嘉宾，负责深入分析、提供见解、举例说明
+- 如果是3人：角色C 作为另一位嘉宾，提供不同视角
+"""
+
+@app.post("/api/tts/to-podcast")
+async def convert_to_podcast(
+    text: str = Form(...),
+    num_speakers: int = Form(2),
+    style: str = Form("default")
+):
+    """将文本转换为播客对话格式"""
+    from smart_tts import call_llm_direct
+    from smart_prompt import load_config
+    
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="文本不能为空")
+    
+    config = load_config()
+    if not config.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
+    
+    # 构造用户提示
+    style_desc = {
+        "default": "自然对话，主持人和嘉宾轻松交流",
+        "news": "新闻播报风格，语言正式、节奏明快",
+        "casual": "轻松闲聊，像朋友聊天一样随意",
+        "interview": "深度采访，主持人追问细节",
+        "debate": "观点碰撞，正反方讨论",
+        "storytelling": "故事讲述，用叙事方式展开",
+        "educational": "教学讲解，循序渐进地解释概念"
+    }
+    
+    # 构造详细的用户提示
+    user_prompt = f"""请将以下文章转换为 {num_speakers} 人对话的播客节目。
+
+## 播客风格
+{style_desc.get(style, style_desc['default'])}
+
+## 对话人数
+{num_speakers} 人（1位主持人 + {num_speakers - 1}位嘉宾）
+
+## 输出要求
+1. 必须包含完整的开场白（主持人介绍话题和嘉宾）
+2. 将文章内容分解为 3-5 个讨论点
+3. 必须包含结尾总结
+4. 每句话控制在 15-40 字
+5. 在合适位置插入 [pause:0.5] 或 [pause:1.0] 控制节奏
+6. 可选添加情绪标记如 [excited]、[thoughtful] 等
+
+## 文章内容
+{text}"""
+    
+    try:
+        result = call_llm_direct(user_prompt, PODCAST_SYSTEM_PROMPT, config)
+        
+        # 解析结果，提取说话人信息
+        speakers = set()
+        lines = result.strip().split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('[') and ']:' in line:
+                speaker_name = line.split(']:')[0].replace('[', '').strip()
+                speakers.add(speaker_name)
+        
+        # 将对话格式转换为 TTS 格式 (Speaker_1:, Speaker_2: 等)
+        speaker_list = list(speakers)
+        speaker_map = {}
+        for i, name in enumerate(speaker_list[:num_speakers]):
+            speaker_map[name] = f"Speaker_{i+1}"
+        
+        tts_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('[') and ']:' in line:
+                speaker_name = line.split(']:')[0].replace('[', '').strip()
+                content = line.split(']:', 1)[1].strip() if ']:' in line else ''
+                tts_id = speaker_map.get(speaker_name, speaker_name)
+                tts_lines.append(f"[{tts_id}]: {content}")
+            else:
+                tts_lines.append(line)
+        
+        return {
+            "success": True,
+            "podcast_text": "\n".join(tts_lines),
+            "original_speakers": speaker_list[:num_speakers],
+            "speaker_map": speaker_map,
+            "raw_text": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
 
 @app.post("/api/tts/voices")
@@ -9127,6 +9320,11 @@ async def get_tts_presets():
             {"id": "clone_focused", "label": "克隆相似度优先", "steps": 40, "cfg": 3.0, "speed": 1.0, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
             {"id": "emotion_focused", "label": "情绪表现优先", "steps": 48, "cfg": 2.8, "speed": 0.95, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
             {"id": "longtext_stable", "label": "长文本稳定", "steps": 32, "cfg": 2.0, "speed": 0.9, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
+            {"id": "broadcast", "label": "新闻播报", "steps": 40, "cfg": 2.2, "speed": 1.1, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
+            {"id": "storytelling", "label": "有声书", "steps": 48, "cfg": 2.5, "speed": 0.92, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
+            {"id": "whisper", "label": "耳语", "steps": 40, "cfg": 2.3, "speed": 0.8, "denoise": False, "normalize": False, "preprocess": False, "postprocess": True},
+            {"id": "advertising", "label": "广告配音", "steps": 48, "cfg": 2.6, "speed": 1.05, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
+            {"id": "meditation", "label": "冥想放松", "steps": 32, "cfg": 2.0, "speed": 0.78, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
             {"id": "low_vram", "label": "低显存模式", "steps": 16, "cfg": 1.8, "speed": 1.0, "denoise": False, "normalize": False, "preprocess": False, "postprocess": False},
         ]
     }
@@ -9169,6 +9367,18 @@ async def get_tts_modes():
 @app.post("/api/tts/generate")
 async def tts_generate(request: Request, token: str = Form("")):
     """TTS 生成接口"""
+    try:
+        return await _tts_generate_inner(request, token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[TTS] 生成异常: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def _tts_generate_inner(request: Request, token: str):
+    """TTS 生成核心逻辑"""
     # 解析 multipart form data
     form = await request.form()
     text = form.get("text", "")
@@ -9203,8 +9413,31 @@ async def tts_generate(request: Request, token: str = Form("")):
     if mode not in TTS_WORKFLOW_TEMPLATES:
         raise HTTPException(status_code=400, detail=f"不支持的模式: {mode}")
     
+    # 自动判断模式：clone 模式根据字数自动选择工作流
+    actual_mode = mode
+    if mode == "clone":
+        text_length = len(text.strip())
+        if text_length > 600:
+            actual_mode = "longform"
+            print(f"[TTS] 文本较长({text_length}字)，自动切换到长文本模式")
+        else:
+            actual_mode = "clone"
+            print(f"[TTS] 文本较短({text_length}字)，使用声音克隆模式")
+    else:
+        actual_mode = mode
+    
     # 加载工作流模板
-    workflow_name = TTS_WORKFLOW_TEMPLATES[mode]
+    # 多人对话模式：根据说话人数量选择对应模板
+    if mode == "multi":
+        workflow_key = f"multi-{num_speakers}"
+        if workflow_key in TTS_WORKFLOW_TEMPLATES:
+            workflow_name = TTS_WORKFLOW_TEMPLATES[workflow_key]
+        else:
+            # 默认使用 2 人模板
+            workflow_name = TTS_WORKFLOW_TEMPLATES["multi-2"]
+    else:
+        workflow_name = TTS_WORKFLOW_TEMPLATES[actual_mode]
+    
     workflow_path = os.path.join(TTS_WORKFLOW_DIR, workflow_name)
     if not os.path.exists(workflow_path):
         raise HTTPException(status_code=404, detail=f"工作流模板不存在: {workflow_name}")
@@ -9230,10 +9463,12 @@ async def tts_generate(request: Request, token: str = Form("")):
     speaker_audio_filenames = {}
     if mode == "multi":
         target = COMFYUI_ADDRESS
+        print(f"[TTS-Multi] num_speakers={num_speakers}, target={target}")
         for i in range(1, num_speakers + 1):
             spk_audio = form.get(f"speaker_{i}_audio")
             spk_ref_text = form.get(f"speaker_{i}_ref_text", "")
             spk_instruct = form.get(f"speaker_{i}_instruct", "")
+            print(f"[TTS-Multi] speaker_{i}: audio={spk_audio}, type={type(spk_audio)}, has_read={hasattr(spk_audio, 'read') if spk_audio else False}")
             if spk_audio and hasattr(spk_audio, 'read'):
                 content = await spk_audio.read()
                 fname = f"tts_spk{i}_{int(time.time())}_{spk_audio.filename or 'audio.wav'}"
@@ -9242,18 +9477,21 @@ async def tts_generate(request: Request, token: str = Form("")):
                     "ref_text": spk_ref_text,
                     "instruct": spk_instruct,
                 }
+                print(f"[TTS-Multi] speaker_{i}: uploaded filename={fname}, size={len(content)} bytes")
                 if target:
                     try:
                         files_data = {'image': (fname, content, spk_audio.content_type or 'audio/wav')}
-                        requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+                        resp = requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+                        print(f"[TTS-Multi] speaker_{i}: upload response={resp.status_code} {resp.text[:200]}")
                     except Exception as e:
-                        print(f"[TTS] 上传说话人{i}音频失败: {e}")
+                        print(f"[TTS-Multi] speaker_{i}: upload FAILED: {e}")
             else:
                 speaker_audio_filenames[i] = {
                     "filename": "",
                     "ref_text": spk_ref_text,
                     "instruct": spk_instruct,
                 }
+                print(f"[TTS-Multi] speaker_{i}: NO AUDIO FILE")
     
     # 替换工作流中的变量
     # 查找关键节点并替换参数
@@ -9301,11 +9539,13 @@ async def tts_generate(request: Request, token: str = Form("")):
             inputs["pause_between_speakers"] = pause_between_speakers
             if duration is not None:
                 inputs["duration"] = duration
-            # 设置每个说话人的参数
+            # 说话人参数放在顶层（V2 风格，兼容修改后的节点）
             for i in range(1, num_speakers + 1):
                 spk = speaker_audio_filenames.get(i, {})
                 inputs[f"speaker_{i}_ref_text"] = spk.get("ref_text", "")
                 inputs[f"speaker_{i}_instruct"] = spk.get("instruct", "")
+            print(f"[TTS-Multi] MultiSpeakerTTS: text={text[:50]}..., num_speakers={num_speakers}")
+            print(f"[TTS-Multi] speaker_audio_filenames={json.dumps({k: v['filename'] for k, v in speaker_audio_filenames.items()})}")
         
         # LoadAudio 节点（参考音频 - 单人模式）
         if class_type == "LoadAudio" and ref_audio_filename and node_id == "5":
@@ -9314,12 +9554,17 @@ async def tts_generate(request: Request, token: str = Form("")):
         # LoadAudio 节点（多人对话 - 说话人音频）
         if class_type == "LoadAudio" and mode == "multi":
             title = node_content.get("_meta", {}).get("title", "")
+            matched = False
             for i in range(1, num_speakers + 1):
                 if f"说话人{i}" in title and i in speaker_audio_filenames:
                     fname = speaker_audio_filenames[i].get("filename")
                     if fname:
                         inputs["audio"] = fname
+                    matched = True
+                    print(f"[TTS-Multi] LoadAudio node '{title}' (id={node_id}) -> speaker_{i} filename='{fname}'")
                     break
+            if not matched:
+                print(f"[TTS-Multi] LoadAudio node '{title}' (id={node_id}) NOT MATCHED")
     
     # 提交到 ComfyUI
     generate_req = GenerateRequest(
@@ -9332,6 +9577,7 @@ async def tts_generate(request: Request, token: str = Form("")):
             "postprocess": postprocess,
             "save_prefix": save_prefix,
             "mode": mode,
+            "actual_mode": actual_mode,  # 实际使用的工作流模式
             "instruct": instruct,
             "duration": duration,
         },

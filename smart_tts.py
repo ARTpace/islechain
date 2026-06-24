@@ -15,17 +15,39 @@ SYSTEM_PROMPT = """你是一个 TTS 文本精修师。分析用户输入的中�
 
 1. 在合适位置添加情绪标签（如 [laughter] [sigh] [surprise-wa] 等）
 2. 修正多音字，格式：汉字+拼音大写+声调数字（如 银HANG2行）
-3. 推荐生成参数
+3. 根据文本内容选择最合适的参数预设
 
 严格输出 JSON，不要其他文字：
 
-{"enhanced_text":"优化后文本","suggested_params":{"speed":1.0,"steps":32,"cfg":2.0},"changes":["修改说明"]}
+{"enhanced_text":"优化后文本","recommended_preset":"预设ID","changes":["修改说明"]}
 
-参数规则：
-- 情感强/对话：speed 0.85-0.95, cfg 2.2-2.8
-- 平稳叙述：speed 1.0, cfg 2.0
-- 新闻播报：speed 1.05-1.15
-- 轻松闲聊：speed 0.95-1.05, cfg 1.8-2.2
+可选预设（选一个最匹配的）：
+- fast_preview: 极速预览，快速试听用
+- balanced: 均衡推荐，通用默认
+- high_quality: 高质量，追求音质
+- clone_focused: 克隆相似度优先，尽量还原参考音色
+- emotion_focused: 情绪表现优先，对话/情感类文本
+- longtext_stable: 长文本稳定，长句/段落
+- broadcast: 新闻播报，正式/资讯类，语速略快
+- storytelling: 有声书，叙事/朗读类，节奏沉稳
+- whisper: 耳语，亲密/ASMR 类，极慢极柔
+- advertising: 广告配音，宣传/推广类，有力度
+- meditation: 冥想放松，舒缓/引导类，极慢极稳
+- low_vram: 低显存模式，显卡吃紧时用
+
+选择规则：
+- 带对话感、情感丰富的文本 → emotion_focused
+- 长段落、叙述性文字 → longtext_stable
+- 需要精确还原参考音色 → clone_focused
+- 新闻/资讯/正式场合 → broadcast
+- 讲故事/小说朗读 → storytelling
+- 耳语/ASMR/亲密感 → whisper
+- 广告/宣传/推广 → advertising
+- 冥想/放松/引导 → meditation
+- 普通文本 → balanced
+- 追求最佳音质 → high_quality
+- 只是快速试听 → fast_preview
+- 显卡显存不够 → low_vram
 
 可用标签：[laughter]笑 [sigh]叹 [dissatisfaction-hnn]不满 [question-ah]疑问 [surprise-wa]惊讶 [surprise-ah]啊 [surprise-oh]哦 [surprise-yo]哟 [question-oh]哦？ [question-ei]诶？ [question-yi]咦？
 
@@ -99,7 +121,7 @@ def generate_smart_tts(user_input: str, config: Optional[Dict[str, Any]] = None)
         return {
             "success": False,
             "enhanced_text": "",
-            "suggested_params": {},
+            "recommended_preset": "",
             "changes": [],
             "raw": raw_output,
             "error": raw_output
@@ -109,7 +131,7 @@ def generate_smart_tts(user_input: str, config: Optional[Dict[str, Any]] = None)
         return {
             "success": False,
             "enhanced_text": "",
-            "suggested_params": {},
+            "recommended_preset": "",
             "changes": [],
             "raw": raw_output,
             "error": "AI 返回为空"
@@ -151,7 +173,7 @@ def generate_smart_tts(user_input: str, config: Optional[Dict[str, Any]] = None)
         return {
             "success": True,
             "enhanced_text": result.get("enhanced_text", user_input),
-            "suggested_params": result.get("suggested_params", {}),
+            "recommended_preset": result.get("recommended_preset", "balanced"),
             "changes": result.get("changes", []),
             "raw": raw_output,
             "error": ""
@@ -160,7 +182,7 @@ def generate_smart_tts(user_input: str, config: Optional[Dict[str, Any]] = None)
         return {
             "success": False,
             "enhanced_text": "",
-            "suggested_params": {},
+            "recommended_preset": "",
             "changes": [],
             "raw": raw_output,
             "error": "AI 输出格式错误，请重试"
@@ -169,7 +191,7 @@ def generate_smart_tts(user_input: str, config: Optional[Dict[str, Any]] = None)
         return {
             "success": False,
             "enhanced_text": "",
-            "suggested_params": {},
+            "recommended_preset": "",
             "changes": [],
             "raw": raw_output,
             "error": str(e)

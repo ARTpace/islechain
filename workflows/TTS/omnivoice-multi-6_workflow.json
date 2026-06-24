@@ -1,0 +1,110 @@
+{
+  "5": {
+    "inputs": {
+      "audio": "speaker1.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人1 音频"
+    }
+  },
+  "6": {
+    "inputs": {
+      "audio": "speaker2.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人2 音频"
+    }
+  },
+  "7": {
+    "inputs": {
+      "audio": "speaker3.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人3 音频"
+    }
+  },
+  "8": {
+    "inputs": {
+      "audio": "speaker4.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人4 音频"
+    }
+  },
+  "9": {
+    "inputs": {
+      "audio": "speaker5.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人5 音频"
+    }
+  },
+  "10": {
+    "inputs": {
+      "audio": "speaker6.wav"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "说话人6 音频"
+    }
+  },
+  "26": {
+    "inputs": {
+      "model": "OmniVoice-bf16 (auto download)",
+      "text": "",
+      "steps": 32,
+      "guidance_scale": 2.0,
+      "t_shift": 0.1,
+      "speed": 1.0,
+      "pause_between_speakers": 0.3,
+      "device": "auto",
+      "dtype": "auto",
+      "attention": "auto",
+      "seed": 0,
+      "position_temperature": 5.0,
+      "class_temperature": 0.0,
+      "layer_penalty_factor": 5.0,
+      "denoise": true,
+      "preprocess_prompt": true,
+      "postprocess_output": true,
+      "keep_model_loaded": false,
+      "num_speakers": 6,
+      "speaker_1_audio": ["5", 0],
+      "speaker_1_ref_text": "",
+      "speaker_1_instruct": "",
+      "speaker_2_audio": ["6", 0],
+      "speaker_2_ref_text": "",
+      "speaker_2_instruct": "",
+      "speaker_3_audio": ["7", 0],
+      "speaker_3_ref_text": "",
+      "speaker_3_instruct": "",
+      "speaker_4_audio": ["8", 0],
+      "speaker_4_ref_text": "",
+      "speaker_4_instruct": "",
+      "speaker_5_audio": ["9", 0],
+      "speaker_5_ref_text": "",
+      "speaker_5_instruct": "",
+      "speaker_6_audio": ["10", 0],
+      "speaker_6_ref_text": "",
+      "speaker_6_instruct": ""
+    },
+    "class_type": "OmniVoiceMultiSpeakerTTS",
+    "_meta": {
+      "title": "Multi-Speaker TTS"
+    }
+  },
+  "2": {
+    "inputs": {
+      "audio": ["26", 0]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "预览音频"
+    }
+  }
+}

@@ -17,22 +17,10 @@
       "title": "说话人2 音频"
     }
   },
-  "11": {
-    "inputs": {
-      "model": "whisper-large-v3-turbo (auto-download)",
-      "device": "auto",
-      "dtype": "auto"
-    },
-    "class_type": "OmniVoiceWhisperLoader",
-    "_meta": {
-      "title": "Whisper ASR"
-    }
-  },
   "26": {
     "inputs": {
       "model": "OmniVoice-bf16 (auto download)",
       "text": "",
-      "num_speakers": 2,
       "steps": 32,
       "guidance_scale": 2.0,
       "t_shift": 0.1,
@@ -49,13 +37,13 @@
       "preprocess_prompt": true,
       "postprocess_output": true,
       "keep_model_loaded": false,
+      "num_speakers": 2,
       "speaker_1_audio": ["5", 0],
       "speaker_1_ref_text": "",
       "speaker_1_instruct": "",
       "speaker_2_audio": ["6", 0],
       "speaker_2_ref_text": "",
-      "speaker_2_instruct": "",
-      "whisper_model": ["11", 0]
+      "speaker_2_instruct": ""
     },
     "class_type": "OmniVoiceMultiSpeakerTTS",
     "_meta": {
