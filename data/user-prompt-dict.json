@@ -38,7 +38,17 @@
     "4K分辨率": "4K resolution",
     "荒诞分辨率": "absurd resolution",
     "荒诞高分辨率": "absurd high-resolution",
-    "Ganyu（Genshin Impact）": "Ganyu (Genshin Impact)"
+    "Ganyu（Genshin Impact）": "Ganyu (Genshin Impact)",
+    "安全": "Safe. In the foreground is a lovely cat girl. She has long light brown hair with hairy Cat's ears (Steamed cat-ear shaped bread)",
+    "前景是一个可爱的猫女": "a young girl with striped tails",
+    "浅棕色长发上长着毛茸茸的猫耳朵": "bright emerald eyes",
+    "搭配条纹尾巴的年轻女孩": "and a complete and clean black maid style dress",
+    "明亮的祖母绿眼睛": "a white apron and striped Cat's ears (Steamed cat-ear shaped bread) headband. She is focusing on mixing a cup of coffee with a small pink spoon. Her expression is a naughty smile",
+    "穿着一件完整干净的黑色女仆风格连衣裙": "and her eyes narrow slightly. The scene is set in a sunny and comfortable cafe. The wooden table is decorated with cake trays and scattered spoons. Soft afternoon sunlight shines through the window",
+    "白色围裙和条纹猫耳朵头带": "and she throws on the ends of her hair and coffee cups Under the warm golden glow",
+    "她正专注于用一个粉红色的小勺子搅拌一杯咖啡": "the room is bathed in warm cream and wood colors",
+    "她的表情是一个顽皮的微笑": "with soft shadows. A medium-sized photo focuses on her upper body",
+    "眼睛稍微眯了起来": "Slightly capturing her focused expression and adorable details of her ears and tail from above."
   },
   "en2zh": {
     "lover": "爱人",
@@ -68,6 +78,20 @@
     "semi realism": "半现实主义",
     "4K resolution": "4K分辨率",
     "absurd high resolution": "荒诞高分辨率",
-    "Ganyu (Genshin Impact)": "Ganyu（Genshin Impact）"
+    "Ganyu (Genshin Impact)": "Ganyu（Genshin Impact）",
+    "safe": "安全",
+    "a cute catgirl in the foreground": "前景是一个可爱的猫女",
+    "young girl with fluffy feline ears atop her light brown long hair and a matching striped tail": "浅棕色长发上长着毛茸茸的猫耳朵",
+    "vivid emerald green eyes": "搭配条纹尾巴的年轻女孩",
+    "wearing a complete and clean black maid-style dress with a white apron and a striped cat-ear headband": "明亮的祖母绿眼睛",
+    "she is concentrating on stirring a cup of coffee with a small pink spoon": "穿着一件完整干净的黑色女仆风格连衣裙",
+    "her expression is a playful smile with eyes slightly narrowed in focus": "白色围裙和条纹猫耳朵头带",
+    "the scene is set inside a sunlit": "她正专注于用一个粉红色的小勺子搅拌一杯咖啡",
+    "cozy cafe with wooden tables adorned with plates of cake and scattered spoons": "她的表情是一个顽皮的微笑",
+    "soft afternoon sunlight streams through the window": "眼睛稍微眯了起来",
+    "casting warm golden halos on her hair tips and the coffee cup": "场景设定在一个阳光充足",
+    "the interior is bathed in warm cream and wood tones with soft shadows": "舒适的咖啡馆里",
+    "a medium shot focusing on her upper body": "木桌上装饰着蛋糕盘和散落的勺子",
+    "slightly from above to capture her focused expression and the cute details of her ears and tail.": "柔和的午后阳光透过窗户照射进来"
   }
 }

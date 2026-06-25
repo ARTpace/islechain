@@ -8772,8 +8772,9 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
 TTS_VOICE_DIR = os.path.join(DATA_DIR, "tts_voices")
 os.makedirs(TTS_VOICE_DIR, exist_ok=True)
 
-# 音色库子目录
-VOICE_CATEGORIES = ["genshin", "custom", "import", "record"]
+# 角色库子目录（新结构）
+CHARACTERS_DIR = os.path.join(TTS_VOICE_DIR, "characters")
+os.makedirs(CHARACTERS_DIR, exist_ok=True)
 
 # 音色库索引文件(全局共享)
 VOICE_INDEX_FILE = os.path.join(TTS_VOICE_DIR, "voices.json")
@@ -8794,9 +8795,69 @@ TTS_WORKFLOW_TEMPLATES = {
     "multi-6": "omnivoice-multi-6_workflow.json",
 }
 
+# 支持的音频格式
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac'}
+
+def _scan_character_folders() -> dict:
+    """扫描角色文件夹，自动识别音频文件"""
+    voices = {}
+    if not os.path.exists(CHARACTERS_DIR):
+        return voices
+    
+    for folder_name in os.listdir(CHARACTERS_DIR):
+        folder_path = os.path.join(CHARACTERS_DIR, folder_name)
+        if not os.path.isdir(folder_path):
+            continue
+        
+        # 读取 meta.json
+        meta_file = os.path.join(folder_path, "meta.json")
+        meta = {}
+        if os.path.exists(meta_file):
+            try:
+                with open(meta_file, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+            except:
+                pass
+        
+        # 自动扫描音频文件
+        audio_files = []
+        avatar_file = None
+        for f in os.listdir(folder_path):
+            ext = os.path.splitext(f)[1].lower()
+            if ext in AUDIO_EXTENSIONS:
+                audio_files.append(f)
+            elif f.lower() in ('avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp'):
+                avatar_file = f
+        
+        if audio_files:
+            # 使用第一个音频文件
+            audio_file = audio_files[0]
+            display_name = meta.get('display_name', meta.get('name', folder_name))
+            instruct = meta.get('instruct', '')
+            category = meta.get('category', 'custom')
+            
+            # 构建相对于 TTS_VOICE_DIR 的文件路径
+            rel_file_path = f'characters/{folder_name}/{audio_file}'
+            
+            voices[display_name] = {
+                'file': rel_file_path,
+                'folder': folder_name,
+                'instruct': instruct,
+                'category': category,
+                'avatar': f'characters/{folder_name}/{avatar_file}' if avatar_file else None,
+                'meta': meta
+            }
+    
+    return voices
 
 def _load_voice_index() -> dict:
-    """加载音色库索引(全局共享)"""
+    """加载音色库索引（兼容旧格式）"""
+    # 优先扫描文件夹
+    voices = _scan_character_folders()
+    if voices:
+        return voices
+    
+    # 回退到旧的 voices.json
     if not os.path.exists(VOICE_INDEX_FILE):
         return {}
     try:
@@ -8804,7 +8865,6 @@ def _load_voice_index() -> dict:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return {}
-
 
 def _save_voice_index(index: dict):
     """保存音色库索引(全局共享)"""
@@ -8856,6 +8916,133 @@ async def get_animadex_characters(
     return {"characters": characters, "count": len(characters)}
 
 
+# ==================== 播客文本质检 ====================
+import re
+
+def check_podcast_text(text, num_speakers=2, word_count=500):
+    """检查播客文本质量,返回问题清单和自动修复后的文本"""
+    issues = []
+    auto_fixes = []
+    lines = text.strip().split('\n')
+    
+    # 1. 检测非标准角色标签
+    standard_pattern = re.compile(r'^\[Speaker_\d+\]:')
+    name_pattern = re.compile(r'^\[([^\]]+)\]:')
+    
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
+        match = name_pattern.match(line)
+        if match:
+            speaker = match.group(1)
+            if not standard_pattern.match(line):
+                issues.append(f"第{i+1}行: 角色标签 [{speaker}] 应为 [Speaker_X] 格式")
+                # 自动修复：映射到标准格式
+                auto_fixes.append(('fix_speaker', i, speaker))
+    
+    # 2. 检测括号描述
+    bracket_pattern = re.compile(r'\([^)]{1,20}\)')
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
+        brackets = bracket_pattern.findall(line)
+        if brackets:
+            for b in brackets:
+                # 排除正常的括号内容（如数字、网址）
+                if not re.match(r'^\(\d+\)$', b) and 'http' not in b:
+                    issues.append(f"第{i+1}行: 发现括号描述 {b}")
+                    auto_fixes.append(('remove_bracket', i, b))
+    
+    # 3. 检测字数
+    total_chars = sum(len(line) for line in lines if line.strip())
+    if total_chars < word_count * 0.7:
+        issues.append(f"字数过少: {total_chars}字 (目标{word_count}字)")
+    elif total_chars > word_count * 1.3:
+        issues.append(f"字数过多: {total_chars}字 (目标{word_count}字)")
+    
+    # 4. 检测空对话行
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if line and ']:' in line:
+            content = line.split(']:', 1)[1].strip()
+            if not content:
+                issues.append(f"第{i+1}行: 角色标签后无内容")
+                auto_fixes.append(('remove_empty', i, None))
+    
+    # 5. 检测连续同一角色
+    last_speaker = None
+    for i, line in enumerate(lines):
+        line = line.strip()
+        match = name_pattern.match(line)
+        if match:
+            speaker = match.group(1)
+            if speaker == last_speaker:
+                issues.append(f"第{i+1}行: 连续同一角色发言")
+            last_speaker = speaker
+    
+    # 执行自动修复
+    fixed_text = text
+    if auto_fixes:
+        fixed_lines = lines.copy()
+        speaker_map = {}
+        speaker_idx = 1
+        
+        for fix_type, line_idx, data in auto_fixes:
+            if fix_type == 'fix_speaker':
+                # 映射角色名到标准格式
+                if data not in speaker_map:
+                    if speaker_idx <= num_speakers:
+                        speaker_map[data] = f'Speaker_{speaker_idx}'
+                        speaker_idx += 1
+                    else:
+                        speaker_map[data] = f'Speaker_{num_speakers}'
+                
+                old_line = fixed_lines[line_idx]
+                new_line = re.sub(r'^\[[^\]]+\]:', f'[{speaker_map[data]}]:', old_line)
+                fixed_lines[line_idx] = new_line
+            
+            elif fix_type == 'remove_bracket':
+                old_line = fixed_lines[line_idx]
+                new_line = old_line.replace(data, '')
+                new_line = re.sub(r'\s+', ' ', new_line).strip()
+                fixed_lines[line_idx] = new_line
+            
+            elif fix_type == 'remove_empty':
+                fixed_lines[line_idx] = ''
+        
+        fixed_text = '\n'.join(line for line in fixed_lines if line.strip())
+    
+    return {
+        'issues': issues,
+        'auto_fixed': len(auto_fixes) > 0,
+        'fixed_text': fixed_text,
+        'total_chars': total_chars,
+        'needs_ai_fix': any('字数' in issue for issue in issues)
+    }
+
+
+def get_ai_fix_prompt(issues, text):
+    """生成AI修正的提示词"""
+    issues_text = '\n'.join(f'- {issue}' for issue in issues)
+    return f"""请修正以下播客文本中的问题:
+
+## 需要修正的问题
+{issues_text}
+
+## 原文
+{text}
+
+## 修正要求
+1. 只修正上述问题,不要改变其他内容
+2. 保持原有的对话风格和节奏
+3. 角色标签必须用 [Speaker_1]: [Speaker_2]: 格式
+4. 不要添加任何括号描述
+5. 直接输出修正后的完整文本
+"""
+
+
 # ==================== AI 转播客 ====================
 PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人,擅长将文章转化为引人入胜的多人对话节目。
 
@@ -8881,35 +9068,36 @@ PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人,擅长将文�
 - 给听众一个行动建议或思考题
 - 自然的结束语("感谢收听"、"下期见"等)
 
-## 可用情绪标记(只能用这些)
-在对话中适当插入情绪标记,让语音更有表现力:
-- [laughter] 笑声,讲到有趣内容时
-- [sigh] 叹气,表示感慨或无奈时
-- [question-ah] 啊?表示疑问
-- [question-oh] 哦?表示疑问
-- [surprise-oh] 哦!表示惊讶
-- [surprise-wa] 哇!表示惊讶
-- [dissatisfaction-hnn] 哼!表示不满或吐槽
-- [confirmation-en] 表示确认或赞同
+## 输出格式(严格遵守)
 
-## 输出格式
-严格按以下格式输出:
+1. 角色标签必须使用: [Speaker_1]: [Speaker_2]: [Speaker_3]: 等格式
+2. 不要使用人名作为标签(如 [董峥] [曾刚] 等都是错误的)
+3. 不要在括号里加描述性文字(如 (回忆，语气轻快)、(声音沉稳) 等)
+4. 如果需要表达语气,直接通过文字内容体现,不要加括号说明
+5. 每句话直接是对话内容,不要有任何前缀或后缀说明
 
-[主持人]: 开场白内容...
-[嘉宾]: 回应内容...
-[主持人]: [excited] 惊讶的回应...
+## 正确示例
+[Speaker_1]: 大家好，欢迎来到今天的节目。
+[Speaker_2]: 谢谢邀请，很高兴来到这里。
+[Speaker_1]: 我们今天聊聊这个话题。
+
+## 错误示例(不要这样写)
+[主持人]: 大家好。(微笑)
+[嘉宾]: (回忆) 当时我想...
+[董峥]: 这个问题...
 
 ## 角色设定
-- 主持人:负责引导话题、提问、总结
-- 嘉宾:负责深入分析、提供见解、举例说明
-- 如果是3人:另一位嘉宾提供不同视角
+- Speaker_1: 主持人,负责引导话题、提问、总结
+- Speaker_2: 嘉宾,负责深入分析、提供见解
+- Speaker_3: 另一位嘉宾(如果是3人以上)
 """
 
 @app.post("/api/tts/to-podcast")
 async def convert_to_podcast(
     text: str = Form(...),
     num_speakers: int = Form(2),
-    style: str = Form("default")
+    style: str = Form("default"),
+    word_count: int = Form(500)
 ):
     """将文本转换为播客对话格式"""
     from smart_tts import call_llm_direct
@@ -8933,15 +9121,6 @@ async def convert_to_podcast(
         "educational": "教学讲解,循序渐进地解释概念"
     }
 
-    # 情绪标记说明
-    emotion_desc = """根据对话内容自然插入情绪标记(不要滥用,每个说话人每2-3句话用1个即可):
-- 讲到有趣/好笑的内容时 → [laughter]
-- 讲到令人感慨/遗憾的内容时 → [sigh]
-- 表示疑问时 → [question-ah] 或 [question-oh]
-- 表示惊讶时 → [surprise-oh] 或 [surprise-wa]
-- 表示不满或吐槽时 → [dissatisfaction-hnn]
-- 表示确认或赞同时 → [confirmation-en]"""
-
     # 构造详细的用户提示
     user_prompt = f"""请将以下文章转换为 {num_speakers} 人对话的播客节目。
 
@@ -8951,16 +9130,19 @@ async def convert_to_podcast(
 ## 对话人数
 {num_speakers} 人(1位主持人 + {num_speakers - 1}位嘉宾)
 
-## 情绪标记
-{emotion_desc}
-
 ## 输出要求
 1. 必须包含完整的开场白(主持人介绍话题和嘉宾)
 2. 将文章内容分解为 3-5 个讨论点
 3. 必须包含结尾总结
 4. 每句话控制在 15-40 字
-5. 在合适位置插入情绪标记,让对话更生动
-6. 直接输出对话内容,不要加多余的格式说明
+5. 总字数控制在 {word_count} 字左右
+6. 直接输出对话内容
+
+## 格式要求(非常重要!)
+- 角色标签必须用: [Speaker_1]: [Speaker_2]: [Speaker_3]:
+- 绝对不要用人名作为标签(如 [张三] [李四] 都是错误的)
+- 绝对不要在括号里加描述(如 (微笑) (回忆) (语气轻快) 都是错误的)
+- 语气通过文字内容自然体现,不要加括号说明
 
 ## 文章内容
 {text}"""
@@ -8992,16 +9174,66 @@ async def convert_to_podcast(
                 speaker_name = line.split(']:')[0].replace('[', '').strip()
                 content = line.split(']:', 1)[1].strip() if ']:' in line else ''
                 tts_id = speaker_map.get(speaker_name, speaker_name)
-                tts_lines.append(f"[{tts_id}]: {content}")
+                
+                # 清理括号描述 (如 (微笑) (回忆) 等)
+                content = re.sub(r'\([^)]*?\)', '', content)
+                content = re.sub(r'\s+', ' ', content).strip()
+                
+                if content:
+                    tts_lines.append(f"[{tts_id}]: {content}")
             else:
-                tts_lines.append(line)
-
+                line = re.sub(r'\([^)]*?\)', '', line)
+                line = re.sub(r'\s+', ' ', line).strip()
+                if line:
+                    tts_lines.append(line)
+        
+        initial_text = "\n".join(tts_lines)
+        
+        # ========== 质检步骤 ==========
+        print(f"[Podcast] 初稿生成完成,开始质检...")
+        check_result = check_podcast_text(initial_text, num_speakers, word_count)
+        
+        if check_result['issues']:
+            print(f"[Podcast] 发现 {len(check_result['issues'])} 个问题:")
+            for issue in check_result['issues']:
+                print(f"  - {issue}")
+            
+            # 如果有自动修复,先应用
+            if check_result['auto_fixed']:
+                initial_text = check_result['fixed_text']
+                print(f"[Podcast] 自动修复完成")
+            
+            # 如果需要AI修正(字数问题),调用AI
+            if check_result['needs_ai_fix']:
+                print(f"[Podcast] 需要AI修正字数...")
+                fix_prompt = get_ai_fix_prompt(check_result['issues'], initial_text)
+                fixed_result = call_llm_direct(fix_prompt, "你是一个文本修正助手,只修正指定的问题,不要改变其他内容。", config)
+                if fixed_result and not fixed_result.startswith('ERROR:'):
+                    initial_text = fixed_result
+                    print(f"[Podcast] AI修正完成")
+            
+            # 最终检查
+            final_check = check_podcast_text(initial_text, num_speakers, word_count)
+            if final_check['issues']:
+                print(f"[Podcast] 最终检查仍有 {len(final_check['issues'])} 个问题:")
+                for issue in final_check['issues']:
+                    print(f"  - {issue}")
+            else:
+                print(f"[Podcast] 最终检查通过!")
+        else:
+            print(f"[Podcast] 质检通过,无问题!")
+        
         return {
             "success": True,
-            "podcast_text": "\n".join(tts_lines),
+            "podcast_text": initial_text,
             "original_speakers": speaker_list[:num_speakers],
             "speaker_map": speaker_map,
-            "raw_text": result
+            "raw_text": result,
+            "quality_check": {
+                "issues_found": len(check_result['issues']),
+                "auto_fixed": check_result['auto_fixed'],
+                "total_chars": check_result['total_chars']
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
@@ -9010,40 +9242,109 @@ async def convert_to_podcast(
 @app.post("/api/tts/fetch-url")
 async def fetch_url_content(url: str = Form("")):
     """抓取网页文章内容"""
-    import urllib.request
     import re
-
+    
     if not url.strip():
         raise HTTPException(status_code=400, detail="URL 不能为空")
-
+    
     # 补全协议
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
-
+    
     try:
-        # 设置请求头
+        # 方法1: 使用 Jina Reader API (免费,能绕过大部分反爬)
+        try:
+            import urllib.request
+            jina_url = f"https://r.jina.ai/{url}"
+            req = urllib.request.Request(jina_url, headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'text/plain',
+            })
+            with urllib.request.urlopen(req, timeout=20) as response:
+                text = response.read().decode('utf-8', errors='ignore')
+            
+            # 清理 Jina 返回的内容
+            text = text.strip()
+            
+            # 提取 Markdown Content 后的正文
+            if 'Markdown Content:' in text:
+                text = text.split('Markdown Content:', 1)[1].strip()
+            elif 'Content:' in text:
+                text = text.split('Content:', 1)[1].strip()
+            
+            # 移除图片链接和导航链接
+            text = re.sub(r'!\[Image \d+:.*?\]\(.*?\)', '', text)
+            text = re.sub(r'\[_.*?_\]\(.*?\)', '', text)
+            text = re.sub(r'\[.*?\]\(https?://.*?\)', '', text)
+            # 移除标题标记
+            text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+            # 移除列表标记
+            text = re.sub(r'^\*\s+', '', text, flags=re.MULTILINE)
+            text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+            # 移除多余空行和空格
+            text = re.sub(r'\n{3,}', '\n\n', text)
+            text = re.sub(r' {2,}', ' ', text)
+            # 移除开头的导航部分(直到找到文章标题)
+            lines = text.split('\n')
+            article_start = 0
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if len(line) > 20 and not line.startswith(('*', '-', '#', '!', '[')):
+                    article_start = i
+                    break
+            text = '\n'.join(lines[article_start:]).strip()
+            
+            if len(text) > 200:
+                # 截取前 5000 字
+                if len(text) > 5000:
+                    text = text[:5000] + '...'
+                return {
+                    "success": True,
+                    "content": text,
+                    "url": url
+                }
+        except Exception as e:
+            print(f"[FetchURL] Jina Reader 失败: {e}")
+        
+        # 方法2: 使用 trafilatura
+        try:
+            import trafilatura
+            downloaded = trafilatura.fetch_url(url)
+            if downloaded:
+                text = trafilatura.extract(downloaded, include_comments=False, include_tables=True, no_fallback=False)
+                if text and len(text) > 100:
+                    if len(text) > 5000:
+                        text = text[:5000] + '...'
+                    return {
+                        "success": True,
+                        "content": text,
+                        "url": url
+                    }
+        except Exception as e:
+            print(f"[FetchURL] trafilatura 失败: {e}")
+        
+        # 方法3: 回退到 urllib
+        import urllib.request
         req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         })
-
+        
         with urllib.request.urlopen(req, timeout=15) as response:
             html = response.read().decode('utf-8', errors='ignore')
-
-        # 简单提取正文(去除 HTML 标签)
-        # 移除 script 和 style
+        
         html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.I)
         html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.I)
-        # 移除 HTML 标签
         text = re.sub(r'<[^>]+>', ' ', html)
-        # 清理空白
         text = re.sub(r'\s+', ' ', text).strip()
-        # 截取前 5000 字
+        
         if len(text) > 5000:
             text = text[:5000] + '...'
-
+        
         if len(text) < 50:
             raise Exception("抓取内容过少,可能是反爬页面")
-
+        
         return {
             "success": True,
             "content": text,
@@ -9096,11 +9397,11 @@ async def convert_to_solo_podcast(
     }
 
     style_config = style_configs.get(style, style_configs['storytelling'])
-    
+
     # 字数范围
-    word_min = max(100, word_count - 100)
-    word_max = word_count + 100
-    
+    word_min = max(100, word_count - 150)
+    word_max = word_count + 150
+
     # 构造用户提示
     user_prompt = f"""请将以下文本转换为单人播客风格,适合一个人朗读讲述。
 
@@ -9113,16 +9414,8 @@ async def convert_to_solo_podcast(
 3. 语言要自然流畅,像在和听众对话
 4. 适当加入过渡词和连接词
 5. 结尾要有总结或引发思考的收尾
-6. 总字数控制在 {word_min}-{word_max} 字左右
-
-## 情绪标记规则
-只能使用以下标记(不要用其他标记,每段话用1-2个即可):
-- 讲到有趣好笑的内容时 → [laughter]
-- 表示感叹或无奈时 → [sigh]
-- 表示疑问时 → [question-ah] 或 [question-oh]
-- 表示惊讶时 → [surprise-oh] 或 [surprise-wa]
-- 表示不满或吐槽时 → [dissatisfaction-hnn]
-- 表示赞同或确认时 → [confirmation-en]
+6. 【重要】总字数必须控制在 {word_count} 字左右(不少于 {word_min} 字,不超过 {word_max} 字),超出或不足都不可接受
+7. 如果原文较长,请提炼核心内容;如果原文较短,请适当展开
 
 ## 原始文本
 {text}"""
@@ -9136,18 +9429,8 @@ async def convert_to_solo_podcast(
 4. **结构清晰**:有明确的开头、展开和结尾
 5. **互动感**:适当使用"你"、"我们"等人称,拉近与听众的距离
 
-## 可用情绪标记(只能用这些)
-- [laughter] 笑声,讲到有趣内容时
-- [sigh] 叹气,表示感慨或无奈时
-- [question-ah] 啊?表示疑问
-- [question-oh] 哦?表示疑问
-- [surprise-oh] 哦!表示惊讶
-- [surprise-wa] 哇!表示惊讶
-- [dissatisfaction-hnn] 哼!表示不满或吐槽
-- [confirmation-en] 表示确认或赞同
-
 ## 输出格式
-直接输出转换后的播客讲述内容,在合适位置插入情绪标记。"""
+直接输出转换后的播客讲述内容,不要加任何标记或标签。"""
 
     try:
         result = call_llm_direct(user_prompt, system_prompt, config)
@@ -9156,6 +9439,121 @@ async def convert_to_solo_podcast(
             "success": True,
             "result": result.strip()
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
+
+
+# ==================== 统一类型 API ====================
+
+@app.get("/api/tts/genres")
+async def get_genres():
+    """获取所有可用的语音节目类型"""
+    from genre_registry import list_genres
+    return {"genres": list_genres()}
+
+
+@app.post("/api/tts/to-genre")
+async def convert_to_genre(
+    genre: str = Form(...),
+    text: str = Form(...),
+    style: str = Form(""),
+    num_speakers: int = Form(0),
+    word_count: int = Form(500),
+):
+    """统一类型转换接口"""
+    from smart_tts import call_llm_direct
+    from smart_prompt import load_config
+    from genre_registry import get_genre, build_user_prompt, get_system_prompt, clean_stage_directions
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="文本不能为空")
+
+    genre_config = get_genre(genre)
+    if not genre_config:
+        raise HTTPException(status_code=400, detail=f"未知类型: {genre}")
+
+    config = load_config()
+    if not config.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
+
+    # 确定模式和人数
+    is_solo = num_speakers <= 1
+    if num_speakers <= 0:
+        num_speakers = genre_config["default_speakers"]
+    num_speakers = max(genre_config["min_speakers"], min(num_speakers, genre_config["max_speakers"]))
+    is_solo = num_speakers <= 1
+
+    # 校验模式
+    if is_solo and "solo" not in genre_config["modes"]:
+        # 类型不支持 solo，强制切到 multi
+        num_speakers = genre_config["default_speakers"]
+        is_solo = False
+    if not is_solo and "multi" not in genre_config["modes"]:
+        # 类型不支持 multi，强制切到 solo
+        num_speakers = 1
+        is_solo = True
+
+    # 获取 prompt
+    system_prompt = get_system_prompt(genre, is_solo)
+    user_prompt = build_user_prompt(genre, text, style, num_speakers, word_count)
+
+    try:
+        result = call_llm_direct(user_prompt, system_prompt, config)
+        # 后处理：清理舞台指示
+        result = clean_stage_directions(result)
+
+        if is_solo:
+            # 单人模式：直接返回文本
+            return {
+                "success": True,
+                "mode": "solo",
+                "genre": genre,
+                "result": result.strip(),
+            }
+        else:
+            # 多人模式：解析对话格式，映射为 Speaker_N
+            speakers = []
+            speaker_set = set()
+            lines = result.strip().split('\n')
+            for line in lines:
+                line = line.strip()
+                if line.startswith('[') and ']:' in line:
+                    speaker_name = line.split(']:')[0].replace('[', '').strip()
+                    if speaker_name not in speaker_set:
+                        speaker_set.add(speaker_name)
+                        speakers.append(speaker_name)
+
+            # 构建角色映射
+            role_map = {}
+            role_keys = list(genre_config["roles"].keys())
+            for i, name in enumerate(speakers[:num_speakers]):
+                if i < len(role_keys):
+                    role_map[name] = f"Speaker_{i+1}"
+                else:
+                    role_map[name] = f"Speaker_{i+1}"
+
+            tts_lines = []
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith('[') and ']:' in line:
+                    speaker_name = line.split(']:')[0].replace('[', '').strip()
+                    content = line.split(']:', 1)[1].strip() if ']:' in line else ''
+                    tts_id = role_map.get(speaker_name, speaker_name)
+                    tts_lines.append(f"[{tts_id}]: {content}")
+                else:
+                    tts_lines.append(line)
+
+            return {
+                "success": True,
+                "mode": "multi",
+                "genre": genre,
+                "podcast_text": "\n".join(tts_lines),
+                "original_speakers": speakers[:num_speakers],
+                "speaker_map": role_map,
+                "raw_text": result,
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
@@ -9282,6 +9680,54 @@ async def import_tts_voices(
         "skipped": skipped,
         "errors": errors[:10],  # 只返回前10个错误
     }
+
+
+@app.post("/api/tts/voices/import-single")
+async def import_single_voice(
+    request: Request,
+    name: str = Form(...),
+    instruct: str = Form(""),
+    category: str = Form("custom"),
+    audio: UploadFile = File(...),
+    avatar: UploadFile = File(None),
+    token: str = Query(default=""),
+):
+    """导入单个音色"""
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="名称不能为空")
+    
+    # 创建角色文件夹
+    char_dir = os.path.join(CHARACTERS_DIR, name.strip())
+    os.makedirs(char_dir, exist_ok=True)
+    
+    # 保存音频文件
+    audio_ext = os.path.splitext(audio.filename)[1] or '.mp3'
+    audio_path = os.path.join(char_dir, f'ref_audio{audio_ext}')
+    with open(audio_path, 'wb') as f:
+        content = await audio.read()
+        f.write(content)
+    
+    # 保存头像（如果有）
+    if avatar and avatar.filename:
+        avatar_ext = os.path.splitext(avatar.filename)[1] or '.png'
+        avatar_path = os.path.join(char_dir, f'avatar{avatar_ext}')
+        with open(avatar_path, 'wb') as f:
+            content = await avatar.read()
+            f.write(content)
+    
+    # 保存配置文件
+    meta = {
+        'name': name.strip(),
+        'display_name': name.strip(),
+        'instruct': instruct,
+        'category': category,
+        'created': datetime.now().strftime('%Y%m%d')
+    }
+    meta_path = os.path.join(char_dir, 'meta.json')
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    
+    return {"success": True, "name": name.strip()}
 
 
 @app.get("/api/tts/voices/file/{filename:path}")
