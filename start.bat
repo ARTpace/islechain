@@ -17,6 +17,13 @@ if %errorlevel% neq 0 (
 python --version
 echo.
 
+echo Checking port 7000...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :7000 ^| findstr LISTENING') do (
+    echo Killing process %%a on port 7000...
+    taskkill /F /PID %%a >nul 2>&1
+)
+echo.
+
 echo Starting server...
 echo Local: http://127.0.0.1:7000
 echo.

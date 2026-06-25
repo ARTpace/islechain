@@ -24,10 +24,10 @@ from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
 import websockets as ws_client
-# 强制本地地址绕过系统代理（VPN 等），避免 httpx 误走代理导致 502
+# 强制本地地址绕过系统代理(VPN 等),避免 httpx 误走代理导致 502
 os.environ.setdefault('NO_PROXY', '127.0.0.1,localhost,::1,0.0.0.0')
 from PIL import Image, ImageOps
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, StreamingResponse, RedirectResponse
 from datetime import datetime, timezone
@@ -275,7 +275,7 @@ def jimeng_wsl_base_args(exe="wsl.exe"):
     if configured and (not names or configured in names):
         return ["-d", configured]
     if configured and names:
-        print(f"JIMENG_WSL_DISTRO={configured} 不存在，已回退自动选择。可用发行版：{names}")
+        print(f"JIMENG_WSL_DISTRO={configured} 不存在,已回退自动选择。可用发行版:{names}")
     try:
         ubuntu = next((name for name in names if re.match(r"^Ubuntu($|-)", name)), "")
         if ubuntu:
@@ -349,7 +349,7 @@ def jimeng_extract_json(text):
 async def run_jimeng_cli(args, timeout=120, raw_text=False):
     exe = jimeng_cli_executable()
     if not exe:
-        raise HTTPException(status_code=400, detail="未找到 dreamina CLI。请先安装：curl -fsSL https://jimeng.jianying.com/cli | bash，并完成 dreamina login。")
+        raise HTTPException(status_code=400, detail="未找到 dreamina CLI。请先安装:curl -fsSL https://jimeng.jianying.com/cli | bash,并完成 dreamina login。")
     clean_args = [str(arg) for arg in args if str(arg) != ""]
     command = jimeng_command(clean_args, exe)
     try:
@@ -361,13 +361,13 @@ async def run_jimeng_cli(args, timeout=120, raw_text=False):
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     except asyncio.TimeoutError as exc:
-        raise HTTPException(status_code=504, detail=f"即梦 CLI 执行超时：{' '.join(command[:3])}") from exc
+        raise HTTPException(status_code=504, detail=f"即梦 CLI 执行超时:{' '.join(command[:3])}") from exc
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=400, detail=f"未找到即梦 CLI：{exe}") from exc
+        raise HTTPException(status_code=400, detail=f"未找到即梦 CLI:{exe}") from exc
     out_text, clean_err_text = jimeng_decode_cli_output(stdout, stderr)
     if proc.returncode != 0:
         message = clean_err_text or out_text or f"exit={proc.returncode}"
-        raise HTTPException(status_code=502, detail=f"即梦 CLI 调用失败：{message[:1000]}")
+        raise HTTPException(status_code=502, detail=f"即梦 CLI 调用失败:{message[:1000]}")
     if raw_text:
         return {"_stdout": out_text, "_stderr": clean_err_text}
     raw = jimeng_extract_json(f"{out_text}\n{clean_err_text}".strip())
@@ -465,7 +465,7 @@ def jimeng_submit_id(raw):
     return found[0] if found else ""
 
 class JimengPendingError(Exception):
-    """即梦任务还在云端排队/生成（轮询超时但未失败）。submit_id 可用于后续续查。"""
+    """即梦任务还在云端排队/生成(轮询超时但未失败)。submit_id 可用于后续续查。"""
     def __init__(self, submit_id, kind="image", queue_info=None, raw=None):
         self.submit_id = str(submit_id or "")
         self.kind = kind or "image"
@@ -474,7 +474,7 @@ class JimengPendingError(Exception):
         super().__init__(f"jimeng pending submit_id={self.submit_id}")
 
 def jimeng_queue_info(raw):
-    """从即梦原始返回里就近取出 queue_info（含 queue_idx/queue_length/queue_status）。"""
+    """从即梦原始返回里就近取出 queue_info(含 queue_idx/queue_length/queue_status)。"""
     found = []
     def visit(value):
         if isinstance(value, dict):
@@ -495,9 +495,9 @@ def jimeng_pending_payload(exc: "JimengPendingError"):
     idx = qi.get("queue_idx")
     length = qi.get("queue_length")
     if idx is not None and length is not None:
-        msg = f"即梦云端排队中（第 {idx}/{length} 位），任务未丢失，可继续等待或手动查询。submit_id={exc.submit_id}"
+        msg = f"即梦云端排队中(第 {idx}/{length} 位),任务未丢失,可继续等待或手动查询。submit_id={exc.submit_id}"
     else:
-        msg = f"即梦任务仍在生成中，任务未丢失。submit_id={exc.submit_id}"
+        msg = f"即梦任务仍在生成中,任务未丢失。submit_id={exc.submit_id}"
     return {
         "jimeng_pending": True,
         "submit_id": exc.submit_id,
@@ -730,7 +730,7 @@ async def jimeng_query_result(submit_id, kind="image"):
 async def jimeng_store_outputs(raw, kind="image", allow_query=True):
     failure = jimeng_failure_reason(raw)
     if failure:
-        raise HTTPException(status_code=502, detail=f"即梦生成失败：{failure}")
+        raise HTTPException(status_code=502, detail=f"即梦生成失败:{failure}")
     values = jimeng_output_values(raw)
     urls = []
     for value in values:
@@ -747,12 +747,12 @@ async def jimeng_store_outputs(raw, kind="image", allow_query=True):
         except HTTPException as exc:
             if getattr(exc, "status_code", None) == 502:
                 status_text = json.dumps(queried, ensure_ascii=False)[:800] if isinstance(queried, (dict, list)) else str(queried)[:800]
-                raise HTTPException(status_code=502, detail=f"即梦任务已返回但没有下载到媒体：{status_text}") from exc
+                raise HTTPException(status_code=502, detail=f"即梦任务已返回但没有下载到媒体:{status_text}") from exc
             raise
     status_text = json.dumps(raw, ensure_ascii=False)[:800] if isinstance(raw, (dict, list)) else str(raw)[:800]
     if submit_id:
         raise JimengPendingError(submit_id, kind, jimeng_queue_info(raw), raw)
-    raise HTTPException(status_code=502, detail=f"即梦 CLI 未返回可用媒体结果：{status_text}")
+    raise HTTPException(status_code=502, detail=f"即梦 CLI 未返回可用媒体结果:{status_text}")
 
 async def jimeng_prepare_local_media(ref_url, kind="image"):
     text = str(ref_url or "").strip()
@@ -762,7 +762,7 @@ async def jimeng_prepare_local_media(ref_url, kind="image"):
         path = output_file_from_url(text)
         if path:
             return path, []
-        raise HTTPException(status_code=404, detail=f"即梦参考素材不存在：{text}")
+        raise HTTPException(status_code=404, detail=f"即梦参考素材不存在:{text}")
     if text.startswith("file://"):
         path = urllib.parse.unquote(urllib.parse.urlparse(text).path)
         if os.name == "nt" and re.match(r"^/[A-Za-z]:/", path):
@@ -795,7 +795,7 @@ async def jimeng_prepare_local_media(ref_url, kind="image"):
                 f.write(response.content)
             temp_paths.append(path)
             return path, temp_paths
-    raise HTTPException(status_code=400, detail=f"即梦 CLI 只支持本地文件参考素材，无法读取：{text[:120]}")
+    raise HTTPException(status_code=400, detail=f"即梦 CLI 只支持本地文件参考素材,无法读取:{text[:120]}")
 
 async def generate_jimeng_provider_image(prompt, size, model, reference_images=None, provider=None):
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
@@ -1027,7 +1027,7 @@ def sanitize_folder_name(title, canvas_id):
     return f"{name}_{suffix}" if name else suffix
 
 def get_canvas_output_dir(canvas):
-    """获取画布的输出目录路径（含用户隔离）"""
+    """获取画布的输出目录路径(含用户隔离)"""
     owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
     folder = canvas.get("output_folder", "")
     if owner and folder:
@@ -1041,7 +1041,7 @@ def get_canvas_output_dir(canvas):
     return OUTPUT_DIR
 
 def get_canvas_asset_dir(canvas):
-    """获取画布的资产目录路径（含用户隔离）"""
+    """获取画布的资产目录路径(含用户隔离)"""
     owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
     folder = canvas.get("output_folder", "")
     if owner and folder:
@@ -1054,7 +1054,7 @@ def get_canvas_asset_dir(canvas):
         return path
     return INPUT_DIR
 
-def build_output_url(canvas, filename, username=None):
+def build_output_url(canvas, filename, username=None, subfolder=None):
     """构建 output 文件的 URL 路径"""
     if canvas:
         owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
@@ -1069,12 +1069,16 @@ def build_output_url(canvas, filename, username=None):
             return f"/output/{filename}"
     elif username:
         user_dirname = get_user_dirname(username)
+        if subfolder:
+            return f"/output/{user_dirname}/{subfolder}/{filename}"
         return f"/output/{user_dirname}/{filename}"
     else:
+        if subfolder:
+            return f"/output/{subfolder}/{filename}"
         return f"/output/{filename}"
 
 def build_asset_url(canvas, filename):
-    """构建 asset 文件的 URL 路径（含用户隔离）"""
+    """构建 asset 文件的 URL 路径(含用户隔离)"""
     if canvas:
         owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
         folder = canvas.get("output_folder", "")
@@ -1129,7 +1133,7 @@ def find_user_by_token(token):
 # --- 用户文件隔离辅助函数 ---
 
 def get_username_by_token(token):
-    """根据 token 获取用户名，返回 None 表示未登录"""
+    """根据 token 获取用户名,返回 None 表示未登录"""
     if not token:
         return None
     username, user = find_user_by_token(token)
@@ -1143,7 +1147,7 @@ def is_admin_by_token(token):
     return bool(user and user.get("is_admin", False))
 
 def validate_canvas_owner(canvas, token):
-    """校验画布归属：管理员可操作所有画布，普通用户只能操作自己的画布"""
+    """校验画布归属:管理员可操作所有画布,普通用户只能操作自己的画布"""
     is_admin = is_admin_by_token(token)
     if is_admin:
         return
@@ -1158,7 +1162,7 @@ def get_user_dirname(username):
     return safe_user_id(username, None)
 
 def get_user_output_dir(username):
-    """获取用户的 output 子目录，返回 (目录路径, 目录名)"""
+    """获取用户的 output 子目录,返回 (目录路径, 目录名)"""
     dirname = get_user_dirname(username)
     if not dirname:
         return OUTPUT_DIR, ""
@@ -1167,7 +1171,7 @@ def get_user_output_dir(username):
     return path, dirname
 
 def get_user_input_dir(username):
-    """获取用户的 input 子目录，返回 (目录路径, 目录名)"""
+    """获取用户的 input 子目录,返回 (目录路径, 目录名)"""
     dirname = get_user_dirname(username)
     if not dirname:
         return INPUT_DIR, ""
@@ -1215,7 +1219,7 @@ def normalize_provider(data):
     }
 
 def public_provider(provider):
-    """返回公开的提供商信息（隐藏 API Key）"""
+    """返回公开的提供商信息(隐藏 API Key)"""
     env_key = provider_key_env(provider["id"])
     has_key = bool(os.getenv(env_key, "") or read_api_env_value(env_key))
     key_preview = ''
@@ -1254,27 +1258,27 @@ def get_api_provider_exact(provider_id):
     """精确匹配提供商"""
     provider = get_api_provider(provider_id)
     if not provider:
-        raise HTTPException(status_code=404, detail=f"API 平台不存在：{provider_id}")
+        raise HTTPException(status_code=404, detail=f"API 平台不存在:{provider_id}")
     return provider
 
 def reload_env_globals():
-    """重新加载环境变量到全局变量（用于热更新）"""
+    """重新加载环境变量到全局变量(用于热更新)"""
     global COMFYUI_INSTANCES, COMFYUI_ADDRESS, AI_BASE_URL, AI_API_KEY, MODELSCOPE_API_KEY
     global CHAT_MODEL, IMAGE_MODEL, CHAT_MODELS, IMAGE_MODELS, COMFYUI_BASE_PATH
-    
+
     load_env_file()
-    
+
     COMFYUI_INSTANCES = [s.strip() for s in os.getenv("COMFYUI_INSTANCES", "127.0.0.1:8188").split(",") if s.strip()]
     COMFYUI_ADDRESS = COMFYUI_INSTANCES[0]
     COMFYUI_BASE_PATH = os.getenv("COMFYUI_BASE_PATH", "").rstrip("\\")
-    
+
     AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ukiyoapi.apifox.cn").rstrip("/")
     AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
     MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY", "")
-    
+
     CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
     IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-1")
-    
+
     def model_list_reloaded(env_name, primary, defaults):
         configured = os.getenv(env_name, "")
         configured_values = [item.strip() for item in configured.split(",") if item.strip()]
@@ -1284,7 +1288,7 @@ def reload_env_globals():
             if value and value not in deduped:
                 deduped.append(value)
         return deduped
-    
+
     CHAT_MODELS = model_list_reloaded("CHAT_MODELS", CHAT_MODEL, ["gpt-4o-mini", "gemini-3.1-flash-image-preview-2k"])
     IMAGE_MODELS = model_list_reloaded("IMAGE_MODELS", IMAGE_MODEL, ["gpt-image-2-all", "nano-banana"])
 
@@ -1311,7 +1315,7 @@ def save_env_file(updates):
     try:
         with open(API_ENV_FILE, 'r', encoding='utf-8-sig') as f:
             lines = f.readlines()
-        
+
         updated_keys = set()
         new_lines = []
         for line in lines:
@@ -1323,11 +1327,11 @@ def save_env_file(updates):
                     updated_keys.add(key)
                     continue
             new_lines.append(line)
-        
+
         for key, value in updates.items():
             if key not in updated_keys:
                 new_lines.append(f"{key}={value}\n")
-        
+
         with open(API_ENV_FILE, 'w', encoding='utf-8-sig') as f:
             f.writelines(new_lines)
         return True
@@ -1401,27 +1405,27 @@ class NoCacheStaticFiles(StarletteStaticFiles):
 
 app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
-# 自定义 output 静态文件服务，支持子文件夹访问
+# 自定义 output 静态文件服务,支持子文件夹访问
 from starlette.responses import FileResponse as StarletteFileResponse
 
 @app.get("/output/{path:path}")
 async def serve_output_file(path: str):
-    """提供 output 目录下的文件访问，支持子文件夹"""
-    # 安全检查：防止路径遍历攻击
+    """提供 output 目录下的文件访问,支持子文件夹"""
+    # 安全检查:防止路径遍历攻击
     clean_path = path.replace("\\", "/")
     if ".." in clean_path or clean_path.startswith("/"):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     full_path = os.path.abspath(os.path.join(OUTPUT_DIR, clean_path))
     output_root = os.path.abspath(OUTPUT_DIR)
-    
+
     # 确保请求的路径在 OUTPUT_DIR 内
     if not full_path.startswith(output_root):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     if not os.path.exists(full_path) or not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     # 设置正确的 Content-Type
     ext = os.path.splitext(full_path)[1].lower()
     media_type = {
@@ -1443,7 +1447,7 @@ async def serve_output_file(path: str):
         ".aac": "audio/aac",
         ".m4a": "audio/mp4",
     }.get(ext, "application/octet-stream")
-    
+
     is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mov')
     if is_media:
         mtime = os.path.getmtime(full_path)
@@ -1460,20 +1464,20 @@ async def serve_output_file(path: str):
 
 @app.get("/assets/{path:path}")
 async def serve_asset_file(path: str):
-    """提供 input 目录下的文件访问，支持子文件夹"""
+    """提供 input 目录下的文件访问,支持子文件夹"""
     clean_path = path.replace("\\", "/")
     if ".." in clean_path or clean_path.startswith("/"):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     full_path = os.path.abspath(os.path.join(INPUT_DIR, clean_path))
     input_root = os.path.abspath(INPUT_DIR)
-    
+
     if not full_path.startswith(input_root):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     if not os.path.exists(full_path) or not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     ext = os.path.splitext(full_path)[1].lower()
     media_type = {
         ".png": "image/png",
@@ -1483,7 +1487,7 @@ async def serve_asset_file(path: str):
         ".gif": "image/gif",
         ".txt": "text/plain",
     }.get(ext, "application/octet-stream")
-    
+
     is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif')
     if is_media:
         mtime = os.path.getmtime(full_path)
@@ -1511,8 +1515,8 @@ class GenerateRequest(BaseModel):
     client_id: str = ""
     convert_to_jpg: bool = False
     prompt_id: str = ""
-    canvas_id: str = ""  # 新增：画布ID，可选
-    extra_pnginfo: Optional[Dict[str, Any]] = None  # ComfyUI extra_pnginfo，用于 GJJ_MultiImageLoader 等节点
+    canvas_id: str = ""  # 新增:画布ID,可选
+    extra_pnginfo: Optional[Dict[str, Any]] = None  # ComfyUI extra_pnginfo,用于 GJJ_MultiImageLoader 等节点
 
 class WorkflowField(BaseModel):
     id: str = ""
@@ -1845,7 +1849,7 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
         return full_url
 
 
-def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, username=None):
+def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, username=None, subfolder=None):
     """从 ComfyUI 下载音频文件"""
     # 根据 URL 推断扩展名
     ext = ".wav"
@@ -1855,7 +1859,7 @@ def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, us
         ext = ".mp3"
     elif ".ogg" in comfy_url_path.lower():
         ext = ".ogg"
-    
+
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
@@ -1863,13 +1867,16 @@ def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, us
         canvas_output_dir, _ = get_user_output_dir(username)
     else:
         canvas_output_dir = OUTPUT_DIR
+    # TTS 音频存到子文件夹
+    if subfolder:
+        canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
     os.makedirs(canvas_output_dir, exist_ok=True)
     local_path = os.path.join(canvas_output_dir, filename)
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return build_output_url(canvas, filename, username)
+        return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载音频失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -1985,12 +1992,12 @@ def new_canvas(title="未命名画布", icon="layers", owner=None):
     timestamp = now_ms()
     canvas_id = uuid.uuid4().hex
     folder_name = sanitize_folder_name(title, canvas_id)
-    
-    # 创建画布专属输出文件夹（含用户目录嵌套）
+
+    # 创建画布专属输出文件夹(含用户目录嵌套)
     user_dirname = get_user_dirname(owner) if owner else ""
     canvas_dir = os.path.join(OUTPUT_DIR, user_dirname, folder_name) if user_dirname else os.path.join(OUTPUT_DIR, folder_name)
     os.makedirs(canvas_dir, exist_ok=True)
-    
+
     canvas = {
         "id": canvas_id,
         "title": (title or "未命名画布")[:80],
@@ -2085,7 +2092,7 @@ def display_title(text):
 def resolve_chat_provider(provider: str, model: str, ms_model: str):
     if provider == "modelscope":
         if not MODELSCOPE_API_KEY:
-            raise HTTPException(status_code=400, detail="未配置 MODELSCOPE_API_KEY，请在 API/.env 中填写。")
+            raise HTTPException(status_code=400, detail="未配置 MODELSCOPE_API_KEY,请在 API/.env 中填写。")
         base = MODELSCOPE_CHAT_BASE_URL
         hdrs = {"Authorization": f"Bearer {sanitize_api_key(MODELSCOPE_API_KEY)}", "Content-Type": "application/json"}
         mdl = selected_model(ms_model or model, MODELSCOPE_CHAT_MODELS[0] if MODELSCOPE_CHAT_MODELS else "MiniMax/MiniMax-M2.7")
@@ -2112,7 +2119,7 @@ def resolve_chat_provider(provider: str, model: str, ms_model: str):
 
 def api_headers(json_body=True):
     if not AI_API_KEY:
-        raise HTTPException(status_code=400, detail="未配置 COMFLY_API_KEY，请在 API/.env 中填写。")
+        raise HTTPException(status_code=400, detail="未配置 COMFLY_API_KEY,请在 API/.env 中填写。")
     headers = {"Accept": "application/json", "Authorization": f"Bearer {sanitize_api_key(AI_API_KEY)}"}
     if json_body:
         headers["Content-Type"] = "application/json"
@@ -2123,7 +2130,7 @@ def selected_model(requested, fallback):
     if not model:
         raise HTTPException(status_code=400, detail="模型名称不能为空")
     if len(model) > 120 or not re.fullmatch(r"[a-zA-Z0-9_.:/+-]+", model):
-        raise HTTPException(status_code=400, detail=f"模型名称不合法：{model}")
+        raise HTTPException(status_code=400, detail=f"模型名称不合法:{model}")
     return model
 
 def text_from_chat_response(data):
@@ -2164,7 +2171,7 @@ def sse_event(data):
 def extract_image(data):
     if isinstance(data.get("data"), dict) and isinstance(data["data"].get("data"), dict):
         data = data["data"]["data"]
-    
+
     images = data.get("data") or []
     if not images:
         raise HTTPException(status_code=502, detail="生图接口没有返回图片数据")
@@ -2176,14 +2183,14 @@ def extract_image(data):
     raise HTTPException(status_code=502, detail="无法识别生图接口返回格式")
 
 def extract_image_from_chat(data):
-    """从对话接口响应中提取图像（Gemini 模型）"""
+    """从对话接口响应中提取图像(Gemini 模型)"""
     choices = data.get("choices") or []
     if not choices:
         raise HTTPException(status_code=502, detail="对话接口没有返回图像数据")
-    
+
     message = choices[0].get("message") or {}
     content = message.get("content", "")
-    
+
     if isinstance(content, str):
         if content.startswith("data:image"):
             base64_data = content.split(",", 1)[-1] if "," in content else content
@@ -2193,7 +2200,7 @@ def extract_image_from_chat(data):
         m = re.search(r'!\[.*?\]\(data:image/[^;]+;base64,([^)]+)\)', content)
         if m:
             return {"type": "b64", "value": m.group(1)}
-    
+
     parts = message.get("parts") or []
     for part in parts:
         if isinstance(part, dict):
@@ -2201,7 +2208,7 @@ def extract_image_from_chat(data):
                 return {"type": "b64", "value": part["inlineData"]["data"]}
             if part.get("fileData"):
                 return {"type": "url", "value": part["fileData"].get("fileUri", "")}
-    
+
     raise HTTPException(status_code=502, detail="无法从对话响应中提取图像")
 
 def extract_task_id(data):
@@ -2227,16 +2234,16 @@ async def wait_for_image_task(client, task_id):
             return last_payload
         if status == "FAILURE":
             reason = task_data.get("fail_reason") or last_payload.get("message") or "生图任务失败"
-            raise HTTPException(status_code=502, detail=f"生图任务失败：{reason}")
+            raise HTTPException(status_code=502, detail=f"生图任务失败:{reason}")
         await asyncio.sleep(IMAGE_POLL_INTERVAL)
-    raise HTTPException(status_code=504, detail=f"生图任务超时，task_id={task_id}")
+    raise HTTPException(status_code=504, detail=f"生图任务超时,task_id={task_id}")
 
 def output_file_from_url(url):
     if not url:
         return None
-    
+
     clean_url = url.split("?")[0]
-    
+
     if clean_url.startswith("/output/"):
         relative_path = clean_url[len("/output/"):]
         path = os.path.abspath(os.path.join(OUTPUT_DIR, relative_path))
@@ -2244,7 +2251,7 @@ def output_file_from_url(url):
         if os.path.commonpath([output_root, path]) == output_root and os.path.exists(path):
             return path
         return None
-    
+
     if clean_url.startswith("/assets/"):
         relative_path = clean_url[len("/assets/"):]
         path = os.path.abspath(os.path.join(INPUT_DIR, relative_path))
@@ -2252,7 +2259,7 @@ def output_file_from_url(url):
         if os.path.commonpath([input_root, path]) == input_root and os.path.exists(path):
             return path
         return None
-    
+
     return None
 
 def content_type_for_path(path):
@@ -2301,7 +2308,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
     else:
         canvas_output_dir = OUTPUT_DIR
     os.makedirs(canvas_output_dir, exist_ok=True)
-    
+
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
     path = os.path.join(canvas_output_dir, filename)
     if image_data["type"] == "b64":
@@ -2331,7 +2338,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
 
 async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai"):
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
-    
+
     quality_map = {
         "auto": "medium",
         "low": "low",
@@ -2340,9 +2347,9 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
         "standard": "low",
         "hd": "high"
     }
-    
+
     is_gemini_model = protocol == "gemini"
-    
+
     async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
         if is_gemini_model:
             system_prompt = f"Generate an image with the following requirements. Size: {size}, Quality: {quality_map.get(quality, 'medium')}."
@@ -2410,7 +2417,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             raw = response.json()
         except Exception:
             raise HTTPException(status_code=502, detail=f"API 服务器返回无效响应: {response.text[:200]}")
-        
+
         try:
             if is_gemini_model:
                 return extract_image_from_chat(raw), raw
@@ -2615,7 +2622,7 @@ def fetch_remote_media_bytes(url: str, timeout: float = 30.0, max_bytes: int = 2
                 continue
             total += len(chunk)
             if total > max_bytes:
-                raise HTTPException(status_code=413, detail="文件太大，无法下载")
+                raise HTTPException(status_code=413, detail="文件太大,无法下载")
             chunks.append(chunk)
         return b"".join(chunks), content_type
 
@@ -2852,7 +2859,7 @@ def is_video_preview_file(path: str) -> bool:
 def generate_video_preview_image(path: str, width: int) -> Image.Image:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        raise RuntimeError("未找到 ffmpeg，无法生成视频预览图")
+        raise RuntimeError("未找到 ffmpeg,无法生成视频预览图")
     fd, frame_path = tempfile.mkstemp(prefix="media_preview_frame_", suffix=".jpg")
     os.close(fd)
     try:
@@ -2917,7 +2924,7 @@ def bearer_auth_value(value):
 def runninghub_api_headers(provider):
     api_key = str((provider or {}).get("api_key") or "").strip() or runninghub_api_key(provider)
     if not api_key:
-        raise HTTPException(status_code=400, detail="未配置 RunningHub API Key，请在 API 设置中填写。")
+        raise HTTPException(status_code=400, detail="未配置 RunningHub API Key,请在 API 设置中填写。")
     return {"Authorization": bearer_auth_value(api_key), "Accept": "application/json", "Content-Type": "application/json"}
 
 def runninghub_provider():
@@ -2929,7 +2936,7 @@ def runninghub_api_key(provider=None, use_wallet=False, prefer_wallet=False):
     wallet_key = str((provider or {}).get("wallet_api_key") or "").strip() or os.getenv(runninghub_wallet_key_env(), "")
     api_key = wallet_key if (use_wallet or prefer_wallet) and wallet_key else free_key
     if not api_key:
-        raise HTTPException(status_code=400, detail="未配置 RunningHub API Key，请在 RH 设置中填写。")
+        raise HTTPException(status_code=400, detail="未配置 RunningHub API Key,请在 RH 设置中填写。")
     return api_key
 
 def runninghub_app_headers(json_body=True, use_wallet=False):
@@ -3422,7 +3429,7 @@ def local_media_path_for_cloud_upload(ref_url: str, allowed_prefixes=("image/", 
     max_bytes = int(os.getenv("TEMP_SH_MAX_BYTES", str(4 * 1024 * 1024 * 1024)))
     size = os.path.getsize(path)
     if size > max_bytes:
-        raise HTTPException(status_code=400, detail=f"媒体文件超过云端上传大小限制：{size} bytes")
+        raise HTTPException(status_code=400, detail=f"媒体文件超过云端上传大小限制:{size} bytes")
     return path
 
 async def upload_video_to_litterbox(path: str, source_url: str) -> Dict[str, str]:
@@ -3436,15 +3443,15 @@ async def upload_video_to_litterbox(path: str, source_url: str) -> Dict[str, str
                 data = {"reqtype": "fileupload", "time": time_value}
                 response = await client.post(upload_url, data=data, files=files)
         if not response.is_success:
-            raise HTTPException(status_code=response.status_code, detail=f"Litterbox 上传失败：{response.text[:300]}")
+            raise HTTPException(status_code=response.status_code, detail=f"Litterbox 上传失败:{response.text[:300]}")
         direct_url = response.text.strip().splitlines()[0].strip()
         if not re.match(r"^https?://", direct_url, re.I):
-            raise HTTPException(status_code=502, detail=f"Litterbox 返回了无法识别的链接：{response.text[:300]}")
+            raise HTTPException(status_code=502, detail=f"Litterbox 返回了无法识别的链接:{response.text[:300]}")
         return {"url": direct_url, "source": source_url, "name": os.path.basename(path), "expires": time_value, "service": "litterbox"}
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Litterbox 上传异常：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Litterbox 上传异常:{exc}") from exc
 
 async def upload_video_to_temp_sh(path: str, source_url: str) -> Dict[str, str]:
     upload_url = os.getenv("TEMP_SH_UPLOAD_URL", "https://temp.sh/upload").strip() or "https://temp.sh/upload"
@@ -3455,15 +3462,15 @@ async def upload_video_to_temp_sh(path: str, source_url: str) -> Dict[str, str]:
                 files = {"file": (os.path.basename(path), fh, ct)}
                 response = await client.post(upload_url, files=files)
         if not response.is_success:
-            raise HTTPException(status_code=response.status_code, detail=f"Temp.sh 上传失败：{response.text[:300]}")
+            raise HTTPException(status_code=response.status_code, detail=f"Temp.sh 上传失败:{response.text[:300]}")
         direct_url = response.text.strip().splitlines()[0].strip()
         if not re.match(r"^https?://", direct_url, re.I):
-            raise HTTPException(status_code=502, detail=f"Temp.sh 返回了无法识别的链接：{response.text[:300]}")
+            raise HTTPException(status_code=502, detail=f"Temp.sh 返回了无法识别的链接:{response.text[:300]}")
         return {"url": direct_url, "source": source_url, "name": os.path.basename(path), "expires": "3 days", "service": "temp.sh"}
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Temp.sh 上传异常：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Temp.sh 上传异常:{exc}") from exc
 
 async def upload_local_video_to_cloud(ref_url: str, service: str = "auto") -> Dict[str, str]:
     ref_url = str(ref_url or "").strip()
@@ -3481,7 +3488,7 @@ async def upload_local_video_to_cloud(ref_url: str, service: str = "auto") -> Di
             return await func(path, ref_url)
         except HTTPException as exc:
             errors.append(f"{name}: {exc.detail}")
-    raise HTTPException(status_code=502, detail="云端上传失败：" + "；".join(errors))
+    raise HTTPException(status_code=502, detail="云端上传失败:" + ";".join(errors))
 
 # --- 本地图片导入辅助函数 ---
 
@@ -3523,7 +3530,7 @@ def import_local_image_file(path):
     if size <= 0:
         raise HTTPException(status_code=400, detail="本地图片为空")
     if size > LOCAL_IMAGE_IMPORT_MAX_BYTES:
-        raise HTTPException(status_code=413, detail="本地图片过大，请使用 50MB 以内的图片")
+        raise HTTPException(status_code=413, detail="本地图片过大,请使用 50MB 以内的图片")
     try:
         with Image.open(path) as img:
             img.verify()
@@ -3610,7 +3617,7 @@ def migrate_asset_library_into_dirs():
     try:
         lib = load_asset_library()
     except Exception as exc:
-        print(f"资产库分组整理：加载失败 {exc}")
+        print(f"资产库分组整理:加载失败 {exc}")
         return
     changed = False
     for library in lib.get("libraries", []) or []:
@@ -3638,9 +3645,9 @@ def get_primary_provider_id(providers=None):
 
 # --- 资产分类辅助 ---
 
-ASSET_CLASSIFICATION_PROMPT = """请识别这张图片，输出严格 JSON，不要 Markdown，不要解释。
-目标是给素材库做非常全面的筛选分类。所有字段都用中文短标签数组，尽量具体但不要虚构。
-JSON 结构：
+ASSET_CLASSIFICATION_PROMPT = """请识别这张图片,输出严格 JSON,不要 Markdown,不要解释。
+目标是给素材库做非常全面的筛选分类。所有字段都用中文短标签数组,尽量具体但不要虚构。
+JSON 结构:
 {
   "summary": "一句话描述",
   "categories": {
@@ -3660,9 +3667,9 @@ JSON 结构：
     "materials": ["木材/金属/玻璃/布料/皮革/石材/陶瓷等"],
     "quality": ["高清/模糊/低清/噪点/水印/截图/透明背景等"]
   },
-  "tags": ["综合关键词，20个以内"]
+  "tags": ["综合关键词,20个以内"]
 }
-要求：只返回可解析 JSON；每个数组最多 8 项；如果不确定就省略该标签。"""
+要求:只返回可解析 JSON;每个数组最多 8 项;如果不确定就省略该标签。"""
 
 ASSET_CLASSIFICATION_DIMENSION_NAMES = {
     "environment": "环境", "scene": "场景", "space": "空间",
@@ -3677,7 +3684,7 @@ def _local_upload_classification_path(filename):
 
 def _safe_asset_tag(value, limit=24):
     text = re.sub(r"\s+", " ", str(value or "").strip())
-    text = re.sub(r"^[#＃]+", "", text).strip(" ,，、;；|/")
+    text = re.sub(r"^[##]+", "", text).strip(" ,,、;;|/")
     return text[:limit]
 
 def normalize_asset_classification(raw):
@@ -3691,7 +3698,7 @@ def normalize_asset_classification(raw):
         if not norm_key:
             continue
         if isinstance(values, str):
-            values = re.split(r"[,，、/|;；\n]+", values)
+            values = re.split(r"[,,、/|;;\n]+", values)
         if not isinstance(values, list):
             continue
         clean_values = []
@@ -3767,7 +3774,7 @@ def asset_classification_prompt(extra_prompt=""):
     extra = str(extra_prompt or "").strip()
     if not extra:
         return ASSET_CLASSIFICATION_PROMPT
-    return ASSET_CLASSIFICATION_PROMPT + "\n\n用户补充分类要求：\n" + extra[:4000]
+    return ASSET_CLASSIFICATION_PROMPT + "\n\n用户补充分类要求:\n" + extra[:4000]
 
 async def classify_image_with_provider(abs_path, provider_id="", model="", ms_model="", prompt=""):
     text, resolved_model = await caption_image_with_provider(
@@ -3812,13 +3819,13 @@ async def caption_image_with_provider(abs_path, prompt, provider_id, model, ms_m
             raw = response.json()
     except httpx.HTTPStatusError as exc:
         body = exc.response.text or ""
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{body[:200]}") from exc
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误:{body[:200]}") from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"请求上游接口失败:{exc}") from exc
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"解析上游响应失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"解析上游响应失败:{exc}") from exc
     text = text_from_chat_response(raw).strip() if isinstance(raw, dict) else ""
     return text or "接口返回了空回复。", resolved_model
 
@@ -3896,7 +3903,7 @@ def shared_resolve_register(path):
     if common != base:
         raise HTTPException(status_code=400, detail="只允许登记项目目录内的文件夹")
     if abs_path == base:
-        raise HTTPException(status_code=400, detail="不能直接登记项目根目录，请选择子文件夹")
+        raise HTTPException(status_code=400, detail="不能直接登记项目根目录,请选择子文件夹")
     if not os.path.isdir(abs_path):
         raise HTTPException(status_code=400, detail="文件夹不存在")
     rel = os.path.relpath(abs_path, base)
@@ -4210,7 +4217,7 @@ def canvas_assets_index():
     return {"categories": categories, "canvases": canvases, "items": items}
 
 def extract_canvas_assets(canvas):
-    """从画布 JSON 中提取所有素材 URL（节点图片/视频/音频）"""
+    """从画布 JSON 中提取所有素材 URL(节点图片/视频/音频)"""
     import copy
     items = []
     seen = set()
@@ -4425,7 +4432,7 @@ async def auth_register(payload: AuthRegisterRequest):
         raise HTTPException(status_code=400, detail="用户名不能为空")
     users = load_users()
     if username in users:
-        raise HTTPException(status_code=400, detail="该用户名已存在，请直接登录")
+        raise HTTPException(status_code=400, detail="该用户名已存在,请直接登录")
     is_admin = (username == SUPER_ADMIN_USERNAME)
     token = str(uuid.uuid4())
     users[username] = {
@@ -4445,7 +4452,7 @@ async def auth_login(payload: AuthLoginRequest):
     users = load_users()
     user = users.get(username)
     if not user:
-        raise HTTPException(status_code=400, detail="用户不存在，请先注册")
+        raise HTTPException(status_code=400, detail="用户不存在,请先注册")
     if user["password"] != hash_password(payload.password):
         raise HTTPException(status_code=400, detail="密码错误")
     token = str(uuid.uuid4())
@@ -4646,7 +4653,7 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
             canvas = load_canvas(canvas_id)
         except:
             pass
-    
+
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
     elif username:
@@ -4654,7 +4661,7 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
     else:
         canvas_output_dir = OUTPUT_DIR
     os.makedirs(canvas_output_dir, exist_ok=True)
-    
+
     uploaded = []
     for file in files:
         content = await file.read()
@@ -4702,11 +4709,11 @@ async def ai_config():
 async def ai_models():
     return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
 
-# --- ModelScope Token (从 env 读取，不再支持通过 UI 修改) ---
+# --- ModelScope Token (从 env 读取,不再支持通过 UI 修改) ---
 
 @app.get("/api/config/token")
 async def get_global_token():
-    # 优先读 env，回退到 global_config.json（兼容旧数据）
+    # 优先读 env,回退到 global_config.json(兼容旧数据)
     if MODELSCOPE_API_KEY:
         return {"token": MODELSCOPE_API_KEY}
     if os.path.exists(GLOBAL_CONFIG_FILE):
@@ -4720,27 +4727,27 @@ async def get_global_token():
 
 @app.post("/api/config/update")
 async def update_config(payload: ConfigUpdateRequest):
-    """接收前端配置更新，同步到后端内存并写入 .env 文件"""
+    """接收前端配置更新,同步到后端内存并写入 .env 文件"""
     global AI_API_KEY, MODELSCOPE_API_KEY, AI_BASE_URL
-    
+
     env_updates = {}
-    
+
     if payload.comfly_api_key:
         AI_API_KEY = payload.comfly_api_key
         env_updates["COMFLY_API_KEY"] = payload.comfly_api_key
-    
+
     if payload.modelscope_api_key:
         MODELSCOPE_API_KEY = payload.modelscope_api_key
         env_updates["MODELSCOPE_API_KEY"] = payload.modelscope_api_key
-    
+
     if payload.comfly_base_url:
         AI_BASE_URL = payload.comfly_base_url.rstrip("/")
         env_updates["COMFLY_BASE_URL"] = payload.comfly_base_url.rstrip("/")
-    
+
     if env_updates:
         save_env_file(env_updates)
         print(f"已更新 .env 配置: {', '.join(env_updates.keys())}")
-    
+
     return {"status": "ok"}
 
 # --- 在线生图 (COMFLY) ---
@@ -4754,9 +4761,9 @@ async def online_image(payload: OnlineImageRequest, token: str = ""):
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, payload.protocol)
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误：{exc.response.text}") from exc
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误:{exc.response.text}") from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
 
     result = {
         "prompt": payload.prompt,
@@ -4791,16 +4798,16 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         m = re.search(r"longest edge must be less than or equal to (\d+)", text)
         if m:
             limit = m.group(1)
-            friendly = f"该模型不支持当前分辨率：最长边超过 {limit}px。请把图片分辨率调低（例如换到 2K 或更小），或更换支持高分辨率的模型。"
+            friendly = f"该模型不支持当前分辨率:最长边超过 {limit}px。请把图片分辨率调低(例如换到 2K 或更小),或更换支持高分辨率的模型。"
         elif "Invalid size" in text or "invalid_value" in text:
-            friendly = f"该模型不支持当前尺寸：{payload.size}。请尝试更换分辨率或模型。"
+            friendly = f"该模型不支持当前尺寸:{payload.size}。请尝试更换分辨率或模型。"
         elif "rate limit" in text.lower() or "429" in text:
-            friendly = "请求过于频繁，已被上游限流，请稍后再试。"
+            friendly = "请求过于频繁,已被上游限流,请稍后再试。"
         elif "Unauthorized" in text or "401" in text:
-            friendly = "API Key 无效或已过期，请到「API 设置」检查 Key。"
+            friendly = "API Key 无效或已过期,请到「API 设置」检查 Key。"
         raise HTTPException(status_code=exc.response.status_code, detail=friendly or text) from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
     except Exception as exc:
         detail = getattr(exc, "detail", None) or str(exc)
         raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
@@ -4861,7 +4868,7 @@ async def get_canvas_image_task(task_id: str):
     with CANVAS_TASK_LOCK:
         task = dict(CANVAS_TASKS.get(task_id) or {})
     if not task:
-        raise HTTPException(status_code=404, detail="画布任务不存在，可能服务已重启或任务已过期")
+        raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
     return task
 
 # --- Canvas LLM ---
@@ -4888,9 +4895,9 @@ async def canvas_llm(payload: CanvasLLMRequest):
                 raise HTTPException(status_code=502, detail="上游接口返回了空响应")
             raw = response.json()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{exc.response.text}") from exc
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误:{exc.response.text}") from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail=f"请求上游接口失败:{exc}") from exc
     text = text_from_chat_response(raw).strip() or "接口返回了空回复。"
     return {"text": text, "model": model, "raw_usage": raw.get("usage") if isinstance(raw, dict) else None}
 
@@ -4998,7 +5005,7 @@ async def list_canvas_files(canvas_id: str):
     canvas_output_dir = get_canvas_output_dir(canvas)
     if not os.path.exists(canvas_output_dir):
         return {"files": []}
-    
+
     files = []
     try:
         for filename in sorted(os.listdir(canvas_output_dir), key=lambda f: os.path.getmtime(os.path.join(canvas_output_dir, f)), reverse=True):
@@ -5031,13 +5038,13 @@ async def create_asset_folder(canvas_id: str):
 
 @app.get("/api/canvases/{canvas_id}/assets")
 async def list_assets(canvas_id: str):
-    """获取画布资产文件列表（含用户级资产，互通在线生图保存的文件）"""
+    """获取画布资产文件列表(含用户级资产,互通在线生图保存的文件)"""
     canvas = load_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
-    
+
     seen = set()
     files = []
-    
+
     def collect_from(dir_path, url_builder):
         if not os.path.exists(dir_path):
             return
@@ -5054,18 +5061,18 @@ async def list_assets(canvas_id: str):
                     "url": url_builder(filename),
                     "type": "image" if ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "video" if ext in [".mp4", ".webm", ".mov", ".avi", ".mkv"] else "audio" if ext in [".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a"] else "text" if ext == ".txt" else "other"
                 })
-    
+
     try:
         # 1. 画布专属资产文件夹
         collect_from(asset_dir, lambda fn: build_asset_url(canvas, fn))
-        
-        # 2. 用户级资产文件夹（在线生图等保存的资产），使其互通
+
+        # 2. 用户级资产文件夹(在线生图等保存的资产),使其互通
         owner = canvas.get("owner", "")
         if owner:
             user_dirname = get_user_dirname(owner)
             user_asset_dir = os.path.join(INPUT_DIR, user_dirname)
             collect_from(user_asset_dir, lambda fn: f"/assets/{user_dirname}/{fn}")
-        
+
         # 按修改时间倒序
         files.sort(key=lambda f: f["modified"], reverse=True)
     except Exception as e:
@@ -5079,7 +5086,7 @@ async def upload_assets(canvas_id: str, files: List[UploadFile] = File(...)):
     canvas = load_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     os.makedirs(asset_dir, exist_ok=True)
-    
+
     uploaded = []
     for file in files:
         content = await file.read()
@@ -5103,7 +5110,7 @@ async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
     canvas = load_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     os.makedirs(asset_dir, exist_ok=True)
-    
+
     urls = (payload or {}).get("urls", [])
     copied = []
     for url in urls:
@@ -5153,15 +5160,15 @@ async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "
     username = get_username_by_token(token)
     if not username:
         raise HTTPException(status_code=401, detail="请先登录")
-    
+
     asset_dir, dirname = get_user_input_dir(username)
     os.makedirs(asset_dir, exist_ok=True)
-    
+
     download_url = payload.url
     if download_url.startswith("/"):
         base = str(request.base_url).rstrip("/")
         download_url = base + download_url
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.get(download_url)
@@ -5169,7 +5176,7 @@ async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "
             content = response.content
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"下载图片失败: {str(e)}")
-    
+
     ext = ".png"
     content_type = ""
     for key, val in response.headers.items():
@@ -5182,26 +5189,26 @@ async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "
         ext = ".webp"
     elif "gif" in content_type:
         ext = ".gif"
-    
+
     filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
     filepath = os.path.join(asset_dir, filename)
     with open(filepath, "wb") as f:
         f.write(content)
-    
+
     url_path = f"/assets/{dirname}/{filename}"
     return {"url": url_path, "name": payload.name or filename}
 
 @app.get("/api/user/assets")
 async def list_user_assets(token: str = ""):
-    """列出用户级资产文件夹 input/{username}/ 中的图片文件（包括画布资产子目录中的图片）"""
+    """列出用户级资产文件夹 input/{username}/ 中的图片文件(包括画布资产子目录中的图片)"""
     username = get_username_by_token(token)
     if not username:
         raise HTTPException(status_code=401, detail="请先登录")
-    
+
     asset_dir, dirname = get_user_input_dir(username)
     if not os.path.exists(asset_dir):
         return {"files": []}
-    
+
     image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
     files = []
     try:
@@ -5256,7 +5263,7 @@ async def download_output_zip(payload: DownloadZipRequest):
     """下载 Output 节点图片为 ZIP"""
     if not payload.urls:
         raise HTTPException(status_code=400, detail="没有可下载的图片")
-    
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         for i, url in enumerate(payload.urls):
@@ -5267,7 +5274,7 @@ async def download_output_zip(payload: DownloadZipRequest):
                     if os.path.isfile(local_path):
                         zf.write(local_path, f"image_{i+1}_{os.path.basename(local_path)}")
                         continue
-                
+
                 # 处理远程 URL
                 async with httpx.AsyncClient() as client:
                     resp = await client.get(url, timeout=10.0)
@@ -5277,7 +5284,7 @@ async def download_output_zip(payload: DownloadZipRequest):
             except Exception as e:
                 print(f"Download failed for {url}: {e}")
                 continue
-    
+
     zip_buffer.seek(0)
     return StreamingResponse(
         zip_buffer,
@@ -5318,9 +5325,9 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
             image_data, raw = await generate_ai_image(payload.message, payload.size, payload.quality, model, refs)
             local_url = await save_ai_image_to_output(image_data, prefix="chat_", username=username)
         except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误：{exc.response.text}") from exc
+            raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误:{exc.response.text}") from exc
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail=f"请求上游生图接口失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
         assistant_message = {
             "id": uuid.uuid4().hex,
             "role": "assistant",
@@ -5349,9 +5356,9 @@ async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(d
                 response.raise_for_status()
                 raw = response.json()
         except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{exc.response.text}") from exc
+            raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误:{exc.response.text}") from exc
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"请求上游接口失败:{exc}") from exc
         assistant_message = {
             "id": uuid.uuid4().hex,
             "role": "assistant",
@@ -5415,7 +5422,7 @@ async def chat_stream(payload: ChatRequest, request: Request, x_user_id: str = H
                 ) as response:
                     if response.status_code >= 400:
                         detail = await response.aread()
-                        yield sse_event({"type": "error", "detail": f"上游接口错误：{detail.decode('utf-8', errors='ignore')}"})
+                        yield sse_event({"type": "error", "detail": f"上游接口错误:{detail.decode('utf-8', errors='ignore')}"})
                         return
                     async for line in response.aiter_lines():
                         if not line:
@@ -5435,7 +5442,7 @@ async def chat_stream(payload: ChatRequest, request: Request, x_user_id: str = H
                             content_parts.append(delta)
                             yield sse_event({"type": "delta", "delta": delta})
         except httpx.HTTPError as exc:
-            yield sse_event({"type": "error", "detail": f"请求上游接口失败：{exc}"})
+            yield sse_event({"type": "error", "detail": f"请求上游接口失败:{exc}"})
             return
 
         assistant_message = {
@@ -5466,7 +5473,7 @@ class SaveHistoryRequest(BaseModel):
     model: Optional[str] = None
     params: Optional[Dict[str, Any]] = None
     timestamp: Optional[float] = None
-    genParams: Optional[Dict[str, Any]] = None  # 完整生成参数，用于载入提示词恢复
+    genParams: Optional[Dict[str, Any]] = None  # 完整生成参数,用于载入提示词恢复
 
 @app.post("/api/history/save")
 async def save_history(req: SaveHistoryRequest, token: str = ""):
@@ -5490,7 +5497,7 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
         record["model"] = req.model
     if req.params:
         record["params"] = req.params
-    
+
     # 下载直连模式的 ComfyUI 图片到用户目录
     if username:
         user_dir, user_dirname = get_user_output_dir(username)
@@ -5499,7 +5506,7 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
             if img_url.startswith("/output/") or img_url.startswith("/assets/"):
                 new_images.append(img_url)
             elif img_url.startswith("http://127.0.0.1:8188/view"):
-                # 直连模式图片：从 ComfyUI 下载到用户目录
+                # 直连模式图片:从 ComfyUI 下载到用户目录
                 try:
                     import urllib.request, shutil
                     filename = f"{req.type}_{int(time.time())}_{uuid.uuid4().hex[:8]}.png"
@@ -5513,7 +5520,7 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
             else:
                 new_images.append(img_url)
         record["images"] = new_images
-    
+
     # 确保 user 字段不被前端数据覆盖
     record["user"] = username
     if req.genParams:
@@ -5547,8 +5554,8 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
         # Support image, text and audio outputs: keep records with images OR text OR audio
         data = [item for item in data if item.get("images") or item.get("text") or item.get("audio")]
 
-        # 服务端搜索：按 prompt / model / text 关键词过滤
-        # 英文整词匹配（\b），中文/非ASCII子串匹配
+        # 服务端搜索:按 prompt / model / text 关键词过滤
+        # 英文整词匹配(\b),中文/非ASCII子串匹配
         if q:
             import re as _re
             tokens = [w for w in q.lower().split() if w]
@@ -5623,7 +5630,7 @@ async def delete_history(req: DeleteHistoryRequest, token: str = ""):
                 else:
                     new_history.append(item)
             if target_record:
-                # 检查权限：只能删除自己的记录，或管理员可删任意
+                # 检查权限:只能删除自己的记录,或管理员可删任意
                 if username and not is_admin and target_record.get("user") and target_record.get("user") != username:
                     return {"success": False, "message": "无权删除其他用户的历史记录"}
                 with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
@@ -5668,7 +5675,7 @@ class DeleteImageRequest(BaseModel):
 
 @app.post("/api/history/delete-image")
 async def delete_single_image(req: DeleteImageRequest, token: str = ""):
-    """从历史记录中删除单张图片（多图组合场景）"""
+    """从历史记录中删除单张图片(多图组合场景)"""
     username = get_username_by_token(token)
     if not os.path.exists(HISTORY_FILE):
         return {"success": False, "message": "History file not found"}
@@ -5697,7 +5704,7 @@ async def delete_single_image(req: DeleteImageRequest, token: str = ""):
             # 从记录中移除
             images.remove(req.image_url)
             if not images:
-                # 图片全部删完，删除整条记录
+                # 图片全部删完,删除整条记录
                 history = [h for h in history if abs(float(h.get("timestamp", 0)) - float(req.timestamp)) >= 0.001]
             with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
                 json.dump(history[:5000], f, ensure_ascii=False, indent=4)
@@ -5708,7 +5715,7 @@ async def delete_single_image(req: DeleteImageRequest, token: str = ""):
 
 
 def _url_to_output_path(url: str) -> Optional[str]:
-    """把 /output/... URL 解析为本地绝对路径；不在 OUTPUT_DIR 内则返回 None"""
+    """把 /output/... URL 解析为本地绝对路径;不在 OUTPUT_DIR 内则返回 None"""
     if not url or not url.startswith("/output/"):
         return None
     rel = url[len("/output/"):].replace("\\", "/")
@@ -5724,9 +5731,9 @@ def _url_to_output_path(url: str) -> Optional[str]:
 @app.post("/api/gallery/purge-orphans")
 async def purge_orphan_records(token: str = "", dry_run: bool = False):
     """
-    扫描 history.json，找出 images[] 指向不存在的孤儿记录：
+    扫描 history.json,找出 images[] 指向不存在的孤儿记录:
       - 所有图片都缺失 → 整条删除
-      - 部分图片缺失 → 修剪 images[]，仅保留仍存在的图片
+      - 部分图片缺失 → 修剪 images[],仅保留仍存在的图片
     仅管理员可调用。dry_run=True 时只统计不写盘。
     """
     username = get_username_by_token(token)
@@ -5740,7 +5747,7 @@ async def purge_orphan_records(token: str = "", dry_run: bool = False):
     try:
         with HISTORY_LOCK:
             data = _load_history_cached()
-            data = [dict(item) for item in data]  # 拷贝，避免污染缓存
+            data = [dict(item) for item in data]  # 拷贝,避免污染缓存
 
             removed_records = []   # 整条删除
             trimmed_records = []   # 修剪 images[]
@@ -5803,7 +5810,7 @@ async def purge_orphan_records(token: str = "", dry_run: bool = False):
 
 @app.get("/api/gallery/scan-new")
 async def scan_new_images(type: str = "", token: str = ""):
-    """扫描用户 output 文件夹，找出还没入库的图片，自动创建历史记录"""
+    """扫描用户 output 文件夹,找出还没入库的图片,自动创建历史记录"""
     username = get_username_by_token(token)
     if not username:
         return {"success": False, "message": "未登录"}
@@ -5826,7 +5833,7 @@ async def scan_new_images(type: str = "", token: str = ""):
     IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'}
 
     def extract_prompt_from_png(fpath):
-        """从 ComfyUI PNG 元数据提取正面 prompt + genParams，直接匹配工具参数"""
+        """从 ComfyUI PNG 元数据提取正面 prompt + genParams,直接匹配工具参数"""
         import struct as _struct, json as _json
         def _read_workflow(fpath):
             with open(fpath, 'rb') as f:
@@ -5970,7 +5977,7 @@ async def scan_new_images(type: str = "", token: str = ""):
                 img_url = f"/output/{user_dirname}/{feature_dir}/{date_dir}/{fname}"
                 if img_url in existing_images:
                     continue
-                # 新图片：创建记录
+                # 新图片:创建记录
                 fpath = os.path.join(date_path, fname)
                 try:
                     mtime = os.path.getmtime(fpath)
@@ -6003,7 +6010,7 @@ async def scan_new_images(type: str = "", token: str = ""):
             data = list(data)
         except:
             data = []
-        # 更新旧的自动导入记录（prompt 还是 [自动导入] 的）
+        # 更新旧的自动导入记录(prompt 还是 [自动导入] 的)
         for item in data:
             if not item.get('auto_imported'):
                 continue
@@ -6037,7 +6044,7 @@ async def scan_new_images(type: str = "", token: str = ""):
     return {"success": True, "imported": len(new_records), "updated": updated_old}
 
 
-# --- 提示词预设（委托 preset_manager 模块）---
+# --- 提示词预设(委托 preset_manager 模块)---
 
 import preset_manager
 from preset_manager import (
@@ -6049,7 +6056,7 @@ from preset_manager import (
 
 @app.get("/api/preset-i18n")
 def api_preset_i18n():
-    """返回预设中文名映射表（兼容旧接口）"""
+    """返回预设中文名映射表(兼容旧接口)"""
     return load_preset_i18n()
 
 STYLE_I18N_FILE = os.path.join(DATA_DIR, "style-i18n.json")
@@ -6067,13 +6074,13 @@ def api_style_i18n():
 
 @app.get("/api/preset-bidir")
 def api_preset_bidir():
-    """返回 {id_to_name, name_to_id}（兼容旧接口）"""
+    """返回 {id_to_name, name_to_id}(兼容旧接口)"""
     id_to_name, name_to_id = get_preset_bidir()
     return {"id_to_name": id_to_name, "name_to_id": name_to_id}
 
 @app.get("/api/prompt-presets")
 async def get_prompt_presets():
-    """获取标签预设（兼容旧接口，YAML 优先回退 JSON）"""
+    """获取标签预设(兼容旧接口,YAML 优先回退 JSON)"""
     return get_tag_presets()
 
 @app.post("/api/prompt-presets")
@@ -6084,7 +6091,7 @@ async def api_save_prompt_presets(data: dict):
 
 @app.get("/api/style-presets")
 async def api_get_style_presets():
-    """获取风格预设（完整提示词）"""
+    """获取风格预设(完整提示词)"""
     return get_style_presets()
 
 @app.post("/api/style-presets")
@@ -6100,9 +6107,9 @@ async def api_import_fooocus_styles(payload: dict = None):
     一键导入 Fooocus 官方风格包到 style-presets.json
 
     Body 参数:
-      - sources: List[str]  要导入的源 key，默认全部
+      - sources: List[str]  要导入的源 key,默认全部
         可选: fooocus, sai, diva, marc_k3nt3l, twri, mre
-      - dry_run: bool       预览模式，不写文件
+      - dry_run: bool       预览模式,不写文件
       - skip_thumbs: bool   不下载缩略图
     """
     payload = payload or {}
@@ -6128,14 +6135,14 @@ async def api_import_fooocus_styles(payload: dict = None):
 
 @app.get("/api/all-presets")
 async def api_get_all_presets():
-    """获取所有预设（标签 + 风格），统一输出"""
+    """获取所有预设(标签 + 风格),统一输出"""
     return get_all_presets()
 
 @app.get("/api/thumbnails/{filename}")
 async def api_get_thumbnail(filename: str):
     """获取风格预设缩略图"""
     import re
-    # 安全校验：只允许字母数字下划线和点
+    # 安全校验:只允许字母数字下划线和点
     if not re.match(r'^[a-zA-Z0-9_.-]+$', filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
     thumb_path = os.path.join(DATA_DIR, "thumbnails", filename)
@@ -6252,7 +6259,7 @@ async def delete_preset(preset_id: str):
         os.remove(path)
     return {"success": True}
 
-# === 提示词预设选择（文生图用） ===
+# === 提示词预设选择(文生图用) ===
 SMART_PRESET_SELECT_FILE = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
 
 @app.get("/api/smart-prompt/selected-preset")
@@ -6283,7 +6290,7 @@ async def set_selected_preset(payload: dict):
 
 @app.post("/api/smart-prompt")
 async def smart_prompt(req: SmartPromptRequest):
-    """智能提示词生成：中文描述 → Anima 标签"""
+    """智能提示词生成:中文描述 → Anima 标签"""
     try:
         # 加载当前选中的预设
         preset_id = 'default'
@@ -6346,7 +6353,7 @@ def load_translate_config():
         "baidu_secret_key": "",
         "ai_provider_id": "",
         "ai_model": "",
-        "ai_prompt_template": "将以下提示词翻译成目标语言，保持提示词风格和意图，只输出翻译结果，不要任何解释：\n\n{text}",
+        "ai_prompt_template": "将以下提示词翻译成目标语言,保持提示词风格和意图,只输出翻译结果,不要任何解释:\n\n{text}",
         "source_lang": "zh",
         "target_lang": "en",
     }
@@ -6367,7 +6374,7 @@ def save_translate_config(cfg):
 @app.get("/api/translate/config")
 async def get_translate_config():
     cfg = load_translate_config()
-    # 安全返回：隐藏 secret_key 中间部分
+    # 安全返回:隐藏 secret_key 中间部分
     safe = dict(cfg)
     if safe.get("baidu_secret_key"):
         sk = safe["baidu_secret_key"]
@@ -6441,8 +6448,8 @@ async def translate_with_ai(text: str, from_lang: str, to_lang: str, provider_id
     lang_names = {"zh": "中文", "en": "英文", "ja": "日文", "ko": "韩文", "fr": "法文", "de": "德文", "ru": "俄文", "es": "西班牙文", "pt": "葡萄牙文", "ar": "阿拉伯文", "th": "泰文", "vi": "越南文"}
     from_name = lang_names.get(from_lang, from_lang)
     to_name = lang_names.get(to_lang, to_lang)
-    # 构建翻译 prompt，明确指定源语言和目标语言
-    prompt = f"将以下{from_name}文本翻译成{to_name}，只输出翻译结果，不要任何解释：\n\n{text}"
+    # 构建翻译 prompt,明确指定源语言和目标语言
+    prompt = f"将以下{from_name}文本翻译成{to_name},只输出翻译结果,不要任何解释:\n\n{text}"
     if base_url.endswith('/v1'):
         url = f"{base_url}/chat/completions"
     else:
@@ -6469,7 +6476,7 @@ async def translate_text(payload: dict):
     if not text:
         return {"success": False, "error": "请输入要翻译的文本"}
     cfg = load_translate_config()
-    # 解析方向：zh2en, en2ja, zh2fr 等
+    # 解析方向:zh2en, en2ja, zh2fr 等
     lang_map = {
         'zh': '中文', 'en': '英语', 'ja': '日语', 'ko': '韩语',
         'fr': '法语', 'de': '德语', 'es': '西班牙语', 'pt': '葡萄牙语',
@@ -6497,7 +6504,7 @@ async def translate_text(payload: dict):
             result = await translate_with_ai(
                 text, from_lang, to_lang, ai_pid,
                 cfg.get("ai_model", ""),
-                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言，只输出翻译结果：\n\n{text}")
+                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言,只输出翻译结果:\n\n{text}")
             )
         return {"success": True, "result": result}
     except Exception as e:
@@ -6506,7 +6513,7 @@ async def translate_text(payload: dict):
 @app.post("/api/translate/test")
 async def test_translate():
     cfg = load_translate_config()
-    test_text = "一只粉色头发的女孩在夕阳下的海滩上微笑，穿着白色连衣裙"
+    test_text = "一只粉色头发的女孩在夕阳下的海滩上微笑,穿着白色连衣裙"
     try:
         if cfg.get("provider_type") == "baidu":
             app_id = cfg.get("baidu_app_id", "")
@@ -6521,7 +6528,7 @@ async def test_translate():
             result = await translate_with_ai(
                 test_text, "zh", "en", ai_pid,
                 cfg.get("ai_model", ""),
-                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言，只输出翻译结果：\n\n{text}")
+                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言,只输出翻译结果:\n\n{text}")
             )
         return {"success": True, "result": result, "test_input": test_text}
     except Exception as e:
@@ -6551,7 +6558,7 @@ async def get_prompt_dict():
 
 @app.post("/api/prompt-dict/learn")
 async def learn_prompt_dict(payload: dict):
-    """自动学习：将翻译结果的词条对写入用户字典"""
+    """自动学习:将翻译结果的词条对写入用户字典"""
     entries = payload.get("entries", {})
     if not entries:
         return {"success": False, "error": "无词条数据"}
@@ -6847,7 +6854,7 @@ async def generate_cloud(req: CloudGenRequest, token: str = ""):
         print(f"Cloud generation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- ModelScope 通用图片生成（支持图生图） ---
+# --- ModelScope 通用图片生成(支持图生图) ---
 
 @app.post("/api/ms/generate")
 async def ms_generate(req: MsGenerateRequest, token: str = ""):
@@ -6855,7 +6862,7 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key(MODELSCOPE_API_KEY.strip())
     if not clean_token:
-        raise HTTPException(status_code=400, detail="未配置 MODELSCOPE_API_KEY，请在 API/.env 中填写。")
+        raise HTTPException(status_code=400, detail="未配置 MODELSCOPE_API_KEY,请在 API/.env 中填写。")
 
     headers = {
         "Authorization": f"Bearer {clean_token}",
@@ -6964,15 +6971,15 @@ def generate(req: GenerateRequest, token: str = ""):
     current_task = None
     target_backend = None
     username = get_username_by_token(token)
-    
-    # 加载画布（如果提供了 canvas_id）
+
+    # 加载画布(如果提供了 canvas_id)
     canvas = None
     if req.canvas_id:
         try:
             canvas = load_canvas(req.canvas_id)
         except:
-            pass  # 画布不存在或已删除，降级到原有行为
-    
+            pass  # 画布不存在或已删除,降级到原有行为
+
     with QUEUE_LOCK:
         task_id = NEXT_TASK_ID
         NEXT_TASK_ID += 1
@@ -7034,7 +7041,7 @@ def generate(req: GenerateRequest, token: str = ""):
             with open(workflow_path, 'r', encoding='utf-8') as f:
                 workflow = json.load(f)
         else:
-            raise Exception("缺少工作流数据，请提供 workflow_data 或 workflow_json")
+            raise Exception("缺少工作流数据,请提供 workflow_data 或 workflow_json")
 
         seed = random.randint(1, 10**15)
 
@@ -7100,14 +7107,14 @@ def generate(req: GenerateRequest, token: str = ""):
         if 'outputs' in history_data:
             for node_id in history_data['outputs']:
                 node_output = history_data['outputs'][node_id]
-                
+
                 # Extract image outputs
-                # 对于ps.json工作流，只收集节点#2的图像（主图像），跳过节点#5（遮罩）
+                # 对于ps.json工作流,只收集节点#2的图像(主图像),跳过节点#5(遮罩)
                 if 'images' in node_output:
-                    # 如果是ps.json工作流，跳过节点#5的遮罩输出
+                    # 如果是ps.json工作流,跳过节点#5的遮罩输出
                     if req.workflow_json == 'ps.json' and node_id == '5':
                         continue
-                    
+
                     for img in node_output['images']:
                         comfy_url_path = f"/view?filename={img['filename']}&subfolder={img['subfolder']}&type={img['type']}"
                         prefix = f"{req.type}_{int(current_timestamp)}_"
@@ -7115,7 +7122,7 @@ def generate(req: GenerateRequest, token: str = ""):
                         if req.convert_to_jpg:
                             local_path = convert_output_to_jpg(local_path)
                         local_urls.append(local_path)
-                
+
                 # Extract audio outputs (TTS)
                 if 'audio' in node_output:
                     for aud in node_output['audio']:
@@ -7123,11 +7130,11 @@ def generate(req: GenerateRequest, token: str = ""):
                         # 使用自定义前缀或默认前缀
                         save_prefix = req.params.get('save_prefix', 'tts') if req.params else 'tts'
                         prefix = f"{save_prefix}_{int(current_timestamp)}_"
-                        local_path = download_audio(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username)
+                        local_path = download_audio(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, subfolder="tts")
                         audio_urls.append(local_path)
-                
+
                 # Extract text output from ShowText and text-based nodes
-                # 只有 promptgen 类型才保存文本输出（图像反推等）
+                # 只有 promptgen 类型才保存文本输出(图像反推等)
                 if not output_text and 'text' in node_output and req.type == 'promptgen':
                     tv = node_output['text']
                     if isinstance(tv, list) and tv:
@@ -7158,7 +7165,7 @@ def generate(req: GenerateRequest, token: str = ""):
         else:
             print(f"[TextOutput] WARNING: No text extracted from ComfyUI history")
             text_url = ""
-        
+
         if not local_urls and not audio_urls and not output_text:
             comfy_error = ""
             if isinstance(history_data, dict):
@@ -7178,8 +7185,8 @@ def generate(req: GenerateRequest, token: str = ""):
                     print(f"[ComfyUI-Debug] node {nid} output: {json.dumps(nout, ensure_ascii=False)[:500]}")
             if comfy_error:
                 raise Exception(f"ComfyUI 执行失败: {comfy_error}")
-            raise Exception("ComfyUI 未返回输出，请检查工作流配置或确认模型已安装")
-        
+            raise Exception("ComfyUI 未返回输出,请检查工作流配置或确认模型已安装")
+
         result = {
             "prompt": req.prompt if req.prompt else "Detail Enhance",
             "images": local_urls,
@@ -7195,7 +7202,7 @@ def generate(req: GenerateRequest, token: str = ""):
         }
         save_to_history(result)
         # Broadcast if there are images, audio OR text output
-        # 但ps.json和ps_send.json工作流不广播，由前端自行处理
+        # 但ps.json和ps_send.json工作流不广播,由前端自行处理
         if GLOBAL_LOOP and (local_urls or audio_urls or output_text) and req.workflow_json not in ('ps.json', 'ps_send.json'):
             asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(result), GLOBAL_LOOP)
         return result
@@ -7326,83 +7333,83 @@ async def save_providers(payload: List[ApiProviderPayload]):
     """保存 API 提供商列表"""
     providers = []
     env_updates = {}
-    
+
     # 收集 primary 标记
     raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
-    
+
     for item in payload:
         provider = normalize_provider(item.dict(exclude={"api_key"}))
-        
+
         # 检查 ID 重复
         if any(existing["id"] == provider["id"] for existing in providers):
-            raise HTTPException(status_code=400, detail=f"API 平台 ID 重复：{provider['id']}")
-        
+            raise HTTPException(status_code=400, detail=f"API 平台 ID 重复:{provider['id']}")
+
         providers.append(provider)
-        
+
         # 收集 API Key
         if item.api_key is not None:
             env_updates[provider_key_env(provider["id"])] = item.api_key.strip()
-        
+
         # 收集其他配置
         if provider["id"] == "comfly":
             env_updates["COMFLY_BASE_URL"] = provider["base_url"]
             env_updates["IMAGE_MODELS"] = ",".join(provider["image_models"])
             env_updates["CHAT_MODELS"] = ",".join(provider["chat_models"])
             env_updates["VIDEO_MODELS"] = ",".join(provider.get("video_models") or [])
-        
+
         if provider["id"] == "modelscope":
             env_updates["MODELSCOPE_CHAT_MODELS"] = ",".join(provider["chat_models"])
-    
+
     if not providers:
         raise HTTPException(status_code=400, detail="至少保留一个 API 平台")
-    
-    # 强制最多一个 primary（取最后被标记的）
+
+    # 强制最多一个 primary(取最后被标记的)
     primary_indices = [i for i, flag in enumerate(raw_primary_flags) if flag]
     if primary_indices:
         winner = primary_indices[-1]
         for i, p in enumerate(providers):
             p["primary"] = (i == winner)
-    
+
     save_api_providers(providers)
-    
+
     if env_updates:
         update_env_values(env_updates)
         reload_env_globals()  # 立即同步环境变量
-    
+
     return {"providers": [public_provider(p) for p in providers]}
 
 @app.post("/api/providers/test-connection")
 async def test_provider_connection(payload: TestConnectionPayload):
-    """测试请求地址是否可用：调用上游 /v1/models"""
+    """测试请求地址是否可用:调用上游 /v1/models"""
     base_url = (payload.base_url or "").strip().rstrip("/")
     if not base_url:
         raise HTTPException(status_code=400, detail="请先填写请求地址")
-    
+
     if not re.match(r"^https?://", base_url):
         raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
-    
+
     api_key = (payload.api_key or "").strip()
     if not api_key and payload.provider_id:
         api_key = os.getenv(provider_key_env(payload.provider_id), "")
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
-    
+
     url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
-    
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers={
                 "Authorization": f"Bearer {sanitize_api_key(api_key)}",
                 "Accept": "application/json"
             })
-        
+
         if resp.status_code >= 400:
             return {"ok": False, "status": resp.status_code, "message": resp.text[:300]}
-        
+
         data = resp.json() if resp.text else {}
         items = (data.get("data") if isinstance(data, dict) else None) or []
-        
+
         # 抽取模型 ID
         ids = []
         for it in items:
@@ -7412,9 +7419,9 @@ async def test_provider_connection(payload: TestConnectionPayload):
                 mid = it.get("id") or it.get("name") or it.get("model")
                 if mid:
                     ids.append(str(mid))
-        
+
         ids = sorted(set(ids))
-        
+
         # 关键字分类
         def classify(mid):
             lc = mid.lower()
@@ -7425,11 +7432,11 @@ async def test_provider_connection(payload: TestConnectionPayload):
             if any(k in lc for k in image_keys):
                 return "image"
             return "chat"
-        
+
         grouped = {"image": [], "chat": [], "video": []}
         for mid in ids:
             grouped[classify(mid)].append(mid)
-        
+
         return {
             "ok": True,
             "status": resp.status_code,
@@ -7444,33 +7451,33 @@ async def test_provider_connection(payload: TestConnectionPayload):
 
 @app.post("/api/providers/probe-async")
 async def probe_async_endpoint(payload: TestConnectionPayload):
-    """验证异步协议：用假 task_id 请求 GET /v1/tasks/{fake_id}"""
+    """验证异步协议:用假 task_id 请求 GET /v1/tasks/{fake_id}"""
     base_url = (payload.base_url or "").strip().rstrip("/")
     if not base_url:
         raise HTTPException(status_code=400, detail="请先填写请求地址")
-    
+
     api_key = (payload.api_key or "").strip()
     if not api_key and payload.provider_id:
         api_key = os.getenv(provider_key_env(payload.provider_id), "")
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
-    
+
     tasks_base = base_url if base_url.endswith("/v1") else f"{base_url}/v1"
     probe_url = f"{tasks_base}/tasks/healthcheck_probe_do_not_submit"
-    
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(probe_url, headers={
                 "Authorization": f"Bearer {sanitize_api_key(api_key)}",
                 "Accept": "application/json"
             })
-        
+
         try:
             body = resp.json()
         except Exception:
             body = resp.text[:500]
-        
+
         sc = resp.status_code
         err_msg = ""
         if isinstance(body, dict):
@@ -7479,23 +7486,23 @@ async def probe_async_endpoint(payload: TestConnectionPayload):
                 err_msg = str(err.get("message") or "").lower()
             else:
                 err_msg = str(err).lower()
-        
+
         # 判断结果
         if sc == 400 and "invalid task id" in err_msg:
-            return {"ok": True, "status_code": sc, "message": "异步任务端点可用，API Key 已通过认证", "raw": body}
-        
+            return {"ok": True, "status_code": sc, "message": "异步任务端点可用,API Key 已通过认证", "raw": body}
+
         if sc in (401, 403):
             return {"ok": False, "status_code": sc, "message": "API Key 无效或无权限", "raw": body}
-        
+
         if sc == 404:
-            return {"ok": False, "status_code": sc, "message": "平台不支持 /v1/tasks/ 端点，可能不是 APIMart 异步协议", "raw": body}
-        
+            return {"ok": False, "status_code": sc, "message": "平台不支持 /v1/tasks/ 端点,可能不是 APIMart 异步协议", "raw": body}
+
         if 400 <= sc < 500:
-            return {"ok": None, "status_code": sc, "message": f"端点返回 {sc}，请查看原始响应判断", "raw": body}
-        
+            return {"ok": None, "status_code": sc, "message": f"端点返回 {sc},请查看原始响应判断", "raw": body}
+
         if sc < 300:
-            return {"ok": True, "status_code": sc, "message": f"端点返回 {sc}（意外成功）", "raw": body}
-        
+            return {"ok": True, "status_code": sc, "message": f"端点返回 {sc}(意外成功)", "raw": body}
+
         return {"ok": False, "status_code": sc, "message": f"服务端错误 {sc}", "raw": body}
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=str(e)[:300])
@@ -7505,16 +7512,16 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
     base_url = (base_url or "").strip().rstrip("/")
     if not base_url:
         raise HTTPException(status_code=400, detail="请先填写请求地址")
-    
+
     if not re.match(r"^https?://", base_url):
         raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
-    
+
     api_key = (api_key or "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
-    
+
     url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(url, headers={
@@ -7522,18 +7529,18 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
                 "Accept": "application/json"
             })
             if resp.status_code >= 400:
-                raise HTTPException(status_code=resp.status_code, detail=f"上游 /v1/models 失败：{resp.text[:300]}")
+                raise HTTPException(status_code=resp.status_code, detail=f"上游 /v1/models 失败:{resp.text[:300]}")
             raw = resp.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"请求上游模型列表失败：{e}")
-    
+        raise HTTPException(status_code=502, detail=f"请求上游模型列表失败:{e}")
+
     # 兼容多种返回结构
     items = raw.get("data") if isinstance(raw, dict) else None
     if not items and isinstance(raw, dict):
         items = raw.get("models") or raw.get("list") or []
     if not isinstance(items, list):
         items = []
-    
+
     ids = []
     for it in items:
         if isinstance(it, str):
@@ -7542,9 +7549,9 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
             mid = it.get("id") or it.get("name") or it.get("model")
             if mid:
                 ids.append(str(mid))
-    
+
     ids = sorted(set(ids))
-    
+
     # 分类规则
     def classify(mid):
         lc = mid.lower()
@@ -7555,11 +7562,11 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
         if any(k in lc for k in image_keys):
             return "image"
         return "chat"
-    
+
     grouped = {"image": [], "chat": [], "video": []}
     for mid in ids:
         grouped[classify(mid)].append(mid)
-    
+
     return {
         "total": len(ids),
         "image_models": grouped["image"],
@@ -7648,7 +7655,7 @@ async def jimeng_login_start():
             stderr=asyncio.subprocess.PIPE,
         )
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=400, detail=f"未找到即梦 CLI：{exe}") from exc
+        raise HTTPException(status_code=400, detail=f"未找到即梦 CLI:{exe}") from exc
     JIMENG_LOGIN_SESSION["proc"] = proc
     asyncio.create_task(jimeng_login_reader(proc))
     await asyncio.sleep(2)
@@ -7710,7 +7717,7 @@ async def jimeng_help(payload: JimengHelpRequest):
 
 @app.post("/api/jimeng/query-media")
 async def jimeng_query_media(payload: JimengQueryMediaRequest):
-    """按 submit_id 续查即梦任务：出图返回 succeeded+urls；仍排队返回 pending+queue_info；失败返回 failed。"""
+    """按 submit_id 续查即梦任务:出图返回 succeeded+urls;仍排队返回 pending+queue_info;失败返回 failed。"""
     submit_id = str(payload.submit_id or "").strip()
     if not submit_id:
         raise HTTPException(status_code=400, detail="缺少 submit_id")
@@ -7731,7 +7738,7 @@ async def jimeng_query_media(payload: JimengQueryMediaRequest):
 # 工作流名称校验正则
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
-# 内置工作流列表（workflows/ 目录下根级的文件）
+# 内置工作流列表(workflows/ 目录下根级的文件)
 BUILTIN_WORKFLOWS = set()
 if os.path.exists(WORKFLOW_DIR):
     for fn in os.listdir(WORKFLOW_DIR):
@@ -7746,7 +7753,7 @@ def update_env_values(updates):
         if os.path.exists(env_path):
             with open(env_path, 'r', encoding='utf-8') as f:
                 env_lines = f.readlines()
-        
+
         # 更新或添加配置
         for key, value in updates.items():
             found = False
@@ -7755,10 +7762,10 @@ def update_env_values(updates):
                     env_lines[i] = f"{key}={value}\n"
                     found = True
                     break
-            
+
             if not found:
                 env_lines.append(f"{key}={value}\n")
-        
+
         os.makedirs(os.path.dirname(env_path), exist_ok=True)
         with open(env_path, 'w', encoding='utf-8') as f:
             f.writelines(env_lines)
@@ -7767,16 +7774,16 @@ def update_env_values(updates):
         raise
 
 def workflow_path_from_name(name: str) -> str:
-    """根据工作流名称获取文件路径，包含安全校验"""
+    """根据工作流名称获取文件路径,包含安全校验"""
     if not WORKFLOW_NAME_RE.match(name):
         raise HTTPException(status_code=400, detail="工作流名称不合法")
-    
+
     # 防止路径遍历攻击
     path = os.path.abspath(os.path.join(WORKFLOW_DIR, *name.split("/")))
     workflow_root = os.path.abspath(WORKFLOW_DIR)
     if os.path.commonpath([workflow_root, path]) != workflow_root:
         raise HTTPException(status_code=400, detail="工作流名称包含非法路径")
-    
+
     return path
 
 def workflow_config_path(name: str) -> str:
@@ -7801,11 +7808,11 @@ async def update_comfyui_base_path(req: dict):
     global COMFYUI_BASE_PATH
     path = str(req.get("path", "")).strip().rstrip("\\").rstrip("/")
     if path and not os.path.isdir(path):
-        raise HTTPException(status_code=400, detail=f"路径不存在：{path}")
+        raise HTTPException(status_code=400, detail=f"路径不存在:{path}")
     try:
         update_env_values({"COMFYUI_BASE_PATH": path})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存配置失败：{e}")
+        raise HTTPException(status_code=500, detail=f"保存配置失败:{e}")
     COMFYUI_BASE_PATH = path
     return {"basePath": COMFYUI_BASE_PATH}
 
@@ -7813,7 +7820,7 @@ async def update_comfyui_base_path(req: dict):
 async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
     """更新 ComfyUI 实例列表"""
     global COMFYUI_INSTANCES, COMFYUI_ADDRESS, BACKEND_LOCAL_LOAD
-    
+
     # 清洗实例地址
     cleaned = []
     for item in req.instances:
@@ -7824,26 +7831,26 @@ async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
         s = re.sub(r"^https?://", "", s)
         # 去除尾部斜杠
         s = s.rstrip("/")
-        # 校验格式：host:port
+        # 校验格式:host:port
         if ":" not in s:
-            raise HTTPException(status_code=400, detail=f"地址缺少端口号：{item}（应为 host:port，例如 127.0.0.1:8188）")
+            raise HTTPException(status_code=400, detail=f"地址缺少端口号:{item}(应为 host:port,例如 127.0.0.1:8188)")
         host, _, port = s.rpartition(":")
         if not host or not port.isdigit():
-            raise HTTPException(status_code=400, detail=f"地址不合法：{item}（应为 host:port，例如 127.0.0.1:8188）")
+            raise HTTPException(status_code=400, detail=f"地址不合法:{item}(应为 host:port,例如 127.0.0.1:8188)")
         # 去重
         if s in cleaned:
             continue
         cleaned.append(s)
-    
+
     if not cleaned:
         raise HTTPException(status_code=400, detail="至少需要一个 ComfyUI 实例地址")
-    
+
     # 保存到 .env 文件
     try:
         update_env_values({"COMFYUI_INSTANCES": ",".join(cleaned)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存配置文件失败：{e}")
-    
+        raise HTTPException(status_code=500, detail=f"保存配置文件失败:{e}")
+
     # 更新全局变量
     COMFYUI_INSTANCES = cleaned
     COMFYUI_ADDRESS = cleaned[0]
@@ -7853,19 +7860,19 @@ async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
         if addr in new_load:
             new_load[addr] = n
     BACKEND_LOCAL_LOAD = new_load
-    
+
     return {"instances": COMFYUI_INSTANCES.copy()}
 
-# --- ComfyUI 代理端点（供前端在 non-local 模式下使用） ---
+# --- ComfyUI 代理端点(供前端在 non-local 模式下使用) ---
 
-# object_info 缓存：避免每次请求都向 ComfyUI 拉全量数据（数据量大且响应慢）
+# object_info 缓存:避免每次请求都向 ComfyUI 拉全量数据(数据量大且响应慢)
 _object_info_cache = {"data": None, "ts": 0}
 _OBJECT_INFO_CACHE_TTL = 30  # 秒
 
 @app.get("/api/comfyui/object_info")
 @app.get("/api/comfyui/object_info/{node_type:path}")
 async def proxy_comfyui_object_info(node_type: str = None):
-    """代理获取 ComfyUI 节点信息（含模型列表等），支持按节点类型查询"""
+    """代理获取 ComfyUI 节点信息(含模型列表等),支持按节点类型查询"""
     import time
     now = time.time()
     target = COMFYUI_ADDRESS
@@ -7888,7 +7895,7 @@ async def proxy_comfyui_object_info(node_type: str = None):
 
 @app.get("/api/comfyui/loras")
 async def list_comfyui_loras():
-    """从 ComfyUI 获取可用 LoRA 列表（查询 LoraLoader 和 LoraLoaderModelOnly 节点）"""
+    """从 ComfyUI 获取可用 LoRA 列表(查询 LoraLoader 和 LoraLoaderModelOnly 节点)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
@@ -7917,10 +7924,10 @@ async def list_comfyui_loras():
 
 @app.get("/api/loras/scan")
 async def scan_lora_folder(subfolder: str = ""):
-    """直接扫描本地 LoRA 文件夹获取完整列表（不依赖 ComfyUI 节点枚举）"""
+    """直接扫描本地 LoRA 文件夹获取完整列表(不依赖 ComfyUI 节点枚举)"""
     if not COMFYUI_BASE_PATH:
         raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
-    # 兼容两种路径：ComfyUI 根目录 或 已经是 loras 文件夹
+    # 兼容两种路径:ComfyUI 根目录 或 已经是 loras 文件夹
     normalized = COMFYUI_BASE_PATH.lower().replace("\\", "/").rstrip("/")
     if normalized.endswith("/models/loras"):
         lora_dir = COMFYUI_BASE_PATH
@@ -7933,11 +7940,11 @@ async def scan_lora_folder(subfolder: str = ""):
     extensions = {".safetensors", ".pt", ".pth", ".ckpt", ".bin"}
     loras = []
     previews = {}  # rel_path -> preview_url
-    # entries: 每条 LoRA 的完整信息（含 modelRoot / versionLabel，用于前端版本合并）
+    # entries: 每条 LoRA 的完整信息(含 modelRoot / versionLabel,用于前端版本合并)
     entries = []
 
-    # 版本号识别：剥掉文件 basename 末尾的「下划线或连字符」接版本号，剩余部分即"模型根名"
-    # 覆盖：xxx_v1 / xxx-v11 / xxx_v0.1 / xxx-v2.3
+    # 版本号识别:剥掉文件 basename 末尾的「下划线或连字符」接版本号,剩余部分即"模型根名"
+    # 覆盖:xxx_v1 / xxx-v11 / xxx_v0.1 / xxx-v2.3
     import re as _re
     _VERSION_TAIL_RE = _re.compile(r'[-_][vV](\d+(?:\.\d+)*)$')
 
@@ -7954,13 +7961,13 @@ async def scan_lora_folder(subfolder: str = ""):
                 # 计算相对于 loras 目录的路径
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, lora_dir)
-                # 统一用反斜杠（ComfyUI 格式）
+                # 统一用反斜杠(ComfyUI 格式)
                 rel_path_bs = rel_path.replace("/", "\\")
                 loras.append(rel_path_bs)
-                # 检查是否有预览（同名的图片或视频）
-                # 视频后缀也作为"预览"返回，对齐 ComfyUI-Lora-Manager 的 find_preview_file 行为
+                # 检查是否有预览(同名的图片或视频)
+                # 视频后缀也作为"预览"返回,对齐 ComfyUI-Lora-Manager 的 find_preview_file 行为
                 base = os.path.splitext(full_path)[0]
-                # 顺序：长后缀优先（.preview.png 优先于 .png），视频后缀与图片后缀混排
+                # 顺序:长后缀优先(.preview.png 优先于 .png),视频后缀与图片后缀混排
                 for preview_ext in [
                     ".preview.png", ".preview.jpg", ".preview.jpeg", ".preview.webp",
                     ".preview.mp4", ".preview.webm",
@@ -7973,7 +7980,7 @@ async def scan_lora_folder(subfolder: str = ""):
                         preview_rel = os.path.relpath(preview_path, COMFYUI_BASE_PATH).replace("\\", "/")
                         previews[rel_path_bs] = f"/api/loras/preview?path={preview_rel}"
                         break
-                # 拆分 modelRoot + versionLabel，用于前端合并多版本
+                # 拆分 modelRoot + versionLabel,用于前端合并多版本
                 file_stem = os.path.splitext(f)[0]
                 model_root, version_label = _split_model_root(file_stem)
                 entries.append({
@@ -7986,7 +7993,7 @@ async def scan_lora_folder(subfolder: str = ""):
         "count": len(loras),
         "path": lora_dir,
         "previews": previews,
-        "entries": entries,  # 含 modelRoot/versionLabel，供前端版本合并
+        "entries": entries,  # 含 modelRoot/versionLabel,供前端版本合并
     }
 
 @app.get("/api/loras/preview")
@@ -7994,13 +8001,13 @@ async def get_lora_preview(path: str, request: Request):
     """获取 LoRA 预览图"""
     if not COMFYUI_BASE_PATH:
         raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
-    # 安全校验：防止路径遍历
+    # 安全校验:防止路径遍历
     if ".." in path:
         raise HTTPException(status_code=400, detail="无效路径")
     full_path = os.path.join(COMFYUI_BASE_PATH, path)
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="预览图不存在")
-    # ETag + Last-Modified 走条件请求，重复访问秒返 304
+    # ETag + Last-Modified 走条件请求,重复访问秒返 304
     try:
         st = os.stat(full_path)
         mtime_ts = int(st.st_mtime)
@@ -8020,7 +8027,7 @@ async def get_lora_preview(path: str, request: Request):
         ".gif": "image/gif",
         ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"
     }.get(ext, "image/png")
-    # 视频走分块传输 + 接受 Range 请求，便于 <video> 拖动进度
+    # 视频走分块传输 + 接受 Range 请求,便于 <video> 拖动进度
     resp = FileResponse(
         full_path,
         media_type=media_type,
@@ -8037,7 +8044,7 @@ async def get_lora_preview(path: str, request: Request):
 
 @app.get("/api/lora-manager/loras")
 async def proxy_lora_manager_list():
-    """代理 LoRA Manager 的 LoRA 列表，自动遍历所有分页返回完整数据（含 tags、civitai 元数据）"""
+    """代理 LoRA Manager 的 LoRA 列表,自动遍历所有分页返回完整数据(含 tags、civitai 元数据)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
@@ -8065,7 +8072,7 @@ async def proxy_lora_manager_list():
 
 @app.post("/api/lora-manager/fetch-all-civitai")
 async def proxy_lora_manager_fetch_all_civitai():
-    """触发 LoRA Manager 批量从 civitai 拉取元数据（用于补全 tags）"""
+    """触发 LoRA Manager 批量从 civitai 拉取元数据(用于补全 tags)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
@@ -8127,7 +8134,7 @@ async def proxy_lora_manager_preview(name: str):
             data = resp.json()
             preview_url = data.get("url", "")
             if preview_url:
-                # 如果是相对路径，拼上 ComfyUI 地址
+                # 如果是相对路径,拼上 ComfyUI 地址
                 if preview_url.startswith("/"):
                     preview_url = f"http://{target}{preview_url}"
                 return {"url": preview_url}
@@ -8137,7 +8144,7 @@ async def proxy_lora_manager_preview(name: str):
 
 @app.get("/api/lora-manager/proxy-preview")
 async def proxy_lora_manager_preview_proxy(url: str):
-    """代理 LoRA Manager 的预览图请求（转发到 ComfyUI）"""
+    """代理 LoRA Manager 的预览图请求(转发到 ComfyUI)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
@@ -8166,7 +8173,7 @@ async def proxy_lora_manager_preview_proxy(url: str):
 
 @app.get("/api/lora-manager/metadata")
 async def proxy_lora_manager_metadata(name: str):
-    """获取 LoRA 元数据（触发词、基础模型、描述等）"""
+    """获取 LoRA 元数据(触发词、基础模型、描述等)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
@@ -8227,13 +8234,13 @@ async def proxy_comfyui_prompt(request: Request):
 
 @app.get("/api/comfyui/view")
 async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str = "output", w: int = 0):
-    """代理 ComfyUI /view，支持缩略图与流式透传
+    """代理 ComfyUI /view,支持缩略图与流式透传
 
-    性能要点（解决大图秒显问题）：
-    - w=0（默认）：用 StreamingResponse 边下边传给浏览器，并加 immutable 缓存头
-      （ComfyUI 输出 filename 是 hash 唯一标识，安全 long-cache）
-    - w>0：先查 WebP 缓存，命中直接 FileResponse 秒出；未命中则下载原图 +
-      PIL 缩放 + 写 WebP 缓存，后续同 (filename, w) 直接秒出
+    性能要点(解决大图秒显问题):
+    - w=0(默认):用 StreamingResponse 边下边传给浏览器,并加 immutable 缓存头
+      (ComfyUI 输出 filename 是 hash 唯一标识,安全 long-cache)
+    - w>0:先查 WebP 缓存,命中直接 FileResponse 秒出;未命中则下载原图 +
+      PIL 缩放 + 写 WebP 缓存,后续同 (filename, w) 直接秒出
     """
     target = COMFYUI_ADDRESS
     if not target:
@@ -8247,7 +8254,7 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
 
     immutable_headers = {"Cache-Control": "public, max-age=2592000, immutable"}
 
-    # === 缩略图分支：缓存命中秒出 ===
+    # === 缩略图分支:缓存命中秒出 ===
     if width > 0:
         cache_key = hashlib.sha1(
             f"comfyui|{target}|{type}|{subfolder}|{filename}|w={width}".encode("utf-8", "ignore")
@@ -8258,15 +8265,15 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
             headers = {**immutable_headers, "ETag": f'"{cache_key}"'}
             return FileResponse(webp_path, media_type="image/webp", headers=headers)
 
-    # === 原图：302 重定向到 ComfyUI（浏览器直连，零代理开销） ===
+    # === 原图:302 重定向到 ComfyUI(浏览器直连,零代理开销) ===
     if width == 0:
-        # 1536x2048 PNG 走代理流式传输 36s → 302 重定向直连 ComfyUI 3-5s（本地）
+        # 1536x2048 PNG 走代理流式传输 36s → 302 重定向直连 ComfyUI 3-5s(本地)
         from urllib.parse import quote
         redirect_url = f"http://{target}/view?filename={quote(filename, safe='')}&subfolder={quote(subfolder, safe='')}&type={quote(type, safe='')}"
         print(f"[comfyui-redirect] {filename[:40]}")
         return RedirectResponse(redirect_url, status_code=302)
 
-    # === 缩略图：缓存未命中，下载 + 缩放 + 写 WebP 缓存 ===
+    # === 缩略图:缓存未命中,下载 + 缩放 + 写 WebP 缓存 ===
     import time as _t
     _t_dl = _t.perf_counter()
     try:
@@ -8282,10 +8289,10 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
             src = ImageOps.exif_transpose(src)
             has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
             if src.width > width:
-                src.thumbnail((width, width), Image.BILINEAR)  # LANCZOS 最慢，BILINEAR 5-10x 更快
+                src.thumbnail((width, width), Image.BILINEAR)  # LANCZOS 最慢,BILINEAR 5-10x 更快
             out = src.convert("RGBA" if has_alpha else "RGB")
             os.makedirs(cache_dir, exist_ok=True)
-            # method=0 (fastest) + quality=70：768px 缩略图 < 200ms 编码
+            # method=0 (fastest) + quality=70:768px 缩略图 < 200ms 编码
             out.save(webp_path, format="WEBP", quality=70, method=0)
 
         await asyncio.to_thread(_process_and_save)
@@ -8324,12 +8331,12 @@ async def open_comfyui_folder(filename: str = "", subfolder: str = "", type: str
 @app.get("/api/proxy-download-to-output")
 async def proxy_download_to_output(url: str = "", token: str = "", feature: str = "云端图片"):
     """
-    将任意远程 URL（ModelScope 等云端临时链接）下载到用户 output 目录
+    将任意远程 URL(ModelScope 等云端临时链接)下载到用户 output 目录
     解决云端 URL 在 5-60 分钟后失效导致缩略图变成"图片已删除"的问题
     """
     if not url:
         raise HTTPException(status_code=400, detail="缺少 url 参数")
-    # 安全：只允许 http/https
+    # 安全:只允许 http/https
     if not url.startswith("http://") and not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="只支持 http/https URL")
 
@@ -8380,11 +8387,11 @@ async def proxy_download_to_output(url: str = "", token: str = "", feature: str 
 
 @app.get("/api/comfyui/save-to-output")
 async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: str = "output", token: str = "", feature: str = "其他"):
-    """将 ComfyUI 的图片保存到用户 output 目录，返回本地 URL
+    """将 ComfyUI 的图片保存到用户 output 目录,返回本地 URL
 
-    性能优化（解决 47s 慢问题）：
-    - 用 client.stream() 边下边写盘，避免内存中转大图（1-2MB 一次性加载）
-    - timeout 60s（原 15s 太短，ComfyUI 慢时容易超时）
+    性能优化(解决 47s 慢问题):
+    - 用 client.stream() 边下边写盘,避免内存中转大图(1-2MB 一次性加载)
+    - timeout 60s(原 15s 太短,ComfyUI 慢时容易超时)
     """
     import time as _t
     _t_start = _t.perf_counter()
@@ -8428,7 +8435,7 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
 
 
 
-        # === 预生成 WebP 缩略图（与 /api/media-preview 共用缓存，刷新秒出） ===
+        # === 预生成 WebP 缩略图(与 /api/media-preview 共用缓存,刷新秒出) ===
         async def _prewarm_thumb():
             try:
                 from PIL import Image, ImageOps
@@ -8475,7 +8482,7 @@ async def proxy_comfyui_system_stats():
 
 @app.post("/api/comfyui/upload/image")
 async def proxy_comfyui_upload_image(file: UploadFile = File(...)):
-    """代理上传图片到 ComfyUI（兼容前端 apiFetch 模式）"""
+    """代理上传图片到 ComfyUI(兼容前端 apiFetch 模式)"""
     content = await file.read()
     result = None
     for addr in COMFYUI_INSTANCES:
@@ -8492,7 +8499,7 @@ async def proxy_comfyui_upload_image(file: UploadFile = File(...)):
 
 @app.websocket("/api/comfyui/ws")
 async def proxy_comfyui_ws(websocket: WebSocket, client_id: str = None):
-    """代理 ComfyUI WebSocket，让前端通过后端获取实时进度"""
+    """代理 ComfyUI WebSocket,让前端通过后端获取实时进度"""
     await websocket.accept()
     target = COMFYUI_ADDRESS
     if not target:
@@ -8542,23 +8549,23 @@ async def list_workflows():
     """获取工作流列表"""
     if not os.path.isdir(WORKFLOW_DIR):
         return {"workflows": []}
-    
+
     items = []
     for root, dirs, files in os.walk(WORKFLOW_DIR):
         # 只遍历特定目录
         if os.path.abspath(root) == os.path.abspath(WORKFLOW_DIR):
             dirs[:] = [d for d in dirs if d in {"custom", "自定义"}]  # 允许遍历自定义工作流目录
-        
+
         for fn in sorted(files):
             if not fn.endswith(".json") or fn.endswith(".config.json"):
                 continue
-            
+
             rel = os.path.relpath(os.path.join(root, fn), WORKFLOW_DIR).replace("\\", "/")
-            
+
             # 跳过内置工作流
             if is_builtin_workflow(rel):
                 continue
-            
+
             # 读取配置
             cfg = {}
             cfg_path = workflow_config_path(rel)
@@ -8568,14 +8575,14 @@ async def list_workflows():
                         cfg = json.load(f) or {}
                 except Exception:
                     cfg = {}
-            
+
             items.append({
                 "name": rel,
                 "title": cfg.get("title") or fn.replace(".json", ""),
                 "builtin": False,
                 "field_count": len(cfg.get("fields") or [])
             })
-    
+
     # 排序
     items.sort(key=lambda item: item["title"])
     return {"workflows": items}
@@ -8585,15 +8592,15 @@ async def get_workflow(name: str):
     """获取单个工作流详情"""
     if not WORKFLOW_NAME_RE.match(name):
         raise HTTPException(status_code=400, detail="工作流名称不合法")
-    
+
     workflow_path = workflow_path_from_name(name)
     if not os.path.exists(workflow_path):
         raise HTTPException(status_code=404, detail="工作流不存在")
-    
+
     # 读取工作流
     with open(workflow_path, "r", encoding="utf-8") as f:
         workflow = json.load(f)
-    
+
     # 读取配置
     cfg = {"title": name.replace(".json", ""), "fields": []}
     cfg_path = workflow_config_path(name)
@@ -8603,7 +8610,7 @@ async def get_workflow(name: str):
                 cfg = json.load(f) or cfg
         except Exception:
             pass
-    
+
     return {
         "name": name,
         "workflow": workflow,
@@ -8618,30 +8625,30 @@ async def create_workflow(req: Request):
         body = await req.json()
         name = os.path.basename(body.get('name', 'workflow.json').strip())
         workflow_data = body.get('workflow', {})
-        
+
         if not name.endswith('.json'):
             name = name + '.json'
-        
+
         if not WORKFLOW_NAME_RE.match(name):
-            raise HTTPException(status_code=400, detail="工作流名称不合法，请使用中文/英文/数字/_-.")
-        
+            raise HTTPException(status_code=400, detail="工作流名称不合法,请使用中文/英文/数字/_-.")
+
         if not isinstance(workflow_data, dict) or not workflow_data:
             raise HTTPException(status_code=400, detail="工作流 JSON 为空")
-        
+
         # 校验是否为有效的 ComfyUI API 格式
         sample = next(iter(workflow_data.values()), None)
         if not isinstance(sample, dict) or "class_type" not in sample:
-            raise HTTPException(status_code=400, detail="不是有效的 ComfyUI API 工作流 JSON（需包含 class_type）")
-        
+            raise HTTPException(status_code=400, detail="不是有效的 ComfyUI API 工作流 JSON(需包含 class_type)")
+
         # 保存到自定义工作流目录
         custom_dir = os.path.join(WORKFLOW_DIR, "custom")
         os.makedirs(custom_dir, exist_ok=True)
         stored_name = f"custom/{name}"
         path = workflow_path_from_name(stored_name)
-        
+
         with open(path, "w", encoding="utf-8") as f:
             json.dump(workflow_data, f, ensure_ascii=False, indent=2)
-        
+
         return {"name": stored_name}
     except HTTPException:
         raise
@@ -8653,18 +8660,18 @@ async def update_workflow_config(name: str, req: Request):
     """更新工作流配置"""
     if not WORKFLOW_NAME_RE.match(name):
         raise HTTPException(status_code=400, detail="工作流名称不合法")
-    
+
     workflow_path = workflow_path_from_name(name)
     if not os.path.exists(workflow_path):
         raise HTTPException(status_code=404, detail="工作流不存在")
-    
+
     try:
         body = await req.json()
         cfg_path = workflow_config_path(name)
-        
+
         with open(cfg_path, "w", encoding="utf-8") as f:
             json.dump(body, f, ensure_ascii=False, indent=2)
-        
+
         return {"config": body}
     except HTTPException:
         raise
@@ -8676,17 +8683,17 @@ async def delete_workflow(name: str):
     """删除工作流"""
     if not WORKFLOW_NAME_RE.match(name):
         raise HTTPException(status_code=400, detail="工作流名称不合法")
-    
+
     # 内置工作流不可删除
     if is_builtin_workflow(name):
         raise HTTPException(status_code=400, detail="内置工作流不可删除")
-    
+
     workflow_path = workflow_path_from_name(name)
     cfg_path = workflow_config_path(name)
-    
+
     if not os.path.exists(workflow_path):
         raise HTTPException(status_code=404, detail="工作流不存在")
-    
+
     try:
         os.remove(workflow_path)
         if os.path.exists(cfg_path):
@@ -8697,16 +8704,16 @@ async def delete_workflow(name: str):
 
 @app.post("/api/workflows/{workflow_name:path}/run")
 def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = ""):
-    """运行工作流（使用 generate 函数）"""
+    """运行工作流(使用 generate 函数)"""
     try:
         # 校验工作流名称
         if not WORKFLOW_NAME_RE.match(workflow_name):
             raise HTTPException(status_code=400, detail="工作流名称不合法")
-        
+
         workflow_path = workflow_path_from_name(workflow_name)
         if not os.path.exists(workflow_path):
             raise HTTPException(status_code=404, detail="工作流不存在")
-        
+
         # 根据 config 的字段把值映射成 params 节点覆盖
         params: Dict[str, Dict[str, Any]] = {}
         for field in payload.config.fields:
@@ -8723,7 +8730,7 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
                 elif field.type == "boolean":
                     value = bool(value)
                 elif field.type == "dropdown":
-                    # 下拉值如果看起来是数字，自动转成 int/float
+                    # 下拉值如果看起来是数字,自动转成 int/float
                     if isinstance(value, str):
                         s = value.strip()
                         try:
@@ -8734,10 +8741,10 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
                         except (ValueError, TypeError):
                             pass
                 elif field.type == "image":
-                    # 图片字段：值已经是 ComfyUI 图片文件名
+                    # 图片字段:值已经是 ComfyUI 图片文件名
                     pass
                 params.setdefault(field.node, {})[field.input] = value
-        
+
         # 调用 generate 函数
         generate_req = GenerateRequest(
             prompt="",
@@ -8746,13 +8753,13 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
             type="workflow",
             client_id=payload.client_id or CLIENT_ID,
         )
-        
+
         # 调用同步的 generate 函数
         result = generate(generate_req, token=token)
-        
+
         if result.get("error"):
             raise HTTPException(status_code=500, detail=result["error"])
-        
+
         return result
     except HTTPException:
         raise
@@ -8768,7 +8775,7 @@ os.makedirs(TTS_VOICE_DIR, exist_ok=True)
 # 音色库子目录
 VOICE_CATEGORIES = ["genshin", "custom", "import", "record"]
 
-# 音色库索引文件（全局共享）
+# 音色库索引文件(全局共享)
 VOICE_INDEX_FILE = os.path.join(TTS_VOICE_DIR, "voices.json")
 
 TTS_WORKFLOW_DIR = os.path.join(WORKFLOW_DIR, "TTS")
@@ -8789,7 +8796,7 @@ TTS_WORKFLOW_TEMPLATES = {
 
 
 def _load_voice_index() -> dict:
-    """加载音色库索引（全局共享）"""
+    """加载音色库索引(全局共享)"""
     if not os.path.exists(VOICE_INDEX_FILE):
         return {}
     try:
@@ -8800,14 +8807,14 @@ def _load_voice_index() -> dict:
 
 
 def _save_voice_index(index: dict):
-    """保存音色库索引（全局共享）"""
+    """保存音色库索引(全局共享)"""
     with open(VOICE_INDEX_FILE, 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False, indent=2)
 
 
 @app.get("/api/tts/voices")
 async def get_tts_voices():
-    """获取音色库列表（全局共享）"""
+    """获取音色库列表(全局共享)"""
     index = _load_voice_index()
     return {"voices": index}
 
@@ -8821,10 +8828,10 @@ async def get_animadex_characters(
     copyright: str = "",
     limit: int = 200
 ):
-    """获取 animadex 角色数据（用于头像映射）"""
+    """获取 animadex 角色数据(用于头像映射)"""
     global _animadex_cache, _animadex_cache_time
     import time
-    
+
     # 缓存 10 分钟
     if _animadex_cache is None or (time.time() - _animadex_cache_time) > 600:
         try:
@@ -8836,72 +8843,66 @@ async def get_animadex_characters(
         except Exception as e:
             print(f"加载 animadex 数据失败: {e}")
             _animadex_cache = {"characters": []}
-    
+
     characters = _animadex_cache.get("characters", []) if _animadex_cache else []
-    
+
     # 按 copyright 过滤
     if copyright:
         characters = [c for c in characters if c.get("copyright") == copyright]
-    
+
     # 限制数量
     characters = characters[:limit]
-    
+
     return {"characters": characters, "count": len(characters)}
 
 
 # ==================== AI 转播客 ====================
-PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人，擅长将文章转化为引人入胜的多人对话节目。
+PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人,擅长将文章转化为引人入胜的多人对话节目。
 
 ## 对话结构要求
 
-### 开场（必须包含）
-- 主持人用一句话吸引听众注意力（可以是问题、惊人事实、或悬念）
+### 开场(必须包含)
+- 主持人用一句话吸引听众注意力(可以是问题、惊人事实、或悬念)
 - 简要介绍本期话题和嘉宾
 
 ### 主体内容
 - 将文章核心内容分解为 3-5 个话题点
-- 每个话题由主持人引出，嘉宾展开讨论
-- 使用自然的口语表达，避免书面语
-- 适当加入：
-  - 追问（"这让我好奇..."、"能具体说说吗？"）
-  - 感叹（"哇，这太有意思了！"、"原来如此！"）
-  - 总结（"所以你的意思是..."、"换句话说..."）
-  - 类比（"这就像..."、"打个比方..."）
-  - 个人经历（"我之前遇到过类似的情况..."）
+- 每个话题由主持人引出,嘉宾展开讨论
+- 使用自然的口语表达,避免书面语
+- 适当加入:
+  - 追问("这让我好奇..."、"能具体说说吗?")
+  - 感叹("哇,这太有意思了!"、"原来如此!")
+  - 总结("所以你的意思是..."、"换句话说...")
+  - 类比("这就像..."、"打个比方...")
+  - 个人经历("我之前遇到过类似的情况...")
 
-### 结尾（必须包含）
+### 结尾(必须包含)
 - 总结核心观点
 - 给听众一个行动建议或思考题
-- 自然的结束语（"感谢收听"、"下期见"等）
+- 自然的结束语("感谢收听"、"下期见"等)
 
-## 节奏控制
-- 每句话控制在 15-40 字
-- 每 3-5 句话后插入一个停顿标记 [pause:0.5]
-- 重要观点前插入 [pause:1.0] 表示强调
-- 换话题时插入 [pause:1.5] 表示段落分隔
-
-## 情绪标注（可选，提升表现力）
-在合适位置插入情绪标记：
-- [excited] 兴奋
-- [thoughtful] 思考
-- [surprised] 惊讶
-- [serious] 严肃
-- [warm] 温暖
-- [curious] 好奇
+## 可用情绪标记(只能用这些)
+在对话中适当插入情绪标记,让语音更有表现力:
+- [laughter] 笑声,讲到有趣内容时
+- [sigh] 叹气,表示感慨或无奈时
+- [question-ah] 啊?表示疑问
+- [question-oh] 哦?表示疑问
+- [surprise-oh] 哦!表示惊讶
+- [surprise-wa] 哇!表示惊讶
+- [dissatisfaction-hnn] 哼!表示不满或吐槽
+- [confirmation-en] 表示确认或赞同
 
 ## 输出格式
-严格按以下格式输出，不要添加任何其他内容：
+严格按以下格式输出:
 
-[角色A]: 开场白内容...
-[pause:0.5]
-[角色B]: 回应内容...
-[pause:1.0]
-[角色A]: [excited] 惊讶的回应...
+[主持人]: 开场白内容...
+[嘉宾]: 回应内容...
+[主持人]: [excited] 惊讶的回应...
 
 ## 角色设定
-- 角色A：主持人，负责引导话题、提问、总结
-- 角色B：嘉宾，负责深入分析、提供见解、举例说明
-- 如果是3人：角色C 作为另一位嘉宾，提供不同视角
+- 主持人:负责引导话题、提问、总结
+- 嘉宾:负责深入分析、提供见解、举例说明
+- 如果是3人:另一位嘉宾提供不同视角
 """
 
 @app.post("/api/tts/to-podcast")
@@ -8913,25 +8914,34 @@ async def convert_to_podcast(
     """将文本转换为播客对话格式"""
     from smart_tts import call_llm_direct
     from smart_prompt import load_config
-    
+
     if not text.strip():
         raise HTTPException(status_code=400, detail="文本不能为空")
-    
+
     config = load_config()
     if not config.get("api_key"):
         raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
-    
+
     # 构造用户提示
     style_desc = {
-        "default": "自然对话，主持人和嘉宾轻松交流",
-        "news": "新闻播报风格，语言正式、节奏明快",
-        "casual": "轻松闲聊，像朋友聊天一样随意",
-        "interview": "深度采访，主持人追问细节",
-        "debate": "观点碰撞，正反方讨论",
-        "storytelling": "故事讲述，用叙事方式展开",
-        "educational": "教学讲解，循序渐进地解释概念"
+        "default": "自然对话,主持人和嘉宾轻松交流",
+        "news": "新闻播报风格,语言正式、节奏明快",
+        "casual": "轻松闲聊,像朋友聊天一样随意",
+        "interview": "深度采访,主持人追问细节",
+        "debate": "观点碰撞,正反方讨论",
+        "storytelling": "故事讲述,用叙事方式展开",
+        "educational": "教学讲解,循序渐进地解释概念"
     }
-    
+
+    # 情绪标记说明
+    emotion_desc = """根据对话内容自然插入情绪标记(不要滥用,每个说话人每2-3句话用1个即可):
+- 讲到有趣/好笑的内容时 → [laughter]
+- 讲到令人感慨/遗憾的内容时 → [sigh]
+- 表示疑问时 → [question-ah] 或 [question-oh]
+- 表示惊讶时 → [surprise-oh] 或 [surprise-wa]
+- 表示不满或吐槽时 → [dissatisfaction-hnn]
+- 表示确认或赞同时 → [confirmation-en]"""
+
     # 构造详细的用户提示
     user_prompt = f"""请将以下文章转换为 {num_speakers} 人对话的播客节目。
 
@@ -8939,23 +8949,26 @@ async def convert_to_podcast(
 {style_desc.get(style, style_desc['default'])}
 
 ## 对话人数
-{num_speakers} 人（1位主持人 + {num_speakers - 1}位嘉宾）
+{num_speakers} 人(1位主持人 + {num_speakers - 1}位嘉宾)
+
+## 情绪标记
+{emotion_desc}
 
 ## 输出要求
-1. 必须包含完整的开场白（主持人介绍话题和嘉宾）
+1. 必须包含完整的开场白(主持人介绍话题和嘉宾)
 2. 将文章内容分解为 3-5 个讨论点
 3. 必须包含结尾总结
 4. 每句话控制在 15-40 字
-5. 在合适位置插入 [pause:0.5] 或 [pause:1.0] 控制节奏
-6. 可选添加情绪标记如 [excited]、[thoughtful] 等
+5. 在合适位置插入情绪标记,让对话更生动
+6. 直接输出对话内容,不要加多余的格式说明
 
 ## 文章内容
 {text}"""
-    
+
     try:
         result = call_llm_direct(user_prompt, PODCAST_SYSTEM_PROMPT, config)
-        
-        # 解析结果，提取说话人信息
+
+        # 解析结果,提取说话人信息
         speakers = set()
         lines = result.strip().split('\n')
         for line in lines:
@@ -8963,13 +8976,13 @@ async def convert_to_podcast(
             if line.startswith('[') and ']:' in line:
                 speaker_name = line.split(']:')[0].replace('[', '').strip()
                 speakers.add(speaker_name)
-        
+
         # 将对话格式转换为 TTS 格式 (Speaker_1:, Speaker_2: 等)
         speaker_list = list(speakers)
         speaker_map = {}
         for i, name in enumerate(speaker_list[:num_speakers]):
             speaker_map[name] = f"Speaker_{i+1}"
-        
+
         tts_lines = []
         for line in lines:
             line = line.strip()
@@ -8982,13 +8995,166 @@ async def convert_to_podcast(
                 tts_lines.append(f"[{tts_id}]: {content}")
             else:
                 tts_lines.append(line)
-        
+
         return {
             "success": True,
             "podcast_text": "\n".join(tts_lines),
             "original_speakers": speaker_list[:num_speakers],
             "speaker_map": speaker_map,
             "raw_text": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
+
+
+@app.post("/api/tts/fetch-url")
+async def fetch_url_content(url: str = Form("")):
+    """抓取网页文章内容"""
+    import urllib.request
+    import re
+
+    if not url.strip():
+        raise HTTPException(status_code=400, detail="URL 不能为空")
+
+    # 补全协议
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+
+    try:
+        # 设置请求头
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+
+        # 简单提取正文(去除 HTML 标签)
+        # 移除 script 和 style
+        html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.I)
+        html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.I)
+        # 移除 HTML 标签
+        text = re.sub(r'<[^>]+>', ' ', html)
+        # 清理空白
+        text = re.sub(r'\s+', ' ', text).strip()
+        # 截取前 5000 字
+        if len(text) > 5000:
+            text = text[:5000] + '...'
+
+        if len(text) < 50:
+            raise Exception("抓取内容过少,可能是反爬页面")
+
+        return {
+            "success": True,
+            "content": text,
+            "url": url
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"抓取失败: {str(e)}")
+
+
+@app.post("/api/tts/to-solo-podcast")
+async def convert_to_solo_podcast(
+    text: str = Form(...),
+    style: str = Form("storytelling"),
+    word_count: int = Form(500)
+):
+    """将文本转换为单人播客风格"""
+    from smart_tts import call_llm_direct
+    from smart_prompt import load_config
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="文本不能为空")
+
+    config = load_config()
+    print(f"[SoloPodcast] config: base_url={config.get('base_url')}, api_key={'set' if config.get('api_key') else 'empty'}, model={config.get('model')}")
+    if not config.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
+    if not config.get("base_url"):
+        raise HTTPException(status_code=400, detail=f"未配置 API base_url, config={config}")
+
+    # 风格配置
+    style_configs = {
+        "storytelling": {
+            "desc": "故事讲述风格,用生动的叙事方式展开,有起伏和悬念"
+        },
+        "knowledge": {
+            "desc": "知识讲解风格,清晰有条理,用通俗易懂的语言解释概念"
+        },
+        "news": {
+            "desc": "新闻播报风格,语言正式、节奏明快、客观公正"
+        },
+        "casual": {
+            "desc": "轻松闲聊风格,像和朋友聊天一样自然随意"
+        },
+        "motivational": {
+            "desc": "励志分享风格,充满感染力,激励人心"
+        },
+        "educational": {
+            "desc": "教学讲解风格,循序渐进,由浅入深地讲解"
+        }
+    }
+
+    style_config = style_configs.get(style, style_configs['storytelling'])
+    
+    # 字数范围
+    word_min = max(100, word_count - 100)
+    word_max = word_count + 100
+    
+    # 构造用户提示
+    user_prompt = f"""请将以下文本转换为单人播客风格,适合一个人朗读讲述。
+
+## 播客风格
+{style_config['desc']}
+
+## 输出要求
+1. 开头要有吸引人的开场白,引出话题
+2. 将内容重新组织为适合口语讲述的结构
+3. 语言要自然流畅,像在和听众对话
+4. 适当加入过渡词和连接词
+5. 结尾要有总结或引发思考的收尾
+6. 总字数控制在 {word_min}-{word_max} 字左右
+
+## 情绪标记规则
+只能使用以下标记(不要用其他标记,每段话用1-2个即可):
+- 讲到有趣好笑的内容时 → [laughter]
+- 表示感叹或无奈时 → [sigh]
+- 表示疑问时 → [question-ah] 或 [question-oh]
+- 表示惊讶时 → [surprise-oh] 或 [surprise-wa]
+- 表示不满或吐槽时 → [dissatisfaction-hnn]
+- 表示赞同或确认时 → [confirmation-en]
+
+## 原始文本
+{text}"""
+
+    system_prompt = """你是一位专业的播客内容创作者,擅长将各种文本转换为适合单人讲述的播客风格。
+
+## 播客创作原则
+1. **口语化**:使用自然的口语表达,避免书面语
+2. **节奏感**:合理安排停顿和节奏变化
+3. **情感丰富**:根据内容调整语气和情感
+4. **结构清晰**:有明确的开头、展开和结尾
+5. **互动感**:适当使用"你"、"我们"等人称,拉近与听众的距离
+
+## 可用情绪标记(只能用这些)
+- [laughter] 笑声,讲到有趣内容时
+- [sigh] 叹气,表示感慨或无奈时
+- [question-ah] 啊?表示疑问
+- [question-oh] 哦?表示疑问
+- [surprise-oh] 哦!表示惊讶
+- [surprise-wa] 哇!表示惊讶
+- [dissatisfaction-hnn] 哼!表示不满或吐槽
+- [confirmation-en] 表示确认或赞同
+
+## 输出格式
+直接输出转换后的播客讲述内容,在合适位置插入情绪标记。"""
+
+    try:
+        result = call_llm_direct(user_prompt, system_prompt, config)
+
+        return {
+            "success": True,
+            "result": result.strip()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
@@ -9001,25 +9167,25 @@ async def save_tts_voice(
     category: str = Form("custom"),
     file: UploadFile = File(...),
 ):
-    """保存音色到音色库（全局共享）"""
+    """保存音色到音色库(全局共享)"""
     if not name.strip():
         raise HTTPException(status_code=400, detail="音色名称不能为空")
-    
+
     # 保存音频文件到分类目录
     category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
     os.makedirs(category_dir, exist_ok=True)
-    
+
     ext = os.path.splitext(file.filename or "voice.wav")[1] or ".wav"
     safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())[:60]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{safe_name}_{timestamp}{ext}"
     file_path = os.path.join(category_dir, filename)
-    
+
     content = await file.read()
     with open(file_path, 'wb') as f:
         f.write(content)
-    
-    # 更新索引（存储相对路径）
+
+    # 更新索引(存储相对路径)
     index = _load_voice_index()
     index[name.strip()] = {
         "file": f"audio/{category}/{filename}",
@@ -9031,7 +9197,7 @@ async def save_tts_voice(
         "note": "",
     }
     _save_voice_index(index)
-    
+
     return {"success": True, "name": name.strip(), "filename": f"audio/{category}/{filename}"}
 
 
@@ -9040,31 +9206,31 @@ async def import_tts_voices(
     source_dir: str = Form(...),
     category: str = Form("genshin"),
 ):
-    """批量导入音色（全局共享）"""
+    """批量导入音色(全局共享)"""
     # 创建分类目录
     category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
     os.makedirs(category_dir, exist_ok=True)
-    
+
     if not os.path.exists(source_dir):
         raise HTTPException(status_code=400, detail="源目录不存在")
-    
+
     index = _load_voice_index()
     imported = 0
     skipped = 0
     errors = []
-    
+
     # 扫描角色文件夹
     for character_name in os.listdir(source_dir):
         character_dir = os.path.join(source_dir, character_name)
         if not os.path.isdir(character_dir):
             continue
-        
+
         # 获取所有音频文件
         audio_files = [f for f in os.listdir(character_dir) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
         if not audio_files:
             continue
-        
-        # 按文件大小排序，选择中间的
+
+        # 按文件大小排序,选择中间的
         audio_files_with_size = []
         for af in audio_files:
             try:
@@ -9072,20 +9238,20 @@ async def import_tts_voices(
                 audio_files_with_size.append((af, size))
             except:
                 continue
-        
+
         if not audio_files_with_size:
             continue
-        
+
         audio_files_with_size.sort(key=lambda x: x[1])
         mid_idx = len(audio_files_with_size) // 2
         selected_file = audio_files_with_size[mid_idx][0]
-        
+
         # 跳过已存在的
         voice_name = f"原神·{character_name}"
         if voice_name in index:
             skipped += 1
             continue
-        
+
         try:
             # 复制音频文件到分类目录
             src_path = os.path.join(character_dir, selected_file)
@@ -9094,22 +9260,22 @@ async def import_tts_voices(
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             dest_filename = f"{safe_name}_{timestamp}{ext}"
             dest_path = os.path.join(category_dir, dest_filename)
-            
+
             shutil.copy2(src_path, dest_path)
-            
-            # 更新索引（存储相对路径）
+
+            # 更新索引(存储相对路径)
             index[voice_name] = {
                 "file": f"audio/{category}/{dest_filename}",
-                "instruct": "女，高音调",
+                "instruct": "女,高音调",
                 "category": category,
                 "created": timestamp,
             }
             imported += 1
         except Exception as e:
             errors.append(f"{character_name}: {str(e)}")
-    
+
     _save_voice_index(index)
-    
+
     return {
         "success": True,
         "imported": imported,
@@ -9120,8 +9286,8 @@ async def import_tts_voices(
 
 @app.get("/api/tts/voices/file/{filename:path}")
 async def get_tts_voice_file(filename: str):
-    """获取音色音频文件（全局共享）"""
-    # 路径安全检查：禁止路径穿越
+    """获取音色音频文件(全局共享)"""
+    # 路径安全检查:禁止路径穿越
     if ".." in filename or filename.startswith("/") or filename.startswith("\\"):
         raise HTTPException(status_code=400, detail="非法路径")
     # filename 现在是 audio/category/file 格式
@@ -9131,7 +9297,7 @@ async def get_tts_voice_file(filename: str):
         raise HTTPException(status_code=403, detail="禁止访问目录外文件")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="文件不存在")
-    
+
     # 根据扩展名设置 Content-Type
     ext = os.path.splitext(filename)[1].lower()
     content_type_map = {
@@ -9141,41 +9307,41 @@ async def get_tts_voice_file(filename: str):
         ".ogg": "audio/ogg",
     }
     content_type = content_type_map.get(ext, "audio/wav")
-    
+
     return FileResponse(file_path, media_type=content_type)
 
 
 @app.delete("/api/tts/voices/{voice_name}")
 async def delete_tts_voice(voice_name: str):
-    """删除音色（全局共享）"""
+    """删除音色(全局共享)"""
     index = _load_voice_index()
-    
+
     entry = index.pop(voice_name, None)
     if not entry:
         raise HTTPException(status_code=404, detail="音色不存在")
-    
+
     # 删除音频文件
     file_path = os.path.join(TTS_VOICE_DIR, entry.get("file", ""))
     if os.path.exists(file_path):
         os.remove(file_path)
-    
+
     _save_voice_index(index)
     return {"success": True}
 
 
 @app.put("/api/tts/voices/{voice_name}/meta")
 async def update_tts_voice_meta(voice_name: str, body: dict):
-    """更新音色元数据（星标、备注等）"""
+    """更新音色元数据(星标、备注等)"""
     index = _load_voice_index()
     entry = index.get(voice_name)
     if not entry:
         raise HTTPException(status_code=404, detail="音色不存在")
-    
+
     if "starred" in body:
         entry["starred"] = bool(body["starred"])
     if "note" in body:
         entry["note"] = str(body["note"])
-    
+
     index[voice_name] = entry
     _save_voice_index(index)
     return {"success": True, "voice": entry}
@@ -9189,52 +9355,52 @@ def _find_whisper_model_path():
     """在 ComfyUI audio_encoders 目录中查找已下载的 Whisper 模型"""
     # 从 .env 读取 ComfyUI 路径
     comfy_base = os.environ.get("COMFYUI_BASE_PATH", "")
-    # COMFYUI_BASE_PATH 指向 models/loras，往上推到 ComfyUI 根目录
+    # COMFYUI_BASE_PATH 指向 models/loras,往上推到 ComfyUI 根目录
     if comfy_base:
         # H:\AI-Tools\ComfyUI-aio-V9.0\ComfyUI\models\loras -> H:\AI-Tools\ComfyUI-aio-V9.0\ComfyUI
         comfy_root = os.path.normpath(os.path.join(comfy_base, "..", ".."))
     else:
         # fallback: 从 COMFYUI_ADDRESS 推断
         comfy_root = os.path.normpath(os.path.join(os.getcwd(), ".."))
-    
+
     audio_encoders_dir = os.path.join(comfy_root, "models", "audio_encoders")
     if not os.path.isdir(audio_encoders_dir):
         print(f"[ASR] audio_encoders 目录不存在: {audio_encoders_dir}")
         return None
-    
+
     # 优先找 whisper-large-v3-turbo
     preferred = ["openai_whisper-large-v3-turbo", "openai_whisper-large-v3"]
     for name in preferred:
         path = os.path.join(audio_encoders_dir, name)
         if os.path.isdir(path):
             return path
-    
+
     # 找任意 whisper 模型
     for entry in os.listdir(audio_encoders_dir):
         if "whisper" in entry.lower():
             path = os.path.join(audio_encoders_dir, entry)
             if os.path.isdir(path):
                 return path
-    
-    print(f"[ASR] 未找到 Whisper 模型，请将模型放到: {audio_encoders_dir}")
+
+    print(f"[ASR] 未找到 Whisper 模型,请将模型放到: {audio_encoders_dir}")
     return None
 
 
 def _get_asr_pipeline():
-    """懒加载 Whisper ASR pipeline（单例，从 ComfyUI 路径加载）"""
+    """懒加载 Whisper ASR pipeline(单例,从 ComfyUI 路径加载)"""
     global _asr_pipeline
     if _asr_pipeline is not None:
         return _asr_pipeline
-    
+
     model_path = _find_whisper_model_path()
     if not model_path:
-        raise RuntimeError("未找到 Whisper 模型，请先在 ComfyUI 中加载一次 OmniVoice 工作流以触发模型下载")
-    
+        raise RuntimeError("未找到 Whisper 模型,请先在 ComfyUI 中加载一次 OmniVoice 工作流以触发模型下载")
+
     import torch
     from transformers import pipeline as hf_pipeline
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.bfloat16 if device == "cuda" else torch.float32
-    
+
     _asr_pipeline = hf_pipeline(
         "automatic-speech-recognition",
         model=model_path,
@@ -9250,51 +9416,51 @@ async def tts_asr(
     request: Request,
     token: str = Form(""),
 ):
-    """真正的 ASR：用 Whisper 转写参考音频为文本"""
+    """真正的 ASR:用 Whisper 转写参考音频为文本"""
     form = await request.form()
     audio_file = form.get("audio")
     if not audio_file or not hasattr(audio_file, 'read'):
         raise HTTPException(status_code=400, detail="请上传音频文件")
-    
+
     content = await audio_file.read()
     if len(content) < 100:
         raise HTTPException(status_code=400, detail="音频文件太小")
-    
+
     # 保存临时文件
     tmp_path = os.path.join(TTS_VOICE_DIR, f"_asr_{int(time.time())}.wav")
     try:
         with open(tmp_path, 'wb') as f:
             f.write(content)
-        
+
         # 在 ComfyUI 的 Python 环境中运行 ASR
         comfy_python = os.path.join(
             os.path.dirname(COMFYUI_ADDRESS.split(":")[0]) if ":" in COMFYUI_ADDRESS else "",
             "..", "..", "..", "python", "python.exe"
         )
-        # 尝试用 ComfyUI Python 环境（有 omnivoice）
+        # 尝试用 ComfyUI Python 环境(有 omnivoice)
         # fallback: 用当前环境的 transformers pipeline
         try:
             import torch
             import numpy as np
             import soundfile as sf
             from transformers import pipeline as hf_pipeline
-            
+
             # 读取音频
             audio_data, sr = sf.read(tmp_path)
             if len(audio_data.shape) > 1:
                 audio_data = audio_data.mean(axis=1)  # 转单声道
-            
-            # 重采样到 16kHz（Whisper 要求）
+
+            # 重采样到 16kHz(Whisper 要求)
             if sr != 16000:
                 import scipy.signal
                 audio_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / sr))
                 sr = 16000
-            
+
             # 加载模型并转写
             pipe = _get_asr_pipeline()
             result = pipe(audio_data, generate_kwargs={"language": None})
             text = result.get("text", "").strip()
-            
+
             return {"text": text}
         except Exception as e:
             print(f"[ASR] 转写失败: {e}")
@@ -9365,8 +9531,15 @@ async def get_tts_modes():
 
 
 @app.post("/api/tts/generate")
-async def tts_generate(request: Request, token: str = Form("")):
+async def tts_generate(request: Request, token: str = Query(default="")):
     """TTS 生成接口"""
+    # 优先从 URL 参数获取 token,其次从 Form 字段
+    if not token:
+        try:
+            form = await request.form()
+            token = form.get("token", "")
+        except:
+            pass
     try:
         return await _tts_generate_inner(request, token)
     except HTTPException:
@@ -9383,6 +9556,10 @@ async def _tts_generate_inner(request: Request, token: str):
     form = await request.form()
     text = form.get("text", "")
     mode = form.get("mode", "clone")
+
+    # 调试日志
+    username = get_username_by_token(token)
+    print(f"[TTS] token={token[:10] if token else 'None'}..., username={username}, mode={mode}")
     instruct = form.get("instruct", "")
     ref_text = form.get("ref_text", "")
     speed = float(form.get("speed", 1.0))
@@ -9406,28 +9583,34 @@ async def _tts_generate_inner(request: Request, token: str):
     # 多人对话参数
     num_speakers = int(form.get("num_speakers", 2))
     pause_between_speakers = float(form.get("pause_between_speakers", 0.3))
-    
+
     username = get_username_by_token(token)
-    
+
     # 校验模式
     if mode not in TTS_WORKFLOW_TEMPLATES:
         raise HTTPException(status_code=400, detail=f"不支持的模式: {mode}")
-    
-    # 自动判断模式：clone 模式根据字数自动选择工作流
+
+    # 自动判断模式:clone 模式根据字数自动选择工作流
     actual_mode = mode
     if mode == "clone":
         text_length = len(text.strip())
         if text_length > 600:
             actual_mode = "longform"
-            print(f"[TTS] 文本较长({text_length}字)，自动切换到长文本模式")
+            print(f"[TTS] 文本较长({text_length}字),自动切换到长文本模式")
         else:
             actual_mode = "clone"
-            print(f"[TTS] 文本较短({text_length}字)，使用声音克隆模式")
+            print(f"[TTS] 文本较短({text_length}字),使用声音克隆模式")
     else:
         actual_mode = mode
-    
+
+    # 如果 seed 为 0 (随机),生成一个固定 seed 确保音色一致
+    if seed == 0:
+        import random
+        seed = random.randint(1, 999999999)
+        print(f"[TTS] 使用随机 seed: {seed}")
+
     # 加载工作流模板
-    # 多人对话模式：根据说话人数量选择对应模板
+    # 多人对话模式:根据说话人数量选择对应模板
     if mode == "multi":
         workflow_key = f"multi-{num_speakers}"
         if workflow_key in TTS_WORKFLOW_TEMPLATES:
@@ -9437,15 +9620,15 @@ async def _tts_generate_inner(request: Request, token: str):
             workflow_name = TTS_WORKFLOW_TEMPLATES["multi-2"]
     else:
         workflow_name = TTS_WORKFLOW_TEMPLATES[actual_mode]
-    
+
     workflow_path = os.path.join(TTS_WORKFLOW_DIR, workflow_name)
     if not os.path.exists(workflow_path):
         raise HTTPException(status_code=404, detail=f"工作流模板不存在: {workflow_name}")
-    
+
     with open(workflow_path, 'r', encoding='utf-8') as f:
         workflow = json.load(f)
-    
-    # 上传参考音频到 ComfyUI（如果有）
+
+    # 上传参考音频到 ComfyUI(如果有)
     ref_audio_filename = ""
     ref_audio = form.get("ref_audio")
     if ref_audio and hasattr(ref_audio, 'read') and mode in ("clone", "longform"):
@@ -9458,8 +9641,8 @@ async def _tts_generate_inner(request: Request, token: str):
                 requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
             except Exception as e:
                 print(f"[TTS] 上传参考音频失败: {e}")
-    
-    # 多人对话：上传每个说话人的音频
+
+    # 多人对话:上传每个说话人的音频
     speaker_audio_filenames = {}
     if mode == "multi":
         target = COMFYUI_ADDRESS
@@ -9492,7 +9675,7 @@ async def _tts_generate_inner(request: Request, token: str):
                     "instruct": spk_instruct,
                 }
                 print(f"[TTS-Multi] speaker_{i}: NO AUDIO FILE")
-    
+
     # 替换工作流中的变量
     # 查找关键节点并替换参数
     for node_id, node_content in workflow.items():
@@ -9500,7 +9683,7 @@ async def _tts_generate_inner(request: Request, token: str):
             continue
         inputs = node_content.get("inputs", {})
         class_type = node_content.get("class_type", "")
-        
+
         # OmniVoice TTS 节点
         if class_type in ("OmniVoiceVoiceCloneTTS", "OmniVoiceLongformTTS"):
             inputs["text"] = text
@@ -9520,13 +9703,13 @@ async def _tts_generate_inner(request: Request, token: str):
                 inputs["duration"] = duration
             if mode in ("clone", "longform") and ref_text:
                 inputs["ref_text"] = ref_text
-        
-        # OmniVoice VoiceDesign TTS 节点（智能配音）
+
+        # OmniVoice VoiceDesign TTS 节点(智能配音)
         if class_type == "OmniVoiceVoiceDesignTTS":
             inputs["text"] = text
-            # 智能配音模式：如果没有 instruct，使用默认值
+            # 智能配音模式:如果没有 instruct,使用默认值
             if mode == "design" and not instruct:
-                inputs["voice_instruct"] = "female, moderate pitch"  # 默认：女声，中音调
+                inputs["voice_instruct"] = "female, moderate pitch"  # 默认:女声,中音调
             else:
                 inputs["voice_instruct"] = instruct
             inputs["speed"] = speed
@@ -9541,7 +9724,7 @@ async def _tts_generate_inner(request: Request, token: str):
             inputs["seed"] = seed if seed > 0 else 0
             if duration is not None:
                 inputs["duration"] = duration
-        
+
         # OmniVoiceMultiSpeakerTTS 节点
         if class_type == "OmniVoiceMultiSpeakerTTS":
             inputs["text"] = text
@@ -9560,19 +9743,19 @@ async def _tts_generate_inner(request: Request, token: str):
             inputs["pause_between_speakers"] = pause_between_speakers
             if duration is not None:
                 inputs["duration"] = duration
-            # 说话人参数放在顶层（V2 风格，兼容修改后的节点）
+            # 说话人参数放在顶层(V2 风格,兼容修改后的节点)
             for i in range(1, num_speakers + 1):
                 spk = speaker_audio_filenames.get(i, {})
                 inputs[f"speaker_{i}_ref_text"] = spk.get("ref_text", "")
                 inputs[f"speaker_{i}_instruct"] = spk.get("instruct", "")
             print(f"[TTS-Multi] MultiSpeakerTTS: text={text[:50]}..., num_speakers={num_speakers}")
             print(f"[TTS-Multi] speaker_audio_filenames={json.dumps({k: v['filename'] for k, v in speaker_audio_filenames.items()})}")
-        
-        # LoadAudio 节点（参考音频 - 单人模式）
+
+        # LoadAudio 节点(参考音频 - 单人模式)
         if class_type == "LoadAudio" and ref_audio_filename and node_id == "5":
             inputs["audio"] = ref_audio_filename
-        
-        # LoadAudio 节点（多人对话 - 说话人音频）
+
+        # LoadAudio 节点(多人对话 - 说话人音频)
         if class_type == "LoadAudio" and mode == "multi":
             title = node_content.get("_meta", {}).get("title", "")
             matched = False
@@ -9586,7 +9769,7 @@ async def _tts_generate_inner(request: Request, token: str):
                     break
             if not matched:
                 print(f"[TTS-Multi] LoadAudio node '{title}' (id={node_id}) NOT MATCHED")
-    
+
     # 提交到 ComfyUI
     generate_req = GenerateRequest(
         prompt=text,
@@ -9605,12 +9788,12 @@ async def _tts_generate_inner(request: Request, token: str):
         type="tts",
         client_id="",
     )
-    
+
     result = generate(generate_req, token=token)
-    
+
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result["error"])
-    
+
     return result
 
 
@@ -9682,7 +9865,7 @@ async def import_local_assets_from_urls(payload: LocalAssetUrlImportRequest):
                     name_path = urllib.parse.urlparse(src_url).path
                 kind, ext = _local_upload_kind_ext(name_path, content_type)
                 if kind not in ("image", "video"):
-                    raise HTTPException(status_code=400, detail=f"不是图片或视频资源：{content_type or src_url}")
+                    raise HTTPException(status_code=400, detail=f"不是图片或视频资源:{content_type or src_url}")
                 if not content:
                     raise HTTPException(status_code=400, detail="素材内容为空")
                 if entry.name:
@@ -10330,7 +10513,7 @@ async def rename_prompt_library(library_id: str, payload: PromptLibraryRequest):
 @app.delete("/api/prompt-libraries/{library_id}")
 async def delete_prompt_library(library_id: str):
     if library_id == "system":
-        raise HTTPException(status_code=400, detail="系统提示词库不能删除，可以删除其中的提示词")
+        raise HTTPException(status_code=400, detail="系统提示词库不能删除,可以删除其中的提示词")
     data = load_prompt_libraries()
     libraries = data.get("libraries", []) or []
     kept = [lib for lib in libraries if lib.get("id") != library_id]
@@ -10581,7 +10764,7 @@ async def import_shared_folder_files(payload: SharedFolderImport):
     save_asset_library(lib)
     return {"library": lib, "items": added}
 
-# --- 服务静态文件（上传素材） ---
+# --- 服务静态文件(上传素材) ---
 
 @app.get("/assets/uploads/{path:path}")
 async def serve_local_upload(path: str):
@@ -10764,7 +10947,7 @@ def build_canvas_workflow_archive(payload: CanvasWorkflowExportRequest) -> Tuple
 
 @app.get("/api/media-preview")
 async def media_preview(url: str, w: int = 512):
-    # ComfyUI 图片（如 /api/comfyui/view?filename=...）直接走 ComfyUI 代理缩略图
+    # ComfyUI 图片(如 /api/comfyui/view?filename=...)直接走 ComfyUI 代理缩略图
     if url.startswith("/api/comfyui/view"):
         from urllib.parse import urlparse, parse_qs
         parsed = urlparse(url)
@@ -10806,7 +10989,7 @@ async def media_preview(url: str, w: int = 512):
                 img.save(png_path, format="PNG", optimize=True)
                 return png_path, "image/png"
         saved_path, saved_type = await asyncio.to_thread(_save_preview)
-        # 浏览器缓存：文件名含 mtime+size 哈希，内容变了 key 就变，可以安全长缓存
+        # 浏览器缓存:文件名含 mtime+size 哈希,内容变了 key 就变,可以安全长缓存
         etag = _etag_for(saved_path)
         headers = {
             "Cache-Control": "public, max-age=2592000, immutable",
@@ -10814,7 +10997,7 @@ async def media_preview(url: str, w: int = 512):
         }
         return FileResponse(saved_path, media_type=saved_type, headers=headers)
     except Exception as exc:
-        raise HTTPException(status_code=415, detail=f"无法生成预览图：{exc}") from exc
+        raise HTTPException(status_code=415, detail=f"无法生成预览图:{exc}") from exc
 
 # --- 缓存管理 API ---
 
@@ -10836,7 +11019,7 @@ async def api_cache_info():
 async def api_cache_clear():
     """清理缩略图缓存"""
     if not os.path.isdir(MEDIA_PREVIEW_DIR):
-        return {"message": "缓存目录不存在，无需清理", "cleared": 0}
+        return {"message": "缓存目录不存在,无需清理", "cleared": 0}
     count = 0
     for f in os.listdir(MEDIA_PREVIEW_DIR):
         fp = os.path.join(MEDIA_PREVIEW_DIR, f)
@@ -10884,7 +11067,7 @@ async def runninghub_app_info(webappId: str = ""):
         except httpx.HTTPStatusError as exc:
             raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500]) from exc
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"请求 RunningHub 应用信息失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"请求 RunningHub 应用信息失败:{exc}") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:500])
     if isinstance(raw, dict) and raw.get("code") not in (0, "0", None):
@@ -10913,15 +11096,15 @@ async def runninghub_submit(payload: RunningHubSubmitRequest):
             response = await client.post(url, headers=runninghub_app_headers(True, payload.useWallet), json=body)
             raw = response.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"提交 RunningHub 任务失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"提交 RunningHub 任务失败:{exc}") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
     if isinstance(raw, dict) and raw.get("code") in (0, "0"):
         task_id = raw.get("data", {}).get("taskId") if isinstance(raw.get("data"), dict) else ""
         if not task_id:
-            raise HTTPException(status_code=502, detail=f"RunningHub 未返回 taskId：{raw}")
+            raise HTTPException(status_code=502, detail=f"RunningHub 未返回 taskId:{raw}")
         return {"success": True, "data": {"taskId": task_id, "raw": raw}}
-    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 提交失败：{raw}")
+    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 提交失败:{raw}")
 
 @app.post("/api/runninghub/workflow-submit")
 async def runninghub_workflow_submit(payload: RunningHubWorkflowSubmitRequest):
@@ -10949,15 +11132,15 @@ async def runninghub_workflow_submit(payload: RunningHubWorkflowSubmitRequest):
             response = await client.post(url, headers=runninghub_app_headers(True, payload.useWallet), json=body)
             raw = response.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"提交 RunningHub 工作流失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"提交 RunningHub 工作流失败:{exc}") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
     if isinstance(raw, dict) and raw.get("code") in (0, "0"):
         task_id = raw.get("data", {}).get("taskId") if isinstance(raw.get("data"), dict) else ""
         if not task_id:
-            raise HTTPException(status_code=502, detail=f"RunningHub 工作流未返回 taskId：{raw}")
+            raise HTTPException(status_code=502, detail=f"RunningHub 工作流未返回 taskId:{raw}")
         return {"success": True, "data": {"taskId": task_id, "raw": raw}}
-    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流提交失败：{raw}")
+    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流提交失败:{raw}")
 
 @app.get("/api/runninghub/workflow-info")
 async def runninghub_workflow_info(workflowId: str = ""):
@@ -10973,11 +11156,11 @@ async def runninghub_workflow_info(workflowId: str = ""):
             response = await client.post(url, headers=runninghub_app_headers(True), json=body)
             raw = response.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"拉取 RunningHub 工作流参数失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"拉取 RunningHub 工作流参数失败:{exc}") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
     if not isinstance(raw, dict) or raw.get("code") not in (0, "0"):
-        raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流参数拉取失败：{raw}")
+        raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流参数拉取失败:{raw}")
     data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
     prompt = data.get("prompt")
     workflow_json = {}
@@ -10985,7 +11168,7 @@ async def runninghub_workflow_info(workflowId: str = ""):
         try:
             workflow_json = json.loads(prompt)
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"RunningHub 工作流 JSON 解析失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"RunningHub 工作流 JSON 解析失败:{exc}") from exc
     elif isinstance(prompt, dict):
         workflow_json = prompt
     node_info_list = runninghub_workflow_node_info_list(workflow_json)
@@ -11120,7 +11303,7 @@ async def runninghub_query(taskId: str = ""):
             response = await client.post(url, headers=runninghub_app_headers(True), json={"apiKey": api_key, "taskId": task_id})
             raw = response.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"查询 RunningHub 任务失败：{exc}") from exc
+            raise HTTPException(status_code=502, detail=f"查询 RunningHub 任务失败:{exc}") from exc
         if response.status_code >= 400:
             raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
         code = raw.get("code") if isinstance(raw, dict) else None
@@ -11177,7 +11360,7 @@ async def runninghub_upload_asset(payload: RunningHubUploadAssetRequest):
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:500])
     if isinstance(raw, dict) and raw.get("code") not in (0, "0"):
-        raise HTTPException(status_code=400, detail=raw.get("msg") or f"RunningHub 上传失败：{raw}")
+        raise HTTPException(status_code=400, detail=raw.get("msg") or f"RunningHub 上传失败:{raw}")
     file_url = ""
     data = raw.get("data") if isinstance(raw, dict) else {}
     if isinstance(data, dict):
@@ -11254,7 +11437,7 @@ async def import_canvas_workflow(file: UploadFile = File(...)):
     except zipfile.BadZipFile as exc:
         raise HTTPException(status_code=400, detail="无法读取压缩包") from exc
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"无法解析工作流文件：{exc}") from exc
+        raise HTTPException(status_code=400, detail=f"无法解析工作流文件:{exc}") from exc
     if isinstance(workflow, list):
         workflow = {"nodes": workflow, "connections": []}
     if not isinstance(workflow, dict):
@@ -11280,7 +11463,7 @@ async def import_canvas_workflow(file: UploadFile = File(...)):
 
 @app.post("/api/restart")
 async def restart_server():
-    """重启后端服务（同窗口）"""
+    """重启后端服务(同窗口)"""
     async def _restart():
         await asyncio.sleep(1)
         os.execv(sys.executable, [sys.executable] + sys.argv)

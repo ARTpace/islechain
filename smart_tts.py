@@ -49,7 +49,10 @@ SYSTEM_PROMPT = """你是一个 TTS 文本精修师。分析用户输入的中�
 - 只是快速试听 → fast_preview
 - 显卡显存不够 → low_vram
 
-可用标签：[laughter]笑 [sigh]叹 [dissatisfaction-hnn]不满 [question-ah]疑问 [surprise-wa]惊讶 [surprise-ah]啊 [surprise-oh]哦 [surprise-yo]哟 [question-oh]哦？ [question-ei]诶？ [question-yi]咦？
+可用标签（每个标签后必须加逗号，否则可能不生效）：
+[laughter],笑 [sigh],叹 [dissatisfaction-hnn],不满 [confirmation-en],英文确认 [question-en],英文疑问 [question-ah],疑问 [surprise-wa],惊讶 [surprise-ah],啊 [surprise-oh],哦 [surprise-yo],哟 [question-oh],哦？ [question-ei],诶？ [question-yi],咦？
+
+示例：太好[laughter],了 算[question-ah],了吧 [surprise-wa],这么厉害
 
 多音字常见修正：
 银行→银HANG2行 重要→重YAO4要 音乐→音YUE4乐 觉得→觉DE2得 行为→行WEI2为 还是→还SHI4是 对话→对HUA4话 模样→模YANG4样 尽量→尽LIANG4量 处理→处LI3理 角色→角SE4色 折腾→折TENG1腾"""
@@ -60,11 +63,21 @@ def call_llm_direct(user_input: str, system_prompt: str, config: Dict[str, Any])
     base_url = config.get("base_url", "").rstrip("/")
     api_key = config.get("api_key", "")
     model = config.get("model", "")
+    
+    print(f"[LLM] base_url={base_url}, model={model}, api_key={api_key[:10] if api_key else 'None'}...")
+
+    if not base_url:
+        return "ERROR: 未配置 API base_url"
+    
+    if not api_key:
+        return "ERROR: 未配置 API Key"
 
     if base_url.endswith('/v1'):
         url = f"{base_url}/chat/completions"
     else:
         url = f"{base_url}/v1/chat/completions"
+    
+    print(f"[LLM] url={url}")
 
     headers = {
         "Content-Type": "application/json",
@@ -88,7 +101,7 @@ def call_llm_direct(user_input: str, system_prompt: str, config: Dict[str, Any])
             headers=headers,
             method='POST'
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:
             raw = resp.read().decode('utf-8')
             result = json.loads(raw)
             content = result.get("choices", [{}])[0].get("message", {}).get("content", "")

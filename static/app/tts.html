@@ -112,6 +112,8 @@
         .tts-corner-btn { position:absolute; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border:1px solid rgba(0,0,0,0.06); border-radius:7px; background:rgba(0,0,0,0.04); color:#666; cursor:pointer; user-select:none; transition:all 0.15s; z-index:2; }
         .tts-corner-btn:hover { background:rgba(0,180,216,0.1); border-color:rgba(0,180,216,0.3); color:#00b4d8; transform:translateY(-1px); }
         .tts-corner-btn:active { transform:scale(0.9); }
+        .char-count-label { color:rgba(0,0,0,0.3); }
+        body.studio-theme-dark .char-count-label { color:rgba(255,255,255,0.25); }
         .tts-corner-btn svg { width:14px; height:14px; }
         .tts-corner-btn[data-state="loading"] svg { animation:pt-spin 0.9s linear infinite; opacity:0.7; }
         .tts-corner-btn[data-state="ok"] { color:#16a34a !important; border-color:rgba(22,163,74,0.3) !important; background:rgba(22,163,74,0.08) !important; }
@@ -900,6 +902,25 @@
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
                                 <span>AI 精修</span>
                             </button>
+                            <!-- 单人播客 -->
+                            <div class="anima-ctrl-wrap">
+                                <button onclick="toggleMenu('soloPodcastMenu')" class="text-tag" title="转换为单人播客" id="soloPodcastBtn">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                    <span>播客</span>
+                                </button>
+                                <div id="soloPodcastMenu" class="anima-ctrl-menu" style="min-width:160px;">
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('storytelling')"><span>📖 故事讲述</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('knowledge')"><span>🎓 知识讲解</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('news')"><span>📰 新闻播报</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('casual')"><span>☕ 轻松闲聊</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('motivational')"><span>💪 励志分享</span></div>
+                                    <div class="anima-ctrl-menu-item" onclick="convertToSoloPodcast('educational')"><span>📚 教学讲解</span></div>
+                                    <div style="border-top:1px solid rgba(0,0,0,0.06);padding:6px 8px;display:flex;align-items:center;gap:4px;">
+                                        <span class="text-[9px] text-gray-400">字数</span>
+                                        <input id="podcastWordCount" type="number" value="500" min="100" max="3000" step="100" style="flex:1;height:22px;border:1px solid rgba(0,0,0,0.08);border-radius:4px;font-size:10px;padding:0 4px;background:transparent;outline:none;">
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- 参数 -->
                             <button onclick="toggleAdvancedPanel()" class="text-tag" title="高级参数" id="advancedBtn">
@@ -923,25 +944,25 @@
                             <div class="text-toolbar-sep"></div>
                             <!-- 情绪 -->
                                 <span class="text-toolbar-label">情绪</span>
-                                <button onclick="insertTag('[laughter]')" class="text-tag" title="笑声">😂 笑</button>
-                                <button onclick="insertTag('[sigh]')" class="text-tag" title="叹气">😮‍💨 叹</button>
-                                <button onclick="insertTag('[dissatisfaction-hnn]')" class="text-tag" title="不满">😤 哼</button>
-                                <button onclick="insertTag('[question-ah]')" class="text-tag" title="疑问">❓ 疑</button>
-                                <button onclick="insertTag('[surprise-wa]')" class="text-tag" title="惊讶">🤩 惊</button>
+                                <button onclick="insertTag('[laughter],')" class="text-tag" title="笑声">😂 笑</button>
+                                <button onclick="insertTag('[sigh],')" class="text-tag" title="叹气">😮‍💨 叹</button>
+                                <button onclick="insertTag('[dissatisfaction-hnn],')" class="text-tag" title="不满">😤 哼</button>
+                                <button onclick="insertTag('[question-ah],')" class="text-tag" title="疑问">❓ 疑</button>
+                                <button onclick="insertTag('[surprise-wa],')" class="text-tag" title="惊讶">🤩 惊</button>
                                 <div class="anima-ctrl-wrap">
                                     <button onclick="toggleMenu('moreTagMenu')" class="text-tag" title="更多情绪标签">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                                         <span>更多</span>
                                     </button>
                                     <div id="moreTagMenu" class="anima-ctrl-menu" style="min-width:140px;">
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[confirmation-en]')">👍 确认</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-en]')">❓ 疑问</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-oh]')">哦？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-ei]')">诶？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-yi]')">咦？</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-ah]')">😲 啊！</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-oh]')">😮 哦！</div>
-                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-yo]')">😏 哟！</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[confirmation-en],')">👍 确认</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-en],')">❓ 疑问</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-oh],')">哦？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-ei],')">诶？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[question-yi],')">咦？</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-ah],')">😲 啊！</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-oh],')">😮 哦！</div>
+                                        <div class="anima-ctrl-menu-item" onclick="insertTag('[surprise-yo],')">😏 哟！</div>
                                     </div>
                                 </div>
                             </div>
@@ -961,6 +982,7 @@
                             <button onclick="clearSynthText()" id="clearSynthTextBtn" class="tts-corner-btn" title="清空文本" style="bottom:6px;right:6px;display:none;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                             </button>
+                            <div id="charCount" class="char-count-label" style="position:absolute;bottom:8px;left:10px;font-size:9px;pointer-events:none;z-index:2;">0 字</div>
                             <div style="position:absolute;bottom:6px;right:36px;display:none;" id="translateBtnWrap">
                                 <div style="display:flex;align-items:center;gap:2px;">
                                     <select id="translateLangSelect" style="height:26px;border:1px solid rgba(0,0,0,0.06);border-radius:5px 0 0 5px;background:rgba(0,0,0,0.04);color:#555;font-size:10px;padding:0 4px;outline:none;cursor:pointer;" onchange="document.getElementById('languageSelect').value=this.value">
@@ -2445,6 +2467,72 @@
     // 当前正在选择音色的说话人索引（-1 表示单人模式）
     let voicePickerTargetSpeaker = -1;
     let podcastStyle = 'default';
+    let soloPodcastStyle = 'storytelling';
+    
+    // ==================== 单人播客功能 ====================
+    async function convertToSoloPodcast(style) {
+        const textarea = document.getElementById('synthText');
+        const text = textarea.value.trim();
+        if (!text) {
+            alert('请先输入要转换的内容');
+            return;
+        }
+        
+        // 关闭菜单
+        document.getElementById('soloPodcastMenu').style.display = 'none';
+        
+        // 显示转换状态
+        const btn = document.getElementById('soloPodcastBtn');
+        const originalText = btn.querySelector('span').textContent;
+        btn.querySelector('span').textContent = '处理中...';
+        btn.disabled = true;
+        
+        try {
+            let content = text;
+            
+            // 检测是否是 URL
+            const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
+            if (urlPattern.test(text.split('\n')[0].trim())) {
+                btn.querySelector('span').textContent = '抓取中...';
+                const url = text.split('\n')[0].trim();
+                const fetchResp = await fetch('/api/tts/fetch-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'url=' + encodeURIComponent(url)
+                });
+                const fetchData = await fetchResp.json();
+                if (fetchData.success) {
+                    content = fetchData.content;
+                } else {
+                    throw new Error(fetchData.detail || '链接抓取失败');
+                }
+            }
+            
+            btn.querySelector('span').textContent = '转换中...';
+            const wordCount = document.getElementById('podcastWordCount')?.value || '500';
+            const formData = new FormData();
+            formData.append('text', content);
+            formData.append('style', style);
+            formData.append('word_count', wordCount);
+            
+            const resp = await fetch('/api/tts/to-solo-podcast', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await resp.json();
+            if (data.success) {
+                textarea.value = data.result;
+            } else {
+                throw new Error(data.error || '转换失败');
+            }
+        } catch(e) {
+            alert('转换失败: ' + e.message);
+        } finally {
+            btn.querySelector('span').textContent = originalText;
+            btn.disabled = false;
+        }
+    }
     
     // ==================== 播客转换 ====================
     function convertToPodcast() {
@@ -2470,12 +2558,32 @@
         const btn = document.getElementById('executePodcastBtn');
         const status = document.getElementById('podcastStatus');
         btn.disabled = true;
-        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 转换中...`;
-        status.textContent = '正在调用 AI 转换为播客格式...';
+        status.textContent = '处理中...';
         
         try {
+            let content = text;
+            
+            // 检测是否是 URL
+            const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
+            if (urlPattern.test(text.split('\n')[0].trim())) {
+                status.textContent = '正在抓取链接内容...';
+                const url = text.split('\n')[0].trim();
+                const fetchResp = await fetch('/api/tts/fetch-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'url=' + encodeURIComponent(url)
+                });
+                const fetchData = await fetchResp.json();
+                if (fetchData.success) {
+                    content = fetchData.content;
+                } else {
+                    throw new Error(fetchData.detail || '链接抓取失败');
+                }
+            }
+            
+            status.textContent = '正在调用 AI 转换为播客格式...';
             const formData = new FormData();
-            formData.append('text', text);
+            formData.append('text', content);
             formData.append('num_speakers', speakerCount);
             formData.append('style', podcastStyle);
             
@@ -3165,8 +3273,10 @@
         const text = document.getElementById('synthText').value;
         const clearBtn = document.getElementById('clearSynthTextBtn');
         const translateWrap = document.getElementById('translateBtnWrap');
+        const charCount = document.getElementById('charCount');
         if (clearBtn) clearBtn.style.display = text.length > 0 ? 'inline-flex' : 'none';
         if (translateWrap) translateWrap.style.display = text.length > 0 ? 'block' : 'none';
+        if (charCount) charCount.textContent = text.length + ' 字';
         updateSpeakerHighlight();
     }
 

@@ -27,13 +27,40 @@
     "enabled": true
   },
   {
-    "id": "api",
-    "name": "新 API 平台",
-    "base_url": "https://",
+    "id": "agnes",
+    "name": "Agnes",
+    "base_url": "https://apihub.agnes-ai.com/v1",
     "protocol": "openai",
-    "image_models": [],
-    "chat_models": [],
-    "video_models": [],
+    "image_models": [
+      "agnes-image-2.0-flash",
+      "agnes-image-2.1-flash"
+    ],
+    "chat_models": [
+      "agnes-1.5-flash",
+      "agnes-2.0-flash"
+    ],
+    "video_models": [
+      "agnes-video-v2.0"
+    ],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "api-2",
+    "name": "灵境API",
+    "base_url": "https://apistudio.vip",
+    "protocol": "openai",
+    "image_models": [
+      "gpt-image-2",
+      "gemini-3.1-flash-image-preview",
+      "gemini-3-pro-image-preview"
+    ],
+    "chat_models": [
+      "gpt-5.5"
+    ],
+    "video_models": [
+      "veo3.1-fast"
+    ],
     "primary": false,
     "enabled": true
   }
