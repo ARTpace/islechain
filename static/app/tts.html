@@ -414,24 +414,28 @@
         .text-toolbar-divider { display:none; }
         /* === 合成文本框（连接工具栏） === */
         .tts-textarea { border-radius:0 0 10px 10px !important; border-top:none !important; }
-        /* 多人对话：高亮叠层 */
+        /* 多人对话：高亮叠层 - 完全覆盖 textarea */
         .tts-textarea-highlight {
             position:absolute; top:0; left:0; right:0; bottom:0;
             padding:8px 12px; font-size:13px; line-height:1.5; font-family:inherit;
             border:1px solid transparent; border-radius:0 0 10px 10px;
             white-space:pre-wrap; word-wrap:break-word;
             overflow-y:auto; pointer-events:none;
-            color:transparent; /* textarea 文字透明，只显示 caret */
+            z-index:1;
+            color:rgba(255,255,255,0.9);
         }
-        .tts-textarea-highlight .spk-1 { color:#0096c7; font-weight:600; }
-        .tts-textarea-highlight .spk-2 { color:#009688; font-weight:600; }
-        .tts-textarea-highlight .spk-3 { color:#d97706; font-weight:600; }
-        .tts-textarea-highlight .spk-4 { color:#7c3aed; font-weight:600; }
-        body.studio-theme-dark .tts-textarea-highlight .spk-1 { color:#00d4ff; }
-        body.studio-theme-dark .tts-textarea-highlight .spk-2 { color:#34d399; }
-        body.studio-theme-dark .tts-textarea-highlight .spk-3 { color:#fbbf24; }
-        body.studio-theme-dark .tts-textarea-highlight .spk-4 { color:#c084fc; }
-        .tts-textarea-highlight .spk-tag { opacity:0.5; }
+        /* 角色标签颜色 */
+        .tts-textarea-highlight .spk-1 { color:#00d4ff; font-weight:600; }
+        .tts-textarea-highlight .spk-2 { color:#34d399; font-weight:600; }
+        .tts-textarea-highlight .spk-3 { color:#fbbf24; font-weight:600; }
+        .tts-textarea-highlight .spk-4 { color:#c084fc; font-weight:600; }
+        .tts-textarea-highlight .spk-tag { opacity:1; }
+        /* 浅色主题 */
+        body:not(.studio-theme-dark) .tts-textarea-highlight { color:rgba(0,0,0,0.85); }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-1 { color:#0096c7; }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-2 { color:#009688; }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-3 { color:#d97706; }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-4 { color:#7c3aed; }
         /* === 情绪面板 === */
 
         .emotion-menu-section { padding:6px 12px 4px; font-size:9px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:0.08em; }
@@ -3525,19 +3529,26 @@
         if (currentMode !== 'multi') {
             hl.innerHTML = '';
             ta.style.color = '';
+            ta.style.textShadow = '';
             return;
         }
-        // textarea 文字透明，显示 caret
+        // 完全隐藏 textarea 文字，只显示光标
         ta.style.color = 'transparent';
-        ta.style.caretColor = '';
+        ta.style.textShadow = 'none';
+        ta.style.caretColor = '#00f0ff';
+        
         const text = ta.value;
-        // 先转义 HTML，再对 Speaker 标签着色
+        // 转义 HTML，对 Speaker 标签着色
         let html = escHtml(text);
+        
+        // 处理所有对话行
         html = html.replace(
             /^(\[Speaker_(\d+)\]:\s*)/gm,
             (match, tag, num) => `<span class="spk-tag spk-${num}">${tag}</span>`
         );
+        
         hl.innerHTML = html;
+        
         // 同步滚动
         hl.scrollTop = ta.scrollTop;
         hl.scrollLeft = ta.scrollLeft;

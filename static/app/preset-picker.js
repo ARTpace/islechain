@@ -617,6 +617,8 @@ function _presetSwitchMode(mode) {
     }
 
     // --- 重新渲染网格 ---
+    // 切换模式时必须重建冻结顺序，否则旧的 frozenOrder 只含上一模式的预设
+    presetPickerFrozenOrder = presetPickerBuildFrozenOrder();
     _vsList = [];
     _vsRendered = 0;
     presetPickerRenderGrid();

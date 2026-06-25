@@ -138,8 +138,7 @@
   "51": {
     "inputs": {
       "character_tags": "ibuki suika, ",
-      "mode": "append",
-      "opt_prompt": "(lying down)"
+      "mode": "append"
     },
     "class_type": "AnimaCharacterTagSelector",
     "_meta": {
@@ -149,8 +148,7 @@
   "53": {
     "inputs": {
       "artist_tags": "",
-      "mode": "append",
-      "opt_prompt": ""
+      "mode": "append"
     },
     "class_type": "AnimaArtistTagSelector",
     "_meta": {
@@ -210,7 +208,7 @@
   },
   "76": {
     "inputs": {
-      "lora_name": "Anima\\anima-turbo-lora-v0.2.safetensors",
+      "lora_name": "anima\\anima-turbo-lora-v0.2.safetensors",
       "strength_model": 0.8,
       "model": [
         "44",

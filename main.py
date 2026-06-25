@@ -7066,6 +7066,45 @@ def generate(req: GenerateRequest, token: str = ""):
         if "19" in workflow and "inputs" in workflow["19"] and "seed" in workflow["19"]["inputs"]:
             workflow["19"]["inputs"]["seed"] = seed
 
+        # --- 通用 class_type 扫描补丁 (覆盖未硬编码的新工作流) ---
+        # 先找 KSampler 正向 prompt 引用的 CLIPTextEncode 节点
+        _positive_prompt_nodes = set()
+        for nid, node in workflow.items():
+            if not isinstance(node, dict):
+                continue
+            ct = str(node.get('class_type', ''))
+            inp = node.get('inputs') or {}
+            if ct in ('KSampler', 'KSamplerAdvanced', 'SamplerCustom', 'SamplerCustomAdvanced'):
+                ref = inp.get('positive')
+                if isinstance(ref, list) and len(ref) == 2:
+                    _positive_prompt_nodes.add(str(ref[0]))
+        for nid, node in workflow.items():
+            if not isinstance(node, dict):
+                continue
+            ct = str(node.get('class_type', ''))
+            inp = node.get('inputs')
+            if not isinstance(inp, dict):
+                continue
+            # prompt: CLIPTextEncode — 正向 prompt 节点强制覆盖,其余只补空
+            if ct == 'CLIPTextEncode' and 'text' in inp:
+                if nid in _positive_prompt_nodes and req.prompt:
+                    inp['text'] = req.prompt
+                elif not inp['text'] and req.prompt:
+                    inp['text'] = req.prompt
+            # latent 尺寸: EmptyLatentImage / Empty.*Latent
+            if ('EmptyLatent' in ct or 'EmptyFlux' in ct) and 'width' in inp and 'height' in inp:
+                inp['width'] = req.width
+                inp['height'] = req.height
+            # seed: KSampler / SamplerCustom 等
+            if ct in ('KSampler', 'KSamplerAdvanced', 'SamplerCustom', 'SamplerCustomAdvanced'):
+                if 'seed' in inp:
+                    inp['seed'] = seed
+                if 'noise_seed' in inp:
+                    inp['noise_seed'] = seed
+            # RandomNoise
+            if ct == 'RandomNoise' and 'noise_seed' in inp:
+                inp['noise_seed'] = seed
+
         for node_id, node_inputs in req.params.items():
             if node_id in workflow:
                 if "inputs" not in workflow[node_id]:

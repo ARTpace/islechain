@@ -711,7 +711,7 @@ function smartSettingsModeKey(source=settings){
     const engine = ['api','volcengine','modelscope','comfy','runninghub'].includes(source?.engine) ? source.engine : 'api';
     if(engine === 'api') return `api:${source?.apiKind === 'video' ? 'video' : 'image'}`;
     if(engine === 'volcengine') return `volcengine:${source?.apiKind === 'video' ? 'video' : 'image'}`;
-    if(engine === 'comfy') return `comfy:${['text','enhance','edit','custom'].includes(source?.comfyMode) ? source.comfyMode : 'text'}`;
+    if(engine === 'comfy') return `comfy:${['text','enhance','edit','custom','krea2'].includes(source?.comfyMode) ? source.comfyMode : 'text'}`;
     if(engine === 'runninghub') return 'runninghub';
     return 'modelscope';
 }
@@ -2303,9 +2303,10 @@ function renderMsParams(){
     `;
 }
 function renderComfyParams(){
-    settings.comfyMode = ['text','enhance','edit','custom'].includes(settings.comfyMode) ? settings.comfyMode : 'text';
+    settings.comfyMode = ['text','enhance','edit','custom','krea2'].includes(settings.comfyMode) ? settings.comfyMode : 'text';
     const modeOptions = [
         ['text', tr('canvas.comfyModeText') || '文生图'],
+        ['krea2', 'Krea2 Turbo'],
         ['enhance', tr('canvas.comfyModeEnhance') || '图片增强'],
         ['edit', tr('canvas.comfyModeEdit') || '图片编辑'],
         ['custom', tr('canvas.comfyModeCustom') || '自定义']
@@ -2318,6 +2319,9 @@ function renderComfyParams(){
     if(settings.comfyMode === 'text'){
         html += `<div class="num-compact"><span class="num-label">${escapeHtml(tr('smart.width'))}</span><input type="number" data-param="width" value="${Number(settings.width || 1024)}"></div>
             <div class="num-compact"><span class="num-label">${escapeHtml(tr('smart.height'))}</span><input type="number" data-param="height" value="${Number(settings.height || 1024)}"></div>`;
+    } else if(settings.comfyMode === 'krea2'){
+        html += `<div class="num-compact"><span class="num-label">${escapeHtml(tr('smart.width'))}</span><input type="number" data-param="width" value="${Number(settings.width || 1280)}"></div>
+            <div class="num-compact"><span class="num-label">${escapeHtml(tr('smart.height'))}</span><input type="number" data-param="height" value="${Number(settings.height || 2048)}"></div>`;
     } else if(settings.comfyMode === 'enhance'){
         html += `<div class="num-compact"><span class="num-label">${escapeHtml(tr('smart.strength'))}</span><input type="number" min="0.1" max="1" step="0.05" data-param="enhanceStrength" value="${Number(settings.enhanceStrength ?? 0.5)}"></div>
             <button type="button" class="setting-check ${settings.enhanceUpscale ? 'active' : ''}" data-toggle-param="enhanceUpscale"><span class="check-box"></span><span>${escapeHtml(tr('smart.superResolution'))}</span></button>
@@ -10474,7 +10478,7 @@ function sizeForRun(sourceSettings=settings){
 }
 function expectedOutputSize(){
     if(settings.engine === 'comfy'){
-        if(settings.comfyMode === 'text'){
+        if(settings.comfyMode === 'text' || settings.comfyMode === 'krea2'){
             const w = Number(settings.width) || 1024;
             const h = Number(settings.height) || 1024;
             return {w, h};
@@ -10501,7 +10505,7 @@ function explicitRequestOutputSizeForPending(){
         const parsed = parseSizeValue(sizeStr);
         if(parsed) return {w:Number(parsed.width) || 1024, h:Number(parsed.height) || 1024};
     }
-    if(settings.engine === 'comfy' && settings.comfyMode === 'text'){
+    if(settings.engine === 'comfy' && (settings.comfyMode === 'text' || settings.comfyMode === 'krea2')){
         const w = Number(settings.width) || 1024;
         const h = Number(settings.height) || 1024;
         return {w, h};
@@ -12247,6 +12251,15 @@ async function generateComfyUrlsWithSettings(runSettings, prompt, refs){
         const urls = resultMediaUrls(data);
         return {urls, kind:mediaKindForUrls(urls, 'image')};
     }
+    if(mode === 'krea2'){
+        const data = await fetch('/api/generate', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({prompt, width:Number(runSettings.width || 1280), height:Number(runSettings.height || 2048), workflow_json:'Krea2-Turbo.json', type:'krea2'})
+        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
+        const urls = resultMediaUrls(data);
+        return {urls, kind:mediaKindForUrls(urls, 'image')};
+    }
     if(mode === 'enhance'){
         if(!imageRefs.length) throw new Error(tr('smart.errEnhanceNeedRefs'));
         const inputName = await comfyNameForRef(imageRefs[0]);
@@ -13183,6 +13196,7 @@ async function runComfyGeneration(node, prompt, refs, pendingNode, meta){
     refs = imageRefsOnly(allRefs);
     const mode = settings.comfyMode || 'text';
     if(mode === 'text') return runComfyText(node, prompt, pendingNode, meta);
+    if(mode === 'krea2') return runComfyKrea2(node, prompt, pendingNode, meta);
     if(mode === 'enhance') return runComfyEnhance(node, refs, pendingNode, meta);
     if(mode === 'edit') return runComfyEdit(node, prompt, refs, pendingNode, meta);
     const workflowName = settings.comfyWorkflow || comfyWorkflows[0]?.name || '';
@@ -13248,6 +13262,24 @@ async function runComfyText(node, prompt, pendingNode, meta){
         finalizePendingNode(pendingNode, out, meta);
     } else {
         const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`comfy-${i + 1}.png`})));
+        attachRunMeta(created, meta);
+        addConnection(node.id, created.id);
+    }
+    clearPromptInput({preserveDraft:true});
+    scheduleSave();
+}
+async function runComfyKrea2(node, prompt, pendingNode, meta){
+    const data = await fetch('/api/generate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt, width:Number(settings.width || 1280), height:Number(settings.height || 2048), workflow_json:'Krea2-Turbo.json', type:'krea2'})
+    }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
+    const out = data.outputs || data.images || [];
+    if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
+    if(pendingNode){
+        finalizePendingNode(pendingNode, out, meta);
+    } else {
+        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`krea2-${i + 1}.png`})));
         attachRunMeta(created, meta);
         addConnection(node.id, created.id);
     }

@@ -501,6 +501,11 @@
                                         <span class="ratio-label">ANIMA</span>
                                         <span class="chk" style="opacity:0">✓</span>
                                     </div>
+                                    <div onclick="selectModel('Krea2-Turbo.json')" data-model-key="Krea2-Turbo.json" class="anima-ctrl-menu-item">
+                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
+                                        <span class="ratio-label">Krea2</span>
+                                        <span class="chk" style="opacity:0">✓</span>
+                                    </div>
                                 </div>
                             </div>
                             <button onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
@@ -805,6 +810,7 @@
         function getCurrentModelMode() {
             if (currentWorkflow.includes('anima 图生图')) return 'Anima图生图';
             if (currentWorkflow.includes('anima')) return 'ANIMA';
+            if (currentWorkflow.includes('Krea2')) return 'Krea2';
             return 'Z-Image';
         }
         let currentEngine = localStorage.getItem('zimage_engine') || 'local';
@@ -963,8 +969,8 @@
         document.addEventListener('DOMContentLoaded', applyCompactMode);
 
         // 紧凑模式下按钮直接切换
-        const _modelOptions = ['Z-Image.json', 'anima 动漫文生图.json'];
-        const _modelLabels = ['Z-Image', 'ANIMA'];
+        const _modelOptions = ['Z-Image.json', 'anima 动漫文生图.json', 'Krea2-Turbo.json'];
+        const _modelLabels = ['Z-Image', 'ANIMA', 'Krea2'];
         function _isCompact() { return document.querySelector('.control-bar')?.classList.contains('compact-toggle') || window.innerWidth <= 900; }
         function compactModelToggle() {
             if (!_isCompact()) return false;
@@ -1024,7 +1030,8 @@
             const el = document.getElementById('dynamicParams');
             const ctrlEl = document.getElementById('animaControls');
             const isAnima = currentWorkflow.includes('anima');
-            if (isAnima) {
+            const isKrea2 = currentWorkflow.includes('Krea2');
+            if (isAnima || isKrea2) {
                 document.getElementById('animaTagSwitcher').style.display = '';
                 el.innerHTML = `
                 <div class="flex flex-col gap-2">
@@ -2138,7 +2145,7 @@
             startProgress();
             // 锁定当前工作流，生成期间切换模型不影响保存路径
             const lockedWorkflow = currentWorkflow;
-            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : 'zimage';
+            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : lockedWorkflow.includes('Krea2') ? 'krea2' : 'zimage';
 
             // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
             const _aspectSize = getAnimaSize();
@@ -2225,6 +2232,12 @@
                     // 覆盖 batch_size（使用与 KSampler(19).latent_image 来源节点对齐的值）
                     if (workflow["69"]?.inputs) workflow["69"].inputs.batch_size = currentBatchCount;
                     if (workflow["64"]?.inputs) workflow["64"].inputs.batch_size = currentBatchCount;
+                } else if (currentWorkflow.includes('Krea2')) {
+                    // Krea2-Turbo：直接注入 prompt、尺寸、seed
+                    const size = getAnimaSize();
+                    if (workflow["4"]?.inputs) workflow["4"].inputs.text = prompt;
+                    if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = currentBatchCount; }
+                    if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
                 } else {
                     // Z-Image：使用与 ANIMA 相同的 ratio+res 尺寸计算
                     const size = getAnimaSize();
@@ -2233,11 +2246,11 @@
                     if (workflow["22"]?.inputs) workflow["22"].inputs.seed = seed;
                     if (workflow["144"]?.inputs) workflow["144"].inputs.batch_size = currentBatchCount;
                 }
-                console.log('[BatchCount] model=' + (currentWorkflow.includes('anima') ? 'ANIMA' : 'Z-Image') + ' currentBatchCount=' + currentBatchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size));
+                console.log('[BatchCount] model=' + (currentWorkflow.includes('anima') ? 'ANIMA' : currentWorkflow.includes('Krea2') ? 'Krea2' : 'Z-Image') + ' currentBatchCount=' + currentBatchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size));
 
                 // 注入自定义 LoRA 节点
                 const wfLower = currentWorkflow.toLowerCase();
-                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image')) {
+                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image') || wfLower.includes('krea2')) {
                     injectLoraNodes(workflow);
                 }
                 // LoRA 触发词已在选择器勾选/取消时实时同步到提示词框，此处无需重复添加
@@ -2336,7 +2349,7 @@
                 const _qs = Date.now();
                 const _t0 = performance.now();
                 const _sz = getAnimaSize();
-                const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
+                const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
                 console.log('[IMG-PERF] ① ComfyUI 返回 URL 数量:', finalUrls.length, '耗时:', (performance.now() - _t0).toFixed(1) + 'ms');
                 console.log('[IMG-PERF] ② sample URL:', finalUrls[0]);
                 // 把 record 同步到 allHistory（用 pushNewImage 的 noop 变体）
@@ -2436,7 +2449,7 @@
                     timestamp: quickTs,
                     prompt,
                     images: localUrls,
-                    type: lockedFeatureName === 'anima' ? 'anima' : 'zimage',
+                    type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : 'zimage',
                     model: folderName.toUpperCase(),
                     genParams: {
                         workflow: lockedWorkflow,
@@ -2598,7 +2611,7 @@
 
         // === 初始化（统一由 gallery-display.js 处理） ===
         GalleryDisplay.init({
-            historyType: 'zimage,anima',
+            historyType: 'zimage,anima,krea2',
             favoritesStorageKey: 'zimage_favorites',
             nsfwEnabled: true,
             galleryFeatures: { modelBadge: 'auto' },
@@ -3191,7 +3204,7 @@
             const btn = document.getElementById('loraBtn');
             if (!btn) return;
             const lower = currentWorkflow.toLowerCase();
-            const showLora = lower.includes('anima') || lower.includes('z-image') || lower.includes('z_image');
+            const showLora = lower.includes('anima') || lower.includes('z-image') || lower.includes('z_image') || lower.includes('krea2');
             btn.style.display = showLora ? '' : 'none';
             // 更新按钮文字显示数量
             const btnText = document.getElementById('loraBtnText');
