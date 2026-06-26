@@ -2116,7 +2116,36 @@
         }
         
         // === 进度条 ===
-        // === 卡片内进度更新（CSS 圆环风格） ===
+        // === 卡片内进度更新（CSS 圆环风格，附带经过时间） ===
+        // 每张卡片独立的计时器数据
+        const _progressTimers = new Map();
+        function _formatElapsed(ms) {
+            const s = Math.floor(ms / 1000);
+            const m = Math.floor(s / 60);
+            return m > 0 ? m + 'm' + (s % 60) + 's' : s + 's';
+        }
+        function _clearProgressTimer(card) {
+            if (_progressTimers.has(card)) {
+                clearInterval(_progressTimers.get(card).timer);
+                _progressTimers.delete(card);
+            }
+        }
+        function _startProgressTimer(card, prefix) {
+            _clearProgressTimer(card);
+            const start = Date.now();
+            const state = { timer: null, start };
+            // 环形中间固定显示百分比（初始 0%），下方文字显示 "排队中 5s"
+            const label = card.querySelector('.card-progress-label');
+            const pctEl2 = card.querySelector('.card-progress-pct');
+            if (pctEl2) { pctEl2.style.visibility = 'visible'; pctEl2.textContent = '0%'; }
+            if (label) label.textContent = prefix + ' ' + _formatElapsed(0);
+            state.timer = setInterval(() => {
+                const elapsed = Date.now() - start;
+                const l = card.querySelector('.card-progress-label');
+                if (l) l.textContent = prefix + ' ' + _formatElapsed(elapsed);
+            }, 1000);
+            _progressTimers.set(card, state);
+        }
         function updateCardProgress(card, status) {
             if (!card) return;
             const label = card.querySelector('.card-progress-label');
@@ -2125,10 +2154,12 @@
             const inner = card.querySelector('.pg-ring-inner');
             if (!label) return;
             if (status.status === 'started' || status.status === 'executing') {
-                // 无真实进度：隐藏百分比，只显示文字
-                if (pctEl) pctEl.style.visibility = 'hidden';
-                label.textContent = '生成中...';
+                // 环形中间：百分比（初始 0%）；下方文字：排队中/执行中 + 经过时间
+                if (pctEl) pctEl.style.visibility = 'visible';
+                const prefix = status.status === 'started' ? '排队中' : '执行中';
+                _startProgressTimer(card, prefix);
             } else if (status.status === 'sampling') {
+                _clearProgressTimer(card);
                 const v = status.value || 0, m = status.max || 1;
                 const p = Math.round((v / m) * 100);
                 if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = p + '%'; }
@@ -2137,9 +2168,11 @@
                 if (inner) inner.style.animationDuration = (speed * 0.6) + 's';
                 label.textContent = '采样 ' + v + '/' + m;
             } else if (status.status === 'done') {
+                _clearProgressTimer(card);
                 if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = '95%'; }
                 label.textContent = '解码中...';
             } else if (status.status === 'complete') {
+                _clearProgressTimer(card);
                 // 呼吸动画：缓慢旋转 + 透明度脉冲
                 if (outer) { outer.style.animation = 'breathSpin 3s ease-in-out infinite'; outer.style.borderColor = '#8b5cf6'; }
                 if (inner) { inner.style.animation = 'breathSpin 3s ease-in-out infinite reverse'; inner.style.borderColor = '#06b6d4'; }
@@ -2307,16 +2340,21 @@
                 });
                 if (!submitRes.ok) throw new Error('提交失败: ' + await submitRes.text());
 
-                // HTTP 轮询更新进度（ComfyUI 的 WS 进度在该环境下不可用）
+                // 注册到共享 WebSocket 接收实时采样进度（百分比 0%~100%）
+                _registerTask(taskPid, placeholder, null);
+
+                // HTTP 轮询兜底（WS 连接失败或不可用时仍有进度显示）
                 updateCardProgress(placeholder, { status: 'started' });
                 let _pollDone = false;
+                let _pollExecutingShown = false;
                 const _pollTimer = setInterval(async () => {
                     if (_pollDone) return;
                     try {
                         const qr = await fetch('/api/comfyui/queue');
                         const qd = await qr.json();
                         const running = (qd.queue_running || []).length;
-                        if (running > 0) {
+                        if (running > 0 && !_pollExecutingShown) {
+                            _pollExecutingShown = true;
                             updateCardProgress(placeholder, { status: 'executing' });
                         }
                     } catch(e) {}
@@ -2347,7 +2385,7 @@
                 if (localUrls.length === 0) throw new Error('未返回图片');
                 console.log('[IMG-PERF] 后端返回本地 URL 数量:', localUrls.length);
 
-                // 直接用本地 URL 显示（无代理延迟、无 blur-up）
+                // 用本地 URL + blur-up 两阶段过渡展示
                 const _qs = Date.now();
                 const record = {
                     timestamp: _qs,
@@ -2378,20 +2416,65 @@
                 } catch(e) {}
                 // 把 record 同步到 allHistory（lightbox 从此构建图片列表）
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
-                // 用 GalleryCard 渲染本地 URL，交叉淡入替换 placeholder
+                // === Blur-up：直接操作 tempCard 的 img，零 DOM 替换 ===
                 updateCardProgress(placeholder, { status: 'complete' });
-                // placeholder 淡出
-                placeholder.style.transition = 'opacity 0.3s ease';
-                placeholder.style.opacity = '0.3';
-                await new Promise(r => setTimeout(r, 300));
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
                     const tempContainer = document.createElement('div');
-                    window.GalleryCard.render({ container: tempContainer, record, isNew: true });
+                    window.GalleryCard.render(Object.assign({ container: tempContainer, record, isNew: true }, { eagerFirstImage: true }));
                     const tempCard = tempContainer.querySelector('.masonry-item');
                     if (tempCard) {
                         tempCard.style.aspectRatio = _aspectRatio;
-                        // 替换 placeholder，卡片自带 fade-in duration-700 动画
-                        placeholder.parentNode.replaceChild(tempCard, placeholder);
+                        const _fullImg = tempCard.querySelector('img');
+                        if (_fullImg && localUrls[0]) {
+                            const _blurUrl = '/api/media-preview?w=64&url=' + encodeURIComponent(localUrls[0]);
+                            const _hdUrl = _fullImg.src;  // GalleryCard 已生成的 768px 缩略图 URL
+
+                            // 移除环形动画和占位样式
+                            const progress = placeholder.querySelector('.card-progress');
+                            if (progress) progress.remove();
+                            placeholder.classList.remove('bg-gray-50', 'border-dashed', 'border-2', 'border-gray-200');
+
+                            // 把 tempCard 直接放进 placeholder 位置（一次性，之后不再替换 DOM）
+                            const _parent = placeholder.parentNode;
+                            const _sibling = placeholder.nextSibling;
+                            _parent.insertBefore(tempCard, _sibling);
+                            placeholder.remove();
+
+                            // 此时 tempCard 的 img 还在加载 768px，先换成 64px 模糊图
+                            _fullImg.src = _blurUrl;
+                            _fullImg.style.filter = 'blur(20px)';
+                            _fullImg.style.transform = 'scale(1.2)';
+                            _fullImg.style.transition = 'filter 0.6s ease, transform 0.6s ease';
+
+                            // 预加载高清图
+                            const _hd = new Image();
+                            _hd.src = _hdUrl;
+
+                            const _reveal = () => {
+                                const _doSwap = () => {
+                                    // 同一个 img：换回 768px（已缓存）+ 去模糊
+                                    _fullImg.src = _hdUrl;
+                                    _fullImg.style.filter = 'blur(0)';
+                                    _fullImg.style.transform = 'scale(1)';
+                                    // 过渡完成后清理 transition
+                                    setTimeout(() => {
+                                        _fullImg.style.transition = '';
+                                    }, 650);
+                                };
+                                if (_hd.decode) {
+                                    _hd.decode().then(_doSwap).catch(_doSwap);
+                                } else {
+                                    _doSwap();
+                                }
+                            };
+                            if (_hd.complete) _reveal();
+                            else _hd.addEventListener('load', _reveal, { once: true });
+                        } else {
+                            // 降级：直接替换
+                            const _parent = placeholder.parentNode;
+                            const _sibling = placeholder.nextSibling;
+                            if (_parent) { _parent.insertBefore(tempCard, _sibling); placeholder.remove(); }
+                        }
                     } else {
                         placeholder.remove();
                     }
