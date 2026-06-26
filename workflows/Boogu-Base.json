@@ -1,0 +1,80 @@
+{
+  "2": {
+    "inputs": {
+      "unet_name": "boogu\\base\\boogu_image_base_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {"title": "UNet加载器"}
+  },
+  "3": {
+    "inputs": {
+      "samples": ["32", 0],
+      "vae": ["5", 0]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {"title": "VAE解码"}
+  },
+  "5": {
+    "inputs": {"vae_name": "flux1_vae_bf16.safetensors"},
+    "class_type": "VAELoader",
+    "_meta": {"title": "加载VAE"}
+  },
+  "7": {
+    "inputs": {
+      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "boogu",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "加载CLIP"}
+  },
+  "8": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {"title": "空Latent图像"}
+  },
+  "9": {
+    "inputs": {
+      "conditioning": ["11", 0]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {"title": "条件零化"}
+  },
+  "11": {
+    "inputs": {
+      "text": "",
+      "clip": ["7", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {"title": "CLIP文本编码"}
+  },
+  "32": {
+    "inputs": {
+      "seed": 123456789,
+      "steps": 40,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["2", 0],
+      "positive": ["11", 0],
+      "negative": ["9", 0],
+      "latent_image": ["8", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": {"title": "K采样器"}
+  },
+  "34": {
+    "inputs": {
+      "filename_prefix": "boogu_base",
+      "images": ["3", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": {"title": "保存图像"}
+  }
+}

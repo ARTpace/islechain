@@ -506,6 +506,21 @@
                                         <span class="ratio-label">Krea2</span>
                                         <span class="chk" style="opacity:0">✓</span>
                                     </div>
+                                    <div onclick="selectModel('Ideogram4.json')" data-model-key="Ideogram4.json" class="anima-ctrl-menu-item">
+                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
+                                        <span class="ratio-label">Ideogram4</span>
+                                        <span class="chk" style="opacity:0">✓</span>
+                                    </div>
+                                    <div onclick="selectModel('Boogu-Turbo.json')" data-model-key="Boogu-Turbo.json" class="anima-ctrl-menu-item">
+                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
+                                        <span class="ratio-label">Boogu Turbo</span>
+                                        <span class="chk" style="opacity:0">✓</span>
+                                    </div>
+                                    <div onclick="selectModel('Boogu-Base.json')" data-model-key="Boogu-Base.json" class="anima-ctrl-menu-item">
+                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
+                                        <span class="ratio-label">Boogu Base</span>
+                                        <span class="chk" style="opacity:0">✓</span>
+                                    </div>
                                 </div>
                             </div>
                             <button onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
@@ -767,38 +782,49 @@
         let _sharedWs = null;
         let _wsReconnectTimer = null;
         function _ensureWs() {
-            if (_sharedWs && _sharedWs.readyState <= 1) return;
-            try {
-                _sharedWs = new WebSocket(COMFYUI_WS_URL);
-                _sharedWs.onmessage = (e) => {
-                    try {
-                        if (typeof e.data !== 'string') return;
-                        const msg = JSON.parse(e.data);
-                        const pid = msg.data?.prompt_id;
-                        if (!pid) return;
-                        const task = _activeTasks.get(pid);
-                        if (!task) return;
-                        if (msg.type === 'progress') {
-                            updateCardProgress(task.card, { status: 'sampling', value: msg.data.value, max: msg.data.max });
-                        } else if (msg.type === 'executing') {
-                            if (msg.data.node === null) {
-                                updateCardProgress(task.card, { status: 'done' });
-                                if (task.onDone) task.onDone();
-                            } else {
-                                updateCardProgress(task.card, { status: 'executing' });
+            if (_sharedWs && _sharedWs.readyState === 1) return Promise.resolve();
+            if (_sharedWs && _sharedWs.readyState === 0) return new Promise((r) => {
+                _sharedWs.addEventListener('open', r, { once: true });
+                setTimeout(r, 3000);
+            });
+            if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+            _sharedWs = null;
+            return new Promise((resolve) => {
+                try {
+                    const ws = new WebSocket(COMFYUI_WS_URL);
+                    _sharedWs = ws;
+                    ws.onopen = () => resolve();
+                    setTimeout(resolve, 3000);
+                    ws.onmessage = (e) => {
+                        try {
+                            if (typeof e.data !== 'string') return;
+                            const msg = JSON.parse(e.data);
+                            const pid = msg.data?.prompt_id;
+                            if (!pid) return;
+                            const task = _activeTasks.get(pid);
+                            if (!task) return;
+                            if (msg.type === 'progress') {
+                                updateCardProgress(task.card, { status: 'sampling', value: msg.data.value, max: msg.data.max });
+                            } else if (msg.type === 'executing') {
+                                if (msg.data.node === null) {
+                                    updateCardProgress(task.card, { status: 'done' });
+                                    if (task.onDone) task.onDone();
+                                } else {
+                                    updateCardProgress(task.card, { status: 'executing' });
+                                }
+                            } else if (msg.type === 'execution_start') {
+                                updateCardProgress(task.card, { status: 'started' });
                             }
-                        } else if (msg.type === 'execution_start') {
-                            updateCardProgress(task.card, { status: 'started' });
-                        }
-                    } catch(err) {}
-                };
-                _sharedWs.onclose = () => { _wsReconnectTimer = setTimeout(_ensureWs, 2000); };
-                _sharedWs.onerror = () => {};
-            } catch(e) {}
+                        } catch(err) {}
+                    };
+                    ws.onclose = () => { _sharedWs = null; _wsReconnectTimer = setTimeout(_ensureWs, 2000); };
+                    ws.onerror = () => {};
+                } catch(e) { resolve(); }
+            });
         }
-        function _registerTask(promptId, card, onDone) {
+        async function _registerTask(promptId, card, onDone) {
             _activeTasks.set(promptId, { card, onDone });
-            _ensureWs();
+            await _ensureWs();
         }
         function _unregisterTask(promptId) {
             _activeTasks.delete(promptId);
@@ -811,6 +837,9 @@
             if (currentWorkflow.includes('anima 图生图')) return 'Anima图生图';
             if (currentWorkflow.includes('anima')) return 'ANIMA';
             if (currentWorkflow.includes('Krea2')) return 'Krea2';
+            if (currentWorkflow.includes('Ideogram4')) return 'Ideogram4';
+            if (currentWorkflow.includes('Boogu-Turbo')) return 'Boogu Turbo';
+            if (currentWorkflow.includes('Boogu-Base')) return 'Boogu Base';
             return 'Z-Image';
         }
         let currentEngine = localStorage.getItem('zimage_engine') || 'local';
@@ -2145,7 +2174,7 @@
             startProgress();
             // 锁定当前工作流，生成期间切换模型不影响保存路径
             const lockedWorkflow = currentWorkflow;
-            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : lockedWorkflow.includes('Krea2') ? 'krea2' : 'zimage';
+            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : lockedWorkflow.includes('Krea2') ? 'krea2' : lockedWorkflow.includes('Ideogram4') ? 'ideogram4' : lockedWorkflow.includes('Boogu') ? 'boogu' : 'zimage';
 
             // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
             const _aspectSize = getAnimaSize();
@@ -2238,6 +2267,19 @@
                     if (workflow["4"]?.inputs) workflow["4"].inputs.text = prompt;
                     if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = currentBatchCount; }
                     if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
+                } else if (currentWorkflow.includes('Ideogram4')) {
+                    // Ideogram4：注入 prompt、尺寸、seed、质量控制
+                    const size = getAnimaSize();
+                    if (workflow["190"]?.inputs) workflow["190"].inputs.text = prompt;
+                    if (workflow["192"]?.inputs) workflow["192"].inputs.value = size.width;
+                    if (workflow["193"]?.inputs) workflow["193"].inputs.value = size.height;
+                    if (workflow["208"]?.inputs) workflow["208"].inputs.noise_seed = seed;
+                } else if (currentWorkflow.includes('Boogu')) {
+                    // Boogu：注入 prompt、尺寸、seed
+                    const size = getAnimaSize();
+                    if (workflow["11"]?.inputs) workflow["11"].inputs.text = prompt;
+                    if (workflow["8"]?.inputs) { workflow["8"].inputs.width = size.width; workflow["8"].inputs.height = size.height; }
+                    if (workflow["32"]?.inputs) workflow["32"].inputs.seed = seed;
                 } else {
                     // Z-Image：使用与 ANIMA 相同的 ratio+res 尺寸计算
                     const size = getAnimaSize();
@@ -2250,212 +2292,74 @@
 
                 // 注入自定义 LoRA 节点
                 const wfLower = currentWorkflow.toLowerCase();
-                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image') || wfLower.includes('krea2')) {
+                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image') || wfLower.includes('krea2') || wfLower.includes('ideogram4') || wfLower.includes('boogu')) {
                     injectLoraNodes(workflow);
                 }
                 // LoRA 触发词已在选择器勾选/取消时实时同步到提示词框，此处无需重复添加
 
                 // 为本次任务生成独立 ID
-                const localPromptId = generateUUID();
+                const taskPid = generateUUID();
 
-                // 提交到 ComfyUI
-                const res = await fetch('/api/comfyui/prompt', {
+                // 提交任务到 ComfyUI
+                const submitRes = await fetch('/api/comfyui/prompt', {
                     method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ prompt: workflow, client_id: CLIENT_ID, prompt_id: localPromptId })
+                    body: JSON.stringify({ prompt: workflow, client_id: CLIENT_ID, prompt_id: taskPid })
                 });
-                if (!res.ok) throw new Error('提交失败: ' + await res.text());
-                const submitResult = await res.json();
-                const taskPid = submitResult.prompt_id || localPromptId;
-                console.log('[Queue] 任务已提交，prompt_id:', taskPid);
-                // 注册到共享 WebSocket，接收实时进度
-                _registerTask(taskPid, placeholder, null);
+                if (!submitRes.ok) throw new Error('提交失败: ' + await submitRes.text());
 
-                // 等待结果：先查队列位置，执行中再高频轮询
-                const finalUrls = await new Promise((resolve, reject) => {
-                    let resolved = false;
-                    let timer = null;
-                    const collectResult = async () => {
-                        if (resolved) return;
-                        try {
-                            const r = await fetch('/api/comfyui/history/' + taskPid);
-                            const history = await r.json();
-                            const pd = history[taskPid];
-                            if (!pd) return;
-                            if (pd.status?.status_str === 'error') { resolved = true; clearInterval(timer); _unregisterTask(taskPid); reject(new Error('执行错误')); return; }
-                            if (pd.outputs) {
-                                const SAVE_NODE = currentWorkflow.includes('anima') ? '70' : null;
-                                const allImgs = [];
-                                const seenFilenames = new Set();
-                                const collectFrom = (nid) => {
-                                    const imgs = pd.outputs[nid]?.images;
-                                    if (!imgs) return;
-                                    for (const img of imgs) {
-                                        const key = (img.filename||'') + '|' + (img.subfolder||'') + '|' + (img.type||'output');
-                                        if (seenFilenames.has(key)) continue;
-                                        seenFilenames.add(key);
-                                        allImgs.push('/api/comfyui/view?filename='+encodeURIComponent(img.filename)+'&subfolder='+encodeURIComponent(img.subfolder||'')+'&type='+encodeURIComponent(img.type||'output'));
-                                    }
-                                };
-                                if (SAVE_NODE && pd.outputs[SAVE_NODE]) {
-                                    collectFrom(SAVE_NODE);
-                                } else {
-                                    for (const nid in pd.outputs) collectFrom(nid);
-                                }
-                                if (allImgs.length > 0) {
-                                    resolved = true;
-                                    clearInterval(timer);
-                                    _unregisterTask(taskPid);
-                                    resolve(allImgs);
-                                    return;
-                                }
-                            }
-                        } catch(e){}
-                    };
-                    // 智能轮询：队列中低频（2s），执行中高频（500ms）
-                    let inQueue = true;
-                    let lastProgressStatus = '';
-                    const poll = async () => {
-                        if (resolved) return;
-                        if (inQueue) {
-                            try {
-                                const qs = await fetch('/api/queue_status?client_id=' + encodeURIComponent(CLIENT_ID));
-                                const qd = await qs.json();
-                                if (qd.total === 0 || qd.position === 0) {
-                                    inQueue = false;
-                                    clearInterval(timer);
-                                    timer = setInterval(collectResult, 500);
-                                } else {
-                                    // 排队中：显示位置
-                                    updateCardProgress(placeholder, {status:'sampling', value: 0, max: 1});
-                                    const lbl = placeholder.querySelector('.card-progress-label');
-                                    if (lbl) lbl.textContent = '排队 ' + qd.position + '/' + qd.total;
-                                }
-                            } catch(e) {}
+                // HTTP 轮询更新进度（ComfyUI 的 WS 进度在该环境下不可用）
+                updateCardProgress(placeholder, { status: 'started' });
+                let _pollDone = false;
+                const _pollTimer = setInterval(async () => {
+                    if (_pollDone) return;
+                    try {
+                        const qr = await fetch('/api/comfyui/queue');
+                        const qd = await qr.json();
+                        const running = (qd.queue_running || []).length;
+                        if (running > 0) {
+                            updateCardProgress(placeholder, { status: 'executing' });
                         }
-                        if (!inQueue) await collectResult();
-                    };
-                    timer = setInterval(poll, 2000);
-                    // 超时保护
-                    setTimeout(() => { if (!resolved) { clearInterval(timer); reject(new Error('超时')); } }, 300000);
-                });
+                    } catch(e) {}
+                }, 1000);
 
-                // WebSocket 已移除，结果通过轮询获取
-
-                // 显示完成进度
-                updateCardProgress(placeholder, {status:'complete'});
-                await new Promise(r => setTimeout(r, 300));
-
-                // 用 ComfyUI URL 立即显示（快速）—— 直接在 placeholder 内渲染，不调 pushNewImage 避免重复卡片
-                const _qs = Date.now();
-                const _t0 = performance.now();
+                // 调后端 /api/generate 等待完成并下载到本地（传 prompt_id 避免重复提交）
                 const _sz = getAnimaSize();
-                const quickRecord = { timestamp: _qs, prompt, images: finalUrls, type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : 'zimage', model: lockedFeatureName.toUpperCase(), genParams: { workflow: lockedWorkflow, seed, width: _sz.width, height: _sz.height, ratioW: animaRatioW, ratioH: animaRatioH, resolution: animaRes, batchCount: currentBatchCount, loras: loraState.active.map(l => ({ name: l.name, strength: l.strength })), engine: currentEngine } };
-                console.log('[IMG-PERF] ① ComfyUI 返回 URL 数量:', finalUrls.length, '耗时:', (performance.now() - _t0).toFixed(1) + 'ms');
-                console.log('[IMG-PERF] ② sample URL:', finalUrls[0]);
-                // 把 record 同步到 allHistory（用 pushNewImage 的 noop 变体）
-                if (window.GalleryList) GalleryList.pushNewImage(quickRecord, { eagerFirstImage: true, _skipRender: true });
-                // 预取：fetch WebP 缩略图到 HTTP 缓存
-                try {
-                    finalUrls.forEach(u => {
-                        const sep = u.indexOf('?') >= 0 ? '&' : '?';
-                        fetch(u + sep + 'w=512', { credentials: 'same-origin', cache: 'force-cache' }).catch(() => {});
-                    });
-                    console.log('[IMG-PERF] ③.⑤ 预取 WebP 缩略图已发起');
-                } catch(e) {}
-                // --- Blur-up 两阶段加载：先显示 64px 模糊缩略图，再替换为高清图 ---
-                if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
-                    const tempContainer = document.createElement('div');
-                    window.GalleryCard.render(Object.assign({ container: tempContainer, record: quickRecord, isNew: true }, { eagerFirstImage: true }));
-                    const tempCard = tempContainer.querySelector('.masonry-item');
-                    if (tempCard) {
-                        tempCard.style.aspectRatio = _aspectRatio;
-                        const _fullImg = tempCard.querySelector('img');
-                        if (_fullImg) {
-                            // 第一阶段：用 64px 极小缩略图（瞬间加载）
-                            const _blurUrl = _fullImg.src.replace(/\/api\/comfyui\/view\?/, '/api/comfyui/view?w=64&');
-                            const _blurImg = new Image();
-                            _blurImg.src = _blurUrl;
-                            _blurImg.style.cssText = 'width:100%;height:100%;object-fit:cover;filter:blur(20px);transform:scale(1.2);transition:filter 1s ease,transform 1s ease;';
-                            // 第二阶段：预加载高清图
-                            const _hdImg = new Image();
-                            _hdImg.src = _fullImg.src;
-
-                            const _showBlur = () => {
-                                // 显示模糊缩略图
-                                const blurWrap = document.createElement('div');
-                                blurWrap.style.cssText = 'position:absolute;inset:0;z-index:2;';
-                                blurWrap.appendChild(_blurImg);
-                                placeholder.style.position = 'relative';
-                                placeholder.appendChild(blurWrap);
-                                // 移除环形动画
-                                const progress = placeholder.querySelector('.card-progress');
-                                if (progress) progress.remove();
-                                placeholder.classList.remove('bg-gray-50', 'border-dashed', 'border-2', 'border-gray-200');
-                                // 高清图加载完后：聚焦模糊图 + 替换为高清
-                                const _blurStartTime = Date.now();
-                                const _showHD = () => {
-                                    // 强制让模糊图至少显示 800ms，让用户看清过渡
-                                    const elapsed = Date.now() - _blurStartTime;
-                                    const wait = Math.max(0, 800 - elapsed);
-                                    setTimeout(() => {
-                                        // 聚焦：模糊图变清晰
-                                        _blurImg.style.filter = 'blur(0)';
-                                        _blurImg.style.transform = 'scale(1)';
-                                        // 聚焦完成后：直接用 tempCard 替换，opacity=1 避免闪烁
-                                        setTimeout(() => {
-                                            tempCard.style.opacity = '1';
-                                            if (placeholder.parentNode) {
-                                                placeholder.parentNode.replaceChild(tempCard, placeholder);
-                                            }
-                                        }, 1000);
-                                    }, wait);
-                                };
-                                if (_hdImg.complete) _showHD();
-                                else _hdImg.addEventListener('load', _showHD, { once: true });
-                            };
-                            if (_blurImg.complete) _showBlur();
-                            else _blurImg.addEventListener('load', _showBlur, { once: true });
-                        }
-                    }
-                }
-                completeProgress();
-                // 图片卡已就位，进度条立即隐藏
-                hideProgress();
-                // ④ 已切换为流式 URL（w=0），浏览器从 ComfyUI 边下边显
-                // —— 不修改 img.src（流式 URL 已生效），不重置 dataset.originalSrc
-                // —— ComfyUI URL 带 long-cache 头 (immutable)，下次刷新秒出
-                // —— 后台 await saveToUserOutput 仅用于把图片持久化到本地 (history 记录用本地路径)
-                const _t2 = performance.now();
-                const localUrls = await Promise.all(finalUrls.map(u => saveToUserOutput(u, lockedFeatureName).catch((err) => {
-                    console.warn('[IMG-PERF] saveToUserOutput 失败 (非致命):', err);
-                    return u;
-                })));
-                console.log('[IMG-PERF] ⑥ saveToUserOutput 耗时:', (performance.now() - _t2).toFixed(1) + 'ms');
-                // 预热本地缩略图缓存，刷新页面秒出
-                localUrls.forEach(u => {
-                    if (u && u.startsWith('/output/')) {
-                        fetch('/api/media-preview?w=512&url=' + encodeURIComponent(u), { credentials: 'same-origin' }).catch(() => {});
-                    }
+                const res = await fetch('/api/generate', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        width: _sz.width,
+                        height: _sz.height,
+                        type: 'zimage',
+                        client_id: CLIENT_ID,
+                        workflow_data: workflow,
+                        prompt_id: taskPid,
+                        feature: lockedFeatureName
+                    })
                 });
-                // 不替换 img.src —— 浏览器已下载完 ComfyUI 缩略图，替换会触发重新下载
-                // 7 步被彻底删除（替换 src 是导致"图片很久才显示"的元凶）
-                quickRecord.images = localUrls; // 仅更新 record 引用，历史记录用本地路径
-                const quickTs = _qs; // 兼容下面 record.timestamp
-                // 从URL路径提取文件夹名作为类型标识
-                const folderMatch = localUrls[0].match(/\/output\/[^/]+\/([^/]+)\//);
-                const folderName = folderMatch ? folderMatch[1] : lockedFeatureName;
-                const size = getAnimaSize();
+                _pollDone = true;
+                clearInterval(_pollTimer);
+                if (!res.ok) throw new Error('生成失败: ' + await res.text());
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                const localUrls = (data.images || []).filter(u => u);
+                if (localUrls.length === 0) throw new Error('未返回图片');
+                console.log('[IMG-PERF] 后端返回本地 URL 数量:', localUrls.length);
+
+                // 直接用本地 URL 显示（无代理延迟、无 blur-up）
+                const _qs = Date.now();
                 const record = {
-                    timestamp: quickTs,
+                    timestamp: _qs,
                     prompt,
                     images: localUrls,
-                    type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : 'zimage',
-                    model: folderName.toUpperCase(),
+                    type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : lockedFeatureName === 'ideogram4' ? 'ideogram4' : lockedFeatureName === 'boogu' ? 'boogu' : 'zimage',
+                    model: lockedFeatureName.toUpperCase(),
                     genParams: {
                         workflow: lockedWorkflow,
                         seed: seed,
-                        width: size.width,
-                        height: size.height,
+                        width: _sz.width,
+                        height: _sz.height,
                         ratioW: animaRatioW,
                         ratioH: animaRatioH,
                         resolution: animaRes,
@@ -2464,14 +2368,37 @@
                         engine: currentEngine,
                     }
                 };
-                // 保存到历史记录
+                // 后端已保存历史记录，前端也保存一份确保本地有
                 try {
                     await fetch('/api/history/save', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(record)
                     });
-                } catch(e) { console.error('保存历史记录失败:', e); }
+                } catch(e) {}
+                // 把 record 同步到 allHistory（lightbox 从此构建图片列表）
+                if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
+                // 用 GalleryCard 渲染本地 URL，交叉淡入替换 placeholder
+                updateCardProgress(placeholder, { status: 'complete' });
+                // placeholder 淡出
+                placeholder.style.transition = 'opacity 0.3s ease';
+                placeholder.style.opacity = '0.3';
+                await new Promise(r => setTimeout(r, 300));
+                if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
+                    const tempContainer = document.createElement('div');
+                    window.GalleryCard.render({ container: tempContainer, record, isNew: true });
+                    const tempCard = tempContainer.querySelector('.masonry-item');
+                    if (tempCard) {
+                        tempCard.style.aspectRatio = _aspectRatio;
+                        // 替换 placeholder，卡片自带 fade-in duration-700 动画
+                        placeholder.parentNode.replaceChild(tempCard, placeholder);
+                    } else {
+                        placeholder.remove();
+                    }
+                } else {
+                    placeholder.remove();
+                }
+                hideProgress();
             } catch(e) {
                 if (placeholder.parentNode) placeholder.remove();
                 alert(e.message || "生成失败");

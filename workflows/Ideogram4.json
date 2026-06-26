@@ -1,0 +1,221 @@
+{
+  "179": {
+    "inputs": {
+      "filename_prefix": "Ideogram4",
+      "images": ["187", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": {"title": "保存图像"}
+  },
+  "184": {
+    "inputs": {
+      "conditioning": ["190", 0]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {"title": "条件零化"}
+  },
+  "185": {
+    "inputs": {
+      "width": ["194", 1],
+      "height": ["195", 1],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {"title": "Empty Flux 2 Latent"}
+  },
+  "186": {
+    "inputs": {
+      "noise": ["208", 0],
+      "guider": ["205", 0],
+      "sampler": ["188", 0],
+      "sigmas": ["209", 0],
+      "latent_image": ["185", 0]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {"title": "自定义采样器(高级)"}
+  },
+  "187": {
+    "inputs": {
+      "samples": ["186", 0],
+      "vae": ["212", 0]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {"title": "VAE解码"}
+  },
+  "188": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {"title": "K采样器选择"}
+  },
+  "190": {
+    "inputs": {
+      "text": "",
+      "clip": ["191", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {"title": "CLIP文本编码器"}
+  },
+  "191": {
+    "inputs": {
+      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "ideogram4",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "CLIP加载器"}
+  },
+  "192": {
+    "inputs": {"value": 1024},
+    "class_type": "PrimitiveInt",
+    "_meta": {"title": "Int (Width)"}
+  },
+  "193": {
+    "inputs": {"value": 1024},
+    "class_type": "PrimitiveInt",
+    "_meta": {"title": "Int (Height)"}
+  },
+  "194": {
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": ["192", 0]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {"title": "Math Expression"}
+  },
+  "195": {
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": ["193", 0]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {"title": "Math Expression"}
+  },
+  "196": {
+    "inputs": {"value": ["197", 0]},
+    "class_type": "ComfyNumberConvert",
+    "_meta": {"title": "Convert Number"}
+  },
+  "197": {
+    "inputs": {
+      "json_string": ["200", 0],
+      "key": "mu"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {"title": "Extract Text from JSON"}
+  },
+  "198": {
+    "inputs": {"value": ["202", 0]},
+    "class_type": "ComfyNumberConvert",
+    "_meta": {"title": "Convert Number"}
+  },
+  "199": {
+    "inputs": {
+      "json_string": "{\n  \"Quality\": {\n    \"num_steps\": 48,\n    \"mu\": 0.0,\n    \"std\": 1.5,\n    \"preset_id\": \"V4_QUALITY_48\"\n  },\n  \"Default\": {\n    \"num_steps\": 20,\n    \"mu\": 0.0,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_DEFAULT_20\"\n  },\n  \"Turbo\": {\n    \"num_steps\": 12,\n    \"mu\": 0.5,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_TURBO_12\"\n  }\n}",
+      "key": ["206", 0]
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {"title": "Extract Text from JSON"}
+  },
+  "200": {
+    "inputs": {
+      "string": ["199", 0],
+      "find": "'",
+      "replace": "\""
+    },
+    "class_type": "StringReplace",
+    "_meta": {"title": "Replace Text"}
+  },
+  "201": {
+    "inputs": {
+      "json_string": ["200", 0],
+      "key": "num_steps"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {"title": "Extract Text from JSON"}
+  },
+  "202": {
+    "inputs": {
+      "json_string": ["200", 0],
+      "key": "std"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {"title": "Extract Text from JSON"}
+  },
+  "203": {
+    "inputs": {"value": ["201", 0]},
+    "class_type": "ComfyNumberConvert",
+    "_meta": {"title": "Convert Number"}
+  },
+  "205": {
+    "inputs": {
+      "cfg": 7,
+      "model": ["207", 0],
+      "positive": ["190", 0],
+      "model_negative": ["217", 0],
+      "negative": ["184", 0]
+    },
+    "class_type": "DualModelGuider",
+    "_meta": {"title": "Dual Model CFG Guider"}
+  },
+  "206": {
+    "inputs": {
+      "choice": "Default",
+      "index": 1,
+      "option1": "Quality",
+      "option2": "Default",
+      "option3": "Turbo",
+      "option4": ""
+    },
+    "class_type": "CustomCombo",
+    "_meta": {"title": "Custom Combo"}
+  },
+  "207": {
+    "inputs": {
+      "cfg": 3,
+      "start_percent": 0.7,
+      "end_percent": 1,
+      "model": ["218", 0]
+    },
+    "class_type": "CFGOverride",
+    "_meta": {"title": "CFG Override"}
+  },
+  "208": {
+    "inputs": {"noise_seed": 123456789},
+    "class_type": "RandomNoise",
+    "_meta": {"title": "随机噪波"}
+  },
+  "209": {
+    "inputs": {
+      "steps": ["203", 1],
+      "width": ["194", 1],
+      "height": ["195", 1],
+      "mu": ["196", 0],
+      "std": ["198", 0]
+    },
+    "class_type": "Ideogram4Scheduler",
+    "_meta": {"title": "Ideogram 4 Scheduler"}
+  },
+  "212": {
+    "inputs": {"vae_name": "flux2-vae.safetensors"},
+    "class_type": "VAELoader",
+    "_meta": {"title": "加载VAE"}
+  },
+  "217": {
+    "inputs": {
+      "unet_name": "ideogram4_unconditional_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {"title": "UNet加载器"}
+  },
+  "218": {
+    "inputs": {
+      "unet_name": "ideogram4_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {"title": "UNet加载器"}
+  }
+}

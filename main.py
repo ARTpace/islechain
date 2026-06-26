@@ -1517,6 +1517,7 @@ class GenerateRequest(BaseModel):
     prompt_id: str = ""
     canvas_id: str = ""  # 新增:画布ID,可选
     extra_pnginfo: Optional[Dict[str, Any]] = None  # ComfyUI extra_pnginfo,用于 GJJ_MultiImageLoader 等节点
+    feature: str = ""  # 输出子目录(zimage/anima/krea2)
 
 class WorkflowField(BaseModel):
     id: str = ""
@@ -1827,21 +1828,33 @@ def get_best_backend(required_images: List[str] = None):
 
 # --- 辅助工具 ---
 
-def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None, username=None):
+def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None, username=None, feature=""):
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
+    date_folder = datetime.now().strftime("%Y-%m-%d")
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
+    elif username and feature:
+        user_dir, _ = get_user_output_dir(username)
+        canvas_output_dir = os.path.join(user_dir, feature, date_folder)
     elif username:
-        canvas_output_dir, _ = get_user_output_dir(username)
+        user_dir, _ = get_user_output_dir(username)
+        canvas_output_dir = os.path.join(user_dir, date_folder)
+    elif feature:
+        canvas_output_dir = os.path.join(OUTPUT_DIR, feature, date_folder)
     else:
-        canvas_output_dir = OUTPUT_DIR
+        canvas_output_dir = os.path.join(OUTPUT_DIR, date_folder)
     os.makedirs(canvas_output_dir, exist_ok=True)
     local_path = os.path.join(canvas_output_dir, filename)
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return build_output_url(canvas, filename, username)
+        subfolder_parts = []
+        if feature:
+            subfolder_parts.append(feature)
+        subfolder_parts.append(date_folder)
+        subfolder = "/".join(subfolder_parts)
+        return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载图片失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -7112,21 +7125,27 @@ def generate(req: GenerateRequest, token: str = ""):
                 for input_name, value in node_inputs.items():
                     workflow[node_id]["inputs"][input_name] = value
 
-        comfy_client_id = req.client_id or CLIENT_ID
-        p = {"prompt": workflow, "client_id": comfy_client_id}
-        if req.extra_pnginfo:
-            # GJJ_MultiImageLoader 等节点通过 extra_pnginfo.workflow.nodes[].properties 读取 selected_images
-            p["extra_data"] = {"extra_pnginfo": req.extra_pnginfo}
-        data = json.dumps(p).encode('utf-8')
-        try:
-            post_req = urllib.request.Request(f"http://{target_backend}/prompt", data=data)
-            prompt_id = json.loads(urllib.request.urlopen(post_req, timeout=10).read())['prompt_id']
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            raise Exception(f"HTTP Error {e.code}: {error_body}")
+        # 前端可能已提交到 ComfyUI 并拿到 prompt_id（用于 WebSocket 进度追踪），
+        # 此时跳过重复提交，直接用该 prompt_id 轮询结果
+        if req.prompt_id:
+            prompt_id = req.prompt_id
+            print(f'[Generate] 复用前端提交的 prompt_id: {prompt_id}')
+        else:
+            comfy_client_id = req.client_id or CLIENT_ID
+            p = {"prompt": workflow, "client_id": comfy_client_id}
+            if req.extra_pnginfo:
+                # GJJ_MultiImageLoader 等节点通过 extra_pnginfo.workflow.nodes[].properties 读取 selected_images
+                p["extra_data"] = {"extra_pnginfo": req.extra_pnginfo}
+            data = json.dumps(p).encode('utf-8')
+            try:
+                post_req = urllib.request.Request(f"http://{target_backend}/prompt", data=data)
+                prompt_id = json.loads(urllib.request.urlopen(post_req, timeout=10).read())['prompt_id']
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode('utf-8')
+                raise Exception(f"HTTP Error {e.code}: {error_body}")
 
         history_data = None
-        for i in range(300):
+        for i in range(900):  # 最多 270 秒，0.3 秒间隔
             try:
                 res = get_comfy_history(target_backend, prompt_id)
                 if prompt_id in res:
@@ -7134,7 +7153,7 @@ def generate(req: GenerateRequest, token: str = ""):
                     break
             except Exception:
                 pass
-            time.sleep(1)
+            time.sleep(0.3)
 
         if not history_data:
             raise Exception("ComfyUI 渲染超时")
@@ -7157,7 +7176,7 @@ def generate(req: GenerateRequest, token: str = ""):
                     for img in node_output['images']:
                         comfy_url_path = f"/view?filename={img['filename']}&subfolder={img['subfolder']}&type={img['type']}"
                         prefix = f"{req.type}_{int(current_timestamp)}_"
-                        local_path = download_image(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username)
+                        local_path = download_image(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, feature=req.feature)
                         if req.convert_to_jpg:
                             local_path = convert_output_to_jpg(local_path)
                         local_urls.append(local_path)
@@ -8255,6 +8274,20 @@ async def proxy_comfyui_history(prompt_id: str):
         return Response(content=resp.content, media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI history 请求失败: {str(e)}")
+
+@app.get("/api/comfyui/queue")
+async def proxy_comfyui_queue():
+    """代理获取 ComfyUI 队列状态（用于前端进度轮询）"""
+    target = COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    try:
+        url = f"http://{target}/queue"
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(url)
+        return Response(content=resp.content, media_type="application/json")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ComfyUI queue 请求失败: {str(e)}")
 
 @app.post("/api/comfyui/prompt")
 async def proxy_comfyui_prompt(request: Request):
