@@ -1,16 +1,4 @@
 {
-  "1": {
-    "inputs": {
-      "images": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "PreviewImage",
-    "_meta": {
-      "title": "预览图像"
-    }
-  },
   "8": {
     "inputs": {
       "samples": [
@@ -208,7 +196,7 @@
   },
   "76": {
     "inputs": {
-      "lora_name": "anima\\anima-turbo-lora-v0.2.safetensors",
+      "lora_name": "Anima\\anima-turbo-lora-v0.2.safetensors",
       "strength_model": 0.8,
       "model": [
         "44",

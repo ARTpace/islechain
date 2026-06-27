@@ -12,7 +12,10 @@ function qwenEditSettings(node) {
             <label class="field"><div class="setting-title">视角提示词</div><input class="setting-input" data-field="qePrompt" type="text" value="${node.qePrompt || ''}" placeholder="描述想要的视角，如：从正面看"></label>
         </div>
         <div class="gen-settings-row">
-            <label class="field"><div class="setting-title">图像最长边</div><input class="setting-input" data-field="qeSize" type="number" min="512" max="2048" step="64" value="${Number(node.qeSize || 1024)}"></label>
+            <button type="button" class="setting-check ${node.qeScaleEnabled ? 'active' : ''}" data-toggle-field="qeScaleEnabled"><span class="check-dot"></span>缩放最长边</button>
+        </div>
+        <div class="gen-settings-row">
+            <label class="field"><div class="setting-title">目标长度</div><input class="setting-input" data-field="qeSize" type="number" min="512" max="4096" step="64" value="${Number(node.qeSize || 1024)}"></label>
         </div>
     `;
 }
@@ -23,35 +26,23 @@ function qwenEditSettings(node) {
 async function qwenEditExecute(node, refs, prompt, promptId) {
     const inputName = await comfyNameForRef(refs[0]);
     
+    const scaleEnabled = Boolean(node.qeScaleEnabled);
+    const imageSource = scaleEnabled ? ["11", 0] : ["14", 0];
+
     const workflowData = {
         "1": {
-            "inputs": { "prompt": node.qePrompt || prompt || "", "clip": ["4", 0], "vae": ["3", 0], "image1": ["11", 0] },
+            "inputs": { "prompt": node.qePrompt || prompt || "", "clip": ["4", 0], "vae": ["3", 0], "image1": imageSource },
             "class_type": "TextEncodeQwenImageEditPlus",
             "_meta": { "title": "文本编码（QwenImageEditPlus）" }
         },
-        "2": { "inputs": { "pixels": ["11", 0], "vae": ["3", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码" } },
+        "2": { "inputs": { "pixels": imageSource, "vae": ["3", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码" } },
         "3": { "inputs": { "vae_name": "qwen_image_vae.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
         "4": { "inputs": { "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
         "5": { "inputs": { "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", "strength_model": 1, "model": ["6", 0] }, "class_type": "LoraLoaderModelOnly", "_meta": { "title": "LoRA加载器（仅模型）" } },
         "6": { "inputs": { "lora_name": "qwen-image-edit-2511-multiple-angles-lora.safetensors", "strength_model": 1, "model": ["7", 0] }, "class_type": "LoraLoaderModelOnly", "_meta": { "title": "LoRA加载器（仅模型）" } },
         "7": { "inputs": { "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors", "weight_dtype": "default" }, "class_type": "UNETLoader", "_meta": { "title": "UNet加载器" } },
         "8": { "inputs": { "text": "", "clip": ["4", 0] }, "class_type": "CLIPTextEncode", "_meta": { "title": "CLIP文本编码器" } },
-        "11": {
-            "inputs": {
-                "aspect_ratio": "original",
-                "proportional_width": 1,
-                "proportional_height": 1,
-                "fit": "crop",
-                "method": "lanczos",
-                "round_to_multiple": "8",
-                "scale_to_side": "longest",
-                "scale_to_length": Number(node.qeSize || 1024),
-                "background_color": "#000000",
-                "image": ["14", 0]
-            },
-            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
-            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
-        },
+
         "13": { "inputs": { "filename_prefix": "Qwen_Edit_2511", "images": ["21", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } },
         "14": { "inputs": { "image": inputName }, "class_type": "LoadImage", "_meta": { "title": "加载图像" } },
         "16": { "inputs": { "shift": 3.1, "model": ["5", 0] }, "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "采样算法（AuraFlow）" } },
@@ -77,6 +68,19 @@ async function qwenEditExecute(node, refs, prompt, promptId) {
         "21": { "inputs": { "samples": ["20", 0], "vae": ["3", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
         "55": { "inputs": { "text": node.qePrompt || prompt || "" }, "class_type": "CR Text", "_meta": { "title": "文本" } }
     };
+
+    if (scaleEnabled) {
+        workflowData["11"] = {
+            "inputs": {
+                "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
+                "fit": "crop", "method": "lanczos", "round_to_multiple": "8",
+                "scale_to_side": "longest", "scale_to_length": Number(node.qeSize || 1024),
+                "background_color": "#000000", "image": ["14", 0]
+            },
+            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
+        };
+    }
     
     const result = await fetch('/api/generate', {
         method: 'POST',
@@ -85,13 +89,12 @@ async function qwenEditExecute(node, refs, prompt, promptId) {
             prompt: node.qePrompt || prompt || "",
             workflow_data: workflowData,
             type: 'qwen_edit',
-            params: {
+            params: Object.assign({
                 "14": { image: inputName },
                 "1": { prompt: node.qePrompt || prompt || "" },
                 "55": { text: node.qePrompt || prompt || "" },
-                "11": { scale_to_length: Number(node.qeSize || 1024) },
                 "20": { seed: Number(node.qeSeed || 411725770964575) }
-            },
+            }, scaleEnabled ? { "11": { scale_to_length: Number(node.qeSize || 1024) } } : {}),
             client_id: CLIENT_ID,
             canvas_id: window.canvas?.id || ''
         })

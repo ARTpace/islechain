@@ -26,14 +26,14 @@
         .upload-item { background: var(--card); border: 1px dashed #e2e8f0; transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
         .upload-item:hover { border-color: #000; background: #fff; transform: translateY(-2px); }
         .upload-item.drag-over { border-style: solid; border-color: #000; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: fadeIn 0.5s var(--easing); }
+        .preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.5s var(--easing); }
         .glass-btn { background: #111827; transition: all 0.3s var(--easing); }
         .glass-btn:hover { background: #000; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
         .glass-btn:active { transform: scale(0.98); }
         .glass-btn:disabled { background: #666; cursor: not-allowed; opacity: 0.5; }
         .engine-panel { background: #fff; border: 1px solid #edf0f3; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
         .engine-label { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
-        .engine-switch { background: #f8fafc; border: 1px solid #edf2f7; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+        .engine-switch { background: #f8fafc; border: 1px solid #edf2f7; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
         .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
         .engine-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
         .engine-btn:not(.active):hover { color: #111827; background: rgba(0,0,0,.04); }
@@ -153,6 +153,77 @@
         .toggle-switch.active::after {
             left: 22px;
         }
+
+        /* 连续编辑历史条 */
+        .history-strip { display:flex; gap:6px; overflow-x:auto; padding:4px 0; scrollbar-width:thin; }
+        .history-strip::-webkit-scrollbar { height:4px!important; }
+        .history-strip::-webkit-scrollbar-thumb { background:#d8d8d8!important; border-radius:4px!important; }
+        .history-item { flex:0 0 auto; width:56px; height:56px; border-radius:10px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all .2s; position:relative; background:#f1f5f9; }
+        .history-item:hover { border-color:#00b4d8; transform:scale(1.08); }
+        .history-item.active { border-color:#111827; box-shadow:0 0 0 2px rgba(17,24,39,.15); }
+        .history-item img { width:100%; height:100%; object-fit:cover; }
+        .history-item .hist-idx { position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:900; color:#fff; background:rgba(0,0,0,.55); border-radius:4px; padding:0 3px; line-height:14px; }
+        .history-item .hist-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(220,38,38,.85); color:#fff; font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; cursor:pointer; border:none; line-height:16px; padding:0; }
+        .history-item:hover .hist-del { display:flex; }
+        body.studio-theme-dark .history-item { background:#1a2a3a; border-color:transparent; }
+        body.studio-theme-dark .history-item:hover { border-color:#00d9ff; }
+        body.studio-theme-dark .history-item.active { border-color:#00f0ff; box-shadow:0 0 0 2px rgba(0,240,255,.2); }
+
+        /* ====== 响应式布局 ====== */
+
+        /* 手机竖屏 (<640px) */
+        @media(max-width:639px) {
+            body { overflow:auto; }
+            .container-box { padding:0 12px; margin-top:16px; }
+            header { flex-direction:column !important; align-items:flex-start !important; gap:12px; margin-bottom:16px !important; }
+            header h1 { font-size:1.5rem !important; }
+            #modelSwitch { min-width:0 !important; width:100%; grid-template-columns:1fr 1fr 1fr; }
+            #modelSwitch .engine-btn { font-size:9px; padding:0 4px; height:30px; }
+            .main-grid { grid-template-columns:1fr !important; gap:12px !important; padding:0 !important; }
+            .nano-input { padding:16px !important; border-radius:16px !important; }
+            .toggle-row { flex-direction:column !important; gap:8px; }
+            .toggle-row > div { width:100%; }
+            .gen-btn { padding:12px 0 !important; font-size:10px !important; }
+            #localParams .engine-switch { grid-template-columns:1fr 1fr; }
+        }
+
+        /* 手机横屏 / 小平板 (640px-767px) */
+        @media(min-width:640px) and (max-width:767px) {
+            .container-box { padding:0 20px; margin-top:24px; }
+            header { flex-direction:column !important; align-items:flex-start !important; gap:12px; }
+            #modelSwitch { min-width:0 !important; width:100%; }
+            .main-grid { grid-template-columns:1fr !important; gap:16px !important; }
+            .nano-input { padding:20px !important; }
+        }
+
+        /* 平板竖屏 (768px-1023px) */
+        @media(min-width:768px) and (max-width:1023px) {
+            .container-box { padding:0 24px; margin-top:32px; }
+            .main-grid { gap:16px !important; }
+            #modelSwitch { min-width:240px; }
+            .nano-input { padding:20px !important; }
+        }
+
+        /* 宽屏适配 (>=1440px) */
+        @media(min-width:1440px) {
+            .container-box { max-width:1400px; }
+            .main-grid { gap:48px; }
+        }
+
+        /* 超宽屏 (>=1920px) */
+        @media(min-width:1920px) {
+            .container-box { max-width:1600px; }
+            .main-grid { gap:64px; }
+        }
+
+        /* 横屏手机优化 */
+        @media(max-height:500px) and (orientation:landscape) {
+            .container-box { margin-top:8px; }
+            header { margin-bottom:8px !important; }
+            .main-grid { gap:8px !important; }
+            .nano-input { padding:12px !important; }
+            .gen-btn { padding:10px 0 !important; }
+        }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
 
@@ -171,11 +242,20 @@
         <header class="flex justify-between items-end mb-10">
             <div class="space-y-1">
                 <h1 class="text-4xl font-extrabold tracking-tighter italic">图像编辑</h1>
-                <p class="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">Image Editing with FLUX Klein</p>
+                <p class="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">Image Editing</p>
+            </div>
+            <!-- 模型切换（多选） -->
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase">模型</span>
+                <div id="modelSwitch" class="engine-switch" style="min-width:300px">
+                    <button onclick="toggleModel('klein')" id="btnModelKlein" class="engine-btn active">FLUX Klein</button>
+                    <button onclick="toggleModel('qwen')" id="btnModelQwen" class="engine-btn">Qwen Edit</button>
+                    <button onclick="toggleModel('boogu')" id="btnModelBoogu" class="engine-btn">Boogu Edit</button>
+                </div>
             </div>
         </header>
 
-        <section class="grid grid-cols-2 gap-12 max-w-6xl mx-auto w-full" style="flex-shrink:0;">
+        <section class="main-grid grid grid-cols-2 gap-12 max-w-6xl mx-auto w-full" style="flex-shrink:0;">
             <!-- 左侧：图片上传区域 -->
             <div class="space-y-6">
                 <div class="flex items-center gap-2 text-gray-400">
@@ -199,7 +279,7 @@
                         </div>
                     </div>
                     <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
-                    <div class="mt-4 flex items-center justify-between">
+                    <div class="mt-4 flex items-center justify-between toggle-row">
                         <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
                             <div>
                                 <div class="text-xs font-bold mb-1">单图模式</div>
@@ -207,6 +287,21 @@
                             </div>
                             <div id="ignoreToggle" class="toggle-switch active" onclick="toggleIgnoreRef()"></div>
                         </div>
+                        <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
+                            <div>
+                                <div class="text-xs font-bold mb-1">连续编辑</div>
+                                <div class="text-[10px] text-gray-400">生成结果自动导入，可连续迭代</div>
+                            </div>
+                            <div id="continuousToggle" class="toggle-switch" onclick="toggleContinuous()"></div>
+                        </div>
+                    </div>
+                    <!-- 历史图幻灯片 -->
+                    <div id="historySection" class="mt-3 hidden">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">历史</span>
+                            <button onclick="clearHistory()" class="ml-auto text-[9px] font-bold text-gray-300 hover:text-red-400 transition-colors">清空</button>
+                        </div>
+                        <div id="historyStrip" class="history-strip"></div>
                     </div>
                     <button id="clearBtn" onclick="clearAllImages()" class="mt-4 text-[10px] font-bold text-gray-400 hover:text-black transition-colors hidden">清除所有图片</button>
                 </div>
@@ -225,6 +320,13 @@
                         <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
                             <div>
                                 <div class="text-xs font-bold mb-1">缩放最长边</div>
+                                <div class="text-[10px] text-gray-400">开启后将图片缩放到指定尺寸</div>
+                            </div>
+                            <div id="scaleToggle" class="toggle-switch" onclick="toggleScale()"></div>
+                        </div>
+                        <div id="scaleSizeRow" class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 hidden">
+                            <div>
+                                <div class="text-xs font-bold mb-1">目标长度</div>
                                 <input id="sizeInput" type="number" value="1024" class="w-24 bg-transparent outline-none border-b-2 border-gray-200 focus:border-blue-500 text-sm font-bold">
                             </div>
                         </div>
@@ -245,7 +347,7 @@
                         </div>
                     </div>
 
-                    <button id="genBtn" onclick="handleGenerate()" class="glass-btn w-full py-5 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 shadow-xl shadow-black/10" disabled>
+                    <button id="genBtn" onclick="handleGenerate()" class="gen-btn glass-btn w-full py-5 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 shadow-xl shadow-black/10" disabled>
                         <i data-lucide="zap" id="btnIcon" class="w-4 h-4 text-yellow-400"></i>
                         <span id="btnText">开始生成</span>
                     </button>
@@ -375,7 +477,13 @@
         let provider = 'local';
         let uploadedImages = [null, null];
         let uploadedFiles = [null, null];
-        let ignoreRef = true;
+        let ignoreRef = false;
+
+        // 连续编辑
+        let continuousMode = false;
+        let historyImages = []; // { url, comfy_name }
+        let historyActiveIdx = -1;
+        let continuousRecord = null; // 当前连续编辑的 gallery record 引用
 
         const slots = [document.getElementById('slot0'), document.getElementById('slot1')];
 
@@ -410,11 +518,92 @@
             ignoreRef = !ignoreRef;
             document.getElementById('ignoreToggle').classList.toggle('active', ignoreRef);
             const slot1 = document.getElementById('slot1');
+            const grid = document.getElementById('uploadGrid');
             if (ignoreRef) {
                 slot1.style.display = 'none';
+                grid.classList.remove('grid-cols-2');
+                grid.classList.add('grid-cols-1');
             } else {
                 slot1.style.display = 'flex';
+                grid.classList.remove('grid-cols-1');
+                grid.classList.add('grid-cols-2');
             }
+        }
+
+        function toggleScale() {
+            var el = document.getElementById('scaleToggle');
+            el.classList.toggle('active');
+            document.getElementById('scaleSizeRow').classList.toggle('hidden', !el.classList.contains('active'));
+        }
+
+        // ---- 连续编辑 ----
+        function toggleContinuous() {
+            continuousMode = !continuousMode;
+            document.getElementById('continuousToggle').classList.toggle('active', continuousMode);
+            document.getElementById('historySection').classList.toggle('hidden', !continuousMode);
+            if (!continuousMode) continuousRecord = null;
+        }
+
+        function addToHistory(url, comfyName) {
+            historyImages.push({ url: url, comfy_name: comfyName || '' });
+            historyActiveIdx = historyImages.length - 1;
+            renderHistory();
+        }
+
+        function renderHistory() {
+            var strip = document.getElementById('historyStrip');
+            if (!strip) return;
+            if (!historyImages.length) {
+                strip.innerHTML = '<span class="text-[9px] text-gray-300">暂无历史</span>';
+                return;
+            }
+            strip.innerHTML = historyImages.map(function(h, i) {
+                return '<div class="history-item' + (i === historyActiveIdx ? ' active' : '') + '">'
+                    + '<img src="' + h.url + '" alt="" onclick="restoreFromHistory(' + i + ')">'
+                    + '<span class="hist-idx">' + (i + 1) + '</span>'
+                    + '<button class="hist-del" onclick="event.stopPropagation();deleteHistoryImage(' + i + ')">\u00D7</button>'
+                    + '</div>';
+            }).join('');
+            strip.scrollLeft = strip.scrollWidth;
+        }
+
+        function deleteHistoryImage(idx) {
+            if (idx < 0 || idx >= historyImages.length) return;
+            historyImages.splice(idx, 1);
+            // 同步删除 continuousRecord 中的图片
+            if (continuousRecord && continuousRecord.images) {
+                continuousRecord.images.splice(idx, 1);
+                if (continuousRecord.images.length === 0) {
+                    // 全删完了，移除卡片
+                    var card = document.getElementById('history-' + continuousRecord.timestamp);
+                    if (card) card.remove();
+                    continuousRecord = null;
+                } else {
+                    rebuildCardImages(continuousRecord);
+                }
+            }
+            // 调整 activeIdx
+            if (historyActiveIdx >= historyImages.length) historyActiveIdx = historyImages.length - 1;
+            if (historyActiveIdx < 0) historyActiveIdx = 0;
+            // 如果还有图，导入当前 active
+            if (historyImages.length > 0) {
+                importToSlot0(historyImages[historyActiveIdx].url, historyImages[historyActiveIdx].comfy_name || '');
+            }
+            renderHistory();
+        }
+
+        function restoreFromHistory(idx) {
+            if (idx < 0 || idx >= historyImages.length) return;
+            historyActiveIdx = idx;
+            importToSlot0(historyImages[idx].url, historyImages[idx].comfy_name || '');
+            renderHistory();
+        }
+
+        function clearHistory() {
+            historyImages = [];
+            historyActiveIdx = -1;
+            continuousRecord = null;
+            renderHistory();
         }
 
         function updateButtonState() {
@@ -526,6 +715,61 @@
             if (count > 0) document.getElementById('clearBtn').classList.remove('hidden');
         }
 
+        /** 为指定模型构建工作流数据 */
+        function buildWorkflowForModel(model, prompt, seed, scaleEnabled, size) {
+            var workflowData = JSON.parse(JSON.stringify(getWorkflowForModel(model).workflow));
+            if (model === 'qwen') {
+                workflowData["16"]["inputs"]["text"] = prompt;
+                workflowData["21"]["inputs"]["seed"] = seed;
+                workflowData["14"]["inputs"]["image"] = uploadedImages[0];
+                if (scaleEnabled) {
+                    workflowData["11"]["inputs"]["scale_to_length"] = size;
+                } else {
+                    delete workflowData["11"];
+                    workflowData["2"]["inputs"]["pixels"] = ["14", 0];
+                    workflowData["1"]["inputs"]["image1"] = ["14", 0];
+                    workflowData["8"]["inputs"]["image1"] = ["14", 0];
+                }
+                workflowData["23"]["inputs"]["filename_prefix"] = "Qwen_Edit_" + Date.now();
+            } else if (model === 'boogu') {
+                workflowData["36"]["inputs"]["prompt"] = prompt;
+                workflowData["21"]["inputs"]["noise_seed"] = seed;
+                workflowData["32"]["inputs"]["image"] = uploadedImages[0];
+                if (scaleEnabled) {
+                    workflowData["8"]["inputs"]["width"] = size;
+                    workflowData["8"]["inputs"]["height"] = size;
+                }
+                workflowData["45"]["inputs"]["filename_prefix"] = "Boogu_Edit_" + Date.now();
+            } else {
+                workflowData["16"]["inputs"]["text"] = prompt;
+                workflowData["23"]["inputs"]["noise_seed"] = seed;
+                if (scaleEnabled) {
+                    workflowData["33"]["inputs"]["scale_to_length"] = size;
+                } else {
+                    delete workflowData["33"];
+                    workflowData["10"]["inputs"]["image"] = ["8", 0];
+                    workflowData["19"]["inputs"]["pixels"] = ["8", 0];
+                }
+                workflowData["8"]["inputs"]["image"] = uploadedImages[0];
+                if (uploadedImages[1]) {
+                    workflowData["4"]["inputs"]["image"] = uploadedImages[1];
+                } else {
+                    workflowData["4"]["inputs"]["image"] = uploadedImages[0];
+                }
+                if (ignoreRef) {
+                    delete workflowData["3"];
+                    delete workflowData["4"];
+                    delete workflowData["5"];
+                    delete workflowData["6"];
+                    delete workflowData["7"];
+                    workflowData["13"]["inputs"]["positive"] = ["18", 0];
+                    workflowData["13"]["inputs"]["negative"] = ["17", 0];
+                }
+                workflowData["22"]["inputs"]["filename_prefix"] = "Flux2-Klein_" + Date.now();
+            }
+            return workflowData;
+        }
+
         async function handleGenerate() {
             const prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) return alert("请输入提示词");
@@ -539,126 +783,67 @@
             lucide.createIcons();
 
             try {
+                var seed = Math.floor(Math.random() * 10**15);
+                var scaleEnabled = document.getElementById('scaleToggle').classList.contains('active');
+                var size = parseInt(document.getElementById('sizeInput').value) || 1024;
+
                 if (provider === 'ms') {
+                    // MS 模式只用第一个选中的模型
                     var previewSrc = slots[0].querySelector('img')?.src;
                     if (!previewSrc) throw new Error("请先上传图片");
                     updateProgress(0, '提交到 ModelScope...');
+                    var msModel = activeModels[0] === 'qwen' ? 'Qwen/Qwen-Image-Edit-2511' : (activeModels[0] === 'boogu' ? 'boogu/Boogu-Image-Edit' : 'black-forest-labs/FLUX.2-klein-9B');
                     var msRes = await fetch('/api/ms/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: prompt,
-                            model: 'black-forest-labs/FLUX.2-klein-9B',
-                            image_urls: [previewSrc],
-                            client_id: CLIENT_ID
-                        })
+                        body: JSON.stringify({ prompt: prompt, model: msModel, image_urls: [previewSrc], client_id: CLIENT_ID })
                     });
                     if (!msRes.ok) throw new Error("MS生成失败");
                     var msData = await msRes.json();
                     if (!msData.url) throw new Error("MS生成失败: 未返回图片");
                     updateProgress(100, '生成完成');
                     showResult({ images: [msData.url], timestamp: Date.now() });
+                } else if (activeModels.length === 1) {
+                    // ---- 单模型模式 ----
+                    var model = activeModels[0];
+                    var workflowData = buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
+                    var result = await submitWorkflow(workflowData, model);
+                    showResult(result);
                 } else {
-                    var workflowData = JSON.parse(JSON.stringify(WORKFLOW_CONFIG.workflow));
+                    // ---- 多模型并行模式 ----
+                    var total = activeModels.length;
+                    var completed = 0;
+                    var allImages = [];
+                    var modelLabels = [];
+                    updateProgress(0, '并行生成 ' + total + ' 个模型...');
 
-                    workflowData["16"]["inputs"]["text"] = prompt;
-
-                    var seed = Math.floor(Math.random() * 10**15);
-                    workflowData["23"]["inputs"]["noise_seed"] = seed;
-
-                    var size = parseInt(document.getElementById('sizeInput').value) || 1024;
-                    workflowData["33"]["inputs"]["scale_to_length"] = size;
-
-                    workflowData["8"]["inputs"]["image"] = uploadedImages[0];
-
-                    if (uploadedImages[1]) {
-                        workflowData["4"]["inputs"]["image"] = uploadedImages[1];
-                    } else {
-                        workflowData["4"]["inputs"]["image"] = uploadedImages[0];
-                    }
-
-                    // 单图模式: 从工作流中删除参考图链路节点 3/4/5/6/7,
-                    // 它们不会发送到 ComfyUI，自然不会被执行
-                    if (ignoreRef) {
-                        delete workflowData["3"];
-                        delete workflowData["4"];
-                        delete workflowData["5"];
-                        delete workflowData["6"];
-                        delete workflowData["7"];
-                        workflowData["13"]["inputs"]["positive"] = ["18", 0];
-                        workflowData["13"]["inputs"]["negative"] = ["17", 0];
-                    }
-
-                    workflowData["22"]["inputs"]["filename_prefix"] = "Flux2-Klein_" + Date.now();
-
-                    var wsUrl = buildWsUrl();
-
-                    // 尝试建立 WebSocket 连接获取实时进度
-                    try {
-                        ws = new WebSocket(wsUrl);
-                        await new Promise(function(resolve, reject) {
-                            ws.onopen = function() { resolve(); };
-                            ws.onerror = function() { reject(new Error('WebSocket 连接失败')); };
-                            setTimeout(function() { reject(new Error('WebSocket 连接超时')); }, 3000);
+                    var promises = activeModels.map(function(model, i) {
+                        var workflowData = buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
+                        return submitWorkflow(workflowData, model).then(function(result) {
+                            completed++;
+                            updateProgress(Math.round(completed / total * 100), model + ' 完成 (' + completed + '/' + total + ')');
+                            if (result.images && result.images[0]) {
+                                allImages.push(result.images[0]);
+                                modelLabels.push(model);
+                            }
+                        }).catch(function(err) {
+                            completed++;
+                            console.error(model + ' 生成失败:', err);
                         });
-                    } catch (e) {
-                        console.warn('WebSocket 不可用，无实时进度:', e.message);
-                        ws = null;
-                    }
-
-                    if (ws) {
-                        ws.onmessage = function(event) {
-                            try {
-                                if (typeof event.data !== 'string') return;
-                                var msg = JSON.parse(event.data);
-
-                                if (msg.type === 'progress') {
-                                    var d = msg.data;
-                                    var pct = Math.round((d.value / d.max) * 100);
-                                    updateProgress(pct, '采样中 ' + d.value + '/' + d.max);
-                                } else if (msg.type === 'executing') {
-                                    if (msg.data && msg.data.node === null) {
-                                        updateProgress(100, '执行完成');
-                                    } else if (msg.data && msg.data.node) {
-                                        var title = (WORKFLOW_CONFIG.workflow[msg.data.node] && WORKFLOW_CONFIG.workflow[msg.data.node]._meta && WORKFLOW_CONFIG.workflow[msg.data.node]._meta.title) || ('节点 #' + msg.data.node);
-                                        updateProgress(null, '执行: ' + title);
-                                    }
-                                } else if (msg.type === 'execution_start') {
-                                    updateProgress(0, '开始执行...');
-                                } else if (msg.type === 'execution_cached') {
-                                    updateProgress(null, '使用缓存结果...');
-                                } else if (msg.type === 'execution_error') {
-                                    updateProgress(null, '执行出错');
-                                }
-                            } catch (e) {}
-                        };
-                    }
-
-                    updateProgress(0, '提交任务...');
-
-                    var res = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            workflow_data: workflowData,
-                            type: "klein",
-                            client_id: CLIENT_ID
-                        })
                     });
-                    var data = await res.json();
-                    if (data.error) throw new Error(data.error);
-                    if (!data.images || !data.images.length) throw new Error("No images returned");
-                    if (ws) { try { ws.close(); } catch(e) {} ws = null; }
-                    updateProgress(100, '生成完成');
-                    data.images[0] = await saveToUserOutput(data.images[0], '图片编辑');
-                    showResult(data);
+
+                    await Promise.all(promises);
+                    updateProgress(100, '全部完成');
+                    if (allImages.length > 0) {
+                        showResult({ images: allImages, timestamp: Date.now(), _modelLabels: modelLabels });
+                    } else {
+                        throw new Error('所有模型生成均失败');
+                    }
                 }
             } catch (error) {
                 console.error("Generation Error", error);
-                if (ws) { try { ws.close(); } catch(e) {} ws = null; }
                 alert('Error: ' + error.message);
             } finally {
-                if (ws) { try { ws.close(); } catch(e) {} ws = null; }
                 btn.disabled = false;
                 btn.style.backgroundColor = '';
                 btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 text-yellow-400"></i><span>开始生成</span>';
@@ -667,19 +852,166 @@
             }
         }
 
+        /** 提交单个模型的工作流 */
+        async function submitWorkflow(workflowData, model) {
+            var wsUrl = buildWsUrl();
+            var ws = null;
+
+            try {
+                ws = new WebSocket(wsUrl);
+                await new Promise(function(resolve, reject) {
+                    ws.onopen = function() { resolve(); };
+                    ws.onerror = function() { reject(new Error('WebSocket 连接失败')); };
+                    setTimeout(function() { reject(new Error('WebSocket 连接超时')); }, 3000);
+                });
+            } catch (e) {
+                ws = null;
+            }
+
+            if (ws) {
+                ws.onmessage = function(event) {
+                    try {
+                        if (typeof event.data !== 'string') return;
+                        var msg = JSON.parse(event.data);
+                        if (msg.type === 'progress') {
+                            var d = msg.data;
+                            var pct = Math.round((d.value / d.max) * 100);
+                            updateProgress(pct, model + ' 采样中 ' + d.value + '/' + d.max);
+                        }
+                    } catch (e) {}
+                };
+            }
+
+            var res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    workflow_data: workflowData,
+                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : 'klein'),
+                    feature: '图片编辑',
+                    client_id: CLIENT_ID
+                })
+            });
+            var data = await res.json();
+            if (ws) { try { ws.close(); } catch(e) {} }
+            if (data.error) throw new Error(data.error);
+            if (!data.images || !data.images.length) throw new Error(model + ': No images returned');
+            data.images[0] = await saveToUserOutput(data.images[0], '图片编辑');
+            return data;
+        }
+
         function showResult(data) {
             currentPrompt = document.getElementById('promptInput').value.trim();
-            // 统一走 Gallery 公共模块，保留原 prompt 显示
-            const record = Object.assign({}, data, {
-                type: 'klein',
-                prompt: currentPrompt || (data.prompt || '')
+            var imgUrl = (data.images && data.images[0]) || '';
+            var modelLabel = data._modelLabels ? data._modelLabels.join('+') : (activeModels.length === 1 ? activeModels[0] : activeModels.join('+'));
+
+            if (continuousMode && imgUrl) {
+                if (continuousRecord) {
+                    continuousRecord.images.push(imgUrl);
+                    continuousRecord.prompt = currentPrompt || continuousRecord.prompt;
+                    rebuildCardImages(continuousRecord);
+                } else {
+                    continuousRecord = Object.assign({}, data, {
+                        type: 'klein',
+                        model: modelLabel,
+                        prompt: currentPrompt || (data.prompt || ''),
+                        images: [imgUrl]
+                    });
+                    GalleryList.pushNewImage(continuousRecord);
+                }
+                addToHistoryUI(imgUrl);
+            } else {
+                continuousRecord = null;
+                const record = Object.assign({}, data, {
+                    type: 'klein',
+                    model: modelLabel,
+                    prompt: currentPrompt || (data.prompt || '')
+                });
+                GalleryList.pushNewImage(record);
+            }
+
+            if (continuousMode && imgUrl) {
+                autoImportToSlot0(imgUrl);
+            }
+        }
+
+        /** 重建卡片内的图片展示（连续编辑追加图片时调用） */
+        function rebuildCardImages(record) {
+            var card = document.getElementById('history-' + record.timestamp);
+            if (!card) return;
+            var imgs = (record.images || []).filter(Boolean);
+            var imgContainer = card.querySelector('.relative.group, .flex.gap-0-5, .flex.flex-col, .grid.grid-cols-2');
+            if (!imgContainer) return;
+            var html = '';
+            if (imgs.length <= 1) {
+                html = '<div class="relative group"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full" style="display:block; object-fit:contain;"></div>';
+            } else if (imgs.length <= 4) {
+                html = '<div class="grid grid-cols-2 gap-0.5">' + imgs.map(function(u) {
+                    return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;"></div>';
+                }).join('') + '</div>';
+            } else {
+                html = '<div class="grid grid-cols-2 gap-0.5">' + imgs.slice(-4).map(function(u, i) {
+                    var overlay = i === 3 ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 3) + '</div>' : '';
+                    return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;">' + overlay + '</div>';
+                }).join('') + '</div>';
+            }
+            imgContainer.outerHTML = html;
+        }
+
+        function thumbUrl(url, w) {
+            w = w || 512;
+            var raw = String(url || '');
+            if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+            if (raw.indexOf('/api/comfyui/view') === 0) {
+                var q = raw.split('?')[1] || '';
+                return '/api/comfyui/view?w=' + w + (q ? '&' + q : '');
+            }
+            if (!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
+            if (!/\.(png|jpe?g|webp|gif|bmp|avif)(\?|#|$)/i.test(raw)) return raw;
+            return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(raw);
+        }
+
+        function autoImportToSlot0(imgUrl) {
+            fetch(imgUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+                var form = new FormData();
+                var fname = 'cont_' + Date.now() + '.png';
+                form.append('file', blob, fname);
+                return fetch('/api/comfyui/upload/image', { method: 'POST', body: form }).then(function(r) { return r.json(); });
+            }).then(function(comfyResult) {
+                var cname = (comfyResult && comfyResult.name) || '';
+                importToSlot0(imgUrl, cname);
+            }).catch(function() {
+                importToSlot0(imgUrl, '');
             });
-            GalleryList.pushNewImage(record);
+        }
+
+        function importToSlot0(imgUrl, comfyName) {
+            var slot = slots[0];
+            slot.innerHTML = '<img src="' + imgUrl + '" class="preview-img">'
+                + '<button onclick="clearSlot(0,event)" class="hidden absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full shadow-sm z-10 font-bold text-base flex items-center justify-center hover:bg-white">\u00D7</button>'
+                + '<button onclick="handleEdit(0,event)" class="hidden absolute top-2 right-12 w-8 h-8 bg-white/90 rounded-full shadow-sm z-10 text-sm font-bold flex items-center justify-center hover:bg-white">\u270E</button>';
+            slot.style.position = 'relative';
+            setTimeout(function() {
+                slot.querySelectorAll('button').forEach(function(b) { b.classList.remove('hidden'); });
+            }, 0);
+            uploadedImages[0] = comfyName || null;
+            uploadedFiles[0] = { url: imgUrl, name: comfyName || '', comfy_name: comfyName || '' };
+            updateCount();
+            updateButtonState();
+        }
+
+        function addToHistoryUI(imgUrl) {
+            historyImages.push({ url: imgUrl, comfy_name: '' });
+            historyActiveIdx = historyImages.length - 1;
+            renderHistory();
         }
 
         // renderCard / openLightbox / closeLightbox / handleOutsideClick / downloadImage
         // are now provided by gallery-display.js
-        const WORKFLOW_CONFIG = {
+        // ---- 双模型工作流配置 ----
+        let activeModels = ['klein']; // 多选模型数组
+
+        const KLEIN_WORKFLOW = {
             name: "图像编辑",
             type: "klein",
             workflow: {
@@ -718,6 +1050,87 @@
             apiEndpoint: "/api/generate"
         };
 
+        const QWEN_WORKFLOW = {
+            name: "Qwen 图像编辑",
+            type: "klein",
+            workflow: {
+                "1": { "inputs": { "prompt": "", "clip": ["4", 0], "vae": ["3", 0], "image1": ["11", 0] }, "class_type": "TextEncodeQwenImageEditPlus", "_meta": { "title": "文本编码（负向）" } },
+                "2": { "inputs": { "pixels": ["11", 0], "vae": ["3", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码" } },
+                "3": { "inputs": { "vae_name": "qwen_image_vae.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
+                "4": { "inputs": { "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
+                "5": { "inputs": { "lora_name": "qwen-edit\\Qwen-Image-Edit-2511-Lightning-4steps-V1.0-fp32.safetensors", "strength_model": 1, "model": ["7", 0] }, "class_type": "LoraLoaderModelOnly", "_meta": { "title": "Lightning LoRA" } },
+                "7": { "inputs": { "unet_name": "qwen-image-edit-2511-Q4_K_S.gguf" }, "class_type": "UnetLoaderGGUF", "_meta": { "title": "UNet加载器(GGUF)" } },
+                "8": { "inputs": { "prompt": ["16", 0], "clip": ["4", 0], "vae": ["3", 0], "image1": ["11", 0] }, "class_type": "TextEncodeQwenImageEditPlus", "_meta": { "title": "文本编码（正向）" } },
+                "11": { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "crop", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": 1024, "background_color": "#000000", "image": ["14", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放" } },
+                "14": { "inputs": { "image": "input.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像" } },
+                "16": { "inputs": { "text": "" }, "class_type": "CR Text", "_meta": { "title": "提示词" } },
+                "17": { "inputs": { "shift": 3.1, "model": ["5", 0] }, "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "采样算法" } },
+                "18": { "inputs": { "strength": 1, "model": ["17", 0] }, "class_type": "CFGNorm", "_meta": { "title": "CFG归一化" } },
+                "19": { "inputs": { "reference_latents_method": "index_timestep_zero", "conditioning": ["8", 0] }, "class_type": "FluxKontextMultiReferenceLatentMethod", "_meta": { "title": "正向参考" } },
+                "20": { "inputs": { "reference_latents_method": "index_timestep_zero", "conditioning": ["1", 0] }, "class_type": "FluxKontextMultiReferenceLatentMethod", "_meta": { "title": "负向参考" } },
+                "21": { "inputs": { "seed": 411725770964575, "steps": 4, "cfg": 1, "sampler_name": "euler", "scheduler": "simple", "denoise": 1, "model": ["18", 0], "positive": ["19", 0], "negative": ["20", 0], "latent_image": ["2", 0] }, "class_type": "KSampler", "_meta": { "title": "K采样器" } },
+                "22": { "inputs": { "samples": ["21", 0], "vae": ["3", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
+                "23": { "inputs": { "filename_prefix": "Qwen_Edit_2511", "images": ["22", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } }
+            },
+            nodeMappings: {
+                "14": { param: "image", label: "主图", type: "upload" },
+                "16": { param: "text", label: "提示词", type: "textarea" },
+                "11": { param: "scale_to_length", label: "缩放最长边", type: "number" }
+            },
+            apiEndpoint: "/api/generate"
+        };
+
+        const BOOGU_WORKFLOW = {
+            name: "Boogu 图像编辑",
+            type: "boogu",
+            workflow: {
+                "2": { "inputs": { "unet_name": "boogu\\edit\\boogu_image_edit_fp8_scaled.safetensors", "weight_dtype": "default" }, "class_type": "UNETLoader", "_meta": { "title": "UNet加载器" } },
+                "5": { "inputs": { "vae_name": "flux1_vae_bf16.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
+                "7": { "inputs": { "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors", "type": "boogu", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
+                "8": { "inputs": { "width": 1536, "height": 1024, "batch_size": 1 }, "class_type": "EmptyLatentImage", "_meta": { "title": "空Latent图像" } },
+                "21": { "inputs": { "add_noise": true, "noise_seed": 123456789, "cfg": 3.5, "model": ["2", 0], "positive": ["36", 0], "negative": ["36", 1], "sampler": ["22", 0], "sigmas": ["26", 0], "latent_image": ["8", 0] }, "class_type": "SamplerCustom", "_meta": { "title": "自定义采样器" } },
+                "22": { "inputs": { "sampler_name": "dpmpp_2m" }, "class_type": "KSamplerSelect", "_meta": { "title": "K采样器选择" } },
+                "26": { "inputs": { "scheduler": "simple", "steps": 25, "denoise": 1, "model": ["33", 0] }, "class_type": "BasicScheduler", "_meta": { "title": "基本调度器" } },
+                "32": { "inputs": { "image": "input.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像" } },
+                "33": { "inputs": { "shift": 3.16, "model": ["2", 0] }, "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "采样算法（AuraFlow）" } },
+                "36": { "inputs": { "clip": ["7", 0], "vae": ["5", 0], "prompt": "编辑提示词", "negative_prompt": "", "image1": ["32", 0], "ref_longest_edge": 1024, "ref_resize_mode": "longest_edge" }, "class_type": "BooguEditTextEncode_EditUtils", "_meta": { "title": "Boogu编辑文本编码" } },
+                "40": { "inputs": { "samples": ["21", 0], "vae": ["5", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
+                "45": { "inputs": { "filename_prefix": "boogu_edit", "images": ["40", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } }
+            },
+            nodeMappings: {
+                "32": { param: "image", label: "主图", type: "upload" },
+                "36": { param: "prompt", label: "提示词", type: "textarea" },
+                "8": { param: "width", label: "宽度", type: "number" },
+                "8_height": { param: "height", label: "高度", type: "number", node: "8", key: "height" }
+            },
+            apiEndpoint: "/api/generate"
+        };
+
+        let WORKFLOW_CONFIG = KLEIN_WORKFLOW;
+
+        function getWorkflowForModel(model) {
+            if (model === 'qwen') return QWEN_WORKFLOW;
+            if (model === 'boogu') return BOOGU_WORKFLOW;
+            return KLEIN_WORKFLOW;
+        }
+
+        function toggleModel(model) {
+            var idx = activeModels.indexOf(model);
+            if (idx >= 0) {
+                // 至少保留一个选中
+                if (activeModels.length <= 1) return;
+                activeModels.splice(idx, 1);
+            } else {
+                activeModels.push(model);
+            }
+            // 更新 UI
+            ['klein', 'qwen', 'boogu'].forEach(function(m) {
+                document.getElementById('btnModel' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', activeModels.indexOf(m) >= 0);
+            });
+            // 兼容旧代码：WORKFLOW_CONFIG 指向第一个选中的
+            WORKFLOW_CONFIG = getWorkflowForModel(activeModels[0]);
+        }
+
         window.onload = async () => {
             await loadConfig();
             checkServerConnection();
@@ -728,15 +1141,20 @@
                 favoritesStorageKey: 'gallery_favorites',
                 galleryFeatures: {
                     delete: true,
-                    openFolder: false,
+                    openFolder: true,
                     download: true,
                     copyToCanvas: false,
                     regenerate: false,
                     batchSelect: true,
-                    favorite: false,
-                    copyPrompt: false,
-                    usePrompt: false,
-                    modelBadge: null,
+                    favorite: true,
+                    copyPrompt: true,
+                    usePrompt: true,
+                    modelBadge: 'auto',
+                },
+                onUsePrompt: async (record) => {
+                    var p = record.prompt || '';
+                    var el = document.getElementById('promptInput');
+                    if (el) el.value = p;
                 },
             });
             lucide.createIcons();

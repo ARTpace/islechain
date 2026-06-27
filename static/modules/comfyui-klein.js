@@ -9,7 +9,10 @@
 function kleinSettings(node) {
     return `
         <div class="gen-settings-row">
-            <label class="field"><div class="setting-title">缩放最长边</div><input class="setting-input" data-field="kleinSize" type="number" min="512" max="2048" step="64" value="${Number(node.kleinSize || 1024)}"></label>
+            <button type="button" class="setting-check ${node.kleinScaleEnabled ? 'active' : ''}" data-toggle-field="kleinScaleEnabled"><span class="check-dot"></span>缩放最长边</button>
+        </div>
+        <div class="gen-settings-row">
+            <label class="field"><div class="setting-title">目标长度</div><input class="setting-input" data-field="kleinSize" type="number" min="512" max="4096" step="64" value="${Number(node.kleinSize || 1024)}"></label>
         </div>
         <div class="gen-settings-row">
             <button type="button" class="setting-check ${node.kleinIgnoreRef ? 'active' : ''}" data-toggle-field="kleinIgnoreRef"><span class="check-dot"></span>忽略参考图</button>
@@ -26,7 +29,10 @@ async function kleinExecute(node, refs, prompt, promptId) {
     const promptText = prompt || "图像编辑";
     const seed = Number(node.kleinSeed || Math.floor(Math.random() * 10**15));
     const size = Number(node.kleinSize || 1024);
+    const scaleEnabled = Boolean(node.kleinScaleEnabled);
     const ignoreRef = Boolean(node.kleinIgnoreRef ?? true);
+
+    const imageSource = scaleEnabled ? ["33", 0] : ["8", 0];
 
     const workflowData = {
         "1": { "inputs": { "sampler_name": "euler" }, "class_type": "KSamplerSelect", "_meta": { "title": "K采样器选择" } },
@@ -37,7 +43,7 @@ async function kleinExecute(node, refs, prompt, promptId) {
         "6": { "inputs": { "pixels": ["3", 0], "vae": ["2", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码-参考图" } },
         "7": { "inputs": { "conditioning": ["18", 0], "latent": ["6", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-正向" } },
         "8": { "inputs": { "image": inputName }, "class_type": "LoadImage", "_meta": { "title": "加载图像-主图" } },
-        "10": { "inputs": { "image": ["33", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } },
+        "10": { "inputs": { "image": imageSource }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } },
         "11": { "inputs": { "width": ["10", 0], "height": ["10", 1], "batch_size": 1 }, "class_type": "EmptyFlux2LatentImage", "_meta": { "title": "Flux2代 空Latent" } },
         "12": { "inputs": { "steps": 6, "width": ["10", 0], "height": ["10", 1] }, "class_type": "Flux2Scheduler", "_meta": { "title": "Flux2代 调度器" } },
         "13": { "inputs": { "cfg": 1, "model": ["14", 0], "positive": ["32", 0], "negative": ["34", 0] }, "class_type": "CFGGuider", "_meta": { "title": "CFG引导" } },
@@ -46,7 +52,7 @@ async function kleinExecute(node, refs, prompt, promptId) {
         "16": { "inputs": { "text": promptText }, "class_type": "CR Text", "_meta": { "title": "🔤 文本" } },
         "17": { "inputs": { "conditioning": ["24", 0], "latent": ["19", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-主图负向" } },
         "18": { "inputs": { "conditioning": ["25", 0], "latent": ["19", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-主图正向" } },
-        "19": { "inputs": { "pixels": ["33", 0], "vae": ["2", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码-主图" } },
+        "19": { "inputs": { "pixels": imageSource, "vae": ["2", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码-主图" } },
         "20": { "inputs": { "noise": ["23", 0], "guider": ["13", 0], "sampler": ["1", 0], "sigmas": ["12", 0], "latent_image": ["11", 0] }, "class_type": "SamplerCustomAdvanced", "_meta": { "title": "自定义采样器(高级)" } },
         "21": { "inputs": { "samples": ["20", 0], "vae": ["2", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
         "22": { "inputs": { "filename_prefix": "Flux2-Klein-4b-base", "images": ["21", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } },
@@ -57,9 +63,22 @@ async function kleinExecute(node, refs, prompt, promptId) {
         "31": { "inputs": { "value": ignoreRef }, "class_type": "PrimitiveBoolean", "_meta": { "title": "忽略参考图" } },
         "32": { "inputs": { "switch": ["31", 0], "on_false": ["7", 0], "on_true": ["18", 0] }, "class_type": "ComfySwitchNode", "_meta": { "title": "开关-正向" } },
         "34": { "inputs": { "switch": ["31", 0], "on_false": ["5", 0], "on_true": ["17", 0] }, "class_type": "ComfySwitchNode", "_meta": { "title": "开关-负向" } },
-        "35": { "inputs": { "switch": ["31", 0], "on_false": ["4", 0], "on_true": ["8", 0] }, "class_type": "ComfySwitchNode", "_meta": { "title": "开关-参考图输入" } },
-        "33": { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": size, "background_color": "#000000", "image": ["8", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } }
+        "35": { "inputs": { "switch": ["31", 0], "on_false": ["4", 0], "on_true": ["8", 0] }, "class_type": "ComfySwitchNode", "_meta": { "title": "开关-参考图输入" } }
     };
+
+    // 缩放最长边: 仅在开启时添加缩放节点
+    if (scaleEnabled) {
+        workflowData["33"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": size, "background_color": "#000000", "image": ["8", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
+    }
+
+    const params = {
+        "8": { image: inputName },
+        "4": { image: refName },
+        "16": { text: promptText },
+        "23": { noise_seed: seed },
+        "31": { value: ignoreRef }
+    };
+    if (scaleEnabled) params["33"] = { scale_to_length: size };
 
     const result = await fetch('/api/generate', {
         method: 'POST',
@@ -68,14 +87,7 @@ async function kleinExecute(node, refs, prompt, promptId) {
             prompt: promptText,
             workflow_data: workflowData,
             type: 'klein',
-            params: {
-                "8": { image: inputName },
-                "4": { image: refName },
-                "16": { text: promptText },
-                "23": { noise_seed: seed },
-                "33": { scale_to_length: size },
-                "31": { value: ignoreRef }
-            },
+            params: params,
             client_id: CLIENT_ID,
             canvas_id: window.canvas?.id || ''
         })

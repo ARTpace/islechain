@@ -273,12 +273,6 @@
         }
 
         async function apiFetch(url, options = {}) {
-            // 统一走后端代理，避免 CORS 问题
-            if (url.startsWith('/api/')) {
-                return await fetch(url, options);
-            }
-            return await fetch('/api/comfyui' + url, options);
-        }) {
             if (IS_LOCAL_SERVER) {
                 const directUrl = COMFYUI_SERVER + url;
                 const response = await fetch(directUrl, options);
@@ -339,9 +333,6 @@
             masonrySelector: '#masonry',
             loadMoreSelector: '#loadMoreTrigger',
             favoritesEnabled: true,
-        });
-            pageSize: 15,
-            batchSelect: true
         });
         let uploadedImageName = null;
         let currentPromptId = null;

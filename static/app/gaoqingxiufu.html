@@ -95,6 +95,35 @@
             } 
         }
 
+        .scale-btn { font-variant-numeric: tabular-nums; font-weight: 600; cursor: pointer; user-select: none; }
+        .scale-btn:active { transform: scale(0.95); }
+        .theme-dark .scale-btn { border-color: rgba(255,255,255,0.15); color: #8a9bae; }
+        .theme-dark .scale-btn:hover { border-color: rgba(255,255,255,0.35); color: #c8d6e5; }
+        .theme-dark .scale-btn[style*="cyan"] { border-color: rgba(0,180,216,0.4); color: #00b4d8; }
+
+        /* 预设模式按钮 */
+        .preset-btn { cursor: pointer; user-select: none; transition: all 0.2s; }
+        .preset-btn:hover { transform: translateY(-1px); }
+        .preset-btn.active { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(0,180,216,0.08); }
+        .theme-dark .preset-btn.active { background: rgba(0,180,216,0.15); }
+
+        /* 前后对比悬浮层 */
+        .compare-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center; flex-direction: column; }
+        .compare-overlay.active { display: flex; }
+        .compare-close { position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; z-index: 10; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .compare-close:hover { background: rgba(255,255,255,0.25); }
+        .compare-stage { position: relative; max-width: 90vw; max-height: 85vh; cursor: col-resize; user-select: none; overflow: hidden; border-radius: 8px; }
+        .compare-stage img { display: block; max-width: 90vw; max-height: 85vh; object-fit: contain; }
+        .compare-stage .cmp-after { width: 100%; height: 100%; }
+        .compare-stage .cmp-before-wrap { position: absolute; top: 0; left: 0; bottom: 0; overflow: hidden; width: 50%; }
+        .compare-stage .cmp-before { display: block; height: 100%; object-fit: contain; }
+        .compare-stage .cmp-divider { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--accent); cursor: col-resize; z-index: 2; left: 50%; }
+        .compare-stage .cmp-divider::after { content: '⟨⟩'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: var(--accent); color: #fff; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 2px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+        .compare-stage .cmp-label { position: absolute; top: 10px; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; z-index: 3; pointer-events: none; }
+        .compare-stage .cmp-label.left { left: 10px; background: rgba(0,0,0,0.6); color: #fff; }
+        .compare-stage .cmp-label.right { right: 10px; background: rgba(0,180,216,0.85); color: #fff; }
+        .compare-hint { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 12px; letter-spacing: 0.05em; }
+
         .progress-inline {
             display: none;
             margin-top: 16px;
@@ -190,6 +219,14 @@
                         </div>
                     </div>
                     <textarea id="prompt" rows="2" class="w-full bg-transparent text-2xl font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="输入修复描述提示词...">高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。</textarea>
+                    <div class="flex gap-2 mt-3 flex-wrap" id="presetButtons">
+                        <button onclick="applyPreset('default',this)" class="preset-btn active text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">通用修复</button>
+                        <button onclick="applyPreset('portrait',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">人像美颜</button>
+                        <button onclick="applyPreset('text',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">文字清晰</button>
+                        <button onclick="applyPreset('landscape',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">风景增强</button>
+                        <button onclick="applyPreset('oldphoto',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">老照片修复</button>
+                        <button onclick="applyPreset('anime',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">动漫增强</button>
+                    </div>
                 </div>
                 <div class="flex flex-col md:flex-row items-center justify-between p-4 px-6 gap-6">
                     <div class="flex items-center gap-8 flex-wrap">
@@ -205,8 +242,26 @@
                         <div class="h-8 w-px bg-gray-100"></div>
                         <div class="flex flex-col gap-4">
                             <div class="flex flex-col">
-                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">缩放最长边</span>
-                                <input id="sizeInput" type="number" value="1536" min="1024" max="2048" step="64" class="w-20 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                                    <input id="scaleEnabledToggle" type="checkbox" style="cursor:pointer">
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase">缩放最长边</span>
+                                </div>
+                                <div id="scaleSizeRow" style="display:none">
+                                    <div class="flex items-center gap-2">
+                                        <input id="sizeInput" type="number" value="1536" min="512" max="8192" step="64" class="w-20 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                        <span id="sizeHint" class="text-[9px] text-gray-300"></span>
+                                    </div>
+                                    <div class="flex gap-1 mt-1.5" id="scaleButtons">
+                                        <button onclick="setScale(1024)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1K</button>
+                                        <button onclick="setScale(1536)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1.5K</button>
+                                        <button onclick="setScale(2048)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">2K</button>
+                                        <button onclick="setScale(3072)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">3K</button>
+                                        <button onclick="setScale(4096)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">4K</button>
+                                        <span class="text-[9px] text-gray-300 mx-0.5">|</span>
+                                        <button onclick="setMultiplier(2)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×2">×2</button>
+                                        <button onclick="setMultiplier(3)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×3">×3</button>
+                                        <button onclick="setMultiplier(4)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×4">×4</button>
+                                </div>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">降噪强度</span>
@@ -214,6 +269,14 @@
                                     <input id="denoiseSlider" type="range" min="0" max="100" step="1" value="30" class="w-24">
                                     <span class="slider-value" id="denoiseValue">0.30</span>
                                 </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">输出格式</span>
+                                <select id="formatSelect" class="bg-transparent text-xs font-bold outline-none border-b border-transparent focus:border-black cursor-pointer">
+                                    <option value="png">PNG (无损)</option>
+                                    <option value="jpg">JPEG (小体积)</option>
+                                    <option value="webp">WebP (推荐)</option>
+                                </select>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">随机种子</span>
@@ -247,6 +310,22 @@
             <div id="loadMoreTrigger" class="py-12 text-center text-gray-300 text-[10px] font-bold uppercase tracking-widest cursor-pointer hidden">Load More Archive</div>
         </div>
     </main>
+
+    <!-- 前后对比悬浮层 -->
+    <div id="compareOverlay" class="compare-overlay">
+        <button class="compare-close" onclick="closeCompare()">✕</button>
+        <div id="compareStage" class="compare-stage">
+            <img id="compareAfter" class="cmp-after" src="" alt="修复后">
+            <div id="compareBeforeWrap" class="cmp-before-wrap">
+                <img id="compareBefore" class="cmp-before" src="" alt="原图">
+            </div>
+            <div id="compareDivider" class="cmp-divider"></div>
+            <div class="cmp-label left">原图</div>
+            <div class="cmp-label right">修复后</div>
+        </div>
+        <div class="compare-hint">拖动滑块对比 · 点击背景或按 Esc 关闭</div>
+    </div>
+
     <script>
         lucide.createIcons();
 
@@ -411,19 +490,11 @@
                 },
                 "432": {
                     "inputs": {
-                        "custom_path": "",
                         "filename_prefix": "comfyui",
-                        "timestamp": "None",
-                        "format": "png",
-                        "quality": 80,
-                        "meta_data": false,
-                        "blind_watermark": "",
-                        "save_workflow_as_json": false,
-                        "preview": true,
                         "images": ["65", 0]
                     },
-                    "class_type": "LayerUtility: SaveImagePlus",
-                    "_meta": { "title": "图层工具：保存图像增强版(高级)" }
+                    "class_type": "SaveImage",
+                    "_meta": { "title": "保存图像" }
                 }
             },
             nodeMappings: {
@@ -481,12 +552,6 @@
         }
 
         async function apiFetch(url, options = {}) {
-            // 统一走后端代理，避免 CORS 问题
-            if (url.startsWith('/api/')) {
-                return await fetch(url, options);
-            }
-            return await fetch('/api/comfyui' + url, options);
-        }) {
             if (IS_LOCAL_SERVER) {
                 const directUrl = COMFYUI_SERVER + url;
                 const response = await fetch(directUrl, options);
@@ -567,14 +632,141 @@
         const promptInput = document.getElementById('prompt');
         const sizeInput = document.getElementById('sizeInput');
         const seedInput = document.getElementById('seedInput');
+        const scaleEnabledToggle = document.getElementById('scaleEnabledToggle');
+        const scaleSizeRow = document.getElementById('scaleSizeRow');
+        scaleEnabledToggle.addEventListener('change', () => {
+            scaleSizeRow.style.display = scaleEnabledToggle.checked ? '' : 'none';
+        });
+        let originalLongSide = 0;
+        let lastOriginalSrc = '';
+        const formatSelect = document.getElementById('formatSelect');
+
+        // ── 预设模式 ──
+        const PRESETS = {
+            default:   { denoise: 30, prompt: '高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。' },
+            portrait:  { denoise: 20, prompt: '高清修复人像，自然美化皮肤纹理，保留面部细节与五官轮廓，消除噪点与压缩伪影，皮肤细腻光滑，光影柔和自然。' },
+            text:      { denoise: 15, prompt: '高清修复文字图像，锐化文字边缘，提升文字清晰度与可读性，消除噪点与模糊，保持原始排版与字体。' },
+            landscape: { denoise: 35, prompt: '高清修复风景照片，增强色彩饱和度与对比度，锐化细节纹理，还原天空云层与植被层次，消除噪点。' },
+            oldphoto:  { denoise: 45, prompt: '修复老旧照片，去除划痕、折痕、噪点与泛色，还原真实色彩与细节，增强清晰度，保持照片年代质感。' },
+            anime:     { denoise: 25, prompt: '高清修复动漫插画，保持线条清晰锐利，增强色彩鲜艳度与层次感，消除压缩伪影，保持赛璐璐风格。' },
+        };
+        function applyPreset(name, btnEl) {
+            const p = PRESETS[name];
+            if (!p) return;
+            promptInput.value = p.prompt;
+            denoiseSlider.value = p.denoise;
+            denoiseValue.textContent = (p.denoise / 100).toFixed(2);
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            saveSettings();
+        }
+        window.applyPreset = applyPreset;
+
+        // ── 参数记忆 ──
+        function saveSettings() {
+            try {
+                localStorage.setItem('hdrepair_settings', JSON.stringify({
+                    denoise: denoiseSlider.value, size: sizeInput.value,
+                    format: formatSelect.value, prompt: promptInput.value
+                }));
+            } catch(e) {}
+        }
+        function loadSettings() {
+            try {
+                const s = JSON.parse(localStorage.getItem('hdrepair_settings'));
+                if (!s) return;
+                if (s.denoise) { denoiseSlider.value = s.denoise; denoiseValue.textContent = (s.denoise / 100).toFixed(2); }
+                if (s.size) sizeInput.value = s.size;
+                if (s.format) formatSelect.value = s.format;
+                if (s.prompt) promptInput.value = s.prompt;
+            } catch(e) {}
+        }
+        // ── 前后对比悬浮层 ──
+        function showCompare(originalSrc, resultSrc) {
+            const overlay = document.getElementById('compareOverlay');
+            const beforeImg = document.getElementById('compareBefore');
+            const afterImg = document.getElementById('compareAfter');
+            const stage = document.getElementById('compareStage');
+            beforeImg.src = originalSrc;
+            afterImg.src = resultSrc;
+            overlay.classList.add('active');
+            afterImg.onload = () => {
+                /* 让 before 图和 after 图渲染尺寸一致 */
+                const w = afterImg.offsetWidth;
+                const h = afterImg.offsetHeight;
+                beforeImg.style.width = w + 'px';
+                beforeImg.style.height = h + 'px';
+                setDivider(0.5);
+            };
+            if (afterImg.complete) { afterImg.onload(); }
+        }
+        function closeCompare() {
+            document.getElementById('compareOverlay').classList.remove('active');
+        }
+        window.closeCompare = closeCompare;
+        function setDivider(ratio) {
+            const pct = Math.max(0, Math.min(1, ratio)) * 100;
+            document.getElementById('compareDivider').style.left = pct + '%';
+            document.getElementById('compareBeforeWrap').style.width = pct + '%';
+        }
+        (function() {
+            const stage = document.getElementById('compareStage');
+            const overlay = document.getElementById('compareOverlay');
+            if (!stage || !overlay) return;
+            let dragging = false;
+            const getR = (e) => {
+                const r = stage.getBoundingClientRect();
+                return ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width;
+            };
+            stage.addEventListener('mousedown', e => { e.stopPropagation(); dragging = true; setDivider(getR(e)); });
+            stage.addEventListener('touchstart', e => { dragging = true; setDivider(getR(e)); }, {passive:true});
+            window.addEventListener('mousemove', e => { if(dragging) setDivider(getR(e)); });
+            window.addEventListener('touchmove', e => { if(dragging) setDivider(getR(e)); }, {passive:true});
+            window.addEventListener('mouseup', () => dragging = false);
+            window.addEventListener('touchend', () => dragging = false);
+            /* 点击背景关闭 */
+            overlay.addEventListener('click', e => { if (e.target === overlay) closeCompare(); });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCompare(); });
+        })();
+
+        function setScale(val) {
+            sizeInput.value = val;
+            updateSizeHint();
+        }
+
+        function setMultiplier(m) {
+            if (!originalLongSide) { alert('请先上传图片'); return; }
+            const target = Math.round(originalLongSide * m);
+            sizeInput.value = Math.min(Math.max(target, 512), 8192);
+            updateSizeHint();
+        }
+
+        function updateSizeHint() {
+            const hint = document.getElementById('sizeHint');
+            if (!hint) return;
+            if (originalLongSide) {
+                const val = parseInt(sizeInput.value) || 0;
+                const ratio = (val / originalLongSide).toFixed(1);
+                hint.textContent = `${originalLongSide}px → ${val}px (${ratio}×)`;
+            } else {
+                hint.textContent = '';
+            }
+        }
         const denoiseSlider = document.getElementById('denoiseSlider');
         const denoiseValue = document.getElementById('denoiseValue');
         const mainGenBtn = document.getElementById('mainGenBtn');
+
+        // ── 加载记忆参数（必须在所有元素声明之后）──
+        loadSettings();
+        [denoiseSlider, sizeInput, formatSelect].forEach(el => el.addEventListener('change', saveSettings));
+        promptInput.addEventListener('blur', saveSettings);
 
         denoiseSlider.addEventListener('input', (e) => {
             const val = (parseInt(e.target.value) / 100).toFixed(2);
             denoiseValue.textContent = val;
         });
+
+        sizeInput.addEventListener('input', updateSizeHint);
 
         uploadZone.addEventListener('click', () => fileInput.click());
         uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -599,7 +791,17 @@
         async function handleFileUpload(file) {
             if (!file.type.startsWith('image/')) return alert('请上传图片文件');
             const reader = new FileReader();
-            reader.onload = (e) => { preview.src = e.target.result; preview.classList.add('active'); };
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.classList.add('active');
+                lastOriginalSrc = e.target.result;
+                const img = new Image();
+                img.onload = () => {
+                    originalLongSide = Math.max(img.naturalWidth, img.naturalHeight);
+                    updateSizeHint();
+                };
+                img.src = e.target.result;
+            };
             reader.readAsDataURL(file);
             const formData = new FormData();
             formData.append('files', file);
@@ -695,7 +897,14 @@
                 workflowData["46"]["inputs"]["image"] = uploadedImageName;
                 workflowData["41"]["inputs"]["text"] = promptText;
                 workflowData["367"]["inputs"]["noise_seed"] = seed;
-                workflowData["428"]["inputs"]["scale_to_length"] = size;
+                const scaleEnabled = document.getElementById('scaleEnabledToggle').checked;
+                if (scaleEnabled) {
+                    workflowData["428"]["inputs"]["scale_to_length"] = size;
+                } else {
+                    delete workflowData["428"];
+                    workflowData["29"]["inputs"]["pixels"] = ["46", 0];
+                    workflowData["65"]["inputs"]["image_ref"] = ["46", 0];
+                }
                 workflowData["430"]["inputs"]["denoise"] = denoise;
 
                 currentPromptId = generateUUID();
@@ -769,13 +978,13 @@
                     imageUrl = await saveToUserOutput(imageUrl, '高清修复');
                     const timestamp = Date.now();
                     const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'gaoqingxiufu' };
-                    GalleryList.pushNewImage(record);;
-                                        await fetch('/api/history/save', {
+                    GalleryList.pushNewImage(record);
+                    await fetch('/api/history/save', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(record)
                     });
-                    
+                    if (lastOriginalSrc) showCompare(lastOriginalSrc, imageUrl);
                     if (placeholder) placeholder.remove();
                 } else { throw new Error('未找到生成结果'); }
             } catch (e) {
@@ -814,22 +1023,6 @@
                 } catch (e) { }
             }, 3000);
         };
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `F2K-HD_${Date.now()}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                console.error('下载失败:', e);
-                window.open(img.src, '_blank');
-            }
-        }
-        }
     </script>
 </body>
 </html>

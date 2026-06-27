@@ -51,7 +51,7 @@
   },
   "33": {
     "inputs": {
-      "model_name": "z_image_turbo_bf16.safetensors",
+      "model_name": "Z-Image-Base-8steps-White_Marble-AIO_v2-fp8.safetensors",
       "weight_dtype": "default",
       "key_opt": "",
       "mode": "Auto"

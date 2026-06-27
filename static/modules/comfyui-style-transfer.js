@@ -9,7 +9,10 @@
 function styleTransferSettings(node) {
     return `
         <div class="gen-settings-row">
-            <label class="field"><div class="setting-title">目标尺寸</div><input class="setting-input" data-field="styleTransferSize" type="number" min="512" max="4096" step="64" value="${Number(node.styleTransferSize || 1024)}"></label>
+            <button type="button" class="setting-check ${node.styleTransferScaleEnabled ? 'active' : ''}" data-toggle-field="styleTransferScaleEnabled"><span class="check-dot"></span>缩放最长边</button>
+        </div>
+        <div class="gen-settings-row">
+            <label class="field"><div class="setting-title">目标长度</div><input class="setting-input" data-field="styleTransferSize" type="number" min="512" max="4096" step="64" value="${Number(node.styleTransferSize || 1024)}"></label>
         </div>
     `;
 }
@@ -26,6 +29,12 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
     const styleImageName = await comfyNameForRef(refs[0]);
     const contentImageName = await comfyNameForRef(refs[1]);
     
+    const scaleEnabled = Boolean(node.styleTransferScaleEnabled);
+    const scaleSize = Number(node.styleTransferSize || 1024);
+
+    const styleImageSource = scaleEnabled ? ["22", 0] : ["20", 0];
+    const contentImageSource = scaleEnabled ? ["23", 0] : ["21", 0];
+
     const workflow = {
         "1": {
             "inputs": { "vae_name": "qwen_image_vae.safetensors" },
@@ -54,7 +63,7 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
                 "clip": ["8", 0],
                 "vae": ["1", 0],
                 "image1": ["43", 0],
-                "image2": ["22", 0]
+                "image2": styleImageSource
             },
             "class_type": "TextEncodeQwenImageEditPlus",
             "_meta": { "title": "文本编码（QwenImageEditPlus）" }
@@ -150,7 +159,7 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
                 "clip": ["8", 0],
                 "vae": ["1", 0],
                 "image1": ["36", 0],
-                "image2": ["22", 0]
+                "image2": styleImageSource
             },
             "class_type": "TextEncodeQwenImageEditPlus",
             "_meta": { "title": "文本编码（QwenImageEditPlus）" }
@@ -164,38 +173,6 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
             "inputs": { "image": contentImageName },
             "class_type": "LoadImage",
             "_meta": { "title": "上传内容图" }
-        },
-        "22": {
-            "inputs": {
-                "aspect_ratio": "original",
-                "proportional_width": 1,
-                "proportional_height": 1,
-                "fit": "letterbox",
-                "method": "lanczos",
-                "round_to_multiple": "8",
-                "scale_to_side": "longest",
-                "scale_to_length": 1024,
-                "background_color": "#000000",
-                "image": ["20", 0]
-            },
-            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
-            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
-        },
-        "23": {
-            "inputs": {
-                "aspect_ratio": "original",
-                "proportional_width": 1,
-                "proportional_height": 1,
-                "fit": "letterbox",
-                "method": "lanczos",
-                "round_to_multiple": "8",
-                "scale_to_side": "longest",
-                "scale_to_length": 1024,
-                "background_color": "#000000",
-                "image": ["21", 0]
-            },
-            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
-            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
         },
         "30": {
             "inputs": {
@@ -301,7 +278,7 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
                 "resolution_multiple": 32,
                 "upscale_method": "lanczos",
                 "resize_and_pad": true,
-                "input_image": ["23", 0]
+                "input_image": contentImageSource
             },
             "class_type": "DINKI_Resize_And_Pad",
             "_meta": { "title": "调整大小并填充" }
@@ -352,6 +329,29 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
             "_meta": { "title": "🔤 文本合并" }
         }
     };
+
+    if (scaleEnabled) {
+        workflow["22"] = {
+            "inputs": {
+                "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
+                "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
+                "scale_to_side": "longest", "scale_to_length": scaleSize,
+                "background_color": "#000000", "image": ["20", 0]
+            },
+            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
+        };
+        workflow["23"] = {
+            "inputs": {
+                "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
+                "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
+                "scale_to_side": "longest", "scale_to_length": scaleSize,
+                "background_color": "#000000", "image": ["21", 0]
+            },
+            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+            "_meta": { "title": "图层工具：按宽高比缩放 V2" }
+        };
+    }
     
     const result = await fetch('/api/generate', {
         method: 'POST',

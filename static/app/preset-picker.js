@@ -394,6 +394,55 @@ function presetPickerPrevPage() { }
 function presetPickerNextPage() { }
 function presetPickerShowSelectedOnly() { presetPickerShowSelected = !presetPickerShowSelected; presetPickerRenderGrid(); }
 function presetPickerCopySelected() { navigator.clipboard.writeText(presetPickerSelected.map(p => p.prompt).join(', ')).then(() => alert('已复制')); }
+// === 批量选择功能 ===
+function presetPickerSelectAll() {
+    // 获取当前筛选结果中的所有预设
+    const filtered = presetPickerGetFilteredList();
+    filtered.forEach(item => {
+        if (!presetPickerSelected.some(s => s.id === item.id)) {
+            presetPickerSelected.push(item);
+        }
+    });
+    document.getElementById('presetPickerSelectedCount').textContent = presetPickerSelected.length;
+    presetPickerRenderGrid();
+}
+
+function presetPickerInvertSelection() {
+    // 获取当前筛选结果
+    const filtered = presetPickerGetFilteredList();
+    const newSelected = [];
+    
+    // 遍历筛选结果，选择未选中的
+    filtered.forEach(item => {
+        if (!presetPickerSelected.some(s => s.id === item.id)) {
+            newSelected.push(item);
+        }
+    });
+    
+    // 保留不在筛选结果中的已选项
+    presetPickerSelected.forEach(item => {
+        if (!filtered.some(f => f.id === item.id)) {
+            newSelected.push(item);
+        }
+    });
+    
+    presetPickerSelected = newSelected;
+    document.getElementById('presetPickerSelectedCount').textContent = presetPickerSelected.length;
+    presetPickerRenderGrid();
+}
+
+function presetPickerGetFilteredList() {
+    // 获取当前筛选结果中的所有预设
+    // 直接从 _vsList 中获取，这是当前渲染的列表
+    return _vsList.map(p => ({
+        id: p.id,
+        name: p.name,
+        prompt: p.prompt,
+        category_id: p.category_id,
+        category_name: p.category_name
+    }));
+}
+
 function presetPickerClearAll() { presetPickerSelected = []; document.getElementById('presetPickerSelectedCount').textContent = 0; presetPickerRenderGrid(); }
 
 // 是否含中文字符
@@ -649,6 +698,8 @@ function presetPickerInit() {
                             <option value="category">按分类</option>
                         </select>
                         <button onclick="presetPickerShowSelectedOnly()" id="presetPickerShowSelBtn" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">已选 (<span id="presetPickerSelectedCount">0</span>)</button>
+                        <button onclick="presetPickerSelectAll()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">全选</button>
+                        <button onclick="presetPickerInvertSelection()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">反选</button>
                         <button onclick="presetPickerCopySelected()" id="presetPickerCopyBtn" style="height: 32px; padding: 0 12px; background: rgba(0,180,216,0.2); border: 1px solid rgba(0,180,216,0.3); border-radius: 8px; font-size: 12px; color: #00b4d8; cursor: pointer;">复制</button>
                         <button onclick="presetPickerClearAll()" id="presetPickerClearBtn" style="height: 32px; padding: 0 12px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 12px; color: #ef4444; cursor: pointer;">清空</button>
                         <button onclick="presetPickerClose()" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="关闭并应用">&times;</button>

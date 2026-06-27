@@ -33,6 +33,53 @@
 
 ---
 
+## 随机提示词功能
+
+本项目集成了随机提示词功能，支持方案管理，可随机组合角色、画师、标签预设。
+
+### 架构
+- 后端：`random_source.py` - 随机源管理器
+- 前端：`static/modules/random-prompt.js` - 可复用组件
+- API：`/api/random/*`
+
+### 功能
+- **方案管理**：创建、编辑、删除随机方案
+- **复用选择器**：
+  - 角色：`anima-character-picker.js` (`pickerOpen()`)
+  - 画师：`anima-artist-picker.js` (`artistPickerOpen()`)
+  - 标签预设：`preset-picker.js` (`presetPickerOpen()`)
+- **快速随机**：一键从方案中随机应用
+
+### 使用方式
+```html
+<!-- 引入组件 -->
+<script src="/static/modules/random-prompt.js"></script>
+
+<!-- 创建容器 -->
+<div id="randomPromptContainer"></div>
+
+<!-- 初始化 -->
+<script>
+RandomPrompt.init('randomPromptContainer', {
+    onApply: function(result) {
+        // result.positive - 正向提示词
+        // result.negative - 负向提示词
+        // result.raw - 原始随机结果
+    }
+});
+</script>
+```
+
+### 扩展方式
+新增随机源：
+1. 在数据文件中添加 `categories` 标签
+2. 或注册新的 RandomSource 子类
+
+### 文档
+- 使用指南：`docs/random_guide.md`
+
+---
+
 ## 编码原则
 
 ### 0. 后端同步规则

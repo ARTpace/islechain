@@ -8,11 +8,10 @@
     <script>
         (function(){
             try {
-                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'light';
-                if(theme === 'dark') {
-                    document.documentElement.classList.add('studio-theme-dark');
-                    document.documentElement.classList.add('theme-dark');
-                }
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'dark';
+                var dark = theme === 'dark';
+                document.documentElement.classList.toggle('studio-theme-dark', dark);
+                document.documentElement.classList.toggle('theme-dark', dark);
             } catch(e) {}
         })();
     </script>
@@ -30,6 +29,11 @@
             </div>
             <div class="asset-head-actions">
                 <div id="assetStatus" class="asset-status">准备就绪</div>
+                <button id="themeToggleBtn" class="asset-btn" type="button" title="切换深色/浅色主题">
+                    <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <span>主题</span>
+                </button>
                 <button id="refreshBtn" class="asset-btn" type="button"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
         </header>
@@ -47,5 +51,32 @@
 
     <input id="assetUploadInput" type="file" accept="image/*,video/*,audio/*,.json,.zip,application/json,application/zip" multiple hidden>
     <script src="/static/js/asset-manager.js?v=2026.06.12.1781488862"></script>
+    <script>
+        (function(){
+            function updateIcon(theme) {
+                var sun = document.getElementById('themeIconSun');
+                var moon = document.getElementById('themeIconMoon');
+                if (!sun || !moon) return;
+                if (theme === 'dark') {
+                    sun.style.display = ''; moon.style.display = 'none';
+                } else {
+                    sun.style.display = 'none'; moon.style.display = '';
+                }
+            }
+            var btn = document.getElementById('themeToggleBtn');
+            btn.addEventListener('click', function(){
+                var current = window.StudioTheme ? window.StudioTheme.get() : 'dark';
+                var next = current === 'dark' ? 'light' : 'dark';
+                if (window.StudioTheme) window.StudioTheme.set(next);
+                updateIcon(next);
+            });
+            window.addEventListener('studio-theme-change', function(e){
+                updateIcon(e.detail && e.detail.theme);
+            });
+            // init
+            var theme = window.StudioTheme ? window.StudioTheme.get() : 'dark';
+            updateIcon(theme);
+        })();
+    </script>
 </body>
 </html>

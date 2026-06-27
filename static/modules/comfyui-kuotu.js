@@ -9,7 +9,10 @@
 function kuotuSettings(node) {
     return `
         <div class="gen-settings-row">
-            <label class="field"><div class="setting-title">目标尺寸</div><input class="setting-input" data-field="ktSize" type="number" min="512" max="4096" step="64" value="${Number(node.ktSize || 1024)}"></label>
+            <button type="button" class="setting-check ${node.ktScaleEnabled ? 'active' : ''}" data-toggle-field="ktScaleEnabled"><span class="check-dot"></span>缩放最长边</button>
+        </div>
+        <div class="gen-settings-row">
+            <label class="field"><div class="setting-title">目标长度</div><input class="setting-input" data-field="ktSize" type="number" min="512" max="4096" step="64" value="${Number(node.ktSize || 1024)}"></label>
         </div>
         <div class="gen-settings-row">
             <label class="field"><div class="setting-title">左扩展</div><input class="setting-input" data-field="ktLeft" type="number" min="0" max="2000" value="${Number(node.ktLeft || 504)}"></label>
@@ -32,6 +35,15 @@ function kuotuSettings(node) {
 async function kuotuExecute(node, refs, prompt, promptId) {
     const inputName = await comfyNameForRef(refs[0]);
     
+    const scaleEnabled = Boolean(node.ktScaleEnabled);
+    const scaleSize = Number(node.ktSize || 1024);
+    // 缩放节点 "131" 输出 image[0], mask[1], width[3], height[4]
+    // 关闭缩放时，直接从 pad 节点 "108" 取 image[0] 和 mask[1]，并用 GetImageSize 获取尺寸
+    const imageSrc = scaleEnabled ? ["131", 0] : ["108", 0];
+    const maskSrc = scaleEnabled ? ["131", 1] : ["108", 1];
+    const widthSrc = scaleEnabled ? ["131", 3] : ["132", 0];
+    const heightSrc = scaleEnabled ? ["131", 4] : ["132", 1];
+
     const workflowData = {
         "10": { "inputs": { "vae_name": "flux2-vae.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
         "11": { "inputs": { "conditioning": ["19", 0] }, "class_type": "ConditioningZeroOut", "_meta": { "title": "条件零化" } },
@@ -44,14 +56,20 @@ async function kuotuExecute(node, refs, prompt, promptId) {
         "73": { "inputs": { "conditioning": ["11", 0], "latent": ["75", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent" } },
         "74": { "inputs": { "conditioning": ["19", 0], "latent": ["75", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent" } },
         "75": { "inputs": { "pixels": ["123", 0], "vae": ["10", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码" } },
-        "83": { "inputs": { "width": ["131", 3], "height": ["131", 4], "batch_size": 1 }, "class_type": "EmptyFlux2LatentImage", "_meta": { "title": "Flux2代 空Latent" } },
+        "83": { "inputs": { "width": widthSrc, "height": heightSrc, "batch_size": 1 }, "class_type": "EmptyFlux2LatentImage", "_meta": { "title": "Flux2代 空Latent" } },
         "95": { "inputs": { "seed": Number(node.ktSeed || 45157923637773), "steps": 6, "cfg": 1, "sampler_name": "euler", "scheduler": "simple", "denoise": 1, "model": ["13", 0], "positive": ["74", 0], "negative": ["73", 0], "latent_image": ["83", 0] }, "class_type": "KSampler", "_meta": { "title": "K采样器" } },
         "108": { "inputs": { "left": Number(node.ktLeft || 504), "top": Number(node.ktTop || 0), "right": Number(node.ktRight || 504), "bottom": Number(node.ktBottom || 0), "feathering": 0, "image": ["116", 0] }, "class_type": "ImagePadForOutpaint", "_meta": { "title": "外补画板" } },
         "116": { "inputs": { "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 1, "image": ["63", 0] }, "class_type": "ImageScaleToTotalPixels", "_meta": { "title": "缩放图像（像素）" } },
-        "123": { "inputs": { "color": "0, 255, 0", "device": "cpu", "image": ["131", 0], "mask": ["131", 1] }, "class_type": "DrawMaskOnImage", "_meta": { "title": "合并图像与遮罩" } },
+        "123": { "inputs": { "color": "0, 255, 0", "device": "cpu", "image": imageSrc, "mask": maskSrc }, "class_type": "DrawMaskOnImage", "_meta": { "title": "合并图像与遮罩" } },
         "124": { "inputs": { "method": "mkl", "strength": 0.4, "multithread": true, "image_ref": ["116", 0], "image_target": ["17", 0] }, "class_type": "ColorMatch", "_meta": { "title": "图像调色" } },
-        "131": { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": Number(node.ktSize || 1024), "background_color": "#000000", "image": ["108", 0], "mask": ["108", 1] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } }
     };
+
+    if (scaleEnabled) {
+        workflowData["131"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": scaleSize, "background_color": "#000000", "image": ["108", 0], "mask": ["108", 1] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
+    } else {
+        // 关闭缩放时，添加 GetImageSize 从 pad 输出获取尺寸
+        workflowData["132"] = { "inputs": { "image": ["108", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } };
+    }
     
     const result = await fetch('/api/generate', {
         method: 'POST',
@@ -65,7 +83,7 @@ async function kuotuExecute(node, refs, prompt, promptId) {
                 "19": { text: node.ktPrompt || prompt || "移除绿色区域" },
                 "95": { seed: Number(node.ktSeed || 45157923637773) },
                 "108": { left: Number(node.ktLeft || 504), top: Number(node.ktTop || 0), right: Number(node.ktRight || 504), bottom: Number(node.ktBottom || 0) },
-                "131": { scale_to_length: Number(node.ktSize || 1024) }
+                ...(scaleEnabled ? { "131": { scale_to_length: scaleSize } } : {})
             },
             client_id: CLIENT_ID,
             canvas_id: window.canvas?.id || ''

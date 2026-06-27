@@ -2153,8 +2153,83 @@ function pickerOpen(callback) {
 }
 
 
+// === 批量选择功能 ===
+function pickerSelectAll() {
+    // 获取当前筛选结果中的所有角色
+    const filtered = pickerGetFilteredList();
+    filtered.forEach(name => {
+        if (!pickerSelected.includes(name)) {
+            pickerSelected.push(name);
+        }
+    });
+    pickerUpdateUI();
+}
 
+function pickerInvertSelection() {
+    // 获取当前筛选结果
+    const filtered = pickerGetFilteredList();
+    const newSelected = [];
+    
+    // 遍历筛选结果，选择未选中的
+    filtered.forEach(name => {
+        if (!pickerSelected.includes(name)) {
+            newSelected.push(name);
+        }
+    });
+    
+    // 保留不在筛选结果中的已选项
+    pickerSelected.forEach(name => {
+        if (!filtered.includes(name)) {
+            newSelected.push(name);
+        }
+    });
+    
+    pickerSelected = newSelected;
+    pickerUpdateUI();
+}
 
+function pickerClearSelection() {
+    pickerSelected = [];
+    pickerUpdateUI();
+}
+
+function pickerGetFilteredList() {
+    // 获取当前筛选结果中的所有角色名称
+    const list = [];
+    const items = document.querySelectorAll('.picker-char-card');
+    items.forEach(item => {
+        const name = item.dataset.name;
+        if (name) {
+            list.push(name);
+        }
+    });
+    return list;
+}
+
+function pickerUpdateUI() {
+    // 更新已选数量显示
+    const countEl = document.getElementById('pickerSelectedCount');
+    if (countEl) {
+        countEl.textContent = `已选 ${pickerSelected.length}`;
+    }
+    
+    // 更新已选标签
+    const chipsEl = document.getElementById('pickerSelectedChips');
+    if (chipsEl) {
+        chipsEl.innerHTML = pickerSelected.slice(-5).map(name => 
+            `<span class="picker-selected-chip">${name}</span>`
+        ).join('');
+    }
+    
+    // 更新卡片选中状态
+    document.querySelectorAll('.picker-char-card').forEach(item => {
+        const name = item.dataset.name;
+        if (name) {
+            const isSelected = pickerSelected.includes(name);
+            item.classList.toggle('is-selected', isSelected);
+        }
+    });
+}
 
 function pickerClose() {
     // 关闭即应用（与 LoRA 选择器一致：选择后关闭即直接使用）
@@ -2367,6 +2442,9 @@ function pickerInit() {
 
 
                         <span id="pickerSelectedCount" class="picker-selected-count">已选 0</span>
+                        <button onclick="pickerSelectAll()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:8px;">全选</button>
+                        <button onclick="pickerInvertSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:4px;">反选</button>
+                        <button onclick="pickerClearSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:4px;">清空</button>
 
 
                         <div id="pickerSelectedChips" class="picker-selected-chips"></div>

@@ -347,7 +347,29 @@ def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = No
             "error": raw_output
         }
 
-    # 解析输出：分离正向和负向提示词
+    # JSON 模式：直接返回原始输出，不做解析
+    output_format = 'tag'
+    if preset:
+        output_format = preset.get('output_format', 'tag')
+    if output_format == 'json':
+        # 清理可能的 markdown 代码块
+        cleaned = raw_output.strip()
+        import re
+        cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+        first_brace = cleaned.find('{')
+        last_brace = cleaned.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            cleaned = cleaned[first_brace:last_brace + 1]
+        return {
+            "success": True,
+            "prompt": cleaned,
+            "negative": "",
+            "raw": raw_output,
+            "error": ""
+        }
+
+    # 标签模式：解析输出，分离正向和负向提示词
     lines = raw_output.strip().split('\n')
     positive_lines = []
     negative_lines = []

@@ -182,7 +182,13 @@
                         <div class="flex flex-col gap-4">
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold text-gray-500 uppercase mb-1">缩放最长边</span>
-                                <input id="sizeInput" type="number" value="1024" min="512" max="2048" step="64" class="w-24 bg-transparent outline-none border-b-2 border-gray-200 focus:border-blue-500 text-sm font-bold">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                                    <input id="scaleEnabledToggle" type="checkbox" style="cursor:pointer">
+                                    <span style="font-size:11px;color:#94a3b8">开启后缩放到指定尺寸</span>
+                                </div>
+                                <div id="scaleSizeRow" style="display:none">
+                                    <input id="sizeInput" type="number" value="1024" min="512" max="4096" step="64" class="w-24 bg-transparent outline-none border-b-2 border-gray-200 focus:border-blue-500 text-sm font-bold">
+                                </div>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold text-gray-500 uppercase mb-1">随机种子</span>
@@ -384,12 +390,6 @@
         }
 
         async function apiFetch(url, options = {}) {
-            // 统一走后端代理，避免 CORS 问题
-            if (url.startsWith('/api/')) {
-                return await fetch(url, options);
-            }
-            return await fetch('/api/comfyui' + url, options);
-        }) {
             if (IS_LOCAL_SERVER) {
                 const directUrl = COMFYUI_SERVER + url;
                 const response = await fetch(directUrl, options);
@@ -450,7 +450,8 @@
             masonrySelector: '#masonry',
             loadMoreSelector: '#loadMoreTrigger',
             favoritesEnabled: true,
-        });
+        });
+
         let uploadedImageName = null;
 
         const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/stats`);
@@ -468,6 +469,11 @@
         const preview = document.getElementById('preview');
         const sizeInput = document.getElementById('sizeInput');
         const seedInput = document.getElementById('seedInput');
+        const scaleEnabledToggle = document.getElementById('scaleEnabledToggle');
+        const scaleSizeRow = document.getElementById('scaleSizeRow');
+        scaleEnabledToggle.addEventListener('change', () => {
+            scaleSizeRow.style.display = scaleEnabledToggle.checked ? '' : 'none';
+        });
         const mainGenBtn = document.getElementById('mainGenBtn');
 
         uploadZone.addEventListener('click', () => fileInput.click());
@@ -595,7 +601,17 @@
                 workflowData["108"]["inputs"]["right"] = padRight;
                 workflowData["108"]["inputs"]["top"] = padTop;
                 workflowData["108"]["inputs"]["bottom"] = padBottom;
-                workflowData["131"]["inputs"]["scale_to_length"] = size;
+                const scaleEnabled = document.getElementById('scaleEnabledToggle').checked;
+                if (scaleEnabled) {
+                    workflowData["131"]["inputs"]["scale_to_length"] = size;
+                } else {
+                    delete workflowData["131"];
+                    workflowData["123"]["inputs"]["image"] = ["108", 0];
+                    workflowData["123"]["inputs"]["mask"] = ["108", 1];
+                    workflowData["83"]["inputs"]["width"] = ["132", 0];
+                    workflowData["83"]["inputs"]["height"] = ["132", 1];
+                    workflowData["132"] = { "inputs": { "image": ["108", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } };
+                }
 
                 currentPromptId = generateUUID();
                 const wsUrl = buildWsUrl();
@@ -713,7 +729,6 @@
                 } catch (e) { }
             }, 3000);
         };
-        }
     </script>
 </body>
 </html>

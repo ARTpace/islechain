@@ -806,17 +806,25 @@
                 </div>
 
                 <div class="param-section">
-                    <div class="param-label">图像最长边</div>
-                    <input
-                        type="number"
-                        class="param-input"
-                        id="scaleLengthInput"
-                        min="512"
-                        max="2048"
-                        step="64"
-                        value="1024"
-                    >
-                    <div class="prompt-hint">控制生成图像的最长边尺寸，建议512-2048之间</div>
+                    <div class="param-label">缩放最长边</div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+                        <label class="toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:6px">
+                            <input type="checkbox" id="scaleEnabledToggle" style="cursor:pointer">
+                            <span style="font-size:12px;color:#94a3b8">开启后将图片缩放到指定尺寸</span>
+                        </label>
+                    </div>
+                    <div id="scaleSizeRow" style="display:none">
+                        <input
+                            type="number"
+                            class="param-input"
+                            id="scaleLengthInput"
+                            min="512"
+                            max="4096"
+                            step="64"
+                            value="1024"
+                        >
+                        <div class="prompt-hint">控制生成图像的最长边尺寸，建议512-2048之间</div>
+                    </div>
                 </div>
 
                 <div class="param-section">
@@ -930,9 +938,6 @@
             masonrySelector: '#masonry',
             loadMoreSelector: '#loadMoreTrigger',
             favoritesEnabled: true,
-        });
-            pageSize: 15,
-            batchSelect: true
         });
         let comfyWs = null;
         let wsExecutionDone = false;
@@ -1235,41 +1240,6 @@
                 check();
             });
         }
-                const response = await fetch(img.src);
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Angle_${Date.now()}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                console.error('下载失败:', e);
-                window.open(img.src, '_blank');
-            }
-        }
-        async function deleteHistoryItem(timestamp, event) {
-            if (event) event.stopPropagation();
-            if (!confirm('确定要删除这条记录吗？')) return;
-            try {
-                });
-            };
-
-            card.innerHTML = `
-                <img src="${data.images && data.images[0] ? data.images[0] : ''}" class="w-full h-full object-cover" loading="lazy">
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onclick="deleteHistoryItem('${data.timestamp}', event)" class="w-8 h-8 bg-white/90 backdrop-blur text-black hover:bg-black hover:text-white rounded-lg flex items-center justify-center transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                    </button>
-                </div>
-            `;
-
-            isNew ? masonry.prepend(card) : masonry.appendChild(card);
-        }
 
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
@@ -1278,6 +1248,11 @@
         const promptInput = document.getElementById('promptInput');
         const seedInput = document.getElementById('seedInput');
         const scaleLengthInput = document.getElementById('scaleLengthInput');
+        const scaleEnabledToggle = document.getElementById('scaleEnabledToggle');
+        const scaleSizeRow = document.getElementById('scaleSizeRow');
+        scaleEnabledToggle.addEventListener('change', () => {
+            scaleSizeRow.style.display = scaleEnabledToggle.checked ? '' : 'none';
+        });
         const mainGenBtn = document.getElementById('mainGenBtn');
 
         uploadZone.addEventListener('click', () => {
@@ -1429,7 +1404,16 @@
                 workflowData["14"]["inputs"]["image"] = uploadedImageName;
                 workflowData["55"]["inputs"]["text"] = promptInput.value.trim();
                 workflowData["20"]["inputs"]["seed"] = parseInt(seedInput.value) || 411725770964575;
-                workflowData["11"]["inputs"]["scale_to_length"] = parseInt(scaleLengthInput.value) || 1024;
+                const scaleEnabled = document.getElementById('scaleEnabledToggle').checked;
+                const imageSource = scaleEnabled ? ["11", 0] : ["14", 0];
+                workflowData["1"]["inputs"]["image1"] = imageSource;
+                workflowData["2"]["inputs"]["pixels"] = imageSource;
+                workflowData["8"]["inputs"]["image1"] = imageSource;
+                if (scaleEnabled) {
+                    workflowData["11"]["inputs"]["scale_to_length"] = parseInt(scaleLengthInput.value) || 1024;
+                } else {
+                    delete workflowData["11"];
+                }
 
                 await wsConnectPromise;
 
@@ -1444,7 +1428,7 @@
                             "14": { image: uploadedImageName },
                             "55": { text: promptInput.value.trim() },
                             "20": { seed: parseInt(seedInput.value) || 411725770964575 },
-                            "11": { scale_to_length: parseInt(scaleLengthInput.value) || 1024 }
+                            ...(scaleEnabled ? { "11": { scale_to_length: parseInt(scaleLengthInput.value) || 1024 } } : {})
                         },
                         type: "angle",
                         client_id: CLIENT_ID

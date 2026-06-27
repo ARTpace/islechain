@@ -281,6 +281,85 @@ function artistPickerApply() {
     if (typeof updatePromptTags === 'function') updatePromptTags();
 }
 
+// === 批量选择功能 ===
+function artistPickerSelectAll() {
+    // 获取当前筛选结果中的所有画师
+    const filtered = artistPickerGetFilteredList();
+    filtered.forEach(name => {
+        if (!artistPickerSelected.includes(name)) {
+            artistPickerSelected.push(name);
+        }
+    });
+    artistPickerUpdateUI();
+}
+
+function artistPickerInvertSelection() {
+    // 获取当前筛选结果
+    const filtered = artistPickerGetFilteredList();
+    const newSelected = [];
+    
+    // 遍历筛选结果，选择未选中的
+    filtered.forEach(name => {
+        if (!artistPickerSelected.includes(name)) {
+            newSelected.push(name);
+        }
+    });
+    
+    // 保留不在筛选结果中的已选项
+    artistPickerSelected.forEach(name => {
+        if (!filtered.includes(name)) {
+            newSelected.push(name);
+        }
+    });
+    
+    artistPickerSelected = newSelected;
+    artistPickerUpdateUI();
+}
+
+function artistPickerGetFilteredList() {
+    // 获取当前筛选结果中的所有画师名称
+    const list = [];
+    const items = document.querySelectorAll('.artist-picker-card');
+    items.forEach(item => {
+        // 从 onclick 属性中提取名称
+        const onclick = item.getAttribute('onclick');
+        if (onclick) {
+            const match = onclick.match(/artistPickerToggle\('(.+?)'\)/);
+            if (match) {
+                list.push(match[1]);
+            }
+        }
+    });
+    return list;
+}
+
+function artistPickerUpdateUI() {
+    // 更新已选数量显示
+    const countEl = document.getElementById('artistPickerSelectedCount');
+    if (countEl) {
+        countEl.textContent = artistPickerSelected.length;
+    }
+    
+    // 更新已选摘要
+    const summaryEl = document.getElementById('artistPickerSelectedSummary');
+    if (summaryEl) {
+        summaryEl.textContent = `已选 ${artistPickerSelected.length} 个画师`;
+    }
+    
+    // 更新卡片选中状态
+    document.querySelectorAll('.artist-picker-card').forEach(item => {
+        const onclick = item.getAttribute('onclick');
+        if (onclick) {
+            const match = onclick.match(/artistPickerToggle\('(.+?)'\)/);
+            if (match) {
+                const name = match[1];
+                const isSelected = artistPickerSelected.includes(name);
+                item.classList.toggle('selected', isSelected);
+            }
+        }
+    });
+}
+
 function artistPickerClose() {
     // 关闭即应用(与 LoRA 选择器一致:选择后关闭即直接使用)
     artistPickerApply();
@@ -364,9 +443,12 @@ function artistPickerInit() {
                         </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
+                        <button onclick="artistPickerSelectAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">全选</button>
+                        <button onclick="artistPickerInvertSelection()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">反选</button>
+                        <button onclick="artistPickerClearAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">清空</button>
+                        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
                         <button onclick="artistPickerCopySelected()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">复制已选</button>
                         <button onclick="artistPickerShowSelectedOnly()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">只看已选</button>
-                        <button onclick="artistPickerClearAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">清除</button>
                         <button onclick="artistPickerClose()" style="padding: 6px 10px; background: none; border: none; cursor: pointer; font-size: 20px; color: #666;">&times;</button>
                     </div>
                 </div>

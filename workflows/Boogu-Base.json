@@ -5,20 +5,34 @@
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
-    "_meta": {"title": "UNet加载器"}
+    "_meta": {
+      "title": "UNET加载器"
+    }
   },
   "3": {
     "inputs": {
-      "samples": ["32", 0],
-      "vae": ["5", 0]
+      "samples": [
+        "32",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
     },
     "class_type": "VAEDecode",
-    "_meta": {"title": "VAE解码"}
+    "_meta": {
+      "title": "VAE解码"
+    }
   },
   "5": {
-    "inputs": {"vae_name": "flux1_vae_bf16.safetensors"},
+    "inputs": {
+      "vae_name": "flux1_vae_bf16.safetensors"
+    },
     "class_type": "VAELoader",
-    "_meta": {"title": "加载VAE"}
+    "_meta": {
+      "title": "加载VAE"
+    }
   },
   "7": {
     "inputs": {
@@ -27,7 +41,9 @@
       "device": "default"
     },
     "class_type": "CLIPLoader",
-    "_meta": {"title": "加载CLIP"}
+    "_meta": {
+      "title": "加载CLIP"
+    }
   },
   "8": {
     "inputs": {
@@ -36,45 +52,106 @@
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
-    "_meta": {"title": "空Latent图像"}
+    "_meta": {
+      "title": "空Latent"
+    }
   },
   "9": {
     "inputs": {
-      "conditioning": ["11", 0]
+      "conditioning": [
+        "11",
+        0
+      ]
     },
     "class_type": "ConditioningZeroOut",
-    "_meta": {"title": "条件零化"}
+    "_meta": {
+      "title": "条件零化"
+    }
   },
   "11": {
     "inputs": {
       "text": "",
-      "clip": ["7", 0]
+      "clip": [
+        "7",
+        0
+      ]
     },
     "class_type": "CLIPTextEncode",
-    "_meta": {"title": "CLIP文本编码"}
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
   },
   "32": {
     "inputs": {
-      "seed": 123456789,
-      "steps": 40,
+      "seed": 1118077479952030,
+      "steps": 30,
       "cfg": 4,
-      "sampler_name": "euler",
+      "sampler_name": "dpmpp_2m",
       "scheduler": "simple",
       "denoise": 1,
-      "model": ["2", 0],
-      "positive": ["11", 0],
-      "negative": ["9", 0],
-      "latent_image": ["8", 0]
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "11",
+        0
+      ],
+      "negative": [
+        "9",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
     },
     "class_type": "KSampler",
-    "_meta": {"title": "K采样器"}
+    "_meta": {
+      "title": "K采样器"
+    }
   },
   "34": {
     "inputs": {
-      "filename_prefix": "boogu_base",
-      "images": ["3", 0]
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "37",
+        0
+      ]
     },
     "class_type": "SaveImage",
-    "_meta": {"title": "保存图像"}
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "36": {
+    "inputs": {
+      "offload_model": true,
+      "offload_cache": true,
+      "anything": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "VRAMCleanup",
+    "_meta": {
+      "title": "释放显存"
+    }
+  },
+  "37": {
+    "inputs": {
+      "clean_file_cache": true,
+      "clean_processes": true,
+      "clean_dlls": true,
+      "retry_times": 1,
+      "anything": [
+        "36",
+        0
+      ]
+    },
+    "class_type": "RAMCleanup",
+    "_meta": {
+      "title": "释放内存"
+    }
   }
 }

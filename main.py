@@ -7145,7 +7145,8 @@ def generate(req: GenerateRequest, token: str = ""):
                 raise Exception(f"HTTP Error {e.code}: {error_body}")
 
         history_data = None
-        for i in range(900):  # 最多 270 秒，0.3 秒间隔
+        poll_start = time.monotonic()
+        while True:  # 无硬性超时限制，等待 ComfyUI 自行完成
             try:
                 res = get_comfy_history(target_backend, prompt_id)
                 if prompt_id in res:
@@ -7153,10 +7154,11 @@ def generate(req: GenerateRequest, token: str = ""):
                     break
             except Exception:
                 pass
-            time.sleep(0.3)
-
-        if not history_data:
-            raise Exception("ComfyUI 渲染超时")
+            elapsed = time.monotonic() - poll_start
+            # 长任务日志：超过 60s 后每 60s 打一次进度
+            if elapsed > 60 and int(elapsed) % 60 < 1:
+                print(f'[Generate] 等待 ComfyUI 完成中… 已等待 {int(elapsed)}s, prompt_id={prompt_id}')
+            time.sleep(0.5)
 
         local_urls = []
         audio_urls = []
@@ -8837,6 +8839,212 @@ def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = "
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"运行工作流失败: {str(e)}")
+
+
+# ==================== 海报设计 API ====================
+
+POSTER_DATA_DIR = os.path.join(DATA_DIR)
+POSTER_LAYOUT_THUMBS = os.path.join(STATIC_DIR, "images", "poster_layouts", "thumbnails")
+POSTER_STYLE_THUMBS = os.path.join(STATIC_DIR, "images", "style_thumbnails")
+
+# 100种布局名称
+LAYOUT_NAMES = [
+    None,
+    "三分法构图","九宫格构图","黄金分割构图","对称构图","非对称构图",
+    "均衡式构图","上下构图","前后构图","水平构图","垂直构图",
+    "开放式构图","封闭式构图","满版构图","留白式构图","密集式构图",
+    "疏朗式构图","疏密对比构图","单点构图","双点构图","多点构图",
+    "S形构图","C形构图","Z形构图","V形构图","X形构图",
+    "放射式构图","向心式构图","离心式构图","环绕式构图","框架式构图",
+    "三角形构图","倒三角构图","圆形构图","椭圆形构图","方形构图",
+    "矩形构图","菱形构图","十字构图","T形构图","L形构图",
+    "单点聚焦构图","多点平衡构图","群组式构图","分组式构图","聚合式构图",
+    "分散式构图","集中式构图","扩散式构图","层叠式构图","阶梯式构图",
+    "重复式构图","渐变式构图","节奏式构图","韵律式构图","对比式构图",
+    "呼应式构图","镜像式构图","轴线式构图","中轴构图","偏轴构图",
+    "网格式构图","模块化构图","分栏式构图","分割式构图","区块式构图",
+    "矩阵式构图","棋盘式构图","卡片式构图","拼贴式构图","蒙太奇构图",
+    "引导线构图","透视构图","纵深构图","近大远小构图","前景构图",
+    "中景构图","背景构图","层次构图","空间构图","深度构图",
+    "斜线构图","曲线构图","折线构图","波浪线构图","交叉线构图",
+    "平行线构图","重心构图","偏重心构图","视觉中心构图","视觉动线构图",
+    "动势构图","静态构图","主次构图","开合构图","虚实构图",
+    "明暗构图","色块构图","色彩对比构图","大小对比构图","动静对比构图"
+]
+
+LAYOUT_CATEGORIES = [
+    {'id': '0', 'name': '🎬 电影/影视'},{'id': '1', 'name': '🎵 活动/音乐'},
+    {'id': '2', 'name': '📦 产品发布'},{'id': '3', 'name': '🗺️ 旅游/目的地'},
+    {'id': '4', 'name': '🎓 教育/学术'},{'id': '5', 'name': '💪 激励/励志'},
+    {'id': '6', 'name': '📢 宣传/广告'},{'id': '7', 'name': '🎨 艺术/展览'}
+]
+
+
+def _load_layout_descriptions():
+    path = os.path.join(POSTER_DATA_DIR, "layout_descriptions.json")
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+
+def _load_poster_layouts():
+    layouts = []
+    descriptions = _load_layout_descriptions()
+    thumb_dir = POSTER_LAYOUT_THUMBS
+    thumb_files = []
+    if os.path.exists(thumb_dir):
+        thumb_files = sorted([f for f in os.listdir(thumb_dir) if f.endswith(('.jpg', '.jpeg'))])
+    for filename in thumb_files:
+        name = filename.replace('.jpg', '').replace('.jpeg', '')
+        num = 0
+        if name in descriptions:
+            for idx, ln in enumerate(LAYOUT_NAMES):
+                if ln == name:
+                    num = idx
+                    break
+        else:
+            try:
+                num = int(name.replace('layout-', ''))
+            except ValueError:
+                continue
+        if num < 1 or num >= len(LAYOUT_NAMES):
+            continue
+        category_idx = num % 8
+        layout_name = LAYOUT_NAMES[num]
+        layouts.append({
+            'id': f'layout-{num}',
+            'name': layout_name,
+            'category': str(category_idx),
+            'thumbnail': f'/static/images/poster_layouts/thumbnails/{filename}',
+            'description': descriptions.get(layout_name, '')
+        })
+    return layouts
+
+
+def _load_poster_styles():
+    styles_file = os.path.join(POSTER_DATA_DIR, "fooocus_styles.json")
+    if not os.path.exists(styles_file):
+        return []
+    with open(styles_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    styles = []
+    for item in data:
+        thumb_url = item.get('thumbnail', '')
+        local_path = ''
+        if thumb_url:
+            url_filename = thumb_url.split('/')[-1]
+            local_path = f'/static/images/style_thumbnails/{url_filename}'
+        styles.append({
+            'name': item.get('name', ''),
+            'name_cn': item.get('name_cn', item.get('name', '')),
+            'prompt': item.get('prompt', ''),
+            'thumbnail': local_path
+        })
+    return styles
+
+
+@app.get("/api/poster/layouts")
+async def get_poster_layouts():
+    return {"layouts": _load_poster_layouts()}
+
+
+@app.get("/api/poster/styles")
+async def get_poster_styles():
+    return {"styles": _load_poster_styles()}
+
+
+@app.post("/api/poster/generate")
+async def poster_generate(req: Request, token: str = ""):
+    """生成海报"""
+    try:
+        body = await req.json()
+        prompt = body.get('prompt', '')
+        width = body.get('width', 1024)
+        height = body.get('height', 1536)
+        steps = body.get('steps', 4)
+        mode = body.get('mode', 'turbo')
+        count = body.get('count', 2)
+        style_prompt = body.get('style_prompt', '')
+
+        if not prompt:
+            return {"error": "提示词不能为空"}
+
+        # 合并风格提示词
+        full_prompt = prompt
+        if style_prompt:
+            full_prompt = f"{prompt}, {style_prompt}"
+
+        # 选择工作流
+        workflow_name = "Boogu-Turbo.json" if mode == 'turbo' else "Boogu-Base.json"
+        workflow_path = os.path.join(WORKFLOW_DIR, workflow_name)
+        if not os.path.exists(workflow_path):
+            return {"error": f"工作流 {workflow_name} 不存在"}
+
+        with open(workflow_path, 'r', encoding='utf-8') as f:
+            base_workflow = json.load(f)
+
+        generated_images = []
+
+        for i in range(count):
+            workflow = json.loads(json.dumps(base_workflow))
+            seed = int.from_bytes(os.urandom(6), 'big') % (2**32)
+
+            # 设置参数
+            workflow['11']['inputs']['text'] = full_prompt
+            workflow['8']['inputs']['width'] = width
+            workflow['8']['inputs']['height'] = height
+            workflow['32']['inputs']['noise_seed'] = seed if 'noise_seed' in workflow.get('32', {}).get('inputs', {}) else workflow.get('32', {}).get('inputs', {}).get('seed', seed)
+            if 'seed' in workflow.get('32', {}).get('inputs', {}):
+                workflow['32']['inputs']['seed'] = seed
+            workflow['34']['inputs']['filename_prefix'] = f"poster_{int(time.time())}_{i}"
+
+            # 步数覆盖
+            if '32' in workflow and 'steps' in workflow['32'].get('inputs', {}):
+                workflow['32']['inputs']['steps'] = steps
+            if '26' in workflow and 'steps' in workflow['26'].get('inputs', {}):
+                workflow['26']['inputs']['steps'] = steps
+
+            # 提交到 ComfyUI
+            target = COMFYUI_ADDRESS
+            if not target:
+                return {"error": "未配置 ComfyUI 地址"}
+
+            prompt_payload = {"prompt": workflow, "client_id": f"poster_{token[:8] if token else 'anon'}"}
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(f"http://{target}/prompt", json=prompt_payload)
+                if resp.status_code != 200:
+                    return {"error": f"提交失败: {resp.text[:200]}"}
+                pid = resp.json().get('prompt_id')
+
+            # 等待完成
+            for _ in range(180):
+                await asyncio.sleep(2)
+                try:
+                    async with httpx.AsyncClient(timeout=5) as client:
+                        hr = await client.get(f"http://{target}/history/{pid}")
+                        if hr.status_code == 200:
+                            h = hr.json()
+                            if pid in h and h[pid].get('status', {}).get('completed'):
+                                outputs = h[pid].get('outputs', {})
+                                for nid, out in outputs.items():
+                                    if 'images' in out:
+                                        for img in out['images']:
+                                            fn = img['filename']
+                                            generated_images.append({
+                                                'filename': fn,
+                                                'url': f'/api/view?filename={fn}&type=output'
+                                            })
+                                break
+                except Exception:
+                    pass
+
+        return {"images": generated_images}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
 
 
 # ==================== TTS API 路由 ====================
@@ -11978,6 +12186,223 @@ async def import_canvas_workflow(file: UploadFile = File(...)):
         "connections": connections_payload,
         "resource_map": resource_mapping,
     }
+
+# ============ Ideogram4 结构化 JSON 提示词生成 ============
+IDEOGRAM4_JSON_SYSTEM_PROMPT = """你是 Ideogram4 结构化 JSON 提示词生成器。根据用户创意描述与目标画面比例，输出一个简洁、稳定、可直接传给 Ideogram4PromptBuilderKJ 的 JSON 对象。
+
+## 输出要求
+
+只输出单行 JSON，不要 markdown，不要解释，不要代码块。
+
+必须输出以下结构：
+
+{"aspect_ratio":"{{width}}:{{height}}","high_level_description":"...","style_description":{"aesthetics":"...","lighting":"...","medium":"...","photo":"...","art_style":"...","color_palette":["#RRGGBB","#RRGGBB","#RRGGBB"]},"compositional_deconstruction":{"background":"...","elements":[{"type":"obj","bbox":[y1,x1,y2,x2],"desc":"..."}]}}
+
+## 字段规则
+
+- `aspect_ratio`：固定使用用户提供的宽高比。
+- `high_level_description`：一句完整英文图像描述，50词以内。
+- `style_description`：基础风格信息，所有字段都必须存在。
+  - `aesthetics`：3-6个英文关键词，例如 cinematic, warm, minimal, dreamy。
+  - `lighting`：3-6个英文关键词，例如 soft light, golden hour, studio lighting。
+  - `medium`：3-6个英文关键词，例如 photograph, digital art, illustration, 3D render。
+  - `photo`：如果是摄影类，填写镜头、景深、胶片等关键词；非摄影类填空字符串 `""`。
+  - `art_style`：如果是插画/绘画/3D类，填写艺术风格；摄影类填空字符串 `""`。
+  - `color_palette`：3-5个大写十六进制颜色。
+- `compositional_deconstruction.background`：用英文描述背景环境。
+- `compositional_deconstruction.elements`：1-3个主要元素，每个元素必须有 `type`、`bbox`、`desc`。
+- `bbox` 顺序固定为 `[y1,x1,y2,x2]`，基于目标画面宽高。坐标必须为整数。
+- 不要输出超过 3 个元素。
+- 不要使用单引号作为 JSON 字符串边界。
+- 不要输出尾随逗号。
+- 所有字符串必须合法 JSON 转义。
+"""
+
+
+class Ideogram4JsonRequest(BaseModel):
+    prompt: str
+    width: int = 1024
+    height: int = 1024
+    provider: str = ""
+    model: str = ""
+
+
+@app.post("/api/ideogram4/generate-json")
+async def generate_ideogram4_json(req: Ideogram4JsonRequest, token: str = ""):
+    """调用 LLM 将中文创意描述转换为 Ideogram4 结构化 JSON 提示词"""
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="提示词不能为空")
+
+    user_message = (
+        f"Please generate the JSON caption for the user idea below.\n\n"
+        f"TARGET IMAGE ASPECT RATIO: {req.width}:{req.height} (width:height).\n"
+        f"User idea: {req.prompt.strip()}"
+    )
+
+    try:
+        chat_base, chat_hdrs, model = resolve_chat_provider(req.provider, req.model, "")
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{chat_base}/chat/completions",
+                headers=chat_hdrs,
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": IDEOGRAM4_JSON_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_message}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 2000
+                },
+            )
+            response.raise_for_status()
+            raw = response.json()
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误: {exc.response.text}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求上游接口失败: {exc}") from exc
+
+    result_text = text_from_chat_response(raw).strip()
+    if not result_text:
+        raise HTTPException(status_code=502, detail="LLM 返回为空")
+
+    # 清理可能的 markdown 代码块
+    cleaned = re.sub(r'^```(?:json)?\s*', '', result_text)
+    cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+    first_brace = cleaned.find('{')
+    last_brace = cleaned.rfind('}')
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        cleaned = cleaned[first_brace:last_brace + 1]
+    cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+
+    # 验证 JSON 格式
+    try:
+        json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=502, detail=f"LLM 返回的 JSON 无效: {str(e)[:100]}")
+
+    return {"json": cleaned, "model": model}
+
+
+# === 随机源管理 API ===
+
+# 导入随机源管理器
+try:
+    from random_source import get_manager
+    random_manager = get_manager()
+    print("[RandomSource] 随机源管理器已加载")
+except Exception as e:
+    print(f"[RandomSource] 加载失败: {e}")
+    random_manager = None
+
+
+@app.get("/api/random/sources")
+async def random_sources():
+    """列出所有随机源"""
+    if not random_manager:
+        raise HTTPException(status_code=500, detail="随机源管理器未加载")
+    return random_manager.list_sources()
+
+
+@app.get("/api/random/categories/{source_id}")
+async def random_categories(source_id: str):
+    """获取指定随机源的所有类别"""
+    if not random_manager:
+        raise HTTPException(status_code=500, detail="随机源管理器未加载")
+    categories = random_manager.get_categories(source_id)
+    return {"categories": categories}
+
+
+@app.get("/api/random/{source_id}")
+async def random_get(source_id: str, category: Optional[str] = None, count: int = 1):
+    """随机获取指定源的元素"""
+    if not random_manager:
+        raise HTTPException(status_code=500, detail="随机源管理器未加载")
+    
+    source = random_manager.get_source(source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail=f"随机源不存在: {source_id}")
+    
+    filters = {}
+    if category:
+        filters['category'] = category
+    
+    if count == 1:
+        item = source.random(filters)
+        return item or {}
+    else:
+        items = source.random_multi(filters, count)
+        return {"items": items}
+
+
+@app.post("/api/random/all")
+async def random_all(config: Dict[str, Dict]):
+    """根据配置随机选择所有源"""
+    if not random_manager:
+        raise HTTPException(status_code=500, detail="随机源管理器未加载")
+    return random_manager.random_all(config)
+
+
+@app.post("/api/random/apply-plan")
+async def random_apply_plan(config: Dict[str, Any]):
+    """根据方案配置随机选择"""
+    if not random_manager:
+        raise HTTPException(status_code=500, detail="随机源管理器未加载")
+    
+    result = {}
+    
+    # 处理角色
+    char_config = config.get('character', {})
+    if char_config.get('enabled'):
+        names = char_config.get('names', [])
+        count = char_config.get('count', 1)
+        if names:
+            source = random_manager.get_source('character')
+            if source:
+                filtered = [item for item in source.items if item.get('name') in names]
+                if filtered:
+                    actual_count = min(count, len(filtered))
+                    if actual_count == 1:
+                        result['character'] = random.choice(filtered)
+                    else:
+                        result['character'] = random.sample(filtered, actual_count)
+    
+    # 处理画师
+    artist_config = config.get('artist', {})
+    if artist_config.get('enabled'):
+        names = artist_config.get('names', [])
+        count = artist_config.get('count', 1)
+        if names:
+            source = random_manager.get_source('artist')
+            if source:
+                filtered = [item for item in source.items if item.get('name') in names]
+                if filtered:
+                    actual_count = min(count, len(filtered))
+                    if actual_count == 1:
+                        result['artist'] = [random.choice(filtered)]
+                    else:
+                        result['artist'] = random.sample(filtered, actual_count)
+    
+    # 处理预设
+    preset_config = config.get('preset', {})
+    if preset_config.get('enabled'):
+        names = preset_config.get('names', [])
+        count = preset_config.get('count', 1)
+        if names:
+            source = random_manager.get_source('preset')
+            if source:
+                filtered = [item for item in source.items if item.get('name') in names]
+                if filtered:
+                    actual_count = min(count, len(filtered))
+                    if actual_count == 1:
+                        result['preset'] = random.choice(filtered)
+                    else:
+                        result['preset'] = random.sample(filtered, actual_count)
+    
+    return result
+
 
 @app.post("/api/restart")
 async def restart_server():

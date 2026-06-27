@@ -626,15 +626,32 @@
         var data = await upBlob(blob, 'edit_outpaint_' + Date.now() + '.png');
         var file = data.files && data.files[0];
         if (file) {
-            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop(), operation: 'outpaint' });
+            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop(), comfy_name: file.comfy_name, operation: 'outpaint' });
         }
     };
 
-    // ---- 通用上传（上传到 /api/ai/upload，返回本地 /output/ 路径） ----
+    // ---- 通用上传 ----
+    // 同时上传到 /api/ai/output（获取输出 URL）和 ComfyUI（获取 comfy_name）
     function upBlob(blob, name) {
-        var form = new FormData();
-        form.append('files', blob, name);
-        return fetch('/api/ai/upload', { method: 'POST', body: form }).then(function(r) { return r.json(); });
+        var form1 = new FormData();
+        form1.append('files', blob, name);
+        var form2 = new FormData();
+        form2.append('file', blob, name);
+        return Promise.all([
+            fetch('/api/ai/upload', { method: 'POST', body: form1 }).then(function(r) { return r.json(); }),
+            fetch('/api/comfyui/upload/image', { method: 'POST', body: form2 }).then(function(r) { return r.json(); }).catch(function() { return null; })
+        ]).then(function(results) {
+            var aiData = results[0] || {};
+            var comfyData = results[1] || {};
+            var file = (aiData.files && aiData.files[0]) || {};
+            return {
+                files: [{
+                    url: file.url || '',
+                    name: file.name || name,
+                    comfy_name: comfyData.name || file.name || name
+                }]
+            };
+        });
     }
 
     // ---- 应用操作 ----
@@ -654,7 +671,7 @@
         var data = await upBlob(blob, 'edit_crop_' + Date.now() + '.png');
         var file = data.files && data.files[0];
         if (file) {
-            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop() });
+            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop(), comfy_name: file.comfy_name });
         }
     };
 
@@ -671,7 +688,7 @@
         var data = await upBlob(blob, 'edit_brush_' + Date.now() + '.png');
         var file = data.files && data.files[0];
         if (file) {
-            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop() });
+            E.close(); if (opts && opts.onSave) opts.onSave({ url: file.url, name: file.name || file.url.split('/').pop(), comfy_name: file.comfy_name });
         }
     };
 

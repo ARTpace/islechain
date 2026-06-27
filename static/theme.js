@@ -10,6 +10,7 @@
         const next = theme === 'dark' ? 'dark' : 'light';
         const dark = next === 'dark';
         document.documentElement.classList.toggle('studio-theme-dark', dark);
+        document.documentElement.classList.toggle('theme-dark', dark);
         if(document.body){
             document.body.classList.toggle('studio-theme-dark', dark);
             document.body.classList.toggle('theme-dark', dark);

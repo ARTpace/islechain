@@ -315,6 +315,7 @@
                                 <select id="modelSelect" class="model-select">
                                     <option value="">加载模型...</option>
                                 </select>
+                                <div id="modelDescription" class="text-[10px] text-gray-500 mt-1 leading-tight"></div>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">背景选项</span>
@@ -529,61 +530,76 @@
         let uploadedImageName = null;
 
         async function loadRMBGModels() {
-            try {
-                const response = await apiFetch('/object_info');
-                if (!response.ok) {
-                    throw new Error('获取节点信息失败');
+            // 硬编码 ComfyUI 中实际可用的 RMBG 模型
+            // 来自 /object_info 端点查询结果
+            const allModels = [
+                { 
+                    node: 'RMBG', 
+                    model: 'BEN2', 
+                    description: '发丝抠图专家，支持4K处理和视频分割，边缘细节处理最佳' 
+                },
+                { 
+                    node: 'RMBG', 
+                    model: 'BEN', 
+                    description: 'BEN2基础版本，适合一般抠图需求，显存占用较低' 
+                },
+                { 
+                    node: 'RMBG', 
+                    model: 'RMBG-2.0', 
+                    description: '通用型模型，电商/广告/游戏场景表现稳定，适合商业用途' 
+                },
+                { 
+                    node: 'RMBG', 
+                    model: 'INSPYRENET', 
+                    description: '复杂背景抠图能手，头发/胡须等细节过渡自然，支持商用' 
                 }
+            ];
+            
+            // 创建模型描述映射
+            const modelDescriptions = {};
+            allModels.forEach(({ model, description }) => {
+                modelDescriptions[model] = description;
+            });
+            
+            modelSelect.innerHTML = '';
+            
+            const defaultModel = 'BEN2';
+            let hasDefaultModel = false;
+            
+            allModels.forEach(({ node, model, description }) => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                option.title = `${model}: ${description}`;  // 鼠标悬停显示完整描述
+                modelSelect.appendChild(option);
                 
-                const data = await response.json();
-                
-                // 只加载工作流使用的 RMBG 节点的模型
-                const allModels = [];
-                
-                const rmbgNode = data['RMBG'];
-                if (rmbgNode && rmbgNode.input && rmbgNode.input.required) {
-                    const modelParam = rmbgNode.input.required.model;
-                    if (modelParam && Array.isArray(modelParam[0])) {
-                        modelParam[0].forEach(m => {
-                            allModels.push({ node: 'RMBG', model: m });
-                        });
-                    }
+                if (model === defaultModel) {
+                    hasDefaultModel = true;
                 }
-                
-                modelSelect.innerHTML = '';
-                
-                if (allModels.length === 0) {
-                    modelSelect.innerHTML = '<option value="">无可用模型</option>';
-                    console.warn('未找到任何 RMBG 节点模型');
-                    return;
-                }
-                
-                const defaultModel = 'BEN2';
-                let hasDefaultModel = false;
-                
-                allModels.forEach(({ node, model }) => {
-                    const option = document.createElement('option');
-                    option.value = model;
-                    option.textContent = model;
-                    option.title = node;
-                    modelSelect.appendChild(option);
-                    
-                    if (model === defaultModel) {
-                        hasDefaultModel = true;
-                    }
-                });
-                
-                if (hasDefaultModel) {
-                    modelSelect.value = defaultModel;
-                } else {
-                    modelSelect.value = allModels[0].model;
-                }
-                
-                console.log('已加载 RMBG 模型列表:', allModels);
-            } catch (e) {
-                console.error('加载 RMBG 模型列表失败:', e);
-                modelSelect.innerHTML = '<option value="">加载失败</option>';
+            });
+            
+            if (hasDefaultModel) {
+                modelSelect.value = defaultModel;
+            } else {
+                modelSelect.value = allModels[0].model;
             }
+            
+            // 更新模型描述显示
+            const modelDescEl = document.getElementById('modelDescription');
+            const updateModelDescription = () => {
+                const selectedModel = modelSelect.value;
+                const description = modelDescriptions[selectedModel] || '';
+                modelDescEl.textContent = description;
+                modelDescEl.title = description;
+            };
+            
+            // 监听模型选择变化
+            modelSelect.addEventListener('change', updateModelDescription);
+            
+            // 初始化描述显示
+            updateModelDescription();
+            
+            console.log('已加载硬编码 RMBG 模型列表:', allModels);
         }
 
         const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/stats`);
@@ -770,7 +786,24 @@
 
                 workflowData["3"]["inputs"]["image"] = uploadedImageName;
                 workflowData["1"]["inputs"]["model"] = model;
-                workflowData["1"]["inputs"]["background"] = background;
+                
+                // 处理背景类型转换
+                let backgroundType = background;
+                let backgroundColor = workflowData["1"]["inputs"]["background_color"];
+                
+                if (background === 'White') {
+                    backgroundType = 'Color';
+                    backgroundColor = '#FFFFFF';
+                } else if (background === 'Black') {
+                    backgroundType = 'Color';
+                    backgroundColor = '#000000';
+                } else if (background === 'Alpha') {
+                    backgroundType = 'Alpha';
+                }
+                
+                workflowData["1"]["inputs"]["background"] = backgroundType;
+                workflowData["1"]["inputs"]["background_color"] = backgroundColor;
+                
                 workflowData["1"]["inputs"]["mask_blur"] = parseInt(document.getElementById('maskBlurVal').textContent);
                 workflowData["1"]["inputs"]["mask_offset"] = parseInt(document.getElementById('maskOffsetVal').textContent);
                 workflowData["1"]["inputs"]["invert_output"] = document.getElementById('invertOutputBtn').classList.contains('on');

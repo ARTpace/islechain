@@ -3285,7 +3285,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 node[field] = Number(input.value) || 0.5;
                 const val = input.closest('.field')?.querySelector('.enhance-strength-val');
                 if (val) val.textContent = node[field].toFixed(2);
-            } else if (['width', 'height', 'enhanceUpscaleRes', 'editUpscaleRes', 'count', 'cgSize', 'cgSeed', 'kleinSize', 'kleinSeed', 'pgSeed'].includes(field)) {
+            } else if (['width', 'height', 'enhanceUpscaleRes', 'editUpscaleRes', 'count', 'cgSize', 'cgSeed', 'kleinSize', 'kleinSeed', 'pgSeed', 'qeSize', 'gqSize', 'ktSize', 'styleTransferSize'].includes(field)) {
                 node[field] = Number(input.value) || 0;
             } else if (input.tagName === 'SELECT') {
                 node[field] = input.value;

@@ -12,7 +12,10 @@ function gaoqingxiufuSettings(node) {
             <label class="field"><div class="setting-title">提示词</div><input class="setting-input" data-field="gqPrompt" type="text" value="${node.gqPrompt || ''}" placeholder="可选，留空使用默认"></label>
         </div>
         <div class="gen-settings-row">
-            <label class="field"><div class="setting-title">缩放至长度</div><input class="setting-input" data-field="gqSize" type="number" min="512" max="4096" step="64" value="${Number(node.gqSize || 1536)}"></label>
+            <button type="button" class="setting-check ${node.gqScaleEnabled ? 'active' : ''}" data-toggle-field="gqScaleEnabled"><span class="check-dot"></span>缩放最长边</button>
+        </div>
+        <div class="gen-settings-row">
+            <label class="field"><div class="setting-title">目标长度</div><input class="setting-input" data-field="gqSize" type="number" min="512" max="4096" step="64" value="${Number(node.gqSize || 1536)}"></label>
         </div>
         <div class="gen-settings-row">
             <label class="field"><div class="setting-title">随机种子</div><input class="setting-input" data-field="gqSeed" type="number" min="0" max="999999999999999" value="${Number(node.gqSeed || 385997506968388)}"></label>
@@ -29,10 +32,13 @@ function gaoqingxiufuSettings(node) {
 async function gaoqingxiufuExecute(node, refs, prompt, promptId) {
     const inputName = await comfyNameForRef(refs[0]);
     
+    const scaleEnabled = Boolean(node.gqScaleEnabled);
+    const imageSource = scaleEnabled ? ["428", 0] : ["46", 0];
+
     // 内嵌高清修复工作流（18个节点）
     const workflow = {
         "29": {
-            "inputs": { "pixels": ["428", 0], "vae": ["37", 0] },
+            "inputs": { "pixels": imageSource, "vae": ["37", 0] },
             "class_type": "VAEEncode",
             "_meta": { "title": "VAE编码" }
         },
@@ -90,7 +96,7 @@ async function gaoqingxiufuExecute(node, refs, prompt, promptId) {
                 "method": "mkl",
                 "strength": 0.6,
                 "multithread": true,
-                "image_ref": ["428", 0],
+                "image_ref": imageSource,
                 "image_target": ["32", 0]
             },
             "class_type": "ColorMatch",
@@ -138,22 +144,7 @@ async function gaoqingxiufuExecute(node, refs, prompt, promptId) {
             "class_type": "ReservedVRAMSetter",
             "_meta": { "title": " ⚙️设置预留虚拟内存（GB）" }
         },
-        "428": {
-            "inputs": {
-                "aspect_ratio": "original",
-                "proportional_width": 1,
-                "proportional_height": 1,
-                "fit": "letterbox",
-                "method": "lanczos",
-                "round_to_multiple": "8",
-                "scale_to_side": "longest",
-                "scale_to_length": Number(node.gqSize || 1536),
-                "background_color": "#000000",
-                "image": ["46", 0]
-            },
-            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
-            "_meta": { "title": "图层工具：按宽高比缩放_V2" }
-        },
+
         "429": {
             "inputs": {
                 "purge_cache": true,
@@ -190,7 +181,20 @@ async function gaoqingxiufuExecute(node, refs, prompt, promptId) {
             "_meta": { "title": "图层工具：保存图像增强版(高级)" }
         }
     };
-    
+
+    if (scaleEnabled) {
+        workflow["428"] = {
+            "inputs": {
+                "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
+                "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
+                "scale_to_side": "longest", "scale_to_length": Number(node.gqSize || 1536),
+                "background_color": "#000000", "image": ["46", 0]
+            },
+            "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+            "_meta": { "title": "图层工具：按宽高比缩放_V2" }
+        };
+    }
+
     const result = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

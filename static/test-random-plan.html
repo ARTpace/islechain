@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机方案测试</title>
+    <script src="/static/modules/auth-token.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'dark';if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="/static/lucide.min.js"></script>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/theme.css">
+    <link rel="stylesheet" href="/static/app/anima-character-picker.css">
+    <link rel="stylesheet" href="/static/app/anima-artist-picker.css">
+    <link rel="stylesheet" href="/static/app/preset-picker.css">
+    <style>
+        :root{--bg:#f8f8f8;--text-main:#1a1a1a;--accent:#00b4d8;--card-bg:#fff;--border:rgba(0,0,0,0.06);--text-sub:#999;}
+        body{background:var(--bg);color:var(--text-main);font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:0;min-height:100vh;padding:40px;}
+        body.studio-theme-dark{--bg:#0a0e17;--text-main:#e0e7ef;--card-bg:#0d1520;--border:rgba(255,255,255,0.06);--text-sub:#666;}
+        .container{max-width:800px;margin:0 auto;}
+        .header{margin-bottom:32px;}
+        .header h1{font-size:24px;font-weight:800;margin:0 0 8px;}
+        .header p{font-size:13px;color:var(--text-sub);}
+        .test-section{background:var(--card-bg);border-radius:16px;border:1px solid var(--border);padding:24px;margin-bottom:24px;}
+        .section-title{font-size:14px;font-weight:700;margin-bottom:16px;}
+        .prompt-row{display:flex;gap:12px;align-items:flex-start;}
+        .prompt-input{flex:1;}
+        .prompt-input textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:14px;background:transparent;color:var(--text-main);outline:none;resize:vertical;min-height:100px;}
+        .prompt-input textarea:focus{border-color:var(--accent);}
+        .prompt-input label{display:block;font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+        .result-box{margin-top:16px;padding:16px;border-radius:12px;background:rgba(0,180,216,0.05);border:1px solid rgba(0,180,216,0.2);}
+        .result-title{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;}
+        .result-content{font-size:12px;line-height:1.6;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;}
+        .theme-toggle{position:fixed;top:20px;right:20px;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:12px;font-weight:600;color:var(--text-main);}
+        .debug-log{margin-top:16px;padding:12px;border-radius:8px;background:rgba(0,0,0,0.02);border:1px solid var(--border);max-height:150px;overflow-y:auto;font-size:11px;font-family:ui-monospace,Menlo,monospace;}
+        body.studio-theme-dark .debug-log{background:rgba(255,255,255,0.02);}
+        .btn{padding:10px 20px;border-radius:10px;border:none;font-size:12px;font-weight:700;cursor:pointer;}
+        .btn-primary{background:var(--accent);color:#fff;}
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">切换主题</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🎲 随机方案测试</h1>
+            <p>测试随机方案管理功能（支持全选、反选）</p>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">组件集成测试</div>
+            <div class="prompt-row">
+                <div class="prompt-input">
+                    <label>正向提示词</label>
+                    <textarea id="prompt" placeholder="点击右侧 🎲 按钮配置随机方案..."></textarea>
+                </div>
+                <div id="randomPromptContainer" style="padding-top:24px;"></div>
+            </div>
+            
+            <div class="result-box" id="resultBox" style="display:none;margin-top:16px;">
+                <div class="result-title">随机结果</div>
+                <div class="result-content" id="resultContent"></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">调试日志</div>
+            <div class="debug-log" id="debugLog"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">使用说明</div>
+            <div style="font-size:13px;line-height:1.8;">
+                <p><strong>选择器新功能：</strong></p>
+                <p>1. 点击 🎲 → 新建方案 → 点击"+ 添加"</p>
+                <p>2. 打开选择器后，顶部有以下按钮：</p>
+                <p>   - <strong>全选</strong>：选择当前筛选结果中的所有项</p>
+                <p>   - <strong>反选</strong>：取消已选，选中未选</p>
+                <p>   - <strong>清空</strong>：取消所有选择</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载选择器 -->
+    <script src="/static/app/character_data_full.js"></script>
+    <script src="/static/app/artist_data.js"></script>
+    <script src="/static/app/anima-character-picker.js"></script>
+    <script src="/static/app/anima-artist-picker.js"></script>
+    <script src="/static/app/preset-picker.js"></script>
+    <script src="/static/modules/random-prompt.js?v=20260627018"></script>
+    
+    <script>
+        // 主题切换
+        function toggleTheme() {
+            document.documentElement.classList.toggle('studio-theme-dark');
+            document.documentElement.classList.toggle('theme-dark');
+            document.body.classList.toggle('studio-theme-dark');
+            document.body.classList.toggle('theme-dark');
+            const isDark = document.body.classList.contains('studio-theme-dark');
+            localStorage.setItem('studio_theme', isDark ? 'dark' : 'light');
+        }
+        
+        // 调试日志
+        function log(msg) {
+            const el = document.getElementById('debugLog');
+            if (el) {
+                el.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '<br>';
+                el.scrollTop = el.scrollHeight;
+            }
+            console.log(msg);
+        }
+        
+        // 监听控制台日志
+        const origLog = console.log;
+        console.log = function() {
+            origLog.apply(console, arguments);
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('[RandomPrompt]')) {
+                log(arguments.join(' '));
+            }
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            RandomPrompt.init('randomPromptContainer', {
+                onApply: function(result) {
+                    log('应用结果: ' + (result.positive || '(空)'));
+                    const resultBox = document.getElementById('resultBox');
+                    const resultContent = document.getElementById('resultContent');
+                    resultContent.innerHTML = `<strong>正向提示词:</strong>\n${result.positive || '(空)'}`;
+                    resultBox.style.display = 'block';
+                    document.getElementById('prompt').value = result.positive || '';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

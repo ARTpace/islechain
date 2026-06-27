@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <title>海报设计</title>
+    <script src="/static/modules/auth-token.js?v=20260525001"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20260521039">
+    <script src="/static/lucide.min.js?v=20260521039"></script>
+    <script src="/static/theme.js?v=20260521039"></script>
+    <script src="/static/modules/image-viewer.js?v=20260521006"></script>
+    <!-- gallery 系统 -->
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
+    <script src="/static/history-bulk-manager.js"></script>
+    <script src="/static/modules/gallery/actions.js?v=20260611"></script>
+    <script src="/static/modules/gallery/list.js?v=20260611"></script>
+    <script src="/static/modules/gallery/card.js?v=20260611"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
+    <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <style>
+        :root { --accent: #00b4d8; --bg: #f0f4fa; --card: #ffffff; --easing: cubic-bezier(0.4, 0, 0.2, 1); }
+        *::-webkit-scrollbar { width:8px!important; height:8px!important; background:transparent!important; }
+        *::-webkit-scrollbar-track { background:transparent!important; }
+        *::-webkit-scrollbar-thumb { background-color:#d8d8d8!important; border-radius:8px!important; }
+        body { background-color: var(--bg); font-family: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #0a1628; -webkit-font-smoothing: antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .container-box { max-width: 1440px; width:100%; margin: 0 auto; padding: 0 32px; margin-top: 24px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
+        .glass-btn { background: #111827; transition: all 0.3s var(--easing); }
+        .glass-btn:hover { background: #000; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+        .glass-btn:active { transform: scale(0.98); }
+        .glass-btn:disabled { background: #666; cursor: not-allowed; opacity: 0.5; }
+        .panel-card { background: #fff; border: 1px solid #edf0f3; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+        .panel-header { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px; }
+        .panel-header .icon-box { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .panel-body { flex: 1; min-height: 0; padding: 12px; overflow-y: auto; }
+        .panel-body-np { flex: 1; min-height: 0; overflow-y: auto; }
+        .layout-card { border: 2px solid transparent; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+        .layout-card:hover { border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .layout-card.active { border-color: #00b4d8; background: #f0f9ff; box-shadow: 0 0 0 3px rgba(0,180,216,0.15); }
+        .layout-card .thumb-bg { width: 100%; aspect-ratio: 3/4; background-size: cover; background-position: center; background-color: #f1f5f9; display: block; }
+        .layout-card .thumb-placeholder { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; background: #f1f5f9; }
+        .layout-card .name { font-size: 10px; font-weight: 600; color: #475569; padding: 4px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .style-card { border: 2px solid transparent; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+        .style-card:hover { border-color: #c4b5fd; transform: translateY(-2px); }
+        .style-card.active { border-color: #8b5cf6; background: #faf5ff; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+        .style-card .thumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background-color: #f1f5f9; }
+        .style-card .thumb-bg { width: 100%; aspect-ratio: 1; background-size: cover; background-position: center; background-color: #f1f5f9; display: block; }
+        .style-card .thumb-placeholder { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #f1f5f9; }
+        .style-card .name { font-size: 10px; font-weight: 600; color: #475569; padding: 4px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tag-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; }
+        .tag-btn:hover { background: #f1f5f9; }
+        .tag-btn.active { background: #00b4d8; color: #fff; border-color: #00b4d8; }
+        .template-btn { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; }
+        .template-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .preset-btn { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; }
+        .preset-btn:hover { background: #f1f5f9; }
+        .preset-btn.active { background: #111827; color: #fff; border-color: #111827; }
+        .tab-btn { display:flex; align-items:center; gap:4px; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s; background:transparent; color:#94a3b8; border:none; }
+        .tab-btn:hover { color:#475569; background:rgba(0,0,0,0.04); }
+        .tab-btn.active { background:#f1f5f9; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+        .theme-dark .tab-btn { color:#64748b; }
+        .theme-dark .tab-btn:hover { color:#94a3b8; background:rgba(255,255,255,0.06); }
+        .theme-dark .tab-btn.active { background:#1a2a3a; color:#e2e8f0; }
+        .nano-input { background: var(--card); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; transition: all 0.2s; width: 100%; }
+        .nano-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,180,216,0.15); }
+        .nano-textarea { background: var(--card); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; transition: all 0.2s; width: 100%; resize: vertical; min-height: 80px; font-family: inherit; }
+        .nano-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,180,216,0.15); }
+        .result-img { width: 100%; border-radius: 12px; cursor: pointer; transition: transform 0.3s; }
+        .result-img:hover { transform: scale(1.02); }
+        .loading-box { width: 10px; height: 10px; border-radius: 50%; animation: b-loading 1s infinite; }
+        @keyframes b-loading { 0%{transform:scale(1);background:#000} 50%{transform:scale(1.15);background:#444} 100%{transform:scale(1);background:#000} }
+        /* gallery 瀑布流 */
+        .masonry-grid { column-count:2; column-gap:10px; }
+        .masonry-grid.thumb-large { column-count:1!important; }
+        .masonry-grid.thumb-medium { column-count:2!important; }
+        .masonry-grid.thumb-small { column-count:3!important; }
+        .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
+        .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
+        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+        .masonry-item { border-radius:12px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.3s; position:relative; break-inside:avoid; margin-bottom:10px; }
+        .masonry-item:hover { transform:translateY(-4px); box-shadow:0 12px 24px rgba(0,0,0,0.08); }
+        .theme-dark .masonry-item { background:#0d1520; border-color:#1a2a3a; }
+        .theme-dark .panel-card { background: #0d1520; border-color: #1a2a3a; }
+        .theme-dark .layout-card { background: #111d2a; }
+        .theme-dark .layout-card:hover { border-color: #2a3a4a; }
+        .theme-dark .layout-card.active { border-color: #00b4d8; background: #0a1520; }
+        .theme-dark .style-card { background: #111d2a; }
+        .theme-dark .style-card:hover { border-color: #4a3a6a; }
+        .theme-dark .style-card.active { border-color: #8b5cf6; background: #1a1030; }
+        .theme-dark .style-card .thumb-placeholder { background: #1a2a3a; }
+        .theme-dark .layout-card .thumb-placeholder { background: #1a2a3a; }
+        .theme-dark .tag-btn { background: #1a2a3a; border-color: #2a3a4a; color: #94a3b8; }
+        .theme-dark .template-btn { background: #1a2a3a; border-color: #2a3a4a; color: #94a3b8; }
+        .theme-dark .preset-btn { background: #1a2a3a; border-color: #2a3a4a; color: #94a3b8; }
+        .theme-dark .preset-btn.active { background: #00b4d8; color: #fff; border-color: #00b4d8; }
+        .theme-dark .nano-input { background: #111d2a; border-color: #2a3a4a; color: #e2e8f0; }
+        .theme-dark .nano-textarea { background: #111d2a; border-color: #2a3a4a; color: #e2e8f0; }
+    </style>
+    <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
+</head>
+<body class="antialiased">
+    <div class="container-box">
+        <header class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                    <i data-lucide="layout-grid" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight">海报设计</h1>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400">Poster Design · Boogu</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-100">
+                    <button onclick="setMode('turbo')" id="modeTurbo" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-violet-500 text-white">快速</button>
+                    <button onclick="setMode('base')" id="modeBase" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-500">高质量</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-3 gap-4 flex-1 min-h-0" style="grid-template-columns: 320px 1fr 320px;">
+            <!-- 第一列：布局 + 风格（tab切换）-->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="flex items-center gap-1">
+                        <button onclick="switchTab('layout')" id="tabLayout" class="tab-btn active"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> 布局</button>
+                        <button onclick="switchTab('style')" id="tabStyle" class="tab-btn"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 风格</button>
+                    </div>
+                </div>
+                <!-- 布局面板 -->
+                <div id="panelLayout" class="tab-panel">
+                    <div class="flex gap-1 px-3 py-2 border-b border-gray-100 flex-wrap" id="categoryBar"></div>
+                    <div class="panel-body" style="padding:0;">
+                        <div id="layoutGrid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding:12px;"></div>
+                    </div>
+                </div>
+                <!-- 风格面板 -->
+                <div id="panelStyle" class="tab-panel hidden">
+                    <div class="px-3 py-2 border-b border-gray-100">
+                        <input id="styleSearch" class="nano-input" style="height:32px; font-size:11px;" placeholder="搜索风格...">
+                    </div>
+                    <div id="selectedStyleTag" class="px-3 py-1.5 border-b border-gray-100 hidden">
+                        <div class="flex items-center gap-1 text-[10px] text-purple-600 font-bold">
+                            <i data-lucide="check-circle-2" class="w-3 h-3"></i>
+                            <span id="selectedStyleName"></span>
+                            <button onclick="clearStyle()" class="ml-auto text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div id="styleGrid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding:12px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第二列：文案&参数 -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="icon-box bg-blue-50"><i data-lucide="pen-line" class="w-4 h-4 text-blue-600"></i></div>
+                    <span class="text-sm font-bold text-gray-700">文案 & 参数</span>
+                </div>
+                <div class="panel-body">
+                    <!-- 快速模板 -->
+                    <div class="mb-3">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">快速模板</div>
+                        <div class="flex flex-wrap gap-1.5" id="templateBar"></div>
+                    </div>
+
+                    <div class="w-full h-px bg-gray-100 my-3"></div>
+
+                    <!-- 文案输入 -->
+                    <div class="space-y-2.5">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">标题</label>
+                            <input id="inputTitle" class="nano-input mt-1" placeholder="主标题">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">副标题</label>
+                            <input id="inputSubtitle" class="nano-input mt-1" placeholder="副标题">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">画面主题</label>
+                            <input id="inputTheme" class="nano-input mt-1" placeholder="描述画面内容">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">日期/地点</label>
+                                <input id="inputDate" class="nano-input mt-1" placeholder="可选">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">补充文字</label>
+                                <input id="inputExtra" class="nano-input mt-1" placeholder="可选">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-full h-px bg-gray-100 my-3"></div>
+
+                    <!-- 画面比例 -->
+                    <div class="mb-3">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">画面比例</div>
+                        <div class="flex flex-wrap gap-1.5" id="presetBar"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input id="inputWidth" type="number" value="1024" min="256" max="2048" step="8" class="nano-input text-center" style="width:80px; height:32px; font-size:12px;">
+                            <span class="text-gray-400 text-xs">×</span>
+                            <input id="inputHeight" type="number" value="1536" min="256" max="2048" step="8" class="nano-input text-center" style="width:80px; height:32px; font-size:12px;">
+                        </div>
+                    </div>
+
+                    <div class="w-full h-px bg-gray-100 my-3"></div>
+
+                    <!-- 提示词 -->
+                    <div class="mb-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">提示词</div>
+                            <button onclick="aiExpandPrompt()" id="aiExpandBtn" class="text-[10px] font-bold text-violet-500 hover:text-violet-600 flex items-center gap-1">
+                                <i data-lucide="sparkles" class="w-3 h-3"></i> AI 生成
+                            </button>
+                        </div>
+                        <textarea id="inputPrompt" class="nano-textarea" rows="4" placeholder="海报提示词..."></textarea>
+                    </div>
+
+                    <!-- 步数 -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">步数</div>
+                            <span id="stepsValue" class="text-xs font-bold text-violet-500">4</span>
+                        </div>
+                        <input id="stepsSlider" type="range" min="1" max="50" value="4" class="w-full accent-violet-500" oninput="document.getElementById('stepsValue').textContent=this.value">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第三列：生成结果 + 历史归档 -->
+            <div class="panel-card" style="grid-column: span 1;">
+                <div class="panel-header">
+                    <div class="icon-box bg-emerald-50"><i data-lucide="image" class="w-4 h-4 text-emerald-600"></i></div>
+                    <span class="text-sm font-bold text-gray-700">生成结果</span>
+                    <div class="ml-auto flex items-center gap-2">
+                        <select id="batchCount" class="text-[10px] border border-gray-200 rounded-lg px-2 py-1 bg-white">
+                            <option value="1">1张</option>
+                            <option value="2" selected>2张</option>
+                            <option value="3">3张</option>
+                            <option value="4">4张</option>
+                        </select>
+                        <button onclick="generate()" id="genBtn" class="glass-btn px-4 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5">
+                            <i data-lucide="rocket" class="w-3.5 h-3.5"></i> 生成
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-body" style="padding:0; overflow-y:auto;">
+                    <div id="posterResultArea" class="p-3">
+                        <div class="w-full text-center text-gray-400 py-8">
+                            <i data-lucide="image" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
+                            <p class="text-xs">选择布局、输入文案，点击生成</p>
+                        </div>
+                    </div>
+                    <!-- gallery 瀑布流归档区 -->
+                    <div class="px-3 pb-3">
+                        <div id="masonry" class="masonry-grid thumb-medium"></div>
+                    </div>
+                    <div id="loadMoreTrigger" class="py-6 text-center text-gray-300 text-[10px] font-bold uppercase tracking-widest hidden">加载更多</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // === 数据 ===
+    const LAYOUTS = [];
+    const STYLES = [];
+    const LAYOUT_CATEGORIES = [
+        {id:'0',name:'🎬 电影/影视'},{id:'1',name:'🎵 活动/音乐'},{id:'2',name:'📦 产品发布'},
+        {id:'3',name:'🗺️ 旅游/目的地'},{id:'4',name:'🎓 教育/学术'},{id:'5',name:'💪 激励/励志'},
+        {id:'6',name:'📢 宣传/广告'},{id:'7',name:'🎨 艺术/展览'}
+    ];
+    const POSTER_TEMPLATES = [
+        {name:'电影海报',title:'星际迷航：新纪元',subtitle:'探索未知宇宙',theme:'科幻太空电影，一艘星舰在星云中航行',date:'2026.12.25 全球上映',extra:'IMAX 3D'},
+        {name:'音乐节',title:'夏日热浪音乐节',subtitle:'SUMMER WAVE FESTIVAL',theme:'户外音乐盛会，舞台灯光和人群欢呼',date:'2026.07.20-22',extra:'上海国际音乐村'},
+        {name:'产品发布',title:'NEXT 手机 2026',subtitle:'未来·已来',theme:'现代科技产品发布会，极简背景展示智能手机',date:'2026.09.09 19:00',extra:'在线直播'},
+        {name:'旅游海报',title:'去云南，看春天',subtitle:'油菜花田·雪山洱海',theme:'云南旅游宣传海报，油菜花田背景映衬雪山',date:'三月出发',extra:'跟着春天去旅行'},
+        {name:'艺术展览',title:'现代艺术邀请展',subtitle:'色彩与形式的对话',theme:'抽象几何图形构成的现代艺术展览海报',date:'2026.5.1-6.30',extra:'市美术馆'},
+        {name:'马拉松',title:'城市马拉松',subtitle:'奔向健康',theme:'跑步运动员在城市街道上奔跑，阳光明媚',date:'2026.4.15 开赛',extra:'报名热线：400-XXX'}
+    ];
+    const PRESETS = [
+        {name:'2:3 竖版',w:1024,h:1536},{name:'3:2 横版',w:1536,h:1024},{name:'1:1 方形',w:1024,h:1024},
+        {name:'9:16 竖屏',w:768,h:1344},{name:'16:9 宽屏',w:1344,h:768},{name:'4:3 标准',w:1152,h:896},
+        {name:'3:4 肖像',w:896,h:1152},{name:'21:9 超宽',w:1536,h:640}
+    ];
+
+    // === 状态 ===
+    let selectedLayout = null;
+    let selectedStyle = null;
+    let selectedCategory = '0';
+    let currentMode = 'turbo';
+    let currentPreset = '2:3 竖版';
+    let isGenerating = false;
+
+    // === 初始化 ===
+    async function init() {
+        renderCategories();
+        renderTemplates();
+        renderPresets();
+        await Promise.all([loadLayouts(), loadStyles()]);
+        lucide.createIcons();
+        // 初始化 gallery 系统
+        GalleryDisplay.init({
+            historyType: 'poster',
+            favoritesStorageKey: 'gallery_poster_favorites',
+            galleryFeatures: {
+                delete: true,
+                openFolder: false,
+                download: true,
+                copyToCanvas: false,
+                regenerate: false,
+                batchSelect: true,
+                favorite: true,
+                copyPrompt: true,
+                usePrompt: false,
+                modelBadge: 'auto',
+            },
+        });
+    }
+
+    async function loadLayouts() {
+        try {
+            const res = await fetch('/api/poster/layouts');
+            const data = await res.json();
+            LAYOUTS.length = 0;
+            LAYOUTS.push(...data.layouts);
+            document.getElementById('layoutCount').textContent = LAYOUTS.length;
+            renderLayouts();
+        } catch(e) { console.error('加载布局失败:', e); }
+    }
+
+    async function loadStyles() {
+        try {
+            const res = await fetch('/api/poster/styles');
+            const data = await res.json();
+            STYLES.length = 0;
+            STYLES.push(...data.styles);
+            document.getElementById('styleCount').textContent = STYLES.length;
+            renderStyles();
+        } catch(e) { console.error('加载风格失败:', e); }
+    }
+
+    // === 渲染 ===
+    function renderCategories() {
+        const bar = document.getElementById('categoryBar');
+        bar.innerHTML = LAYOUT_CATEGORIES.map(c =>
+            `<button onclick="selectCategory('${c.id}')" class="tag-btn ${c.id===selectedCategory?'active':''}" data-cat="${c.id}">${c.name}</button>`
+        ).join('');
+    }
+
+    function renderTemplates() {
+        const bar = document.getElementById('templateBar');
+        bar.innerHTML = POSTER_TEMPLATES.map((t,i) =>
+            `<button onclick="applyTemplate(${i})" class="template-btn">${t.name}</button>`
+        ).join('');
+    }
+
+    function renderPresets() {
+        const bar = document.getElementById('presetBar');
+        bar.innerHTML = PRESETS.map(p =>
+            `<button onclick="selectPreset('${p.name}',${p.w},${p.h})" class="preset-btn ${p.name===currentPreset?'active':''}" data-preset="${p.name}">${p.name.split(' ')[0]}</button>`
+        ).join('');
+    }
+
+    function renderLayouts() {
+        const grid = document.getElementById('layoutGrid');
+        const filtered = LAYOUTS.filter(l => l.category === selectedCategory);
+        grid.innerHTML = filtered.map(l => {
+            const isActive = selectedLayout && selectedLayout.id === l.id;
+            const thumb = l.thumbnail || '';
+            const thumbHtml = thumb
+                ? `<div class="thumb-bg" style="background-image:url('${thumb}')"></div>`
+                : `<div class="thumb-placeholder"><span class="text-xs text-gray-400">${l.name}</span></div>`;
+            return `<div class="layout-card ${isActive?'active':''}" onclick="selectLayout('${l.id}')">
+                ${thumbHtml}
+                <div class="name">${l.name}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderStyles() {
+        const grid = document.getElementById('styleGrid');
+        const search = (document.getElementById('styleSearch').value || '').toLowerCase();
+        const filtered = STYLES.filter(s => !search || s.name.toLowerCase().includes(search) || (s.name_cn||'').toLowerCase().includes(search));
+        grid.innerHTML = filtered.map(s => {
+            const isActive = selectedStyle === s.name;
+            const thumb = s.thumbnail || '';
+            const displayName = s.name_cn || s.name;
+            const thumbHtml = thumb
+                ? `<div class="thumb-bg" style="background-image:url('${thumb}')"></div>`
+                : `<div class="thumb-placeholder"><span class="text-[9px] text-gray-400 text-center px-1">${displayName}</span></div>`;
+            return `<div class="style-card ${isActive?'active':''}" onclick="selectStyle('${s.name.replace(/'/g,"\\'")}')">
+                ${thumbHtml}
+                <div class="name">${displayName}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // === Tab切换 ===
+    function switchTab(tab) {
+        const tabLayout = document.getElementById('tabLayout');
+        const tabStyle = document.getElementById('tabStyle');
+        const panelLayout = document.getElementById('panelLayout');
+        const panelStyle = document.getElementById('panelStyle');
+        if (tab === 'layout') {
+            tabLayout.classList.add('active');
+            tabStyle.classList.remove('active');
+            panelLayout.classList.remove('hidden');
+            panelStyle.classList.add('hidden');
+        } else {
+            tabLayout.classList.remove('active');
+            tabStyle.classList.add('active');
+            panelLayout.classList.add('hidden');
+            panelStyle.classList.remove('hidden');
+        }
+    }
+
+    // === 交互 ===
+    function selectCategory(id) {
+        selectedCategory = id;
+        renderCategories();
+        renderLayouts();
+    }
+
+    function selectLayout(id) {
+        selectedLayout = selectedLayout && selectedLayout.id === id ? null : LAYOUTS.find(l => l.id === id) || null;
+        renderLayouts();
+    }
+
+    function selectStyle(name) {
+        selectedStyle = selectedStyle === name ? null : name;
+        const tag = document.getElementById('selectedStyleTag');
+        if (selectedStyle) {
+            const s = STYLES.find(x => x.name === selectedStyle);
+            document.getElementById('selectedStyleName').textContent = s ? (s.name_cn || s.name) : selectedStyle;
+            tag.classList.remove('hidden');
+        } else {
+            tag.classList.add('hidden');
+        }
+        renderStyles();
+    }
+
+    function clearStyle() {
+        selectedStyle = null;
+        document.getElementById('selectedStyleTag').classList.add('hidden');
+        renderStyles();
+    }
+
+    function selectPreset(name, w, h) {
+        currentPreset = name;
+        document.getElementById('inputWidth').value = w;
+        document.getElementById('inputHeight').value = h;
+        renderPresets();
+    }
+
+    function applyTemplate(idx) {
+        const t = POSTER_TEMPLATES[idx];
+        document.getElementById('inputTitle').value = t.title || '';
+        document.getElementById('inputSubtitle').value = t.subtitle || '';
+        document.getElementById('inputTheme').value = t.theme || '';
+        document.getElementById('inputDate').value = t.date || '';
+        document.getElementById('inputExtra').value = t.extra || '';
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        const turbo = document.getElementById('modeTurbo');
+        const base = document.getElementById('modeBase');
+        const slider = document.getElementById('stepsSlider');
+        const stepsVal = document.getElementById('stepsValue');
+        if (mode === 'turbo') {
+            turbo.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-violet-500 text-white';
+            base.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-500';
+            slider.value = 4; stepsVal.textContent = '4';
+        } else {
+            base.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-violet-500 text-white';
+            turbo.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-500';
+            slider.value = 40; stepsVal.textContent = '40';
+        }
+    }
+
+    // === AI 提示词生成 ===
+    async function aiExpandPrompt() {
+        const title = document.getElementById('inputTitle').value.trim();
+        const subtitle = document.getElementById('inputSubtitle').value.trim();
+        if (!title && !subtitle) { alert('请至少输入标题或副标题'); return; }
+
+        const btn = document.getElementById('aiExpandBtn');
+        btn.innerHTML = '<span class="loading-box inline-block"></span> 生成中...';
+
+        // 构建用户输入
+        const parts = [];
+        if (title) parts.push('海报标题：' + title);
+        if (subtitle) parts.push('副标题：' + subtitle);
+        const theme = document.getElementById('inputTheme').value.trim();
+        if (theme) parts.push('画面主题：' + theme);
+        const dateText = document.getElementById('inputDate').value.trim();
+        if (dateText) parts.push('日期/地点：' + dateText);
+        const extra = document.getElementById('inputExtra').value.trim();
+        if (extra) parts.push('补充文字：' + extra);
+        if (selectedLayout) parts.push('构图布局：' + selectedLayout.name + (selectedLayout.description ? '，' + selectedLayout.description : ''));
+        if (selectedStyle) {
+            const s = STYLES.find(x => x.name === selectedStyle);
+            parts.push('艺术风格：' + (s ? (s.name_cn || s.name) : selectedStyle));
+        }
+        parts.push('画面比例：' + currentPreset.split(' ')[0]);
+        parts.push('');
+        parts.push('请根据以上信息，生成一张专业海报的英文提示词。要求：');
+        parts.push('1. 保留用户指定的画面主题和文字内容');
+        parts.push('2. 描述文字在海报上的排版（字体风格、位置、颜色）');
+        parts.push('3. 如有布局和风格要求，体现对应的视觉特征');
+        parts.push('4. 直接输出英文提示词，不要解释');
+
+        const userText = parts.join('\n');
+
+        try {
+            const res = await fetch('/api/smart-prompt', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ prompt: userText })
+            });
+            const data = await res.json();
+            if (data.prompt) {
+                document.getElementById('inputPrompt').value = data.prompt;
+            } else {
+                alert('生成失败: ' + (data.error || '未返回结果'));
+            }
+        } catch(e) {
+            alert('请求失败: ' + e.message);
+        } finally {
+            btn.innerHTML = '<i data-lucide="sparkles" class="w-3 h-3"></i> AI 生成';
+            lucide.createIcons();
+        }
+    }
+
+    // === 生成 ===
+    async function generate() {
+        if (isGenerating) return;
+        const prompt = document.getElementById('inputPrompt').value.trim();
+        if (!prompt) { alert('请输入或生成提示词'); return; }
+
+        isGenerating = true;
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-box inline-block"></span> 生成中...';
+
+        const resultArea = document.getElementById('posterResultArea');
+        resultArea.innerHTML = '<div class="w-full text-center text-gray-400 py-8"><div class="loading-box mx-auto mb-3"></div><p class="text-xs">正在生成海报...</p></div>';
+
+        try {
+            const count = parseInt(document.getElementById('batchCount').value) || 2;
+            const width = parseInt(document.getElementById('inputWidth').value) || 1024;
+            const height = parseInt(document.getElementById('inputHeight').value) || 1536;
+            const steps = parseInt(document.getElementById('stepsSlider').value) || 4;
+
+            const res = await fetch('/api/poster/generate', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    prompt, width, height, steps,
+                    mode: currentMode, count,
+                    style: selectedStyle || '',
+                    style_prompt: selectedStyle ? (STYLES.find(s=>s.name===selectedStyle)||{}).prompt || '' : ''
+                })
+            });
+            const data = await res.json();
+
+            if (data.images && data.images.length > 0) {
+                // 清空临时提示
+                resultArea.innerHTML = '';
+
+                // 用 gallery 系统展示
+                data.images.forEach(function(img) {
+                    var record = {
+                        timestamp: Date.now() + Math.random() * 1000,
+                        images: [img.url],
+                        prompt: prompt,
+                        model: 'boogu-poster-' + currentMode,
+                        params: { width: width, height: height, steps: steps, mode: currentMode }
+                    };
+                    GalleryList.pushNewImage(record);
+                });
+            } else {
+                resultArea.innerHTML = '<div class="w-full text-center text-red-400 py-8"><p class="text-xs">生成失败: ' + (data.error||'未知错误') + '</p></div>';
+            }
+        } catch(e) {
+            resultArea.innerHTML = '<div class="w-full text-center text-red-400 py-8"><p class="text-xs">请求失败: ' + e.message + '</p></div>';
+        } finally {
+            isGenerating = false;
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="rocket" class="w-3.5 h-3.5"></i> 生成';
+            lucide.createIcons();
+        }
+    }
+
+    // === 搜索 ===
+    document.getElementById('styleSearch').addEventListener('input', () => renderStyles());
+
+    // 启动
+    init();
+    </script>
+</body>
+</html>

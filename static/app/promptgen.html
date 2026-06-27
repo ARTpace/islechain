@@ -345,12 +345,6 @@
         }
 
         async function apiFetch(url, options = {}) {
-            // 统一走后端代理，避免 CORS 问题
-            if (url.startsWith('/api/')) {
-                return await fetch(url, options);
-            }
-            return await fetch('/api/comfyui' + url, options);
-        }) {
             if (IS_LOCAL_SERVER) {
                 const directUrl = COMFYUI_SERVER + url;
                 const response = await fetch(directUrl, options);
@@ -412,9 +406,6 @@
             masonrySelector: '#masonry',
             loadMoreSelector: '#loadMoreTrigger',
             favoritesEnabled: true,
-        });
-            pageSize: 15,
-            batchSelect: true
         });
         let uploadedImageName = null;
 
@@ -753,10 +744,6 @@
         function setStatus(text, color) {
             statusText.textContent = text;
             dotColor.style.backgroundColor = color;
-        }
-
-        // Load history
-            } catch (e) { console.log("History load skipped"); }
         }
 
         // 监听表单变化，实时同步到 workflow
