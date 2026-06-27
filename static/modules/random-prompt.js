@@ -78,7 +78,7 @@ const RandomPrompt = (function() {
     // ─────────────────────────────────────────────
     function migratePlanData(plan) {
         let changed = false;
-        ['characters', 'artists', 'presets'].forEach(key => {
+        ['characters', 'artists', 'presets', 'ratios'].forEach(key => {
             const val = plan[key];
             if (!val || Array.isArray(val)) {
                 const oldItems = val || [];
@@ -239,13 +239,12 @@ const RandomPrompt = (function() {
             const charCount = flattenCategory(plan.characters).length;
             const artistCount = flattenCategory(plan.artists).length;
             const presetCount = flattenCategory(plan.presets).length;
-            const charGroups = (plan.characters?.groups || []).length;
-            const artistGroups = (plan.artists?.groups || []).length;
-            const presetGroups = (plan.presets?.groups || []).length;
             const stats = [];
-            if (charCount > 0) stats.push(`<span>👤${charCount}(${charGroups}组)</span>`);
-            if (artistCount > 0) stats.push(`<span>🎨${artistCount}(${artistGroups}组)</span>`);
-            if (presetCount > 0) stats.push(`<span>⚙️${presetCount}(${presetGroups}组)</span>`);
+            if (charCount > 0) stats.push(`<span>👤${charCount}</span>`);
+            if (artistCount > 0) stats.push(`<span>🎨${artistCount}</span>`);
+            if (presetCount > 0) stats.push(`<span>⚙️${presetCount}</span>`);
+            const ratioCount = flattenCategory(plan.ratios).length;
+            if (ratioCount > 0) stats.push(`<span>📐${ratioCount}</span>`);
             return `
                 <div class="random-plan-card" data-name="${escapeHtml(name)}" style="
                     padding:14px 16px;margin-bottom:10px;border-radius:14px;border:1px solid ${colors.border};
@@ -298,6 +297,7 @@ const RandomPrompt = (function() {
             characters: plan.characters,
             artists: plan.artists,
             presets: plan.presets,
+            ratios: plan.ratios || { groups: [] },
             lora: plan.lora || false,
             fixedPrompt: plan.fixedPrompt || ''
         };
@@ -355,6 +355,7 @@ const RandomPrompt = (function() {
                 ${renderCategorySection('characters', '角色', '👤')}
                 ${renderCategorySection('artists', '画师', '🎨')}
                 ${renderCategorySection('presets', '预设', '⚙️')}
+                ${renderCategorySection('ratios', '比例', '📐')}
             </div>
             <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;gap:8px;justify-content:flex-end;">
                 <button id="editor-cancel" style="padding:10px 20px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};">取消</button>
@@ -391,6 +392,9 @@ const RandomPrompt = (function() {
     // ─────────────────────────────────────────────
     // 分组颜色预设
     const GROUP_COLORS = ['#00b4d8','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6366f1','#14b8a6'];
+
+    // 可选比例
+    const RATIO_OPTIONS = ['1:1','4:3','3:4','16:9','9:16','3:2','2:3','21:9'];
 
     function renderCategorySection(planKey, label, icon) {
         const colors = getThemeColors();
@@ -555,8 +559,12 @@ const RandomPrompt = (function() {
         section.querySelectorAll('.add-item-btn').forEach(el => {
             el.addEventListener('click', () => {
                 currentPickerGroupIdx = parseInt(el.dataset.gIdx);
-                currentPickerType = planKey === 'characters' ? 'character' : planKey === 'artists' ? 'artist' : 'preset';
-                openPickerForEditor(currentPickerType);
+                if (planKey === 'ratios') {
+                    openRatioPicker(planKey, currentPickerGroupIdx);
+                } else {
+                    currentPickerType = planKey === 'characters' ? 'character' : planKey === 'artists' ? 'artist' : 'preset';
+                    openPickerForEditor(currentPickerType);
+                }
             });
         });
 
@@ -780,6 +788,76 @@ const RandomPrompt = (function() {
         return control;
     }
 
+    // === 比例选择器（checkbox 弹窗）===
+    function openRatioPicker(planKey, gIdx) {
+        const colors = getThemeColors();
+        const group = currentPlan[planKey].groups[gIdx];
+        const selected = new Set(group.items || []);
+
+        hideEditorPanel();
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(90vw,360px);background:${colors.bg};border-radius:16px;
+            box-shadow:${colors.shadow};z-index:10002;overflow:hidden;color:${colors.text};
+        `;
+
+        const renderOptions = () => {
+            modal.innerHTML = `
+                <div style="padding:16px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-size:15px;font-weight:700;">选择比例</div>
+                    <button id="ratio-picker-close" style="width:32px;height:32px;border-radius:10px;border:none;background:${colors.bgSoft};cursor:pointer;font-size:16px;color:${colors.textSub};display:flex;align-items:center;justify-content:center;">✕</button>
+                </div>
+                <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    ${RATIO_OPTIONS.map(r => {
+                        const active = selected.has(r);
+                        const [w, h] = r.split(':').map(Number);
+                        const isVertical = h > w;
+                        const boxW = isVertical ? 16 : 24;
+                        const boxH = isVertical ? 24 : 16;
+                        return `
+                            <div class="ratio-option" data-ratio="${r}" style="
+                                display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;
+                                border:1.5px solid ${active ? colors.accent : colors.border};
+                                background:${active ? colors.accent + '10' : 'transparent'};cursor:pointer;
+                            ">
+                                <div style="width:${boxW}px;height:${boxH}px;border:2px solid ${active ? colors.accent : colors.textSub};border-radius:3px;flex-shrink:0;"></div>
+                                <span style="font-size:14px;font-weight:700;color:${active ? colors.accent : colors.text};">${r}</span>
+                            </div>`;
+                    }).join('')}
+                </div>
+                <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;justify-content:flex-end;">
+                    <button id="ratio-picker-confirm" style="
+                        padding:10px 24px;border-radius:10px;border:none;
+                        background:${colors.accent};color:#fff;cursor:pointer;font-size:13px;font-weight:700;
+                    ">确认</button>
+                </div>
+            `;
+
+            modal.querySelectorAll('.ratio-option').forEach(el => {
+                el.addEventListener('click', () => {
+                    const r = el.dataset.ratio;
+                    if (selected.has(r)) selected.delete(r); else selected.add(r);
+                    renderOptions();
+                });
+            });
+
+            modal.querySelector('#ratio-picker-close').addEventListener('click', () => {
+                modal.remove(); showEditorPanel();
+            });
+            modal.querySelector('#ratio-picker-confirm').addEventListener('click', () => {
+                group.items = [...selected];
+                modal.remove();
+                showEditorPanel();
+                refreshCategory(document.getElementById('random-plan-editor'), planKey);
+            });
+        };
+
+        document.body.appendChild(modal);
+        renderOptions();
+    }
+
     function openPickerForEditor(type) {
         currentPickerType = type;
         hideEditorPanel();
@@ -846,7 +924,7 @@ const RandomPrompt = (function() {
         const name = editor.querySelector('#editor-plan-name').value.trim();
         if (!name) { alert('请输入方案名称'); return; }
 
-        const hasItems = ['characters', 'artists', 'presets'].some(k => flattenCategory(currentPlan[k]).length > 0);
+        const hasItems = ['characters', 'artists', 'presets', 'ratios'].some(k => flattenCategory(currentPlan[k]).length > 0);
         if (!hasItems) { alert('请至少在一个分组中添加项目'); return; }
 
         plans[name] = {
@@ -854,6 +932,7 @@ const RandomPrompt = (function() {
             characters: currentPlan.characters,
             artists: currentPlan.artists,
             presets: currentPlan.presets,
+            ratios: currentPlan.ratios,
             lora: currentPlan.lora,
             fixedPrompt: currentPlan.fixedPrompt || ''
         };
@@ -892,6 +971,33 @@ const RandomPrompt = (function() {
         const parts = [...fixedPrompt.trim().split(',').map(s => s.trim()), ...positive.trim().split(',').map(s => s.trim())];
         const seen = new Set();
         return parts.filter(p => { if (!p) return false; const l = p.toLowerCase(); if (seen.has(l)) return false; seen.add(l); return true; }).join(', ');
+    }
+
+    // 从比例分组中随机选一个并应用
+    function applyRandomRatio(ratios) {
+        if (!ratios?.groups) return;
+        const sampled = [];
+        ratios.groups.forEach(g => {
+            if (g.enabled === false || !g.items?.length) return;
+            const count = Math.min(g.count || 1, g.items.length);
+            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
+            sampled.push(...shuffled.slice(0, count));
+        });
+        if (sampled.length === 0) return;
+        const picked = sampled[Math.floor(Math.random() * sampled.length)];
+        const [w, h] = picked.split(':').map(Number);
+        if (!w || !h) return;
+        // 应用到全局变量
+        try {
+            if (typeof selectRatio === 'function') {
+                selectRatio(picked, w, h);
+            } else {
+                window.animaRatioW = w;
+                window.animaRatioH = h;
+                localStorage.setItem('anima_ratio_w', w);
+                localStorage.setItem('anima_ratio_h', h);
+            }
+        } catch (e) { console.warn('[RandomPrompt] 应用比例失败:', e); }
     }
 
     // 对单个大类调用 API
@@ -959,6 +1065,9 @@ const RandomPrompt = (function() {
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, plan.fixedPrompt);
 
+            // 随机比例
+            applyRandomRatio(plan.ratios);
+
             if (onApplyCallback) onApplyCallback({ positive, negative: '', raw: {} });
 
             document.getElementById('random-main-panel').style.display = 'none';
@@ -992,6 +1101,9 @@ const RandomPrompt = (function() {
             }
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, currentPlan.fixedPrompt);
+
+            // 随机比例
+            applyRandomRatio(currentPlan.ratios);
 
             const promptEl = document.getElementById('prompt');
             if (promptEl && positive) {
@@ -1067,6 +1179,7 @@ const RandomPrompt = (function() {
                 }
                 let positive = parts.filter(Boolean).join(', ');
                 positive = mergeWithFixed(positive, plan.fixedPrompt);
+                applyRandomRatio(plan.ratios);
                 return { positive, raw: {} };
             } catch (e) {
                 console.error('[RandomPrompt] 自动随机失败:', e);

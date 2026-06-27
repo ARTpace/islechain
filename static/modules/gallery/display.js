@@ -707,7 +707,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             extraButtons.push({
                 id: 'nsfw-toggle',
                 label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> 屏蔽 NSFW</span>',
-                title: '将 prompt 中含 NSFW 关键词的生成图替换为蒙版',
+                title: '开启后不显示 NSFW 相关图片',
                 onClick: (btn) => {
                     const on = !document.body.classList.contains('nsfw-mode');
                     document.body.classList.toggle('nsfw-mode', on);

@@ -78,11 +78,8 @@
             /* NSFW 角标（默认隐藏，开启"显示角标"或屏蔽模式时可见） */
             .nsfw-badge{position:absolute;left:10px;bottom:10px;z-index:14;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:.1em;background:rgba(220,38,38,.92);color:#fff;backdrop-filter:blur(4px);box-shadow:0 4px 12px rgba(0,0,0,.25);display:none}
             body.show-nsfw-badges .nsfw-badge{display:inline-block}
-            /* NSFW 屏蔽模式：蒙版 + 中央提示 */
-            body.nsfw-mode .masonry-item[data-nsfw="1"]{position:relative;cursor:default!important}
-            body.nsfw-mode .masonry-item[data-nsfw="1"] > img, body.nsfw-mode .masonry-item[data-nsfw="1"] img{filter:blur(24px) saturate(.4);transition:filter .2s}
-            body.nsfw-mode .masonry-item[data-nsfw="1"]::before{content:"";position:absolute;inset:0;z-index:11;background:rgba(17,24,39,.32);pointer-events:none;transition:background .2s}
-            body.nsfw-mode .masonry-item[data-nsfw="1"]:hover > img{filter:blur(28px) saturate(.3)}
+            /* NSFW 屏蔽模式：直接隐藏 */
+            body.nsfw-mode .masonry-item[data-nsfw="1"]{display:none!important}
             /* 收藏按钮高亮态 */
             .history-bulk-btn[data-extra-btn="fav-toggle"].is-on{background:#f59e0b;border-color:#f59e0b;color:#fff}
             .history-bulk-btn[data-extra-btn="fav-toggle"].is-on:hover{background:#d97706;border-color:#d97706;color:#fff}
