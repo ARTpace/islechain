@@ -1,6 +1,6 @@
 /**
- * 随机提示词配置组件
- * 支持方案管理，复用现有选择器
+ * 随机提示词配置组件（分组版）
+ * 支持方案管理、分组控制、复用现有选择器
  * 
  * 使用方法：
  * 1. 引入本文件
@@ -13,28 +13,27 @@ const RandomPrompt = (function() {
     const STORAGE_KEY = 'random_plans';
     const AUTO_RANDOM_KEY = 'random_auto_enabled';
     const AUTO_RANDOM_PLAN_KEY = 'random_auto_plan';
-    const FIXED_PROMPT_KEY = 'random_fixed_prompt';
-    
+
     // === 状态 ===
     let plans = {};
     let currentPlan = null;
     let onApplyCallback = null;
     let autoRandomEnabled = false;
     let autoRandomPlanName = '';
-    let fixedPrompt = '';
-    
+
     // === 主题检测 ===
     function isDarkTheme() {
-        return document.body.classList.contains('studio-theme-dark') || 
-               document.documentElement.classList.contains('studio-theme-dark') ||
-               document.body.classList.contains('theme-dark') ||
-               document.documentElement.classList.contains('theme-dark');
+        return document.body.classList.contains('studio-theme-dark') ||
+            document.documentElement.classList.contains('studio-theme-dark') ||
+            document.body.classList.contains('theme-dark') ||
+            document.documentElement.classList.contains('theme-dark');
     }
-    
+
     function getThemeColors() {
         const dark = isDarkTheme();
         return {
             bg: dark ? '#0d1520' : '#fff',
+            bgSoft: dark ? '#141c2b' : '#f8f9fa',
             text: dark ? '#e0e7ef' : '#1a1a1a',
             textSub: dark ? '#666' : '#999',
             border: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
@@ -44,127 +43,155 @@ const RandomPrompt = (function() {
             danger: '#ef4444'
         };
     }
-    
-    // === 初始化 ===
+
+    // === 工具函数 ===
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function genId() {
+        return 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:10px;
+            font-size:12px;font-weight:600;z-index:10001;transform:translateX(120%);
+            transition:transform 0.3s ease;
+            background:${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#00b4d8'};
+            color:#fff;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ─────────────────────────────────────────────
+    //  数据迁移：旧格式(扁平数组) → 新格式(分组)
+    // ─────────────────────────────────────────────
+    function migratePlanData(plan) {
+        let changed = false;
+        ['characters', 'artists', 'presets'].forEach(key => {
+            const val = plan[key];
+            if (!val || Array.isArray(val)) {
+                const oldItems = val || [];
+                plan[key] = {
+                    groups: oldItems.length > 0
+                        ? [{ id: genId(), name: '默认', items: [...oldItems], enabled: true, count: 1, color: GROUP_COLORS[0] }]
+                        : []
+                };
+                changed = true;
+            }
+            // 给没有 color 的组补上
+            if (plan[key]?.groups) {
+                plan[key].groups.forEach((g, i) => {
+                    if (!g.color) { g.color = GROUP_COLORS[i % GROUP_COLORS.length]; changed = true; }
+                });
+            }
+        });
+        if ('characterCount' in plan) { delete plan.characterCount; changed = true; }
+        if ('artistCount' in plan) { delete plan.artistCount; changed = true; }
+        if ('presetCount' in plan) { delete plan.presetCount; changed = true; }
+        return changed;
+    }
+
+    // 获取大类下所有 items 的摊平数组
+    function flattenCategory(cat) {
+        if (!cat || !cat.groups) return [];
+        return cat.groups.flatMap(g => g.items || []);
+    }
+
+    // ─────────────────────────────────────────────
+    //  初始化
+    // ─────────────────────────────────────────────
     function init(containerId, options = {}) {
         const container = document.getElementById(containerId);
-        if (!container) {
-            console.error('[RandomPrompt] 容器不存在:', containerId);
-            return;
-        }
-        
+        if (!container) { console.error('[RandomPrompt] 容器不存在:', containerId); return; }
         onApplyCallback = options.onApply || null;
-        
-        // 加载保存的方案
         loadPlans();
-        
-        // 创建触发按钮
+
         const btn = createTriggerButton();
         container.appendChild(btn);
-        
-        // 创建主面板
+
         const panel = createMainPanel();
         document.body.appendChild(panel);
-        
-        // 绑定事件
+
         btn.addEventListener('click', () => togglePanel(panel, false));
     }
-    
-    // === 创建触发按钮 ===
+
+    // ─────────────────────────────────────────────
+    //  触发按钮（🎲）
+    // ─────────────────────────────────────────────
     function createTriggerButton() {
         const btn = document.createElement('button');
         btn.className = 'random-prompt-trigger';
         btn.innerHTML = '🎲';
         btn.title = '随机方案管理';
         btn.style.cssText = `
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            border: 1px solid rgba(0,0,0,0.1);
-            background: transparent;
-            cursor: pointer;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s;
-            flex-shrink: 0;
+            width:36px;height:36px;border-radius:10px;border:1px solid rgba(0,0,0,0.1);
+            background:transparent;cursor:pointer;font-size:18px;
+            display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;
         `;
-        btn.addEventListener('mouseenter', () => {
-            btn.style.background = 'rgba(0,180,216,0.1)';
-            btn.style.borderColor = '#00b4d8';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.background = 'transparent';
-            btn.style.borderColor = 'rgba(0,0,0,0.1)';
-        });
+        btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,180,216,0.1)'; btn.style.borderColor = '#00b4d8'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; btn.style.borderColor = 'rgba(0,0,0,0.1)'; });
         return btn;
     }
-    
-    // === 创建主面板 ===
+
+    // ─────────────────────────────────────────────
+    //  主面板
+    // ─────────────────────────────────────────────
     function createMainPanel() {
         const colors = getThemeColors();
         const panel = document.createElement('div');
         panel.id = 'random-main-panel';
         panel.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 560px;
-            max-height: 80vh;
-            background: ${colors.bg};
-            border-radius: 16px;
-            box-shadow: ${colors.shadow};
-            z-index: 10000;
-            display: none;
-            overflow: hidden;
-            color: ${colors.text};
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(92vw,560px);max-height:85vh;background:${colors.bg};border-radius:20px;
+            box-shadow:${colors.shadow};z-index:10000;display:none;overflow:hidden;color:${colors.text};
         `;
-        
+
         panel.innerHTML = `
-            <div style="padding:16px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:15px;font-weight:800;">🎲 随机方案管理</div>
-                <button id="random-panel-close" style="width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:18px;color:${colors.textSub};">✕</button>
+            <div style="padding:18px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
+                <div style="font-size:17px;font-weight:800;">🎲 随机方案</div>
+                <button id="random-panel-close" style="width:36px;height:36px;border-radius:12px;border:none;background:${colors.bgSoft};cursor:pointer;font-size:18px;color:${colors.textSub};display:flex;align-items:center;justify-content:center;">✕</button>
             </div>
-            
-            <div style="padding:16px 20px;overflow-y:auto;max-height:60vh;">
-                <!-- 自动随机开关 -->
-                <div style="padding:12px;border-radius:10px;border:1px solid ${colors.border};margin-bottom:16px;background:${colors.bg};">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <div style="font-size:13px;font-weight:700;">⚡ 自动随机</div>
-                        <div id="auto-random-toggle" style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:all 0.2s;background:${autoRandomEnabled ? colors.accent : colors.border};position:relative;">
-                            <div style="position:absolute;top:3px;left:${autoRandomEnabled ? '21px' : '3px'};width:16px;height:16px;background:#fff;border-radius:50%;transition:all 0.2s;"></div>
+            <div style="padding:16px 20px;overflow-y:auto;max-height:calc(85vh - 140px);">
+                <div style="padding:14px;border-radius:14px;border:1px solid ${colors.border};margin-bottom:16px;background:${colors.bgSoft};">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="font-size:14px;font-weight:700;">⚡ 自动随机</div>
+                        <div id="auto-random-toggle" style="width:44px;height:24px;border-radius:12px;cursor:pointer;transition:all 0.2s;background:${autoRandomEnabled ? colors.accent : colors.border};position:relative;">
+                            <div style="position:absolute;top:2px;left:${autoRandomEnabled ? '22px' : '2px'};width:20px;height:20px;background:#fff;border-radius:50%;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.15);"></div>
                         </div>
                     </div>
-                    <div style="font-size:11px;color:${colors.textSub};margin-bottom:8px;">开启后，每次生成图片时自动应用随机方案</div>
-                    <select id="auto-random-plan" style="width:100%;padding:8px;border:1px solid ${colors.border};border-radius:8px;font-size:12px;background:transparent;color:${colors.text};outline:none;${autoRandomEnabled ? '' : 'opacity:0.5;pointer-events:none;'}">
+                    <div style="font-size:12px;color:${colors.textSub};margin-bottom:10px;">开启后，每次生成图片时自动应用随机方案</div>
+                    <select id="auto-random-plan" style="width:100%;padding:10px;border:1px solid ${colors.border};border-radius:10px;font-size:13px;background:transparent;color:${colors.text};outline:none;${autoRandomEnabled ? '' : 'opacity:0.5;pointer-events:none;'}">
                         <option value="">选择方案...</option>
                     </select>
                 </div>
-                
                 <div id="random-plan-list"></div>
             </div>
-            
-            <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;gap:8px;">
-                <button id="random-new-plan" style="flex:1;padding:10px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <span style="font-size:16px;">+</span> 新建方案
+            <div style="padding:14px 20px;border-top:1px solid ${colors.border};">
+                <button id="random-new-plan" style="
+                    width:100%;padding:14px;border-radius:14px;border:1.5px dashed ${colors.accent}60;
+                    background:transparent;cursor:pointer;font-size:14px;font-weight:700;color:${colors.accent};
+                    display:flex;align-items:center;justify-content:center;gap:8px;
+                ">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    新建方案
                 </button>
             </div>
         `;
-        
-        // 绑定关闭按钮
-        panel.querySelector('#random-panel-close').addEventListener('click', () => {
-            panel.style.display = 'none';
-        });
-        
-        // 绑定新建方案
-        panel.querySelector('#random-new-plan').addEventListener('click', () => {
-            openPlanEditor(null);
-        });
 
-        
-        // 绑定自动随机开关
+        panel.querySelector('#random-panel-close').addEventListener('click', () => panel.style.display = 'none');
+        panel.querySelector('#random-new-plan').addEventListener('click', () => openPlanEditor(null));
+
         const autoToggle = panel.querySelector('#auto-random-toggle');
         autoToggle.addEventListener('click', () => {
             autoRandomEnabled = !autoRandomEnabled;
@@ -175,902 +202,802 @@ const RandomPrompt = (function() {
             planSelect.style.pointerEvents = autoRandomEnabled ? 'auto' : 'none';
             saveAutoRandomSettings();
         });
-        
-        // 绑定方案选择
+
         const autoPlanSelect = panel.querySelector('#auto-random-plan');
-        autoPlanSelect.addEventListener('change', () => {
-            autoRandomPlanName = autoPlanSelect.value;
-            saveAutoRandomSettings();
-        });
-        
+        autoPlanSelect.addEventListener('change', () => { autoRandomPlanName = autoPlanSelect.value; saveAutoRandomSettings(); });
+
         return panel;
     }
-    
-    // === 渲染方案列表 ===
+
+    // ─────────────────────────────────────────────
+    //  方案列表渲染
+    // ─────────────────────────────────────────────
     function renderPlanList() {
         const container = document.getElementById('random-plan-list');
         if (!container) return;
-        
         const colors = getThemeColors();
         const planNames = Object.keys(plans);
-        
-        // 更新自动随机方案下拉框
+
+        // 更新自动随机下拉
         const autoPlanSelect = document.getElementById('auto-random-plan');
         if (autoPlanSelect) {
-            autoPlanSelect.innerHTML = '<option value="">选择方案...</option>' + 
-                planNames.map(name => `<option value="${escapeHtml(name)}" ${name === autoRandomPlanName ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+            autoPlanSelect.innerHTML = '<option value="">选择方案...</option>' +
+                planNames.map(n => `<option value="${escapeHtml(n)}" ${n === autoRandomPlanName ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
         }
-        
+
         if (planNames.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center;padding:40px 20px;color:${colors.textSub};">
-                    <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">📋</div>
-                    <div style="font-size:13px;font-weight:600;">暂无方案</div>
-                    <div style="font-size:11px;margin-top:4px;">点击"新建方案"创建你的第一个随机方案</div>
-                </div>
-            `;
+            container.innerHTML = `<div style="text-align:center;padding:40px 20px;color:${colors.textSub};">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">📋</div>
+                <div style="font-size:13px;font-weight:600;">暂无方案</div>
+                <div style="font-size:11px;margin-top:4px;">点击"新建方案"创建你的第一个随机方案</div>
+            </div>`;
             return;
         }
-        
+
         container.innerHTML = planNames.map(name => {
             const plan = plans[name];
-            const charCount = plan.characters?.length || 0;
-            const artistCount = plan.artists?.length || 0;
-            const presetCount = plan.presets?.length || 0;
-            
+            const charCount = flattenCategory(plan.characters).length;
+            const artistCount = flattenCategory(plan.artists).length;
+            const presetCount = flattenCategory(plan.presets).length;
+            const charGroups = (plan.characters?.groups || []).length;
+            const artistGroups = (plan.artists?.groups || []).length;
+            const presetGroups = (plan.presets?.groups || []).length;
+            const stats = [];
+            if (charCount > 0) stats.push(`<span>👤${charCount}(${charGroups}组)</span>`);
+            if (artistCount > 0) stats.push(`<span>🎨${artistCount}(${artistGroups}组)</span>`);
+            if (presetCount > 0) stats.push(`<span>⚙️${presetCount}(${presetGroups}组)</span>`);
             return `
                 <div class="random-plan-card" data-name="${escapeHtml(name)}" style="
-                    padding:12px 16px;
-                    margin-bottom:8px;
-                    border-radius:12px;
-                    border:1px solid ${colors.border};
-                    background:${colors.bg};
-                    cursor:pointer;
-                    transition:all 0.15s;
+                    padding:14px 16px;margin-bottom:10px;border-radius:14px;border:1px solid ${colors.border};
+                    background:${colors.bgSoft};
                 ">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <div style="font-size:13px;font-weight:700;">${escapeHtml(name)}</div>
-                        <div style="display:flex;gap:4px;">
-                            <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="padding:4px 8px;border-radius:6px;border:none;background:rgba(0,180,216,0.1);color:${colors.accent};cursor:pointer;font-size:11px;font-weight:600;">编辑</button>
-                            <button class="plan-delete-btn" data-name="${escapeHtml(name)}" style="padding:4px 8px;border-radius:6px;border:none;background:rgba(239,68,68,0.1);color:${colors.danger};cursor:pointer;font-size:11px;font-weight:600;">删除</button>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="font-size:15px;font-weight:700;">${escapeHtml(name)}</div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="
+                                width:38px;height:38px;border-radius:12px;border:none;
+                                background:rgba(0,180,216,0.1);color:${colors.accent};cursor:pointer;
+                                display:flex;align-items:center;justify-content:center;padding:0;
+                            " title="编辑">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            </button>
+                            <button class="plan-delete-btn" data-name="${escapeHtml(name)}" style="
+                                width:38px;height:38px;border-radius:12px;border:none;
+                                background:rgba(239,68,68,0.08);color:${colors.textSub};cursor:pointer;
+                                display:flex;align-items:center;justify-content:center;padding:0;
+                            " title="删除">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            </button>
                         </div>
                     </div>
-                    <div style="font-size:11px;color:${colors.textSub};display:flex;gap:12px;">
-                        ${charCount > 0 ? `<span>👤 ${charCount}个角色</span>` : ''}
-                        ${artistCount > 0 ? `<span>🎨 ${artistCount}个画师</span>` : ''}
-                        ${presetCount > 0 ? `<span>⚙️ ${presetCount}个预设</span>` : ''}
-                    </div>
-                    <button class="plan-apply-btn" data-name="${escapeHtml(name)}" style="
-                        width:100%;
-                        margin-top:10px;
-                        padding:8px;
-                        border-radius:8px;
-                        border:1px solid ${colors.border};
-                        background:transparent;
-                        cursor:pointer;
-                        font-size:12px;
-                        font-weight:600;
-                        color:${colors.text};
-                        transition:all 0.15s;
-                    ">应用此方案</button>
-                </div>
-            `;
+                    ${stats.length > 0 ? `<div style="font-size:12px;color:${colors.textSub};display:flex;gap:14px;">${stats.join('')}</div>` : ''}
+                </div>`;
         }).join('');
-        
-        // 绑定编辑按钮
+
+        // 绑定事件
         container.querySelectorAll('.plan-edit-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const name = btn.dataset.name;
-                openPlanEditor(name);
-            });
+            btn.addEventListener('click', (e) => { e.stopPropagation(); openPlanEditor(btn.dataset.name); });
         });
-        
-        // 绑定删除按钮
         container.querySelectorAll('.plan-delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const name = btn.dataset.name;
-                if (confirm(`确定删除方案"${name}"吗？`)) {
-                    deletePlan(name);
-                }
-            });
-        });
-        
-        // 绑定应用按钮
-        container.querySelectorAll('.plan-apply-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const name = btn.dataset.name;
-                applyPlan(name);
-            });
+            btn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('确定删除方案"' + btn.dataset.name + '"？')) deletePlan(btn.dataset.name); });
         });
     }
-    
-    // === 打开方案编辑器 ===
+
+    // ─────────────────────────────────────────────
+    //  打开方案编辑器
+    // ─────────────────────────────────────────────
     function openPlanEditor(planName) {
         const isEdit = planName !== null;
-        const plan = isEdit ? plans[planName] : { characters: [], artists: [], presets: [], lora: false };
-        
-        // 存储当前编辑的方案
+        const rawPlan = isEdit ? plans[planName] : {};
+        // 深拷贝 + 迁移
+        const plan = JSON.parse(JSON.stringify(rawPlan));
+        migratePlanData(plan);
+
         currentPlan = {
             name: isEdit ? planName : '',
-            characters: [...(plan.characters || [])],
-            artists: [...(plan.artists || [])],
-            presets: [...(plan.presets || [])],
+            characters: plan.characters,
+            artists: plan.artists,
+            presets: plan.presets,
             lora: plan.lora || false,
-            characterCount: plan.characterCount || 1,
-            artistCount: plan.artistCount || 1,
-            presetCount: plan.presetCount || 1,
             fixedPrompt: plan.fixedPrompt || ''
         };
-        
-        // 隐藏主面板
+
         document.getElementById('random-main-panel').style.display = 'none';
-        
-        // 删除旧的编辑器（如果存在）
         const oldEditor = document.getElementById('random-plan-editor');
-        if (oldEditor) {
-            oldEditor.remove();
-        }
-        
-        // 创建并显示新编辑器
+        if (oldEditor) oldEditor.remove();
+
         const editor = createPlanEditor(isEdit);
         document.body.appendChild(editor);
         editor.style.display = 'block';
     }
-    
-    // === 创建方案编辑器 ===
+
+    // ─────────────────────────────────────────────
+    //  创建方案编辑器
+    // ─────────────────────────────────────────────
     function createPlanEditor(isEdit) {
         const colors = getThemeColors();
         const editor = document.createElement('div');
         editor.id = 'random-plan-editor';
         editor.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            max-height: 85vh;
-            background: ${colors.bg};
-            border-radius: 16px;
-            box-shadow: ${colors.shadow};
-            z-index: 10001;
-            display: none;
-            overflow: hidden;
-            color: ${colors.text};
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:620px;max-height:85vh;background:${colors.bg};border-radius:16px;
+            box-shadow:${colors.shadow};z-index:10001;display:none;overflow:hidden;color:${colors.text};
         `;
-        
+
         editor.innerHTML = `
-            <div style="padding:16px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:15px;font-weight:800;">${isEdit ? '编辑方案' : '新建方案'}</div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <button id="editor-test" title="测试方案：随机生成提示词到提示词框" style="padding:6px 14px;border-radius:8px;border:1px solid ${colors.accent};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.accent};display:flex;align-items:center;gap:5px;">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
-                        测试
-                    </button>
-                    <button id="editor-close" style="width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:18px;color:${colors.textSub};">✕</button>
-                </div>
-            </div>
-            
-            <div style="padding:16px 20px;overflow-y:auto;max-height:65vh;">
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:11px;font-weight:700;color:${colors.textSub};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">方案名称</label>
+            <div style="padding:12px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;background:${colors.bgSoft};border:1px solid ${colors.border};min-width:0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                     <input id="editor-plan-name" type="text" value="${escapeHtml(currentPlan.name)}" placeholder="输入方案名称" style="
-                        width:100%;
-                        padding:10px 12px;
-                        border:1px solid ${colors.border};
-                        border-radius:10px;
-                        font-size:13px;
-                        font-weight:600;
-                        background:transparent;
-                        color:${colors.text};
-                        outline:none;
-                        box-sizing:border-box;
+                        flex:1;min-width:0;border:none;background:transparent;font-size:14px;font-weight:700;
+                        color:${colors.text};outline:none;padding:0;
                     ">
                 </div>
-                
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:11px;font-weight:700;color:${colors.textSub};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">📌 固定提示词</label>
-                    <div style="font-size:11px;color:${colors.textSub};margin-bottom:6px;">每次生成都会保留，不会被随机替换</div>
-                    <textarea id="editor-fixed-prompt" placeholder="输入固定提示词，如: masterpiece, best quality" style="width:100%;padding:8px;border:1px solid ${colors.border};border-radius:8px;font-size:12px;background:transparent;color:${colors.text};outline:none;resize:none;min-height:56px;font-family:ui-monospace,Menlo,monospace;box-sizing:border-box;">${escapeHtml(currentPlan.fixedPrompt)}</textarea>
-                </div>
-                
-                <div style="margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <label style="font-size:11px;font-weight:700;color:${colors.textSub};text-transform:uppercase;letter-spacing:0.05em;">角色</label>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:11px;color:${colors.textSub};">每次随机</span>
-                            <input type="number" id="character-count" value="${currentPlan.characterCount}" min="1" max="10" style="width:40px;padding:4px 6px;border:1px solid ${colors.border};border-radius:6px;font-size:11px;text-align:center;background:transparent;color:${colors.text};outline:none;">
-                            <span style="font-size:11px;color:${colors.textSub};">个</span>
-                            <button id="add-characters" style="padding:4px 10px;border-radius:6px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:11px;font-weight:600;color:${colors.text};">+ 添加</button>
-                        </div>
-                    </div>
-                    <div id="editor-characters" style="
-                        min-height:50px;
-                        padding:10px;
-                        border:1px solid ${colors.border};
-                        border-radius:10px;
-                        display:flex;
-                        flex-wrap:wrap;
-                        gap:6px;
-                    ">
-                        ${renderSelectedItems(currentPlan.characters, 'character')}
-                    </div>
-                </div>
-                
-                <div style="margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <label style="font-size:11px;font-weight:700;color:${colors.textSub};text-transform:uppercase;letter-spacing:0.05em;">画师</label>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:11px;color:${colors.textSub};">每次随机</span>
-                            <input type="number" id="artist-count" value="${currentPlan.artistCount}" min="1" max="10" style="width:40px;padding:4px 6px;border:1px solid ${colors.border};border-radius:6px;font-size:11px;text-align:center;background:transparent;color:${colors.text};outline:none;">
-                            <span style="font-size:11px;color:${colors.textSub};">个</span>
-                            <button id="add-artists" style="padding:4px 10px;border-radius:6px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:11px;font-weight:600;color:${colors.text};">+ 添加</button>
-                        </div>
-                    </div>
-                    <div id="editor-artists" style="
-                        min-height:50px;
-                        padding:10px;
-                        border:1px solid ${colors.border};
-                        border-radius:10px;
-                        display:flex;
-                        flex-wrap:wrap;
-                        gap:6px;
-                    ">
-                        ${renderSelectedItems(currentPlan.artists, 'artist')}
-                    </div>
-                </div>
-                
-                <div style="margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <label style="font-size:11px;font-weight:700;color:${colors.textSub};text-transform:uppercase;letter-spacing:0.05em;">预设</label>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:11px;color:${colors.textSub};">每次随机</span>
-                            <input type="number" id="preset-count" value="${currentPlan.presetCount}" min="1" max="10" style="width:40px;padding:4px 6px;border:1px solid ${colors.border};border-radius:6px;font-size:11px;text-align:center;background:transparent;color:${colors.text};outline:none;">
-                            <span style="font-size:11px;color:${colors.textSub};">个</span>
-                            <button id="add-presets" style="padding:4px 10px;border-radius:6px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:11px;font-weight:600;color:${colors.text};">+ 添加</button>
-                        </div>
-                    </div>
-                    <div id="editor-presets" style="
-                        min-height:50px;
-                        padding:10px;
-                        border:1px solid ${colors.border};
-                        border-radius:10px;
-                        display:flex;
-                        flex-wrap:wrap;
-                        gap:6px;
-                    ">
-                        ${renderSelectedItems(currentPlan.presets, 'preset')}
-                    </div>
-                </div>
+                <button id="editor-test" title="测试方案" style="padding:6px 14px;border-radius:8px;border:1px solid ${colors.accent};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.accent};display:flex;align-items:center;gap:5px;flex-shrink:0;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+                    测试
+                </button>
+                <button id="editor-close" style="width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:18px;color:${colors.textSub};flex-shrink:0;">✕</button>
             </div>
-            
+            <div style="padding:16px 20px;overflow-y:auto;max-height:68vh;">
+                <div class="collapsible-section" style="margin-bottom:16px;">
+                    <div class="section-toggle" style="
+                        display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0;
+                    ">
+                        <svg class="section-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform 0.2s;transform:rotate(-90deg);"><path d="m6 9 6 6 6-6"/></svg>
+                        <span style="font-size:11px;font-weight:700;color:${colors.textSub};text-transform:uppercase;letter-spacing:0.05em;">📌 固定提示词</span>
+                        <span style="font-size:10px;color:${colors.textSub};margin-left:2px;">每次生成保留，不被随机替换</span>
+                    </div>
+                    <div class="section-body" style="display:none;padding-top:8px;">
+                        <textarea id="editor-fixed-prompt" placeholder="输入固定提示词，如: masterpiece, best quality" style="width:100%;padding:8px;border:1px solid ${colors.border};border-radius:8px;font-size:12px;background:transparent;color:${colors.text};outline:none;resize:none;min-height:52px;font-family:ui-monospace,Menlo,monospace;box-sizing:border-box;">${escapeHtml(currentPlan.fixedPrompt)}</textarea>
+                    </div>
+                </div>
+                ${renderCategorySection('characters', '角色', '👤')}
+                ${renderCategorySection('artists', '画师', '🎨')}
+                ${renderCategorySection('presets', '预设', '⚙️')}
+            </div>
             <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;gap:8px;justify-content:flex-end;">
                 <button id="editor-cancel" style="padding:10px 20px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};">取消</button>
                 <button id="editor-save" style="padding:10px 20px;border-radius:10px;border:none;background:${colors.accent};cursor:pointer;font-size:12px;font-weight:700;color:#fff;">保存方案</button>
             </div>
         `;
-        
-        // 绑定关闭按钮
-        editor.querySelector('#editor-close').addEventListener('click', () => {
-            editor.remove();
-            document.getElementById('random-main-panel').style.display = 'block';
+
+        // 绑定事件
+        editor.querySelector('#editor-close').addEventListener('click', () => { editor.remove(); document.getElementById('random-main-panel').style.display = 'block'; });
+        editor.querySelector('#editor-cancel').addEventListener('click', () => { editor.remove(); document.getElementById('random-main-panel').style.display = 'block'; });
+        editor.querySelector('#editor-save').addEventListener('click', () => savePlanFromEditor());
+        editor.querySelector('#editor-test').addEventListener('click', () => testCurrentPlan());
+        editor.querySelector('#editor-fixed-prompt').addEventListener('input', (e) => { currentPlan.fixedPrompt = e.target.value; });
+
+        // 折叠展开
+        editor.querySelector('.section-toggle').addEventListener('click', () => {
+            const body = editor.querySelector('.section-body');
+            const arrow = editor.querySelector('.section-arrow');
+            const open = body.style.display === 'none';
+            body.style.display = open ? 'block' : 'none';
+            arrow.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
         });
-        
-        // 绑定取消按钮
-        editor.querySelector('#editor-cancel').addEventListener('click', () => {
-            editor.remove();
-            document.getElementById('random-main-panel').style.display = 'block';
-        });
-        
-        // 绑定保存按钮
-        editor.querySelector('#editor-save').addEventListener('click', () => {
-            savePlanFromEditor();
-        });
-        
-        // 绑定测试按钮
-        editor.querySelector('#editor-test').addEventListener('click', () => {
-            testCurrentPlan();
-        });
-        
-        // 绑定固定提示词输入
-        editor.querySelector('#editor-fixed-prompt').addEventListener('input', (e) => {
-            currentPlan.fixedPrompt = e.target.value;
-        });
-        
-        // 绑定添加角色按钮
-        editor.querySelector('#add-characters').addEventListener('click', () => {
-            openPickerForEditor('character');
-        });
-        
-        // 绑定添加画师按钮
-        editor.querySelector('#add-artists').addEventListener('click', () => {
-            openPickerForEditor('artist');
-        });
-        
-        // 绑定添加预设按钮
-        editor.querySelector('#add-presets').addEventListener('click', () => {
-            openPickerForEditor('preset');
-        });
-        
-        // 绑定数量输入框
-        editor.querySelector('#character-count').addEventListener('change', (e) => {
-            currentPlan.characterCount = parseInt(e.target.value) || 1;
-        });
-        editor.querySelector('#artist-count').addEventListener('change', (e) => {
-            currentPlan.artistCount = parseInt(e.target.value) || 1;
-        });
-        editor.querySelector('#preset-count').addEventListener('change', (e) => {
-            currentPlan.presetCount = parseInt(e.target.value) || 1;
-        });
-        
-        // 绑定移除按钮
-        editor.querySelectorAll('.remove-item-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const type = btn.dataset.type;
-                const name = btn.dataset.name;
-                removeItemFromEditor(type, name);
-            });
-        });
-        
-        // 绑定拖拽排序
-        setupSortable(editor.querySelector('#editor-characters'), 'characters');
-        setupSortable(editor.querySelector('#editor-artists'), 'artists');
-        setupSortable(editor.querySelector('#editor-presets'), 'presets');
-        
+
+        // 绑定分组事件
+        bindCategoryEvents(editor, 'characters');
+        bindCategoryEvents(editor, 'artists');
+        bindCategoryEvents(editor, 'presets');
+
         return editor;
     }
-    
-    // === 拖拽排序 ===
-    function setupSortable(container, planKey) {
+
+    // ─────────────────────────────────────────────
+    //  渲染一个大类（含分组）
+    // ─────────────────────────────────────────────
+    // 分组颜色预设
+    const GROUP_COLORS = ['#00b4d8','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6366f1','#14b8a6'];
+
+    function renderCategorySection(planKey, label, icon) {
+        const colors = getThemeColors();
+        const cat = currentPlan[planKey];
+        const groups = cat?.groups || [];
+
+        let groupsHtml = '';
+        groups.forEach((group, gIdx) => {
+            groupsHtml += renderGroupCard(planKey, group, gIdx);
+        });
+
+        return `
+            <div class="category-section" data-plan-key="${planKey}" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <label style="font-size:12px;font-weight:700;color:${colors.textSub};">${icon} ${label}</label>
+                    <button class="add-group-btn" data-plan-key="${planKey}" style="
+                        padding:6px 14px;border-radius:10px;border:1.5px dashed ${colors.accent}60;
+                        background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.accent};
+                        display:flex;align-items:center;gap:4px;
+                    ">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        新建分组
+                    </button>
+                </div>
+                <div class="groups-container" data-plan-key="${planKey}" style="max-height:${3 * 50}px;overflow-y:auto;scrollbar-width:thin;">
+                    ${groupsHtml}
+                    ${groups.length === 0 ? `<div style="text-align:center;padding:16px;color:${colors.textSub};font-size:11px;">暂无分组，点击"+ 新建分组"创建</div>` : ''}
+                </div>
+            </div>`;
+    }
+
+    // 渲染单个分组（单行紧凑布局）
+    function renderGroupCard(planKey, group, gIdx) {
+        const colors = getThemeColors();
+        const items = group.items || [];
+        const enabled = group.enabled !== false;
+        const count = group.count || 1;
+        const gColor = group.color || GROUP_COLORS[gIdx % GROUP_COLORS.length];
+
+        return `
+            <div class="group-card" data-plan-key="${planKey}" data-g-idx="${gIdx}" style="
+                display:flex;align-items:center;gap:8px;padding:8px 10px;
+                border-bottom:1px solid ${colors.border};min-height:48px;
+            ">
+                <span class="group-drag-handle" style="opacity:0.25;font-size:14px;cursor:grab;user-select:none;flex-shrink:0;">⠿</span>
+                <div class="group-toggle" data-plan-key="${planKey}" data-g-idx="${gIdx}" style="
+                    width:38px;height:22px;border-radius:11px;cursor:pointer;transition:all 0.2s;flex-shrink:0;
+                    background:${enabled ? gColor : colors.border};position:relative;
+                ">
+                    <div style="position:absolute;top:2px;left:${enabled ? '18px' : '2px'};width:18px;height:18px;background:#fff;border-radius:50%;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+                </div>
+                <div class="group-color-dot" data-plan-key="${planKey}" data-g-idx="${gIdx}" title="点击换色" style="
+                    width:14px;height:14px;border-radius:50%;background:${gColor};cursor:pointer;flex-shrink:0;
+                    box-shadow:0 0 0 2px ${gColor}30;
+                "></div>
+                <input class="group-name-input" data-plan-key="${planKey}" data-g-idx="${gIdx}" value="${escapeHtml(group.name)}" style="
+                    width:52px;border:none;background:transparent;font-size:13px;font-weight:700;
+                    color:${colors.text};outline:none;flex-shrink:0;padding:0;
+                ">
+                <span style="
+                    padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;
+                    background:${gColor}18;color:${enabled ? gColor : colors.textSub};flex-shrink:0;min-width:36px;text-align:center;
+                ">${items.length}项</span>
+                <button class="add-item-btn" data-plan-key="${planKey}" data-g-idx="${gIdx}" style="
+                    width:36px;height:36px;border-radius:12px;border:none;
+                    background:${gColor}15;cursor:pointer;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;padding:0;
+                " title="添加">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${gColor}" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10" fill="${gColor}12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </button>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding:0 2px;">
+                    <span style="font-size:14px;color:${colors.textSub};font-weight:600;">×</span>
+                    <input type="number" class="group-count-input" data-plan-key="${planKey}" data-g-idx="${gIdx}" value="${count}" min="1" max="10" style="
+                        width:38px;height:32px;padding:0;border:1.5px solid ${colors.border};border-radius:10px;
+                        font-size:14px;text-align:center;background:transparent;color:${colors.text};outline:none;font-weight:700;
+                    ">
+                </div>
+                <button class="delete-group-btn" data-plan-key="${planKey}" data-g-idx="${gIdx}" title="删除分组" style="
+                    width:32px;height:32px;border-radius:10px;border:none;background:rgba(239,68,68,0.08);
+                    cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;
+                ">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${colors.textSub}" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+            </div>`;
+    }
+
+    // ─────────────────────────────────────────────
+    //  绑定分组相关事件
+    // ─────────────────────────────────────────────
+    function bindCategoryEvents(editor, planKey) {
+        const section = editor.querySelector(`.category-section[data-plan-key="${planKey}"]`);
+        if (!section) return;
+
+        // 新建分组
+        section.querySelector('.add-group-btn')?.addEventListener('click', () => {
+            const cat = currentPlan[planKey];
+            if (!cat.groups) cat.groups = [];
+            cat.groups.push({ id: genId(), name: '新分组', items: [], enabled: true, count: 1, color: GROUP_COLORS[cat.groups.length % GROUP_COLORS.length] });
+            refreshCategory(editor, planKey);
+        });
+
+        bindGroupEvents(editor, planKey);
+    }
+
+    function bindGroupEvents(editor, planKey) {
+        const section = editor.querySelector(`.category-section[data-plan-key="${planKey}"]`);
+        if (!section) return;
+
+        // 开关
+        section.querySelectorAll('.group-toggle').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gIdx = parseInt(el.dataset.gIdx);
+                const group = currentPlan[planKey].groups[gIdx];
+                group.enabled = !group.enabled;
+                refreshCategory(editor, planKey);
+            });
+        });
+
+        // 颜色切换
+        section.querySelectorAll('.group-color-dot').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gIdx = parseInt(el.dataset.gIdx);
+                const group = currentPlan[planKey].groups[gIdx];
+                const curIdx = GROUP_COLORS.indexOf(group.color);
+                group.color = GROUP_COLORS[(curIdx + 1) % GROUP_COLORS.length];
+                refreshCategory(editor, planKey);
+            });
+        });
+
+        // 名称修改
+        section.querySelectorAll('.group-name-input').forEach(el => {
+            el.addEventListener('change', () => {
+                const gIdx = parseInt(el.dataset.gIdx);
+                currentPlan[planKey].groups[gIdx].name = el.value.trim() || '未命名';
+            });
+        });
+
+        // count 修改
+        section.querySelectorAll('.group-count-input').forEach(el => {
+            el.addEventListener('change', () => {
+                const gIdx = parseInt(el.dataset.gIdx);
+                currentPlan[planKey].groups[gIdx].count = Math.max(1, parseInt(el.value) || 1);
+            });
+        });
+
+        // 删除分组
+        section.querySelectorAll('.delete-group-btn').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gIdx = parseInt(el.dataset.gIdx);
+                const group = currentPlan[planKey].groups[gIdx];
+                if (confirm(`确定删除分组"${group.name}"？`)) {
+                    currentPlan[planKey].groups.splice(gIdx, 1);
+                    refreshCategory(editor, planKey);
+                }
+            });
+        });
+
+        // 添加项目
+        section.querySelectorAll('.add-item-btn').forEach(el => {
+            el.addEventListener('click', () => {
+                currentPickerGroupIdx = parseInt(el.dataset.gIdx);
+                currentPickerType = planKey === 'characters' ? 'character' : planKey === 'artists' ? 'artist' : 'preset';
+                openPickerForEditor(currentPickerType);
+            });
+        });
+
+        // 组间拖拽
+        setupGroupDrag(section, planKey);
+    }
+
+    // ─────────────────────────────────────────────
+    //  刷新单个大类区域
+    // ─────────────────────────────────────────────
+    function refreshCategory(editor, planKey) {
+        const section = editor.querySelector(`.category-section[data-plan-key="${planKey}"]`);
+        if (!section) return;
+        const labels = { characters: ['角色', '👤'], artists: ['画师', '🎨'], presets: ['预设', '⚙️'] };
+        const [label, icon] = labels[planKey] || ['', ''];
+        const cat = currentPlan[planKey];
+        const groups = cat?.groups || [];
+
+        let groupsHtml = '';
+        groups.forEach((group, gIdx) => {
+            groupsHtml += renderGroupCard(planKey, group, gIdx);
+        });
+
+        const container = section.querySelector('.groups-container');
+        container.innerHTML = groupsHtml || `<div style="text-align:center;padding:20px;color:${getThemeColors().textSub};font-size:11px;">暂无分组，点击"+ 新建分组"创建</div>`;
+
+        bindGroupEvents(editor, planKey);
+    }
+
+    // ─────────────────────────────────────────────
+    //  组间拖拽（分组卡片排序）
+    // ─────────────────────────────────────────────
+    function setupGroupDrag(section, planKey) {
+        const container = section.querySelector('.groups-container');
         if (!container) return;
         let dragIdx = null;
-        
+
+        container.addEventListener('dragstart', (e) => {
+            const handle = e.target.closest('.group-drag-handle');
+            if (!handle) { e.preventDefault(); return; }
+            const card = handle.closest('.group-card');
+            if (!card) return;
+            dragIdx = parseInt(card.dataset.gIdx);
+            card.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'group');
+        });
+
+        container.addEventListener('dragend', (e) => {
+            const card = e.target.closest('.group-card');
+            if (card) card.style.opacity = '1';
+            container.querySelectorAll('.group-card').forEach(el => { el.style.borderTop = ''; });
+            dragIdx = null;
+        });
+
+        container.addEventListener('dragover', (e) => {
+            if (e.dataTransfer.getData('text/plain') !== 'group') return;
+            e.preventDefault();
+            const card = e.target.closest('.group-card');
+            if (!card) return;
+            container.querySelectorAll('.group-card').forEach(el => { el.style.borderTop = ''; });
+            const rect = card.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) {
+                card.style.borderTop = '2px solid ' + getThemeColors().accent;
+            }
+        });
+
+        container.addEventListener('drop', (e) => {
+            if (e.dataTransfer.getData('text/plain') !== 'group') return;
+            e.preventDefault();
+            const card = e.target.closest('.group-card');
+            if (!card || dragIdx === null) return;
+            const targetIdx = parseInt(card.dataset.gIdx);
+            if (dragIdx === targetIdx) return;
+
+            const groups = currentPlan[planKey].groups;
+            const [moved] = groups.splice(dragIdx, 1);
+            const rect = card.getBoundingClientRect();
+            let insertIdx = e.clientY < rect.top + rect.height / 2 ? targetIdx : targetIdx + 1;
+            if (dragIdx < targetIdx) insertIdx--;
+            groups.splice(insertIdx, 0, moved);
+
+            refreshCategory(document.getElementById('random-plan-editor'), planKey);
+        });
+    }
+
+    // ─────────────────────────────────────────────
+    //  组内拖拽（项目排序）
+    // ─────────────────────────────────────────────
+    function setupItemDrag(container, planKey) {
+        let dragIdx = null;
+        let dragGIdx = null;
+
         container.addEventListener('dragstart', (e) => {
             const item = e.target.closest('.sortable-item');
             if (!item) return;
-            dragIdx = parseInt(item.dataset.idx);
+            dragIdx = parseInt(item.dataset.iIdx);
+            dragGIdx = parseInt(item.dataset.gIdx);
             item.style.opacity = '0.4';
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'item');
         });
-        
+
         container.addEventListener('dragend', (e) => {
             const item = e.target.closest('.sortable-item');
             if (item) item.style.opacity = '1';
-            container.querySelectorAll('.sortable-item').forEach(el => {
-                el.style.borderLeft = '';
-                el.style.borderRight = '';
-            });
+            container.querySelectorAll('.sortable-item').forEach(el => { el.style.borderLeft = ''; el.style.borderRight = ''; });
             dragIdx = null;
+            dragGIdx = null;
         });
-        
+
         container.addEventListener('dragover', (e) => {
+            if (e.dataTransfer.getData('text/plain') !== 'item') return;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
             const target = e.target.closest('.sortable-item');
             if (!target) return;
-            container.querySelectorAll('.sortable-item').forEach(el => {
-                el.style.borderLeft = '';
-                el.style.borderRight = '';
-            });
+            container.querySelectorAll('.sortable-item').forEach(el => { el.style.borderLeft = ''; el.style.borderRight = ''; });
             const rect = target.getBoundingClientRect();
-            const mid = rect.left + rect.width / 2;
-            if (e.clientX < mid) {
+            if (e.clientX < rect.left + rect.width / 2) {
                 target.style.borderLeft = '2px solid ' + getThemeColors().accent;
             } else {
                 target.style.borderRight = '2px solid ' + getThemeColors().accent;
             }
         });
-        
+
         container.addEventListener('drop', (e) => {
+            if (e.dataTransfer.getData('text/plain') !== 'item') return;
             e.preventDefault();
             const target = e.target.closest('.sortable-item');
             if (!target || dragIdx === null) return;
-            const targetIdx = parseInt(target.dataset.idx);
-            if (dragIdx === targetIdx) return;
-            
-            const arr = currentPlan[planKey];
+            const targetIdx = parseInt(target.dataset.iIdx);
+            if (dragIdx === targetIdx && dragGIdx === parseInt(target.dataset.gIdx)) return;
+
+            const arr = currentPlan[planKey].groups[dragGIdx].items;
             const [moved] = arr.splice(dragIdx, 1);
             const rect = target.getBoundingClientRect();
-            const mid = rect.left + rect.width / 2;
-            let insertIdx = e.clientX < mid ? targetIdx : targetIdx + 1;
+            let insertIdx = e.clientX < rect.left + rect.width / 2 ? targetIdx : targetIdx + 1;
             if (dragIdx < targetIdx) insertIdx--;
             arr.splice(insertIdx, 0, moved);
-            
-            updateEditorDisplay();
+
+            refreshCategory(document.getElementById('random-plan-editor'), planKey);
         });
     }
-    
-    // === 渲染已选项目 ===
-    function renderSelectedItems(items, type) {
-        const colors = getThemeColors();
-        
-        if (!items || items.length === 0) {
-            return `<div style="color:${colors.textSub};font-size:11px;">暂未选择，点击上方"+ 添加"按钮</div>`;
-        }
-        
-        return items.map((item, idx) => `
-            <div class="sortable-item" draggable="true" data-type="${type}" data-idx="${idx}" style="
-                display:inline-flex;
-                align-items:center;
-                gap:4px;
-                padding:4px 10px;
-                border-radius:6px;
-                background:${colors.accent}20;
-                font-size:11px;
-                font-weight:600;
-                color:${colors.accent};
-                cursor:grab;
-                user-select:none;
-                transition:opacity 0.15s, transform 0.15s;
-            ">
-                <span style="opacity:0.4;font-size:10px;letter-spacing:1px;">⋮⋮</span>
-                <span>${escapeHtml(item)}</span>
-                <button class="remove-item-btn" data-type="${type}" data-name="${escapeHtml(item)}" style="
-                    width:14px;
-                    height:14px;
-                    border-radius:50%;
-                    border:none;
-                    background:${colors.accent}40;
-                    color:${colors.accent};
-                    cursor:pointer;
-                    font-size:10px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    padding:0;
-                    line-height:1;
-                ">✕</button>
-            </div>
-        `).join('');
-    }
-    
-    // === 当前正在编辑的类型 ===
+
+    // ─────────────────────────────────────────────
+    //  选择器集成
+    // ─────────────────────────────────────────────
     let currentPickerType = null;
+    let currentPickerGroupIdx = null;
     let pickerConfirmControl = null;
     let editorPanel = null;
-    
-    // === 创建确认控件 ===
+
+    function hideEditorPanel() {
+        editorPanel = document.getElementById('random-plan-editor');
+        if (editorPanel) editorPanel.style.display = 'none';
+    }
+    function showEditorPanel() {
+        if (editorPanel) { editorPanel.style.display = 'block'; editorPanel = null; }
+    }
+
     function createConfirmControl(type) {
         const colors = getThemeColors();
-        
-        // 创建悬浮确认控件
         const control = document.createElement('div');
         control.id = 'picker-confirm-control';
         control.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 20px;
-            background: ${colors.bg};
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            z-index: 10002;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 20px;
+            background:${colors.bg};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.2);
+            z-index:10002;display:flex;align-items:center;gap:12px;
         `;
-        
         const typeNames = { character: '角色', artist: '画师', preset: '预设' };
-        
         control.innerHTML = `
             <span style="font-size:13px;font-weight:600;color:${colors.text};">已选择${typeNames[type] || type}，点击确认添加</span>
             <button id="picker-confirm-btn" style="padding:8px 16px;border-radius:8px;border:none;background:${colors.success};color:#fff;cursor:pointer;font-size:12px;font-weight:700;">✓ 确认</button>
             <button id="picker-cancel-btn" style="padding:8px 16px;border-radius:8px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:${colors.text};">取消</button>
         `;
-        
         document.body.appendChild(control);
-        
-        // 绑定确认按钮
+
         control.querySelector('#picker-confirm-btn').addEventListener('click', () => {
-            console.log('[RandomPrompt] 确认按钮被点击，currentPickerType:', currentPickerType);
-            
-            // 如果是预设类型，需要手动获取选中的预设
             if (currentPickerType === 'preset' && typeof presetPickerSelected !== 'undefined') {
-                const selectedPresets = presetPickerSelected.slice();
-                console.log('[RandomPrompt] 从 presetPickerSelected 获取预设:', selectedPresets);
-                
-                // 关闭选择器（不调用 apply）
+                const selected = presetPickerSelected.slice();
                 const modal = document.getElementById('presetPickerModal');
                 if (modal) modal.style.display = 'none';
-                
-                // 移除确认控件
-                if (pickerConfirmControl) {
-                    pickerConfirmControl.remove();
-                    pickerConfirmControl = null;
-                }
-                
-                // 显示编辑器面板
+                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
                 showEditorPanel();
-                
-                // 添加选中的预设到方案
-                if (selectedPresets.length > 0 && currentPlan) {
-                    console.log('[RandomPrompt] 添加预设:', selectedPresets);
-                    selectedPresets.forEach(item => {
+                if (selected.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
+                    const group = currentPlan.presets.groups[currentPickerGroupIdx];
+                    group.items = []; // 覆盖
+                    selected.forEach(item => {
                         const name = item.name || item.id || '';
-                        if (name && !currentPlan.presets.includes(name)) {
-                            currentPlan.presets.push(name);
-                        }
+                        if (name) group.items.push(name);
                     });
-                    updateEditorDisplay();
+                    refreshCategory(document.getElementById('random-plan-editor'), 'presets');
                 }
-                currentPickerType = null;
+                currentPickerType = null; currentPickerGroupIdx = null;
             } else if (currentPickerType === 'artist' && typeof artistPickerSelected !== 'undefined') {
-                // 画师类型，需要手动获取选中的画师
-                const selectedArtists = artistPickerSelected.slice();
-                console.log('[RandomPrompt] 从 artistPickerSelected 获取画师:', selectedArtists);
-                
-                // 关闭选择器（不调用 apply）
+                const selected = artistPickerSelected.slice();
                 const modal = document.getElementById('artistPickerModal');
                 if (modal) modal.style.display = 'none';
-                
-                // 移除确认控件
-                if (pickerConfirmControl) {
-                    pickerConfirmControl.remove();
-                    pickerConfirmControl = null;
-                }
-                
-                // 显示编辑器面板
+                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
                 showEditorPanel();
-                
-                // 添加选中的画师到方案
-                if (selectedArtists.length > 0 && currentPlan) {
-                    console.log('[RandomPrompt] 添加画师:', selectedArtists);
-                    selectedArtists.forEach(item => {
-                        const name = typeof item === 'string' ? item : item.name || item.danbooru_tag || '';
-                        // 去掉 @ 前缀
-                        const cleanName = name.replace(/^@/, '');
-                        if (cleanName && !currentPlan.artists.includes(cleanName)) {
-                            currentPlan.artists.push(cleanName);
-                        }
+                if (selected.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
+                    const group = currentPlan.artists.groups[currentPickerGroupIdx];
+                    group.items = []; // 覆盖
+                    selected.forEach(item => {
+                        const name = (typeof item === 'string' ? item : item.name || item.danbooru_tag || '').replace(/^@/, '');
+                        if (name) group.items.push(name);
                     });
-                    updateEditorDisplay();
+                    refreshCategory(document.getElementById('random-plan-editor'), 'artists');
                 }
-                currentPickerType = null;
+                currentPickerType = null; currentPickerGroupIdx = null;
             } else {
-                // 角色类型，关闭选择器并应用
                 pickerClose();
             }
         });
-        
-        // 绑定取消按钮
+
         control.querySelector('#picker-cancel-btn').addEventListener('click', () => {
-            console.log('[RandomPrompt] 取消按钮被点击');
-            // 关闭选择器不应用
-            currentPickerType = null; // 标记为取消
+            currentPickerType = null; currentPickerGroupIdx = null;
             pickerClose();
         });
-        
+
         return control;
     }
-    
-    // === 隐藏/显示编辑器面板 ===
-    function hideEditorPanel() {
-        editorPanel = document.getElementById('random-plan-editor');
-        if (editorPanel) {
-            editorPanel.style.display = 'none';
-        }
-    }
-    
-    function showEditorPanel() {
-        if (editorPanel) {
-            editorPanel.style.display = 'block';
-            editorPanel = null;
-        }
-    }
-    
-    // === 打开选择器 ===
+
     function openPickerForEditor(type) {
         currentPickerType = type;
-        
-        // 隐藏编辑器面板
         hideEditorPanel();
-        
-        // 创建确认控件
         pickerConfirmControl = createConfirmControl(type);
-        
-        // 使用选择器的回调函数获取选中结果
-        if (type === 'character' && typeof pickerOpen === 'function') {
-            pickerOpen(function(selectedItems, applyText) {
-                console.log('[RandomPrompt] 角色选择器回调，selectedItems:', selectedItems, 'currentPickerType:', currentPickerType);
-                // 移除确认控件
-                if (pickerConfirmControl) {
-                    pickerConfirmControl.remove();
-                    pickerConfirmControl = null;
+
+        // 保存原始 prompt，注入当前组的项目让选择器识别为已选
+        const promptEl = document.getElementById('prompt');
+        const origPrompt = promptEl ? promptEl.value : '';
+        if (promptEl && currentPickerGroupIdx !== null) {
+            const planKey = type === 'character' ? 'characters' : type === 'artist' ? 'artists' : 'presets';
+            const group = currentPlan[planKey]?.groups[currentPickerGroupIdx];
+            if (group && group.items.length > 0) {
+                let injection = group.items.join(', ');
+                // 画师选择器需要 @ 前缀才能识别
+                if (type === 'artist') {
+                    injection = group.items.map(i => '@' + i).join(', ');
                 }
-                
-                // 显示编辑器面板
+                const existing = origPrompt.trim();
+                promptEl.value = existing ? existing + ', ' + injection : injection;
+            }
+        }
+
+        // 选择器会在 open 时从 prompt 读取已选项
+        // 读完之后立即恢复原始 prompt
+        const restorePrompt = () => { if (promptEl) promptEl.value = origPrompt; };
+
+        if (type === 'character' && typeof pickerOpen === 'function') {
+            pickerOpen(function(selectedItems) {
+                restorePrompt();
+                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
                 showEditorPanel();
-                
-                // 只有在确认模式下才添加
-                if (currentPickerType === 'character' && selectedItems && selectedItems.length > 0 && currentPlan) {
-                    console.log('[RandomPrompt] 添加角色:', selectedItems);
+                if (currentPickerType === 'character' && selectedItems && selectedItems.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
+                    const group = currentPlan.characters.groups[currentPickerGroupIdx];
+                    group.items = []; // 覆盖而非追加，选择器返回的就是完整选中列表
                     selectedItems.forEach(item => {
                         const name = typeof item === 'string' ? item : item.name || item.id;
-                        if (name && !currentPlan.characters.includes(name)) {
-                            currentPlan.characters.push(name);
-                        }
+                        if (name) group.items.push(name);
                     });
-                    updateEditorDisplay();
-                } else {
-                    console.log('[RandomPrompt] 跳过添加，currentPickerType:', currentPickerType, 'selectedItems:', selectedItems);
+                    refreshCategory(document.getElementById('random-plan-editor'), 'characters');
                 }
-                currentPickerType = null;
+                currentPickerType = null; currentPickerGroupIdx = null;
             });
         } else if (type === 'artist' && typeof artistPickerOpen === 'function') {
-            // 画师选择器需要特殊处理，因为 artistPickerOpen 不返回选中列表
-            // 我们在确认时从 artistPickerSelected 获取
             artistPickerOpen(null);
+            restorePrompt();
         } else if (type === 'preset' && typeof presetPickerOpen === 'function') {
-            // 标签预设选择器（不使用回调，直接从 presetPickerSelected 获取）
             presetPickerOpen(null);
+            restorePrompt();
         } else {
-            // 选择器未加载，恢复面板
-            if (pickerConfirmControl) {
-                pickerConfirmControl.remove();
-                pickerConfirmControl = null;
-            }
+            restorePrompt();
+            if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
             showEditorPanel();
             alert('选择器未加载');
         }
     }
-    
-    // === 更新编辑器显示 ===
-    function updateEditorDisplay() {
-        const editor = document.getElementById('random-plan-editor');
-        if (!editor || !currentPlan) return;
-        
-        const charContainer = editor.querySelector('#editor-characters');
-        const artistContainer = editor.querySelector('#editor-artists');
-        const presetContainer = editor.querySelector('#editor-presets');
-        
-        if (charContainer) {
-            charContainer.innerHTML = renderSelectedItems(currentPlan.characters, 'character');
-        }
-        if (artistContainer) {
-            artistContainer.innerHTML = renderSelectedItems(currentPlan.artists, 'artist');
-        }
-        if (presetContainer) {
-            presetContainer.innerHTML = renderSelectedItems(currentPlan.presets, 'preset');
-        }
-        
-        // 重新绑定移除按钮
-        editor.querySelectorAll('.remove-item-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const type = btn.dataset.type;
-                const name = btn.dataset.name;
-                removeItemFromEditor(type, name);
-            });
-        });
-        
-        // 重新绑定拖拽排序
-        setupSortable(charContainer, 'characters');
-        setupSortable(artistContainer, 'artists');
-        setupSortable(presetContainer, 'presets');
-    }
-    
-    // === 从编辑器移除项目 ===
-    function removeItemFromEditor(type, name) {
-        if (!currentPlan) return;
-        
-        if (type === 'character') {
-            currentPlan.characters = currentPlan.characters.filter(c => c !== name);
-        } else if (type === 'artist') {
-            currentPlan.artists = currentPlan.artists.filter(a => a !== name);
-        } else if (type === 'preset') {
-            currentPlan.presets = currentPlan.presets.filter(p => p !== name);
-        }
-        
-        updateEditorDisplay();
-    }
-    
-    // === 从编辑器保存方案 ===
+
+    // ─────────────────────────────────────────────
+    //  保存方案
+    // ─────────────────────────────────────────────
     function savePlanFromEditor() {
         const editor = document.getElementById('random-plan-editor');
         if (!editor || !currentPlan) return;
-        
-        const nameInput = editor.querySelector('#editor-plan-name');
-        const name = nameInput.value.trim();
-        
-        if (!name) {
-            alert('请输入方案名称');
-            return;
-        }
-        
-        if (currentPlan.characters.length === 0 && currentPlan.artists.length === 0 && currentPlan.presets.length === 0) {
-            alert('请至少选择一个角色、画师或预设');
-            return;
-        }
-        
-        // 保存方案
+
+        const name = editor.querySelector('#editor-plan-name').value.trim();
+        if (!name) { alert('请输入方案名称'); return; }
+
+        const hasItems = ['characters', 'artists', 'presets'].some(k => flattenCategory(currentPlan[k]).length > 0);
+        if (!hasItems) { alert('请至少在一个分组中添加项目'); return; }
+
         plans[name] = {
-            name: name,
+            name,
             characters: currentPlan.characters,
             artists: currentPlan.artists,
             presets: currentPlan.presets,
             lora: currentPlan.lora,
-            characterCount: currentPlan.characterCount,
-            artistCount: currentPlan.artistCount,
-            presetCount: currentPlan.presetCount,
             fixedPrompt: currentPlan.fixedPrompt || ''
         };
-        
+
         savePlans();
-        
-        // 关闭编辑器，返回主面板
         editor.remove();
         document.getElementById('random-main-panel').style.display = 'block';
         renderPlanList();
-        
         currentPlan = null;
     }
-    
-    // === 删除方案 ===
+
     function deletePlan(name) {
         delete plans[name];
         savePlans();
         renderPlanList();
     }
-    
-    // === 应用方案 ===
+
+    // ─────────────────────────────────────────────
+    //  分组抽样 + 提示词构建
+    // ─────────────────────────────────────────────
+    function sampleFromGroups(cat) {
+        if (!cat || !cat.groups) return [];
+        const result = [];
+        cat.groups.forEach(group => {
+            if (group.enabled === false) return;
+            if (!group.items || group.items.length === 0) return;
+            const count = Math.min(group.count || 1, group.items.length);
+            const shuffled = [...group.items].sort(() => Math.random() - 0.5);
+            result.push(...shuffled.slice(0, count));
+        });
+        return result;
+    }
+
+    function mergeWithFixed(positive, fixedPrompt) {
+        if (!fixedPrompt || !fixedPrompt.trim()) return positive;
+        const parts = [...fixedPrompt.trim().split(',').map(s => s.trim()), ...positive.trim().split(',').map(s => s.trim())];
+        const seen = new Set();
+        return parts.filter(p => { if (!p) return false; const l = p.toLowerCase(); if (seen.has(l)) return false; seen.add(l); return true; }).join(', ');
+    }
+
+    // 对单个大类调用 API
+    // 从各组本地抽样，然后调 API 查元数据
+    async function fetchCategoryFromAPI(catKey, cat) {
+        if (!cat?.groups) return null;
+
+        // 每组独立抽样
+        const sampledNames = [];
+        cat.groups.forEach(g => {
+            if (g.enabled === false || !g.items?.length) return;
+            const count = Math.min(g.count || 1, g.items.length);
+            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
+            sampledNames.push(...shuffled.slice(0, count));
+        });
+        if (sampledNames.length === 0) return null;
+
+        // 一次性交给 API 查元数据（触发词/danbooru_tag/预设文本）
+        const config = {};
+        config[catKey] = { enabled: true, names: sampledNames, count: sampledNames.length };
+        config.lora = { enabled: false };
+        if (catKey !== 'character') config.character = { enabled: false, names: [], count: 1 };
+        if (catKey !== 'artist') config.artist = { enabled: false, names: [], count: 1 };
+        if (catKey !== 'preset') config.preset = { enabled: false, names: [], count: 1 };
+
+        const res = await fetch(`${API_BASE}/apply-plan`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.AUTH_TOKEN || '') },
+            body: JSON.stringify(config)
+        });
+        return res.json();
+    }
+
+    function buildPromptFromResult(result) {
+        const parts = [];
+        if (result.character) {
+            const chars = Array.isArray(result.character) ? result.character : [result.character];
+            chars.forEach(c => {
+                if (c.trigger) parts.push(c.trigger);
+                else if (c.name) parts.push(c.name);
+            });
+        }
+        if (result.artist) {
+            const artists = Array.isArray(result.artist) ? result.artist : [result.artist];
+            artists.forEach(a => { if (a.danbooru_tag) parts.push(a.danbooru_tag); });
+        }
+        if (result.preset) {
+            const presets = Array.isArray(result.preset) ? result.preset : [result.preset];
+            presets.forEach(p => { if (p.prompt) parts.push(p.prompt); });
+        }
+        return parts.join(', ');
+    }
+
     async function applyPlan(name) {
         const plan = plans[name];
         if (!plan) return;
-        
+        migratePlanData(plan);
+
         try {
-            // 构建配置
-            const config = {
-                character: {
-                    enabled: plan.characters && plan.characters.length > 0,
-                    names: plan.characters,
-                    count: plan.characterCount || 1
-                },
-                artist: {
-                    enabled: plan.artists && plan.artists.length > 0,
-                    names: plan.artists,
-                    count: plan.artistCount || 1
-                },
-                preset: {
-                    enabled: plan.presets && plan.presets.length > 0,
-                    names: plan.presets,
-                    count: plan.presetCount || 1
-                },
-                lora: { enabled: plan.lora || false }
-            };
-            
-            const res = await fetch(`${API_BASE}/apply-plan`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (window.AUTH_TOKEN || '')
-                },
-                body: JSON.stringify(config)
-            });
-            
-            const result = await res.json();
-            
-            // 构建提示词
-            let positive = buildPrompt(result);
-            
-            // 拼接方案的固定提示词
-            if (plan.fixedPrompt && plan.fixedPrompt.trim()) {
-                const fixed = plan.fixedPrompt.trim();
-                const random = positive.trim();
-                const parts = [...fixed.split(',').map(s => s.trim()), ...random.split(',').map(s => s.trim())];
-                const seen = new Set();
-                const merged = parts.filter(p => {
-                    if (!p) return false;
-                    const lower = p.toLowerCase();
-                    if (seen.has(lower)) return false;
-                    seen.add(lower);
-                    return true;
-                });
-                positive = merged.join(', ');
+            const parts = [];
+            for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
+                const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
+                if (result) parts.push(buildPromptFromResult(result));
             }
-            
-            // 调用回调
-            if (onApplyCallback) {
-                onApplyCallback({ positive, negative: '', raw: result });
-            }
-            
-            // 关闭面板
+            let positive = parts.filter(Boolean).join(', ');
+            positive = mergeWithFixed(positive, plan.fixedPrompt);
+
+            if (onApplyCallback) onApplyCallback({ positive, negative: '', raw: {} });
+
             document.getElementById('random-main-panel').style.display = 'none';
             showToast('已应用方案: ' + name, 'success');
-            
         } catch (e) {
             console.error('[RandomPrompt] 应用方案失败:', e);
             showToast('应用失败: ' + e.message, 'error');
         }
     }
-    
-    // === 快速随机 ===
+
     async function quickRandom() {
         const planNames = Object.keys(plans);
-        
-        if (planNames.length === 0) {
-            alert('请先创建一个方案');
-            return;
-        }
-        
-        // 随机选择一个方案
-        const randomPlanName = planNames[Math.floor(Math.random() * planNames.length)];
-        await applyPlan(randomPlanName);
+        if (planNames.length === 0) { alert('请先创建一个方案'); return; }
+        await applyPlan(planNames[Math.floor(Math.random() * planNames.length)]);
     }
-    
-    // === 测试当前编辑的方案 ===
+
     async function testCurrentPlan() {
         if (!currentPlan) return;
-        
-        const hasContent = (currentPlan.characters && currentPlan.characters.length > 0)
-            || (currentPlan.artists && currentPlan.artists.length > 0)
-            || (currentPlan.presets && currentPlan.presets.length > 0);
-        
-        if (!hasContent) {
-            showToast('请先添加角色、画师或预设', 'error');
-            return;
-        }
-        
+        const hasItems = ['characters', 'artists', 'presets'].some(k => flattenCategory(currentPlan[k]).length > 0);
+        if (!hasItems) { showToast('请先在分组中添加项目', 'error'); return; }
+
         const btn = document.getElementById('editor-test');
         const origHTML = btn ? btn.innerHTML : '';
         if (btn) { btn.innerHTML = '生成中…'; btn.disabled = true; }
-        
+
         try {
-            const config = {
-                character: {
-                    enabled: currentPlan.characters && currentPlan.characters.length > 0,
-                    names: currentPlan.characters,
-                    count: currentPlan.characterCount || 1
-                },
-                artist: {
-                    enabled: currentPlan.artists && currentPlan.artists.length > 0,
-                    names: currentPlan.artists,
-                    count: currentPlan.artistCount || 1
-                },
-                preset: {
-                    enabled: currentPlan.presets && currentPlan.presets.length > 0,
-                    names: currentPlan.presets,
-                    count: currentPlan.presetCount || 1
-                },
-                lora: { enabled: currentPlan.lora || false }
-            };
-            
-            const res = await fetch(`${API_BASE}/apply-plan`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (window.AUTH_TOKEN || '')
-                },
-                body: JSON.stringify(config)
-            });
-            
-            const result = await res.json();
-            let positive = buildPrompt(result);
-            
-            // 拼接当前编辑的固定提示词
-            if (currentPlan.fixedPrompt && currentPlan.fixedPrompt.trim()) {
-                const fixed = currentPlan.fixedPrompt.trim();
-                const random = positive.trim();
-                const parts = [...fixed.split(',').map(s => s.trim()), ...random.split(',').map(s => s.trim())];
-                const seen = new Set();
-                const merged = parts.filter(p => {
-                    if (!p) return false;
-                    const lower = p.toLowerCase();
-                    if (seen.has(lower)) return false;
-                    seen.add(lower);
-                    return true;
-                });
-                positive = merged.join(', ');
+            const parts = [];
+            for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
+                const result = await fetchCategoryFromAPI(apiKey, currentPlan[catKey]);
+                if (result) parts.push(buildPromptFromResult(result));
             }
-            
-            // 覆盖到提示词框
+            let positive = parts.filter(Boolean).join(', ');
+            positive = mergeWithFixed(positive, currentPlan.fixedPrompt);
+
             const promptEl = document.getElementById('prompt');
             if (promptEl && positive) {
                 promptEl.value = positive;
                 promptEl.dispatchEvent(new Event('input'));
             }
-            
             showToast('测试已应用到提示词框', 'success');
         } catch (e) {
             console.error('[RandomPrompt] 测试失败:', e);
@@ -1079,194 +1006,74 @@ const RandomPrompt = (function() {
             if (btn) { btn.innerHTML = origHTML; btn.disabled = false; }
         }
     }
-    
-    // === 构建提示词 ===
-    function buildPrompt(result) {
-        const parts = [];
-        
-        // 角色
-        if (result.character) {
-            if (result.character.trigger) {
-                parts.push(result.character.trigger);
-            } else if (result.character.name) {
-                parts.push(result.character.name);
-            }
-        }
-        
-        // 画师
-        if (result.artist) {
-            if (Array.isArray(result.artist)) {
-                result.artist.forEach(a => {
-                    if (a.danbooru_tag) parts.push(a.danbooru_tag);
-                });
-            } else if (result.artist.danbooru_tag) {
-                parts.push(result.artist.danbooru_tag);
-            }
-        }
-        
-        // 预设
-        if (result.preset) {
-            if (result.preset.prompt) {
-                parts.push(result.preset.prompt);
-            }
-        }
-        
-        return parts.join(', ');
-    }
-    
-    // === 加载方案 ===
+
+    // ─────────────────────────────────────────────
+    //  持久化
+    // ─────────────────────────────────────────────
     function loadPlans() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 plans = JSON.parse(saved);
+                // 迁移所有旧方案
+                Object.values(plans).forEach(p => migratePlanData(p));
+                savePlans();
             }
-            // 加载自动随机设置
             autoRandomEnabled = localStorage.getItem(AUTO_RANDOM_KEY) === 'true';
             autoRandomPlanName = localStorage.getItem(AUTO_RANDOM_PLAN_KEY) || '';
-            fixedPrompt = localStorage.getItem(FIXED_PROMPT_KEY) || '';
         } catch (e) {
             console.error('[RandomPrompt] 加载方案失败:', e);
             plans = {};
         }
     }
-    
-    // === 保存方案 ===
+
     function savePlans() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-        } catch (e) {
-            console.error('[RandomPrompt] 保存方案失败:', e);
-        }
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(plans)); } catch (e) { console.error('[RandomPrompt] 保存方案失败:', e); }
     }
-    
-    // === 保存自动随机设置 ===
+
     function saveAutoRandomSettings() {
         localStorage.setItem(AUTO_RANDOM_KEY, autoRandomEnabled.toString());
         localStorage.setItem(AUTO_RANDOM_PLAN_KEY, autoRandomPlanName);
-        localStorage.setItem(FIXED_PROMPT_KEY, fixedPrompt);
     }
-    
-    // === 切换面板显示 ===
+
     function togglePanel(panel, forceClose) {
-        if (forceClose) {
-            panel.style.display = 'none';
-        } else {
+        if (forceClose) { panel.style.display = 'none'; }
+        else {
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            if (panel.style.display === 'block') {
-                renderPlanList();
-            }
+            if (panel.style.display === 'block') renderPlanList();
         }
     }
-    
-    // === Toast 提示 ===
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 10001;
-            transform: translateX(120%);
-            transition: transform 0.3s ease;
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#00b4d8'};
-            color: #fff;
-        `;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
-        setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-    
-    // === 工具函数 ===
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // === 公共 API ===
+
+    // ─────────────────────────────────────────────
+    //  公共 API
+    // ─────────────────────────────────────────────
     return {
         init,
         applyPlan,
         quickRandom,
         getPlans: () => plans,
         getPlan: (name) => plans[name],
-        
-        // 供生成流程调用：如果启用了自动随机，返回随机结果
+
         applyAutoRandom: async function() {
-            if (!autoRandomEnabled || !autoRandomPlanName || !plans[autoRandomPlanName]) {
-                return null;
-            }
-            console.log('[RandomPrompt] 自动随机应用方案:', autoRandomPlanName);
+            if (!autoRandomEnabled || !autoRandomPlanName || !plans[autoRandomPlanName]) return null;
             const plan = plans[autoRandomPlanName];
-            
+            migratePlanData(plan);
+
             try {
-                const config = {
-                    character: {
-                        enabled: plan.characters && plan.characters.length > 0,
-                        names: plan.characters,
-                        count: plan.characterCount || 1
-                    },
-                    artist: {
-                        enabled: plan.artists && plan.artists.length > 0,
-                        names: plan.artists,
-                        count: plan.artistCount || 1
-                    },
-                    preset: {
-                        enabled: plan.presets && plan.presets.length > 0,
-                        names: plan.presets,
-                        count: plan.presetCount || 1
-                    },
-                    lora: { enabled: plan.lora || false }
-                };
-                
-                const res = await fetch(`${API_BASE}/apply-plan`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + (window.AUTH_TOKEN || '')
-                    },
-                    body: JSON.stringify(config)
-                });
-                
-                const result = await res.json();
-                let positive = buildPrompt(result);
-                
-                // 拼接方案的固定提示词
-                if (plan.fixedPrompt && plan.fixedPrompt.trim()) {
-                    const fixed = plan.fixedPrompt.trim();
-                    const random = positive.trim();
-                    // 合并并去重
-                    const parts = [...fixed.split(',').map(s => s.trim()), ...random.split(',').map(s => s.trim())];
-                    const seen = new Set();
-                    const merged = parts.filter(p => {
-                        if (!p) return false;
-                        const lower = p.toLowerCase();
-                        if (seen.has(lower)) return false;
-                        seen.add(lower);
-                        return true;
-                    });
-                    positive = merged.join(', ');
+                const parts = [];
+                for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
+                    const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
+                    if (result) parts.push(buildPromptFromResult(result));
                 }
-                
-                console.log('[RandomPrompt] 自动随机结果:', positive);
-                return { positive, raw: result };
+                let positive = parts.filter(Boolean).join(', ');
+                positive = mergeWithFixed(positive, plan.fixedPrompt);
+                return { positive, raw: {} };
             } catch (e) {
                 console.error('[RandomPrompt] 自动随机失败:', e);
                 return null;
             }
         },
-        
-        // 检查是否启用了自动随机
+
         isAutoRandomEnabled: () => autoRandomEnabled && autoRandomPlanName
     };
 })();
