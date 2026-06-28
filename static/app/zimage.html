@@ -866,15 +866,25 @@
                 const chk = it.querySelector('.chk');
                 if (chk) chk.style.opacity = isOn ? '1' : '0';
             });
-            // 切换模式后：如果当前选中的模型不属于新模式，清空选择
-            if (selectedUnetModel) {
-                const prefixes = _compatModelPrefixes();
-                if (prefixes !== null) {
-                    const lower = selectedUnetModel.replace(/\\/g, '/').toLowerCase();
-                    if (!prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')))) {
-                        selectedUnetModel = '';
-                    }
-                }
+            // 切换模式后：检查当前选中的模型是否仍属于新模式；不兼容则清空
+            const prefixes = _compatModelPrefixes();
+            const isCompatible = (modelName) => {
+                if (!modelName) return true;
+                if (prefixes === null) return true;
+                const lower = modelName.replace(/\\/g, '/').toLowerCase();
+                return prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')));
+            };
+            if (selectedUnetModel && !isCompatible(selectedUnetModel)) {
+                selectedUnetModel = '';
+            }
+            // 恢复该工作流上次记忆的 UNET 模型（按工作流持久化到 localStorage）
+            const saved = _getSavedUnetForWorkflow(currentWorkflow);
+            if (saved && isCompatible(saved) && saved !== selectedUnetModel) {
+                selectedUnetModel = saved;
+            } else if (saved && !isCompatible(saved)) {
+                // 记忆里的模型已经不属于该工作流了（例如工作流被改成另一个前缀），
+                // 清掉过期记忆避免之后一直卡住
+                _setSavedUnetForWorkflow(currentWorkflow, '');
             }
             updateParamsUI();
         }
@@ -894,27 +904,108 @@
         let selectedUnetModel = '';  // 用户选择的 UNET 模型文件名
         let unetModelsCache = null;  // 缓存：首次加载后不再重复请求
 
+        // 按工作流记忆用户选择的 UNET 模型（持久化到 localStorage），
+        // 下次打开同一工作流时自动恢复选择，而不是回退到工作流 JSON 默认值。
+        const UNET_PER_WF_KEY = 'zimage_unet_per_wf';
+
+        function _loadUnetMap() {
+            try {
+                const raw = localStorage.getItem(UNET_PER_WF_KEY);
+                if (!raw) return {};
+                const obj = JSON.parse(raw);
+                return (obj && typeof obj === 'object') ? obj : {};
+            } catch (e) { return {}; }
+        }
+
+        function _saveUnetMap(map) {
+            try { localStorage.setItem(UNET_PER_WF_KEY, JSON.stringify(map || {})); }
+            catch (e) {}
+        }
+
+        function _getSavedUnetForWorkflow(wfName) {
+            if (!wfName) return '';
+            return _loadUnetMap()[wfName] || '';
+        }
+
+        function _setSavedUnetForWorkflow(wfName, modelName) {
+            if (!wfName) return;
+            const map = _loadUnetMap();
+            if (modelName) map[wfName] = modelName;
+            else delete map[wfName];
+            _saveUnetMap(map);
+        }
+
+        // 从已加载的工作流 JSON 中提取当前在用的 UNET/Diffusion 模型名。
+        // 优先级：运行时选择的 selectedUnetModel > 该工作流上次记忆的模型 > 工作流 JSON 默认值。
+        function getCurrentWorkflowUnet() {
+            if (selectedUnetModel) return selectedUnetModel;
+            const saved = _getSavedUnetForWorkflow(currentWorkflow);
+            if (saved) return saved;
+            try {
+                const wf = window._wfCache && window._wfCache[currentWorkflow];
+                if (!wf) return '';
+                for (const nid in wf) {
+                    const node = wf[nid];
+                    if (!node || !node.inputs) continue;
+                    if (node.class_type === 'UNETLoader' && node.inputs.unet_name) {
+                        return node.inputs.unet_name;
+                    }
+                    if (typeof node.class_type === 'string'
+                        && node.class_type.includes('LoadDiffusionModel')
+                        && node.inputs.model_name) {
+                        return node.inputs.model_name;
+                    }
+                }
+            } catch (e) {}
+            return '';
+        }
+
+        // 规范化模型名：统一反斜杠 + 去尾部 .safetensors + 小写，用于跨平台匹配
+        function _normModelName(n) {
+            if (!n) return '';
+            return String(n).replace(/\\/g, '/').replace(/\.safetensors$/i, '').toLowerCase();
+        }
+
+        // 主动加载当前工作流到 _wfCache（如果还没有），让 getCurrentWorkflowUnet 能在
+        // 打开弹窗时就拿到工作流 JSON 中默认的 UNET 模型名，免去必须先跑一次才能高亮的体验。
+        async function ensureWorkflowCached() {
+            if (!currentWorkflow) return;
+            if (!window._wfCache) window._wfCache = {};
+            if (window._wfCache[currentWorkflow]) return;
+            try {
+                const res = await fetch('/api/workflows/' + encodeURIComponent(currentWorkflow));
+                if (!res.ok) return;
+                const env = await res.json();
+                window._wfCache[currentWorkflow] = env.workflow || env;
+            } catch (e) {}
+        }
+
         function openModelPicker() {
             closeAllMenus();
             const overlay = document.getElementById('modelPickerOverlay');
             const list = document.getElementById('modelPickerList');
             if (!overlay || !list) return;
             overlay.classList.add('open');
-            if (unetModelsCache) {
-                renderModelPickerList(list, unetModelsCache);
-                return;
-            }
-            list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">加载模型列表中...</div>';
-            fetchUnetModels().then(groups => {
-                unetModelsCache = groups;
-                renderModelPickerList(list, groups);
-            }).catch(e => {
-                list.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;font-size:12px;">加载失败: ${e.message}</div>`;
-            });
+            // 先确保工作流已缓存（用于正确高亮默认模型），再渲染列表
+            const renderAfter = () => {
+                if (unetModelsCache) {
+                    renderModelPickerList(list, unetModelsCache);
+                    return;
+                }
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">加载模型列表中...</div>';
+                fetchUnetModels().then(groups => {
+                    unetModelsCache = groups;
+                    renderModelPickerList(list, groups);
+                }).catch(e => {
+                    list.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;font-size:12px;">加载失败: ${e.message}</div>`;
+                });
+            };
+            ensureWorkflowCached().finally(renderAfter);
         }
 
         function renderModelPickerList(list, groups) {
             const prefixes = _compatModelPrefixes();
+            const currentNorm = _normModelName(getCurrentWorkflowUnet());
             list.innerHTML = groups.map(g => {
                 // 按当前工作流过滤：只显示兼容的模型
                 const filteredItems = prefixes === null
@@ -926,7 +1017,9 @@
                 if (filteredItems.length === 0) return '';
                 const cards = filteredItems.map(name => {
                     const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
-                    const isActive = selectedUnetModel === name;
+                    // 匹配规则：按归一化名（反斜杠+大小写+扩展名）匹配，
+                    // 工作流 JSON 中 "z-image\foo.safetensors" 和列表里的 "z-image/foo.safetensors" 都能对上
+                    const isActive = !!(currentNorm && _normModelName(name) === currentNorm);
                     // 用 data-full-name + 事件委托：避免 HTML inline onclick 解析 JS 字符串时
                     // 把反斜杠（'anima\foo'）等不合法转义序列吞掉导致前缀被吃
                     return `<div class="model-picker-card${isActive ? ' active' : ''}" data-full-name="${encodeURIComponent(name)}">
@@ -973,6 +1066,8 @@
 
         function selectUnetModel(name) {
             selectedUnetModel = name;
+            // 按工作流记住这个选择，下次回到该工作流时自动恢复
+            _setSavedUnetForWorkflow(currentWorkflow, name);
             closeModelPicker();
             // 不再修改 modelText —— 按钮只显示类型名（Z-Image / ANIMA），
             // UNET 模型文件名只用于生成时传给后端，不要污染 UI 上的类型标识
