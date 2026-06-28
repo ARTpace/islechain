@@ -785,3 +785,191 @@ video.lora-card-img {
     .lora-card-item { height: 220px; }
     .lora-card-img, .lora-card-img-placeholder { height: 160px; }
 }
+
+/* ========================================================================
+   Light Theme Overrides
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-window {
+    background: linear-gradient(165deg, #ffffff 0%, oklch(95% 0.008 280) 100%);
+    border-color: oklch(85% 0.01 280 / 0.6);
+    box-shadow: 0 4px 40px oklch(0% 0 0 / 0.12);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-shell {
+    background: oklch(0% 0 0 / 0.3);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-header {
+    border-bottom-color: oklch(85% 0.01 280 / 0.6);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-title {
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-search {
+    background: oklch(94% 0.005 280);
+    border-color: oklch(80% 0.01 280 / 0.5);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-search::placeholder {
+    color: oklch(50% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-search:focus {
+    border-color: oklch(55% 0.18 350 / 0.5);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-close {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(30% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-close:hover {
+    background: oklch(0% 0 0 / 0.08);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-sidebar {
+    border-right-color: oklch(85% 0.01 280 / 0.6);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-item {
+    color: oklch(35% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-item:hover {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-item.active {
+    background: oklch(55% 0.18 350 / 0.1);
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-count {
+    color: oklch(55% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-toolbar {
+    border-bottom-color: oklch(85% 0.01 280 / 0.6);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-sort select {
+    background: oklch(94% 0.005 280);
+    border-color: oklch(80% 0.01 280 / 0.5);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-item {
+    background: oklch(96% 0.005 280);
+    border-color: oklch(85% 0.01 280 / 0.5);
+    box-shadow: 0 1px 4px oklch(0% 0 0 / 0.04);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px oklch(0% 0 0 / 0.08);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-item.selected {
+    border-color: oklch(55% 0.18 350 / 0.5);
+    box-shadow: 0 2px 12px oklch(55% 0.18 350 / 0.15);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-name {
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-meta {
+    color: oklch(45% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-base {
+    color: oklch(55% 0.18 350);
+    background: oklch(55% 0.18 350 / 0.08);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-tags {
+    color: oklch(50% 0.01 280);
+    background: oklch(0% 0 0 / 0.04);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-strength {
+    background: oklch(96% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-pager {
+    border-top-color: oklch(85% 0.01 280 / 0.6);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-pager button {
+    background: oklch(94% 0.005 280);
+    border-color: oklch(85% 0.01 280 / 0.5);
+    color: oklch(30% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-pager button.active {
+    background: oklch(55% 0.18 350 / 0.12);
+    border-color: oklch(55% 0.18 350 / 0.4);
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-footer {
+    border-top-color: oklch(85% 0.01 280 / 0.6);
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-manager-btn {
+    color: oklch(30% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-manager-btn:hover {
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-empty {
+    color: oklch(50% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-version-badge {
+    color: oklch(45% 0.01 280);
+    background: oklch(0% 0 0 / 0.04);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-img-placeholder {
+    color: oklch(60% 0.01 280);
+    background: oklch(92% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-category-chip {
+    background: oklch(94% 0.005 280);
+    border-color: oklch(85% 0.01 280 / 0.5);
+    color: oklch(30% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-category-chip:hover {
+    background: oklch(88% 0.01 280);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-category-chip.active {
+    background: oklch(55% 0.18 350 / 0.1);
+    border-color: oklch(55% 0.18 350 / 0.4);
+    color: oklch(55% 0.18 350);
+}
+/* Light theme: LoRA card check icon */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-check {
+    background: oklch(55% 0.18 350) !important;
+    color: #fff !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-tag {
+    background: oklch(55% 0.18 350 / 0.08);
+    color: oklch(55% 0.18 350);
+    border-color: oklch(55% 0.18 350 / 0.2);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-strength-val {
+    color: oklch(30% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card-strength input[type="range"] {
+    accent-color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-overlay {
+    background: oklch(0% 0 0 / 0.15);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-panel {
+    background: #ffffff;
+    border-color: oklch(85% 0.01 280 / 0.5);
+    box-shadow: 0 4px 40px oklch(0% 0 0 / 0.1);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-panel-header h3 {
+    color: oklch(15% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-panel-close {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-panel-close:hover {
+    background: oklch(0% 0 0 / 0.08);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-add-btn {
+    background: oklch(55% 0.18 350);
+    color: #fff;
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-card {
+    background: oklch(97% 0.003 280);
+    border-color: oklch(85% 0.01 280 / 0.5);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-select {
+    background: oklch(94% 0.005 280);
+    border-color: oklch(80% 0.01 280);
+    color: oklch(15% 0.005 280);
+}

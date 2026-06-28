@@ -2889,7 +2889,7 @@ def generate_video_preview_image(path: str, width: int) -> Image.Image:
             raise RuntimeError((proc.stderr or "ffmpeg 未能抽取视频首帧").strip()[:300])
         with Image.open(frame_path) as frame:
             img = ImageOps.exif_transpose(frame).copy()
-            img.thumbnail((width, width), Image.LANCZOS)
+            img.thumbnail((width, width), Image.BILINEAR)
             return img.convert("RGB")
     finally:
         try:
@@ -3848,7 +3848,7 @@ def image_path_to_data_url(path, max_size=1024):
             with Image.open(path) as img:
                 img.load()
                 if max(img.size) > max_size:
-                    img.thumbnail((max_size, max_size), Image.LANCZOS)
+                    img.thumbnail((max_size, max_size), Image.BILINEAR)
                 if img.mode not in ("RGB", "RGBA"):
                     img = img.convert("RGB")
                 from io import BytesIO
@@ -6706,7 +6706,7 @@ async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
             print(f"Angle Task submitted, ID: {task_id}")
 
             for i in range(300):
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
                 try:
                     result = await client.get(
                         f"{base_url}v1/tasks/{task_id}",
@@ -6809,7 +6809,7 @@ async def generate_cloud(req: CloudGenRequest, token: str = ""):
             print(f"Z-Image Task submitted, ID: {task_id}")
 
             for i in range(200):
-                await asyncio.sleep(3)
+                await asyncio.sleep(0.8)
                 try:
                     result = await client.get(
                         f"{base_url}v1/tasks/{task_id}",
@@ -6914,7 +6914,7 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
             TERMINAL_FAILED_STATUSES = {"FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT", "REVOKED"}
 
             for i in range(300):
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
                 try:
                     result = await client.get(
                         f"{base_url}v1/tasks/{task_id}",
@@ -8366,8 +8366,7 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
                 src.thumbnail((width, width), Image.BILINEAR)  # LANCZOS 最慢,BILINEAR 5-10x 更快
             out = src.convert("RGBA" if has_alpha else "RGB")
             os.makedirs(cache_dir, exist_ok=True)
-            # method=0 (fastest) + quality=70:768px 缩略图 < 200ms 编码
-            out.save(webp_path, format="WEBP", quality=70, method=0)
+            out.save(webp_path, format="WEBP", quality=88)
 
         await asyncio.to_thread(_process_and_save)
         _t_pil_cost = (_t.perf_counter() - _t_pil) * 1000
@@ -8526,7 +8525,7 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
                             if src.width > w_target:
                                 src.thumbnail((w_target, w_target), Image.BILINEAR)
                             out = src.convert("RGBA" if has_alpha else "RGB")
-                            out.save(webp_path, format="WEBP", quality=82, method=4)
+                            out.save(webp_path, format="WEBP", quality=88)
                     print(f"[comfyui-thumb-prewarm] ok {filename[:40]}")
                 await asyncio.to_thread(_gen)
             except Exception as e:
@@ -9019,7 +9018,7 @@ async def poster_generate(req: Request, token: str = ""):
 
             # 等待完成
             for _ in range(180):
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
                 try:
                     async with httpx.AsyncClient(timeout=5) as client:
                         hr = await client.get(f"http://{target}/history/{pid}")
@@ -11703,13 +11702,13 @@ async def media_preview(url: str, w: int = 512):
             def _process_image():
                 with Image.open(path) as source:
                     img = ImageOps.exif_transpose(source)
-                    img.thumbnail((width, width), Image.LANCZOS)
+                    img.thumbnail((width, width), Image.BILINEAR)
                     return img.convert("RGBA" if image_has_alpha(img) else "RGB")
             img = await asyncio.to_thread(_process_image)
 
         def _save_preview():
             try:
-                img.save(webp_path, format="WEBP", quality=82, method=4)
+                img.save(webp_path, format="WEBP", quality=88)
                 return webp_path, "image/webp"
             except Exception:
                 img.save(png_path, format="PNG", optimize=True)

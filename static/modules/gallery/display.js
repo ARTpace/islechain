@@ -140,6 +140,9 @@ body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80;
 body.studio-theme-dark .masonry-item { background:#0d1520; border-color:rgba(0,240,255,0.1); }
 body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,255,0.06); }
 
+/* === NSFW 屏蔽：彻底隐藏卡片，避免空白分隔线 === */
+body.nsfw-mode .masonry-item[data-nsfw="1"] { display: none !important; }
+
 /* === Scroll to Top === */
 #galleryScrollToTop {
     position: fixed;
@@ -702,17 +705,24 @@ body.studio-theme-dark .lightbox-thumb.active {
             });
         }
 
-        // NSFW 屏蔽（仅配置开启时）
+        // NSFW 按钮（默认开启屏蔽）
         if (config.nsfwEnabled) {
             extraButtons.push({
                 id: 'nsfw-toggle',
-                label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> 屏蔽 NSFW</span>',
-                title: '开启后不显示 NSFW 相关图片',
+                label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> NSFW</span>',
+                title: '不显示 NSFW 相关图片',
                 onClick: (btn) => {
                     const on = !document.body.classList.contains('nsfw-mode');
                     document.body.classList.toggle('nsfw-mode', on);
                     btn.classList.toggle('is-on', on);
                     try { localStorage.setItem('gallery_nsfw_block', on ? '1' : '0'); } catch (_) {}
+                    // NSFW 状态变化后：清理空分隔线 + 确保触发 load more（可见图片太少时）
+                    setTimeout(() => {
+                        if (window.GalleryList) {
+                            GalleryList.pruneEmptySeparators();
+                            GalleryList.ensureLoadMore();
+                        }
+                    }, 50);
                 }
             });
         }
@@ -742,9 +752,11 @@ body.studio-theme-dark .lightbox-thumb.active {
             }
         } catch (_) {}
 
-        // 恢复 NSFW 偏好
+        // 恢复 NSFW 偏好：首次使用无记录时默认开启屏蔽
         try {
-            if (localStorage.getItem('gallery_nsfw_block') === '1') {
+            const nsfwVal = localStorage.getItem('gallery_nsfw_block');
+            if (nsfwVal === null || nsfwVal === '1') {
+                // 无记录或值为 1 → 开启 nsfw-mode
                 document.body.classList.add('nsfw-mode');
                 setTimeout(() => {
                     const btn = document.querySelector('[data-extra-btn="nsfw-toggle"]');

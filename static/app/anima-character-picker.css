@@ -1151,3 +1151,70 @@
     background: var(--picker-accent-soft);
     color: var(--picker-accent);
 }
+
+/* ========================================================================
+   Light Theme Overrides
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) {
+    --picker-bg:           oklch(98% 0.002 280);
+    --picker-bg-2:         oklch(95% 0.008 280);
+    --picker-surface:      #ffffff;
+    --picker-surface-hi:   oklch(92% 0.01 280);
+    --picker-line:         oklch(78% 0.01 280 / 0.6);
+    --picker-line-hi:      oklch(55% 0.01 280 / 0.7);
+    --picker-text:         oklch(10% 0.005 280);
+    --picker-text-mid:     oklch(30% 0.01 280);
+    --picker-text-mute:    oklch(45% 0.012 280);
+    --picker-text-faint:   oklch(60% 0.015 280);
+    --picker-accent:       oklch(55% 0.18 350);
+    --picker-accent-soft:  oklch(55% 0.18 350 / 0.12);
+    --picker-accent-line:  oklch(55% 0.18 350 / 0.4);
+    --picker-glass:        oklch(0% 0 0 / 0.04);
+    --picker-glass-hi:     oklch(0% 0 0 / 0.08);
+    --picker-shadow:       0 4px 24px oklch(0% 0 0 / 0.12);
+    --picker-shadow-card:  0 1px 4px oklch(0% 0 0 / 0.06);
+    --picker-shadow-hi:    0 4px 16px oklch(0% 0 0 / 0.1);
+}
+
+/* Shell / Window light override */
+body:not(.studio-theme-dark):not(.theme-dark) .picker-shell {
+    background: oklch(0% 0 0 / 0.3);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-window {
+    background: linear-gradient(165deg, #ffffff 0%, oklch(95% 0.008 280) 100%);
+    border-color: oklch(85% 0.01 280 / 0.6);
+    box-shadow: 0 4px 40px oklch(0% 0 0 / 0.12);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-header {
+    background: oklch(96% 0.003 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-chipbar {
+    background: oklch(97% 0.003 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-sidebar {
+    background: oklch(96% 0.003 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-char-cover {
+    background: oklch(92% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-char-select {
+    background: oklch(100% 0 0 / 0.75);
+    border-color: oklch(40% 0 0 / 0.3);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-char-fav {
+    background: oklch(100% 0 0 / 0.75);
+    color: oklch(30% 0 0 / 0.7);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-char-fav:hover {
+    background: oklch(100% 0 0 / 0.9);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-pager {
+    background: oklch(96% 0.003 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-footer {
+    background: oklch(97% 0.003 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .picker-dd-menu {
+    background: #ffffff;
+    box-shadow: 0 4px 24px oklch(0% 0 0 / 0.12);
+}

@@ -249,3 +249,126 @@
         height: calc(100vh - 24px) !important;
     }
 }
+/* ========================================================================
+   Light Theme Overrides
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-cat {
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-cat:hover {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-cat.active {
+    background: oklch(55% 0.18 350 / 0.1);
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-card {
+    background: oklch(96% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-card:hover {
+    box-shadow: 0 8px 24px oklch(0% 0 0 / 0.1);
+    border-color: oklch(55% 0.18 350 / 0.2);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-card.selected {
+    background: oklch(96% 0.005 280);
+    border-color: oklch(55% 0.18 350 / 0.5);
+    box-shadow: 0 0 0 3px oklch(55% 0.18 350 / 0.15);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-card .artist-name {
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .artist-picker-card .artist-tags {
+    color: oklch(45% 0.01 280);
+}
+/* ========================================================================
+   Modal Light Theme Overrides (JS generates dark inline styles)
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal > div {
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+    border-color: oklch(85% 0.01 280 / 0.5) !important;
+    box-shadow: 0 4px 40px oklch(0% 0 0 / 0.1) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal input[type="text"] {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal select {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal button {
+    color: oklch(30% 0.01 280) !important;
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerCategories {
+    background: oklch(96% 0.003 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerCategories > div:first-child {
+    color: oklch(40% 0.01 280) !important;
+    background: oklch(96% 0.003 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerSelectedCount {
+    color: oklch(55% 0.18 350) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal [style*="border-bottom"] {
+    border-bottom-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal [style*="border-right"] {
+    border-right-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal [style*="border-top"] {
+    border-top-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+/* Light theme: pagination JS inline styles override */
+body:not(.studio-theme-dark):not(.theme-dark) #artistPagination button {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(30% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPagination button[style*="#00b4d8"] {
+    background: oklch(55% 0.18 350 / 0.12) !important;
+    border-color: oklch(55% 0.18 350 / 0.4) !important;
+    color: oklch(55% 0.18 350) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerPageBtn button {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(30% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal svg {
+    color: oklch(45% 0.01 280) !important;
+}
+/* Light theme: remaining artist picker inline style overrides */
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerSelectedSummary {
+    color: oklch(40% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerPageInfo {
+    color: oklch(45% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerPrevBtn,
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerNextBtn {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(30% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerPrevBtn:hover:not(:disabled),
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerNextBtn:hover:not(:disabled) {
+    background: oklch(88% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal [style*="background: rgba(0,0,0,0.2)"] {
+    background: oklch(96% 0.003 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal [style*="background: rgba(0,0,0,0.3)"] {
+    background: oklch(96% 0.003 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal button[onclick*="artistPickerClose"] {
+    background: oklch(55% 0.18 350) !important;
+    color: #fff !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #artistPickerModal button[style*="&times;"] {
+    color: oklch(40% 0.01 280) !important;
+}

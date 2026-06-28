@@ -85,7 +85,12 @@
         seps.forEach(sep => {
             let count = 0, n = sep.nextElementSibling;
             while (n && !n.classList.contains('date-separator')) {
-                if (n.classList.contains('masonry-item')) count++;
+                if (n.classList.contains('masonry-item')) {
+                    // 排除 NSFW 屏蔽隐藏的卡片
+                    if (!(document.body.classList.contains('nsfw-mode') && n.dataset.nsfw === '1')) {
+                        count++;
+                    }
+                }
                 n = n.nextElementSibling;
             }
             const label = sep.querySelector('.sep-label');
@@ -94,6 +99,51 @@
             if (!label.dataset.baseText) label.dataset.baseText = base;
             label.textContent = count > 0 ? base + '  ·' + count : base;
         });
+    }
+
+    /** 清理下方无可见图片的空白日期分隔线 */
+    function pruneEmptySeparators() {
+        const c = state.container;
+        if (!c) return;
+        const seps = c.querySelectorAll('.date-separator');
+        seps.forEach(sep => {
+            let visibleCount = 0;
+            let n = sep.nextElementSibling;
+            while (n && !n.classList.contains('date-separator')) {
+                if (n.classList.contains('masonry-item')) {
+                    // 排除被 CSS display:none 隐藏的 NSFW 卡片
+                    if (n.offsetParent !== null) visibleCount++;
+                }
+                n = n.nextElementSibling;
+            }
+            if (visibleCount === 0) sep.remove();
+        });
+        // 也清理顶部连续的空分隔线
+        let firstItem = c.querySelector('.masonry-item');
+        while (firstItem) {
+            const prev = firstItem.previousElementSibling;
+            if (prev && prev.classList.contains('date-separator')) {
+                prev.remove();
+                firstItem = c.querySelector('.masonry-item');
+            } else {
+                break;
+            }
+        }
+    }
+
+    /** 确保有足够可见图片填充视口，不够则自动加载下一页 */
+    function ensureLoadMore() {
+        if (!state.hasMore || state.isLoading) return;
+        const c = state.container;
+        if (!c) return;
+        const visibleItems = c.querySelectorAll('.masonry-item');
+        let visibleCount = 0;
+        visibleItems.forEach(item => {
+            if (item.offsetParent !== null) visibleCount++;
+        });
+        if (visibleCount < state.pageSize) {
+            load(1);
+        }
     }
 
     // === DOM 驱动的日期分组(单一事实来源) ===
@@ -231,6 +281,8 @@
             state.currentIndex = state.allHistory.length;
             // 更新日期分隔线的图片计数
             updateDateCounts();
+            // 清除因 NSFW 屏蔽导致的空白分隔线
+            pruneEmptySeparators();
             // 触发器显隐：空 / 已无更多 → 隐藏；否则显示
             if (state.currentIndex === 0) {
                 if (trigger) trigger.classList.add('hidden');
@@ -383,6 +435,8 @@
         toggleBatchSelect,
         toggleItemSelection,
         clearSelection,
+        pruneEmptySeparators,
+        ensureLoadMore,
         get allHistory() { return state.allHistory; },
         set allHistory(v) { state.allHistory = v; }
     };

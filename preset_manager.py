@@ -6,10 +6,10 @@
   2. 风格预设（prompt）：完整自然语言提示词，点击替换或追加
 
 数据文件：
-  - data/prompt-presets.json  → 标签预设（原有）
+  - data/presets/*.json       → 标签预设（按大类分文件）
   - data/style-presets.json   → 风格预设（新增）
   - data/preset-i18n.json     → 中文名映射
-  - data/prompt-presets.yaml  → YAML 标签预设（可选，优先级高于 JSON）
+  - data/prompt-presets.yaml  → YAML 标签预设（可选，优先级低于 JSON）
 """
 
 import os
@@ -28,6 +28,14 @@ PROMPT_PRESETS_JSON = DATA_DIR / "prompt-presets.json"
 PROMPT_PRESETS_YAML = DATA_DIR / "prompt-presets.yaml"
 STYLE_PRESETS_FILE = DATA_DIR / "style-presets.json"
 PRESET_I18N_FILE = DATA_DIR / "preset-i18n.json"
+PRESETS_DIR = DATA_DIR / "presets"  # 拆分后的多文件目录
+
+# === 文件顺序（控制侧边栏分类排列） ===
+PRESET_FILE_ORDER = [
+    "quality", "character", "clothing", "pose", "scene",
+    "lighting", "effects", "objects", "misc",
+    "game_anime", "nsfw",
+]
 
 
 # === 预设类型枚举 ===
@@ -101,82 +109,136 @@ class Category:
 
 # === 缓存管理 ===
 class PresetCache:
-    """预设缓存，带 mtime 检测"""
+    """预设缓存，带 mtime 检测（多文件版）"""
     def __init__(self):
-        self.data: Any = None
-        self.mtime: float = 0.0
+        self.categories: list = []          # 全部 categories 列表
+        self.file_mtimes: dict = {}          # {filename: mtime}
+        self.dir_mtime: float = 0.0          # 目录自身的 mtime（检测文件增删）
         self.i18n: Dict[str, str] = {}
         self.i18n_mtime: float = 0.0
         self.bidir: Tuple[Dict, Dict] = ({}, {})
         self.bidir_mtime: float = 0.0
 
-    def is_fresh(self, file_path: Path) -> bool:
+    def get_dir_files(self) -> list:
+        """获取 presets 目录下所有 JSON 文件（排序）"""
+        if not PRESETS_DIR.exists():
+            return []
+        files = sorted(PRESETS_DIR.glob("*.json"))
+        # 按 PRESET_FILE_ORDER 排序，不在顺序中的排在后面
+        order_map = {name: i for i, name in enumerate(PRESET_FILE_ORDER)}
+        def sort_key(f):
+            stem = f.stem
+            return (order_map.get(stem, 999), stem)
+        files.sort(key=sort_key)
+        return files
+
+    def is_fresh(self) -> bool:
+        """检查是否有任何文件发生变化"""
+        if not self.categories:
+            return False
         try:
-            return self.data is not None and self.mtime == os.path.getmtime(file_path)
+            # 检查目录 mtime（文件增删）
+            current_dir_mtime = os.path.getmtime(PRESETS_DIR)
+            if current_dir_mtime != self.dir_mtime:
+                return False
+            # 检查每个文件 mtime
+            for fpath in self.get_dir_files():
+                current_mtime = os.path.getmtime(fpath)
+                if self.file_mtimes.get(str(fpath)) != current_mtime:
+                    return False
+            return True
         except OSError:
             return False
 
+    def refresh(self):
+        """刷新缓存的 categories"""
+        self.categories = []
+        self.file_mtimes = {}
+        if not PRESETS_DIR.exists():
+            self.dir_mtime = 0.0
+            return
+        try:
+            self.dir_mtime = os.path.getmtime(PRESETS_DIR)
+        except OSError:
+            self.dir_mtime = 0.0
+
+        for fpath in self.get_dir_files():
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for cat in data.get("categories", []):
+                    self.categories.append(cat)
+                self.file_mtimes[str(fpath)] = os.path.getmtime(fpath)
+            except Exception as e:
+                print(f"[preset_manager] load {fpath.name} error: {e}")
+
     def invalidate(self):
-        self.data = None
-        self.mtime = 0.0
+        self.categories = []
+        self.file_mtimes = {}
+        self.dir_mtime = 0.0
 
 
 # 全局缓存实例
 _cache = PresetCache()
 
 
-# === i18n 映射 ===
+# === i18n 映射（直接从各预设文件构建，无需独立 i18n 文件）===
+def _get_presets_i18n_dir_mtime() -> float:
+    """获取 presets/ 目录 & style 文件的最新 mtime"""
+    latest = 0.0
+    if PRESETS_DIR.exists():
+        try:
+            latest = max(latest, os.path.getmtime(PRESETS_DIR))
+            for f in PRESETS_DIR.glob("*.json"):
+                latest = max(latest, os.path.getmtime(f))
+        except OSError:
+            pass
+    if STYLE_PRESETS_FILE.exists():
+        try:
+            latest = max(latest, os.path.getmtime(STYLE_PRESETS_FILE))
+        except OSError:
+            pass
+    return latest
+
+
 def load_preset_i18n() -> Dict[str, str]:
-    """加载预设中文名映射表"""
-    try:
-        mtime = os.path.getmtime(PRESET_I18N_FILE)
-        if _cache.i18n and _cache.i18n_mtime == mtime:
-            return _cache.i18n
-    except OSError:
-        pass
+    """加载预设中文名映射表（直接从 presets/*.json + style-presets.json 构建）"""
+    mtime = _get_presets_i18n_dir_mtime()
+    if _cache.i18n and _cache.i18n_mtime == mtime:
+        return _cache.i18n
 
     i18n = {}
-    if PRESET_I18N_FILE.exists():
-        try:
-            with open(PRESET_I18N_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                i18n = data
-        except Exception as e:
-            print(f"[preset_manager] load i18n error: {e}")
 
-    # 合并 prompt-presets.json 中的 id→name
-    _merge_presets_i18n(i18n)
-    # 合并 style-presets.json 中的 id→name
-    _merge_style_presets_i18n(i18n)
+    # 从 presets/*.json 收集中文名
+    if PRESETS_DIR.exists():
+        for fpath in sorted(PRESETS_DIR.glob("*.json")):
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                _walk_and_merge(data, i18n)
+            except Exception:
+                pass
+    elif PROMPT_PRESETS_JSON.exists():
+        # 向后兼容：旧单文件
+        try:
+            with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            _walk_and_merge(data, i18n)
+        except Exception:
+            pass
+
+    # 从 style-presets.json 收集中文名
+    if STYLE_PRESETS_FILE.exists():
+        try:
+            with open(STYLE_PRESETS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            _walk_and_merge(data, i18n)
+        except Exception:
+            pass
 
     _cache.i18n = i18n
-    _cache.i18n_mtime = mtime if PRESET_I18N_FILE.exists() else 0.0
+    _cache.i18n_mtime = mtime
     return i18n
-
-
-def _merge_presets_i18n(i18n: Dict[str, str]):
-    """从 prompt-presets.json 合并中文名"""
-    if not PROMPT_PRESETS_JSON.exists():
-        return
-    try:
-        with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _walk_and_merge(data, i18n)
-    except Exception:
-        pass
-
-
-def _merge_style_presets_i18n(i18n: Dict[str, str]):
-    """从 style-presets.json 合并中文名"""
-    if not STYLE_PRESETS_FILE.exists():
-        return
-    try:
-        with open(STYLE_PRESETS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _walk_and_merge(data, i18n)
-    except Exception:
-        pass
 
 
 def _walk_and_merge(node, i18n: Dict[str, str]):
@@ -288,18 +350,20 @@ def _parse_yaml_presets() -> Dict[str, Any]:
 
 
 def _load_json_presets() -> Dict[str, Any]:
-    """从 JSON 文件加载标签预设"""
+    """从 presets/*.json 加载所有标签预设（多文件版）"""
+    # 多文件目录优先
+    if PRESETS_DIR.exists():
+        if _cache.is_fresh():
+            return {"categories": _cache.categories}
+        _cache.refresh()
+        return {"categories": _cache.categories}
+
+    # 向后兼容：旧单文件
     if not PROMPT_PRESETS_JSON.exists():
         return {"categories": []}
-
-    if _cache.is_fresh(PROMPT_PRESETS_JSON) and _cache.data:
-        return _cache.data
-
     try:
         with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
             data = json.load(f)
-        _cache.data = data
-        _cache.mtime = os.path.getmtime(PROMPT_PRESETS_JSON)
         return data
     except Exception as e:
         print(f"[preset_manager] JSON load error: {e}")
@@ -307,8 +371,8 @@ def _load_json_presets() -> Dict[str, Any]:
 
 
 def get_tag_presets() -> Dict[str, Any]:
-    """获取标签预设（JSON 优先，YAML 为废弃备用）"""
-    if PROMPT_PRESETS_JSON.exists():
+    """获取标签预设（多文件 presets/ 优先，JSON 单文件次之，YAML 为废弃备用）"""
+    if PRESETS_DIR.exists() or PROMPT_PRESETS_JSON.exists():
         return _load_json_presets()
     if PROMPT_PRESETS_YAML.exists():
         return _parse_yaml_presets()
@@ -357,11 +421,20 @@ def get_all_presets() -> Dict[str, Any]:
 
 
 def save_tag_presets(data: Dict[str, Any]) -> bool:
-    """保存标签预设"""
+    """保存标签预设（多文件版：按大类拆分保存）"""
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with open(PROMPT_PRESETS_JSON, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+
+        categories = data.get("categories", [])
+        for cat in categories:
+            cid = cat.get("id", "")
+            if not cid:
+                continue
+            fpath = PRESETS_DIR / f"{cid}.json"
+            with open(fpath, "w", encoding="utf-8") as f:
+                json.dump({"categories": [cat]}, f, ensure_ascii=False, indent=2)
+
         _cache.invalidate()
         return True
     except Exception as e:
@@ -372,40 +445,41 @@ def save_tag_presets(data: Dict[str, Any]) -> bool:
 # === 双向映射（兼容旧接口）===
 
 def get_preset_bidir() -> Tuple[Dict[str, str], Dict[str, str]]:
-    """获取 id↔name 双向映射"""
-    try:
-        mtime = os.path.getmtime(PROMPT_PRESETS_JSON)
-        if _cache.bidir[0] and _cache.bidir_mtime == mtime:
-            return _cache.bidir
-    except OSError:
-        pass
-
+    """获取 id↔name 双向映射（多文件版）"""
     id_to_name, name_to_id = {}, {}
-    if PROMPT_PRESETS_JSON.exists():
+
+    def walk(node):
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            if "id" in node and "name" in node and isinstance(node["name"], str):
+                if any("\u4e00" <= c <= "\u9fa5" for c in node["name"]):
+                    pid = str(node["id"])
+                    pname = node["name"]
+                    id_to_name[pid] = pname
+                    name_to_id[pname] = pid
+            for v in node.values():
+                walk(v)
+
+    # 多文件版
+    if PRESETS_DIR.exists():
+        try:
+            for fpath in sorted(PRESETS_DIR.glob("*.json")):
+                with open(fpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for cat in data.get("categories", []):
+                    walk(cat)
+        except Exception as e:
+            print(f"[preset_manager] bidir load error: {e}")
+    elif PROMPT_PRESETS_JSON.exists():
+        # 向后兼容
         try:
             with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
                 data = json.load(f)
-
-            def walk(node):
-                if isinstance(node, list):
-                    for item in node:
-                        walk(item)
-                elif isinstance(node, dict):
-                    if "id" in node and "name" in node and isinstance(node["name"], str):
-                        if any("\u4e00" <= c <= "\u9fa5" for c in node["name"]):
-                            pid = str(node["id"])
-                            pname = node["name"]
-                            id_to_name[pid] = pname
-                            name_to_id[pname] = pid
-                    for v in node.values():
-                        walk(v)
-
             for cat in data.get("categories", []):
                 walk(cat)
-
-            _cache.bidir = (id_to_name, name_to_id)
-            _cache.bidir_mtime = mtime
         except Exception as e:
             print(f"[preset_manager] bidir load error: {e}")
 
-    return _cache.bidir or ({}, {})
+    return id_to_name, name_to_id

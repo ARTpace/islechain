@@ -209,3 +209,103 @@
         height: calc(100vh - 24px) !important;
     }
 }
+
+/* ========================================================================
+   Light Theme Overrides
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-cat {
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-cat:hover {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-cat.active {
+    background: oklch(55% 0.18 350 / 0.1);
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-subcat {
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-subcat:hover {
+    background: oklch(0% 0 0 / 0.04);
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-subcat.active {
+    background: oklch(55% 0.18 350 / 0.1);
+    color: oklch(55% 0.18 350);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card {
+    background: oklch(96% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card:hover {
+    background: oklch(92% 0.008 280);
+    border-color: oklch(85% 0.01 280 / 0.5);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card.selected {
+    background: oklch(55% 0.18 350 / 0.08);
+    border-color: oklch(55% 0.18 350 / 0.5);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card-name {
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card-prompt {
+    color: oklch(45% 0.01 280);
+}
+/* ========================================================================
+   Modal Light Theme Overrides (JS generates dark inline styles)
+   ======================================================================== */
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal > div {
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+    border-color: oklch(85% 0.01 280 / 0.5) !important;
+    box-shadow: 0 4px 40px oklch(0% 0 0 / 0.1) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal input[type="text"] {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal select {
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal #presetPickerShowSelBtn,
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal button {
+    color: oklch(30% 0.01 280) !important;
+    background: oklch(94% 0.005 280) !important;
+    border-color: oklch(80% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerCopyBtn {
+    background: oklch(55% 0.18 350 / 0.1) !important;
+    color: oklch(55% 0.18 350) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerTitle {
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerTotalCount,
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerPageInfo,
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerFooter span {
+    color: oklch(45% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerCategories {
+    color: oklch(30% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal [style*="border-bottom"] {
+    border-bottom-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal [style*="border-right"] {
+    border-right-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal [style*="border-top"] {
+    border-top-color: oklch(85% 0.01 280 / 0.5) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-mode-tab {
+    color: oklch(40% 0.01 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-mode-tab:hover {
+    color: oklch(15% 0.005 280) !important;
+}
+body:not(.studio-theme-dark):not(.theme-dark) .preset-mode-tab.active {
+    color: oklch(55% 0.18 350) !important;
+}

@@ -21,21 +21,21 @@
     <script src="/static/lucide.min.js"></script>
     <script src="/static/theme.js"></script>
     <script src="/static/history-bulk-manager.js"></script>
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260613">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
-    <script src="/static/modules/gallery/list.js?v=20260620-1"></script>
-    <script src="/static/modules/gallery/card.js?v=20260620-1"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20260613"></script>
+    <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
+    <script src="/static/modules/gallery/card.js?v=20260628"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=20260614"></script>
     <script src="/static/modules/image-viewer.js?v=20260521006"></script>
-    <script src="/static/modules/gallery/display.js?v=20260619"></script>
-    <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260619019">
+    <script src="/static/modules/gallery/display.js?v=20260628"></script>
+    <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260628">
     <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
-    <link rel="stylesheet" href="/static/app/anima-artist-picker.css">
+    <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <script src="/static/modules/random-prompt.js?v=20260627001"></script>
-    <link rel="stylesheet" href="/static/app/preset-picker.css">
+    <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260619024"></script>
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260619012">
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260628">
     <script src="/static/app/lora-picker.js?v=20260619015"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js"></script>
@@ -866,9 +866,30 @@
                 const chk = it.querySelector('.chk');
                 if (chk) chk.style.opacity = isOn ? '1' : '0';
             });
+            // 切换模式后：如果当前选中的模型不属于新模式，清空选择
+            if (selectedUnetModel) {
+                const prefixes = _compatModelPrefixes();
+                if (prefixes !== null) {
+                    const lower = selectedUnetModel.replace(/\\/g, '/').toLowerCase();
+                    if (!prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')))) {
+                        selectedUnetModel = '';
+                    }
+                }
+            }
             updateParamsUI();
         }
 
+
+        // === 当前工作流兼容的模型文件夹前缀列表 ===
+        function _compatModelPrefixes() {
+            const wf = currentWorkflow.toLowerCase();
+            if (wf.includes('anima')) return ['anima\\', 'anima/'];
+            if (wf.includes('krea2')) return ['flux2-klein\\', 'flux2-klein/'];
+            if (wf.includes('ideogram4')) return ['ideogram4\\', 'ideogram4/'];
+            if (wf.includes('boogu')) return ['boogu\\', 'boogu/'];
+            if (wf.includes('zimage') || wf.includes('z-image')) return ['z-image\\', 'z-image/'];
+            return null; // unknown -> show all
+        }
         // === 模型选择面板（UNET 模型文件） ===
         let selectedUnetModel = '';  // 用户选择的 UNET 模型文件名
         let unetModelsCache = null;  // 缓存：首次加载后不再重复请求
@@ -893,8 +914,17 @@
         }
 
         function renderModelPickerList(list, groups) {
+            const prefixes = _compatModelPrefixes();
             list.innerHTML = groups.map(g => {
-                const cards = g.items.map(name => {
+                // 按当前工作流过滤：只显示兼容的模型
+                const filteredItems = prefixes === null
+                    ? g.items  // 未知模式显示全部
+                    : g.items.filter(name => {
+                        const lower = name.replace(/\\/g, '/').toLowerCase();
+                        return prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')));
+                    });
+                if (filteredItems.length === 0) return '';
+                const cards = filteredItems.map(name => {
                     const shortName = name.replace(/\\/g, '/').split('/').pop().replace(/\.safetensors$/i, '');
                     const isActive = selectedUnetModel === name;
                     // 用 data-full-name + 事件委托：避免 HTML inline onclick 解析 JS 字符串时
@@ -909,7 +939,7 @@
                     </div>`;
                 }).join('');
                 return `<div class="model-picker-group-label">${g.label}</div>${cards}`;
-            }).join('') || '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">未找到可用模型</div>';
+            }).join('') || '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">当前模式无可选模型</div>';
             // 一次性事件委托：保证反斜杠/单引号/换行等特殊字符能原样传回
             list.querySelectorAll('.model-picker-card').forEach(card => {
                 card.addEventListener('click', () => {
@@ -2513,14 +2543,18 @@
                 // 为本次任务生成独立 ID
                 const taskPid = generateUUID();
 
-                // 提交任务到 ComfyUI
+                // 提交任务到 ComfyUI，捕获真实的 prompt_id
                 const submitRes = await fetch('/api/comfyui/prompt', {
                     method: 'POST', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ prompt: workflow, client_id: CLIENT_ID, prompt_id: taskPid })
                 });
                 if (!submitRes.ok) throw new Error('提交失败: ' + await submitRes.text());
+                const submitResult = await submitRes.json();
+                const realPromptId = submitResult.prompt_id;  // ComfyUI 返回的真正 prompt_id
 
                 // 注册到共享 WebSocket 接收实时采样进度（百分比 0%~100%）
+                // 先用 taskPid 注册（若 WS 在 submit 和 getRealId 之间发来 msg），
+                // 拿到 realPromptId 后再补注册一次（ComfyUI 的 WS 消息带的是 realPromptId）
                 _registerTask(taskPid, placeholder, null);
 
                 // HTTP 轮询兜底（WS 连接失败或不可用时仍有进度显示）
@@ -2540,7 +2574,10 @@
                     } catch(e) {}
                 }, 1000);
 
-                // 调后端 /api/generate 等待完成并下载到本地（传 prompt_id 避免重复提交）
+                // 拿到真实 prompt_id 后更新 WS 注册（ComfyUI WS 消息靠真实的 id 匹配）
+                _registerTask(realPromptId, placeholder, null);
+
+                // 后端 /api/generate 负责轮询 ComfyUI + 下载 + 保存 + 预生成缩略图
                 const _sz = getAnimaSize();
                 const res = await fetch('/api/generate', {
                     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -2551,7 +2588,7 @@
                         type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : lockedFeatureName === 'ideogram4' ? 'ideogram4' : lockedFeatureName === 'boogu' ? 'boogu' : 'zimage',
                         client_id: CLIENT_ID,
                         workflow_data: workflow,
-                        prompt_id: taskPid,
+                        prompt_id: realPromptId,
                         feature: lockedFeatureName
                     })
                 });
@@ -2565,7 +2602,6 @@
                 if (localUrls.length === 0) throw new Error('未返回图片');
                 console.log('[IMG-PERF] 后端返回本地 URL 数量:', localUrls.length);
 
-                // 用本地 URL + blur-up 两阶段过渡展示
                 const _qs = Date.now();
                 const record = {
                     timestamp: _qs,
@@ -2586,7 +2622,6 @@
                         engine: currentEngine,
                     }
                 };
-                // 后端已保存历史记录，前端也保存一份确保本地有
                 try {
                     await fetch('/api/history/save', {
                         method: 'POST',
@@ -2594,9 +2629,7 @@
                         body: JSON.stringify(record)
                     });
                 } catch(e) {}
-                // 把 record 同步到 allHistory（lightbox 从此构建图片列表）
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
-                // === Blur-up：直接操作 tempCard 的 img，零 DOM 替换 ===
                 updateCardProgress(placeholder, { status: 'complete' });
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
                     const tempContainer = document.createElement('div');
@@ -2606,51 +2639,23 @@
                         tempCard.style.aspectRatio = _aspectRatio;
                         const _fullImg = tempCard.querySelector('img');
                         if (_fullImg && localUrls[0]) {
-                            const _blurUrl = '/api/media-preview?w=64&url=' + encodeURIComponent(localUrls[0]);
-                            const _hdUrl = _fullImg.src;  // GalleryCard 已生成的 768px 缩略图 URL
-
-                            // 移除环形动画和占位样式
                             const progress = placeholder.querySelector('.card-progress');
                             if (progress) progress.remove();
                             placeholder.classList.remove('bg-gray-50', 'border-dashed', 'border-2', 'border-gray-200');
-
-                            // 把 tempCard 直接放进 placeholder 位置（一次性，之后不再替换 DOM）
                             const _parent = placeholder.parentNode;
                             const _sibling = placeholder.nextSibling;
                             _parent.insertBefore(tempCard, _sibling);
                             placeholder.remove();
-
-                            // 此时 tempCard 的 img 还在加载 768px，先换成 64px 模糊图
-                            _fullImg.src = _blurUrl;
-                            _fullImg.style.filter = 'blur(20px)';
-                            _fullImg.style.transform = 'scale(1.2)';
-                            _fullImg.style.transition = 'filter 0.6s ease, transform 0.6s ease';
-
-                            // 预加载高清图
-                            const _hd = new Image();
-                            _hd.src = _hdUrl;
-
-                            const _reveal = () => {
-                                const _doSwap = () => {
-                                    // 同一个 img：换回 768px（已缓存）+ 去模糊
-                                    _fullImg.src = _hdUrl;
-                                    _fullImg.style.filter = 'blur(0)';
-                                    _fullImg.style.transform = 'scale(1)';
-                                    // 过渡完成后清理 transition
-                                    setTimeout(() => {
-                                        _fullImg.style.transition = '';
-                                    }, 650);
-                                };
-                                if (_hd.decode) {
-                                    _hd.decode().then(_doSwap).catch(_doSwap);
-                                } else {
-                                    _doSwap();
-                                }
-                            };
-                            if (_hd.complete) _reveal();
-                            else _hd.addEventListener('load', _reveal, { once: true });
+                            if (_fullImg.naturalWidth === 0) {
+                                _fullImg.style.opacity = '0.3';
+                                _fullImg.style.transition = 'opacity 0.4s ease';
+                                _fullImg.addEventListener('load', function _onLoad() {
+                                    _fullImg.style.opacity = '1';
+                                    setTimeout(() => { _fullImg.style.transition = ''; }, 450);
+                                    _fullImg.removeEventListener('load', _onLoad);
+                                }, { once: true });
+                            }
                         } else {
-                            // 降级：直接替换
                             const _parent = placeholder.parentNode;
                             const _sibling = placeholder.nextSibling;
                             if (_parent) { _parent.insertBefore(tempCard, _sibling); placeholder.remove(); }

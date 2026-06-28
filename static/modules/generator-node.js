@@ -440,7 +440,7 @@ async function pollCanvasImageTaskModule(taskId){
                 pendingCleanupModule(taskId);
                 return 'failed';
             }
-            await new Promise(resolve => setTimeout(resolve, 1800));
+            await new Promise(resolve => setTimeout(resolve, 400));
         }
     } catch(err) {
         pendingCleanupModule(taskId);

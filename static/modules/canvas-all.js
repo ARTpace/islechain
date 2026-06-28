@@ -2737,7 +2737,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                         if(found) found.out._pending = (found.out._pending || []).filter(p => p.canvasTaskId !== taskId);
                         return 'failed';
                     }
-                    await new Promise(resolve => setTimeout(resolve, 1800));
+                    await new Promise(resolve => setTimeout(resolve, 400));
                 }
             } catch(err) {
                 const found = findPendingTask(taskId);
