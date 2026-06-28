@@ -3758,6 +3758,14 @@
                         }
                     }, 60);
                 });
+                // Shift+Enter 触发生成
+                promptEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.shiftKey) {
+                        e.preventDefault();
+                        const btn = document.getElementById('mainGenBtn');
+                        if (btn && !btn.disabled) btn.click();
+                    }
+                });
             }
         });
 

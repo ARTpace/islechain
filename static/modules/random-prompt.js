@@ -595,11 +595,16 @@ const RandomPrompt = (function() {
     }
 
     // ─────────────────────────────────────────────
-    //  组间拖拽（分组卡片排序）
+    //  组间拖拽（分组卡片排序）— 使用 AbortController 避免重复绑定
     // ─────────────────────────────────────────────
+    let groupDragController = null;
     function setupGroupDrag(section, planKey) {
         const container = section.querySelector('.groups-container');
         if (!container) return;
+        // 清除上一次的事件监听
+        if (groupDragController) groupDragController.abort();
+        groupDragController = new AbortController();
+        const signal = groupDragController.signal;
         let dragIdx = null;
 
         container.addEventListener('dragstart', (e) => {
@@ -611,14 +616,14 @@ const RandomPrompt = (function() {
             card.style.opacity = '0.4';
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', 'group');
-        });
+        }, { signal });
 
         container.addEventListener('dragend', (e) => {
             const card = e.target.closest('.group-card');
             if (card) card.style.opacity = '1';
             container.querySelectorAll('.group-card').forEach(el => { el.style.borderTop = ''; });
             dragIdx = null;
-        });
+        }, { signal });
 
         container.addEventListener('dragover', (e) => {
             if (e.dataTransfer.getData('text/plain') !== 'group') return;
@@ -630,7 +635,7 @@ const RandomPrompt = (function() {
             if (e.clientY < rect.top + rect.height / 2) {
                 card.style.borderTop = '2px solid ' + getThemeColors().accent;
             }
-        });
+        }, { signal });
 
         container.addEventListener('drop', (e) => {
             if (e.dataTransfer.getData('text/plain') !== 'group') return;
@@ -648,7 +653,7 @@ const RandomPrompt = (function() {
             groups.splice(insertIdx, 0, moved);
 
             refreshCategory(document.getElementById('random-plan-editor'), planKey);
-        });
+        }, { signal });
     }
 
     // ─────────────────────────────────────────────

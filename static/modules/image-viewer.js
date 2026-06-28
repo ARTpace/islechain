@@ -115,14 +115,19 @@
     }
 
     function handleKeyDown(event) {
+        const t = event.target;
+        const editable = t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable);
+        if (event.key === 'Escape') {
+            closeLightbox();
+            return;
+        }
+        if (editable) return;
         if (event.key === 'ArrowLeft') {
             event.preventDefault();
             prevImage();
         } else if (event.key === 'ArrowRight') {
             event.preventDefault();
             nextImage();
-        } else if (event.key === 'Escape') {
-            closeLightbox();
         } else if (event.key === '+' || event.key === '=') {
             event.preventDefault();
             zoomIn();
