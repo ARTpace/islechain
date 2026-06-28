@@ -1,15 +1,23 @@
 {
   "20": {
     "inputs": {
-      "samples": ["22", 0],
-      "vae": ["27", 0],
       "tile_size": 1024,
       "overlap": 256,
       "temporal_size": 64,
-      "temporal_overlap": 8
+      "temporal_overlap": 8,
+      "samples": [
+        "22",
+        0
+      ],
+      "vae": [
+        "27",
+        0
+      ]
     },
     "class_type": "VAEDecodeTiled",
-    "_meta": { "title": "VAE分块解码" }
+    "_meta": {
+      "title": "VAE分块解码"
+    }
   },
   "22": {
     "inputs": {
@@ -19,45 +27,73 @@
       "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
-      "model": ["33", 0],
-      "positive": ["23", 0],
-      "negative": ["24", 0],
-      "latent_image": ["144", 0]
+      "model": [
+        "33",
+        0
+      ],
+      "positive": [
+        "23",
+        0
+      ],
+      "negative": [
+        "24",
+        0
+      ],
+      "latent_image": [
+        "144",
+        0
+      ]
     },
     "class_type": "KSampler",
-    "_meta": { "title": "K采样器" }
+    "_meta": {
+      "title": "K采样器"
+    }
   },
   "23": {
     "inputs": {
       "text": "",
-      "clip": ["34", 0]
+      "clip": [
+        "34",
+        0
+      ]
     },
     "class_type": "CLIPTextEncode",
-    "_meta": { "title": "CLIP文本编码器" }
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
   },
   "24": {
     "inputs": {
-      "conditioning": ["23", 0]
+      "conditioning": [
+        "23",
+        0
+      ]
     },
     "class_type": "ConditioningZeroOut",
-    "_meta": { "title": "条件零化" }
+    "_meta": {
+      "title": "条件零化"
+    }
   },
   "27": {
     "inputs": {
       "vae_name": "flux ultra vae.safetensors"
     },
     "class_type": "VAELoader",
-    "_meta": { "title": "VAE加载器" }
+    "_meta": {
+      "title": "VAE加载器"
+    }
   },
   "33": {
     "inputs": {
-      "model_name": "Z-Image-Base-8steps-White_Marble-AIO_v2-fp8.safetensors",
+      "model_name": "z-image\\Z-Image-Base-8steps-White_Marble-AIO_v2-fp8.safetensors",
       "weight_dtype": "default",
       "key_opt": "",
       "mode": "Auto"
     },
     "class_type": "LoadDiffusionModelShared //Inspire",
-    "_meta": { "title": "Shared Diffusion Model Loader (Inspire)" }
+    "_meta": {
+      "title": "Shared Diffusion Model Loader (Inspire)"
+    }
   },
   "34": {
     "inputs": {
@@ -70,14 +106,21 @@
       "device": "default"
     },
     "class_type": "LoadTextEncoderShared //Inspire",
-    "_meta": { "title": "Shared Text Encoder Loader (Inspire)" }
+    "_meta": {
+      "title": "Shared Text Encoder Loader (Inspire)"
+    }
   },
   "137": {
     "inputs": {
-      "images": ["20", 0]
+      "images": [
+        "20",
+        0
+      ]
     },
     "class_type": "PreviewImage",
-    "_meta": { "title": "预览图像" }
+    "_meta": {
+      "title": "预览图像"
+    }
   },
   "144": {
     "inputs": {
@@ -86,6 +129,8 @@
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
-    "_meta": { "title": "空Latent" }
+    "_meta": {
+      "title": "空Latent"
+    }
   }
 }
