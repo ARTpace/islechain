@@ -78,10 +78,10 @@ const RandomPrompt = (function() {
     // ─────────────────────────────────────────────
     function migratePlanData(plan) {
         let changed = false;
-        ['characters', 'artists', 'presets', 'ratios'].forEach(key => {
+        ['characters', 'artists', 'presets', 'ratios', 'texts', 'loras'].forEach(key => {
             const val = plan[key];
-            if (!val || Array.isArray(val)) {
-                const oldItems = val || [];
+            if (!val || Array.isArray(val) || typeof val === 'boolean') {
+                const oldItems = (Array.isArray(val) || typeof val === 'string') ? val : [];
                 plan[key] = {
                     groups: oldItems.length > 0
                         ? [{ id: genId(), name: '默认', items: [...oldItems], enabled: true, count: 1, color: GROUP_COLORS[0] }]
@@ -96,9 +96,39 @@ const RandomPrompt = (function() {
                 });
             }
         });
+        // LoRA items 迁移：旧格式 ["lora_a", "lora_b"] → 新格式 [{name, strength}]
+        if (plan.loras?.groups) {
+            plan.loras.groups.forEach(g => {
+                if (!Array.isArray(g.items)) return;
+                const migrated = [];
+                const seen = new Set();
+                g.items.forEach(it => {
+                    if (typeof it === 'string') {
+                        const k = it.toLowerCase();
+                        if (!k || seen.has(k)) return;
+                        seen.add(k);
+                        migrated.push({ name: it, strength: 1 });
+                    } else if (it && typeof it === 'object' && it.name) {
+                        const k = String(it.name).toLowerCase();
+                        if (!k || seen.has(k)) return;
+                        seen.add(k);
+                        migrated.push({
+                            name: it.name,
+                            strength: (typeof it.strength === 'number') ? it.strength : 1
+                        });
+                    }
+                });
+                if (JSON.stringify(migrated) !== JSON.stringify(g.items)) {
+                    g.items = migrated;
+                    changed = true;
+                }
+            });
+        }
         if ('characterCount' in plan) { delete plan.characterCount; changed = true; }
         if ('artistCount' in plan) { delete plan.artistCount; changed = true; }
         if ('presetCount' in plan) { delete plan.presetCount; changed = true; }
+        // 旧版 lora 是 boolean，迁移后置为未启用即可
+        if (typeof plan.lora === 'boolean') { plan.lora = { groups: [] }; changed = true; }
         return changed;
     }
 
@@ -239,12 +269,16 @@ const RandomPrompt = (function() {
             const charCount = flattenCategory(plan.characters).length;
             const artistCount = flattenCategory(plan.artists).length;
             const presetCount = flattenCategory(plan.presets).length;
-            const stats = [];
-            if (charCount > 0) stats.push(`<span>👤${charCount}</span>`);
-            if (artistCount > 0) stats.push(`<span>🎨${artistCount}</span>`);
-            if (presetCount > 0) stats.push(`<span>⚙️${presetCount}</span>`);
+            const textCount = flattenCategory(plan.texts).length;
+            const loraCount = flattenCategory(plan.loras).length;
             const ratioCount = flattenCategory(plan.ratios).length;
-            if (ratioCount > 0) stats.push(`<span>📐${ratioCount}</span>`);
+            const stats = [];
+            if (charCount > 0)  stats.push(`<span title="角色 ${charCount}">👤${charCount}</span>`);
+            if (artistCount > 0) stats.push(`<span title="画师 ${artistCount}">🎨${artistCount}</span>`);
+            if (presetCount > 0) stats.push(`<span title="预设 ${presetCount}">⚙️${presetCount}</span>`);
+            if (textCount > 0)   stats.push(`<span title="文本 ${textCount}">📝${textCount}</span>`);
+            if (loraCount > 0)   stats.push(`<span title="LoRA ${loraCount}">🧬${loraCount}</span>`);
+            if (ratioCount > 0)  stats.push(`<span title="比例 ${ratioCount}">📐${ratioCount}</span>`);
             return `
                 <div class="random-plan-card" data-name="${escapeHtml(name)}" style="
                     padding:14px 16px;margin-bottom:10px;border-radius:14px;border:1px solid ${colors.border};
@@ -298,7 +332,8 @@ const RandomPrompt = (function() {
             artists: plan.artists,
             presets: plan.presets,
             ratios: plan.ratios || { groups: [] },
-            lora: plan.lora || false,
+            texts: plan.texts || { groups: [] },
+            loras: plan.loras || { groups: [] },
             fixedPrompt: plan.fixedPrompt || ''
         };
 
@@ -355,6 +390,8 @@ const RandomPrompt = (function() {
                 ${renderCategorySection('characters', '角色', '👤')}
                 ${renderCategorySection('artists', '画师', '🎨')}
                 ${renderCategorySection('presets', '预设', '⚙️')}
+                ${renderCategorySection('texts', '文本', '📝')}
+                ${renderCategorySection('loras', 'LoRA', '🧬')}
                 ${renderCategorySection('ratios', '比例', '📐')}
             </div>
             <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;gap:8px;justify-content:flex-end;">
@@ -383,6 +420,9 @@ const RandomPrompt = (function() {
         bindCategoryEvents(editor, 'characters');
         bindCategoryEvents(editor, 'artists');
         bindCategoryEvents(editor, 'presets');
+        bindCategoryEvents(editor, 'texts');
+        bindCategoryEvents(editor, 'loras');
+        bindCategoryEvents(editor, 'ratios');
 
         return editor;
     }
@@ -421,7 +461,7 @@ const RandomPrompt = (function() {
                 </div>
                 <div class="groups-container" data-plan-key="${planKey}" style="max-height:${3 * 50}px;overflow-y:auto;scrollbar-width:thin;">
                     ${groupsHtml}
-                    ${groups.length === 0 ? `<div style="text-align:center;padding:16px;color:${colors.textSub};font-size:11px;">暂无分组，点击"+ 新建分组"创建</div>` : ''}
+                    ${groups.length === 0 ? `<div style="text-align:center;padding:16px;color:${colors.textSub};font-size:11px;">${planKey === 'texts' ? '点 + 新建分组后，再点 + 直接粘贴多行提示词（每行一条）' : planKey === 'loras' ? '点 + 新建分组后，再点 + 从 LoRA 选择器勾选' : '暂无分组，点击"+ 新建分组"创建'}</div>` : ''}
                 </div>
             </div>`;
     }
@@ -561,6 +601,10 @@ const RandomPrompt = (function() {
                 currentPickerGroupIdx = parseInt(el.dataset.gIdx);
                 if (planKey === 'ratios') {
                     openRatioPicker(planKey, currentPickerGroupIdx);
+                } else if (planKey === 'texts') {
+                    openTextEditor(planKey, currentPickerGroupIdx);
+                } else if (planKey === 'loras') {
+                    openLoraPicker(planKey, currentPickerGroupIdx);
                 } else {
                     currentPickerType = planKey === 'characters' ? 'character' : planKey === 'artists' ? 'artist' : 'preset';
                     openPickerForEditor(currentPickerType);
@@ -578,7 +622,7 @@ const RandomPrompt = (function() {
     function refreshCategory(editor, planKey) {
         const section = editor.querySelector(`.category-section[data-plan-key="${planKey}"]`);
         if (!section) return;
-        const labels = { characters: ['角色', '👤'], artists: ['画师', '🎨'], presets: ['预设', '⚙️'] };
+        const labels = { characters: ['角色', '👤'], artists: ['画师', '🎨'], presets: ['预设', '⚙️'], ratios: ['比例', '📐'], texts: ['文本', '📝'] };
         const [label, icon] = labels[planKey] || ['', ''];
         const cat = currentPlan[planKey];
         const groups = cat?.groups || [];
@@ -590,6 +634,10 @@ const RandomPrompt = (function() {
 
         const container = section.querySelector('.groups-container');
         container.innerHTML = groupsHtml || `<div style="text-align:center;padding:20px;color:${getThemeColors().textSub};font-size:11px;">暂无分组，点击"+ 新建分组"创建</div>`;
+
+        // 注："新建分组"按钮的 click 已在 bindCategoryEvents 里通过 addEventListener 绑定
+        //     （createPlanEditor 时绑 1 次，DOM 元素不变，listener 持续有效）
+        //     这里不重复设置 onclick，避免双触发 → 一次点击 +2 个分组的 bug
 
         bindGroupEvents(editor, planKey);
     }
@@ -719,8 +767,8 @@ const RandomPrompt = (function() {
     // ─────────────────────────────────────────────
     let currentPickerType = null;
     let currentPickerGroupIdx = null;
-    let pickerConfirmControl = null;
     let editorPanel = null;
+    let lastPickerOrigPrompt = '';   // 打开 picker 前保存的 prompt，callback 里恢复（picker 可能直接改 prompt）
 
     function hideEditorPanel() {
         editorPanel = document.getElementById('random-plan-editor');
@@ -728,69 +776,6 @@ const RandomPrompt = (function() {
     }
     function showEditorPanel() {
         if (editorPanel) { editorPanel.style.display = 'block'; editorPanel = null; }
-    }
-
-    function createConfirmControl(type) {
-        const colors = getThemeColors();
-        const control = document.createElement('div');
-        control.id = 'picker-confirm-control';
-        control.style.cssText = `
-            position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 20px;
-            background:${colors.bg};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.2);
-            z-index:10002;display:flex;align-items:center;gap:12px;
-        `;
-        const typeNames = { character: '角色', artist: '画师', preset: '预设' };
-        control.innerHTML = `
-            <span style="font-size:13px;font-weight:600;color:${colors.text};">已选择${typeNames[type] || type}，点击确认添加</span>
-            <button id="picker-confirm-btn" style="padding:8px 16px;border-radius:8px;border:none;background:${colors.success};color:#fff;cursor:pointer;font-size:12px;font-weight:700;">✓ 确认</button>
-            <button id="picker-cancel-btn" style="padding:8px 16px;border-radius:8px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:${colors.text};">取消</button>
-        `;
-        document.body.appendChild(control);
-
-        control.querySelector('#picker-confirm-btn').addEventListener('click', () => {
-            if (currentPickerType === 'preset' && typeof presetPickerSelected !== 'undefined') {
-                const selected = presetPickerSelected.slice();
-                const modal = document.getElementById('presetPickerModal');
-                if (modal) modal.style.display = 'none';
-                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
-                showEditorPanel();
-                if (selected.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
-                    const group = currentPlan.presets.groups[currentPickerGroupIdx];
-                    group.items = []; // 覆盖
-                    selected.forEach(item => {
-                        const name = item.name || item.id || '';
-                        if (name) group.items.push(name);
-                    });
-                    refreshCategory(document.getElementById('random-plan-editor'), 'presets');
-                }
-                currentPickerType = null; currentPickerGroupIdx = null;
-            } else if (currentPickerType === 'artist' && typeof artistPickerSelected !== 'undefined') {
-                const selected = artistPickerSelected.slice();
-                const modal = document.getElementById('artistPickerModal');
-                if (modal) modal.style.display = 'none';
-                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
-                showEditorPanel();
-                if (selected.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
-                    const group = currentPlan.artists.groups[currentPickerGroupIdx];
-                    group.items = []; // 覆盖
-                    selected.forEach(item => {
-                        const name = (typeof item === 'string' ? item : item.name || item.danbooru_tag || '').replace(/^@/, '');
-                        if (name) group.items.push(name);
-                    });
-                    refreshCategory(document.getElementById('random-plan-editor'), 'artists');
-                }
-                currentPickerType = null; currentPickerGroupIdx = null;
-            } else {
-                pickerClose();
-            }
-        });
-
-        control.querySelector('#picker-cancel-btn').addEventListener('click', () => {
-            currentPickerType = null; currentPickerGroupIdx = null;
-            pickerClose();
-        });
-
-        return control;
     }
 
     // === 比例选择器（checkbox 弹窗）===
@@ -863,60 +848,297 @@ const RandomPrompt = (function() {
         renderOptions();
     }
 
+    // === 文本编辑器（多行 textarea，每行一条）===
+    function openTextEditor(planKey, gIdx) {
+        const colors = getThemeColors();
+        const group = currentPlan[planKey].groups[gIdx];
+        const existing = (group.items || []).join('\n');
+
+        hideEditorPanel();
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(92vw,560px);max-height:86vh;background:${colors.bg};border-radius:16px;
+            box-shadow:${colors.shadow};z-index:10002;overflow:hidden;color:${colors.text};
+            display:flex;flex-direction:column;
+        `;
+
+        modal.innerHTML = `
+            <div style="padding:14px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                <div style="font-size:15px;font-weight:700;flex:1;">📝 编辑文本提示词</div>
+                <button id="text-edit-close" style="width:32px;height:32px;border-radius:10px;border:none;background:${colors.bgSoft};cursor:pointer;font-size:16px;color:${colors.textSub};display:flex;align-items:center;justify-content:center;">✕</button>
+            </div>
+            <div style="padding:12px 20px;flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;">
+                <div style="font-size:11px;color:${colors.textSub};line-height:1.6;">
+                    💡 每行一条提示词。生成时从本组随机抽 <b>${group.count || 1}</b> 条（可调"× N"），自动拼到正向提示词末尾。<br>
+                    支持空行和 <code># 注释</code>；支持 <code>__通配符名__</code>、<code>{a|b|c}</code>、<code>[可选词]</code> 语法（来自通配符引擎）。
+                </div>
+                <textarea id="text-edit-area" placeholder="例如：&#10;school uniform&#10;kimono&#10;gothic lolita dress&#10;# 也可以加注释&#10;{red|blue|green} hair" style="
+                    flex:1;min-height:240px;padding:12px;border:1px solid ${colors.border};border-radius:10px;
+                    font-size:13px;background:${colors.bgSoft};color:${colors.text};outline:none;resize:none;
+                    font-family:ui-monospace,Menlo,monospace;line-height:1.6;box-sizing:border-box;
+                ">${escapeHtml(existing)}</textarea>
+                <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:${colors.textSub};">
+                    <span id="text-edit-count">0 条</span>
+                    <button id="text-edit-clear" style="background:none;border:none;color:${colors.textSub};cursor:pointer;font-size:11px;text-decoration:underline;">清空</button>
+                </div>
+            </div>
+            <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
+                <button id="text-edit-cancel" style="padding:9px 20px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};">取消</button>
+                <button id="text-edit-confirm" style="padding:9px 24px;border-radius:10px;border:none;background:${colors.accent};color:#fff;cursor:pointer;font-size:12px;font-weight:700;">保存</button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const textarea = modal.querySelector('#text-edit-area');
+        const counter = modal.querySelector('#text-edit-count');
+        textarea.focus();
+        const updateCount = () => {
+            const lines = parseTextLines(textarea.value);
+            counter.textContent = lines.length + ' 条';
+        };
+        textarea.addEventListener('input', updateCount);
+        updateCount();
+
+        const closeAndResume = () => { modal.remove(); showEditorPanel(); };
+        const confirmAndSave = () => {
+            const lines = parseTextLines(textarea.value);
+            group.items = lines;
+            closeAndResume();
+            refreshCategory(document.getElementById('random-plan-editor'), planKey);
+            if (lines.length === 0) showToast('已清空该分组文本', 'info');
+            else showToast(`已保存 ${lines.length} 条文本`, 'success');
+        };
+
+        modal.querySelector('#text-edit-close').addEventListener('click', closeAndResume);
+        modal.querySelector('#text-edit-cancel').addEventListener('click', closeAndResume);
+        modal.querySelector('#text-edit-confirm').addEventListener('click', confirmAndSave);
+        modal.querySelector('#text-edit-clear').addEventListener('click', () => { textarea.value = ''; updateCount(); textarea.focus(); });
+        textarea.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter 快速保存
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); confirmAndSave(); }
+            // Esc 关闭
+            if (e.key === 'Escape') { e.preventDefault(); closeAndResume(); }
+        });
+    }
+
+    // 解析多行文本为非空、非纯注释条目数组
+    function parseTextLines(text) {
+        return (text || '')
+            .replace(/\r\n/g, '\n')
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s && !s.startsWith('#'));
+    }
+
+    // === LoRA 选择器（复用 lora-picker.js）===
+    //  方案分组里 items 存的是 LoRA 名称数组（字符串）。
+    //  打开前临时把已选项注入到 loraState.active，关闭后回写覆盖整组。
+    function openLoraPicker(planKey, gIdx) {
+        if (typeof loraPickerOpen !== 'function') {
+            alert('LoRA 选择器未加载');
+            return;
+        }
+        const group = currentPlan[planKey].groups[gIdx];
+        hideEditorPanel();
+
+        // 备份 loraState.active，注入当前组已选项
+        // 重要：loraState 是 zimage.html 顶层 let，不挂在 window 上
+        const hasState = typeof loraState !== 'undefined' && loraState;
+        const origActive = (hasState && Array.isArray(loraState.active))
+            ? loraState.active.map(l => ({ ...l })) : [];
+        if (hasState) {
+            // 注入时去重：group.items 可能历史脏数据有重复，去重后 loraState.active 干净
+            // → loraPickerOpen 从 active 复制时也不会重复 → callback 收到的 selected 也不重复
+            // 强度回填：从 g.items 的对象里读 strength（默认 1），保证 picker 顶部已选条显示正确强度
+            const seen = new Set();
+            const dedupItems = [];
+            (group.items || []).forEach(item => {
+                const name = typeof item === 'string' ? item : (item && item.name ? item.name : '');
+                if (!name) return;
+                const key = name.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                dedupItems.push(item);
+            });
+            loraState.active = dedupItems.map(item => {
+                const name = typeof item === 'string' ? item : item.name;
+                const strength = (typeof item === 'object' && item && typeof item.strength === 'number')
+                    ? item.strength : 1;
+                return { name, strength };
+            });
+        }
+
+        try {
+            loraPickerOpen(function(selected) {
+                // 选中后：把 [{name, strength, ...}] 回写到 group.items（保留 strength 供 applyRandomLoras 使用）
+                if (Array.isArray(selected) && currentPlan && currentPickerGroupIdx !== null) {
+                    const g = currentPlan[planKey].groups[currentPickerGroupIdx];
+                    const seen = new Set();
+                    g.items = selected.map(s => {
+                        if (typeof s === 'string') return { name: s, strength: 1 };
+                        if (s && s.name) {
+                            return { name: s.name, strength: (typeof s.strength === 'number') ? s.strength : 1 };
+                        }
+                        return null;
+                    }).filter(Boolean).filter(it => {
+                        const k = it.name.toLowerCase();
+                        if (seen.has(k)) return false;
+                        seen.add(k);
+                        return true;
+                    });
+                }
+                // 恢复 loraState.active（避免污染主界面）
+                if (hasState) {
+                    loraState.active = origActive;
+                    if (typeof _loraSyncTriggerWords === 'function') {
+                        try { _loraSyncTriggerWords(origActive); } catch (e) { /* 忽略 */ }
+                    }
+                    if (typeof saveLoraConfig === 'function') { try { saveLoraConfig(); } catch (e) {} }
+                    if (typeof updateLoraSwitcherVisibility === 'function') { try { updateLoraSwitcherVisibility(); } catch (e) {} }
+                }
+                showEditorPanel();
+                refreshCategory(document.getElementById('random-plan-editor'), planKey);
+                currentPickerType = null; currentPickerGroupIdx = null;
+            });
+        } catch (e) {
+            console.error('[RandomPrompt] 打开 LoRA 选择器失败:', e);
+            if (hasState) loraState.active = origActive;
+            showEditorPanel();
+            showToast('打开 LoRA 选择器失败: ' + e.message, 'error');
+        }
+    }
+
     function openPickerForEditor(type) {
         currentPickerType = type;
         hideEditorPanel();
-        pickerConfirmControl = createConfirmControl(type);
 
         // 保存原始 prompt，注入当前组的项目让选择器识别为已选
         const promptEl = document.getElementById('prompt');
-        const origPrompt = promptEl ? promptEl.value : '';
+        lastPickerOrigPrompt = promptEl ? promptEl.value : '';
+
         if (promptEl && currentPickerGroupIdx !== null) {
             const planKey = type === 'character' ? 'characters' : type === 'artist' ? 'artists' : 'presets';
             const group = currentPlan[planKey]?.groups[currentPickerGroupIdx];
             if (group && group.items.length > 0) {
-                let injection = group.items.join(', ');
-                // 画师选择器需要 @ 前缀才能识别
-                if (type === 'artist') {
-                    injection = group.items.map(i => '@' + i).join(', ');
+                // 注入前先去掉 prompt 中"角色"匹配项，避免 picker 解析时出现重复 token
+                // （applyPlan 后的 trigger 词会跟注入的 group.items 重复）
+                let existing = lastPickerOrigPrompt.split(',').map(p => p.trim()).filter(p => p);
+                if (type === 'character' && typeof window.ANIMA_CHAR_DB !== 'undefined' && Array.isArray(window.ANIMA_CHAR_DB) && window.ANIMA_CHAR_DB.length > 0) {
+                    const nameSet = new Set(window.ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+                    const triggerSet = new Set();
+                    window.ANIMA_CHAR_DB.forEach(c => {
+                        if (Array.isArray(c.triggers)) c.triggers.forEach(t => triggerSet.add(String(t).toLowerCase()));
+                        else if (typeof c.trigger === 'string') triggerSet.add(c.trigger.toLowerCase());
+                    });
+                    existing = existing.filter(p => {
+                        if (p.startsWith('@') || p.startsWith('by ')) return false;
+                        const pl = p.toLowerCase();
+                        return !(nameSet.has(pl) || triggerSet.has(pl));
+                    });
+                } else if (type === 'artist' && typeof window.ANIMA_ARTIST_DB !== 'undefined' && Array.isArray(window.ANIMA_ARTIST_DB) && window.ANIMA_ARTIST_DB.length > 0) {
+                    // 画师匹配 @ 前缀
+                    const nameSet = new Set(window.ANIMA_ARTIST_DB.map(a => {
+                        const n = a.name || a.danbooru_tag || '';
+                        return n.replace(/^@/, '').toLowerCase();
+                    }).filter(Boolean));
+                    existing = existing.filter(p => {
+                        if (!(p.startsWith('@') || p.startsWith('by '))) return false;
+                        return !nameSet.has(p.replace(/^@/, '').toLowerCase());
+                    });
+                } else if (type === 'preset' && typeof window.ANIMA_PRESET_DB !== 'undefined' && Array.isArray(window.ANIMA_PRESET_DB) && window.ANIMA_PRESET_DB.length > 0) {
+                    // 预设：按 name 匹配
+                    const nameSet = new Set(window.ANIMA_PRESET_DB.map(p => (p.name || '').toLowerCase()).filter(Boolean));
+                    existing = existing.filter(p => !nameSet.has(p.toLowerCase()));
                 }
-                const existing = origPrompt.trim();
-                promptEl.value = existing ? existing + ', ' + injection : injection;
+                // injection 自身也要去重：处理历史脏数据（picker 解析 prompt 时 parts.filter 不过滤重复）
+                const uniqInj = [];
+                const seenInj = new Set();
+                group.items.forEach(t => {
+                    const tl = String(t).toLowerCase();
+                    if (!seenInj.has(tl)) { seenInj.add(tl); uniqInj.push(t); }
+                });
+                let injection = uniqInj.join(', ');
+                if (type === 'artist') injection = uniqInj.map(i => '@' + i).join(', ');
+                promptEl.value = existing.length > 0 ? existing.join(', ') + ', ' + injection : injection;
             }
         }
 
-        // 选择器会在 open 时从 prompt 读取已选项
-        // 读完之后立即恢复原始 prompt
-        const restorePrompt = () => { if (promptEl) promptEl.value = origPrompt; };
-
+        // 三个 picker 统一传 callback（让 picker 关闭时把 selectedItems 交回，由 callback 写 group.items + 恢复 prompt）
+        //   - 确认：用 picker 自带 × / 关闭并应用 按钮 = 接受当前选择
+        //   - 放弃：关闭方案编辑器（右上角 × / 底部"取消"）= 未保存即放弃
         if (type === 'character' && typeof pickerOpen === 'function') {
-            pickerOpen(function(selectedItems) {
-                restorePrompt();
-                if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
-                showEditorPanel();
-                if (currentPickerType === 'character' && selectedItems && selectedItems.length > 0 && currentPlan && currentPickerGroupIdx !== null) {
-                    const group = currentPlan.characters.groups[currentPickerGroupIdx];
-                    group.items = []; // 覆盖而非追加，选择器返回的就是完整选中列表
-                    selectedItems.forEach(item => {
-                        const name = typeof item === 'string' ? item : item.name || item.id;
-                        if (name) group.items.push(name);
-                    });
-                    refreshCategory(document.getElementById('random-plan-editor'), 'characters');
-                }
-                currentPickerType = null; currentPickerGroupIdx = null;
-            });
+            pickerOpen(pickerCallback);
         } else if (type === 'artist' && typeof artistPickerOpen === 'function') {
-            artistPickerOpen(null);
-            restorePrompt();
+            artistPickerOpen(pickerCallback);
         } else if (type === 'preset' && typeof presetPickerOpen === 'function') {
-            presetPickerOpen(null);
-            restorePrompt();
+            presetPickerOpen(pickerCallback);
         } else {
-            restorePrompt();
-            if (pickerConfirmControl) { pickerConfirmControl.remove(); pickerConfirmControl = null; }
+            // picker 未加载，恢复 prompt + 显示编辑器
+            if (promptEl) promptEl.value = lastPickerOrigPrompt;
             showEditorPanel();
+            currentPickerType = null; currentPickerGroupIdx = null;
             alert('选择器未加载');
         }
+    }
+
+    // picker 关闭统一 callback（character / artist / preset）
+    function pickerCallback(selectedItems) {
+        const promptEl = document.getElementById('prompt');
+        if (promptEl) promptEl.value = lastPickerOrigPrompt;  // 恢复（picker 内部可能改过 prompt）
+        showEditorPanel();
+
+        if (currentPlan && currentPickerGroupIdx !== null && Array.isArray(selectedItems)) {
+            const planKey = currentPickerType === 'character' ? 'characters'
+                          : currentPickerType === 'artist' ? 'artists'
+                          : 'presets';
+            const group = currentPlan[planKey]?.groups[currentPickerGroupIdx];
+            if (group) {
+                group.items = []; // 覆盖：picker 返回的就是完整选中列表
+                const seen = new Set();
+
+                if (currentPickerType === 'character') {
+                    // 角色：trigger 词 / name → 统一转成 DB 的 name（后端按 name 匹配）
+                    const db = (typeof window.ANIMA_CHAR_DB !== 'undefined' && Array.isArray(window.ANIMA_CHAR_DB)) ? window.ANIMA_CHAR_DB : [];
+                    selectedItems.forEach(item => {
+                        const token = typeof item === 'string' ? item : item.name || item.id;
+                        if (!token) return;
+                        const tl = token.toLowerCase();
+                        const found = db.find(c => {
+                            if ((c.name || '').toLowerCase() === tl) return true;
+                            if (Array.isArray(c.triggers) && c.triggers.some(t => String(t).toLowerCase() === tl)) return true;
+                            if (typeof c.trigger === 'string' && c.trigger.toLowerCase() === tl) return true;
+                            return false;
+                        });
+                        const finalName = found && found.name ? found.name : token;
+                        if (seen.has(finalName.toLowerCase())) return;
+                        seen.add(finalName.toLowerCase());
+                        group.items.push(finalName);
+                    });
+                } else if (currentPickerType === 'artist') {
+                    // 画师：去 @ 前缀，按小写去重
+                    selectedItems.forEach(item => {
+                        const name = (typeof item === 'string' ? item : item.name || item.danbooru_tag || '').replace(/^@/, '');
+                        if (!name) return;
+                        if (seen.has(name.toLowerCase())) return;
+                        seen.add(name.toLowerCase());
+                        group.items.push(name);
+                    });
+                } else if (currentPickerType === 'preset') {
+                    // 预设：按 name / id 小写去重
+                    selectedItems.forEach(item => {
+                        const name = item.name || item.id || '';
+                        if (!name) return;
+                        if (seen.has(name.toLowerCase())) return;
+                        seen.add(name.toLowerCase());
+                        group.items.push(name);
+                    });
+                }
+            }
+            refreshCategory(document.getElementById('random-plan-editor'), planKey);
+        }
+        currentPickerType = null; currentPickerGroupIdx = null;
     }
 
     // ─────────────────────────────────────────────
@@ -929,7 +1151,7 @@ const RandomPrompt = (function() {
         const name = editor.querySelector('#editor-plan-name').value.trim();
         if (!name) { alert('请输入方案名称'); return; }
 
-        const hasItems = ['characters', 'artists', 'presets', 'ratios'].some(k => flattenCategory(currentPlan[k]).length > 0);
+        const hasItems = ['characters', 'artists', 'presets', 'ratios', 'texts', 'loras'].some(k => flattenCategory(currentPlan[k]).length > 0);
         if (!hasItems) { alert('请至少在一个分组中添加项目'); return; }
 
         plans[name] = {
@@ -938,7 +1160,8 @@ const RandomPrompt = (function() {
             artists: currentPlan.artists,
             presets: currentPlan.presets,
             ratios: currentPlan.ratios,
-            lora: currentPlan.lora,
+            texts: currentPlan.texts,
+            loras: currentPlan.loras,
             fixedPrompt: currentPlan.fixedPrompt || ''
         };
 
@@ -988,21 +1211,68 @@ const RandomPrompt = (function() {
             const shuffled = [...g.items].sort(() => Math.random() - 0.5);
             sampled.push(...shuffled.slice(0, count));
         });
-        if (sampled.length === 0) return;
+        if (sampled.length === 0) { console.log('[RandomPrompt] 比例分组无样本'); return; }
         const picked = sampled[Math.floor(Math.random() * sampled.length)];
         const [w, h] = picked.split(':').map(Number);
-        if (!w || !h) return;
-        // 应用到全局变量
+        if (!w || !h) { console.warn('[RandomPrompt] 比例解析失败:', picked); return; }
+        // 应用到全局变量（与 loraState 一样：animaRatioW/H 是顶层 let，不挂 window）
         try {
             if (typeof selectRatio === 'function') {
+                console.log('[RandomPrompt] 比例 → selectRatio', picked, w, h);
                 selectRatio(picked, w, h);
+            } else if (typeof animaRatioW !== 'undefined') {
+                console.log('[RandomPrompt] 比例 → 直接赋值', picked, w, h);
+                animaRatioW = w;
+                animaRatioH = h;
+                try { localStorage.setItem('anima_ratio_w', w); } catch (e) {}
+                try { localStorage.setItem('anima_ratio_h', h); } catch (e) {}
+                const ratioTextEl = document.getElementById('ratioText');
+                if (ratioTextEl) ratioTextEl.textContent = picked;
             } else {
-                window.animaRatioW = w;
-                window.animaRatioH = h;
-                localStorage.setItem('anima_ratio_w', w);
-                localStorage.setItem('anima_ratio_h', h);
+                console.warn('[RandomPrompt] animaRatioW / selectRatio 都不可用，比例未应用');
             }
         } catch (e) { console.warn('[RandomPrompt] 应用比例失败:', e); }
+    }
+
+    // 从 LoRA 分组中抽样，写到 loraState.active；触发词自动同步到 prompt
+    function applyRandomLoras(loras) {
+        if (!loras?.groups) return;
+        const sampled = [];
+        loras.groups.forEach(g => {
+            if (g.enabled === false || !g.items?.length) return;
+            const count = Math.min(g.count || 1, g.items.length);
+            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
+            sampled.push(...shuffled.slice(0, count));
+        });
+        if (sampled.length === 0) return;
+        // 重要：loraState 是 zimage.html 顶层 let，不挂在 window 上，必须用裸引用 + typeof 守卫
+        if (typeof loraState === 'undefined' || !loraState) {
+            console.warn('[RandomPrompt] loraState 未初始化，跳过 LoRA 应用');
+            return;
+        }
+        // 解析 g.items 为 {name, strength}：兼容旧字符串 + 新对象
+        // 强度：① 优先 g.items 里存的（用户在 LoRA 选择器里调的）
+        //      ② 否则沿用 loraState.active 同名 LoRA 的 strength
+        //      ③ 否则默认 1
+        const prevMap = new Map((loraState.active || []).map(l => [l.name, l.strength]));
+        const nextActive = sampled.map(item => {
+            const name = typeof item === 'string' ? item : (item && item.name ? item.name : '');
+            let strength;
+            if (typeof item === 'object' && item && typeof item.strength === 'number') {
+                strength = item.strength;            // ① 用户在 picker 里设的
+            } else if (prevMap.has(name)) {
+                strength = prevMap.get(name);         // ② 主界面残留
+            } else {
+                strength = 1;                         // ③ 默认
+            }
+            return { name, strength };
+        });
+        loraState.active = nextActive;
+        try {
+            if (typeof _loraSyncTriggerWords === 'function') _loraSyncTriggerWords(nextActive);
+            if (typeof saveLoraConfig === 'function') saveLoraConfig();
+            if (typeof updateLoraSwitcherVisibility === 'function') updateLoraSwitcherVisibility();
+        } catch (e) { console.warn('[RandomPrompt] LoRA 同步失败:', e); }
     }
 
     // 对单个大类调用 API
@@ -1067,13 +1337,21 @@ const RandomPrompt = (function() {
                 const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
                 if (result) parts.push(buildPromptFromResult(result));
             }
+            // 文本类（本地抽样，每行一条，不走 API）
+            const textParts = sampleFromGroups(plan.texts);
+            textParts.forEach(t => { if (t) parts.push(t); });
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, plan.fixedPrompt);
 
-            // 随机比例
+            // 比例
             applyRandomRatio(plan.ratios);
 
+            // 先把 positive 抛给 onApplyCallback，外部会把它写入 prompt 框
             if (onApplyCallback) onApplyCallback({ positive, negative: '', raw: {} });
+
+            // LoRA：必须等 prompt 框被新 positive 覆盖之后再调，
+            // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
+            applyRandomLoras(plan.loras);
 
             document.getElementById('random-main-panel').style.display = 'none';
             showToast('已应用方案: ' + name, 'success');
@@ -1091,7 +1369,7 @@ const RandomPrompt = (function() {
 
     async function testCurrentPlan() {
         if (!currentPlan) return;
-        const hasItems = ['characters', 'artists', 'presets'].some(k => flattenCategory(currentPlan[k]).length > 0);
+        const hasItems = ['characters', 'artists', 'presets', 'texts', 'loras'].some(k => flattenCategory(currentPlan[k]).length > 0);
         if (!hasItems) { showToast('请先在分组中添加项目', 'error'); return; }
 
         const btn = document.getElementById('editor-test');
@@ -1104,17 +1382,26 @@ const RandomPrompt = (function() {
                 const result = await fetchCategoryFromAPI(apiKey, currentPlan[catKey]);
                 if (result) parts.push(buildPromptFromResult(result));
             }
+            // 文本类本地抽样
+            const textParts = sampleFromGroups(currentPlan.texts);
+            textParts.forEach(t => { if (t) parts.push(t); });
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, currentPlan.fixedPrompt);
 
-            // 随机比例
+            // 比例
             applyRandomRatio(currentPlan.ratios);
 
+            // 先把 positive 写入 prompt 框
             const promptEl = document.getElementById('prompt');
             if (promptEl && positive) {
                 promptEl.value = positive;
                 promptEl.dispatchEvent(new Event('input'));
             }
+
+            // LoRA：必须等 prompt 框被新 positive 覆盖之后再调，
+            // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
+            applyRandomLoras(currentPlan.loras);
+
             showToast('测试已应用到提示词框', 'success');
         } catch (e) {
             console.error('[RandomPrompt] 测试失败:', e);
@@ -1182,14 +1469,27 @@ const RandomPrompt = (function() {
                     const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
                     if (result) parts.push(buildPromptFromResult(result));
                 }
+                // 文本类（本地抽样，每行一条，不走 API）
+                const textParts = sampleFromGroups(plan.texts);
+                textParts.forEach(t => { if (t) parts.push(t); });
                 let positive = parts.filter(Boolean).join(', ');
                 positive = mergeWithFixed(positive, plan.fixedPrompt);
+
+                // 比例
                 applyRandomRatio(plan.ratios);
-                return { positive, raw: {} };
+
+                // 注意：LoRA 不在这里调！必须等调用方把 positive 写入 prompt 框之后再调，
+                // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
+                return { positive, plan };
             } catch (e) {
                 console.error('[RandomPrompt] 自动随机失败:', e);
                 return null;
             }
+        },
+
+        // 在 prompt 框已写入新 positive 之后调用，把 LoRA 触发词拼到末尾
+        applyLoras: function(loras) {
+            return applyRandomLoras(loras);
         },
 
         isAutoRandomEnabled: () => autoRandomEnabled && autoRandomPlanName

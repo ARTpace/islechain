@@ -117,12 +117,18 @@ class WildcardEngine:
             random.seed(seed)
         return {k: self.resolve(v) for k, v in parts.items()}
 
-    def preview(self, text: str) -> Dict[str, Any]:
+    def preview(self, text: str, seed: Optional[int] = None) -> Dict[str, Any]:
         """预览解析结果
+
+        Args:
+            text: 输入文本
+            seed: 随机种子（可选）
 
         Returns:
             {"original": str, "resolved": str, "wildcards_found": list}
         """
+        if seed is not None:
+            random.seed(seed)
         wildcards = []
         wildcards.extend(re.findall(r'\{([^{}]+\|[^{}]+)\}', text))
         wildcards.extend(re.findall(r'__([a-zA-Z0-9_]+)__', text))
@@ -130,7 +136,7 @@ class WildcardEngine:
 
         return {
             "original": text,
-            "resolved": self.resolve(text),
+            "resolved": self.resolve(text, seed=seed),
             "wildcards_found": wildcards
         }
 
@@ -168,6 +174,75 @@ class WildcardEngine:
             if filepath.exists():
                 return self._load_wildcard_file(filepath)
         return []
+
+    def get_wildcard_text(self, name: str) -> str:
+        """获取通配符文件的原始文本（含注释与空行），用于编辑器回显"""
+        for search_dir in [self.wildcard_dir, self.imported_dir]:
+            filepath = search_dir / f"{name}.txt"
+            if filepath.exists():
+                try:
+                    return filepath.read_text(encoding='utf-8')
+                except Exception as e:
+                    print(f"[WildcardEngine] 读取文件失败 {filepath}: {e}")
+                    return ""
+        return ""
+
+    def save_wildcard(self, name: str, text: str, overwrite: bool = False) -> Dict[str, Any]:
+        """创建或覆盖一个用户通配符（写入 imported/）
+
+        Args:
+            name: 通配符名称（仅字母数字下划线中划线）
+            text: 多行文本，每行一条提示词
+            overwrite: True 表示允许覆盖已存在的 imported 通配符
+
+        Returns:
+            {"success": bool, "name": str, "count": int, "error": str}
+        """
+        clean = re.sub(r'[^\w\-]', '_', (name or "").strip())
+        if not clean:
+            return {"success": False, "name": "", "count": 0, "error": "名称不能为空"}
+
+        target = self.imported_dir / f"{clean}.txt"
+        builtin = self.wildcard_dir / f"{clean}.txt"
+        if builtin.exists():
+            return {"success": False, "name": clean, "count": 0, "error": "与内置通配符同名，不允许覆盖"}
+
+        if target.exists() and not overwrite:
+            return {"success": False, "name": clean, "count": 0, "error": "通配符已存在，未开启覆盖"}
+
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # 统一换行；去掉尾部多余空行
+            content = (text or "").replace('\r\n', '\n').rstrip() + '\n'
+            target.write_text(content, encoding='utf-8')
+            lines = self._load_wildcard_file(target)
+            return {"success": True, "name": clean, "count": len(lines), "error": ""}
+        except Exception as e:
+            return {"success": False, "name": clean, "count": 0, "error": str(e)}
+
+    def roll_combo(self, names: List[str], seed: Optional[int] = None) -> Dict[str, Any]:
+        """从多个通配符类型中各随机抽一条，用于「方案」式随机组合
+
+        Returns:
+            {
+                "picks": {name: picked_line, ...},
+                "combined": ", picked1, picked2, ..."  # 拼接结果
+                "missing": [不存在的类型名, ...]
+            }
+        """
+        if seed is not None:
+            random.seed(seed)
+        picks: Dict[str, str] = {}
+        missing: List[str] = []
+        for n in names:
+            options = self.get_wildcard(n)
+            if not options:
+                missing.append(n)
+                continue
+            picks[n] = random.choice(options)
+        # 拼接（按传入顺序）
+        combined = ", ".join(picks[n] for n in names if n in picks)
+        return {"picks": picks, "combined": combined, "missing": missing}
 
     def validate(self, text: str) -> List[str]:
         """检查语法错误

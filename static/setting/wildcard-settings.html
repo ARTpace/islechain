@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通配符管理</title>
+    <script src="/static/modules/auth-token.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'dark';if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){})();</script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="/static/lucide.min.js"></script>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/theme.css">
+    <style>
+        :root{--bg:#f8f8f8;--text-main:#1a1a1a;--accent:#00b4d8;--card-bg:#fff;--border:rgba(0,0,0,0.06);--text-sub:#999;--soft:#f1f5f9;}
+        body{background:var(--bg);color:var(--text-main);font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:0;min-height:100vh;overflow-y:auto;}
+        body.studio-theme-dark{--bg:#0a0e17;--text-main:#e0e7ef;--card-bg:#0d1520;--border:rgba(255,255,255,0.06);--text-sub:#666;--soft:#131c2a;}
+
+        .page{max-width:1280px;margin:0 auto;padding:28px 24px 80px;}
+        .page-head{margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+        .page-head h1{font-size:22px;font-weight:900;margin:0 0 4px;}
+        .page-head p{font-size:12px;color:var(--text-sub);margin:0;}
+
+        .grid{display:grid;grid-template-columns:280px 1fr 320px;gap:16px;align-items:start;}
+        @media (max-width:1024px){.grid{grid-template-columns:1fr;}}
+
+        .card{background:var(--card-bg);border-radius:14px;border:1px solid var(--border);padding:14px;}
+        .card-title{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--text-sub);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+        .card-title .count{color:var(--accent);font-weight:800;}
+
+        .toolbar{display:flex;gap:6px;margin-bottom:8px;}
+        .toolbar .btn-icon{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:transparent;color:var(--text-sub);transition:all .15s;}
+        .toolbar .btn-icon:hover{color:var(--accent);border-color:var(--accent);background:rgba(0,180,216,.06);}
+
+        .group-label{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sub);padding:6px 4px 4px;}
+        .group-label:first-of-type{padding-top:2px;}
+
+        .wc-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:all .15s;border:1px solid transparent;font-size:12.5px;font-weight:700;}
+        .wc-item:hover{background:var(--soft);}
+        .wc-item.active{background:rgba(0,180,216,.08);color:var(--accent);border-color:rgba(0,180,216,.3);}
+        .wc-item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .wc-item .badge{font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--text-sub);}
+        .wc-item.builtin .badge{background:rgba(99,102,241,.1);color:#6366f1;}
+        .wc-item.custom .badge{background:rgba(0,180,216,.1);color:var(--accent);}
+        .wc-item .del{opacity:0;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;transition:all .15s;}
+        .wc-item:hover .del{opacity:.7;}
+        .wc-item .del:hover{opacity:1;background:rgba(239,68,68,.1);}
+
+        .field{margin-bottom:12px;}
+        .field label{display:block;font-size:10.5px;font-weight:800;color:var(--text-sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;}
+        .field input,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:12.5px;font-weight:600;background:transparent;color:var(--text-main);outline:none;transition:border-color .15s;font-family:inherit;}
+        .field textarea{min-height:340px;resize:vertical;font-family:ui-monospace,Menlo,'Cascadia Code',monospace;font-size:12px;line-height:1.65;}
+        .field input:focus,.field textarea:focus{border-color:var(--accent);}
+
+        .btn{height:36px;padding:0 16px;border-radius:9px;font-size:12px;font-weight:800;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+        .btn-primary{background:var(--accent);color:#fff;}
+        .btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+        .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+        .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-main);}
+        .btn-ghost:hover{background:var(--soft);}
+        .btn-danger{background:transparent;border:1px solid rgba(239,68,68,.3);color:#ef4444;}
+        .btn-danger:hover{background:rgba(239,68,68,.08);}
+
+        .btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+
+        .meta{font-size:11px;color:var(--text-sub);font-weight:600;}
+
+        .check{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:all .15s;}
+        .check:hover{background:var(--soft);}
+        .check input{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
+        .check .nm{flex:1;font-size:12px;font-weight:700;}
+        .check .ct{font-size:10px;color:var(--text-sub);font-weight:600;}
+
+        .result-box{background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;min-height:80px;white-space:pre-wrap;word-break:break-word;}
+        .result-box.empty{color:var(--text-sub);font-style:italic;}
+        .pick-line{display:flex;gap:8px;padding:3px 0;font-size:12px;}
+        .pick-line .k{color:var(--accent);font-weight:800;min-width:60px;}
+        .pick-line .v{flex:1;color:var(--text-main);}
+
+        .warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#f59e0b;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:600;margin-bottom:10px;}
+        .warn ul{margin:4px 0 0 18px;padding:0;}
+
+        .toast{position:fixed;top:20px;right:20px;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:700;z-index:9999;transform:translateX(140%);transition:transform .25s ease;box-shadow:0 10px 30px rgba(0,0,0,.18);}
+        .toast.show{transform:translateX(0);}
+        .toast.success{background:#10b981;color:#fff;}
+        .toast.error{background:#ef4444;color:#fff;}
+        .toast.info{background:#0ea5e9;color:#fff;}
+
+        .empty-state{padding:20px;text-align:center;color:var(--text-sub);font-size:12px;}
+
+        /* 主色调按钮与内嵌徽章在暗色下保持高对比 */
+        body.studio-theme-dark .wc-item.active{background:rgba(0,240,255,.06);color:#00f0ff;border-color:rgba(0,240,255,.3);}
+        body.studio-theme-dark .page-head h1{color:#00f0ff;}
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>🎲 通配符管理</h1>
+            <p>支持多类型组合：每个类型一条 .txt，每行一条提示词；可多选类型随机拼接</p>
+        </div>
+        <div class="meta" id="headerMeta">加载中…</div>
+    </div>
+
+    <div class="grid">
+        <!-- 左：类型列表 -->
+        <div class="card">
+            <div class="card-title">
+                <span>通配符类型</span>
+                <span class="count" id="totalCount">0</span>
+            </div>
+            <div class="toolbar">
+                <button class="btn-icon" id="btnReload" title="刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></button>
+                <button class="btn-icon" id="btnNew" title="新建类型"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            </div>
+            <div id="wcList">
+                <div class="empty-state">加载中…</div>
+            </div>
+        </div>
+
+        <!-- 中：编辑器 -->
+        <div class="card">
+            <div class="card-title">
+                <span>类型内容 <span class="meta" id="editingMeta" style="margin-left:6px;text-transform:none;letter-spacing:0;"></span></span>
+                <span class="meta" id="editingCount"></span>
+            </div>
+
+            <div class="field">
+                <label>类型名（仅字母数字下划线中划线）</label>
+                <input id="wcName" type="text" placeholder="例如 my_costume">
+            </div>
+
+            <div class="field">
+                <label>提示词（每行一条，# 开头为注释）</label>
+                <textarea id="wcText" placeholder="例如：&#10;school uniform&#10;kimono&#10;gothic lolita dress&#10;maid outfit"></textarea>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="btnSave">保存</button>
+                <button class="btn btn-ghost" id="btnSaveNew">另存为新类型</button>
+                <button class="btn btn-ghost" id="btnClear">清空</button>
+                <button class="btn btn-ghost" id="btnInsertSnippet" title="插入示例">插入示例</button>
+            </div>
+
+            <div style="margin-top:14px;">
+                <div class="card-title" style="margin-bottom:6px;"><span>语法速览</span></div>
+                <div class="meta" style="line-height:1.7;">
+                    <code style="color:var(--accent);">{a|b|c}</code> 内联随机选一 &nbsp;·&nbsp;
+                    <code style="color:var(--accent);">__name__</code> 引用类型文件 &nbsp;·&nbsp;
+                    <code style="color:var(--accent);">[opt]</code> 50% 概率出现
+                </div>
+            </div>
+        </div>
+
+        <!-- 右：随机组合 -->
+        <div class="card">
+            <div class="card-title">
+                <span>随机组合</span>
+                <span class="count" id="comboCount">0 选</span>
+            </div>
+            <div class="meta" style="margin-bottom:8px;">勾选左侧类型，每个类型随机抽一条，按顺序拼接</div>
+
+            <div class="field" style="margin-bottom:8px;">
+                <label>种子（可空 → 每次都不同）</label>
+                <input id="seedInput" type="number" placeholder="留空 = 随机">
+            </div>
+
+            <div class="btn-row" style="margin-bottom:10px;">
+                <button class="btn btn-primary" id="btnRoll">随机生成</button>
+                <button class="btn btn-ghost" id="btnCopy">复制</button>
+            </div>
+
+            <div class="result-box empty" id="resultBox">点击「随机生成」预览组合结果</div>
+
+            <div style="margin-top:12px;">
+                <div class="card-title" style="margin-bottom:6px;"><span>各类型抽取</span></div>
+                <div id="picksBox" class="result-box empty" style="min-height:48px;">尚无结果</div>
+            </div>
+
+            <div style="margin-top:12px;">
+                <div class="card-title" style="margin-bottom:6px;"><span>语法校验</span></div>
+                <textarea id="validateInput" placeholder="粘一段带 {a|b|c} / __name__ / [opt] 的文本，点击校验"></textarea>
+                <div class="btn-row" style="margin-top:8px;">
+                    <button class="btn btn-ghost" id="btnValidate">校验</button>
+                </div>
+                <div id="validateBox" class="result-box empty" style="margin-top:8px;min-height:36px;">校验结果会显示在这里</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg, type='info', ms=2200) => {
+        const el = $('toast');
+        el.textContent = msg;
+        el.className = 'toast show ' + type;
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => el.classList.remove('show'), ms);
+    };
+
+    const auth = () => ({ 'Authorization': 'Bearer ' + (window.AUTH_TOKEN || '') });
+
+    async function api(method, path, body) {
+        const opts = { method, headers: { ...auth(), 'Content-Type': 'application/json' } };
+        if (body !== undefined) opts.body = JSON.stringify(body);
+        const res = await fetch(path, opts);
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : null; } catch(e) { data = { detail: text }; }
+        if (!res.ok) throw new Error((data && (data.detail || data.error)) || (res.status + ' ' + res.statusText));
+        return data;
+    }
+
+    // === 状态 ===
+    let allTypes = [];            // [{name, count, builtin, selected}]
+    let editing = null;           // 当前正在编辑的类型名（null = 新建）
+    let selected = new Set();     // 多选（参与随机组合）
+
+    // === 渲染列表 ===
+    function renderList(){
+        const builtin = allTypes.filter(t => t.builtin);
+        const custom  = allTypes.filter(t => !t.builtin);
+        $('totalCount').textContent = allTypes.length;
+
+        const html = [];
+        if (builtin.length) {
+            html.push('<div class="group-label">内置</div>');
+            html.push(builtin.map(renderItem).join(''));
+        }
+        if (custom.length) {
+            html.push('<div class="group-label">自定义</div>');
+            html.push(custom.map(renderItem).join(''));
+        }
+        if (!allTypes.length) {
+            html.push('<div class="empty-state">还没有任何通配符，点击右上角 + 新建一个</div>');
+        }
+        $('wcList').innerHTML = html.join('');
+
+        $('comboCount').textContent = selected.size + ' 选';
+        $('headerMeta').textContent = `共 ${allTypes.length} 个类型 · 已选 ${selected.size} 个`;
+    }
+
+    function renderItem(t){
+        const checked = selected.has(t.name) ? 'checked' : '';
+        const active  = editing === t.name ? 'active' : '';
+        return `
+        <div class="wc-item ${active} ${t.builtin?'builtin':'custom'}" data-name="${t.name}">
+            <input type="checkbox" data-check="${t.name}" ${checked} onclick="event.stopPropagation()" style="width:14px;height:14px;accent-color:var(--accent);">
+            <span class="name" data-edit="${t.name}">${t.name}</span>
+            <span class="badge">${t.count}</span>
+            ${t.builtin ? '' : `<button class="del" data-del="${t.name}" title="删除"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>`}
+        </div>`;
+    }
+
+    $('wcList').addEventListener('click', async (e) => {
+        const editEl = e.target.closest('[data-edit]');
+        const delEl  = e.target.closest('[data-del]');
+        const chkEl  = e.target.closest('[data-check]');
+        if (delEl) {
+            const name = delEl.getAttribute('data-del');
+            if (!confirm(`确定删除类型 "${name}" 吗？`)) return;
+            try {
+                await api('DELETE', `/api/wildcards/${encodeURIComponent(name)}`);
+                toast('已删除', 'success');
+                if (editing === name) clearEditor();
+                selected.delete(name);
+                await loadList();
+            } catch(err) { toast('删除失败：' + err.message, 'error'); }
+            return;
+        }
+        if (chkEl) {
+            const name = chkEl.getAttribute('data-check');
+            if (chkEl.checked) selected.add(name); else selected.delete(name);
+            $('comboCount').textContent = selected.size + ' 选';
+            $('headerMeta').textContent = `共 ${allTypes.length} 个类型 · 已选 ${selected.size} 个`;
+            return;
+        }
+        if (editEl) {
+            const name = editEl.getAttribute('data-edit');
+            await openEditor(name);
+        }
+    });
+
+    // === 加载列表 ===
+    async function loadList(){
+        try {
+            const data = await api('GET', '/api/wildcards');
+            const list = [];
+            Object.entries(data.builtin || {}).forEach(([n, c]) => list.push({ name:n, count:c, builtin:true }));
+            Object.entries(data.imported || {}).forEach(([n, c]) => list.push({ name:n, count:c, builtin:false }));
+            // 顺序：内置按字母，自定义按字母
+            list.sort((a,b) => (a.builtin===b.builtin ? a.name.localeCompare(b.name) : a.builtin ? -1 : 1));
+            // 清理已不存在的选中
+            const names = new Set(list.map(x => x.name));
+            for (const s of Array.from(selected)) if (!names.has(s)) selected.delete(s);
+            allTypes = list;
+            renderList();
+        } catch(err) {
+            $('wcList').innerHTML = `<div class="empty-state">加载失败：${err.message}</div>`;
+        }
+    }
+
+    // === 编辑器 ===
+    function clearEditor(){
+        editing = null;
+        $('wcName').value = '';
+        $('wcName').disabled = false;
+        $('wcText').value = '';
+        $('editingMeta').textContent = '（新建）';
+        $('editingCount').textContent = '';
+        renderList();
+    }
+    async function openEditor(name){
+        try {
+            const data = await api('GET', `/api/wildcards/${encodeURIComponent(name)}`);
+            editing = name;
+            $('wcName').value = name;
+            $('wcName').disabled = true; // 重命名 = 另存为
+            $('wcText').value = data.text;
+            $('editingMeta').textContent = `（编辑：${name}${name in builtinSet() ? ' · 内置（只读）' : ''}）`;
+            $('editingCount').textContent = `${data.count} 条`;
+            renderList();
+        } catch(err) {
+            toast('打开失败：' + err.message, 'error');
+        }
+    }
+    function builtinSet(){
+        const s = new Set();
+        allTypes.forEach(t => { if (t.builtin) s.add(t.name); });
+        return s;
+    }
+
+    // === 保存 ===
+    async function save(asNew){
+        const name = $('wcName').value.trim();
+        const text = $('wcText').value;
+        if (!name) { toast('请填写类型名', 'error'); return; }
+        if (!/^[\w\-]+$/.test(name)) { toast('类型名只能含字母数字下划线中划线', 'error'); return; }
+
+        try {
+            if (asNew) {
+                // 总是作为新类型
+                const r = await api('POST', '/api/wildcards', { name, text, overwrite: false });
+                toast(`已创建 ${r.name}（${r.count} 条）`, 'success');
+                editing = name;
+                $('wcName').disabled = true;
+                $('editingMeta').textContent = `（编辑：${name}）`;
+                $('editingCount').textContent = `${r.count} 条`;
+            } else {
+                // 内置：仅提示禁止；否则更新或创建
+                if (builtinSet().has(name)) {
+                    toast('内置通配符只读，请用「另存为新类型」', 'error');
+                    return;
+                }
+                // 先 PUT 尝试更新
+                try {
+                    const r = await api('PUT', `/api/wildcards/${encodeURIComponent(name)}`, { text });
+                    toast(`已更新 ${r.name}（${r.count} 条）`, 'success');
+                    editing = name;
+                    $('wcName').disabled = true;
+                    $('editingMeta').textContent = `（编辑：${name}）`;
+                    $('editingCount').textContent = `${r.count} 条`;
+                } catch(err) {
+                    // 不存在则创建
+                    const r = await api('POST', '/api/wildcards', { name, text, overwrite: false });
+                    toast(`已创建 ${r.name}（${r.count} 条）`, 'success');
+                    editing = name;
+                    $('wcName').disabled = true;
+                    $('editingMeta').textContent = `（编辑：${name}）`;
+                    $('editingCount').textContent = `${r.count} 条`;
+                }
+            }
+            await loadList();
+        } catch(err) {
+            toast('保存失败：' + err.message, 'error');
+        }
+    }
+
+    // === 随机组合 ===
+    async function roll(){
+        const names = Array.from(selected);
+        if (!names.length) { toast('请先在左侧勾选至少一个类型', 'error'); return; }
+        const seedRaw = $('seedInput').value.trim();
+        const seed = seedRaw === '' ? null : Number(seedRaw);
+        try {
+            const r = await api('POST', '/api/wildcards/roll', { names, seed: Number.isFinite(seed) ? seed : null });
+            const box = $('resultBox');
+            if (r.combined) {
+                box.classList.remove('empty');
+                box.textContent = r.combined;
+            } else {
+                box.classList.add('empty');
+                box.textContent = '未抽到任何结果';
+            }
+            const pb = $('picksBox');
+            const lines = [];
+            for (const n of names) {
+                if (r.picks && r.picks[n] !== undefined) {
+                    lines.push(`<div class="pick-line"><span class="k">${n}</span><span class="v">${escapeHtml(r.picks[n])}</span></div>`);
+                } else {
+                    lines.push(`<div class="pick-line"><span class="k">${n}</span><span class="v" style="color:#ef4444;">（缺失）</span></div>`);
+                }
+            }
+            pb.classList.remove('empty');
+            pb.innerHTML = lines.join('') || '<span style="color:var(--text-sub);">无</span>';
+        } catch(err) {
+            toast('生成失败：' + err.message, 'error');
+        }
+    }
+
+    function escapeHtml(s){
+        return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // === 复制 ===
+    function copyResult(){
+        const text = $('resultBox').textContent;
+        if (!text || $('resultBox').classList.contains('empty')) { toast('没有可复制的结果', 'error'); return; }
+        navigator.clipboard.writeText(text).then(() => toast('已复制', 'success')).catch(() => toast('复制失败', 'error'));
+    }
+
+    // === 语法校验 ===
+    async function validate(){
+        const t = $('validateInput').value;
+        if (!t.trim()) { toast('请输入待校验的文本', 'error'); return; }
+        try {
+            const r = await api('POST', '/api/wildcards/validate', { text: t });
+            const box = $('validateBox');
+            if (!r.warnings || !r.warnings.length) {
+                box.classList.remove('empty');
+                box.textContent = '✓ 无语法问题';
+            } else {
+                box.classList.remove('empty');
+                box.innerHTML = '<div class="warn">⚠ 检测到以下问题：<ul>' + r.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('') + '</ul></div>';
+            }
+            // 同时试解析一次
+            const prev = await api('POST', '/api/wildcards/resolve', { text: t }).catch(() => null);
+            if (prev && prev.resolved && prev.resolved !== t) {
+                box.innerHTML += `<div style="margin-top:8px;color:var(--text-sub);">解析示例：<br><span style="color:var(--accent);">${escapeHtml(prev.resolved)}</span></div>`;
+            }
+        } catch(err) {
+            toast('校验失败：' + err.message, 'error');
+        }
+    }
+
+    // === 事件绑定 ===
+    $('btnReload').onclick = loadList;
+    $('btnNew').onclick = clearEditor;
+    $('btnSave').onclick = () => save(false);
+    $('btnSaveNew').onclick = () => save(true);
+    $('btnClear').onclick = clearEditor;
+    $('btnInsertSnippet').onclick = () => {
+        const t = $('wcText');
+        if (t.value && !t.value.endsWith('\n')) t.value += '\n';
+        t.value += '# 示例\nschool uniform\nkimono\ngothic lolita dress\nmaid outfit\n';
+        t.focus();
+    };
+    $('btnRoll').onclick = roll;
+    $('btnCopy').onclick = copyResult;
+    $('btnValidate').onclick = validate;
+
+    // Ctrl/Cmd + S 保存
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            save(false);
+        }
+    });
+
+    // 启动
+    loadList();
+})();
+</script>
+</body>
+</html>

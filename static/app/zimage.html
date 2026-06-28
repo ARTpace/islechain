@@ -32,9 +32,9 @@
     <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
-    <script src="/static/modules/random-prompt.js?v=20260627001"></script>
+    <script src="/static/modules/random-prompt.js?v=20260629003"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
-    <script src="/static/app/preset-picker.js?v=20260619024"></script>
+    <script src="/static/app/preset-picker.js?v=20260629002"></script>
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260628">
     <script src="/static/app/lora-picker.js?v=20260619015"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
@@ -150,6 +150,9 @@
         body.studio-theme-dark .anima-ctrl-input::placeholder { color:#5a6a7e; }
         .anima-ctrl-wrap { position:relative; }
         .anima-ctrl-menu { display:none; position:absolute; bottom:calc(100% + 4px); left:0; background:#2a2a2a; border-radius:12px; padding:6px; z-index:100; min-width:124px; box-shadow:0 -8px 24px rgba(0,0,0,0.3); }
+        /* 多列网格菜单（比例等选项多的场景） */
+        .anima-ctrl-menu.anima-ctrl-menu-grid { display:none; grid-template-columns:1fr 1fr; gap:2px; min-width:200px; padding:6px; }
+        .anima-ctrl-menu.anima-ctrl-menu-grid .anima-ctrl-menu-item { padding:6px 10px; }
         .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:#999; font-size:12px; transition:all 0.15s; }
         .anima-ctrl-menu-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
         .anima-ctrl-menu-item.active { color:#fff; background:rgba(74,222,128,0.10); }
@@ -1085,12 +1088,17 @@
         function toggleMenu(menuId) {
             const menu = document.getElementById(menuId);
             if (!menu) return;
-            const willOpen = menu.style.display !== 'block';
+            const willOpen = menu.style.display !== 'block' && menu.style.display !== 'grid';
             __ALL_MENU_IDS.forEach(id => {
                 const m = document.getElementById(id);
                 if (m) m.style.display = 'none';
             });
-            menu.style.display = willOpen ? 'block' : 'none';
+            if (willOpen) {
+                // grid 菜单（多列）→ display:grid；普通菜单 → display:block
+                menu.style.display = menu.classList.contains('anima-ctrl-menu-grid') ? 'grid' : 'block';
+            } else {
+                menu.style.display = 'none';
+            }
         }
 
         // 关闭所有菜单
@@ -1302,8 +1310,8 @@
                                 <span id="ratioText">${animaRatioW}:${animaRatioH}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div id="ratioMenu" class="anima-ctrl-menu">
-                                ${[{l:'1:1',w:1,h:1},{l:'4:3',w:4,h:3},{l:'3:4',w:3,h:4},{l:'16:9',w:16,h:9},{l:'9:16',w:9,h:16}].map(r=>{
+                            <div id="ratioMenu" class="anima-ctrl-menu anima-ctrl-menu-grid">
+                                ${[{l:'1:1',w:1,h:1},{l:'4:3',w:4,h:3},{l:'3:4',w:3,h:4},{l:'16:9',w:16,h:9},{l:'9:16',w:9,h:16},{l:'3:2',w:3,h:2},{l:'2:3',w:2,h:3},{l:'21:9',w:21,h:9}].map(r=>{
                                     const cur = animaRatioW + ':' + animaRatioH;
                                     const isActive = cur === r.l;
                                     const maxSide = 14;
@@ -1636,7 +1644,7 @@
         let animaRatioH = parseInt(localStorage.getItem('anima_ratio_h')) || 16;
         let animaRes = parseInt(localStorage.getItem('anima_res')) || 1;
 
-        const _ratioOptions = [['4:3',4,3],['3:4',3,4],['16:9',16,9],['9:16',9,16],['1:1',1,1]];
+        const _ratioOptions = [['1:1',1,1],['4:3',4,3],['3:4',3,4],['16:9',16,9],['9:16',9,16],['3:2',3,2],['2:3',2,3],['21:9',21,9]];
         const _resOptions = [1, 2];
         function compactRatioToggle() {
             if (!_isCompact()) return false;
@@ -2480,6 +2488,10 @@
                     // 替换提示词（而不是追加）
                     promptEl.value = randomResult.positive;
                     promptEl.dispatchEvent(new Event('input'));
+                    // LoRA：必须等 prompt 框被新 positive 覆盖后再调，否则触发词会被覆盖
+                    if (randomResult.plan && randomResult.plan.loras) {
+                        RandomPrompt.applyLoras(randomResult.plan.loras);
+                    }
                 }
             }
             

@@ -456,6 +456,13 @@ function isPresetNameToken(s) {
 }
 
 function presetPickerApply() {
+    // 方案编辑器模式：有 callback 时不直接改 prompt，交给 callback 处理
+    // （保持与 character / artist picker 一致的行为）
+    if (presetPickerCallback) {
+        presetPickerCallback(presetPickerSelected.slice());
+        return;
+    }
+
     const promptInput = document.getElementById('prompt');
     if (!promptInput) return;
 
@@ -537,6 +544,8 @@ function presetPickerSortChanged() {
 
 function presetPickerClose() {
     // 关闭即应用（与 LoRA 选择器一致：选择后关闭即直接使用）
+    // apply 内部处理 callback：有 callback 时调 callback 并 return（不直接改 prompt），
+    //                    无 callback 时走原逻辑（直接改 prompt）—— 与 character/artist picker 行为一致
     presetPickerApply();
 
     // 清空锁定顺序，下次打开时重新计算
@@ -566,21 +575,27 @@ function presetPickerOpen(callback) {
                 const tokenSet = new Set(tokens);
                 const tokenLowerSet = new Set(tokens.map(t => t.toLowerCase()));
                 const matched = new Set();
+                const matchedNames = new Set();   // ← 按 name（lowercase）去重，防止同名 preset 跨分类被算成多个
                 const matchedTokenStrings = new Set(); // 记录匹配到的预设所贡献的 token（用于初始化「上次应用」快照）
                 _flatById.forEach(p => {
-                    if (tokenSet.has(p.name)) {
+                    const nameKey = (p.name || '').toLowerCase();
+                    if (!nameKey) return;
+                    if (tokenSet.has(p.name) && !matchedNames.has(nameKey)) {
+                        matchedNames.add(nameKey);
                         matched.add(p);
                         matchedTokenStrings.add(p.name.toLowerCase());
                     }
                     if (p.prompt) {
                         const pStr = p.prompt.trim();
-                        if (tokenSet.has(pStr) || tokenLowerSet.has(pStr.toLowerCase())) {
+                        if ((tokenSet.has(pStr) || tokenLowerSet.has(pStr.toLowerCase())) && !matchedNames.has(nameKey)) {
+                            matchedNames.add(nameKey);
                             matched.add(p);
                             matchedTokenStrings.add(pStr.toLowerCase());
                         } else {
                             // 预设 prompt 含逗号时被拆成多个 token，检查是否全部存在于当前输入中
                             const pTokens = pStr.split(',').map(s => s.trim()).filter(Boolean);
-                            if (pTokens.length > 1 && pTokens.every(t => tokenLowerSet.has(t.toLowerCase()))) {
+                            if (pTokens.length > 1 && pTokens.every(t => tokenLowerSet.has(t.toLowerCase())) && !matchedNames.has(nameKey)) {
+                                matchedNames.add(nameKey);
                                 matched.add(p);
                                 pTokens.forEach(t => matchedTokenStrings.add(t.toLowerCase()));
                             }
