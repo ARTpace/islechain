@@ -431,15 +431,7 @@
                     </div>
                     <!-- 参考图预览区 -->
                     <div id="refImagePreview" class="flex flex-wrap gap-2 mb-2" style="display:none;"></div>
-                    <div class="prompt-wrapper" style="position:relative;">
-                        <textarea id="prompt" rows="3" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;min-height:80px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
-                        <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
-                        <!-- 翻译按键：仅在有内容时显示 -->
-                        <div id="translateBtnContainer"></div>
-                    </div>
-                    <div class="flex items-center gap-2 mt-2 prompt-row">
+                    <div class="flex items-center gap-2 mb-2 prompt-row">
                         <div id="smartPromptContainer"></div>
                         <div id="animaTagSwitcher" style="display:none;">
                             <button onclick="pickerOpen()" id="charPickerBtn" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text" id="charPickerBtnText"> 角色</span></button>
@@ -463,6 +455,14 @@
                         </button>
                         <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
+                    </div>
+                    <div class="prompt-wrapper" style="position:relative;">
+                        <textarea id="prompt" rows="3" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;min-height:80px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
+                        <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                        <!-- 翻译按键：仅在有内容时显示 -->
+                        <div id="translateBtnContainer"></div>
                     </div>
                     <div id="promptTagsWrap" style="display:none;">
                         <div id="promptTags" class="flex flex-wrap gap-2 mt-2 overflow-y-auto" style="max-height:80px;"></div>
