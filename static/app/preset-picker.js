@@ -542,6 +542,58 @@ function presetPickerSortChanged() {
     presetPickerRenderGrid();
 }
 
+/**
+ * 刷新预设：清除缓存，从后端重新加载所有预设数据并重建 UI
+ */
+function presetPickerRefresh() {
+    const btn = document.getElementById('presetPickerRefreshBtn');
+    if (btn) {
+        btn.style.color = '#00b4d8';
+        btn.style.pointerEvents = 'none';
+    }
+    // 清除本地缓存
+    _presetI18nMap = null;
+    _flatIndex = [];
+    _flatById.clear();
+    _categoryCounts = {};
+    _vsList = [];
+    _vsRendered = 0;
+    presetPickerFrozenOrder = null;
+    // 调后端强制刷新 + 加载全部最新数据
+    fetch('/api/reload-presets')
+        .then(r => r.json())
+        .then(data => {
+            // 更新标签预设数据
+            if (data.tag_presets) {
+                presetPickerData = { categories: data.tag_presets };
+            }
+            if (data.style_presets) {
+                _stylePickerData = { categories: data.style_presets };
+            }
+            // 重新加载 i18n
+            return _loadPresetI18n();
+        })
+        .then(() => {
+            _buildFlatIndex();
+            // 重新渲染 UI
+            presetPickerCategory = 'all';
+            presetPickerSubcategory = 'all';
+            presetPickerRenderCategories();
+            presetPickerRenderSubcategories();
+            _vsList = [];
+            _vsRendered = 0;
+            presetPickerRenderGrid();
+            document.getElementById('presetPickerSearch').value = '';
+        })
+        .catch(e => console.error('[PresetPicker] Refresh failed:', e))
+        .finally(() => {
+            if (btn) {
+                btn.style.color = '';
+                btn.style.pointerEvents = '';
+            }
+        });
+}
+
 function presetPickerClose() {
     // 关闭即应用（与 LoRA 选择器一致：选择后关闭即直接使用）
     // apply 内部处理 callback：有 callback 时调 callback 并 return（不直接改 prompt），
@@ -717,6 +769,7 @@ function presetPickerInit() {
                         <button onclick="presetPickerInvertSelection()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">反选</button>
                         <button onclick="presetPickerCopySelected()" id="presetPickerCopyBtn" style="height: 32px; padding: 0 12px; background: rgba(0,180,216,0.2); border: 1px solid rgba(0,180,216,0.3); border-radius: 8px; font-size: 12px; color: #00b4d8; cursor: pointer;">复制</button>
                         <button onclick="presetPickerClearAll()" id="presetPickerClearBtn" style="height: 32px; padding: 0 12px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 12px; color: #ef4444; cursor: pointer;">清空</button>
+                        <button onclick="presetPickerRefresh()" id="presetPickerRefreshBtn" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="刷新预设">↻</button>
                         <button onclick="presetPickerClose()" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="关闭并应用">&times;</button>
                     </div>
                 </div>

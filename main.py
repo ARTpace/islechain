@@ -6091,6 +6091,12 @@ def api_preset_bidir():
     id_to_name, name_to_id = get_preset_bidir()
     return {"id_to_name": id_to_name, "name_to_id": name_to_id}
 
+@app.get("/api/reload-presets")
+async def api_reload_presets():
+    """强制刷新预设缓存并返回最新数据"""
+    preset_manager._cache.invalidate()
+    return get_all_presets()
+
 @app.get("/api/prompt-presets")
 async def get_prompt_presets():
     """获取标签预设(兼容旧接口,YAML 优先回退 JSON)"""

@@ -27,20 +27,11 @@ const PromptTranslateUI = (function() {
         const s = document.createElement('style');
         s.id = 'ptui-style';
         s.textContent = `
-            .pt-translate-btn {
-                display:none; align-items:center; justify-content:center;
-                width:24px; height:24px; border:none; border-radius:8px;
-                cursor:pointer; padding:0; line-height:1;
-                background:rgba(0,0,0,0.08); color:#999; transition:all 0.2s;
-                flex-shrink:0;
-            }
-            .pt-translate-btn:hover { background:rgba(0,0,0,0.14)!important; }
-            .pt-translate-btn[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
-            .pt-translate-btn[data-state="ok"] { background:rgba(16,185,129,0.15)!important; color:#10b981!important; }
-            .pt-translate-btn[data-state="fail"] { background:rgba(239,68,68,0.15)!important; color:#ef4444!important; }
+            .prompt-translate-corner { display:none; }
+            .prompt-translate-corner[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
+            .prompt-translate-corner[data-state="ok"] { color:#16a34a!important; }
+            .prompt-translate-corner[data-state="fail"] { color:#dc2626!important; }
             @keyframes ptui-spin { to { transform: rotate(360deg); } }
-            body.studio-theme-dark .pt-translate-btn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
-            body.studio-theme-dark .pt-translate-btn:hover { background:rgba(255,255,255,0.2)!important; }
         `;
         document.head.appendChild(s);
     }
@@ -50,7 +41,7 @@ const PromptTranslateUI = (function() {
     // ─────────────────────────────────────────────
     function createButton() {
         const btn = document.createElement('button');
-        btn.className = 'pt-translate-btn';
+        btn.className = 'prompt-translate-corner';
         btn.title = '翻译提示词（自动同步标签语言）';
         btn.oncontextmenu = (e) => e.preventDefault();
         btn.innerHTML = `

@@ -32,9 +32,9 @@ PRESETS_DIR = DATA_DIR / "presets"  # 拆分后的多文件目录
 
 # === 文件顺序（控制侧边栏分类排列） ===
 PRESET_FILE_ORDER = [
-    "quality", "character", "clothing", "pose", "scene",
+    "quality", "animals", "character", "clothing", "pose", "photography", "scene",
     "lighting", "effects", "objects", "misc",
-    "game_anime", "nsfw",
+    "celebrity", "game_anime", "nsfw",
 ]
 
 
