@@ -33,6 +33,11 @@
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <script src="/static/modules/random-prompt.js?v=20260629003"></script>
+    <script src="/static/modules/smart-prompt.js?v=20260629001"></script>
+    <script src="/static/modules/card-progress.js?v=20260629001"></script>
+    <script src="/static/modules/lora-manager.js?v=20260629001"></script>
+    <script src="/static/modules/prompt-tags.js?v=20260629001">
+    <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260629002"></script>
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260628">
@@ -182,11 +187,6 @@
         body.studio-theme-dark .preset-dropdown-menu input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
         body.studio-theme-dark .preset-dropdown-menu input::placeholder { color:#6a8fa8; }
         .seed-toggle-btn { height:30px; min-width:36px; border:none; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; background:#f1f1f1; color:#666; }
-        .smart-prompt-btn { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; background:rgba(0,0,0,0.06)!important; color:#000!important; border:1px solid rgba(0,0,0,0.1); transition:all 0.2s; }
-        .smart-prompt-btn:hover { background:rgba(0,0,0,0.1)!important; transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-        .smart-prompt-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
-        body.studio-theme-dark .smart-prompt-btn { background:rgba(0,240,255,0.1)!important; color:#00f0ff!important; border-color:rgba(0,240,255,0.2)!important; }
-        body.studio-theme-dark .smart-prompt-btn:hover { background:rgba(0,240,255,0.18)!important; box-shadow:0 4px 12px rgba(0,240,255,0.15); }
         #clearPromptBtn { background:rgba(0,0,0,0.08); color:#999; }
         #clearPromptBtn:hover { background:rgba(239,68,68,0.15)!important; color:#ef4444!important; }
         body.studio-theme-dark #clearPromptBtn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
@@ -276,7 +276,6 @@
             header.pb-12 { padding-bottom:4px!important; }
             textarea#prompt { font-size:18px!important; }
             .prompt-row { flex-wrap:wrap; }
-            .prompt-row .smart-prompt-btn { flex-shrink:0; }
             .control-bar { flex-direction:row!important; align-items:center!important; gap:8px!important; flex-wrap:nowrap!important; overflow-x:auto; padding:6px 10px!important; justify-content:space-between!important; }
             .control-bar > .ctrl-top-row { flex-wrap:nowrap!important; gap:8px!important; width:auto; flex-shrink:1; min-width:0; }
             .control-bar .mode-switcher { width:auto!important; min-width:0; flex:0 0 auto; }
@@ -291,7 +290,6 @@
             textarea#prompt { font-size:16px!important; }
             .prompt-row { gap:6px!important; }
             .prompt-row .anima-ctrl { height:28px; padding:0 8px; font-size:10px; }
-            .prompt-row .smart-prompt-btn { height:28px; padding:0 10px; font-size:10px; }
             .prompt-row .anima-ctrl-input { height:28px; width:60px; font-size:10px; }
             .control-bar > .ctrl-top-row { gap:8px!important; }
             .mode-btn { font-size:10px!important; padding:6px 0!important; }
@@ -308,7 +306,6 @@
         @media(max-width:640px) {
             .btn-text { display:none!important; }
             .prompt-row .anima-ctrl { padding:0 8px!important; min-width:32px; justify-content:center; }
-            .prompt-row .smart-prompt-btn { padding:0 10px!important; }
             .prompt-row { gap:6px!important; }
             .gen-row #mainGenBtn { min-width:auto!important; padding:0 10px!important; gap:5px!important; overflow:hidden; }
             .gen-row #mainGenBtn > svg, .gen-row #mainGenBtn > i { flex-shrink:0; width:14px!important; min-width:14px!important; height:14px!important; }
@@ -430,19 +427,10 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
                         <!-- 翻译按键：仅在有内容时显示 -->
-                        <button id="translateBtn" onclick="promptTranslateDo(event)" class="prompt-translate-corner" oncontextmenu="event.preventDefault()" title="翻译提示词（自动同步标签语言）" style="display:none;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-                        </button>
+                        <div id="translateBtnContainer"></div>
                     </div>
                     <div class="flex items-center gap-2 mt-2 prompt-row">
-                        <button onclick="smartPromptGenerate()" id="smartPromptBtn" class="smart-prompt-btn" title="智能生成标签">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
-                            <span class="btn-text">AI 生成</span>
-                        </button>
-                        <button onclick="spPickerOpen()" class="anima-ctrl" title="选择提示词预设" style="padding:0 8px; gap:4px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                            <span id="spCurrentLabel" class="btn-text" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;">默认</span>
-                        </button>
+                        <div id="smartPromptContainer"></div>
                         <div id="animaTagSwitcher" style="display:none;">
                             <button onclick="pickerOpen()" id="charPickerBtn" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text" id="charPickerBtnText"> 角色</span></button>
                             <button onclick="artistPickerOpen()" id="artistPickerBtn" class="anima-ctrl" style="border-radius:0 10px 10px 0;" title="画师选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg><span class="btn-text" id="artistPickerBtnText"> 画师</span></button>
@@ -552,6 +540,7 @@
                             </div>
                         </div>
                         <div id="randomPromptContainer"></div>
+                        <div id="randomPromptContainer"></div>
                         <button id="mainGenBtn" onclick="handleRender()" class="h-8 px-5 btn-render rounded-xl font-bold text-[11px] uppercase flex items-center justify-center gap-2">
                             <i data-lucide="zap" id="btnIcon" class="w-3.5 h-3.5 text-yellow-400"></i>
                             <span id="btnText" class="btn-text">生成</span>
@@ -594,6 +583,62 @@
         }
         const CLIENT_ID = localStorage.getItem("client_id") || generateUUID();
         localStorage.setItem("client_id", CLIENT_ID);
+
+        // ── LoRA 管理器兼容别名（替换旧的内联 LoRA 代码） ──
+        if (typeof LoraManager !== 'undefined') {
+            var loraState = LoraManager.state;
+            var loadAvailableLoras = () => LoraManager.load();
+            var updateLoraSwitcherVisibility = () => LoraManager.updateVisibility();
+            var toggleLoraPanel = () => LoraManager.togglePanel();
+            var injectLoraNodes = (wf) => LoraManager.injectNodes(wf);
+            var _loraSyncTriggerWords = (arr) => LoraManager.syncTriggerWords(arr);
+            var _loraCollectTriggerWords = (arr) => LoraManager.collectTriggerWords(arr);
+            var extractLoraModel = (n) => LoraManager.getModel(n);
+            var getFilteredLoras = () => LoraManager.getFiltered();
+            var cnFolder = (n) => LoraManager.cnFolder(n);
+            var saveLoraConfig = () => LoraManager.saveConfig();
+            var loadLoraConfig = () => LoraManager.loadConfig();
+            var groupLoraVersions = () => {};
+            var _rebuildTriggerWordMap = () => {};
+            var _loraBuildEntry = () => {};
+            var _loraBuildManagerEntry = () => {};
+            var _loraEnrichFromManager = () => {};
+            var _loraFetchScanRaw = () => Promise.resolve({ paths: [], previews: {}, entries: [] });
+            var _loraBuildScanEntries = () => [];
+            var _loraExtractFolder = () => '';
+            var _loraExtractFileName = () => '';
+            var _loraIsVideoUrl = () => false;
+            var _loraSplitPreview = () => ({ preview: '', videoUrl: '' });
+            var _loraExtractVideoUrl = () => '';
+            var LORA_NODE_BASE = 9000;
+        }
+
+        // ── PromptTags 管理器兼容别名 ──
+        if (typeof PromptTags !== 'undefined') {
+            PromptTags.init();
+            var updatePromptTags = () => PromptTags.update();
+            var togglePromptLang = () => PromptTags.toggleLang();
+            var togglePromptTags = () => PromptTags.toggleExpand();
+            var removePromptTag = (tag) => PromptTags.removeTag(tag);
+            var loadPresetI18n = () => PromptTags.loadI18n();
+            var translatePromptToCn = (p) => PromptTags.translateToCn(p);
+            var translatePromptToEn = (p) => PromptTags.translateToEn(p);
+            var promptTagDragStart = (e) => PromptTags.dragStart(e);
+            var promptTagDragOver = (e) => PromptTags.dragOver(e);
+            var promptTagDrop = (e) => PromptTags.drop(e);
+            var promptTagDragEnd = (e) => PromptTags.dragEnd(e);
+            var showAnimaTagPreview = (el) => PromptTags.showPreview(el);
+            var hideAnimaTagPreview = () => PromptTags.hidePreview();
+            var _cancelHidePreview = () => PromptTags.cancelHidePreview();
+            var buildAnimaTagThumbUrl = (t, n) => PromptTags.buildThumbUrl ? PromptTags.buildThumbUrl(t, n) : '';
+            var _isLoraFallbackTag = (t) => PromptTags.isLoraFallbackTag ? PromptTags.isLoraFallbackTag(t) : false;
+            var _findActiveLoraByTrigger = (t) => PromptTags.findActiveLoraByTrigger ? PromptTags.findActiveLoraByTrigger(t) : null;
+            var _onLoraPreviewStrength = (el, i) => PromptTags.onLoraStrength(el, i);
+            window.updatePromptTags = updatePromptTags;
+            window.togglePromptLang = togglePromptLang;
+            window.loadPresetI18n = loadPresetI18n;
+            window.PROMPT_TAGS_LANG_MODE = window.PROMPT_TAGS_LANG_MODE || 'cn';
+        }
 
         // === 通用工具函数（纯函数，无副作用） ===
         // - splitPrompt(text)             : 把提示词按逗号拆成 token 数组（trim + 过滤空）
@@ -812,16 +857,16 @@
                             const task = _activeTasks.get(pid);
                             if (!task) return;
                             if (msg.type === 'progress') {
-                                updateCardProgress(task.card, { status: 'sampling', value: msg.data.value, max: msg.data.max });
+                                CardProgress.update(task.card, { status: 'sampling', value: msg.data.value, max: msg.data.max });
                             } else if (msg.type === 'executing') {
                                 if (msg.data.node === null) {
-                                    updateCardProgress(task.card, { status: 'done' });
+                                    CardProgress.update(task.card, { status: 'done' });
                                     if (task.onDone) task.onDone();
                                 } else {
-                                    updateCardProgress(task.card, { status: 'executing' });
+                                    CardProgress.update(task.card, { status: 'executing' });
                                 }
                             } else if (msg.type === 'execution_start') {
-                                updateCardProgress(task.card, { status: 'started' });
+                                CardProgress.update(task.card, { status: 'started' });
                             }
                         } catch(err) {}
                     };
@@ -1364,105 +1409,6 @@
             animaFixedSeed = parseInt(v) || 0;
         }
 
-        // === 提示词翻译（Toggle 模式）===
-        // 单击 = 在 [原文, 译文] 两态间切换，永远不重复调 API。
-        //   - 当前 == 原文 → 切到译文
-        //   - 当前 == 译文 → 切回原文
-        //   - 都不匹配（用户改了 prompt）→ 视为新输入，调 API 翻译
-        // 标签语言跟着切（en ↔ cn）。
-        let _lastOriginalText = null;    // 上一次翻译前的原文
-        let _lastTranslatedText = null;  // 上一次翻译后的译文
-        function setPromptTagsLangByText(t) {
-            const hasChinese = /[\u4e00-\u9fa5]/.test(t);
-            window.PROMPT_TAGS_LANG_MODE = hasChinese ? 'cn' : 'en';
-            localStorage.setItem('prompt_tags_lang_mode', window.PROMPT_TAGS_LANG_MODE);
-            // 同步翻译按钮的 data-lang（控制颜色：中文=红 / 英文=蓝）
-            const tBtn = document.getElementById('translateBtn');
-            if (tBtn) tBtn.setAttribute('data-lang', window.PROMPT_TAGS_LANG_MODE);
-            if (typeof updatePromptTags === 'function') updatePromptTags();
-        }
-        function applyTranslateResult(text) {
-            const promptInput = document.getElementById('prompt');
-            if (!promptInput) return;
-            // 规范化：把中文标点（顿号、分号、全角逗号）替换成英文逗号+空格
-            // —— 1) 避免 "黑发、金发" 被识别成一段
-            // —— 2) 保持 toggle 模式原文/译文严格匹配
-            const normalized = String(text)
-                .replace(/[，、；;]/g, ', ')
-                .replace(/\s*,\s*/g, ', ')
-                .replace(/\s+/g, ' ')
-                .trim();
-            promptInput.value = normalized;
-            promptInput.dispatchEvent(new Event('input', { bubbles: true }));
-            setPromptTagsLangByText(normalized);
-        }
-        // tag 分隔符：英文逗号 + 中文标点（顿号、；，）
-        const PROMPT_TAG_SPLITTER = /[，,、；;]/;
-        // 反馈状态：用于按钮 SVG 颜色/旋转
-        function _setTranslateBtnState(state) {
-            const btn = document.getElementById('translateBtn');
-            if (!btn) return;
-            btn.setAttribute('data-state', state || '');
-        }
-        async function promptTranslateDo(e) {
-            if (e) e.stopPropagation();
-            const promptInput = document.getElementById('prompt');
-            const btn = document.getElementById('translateBtn');
-            if (!promptInput || !btn) return;
-            const text = promptInput.value.trim();
-            if (!text) return;
-
-            // ① Toggle：当前是译文 → 切回原文（0 API）
-            if (_lastTranslatedText !== null && _lastOriginalText !== null
-                && text === _lastTranslatedText) {
-                applyTranslateResult(_lastOriginalText);
-                _setTranslateBtnState('ok');
-                setTimeout(() => _setTranslateBtnState(''), 1200);
-                return;
-            }
-
-            // ② Toggle：当前是原文 → 切到译文（0 API）
-            if (_lastOriginalText !== null && _lastTranslatedText !== null
-                && text === _lastOriginalText) {
-                applyTranslateResult(_lastTranslatedText);
-                _setTranslateBtnState('ok');
-                setTimeout(() => _setTranslateBtnState(''), 1200);
-                return;
-            }
-
-            // ③ 都不匹配 → 视为新输入，调 API 翻译
-            _setTranslateBtnState('loading');
-            btn.disabled = true;
-            try {
-                const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-                const targetDir = hasChinese ? 'zh2en' : 'en2zh';
-                if (window.PromptTranslate.setDirection) {
-                    window.PromptTranslate.setDirection(targetDir);
-                }
-                const result = await window.PromptTranslate.translate(text, null, {
-                    cacheSource: null
-                });
-                if (result) {
-                    applyTranslateResult(result.text);
-                    _lastOriginalText = text;
-                    _lastTranslatedText = result.text;
-                    _setTranslateBtnState('ok');
-                } else {
-                    _setTranslateBtnState('fail');
-                }
-                setTimeout(() => _setTranslateBtnState(''), 1200);
-            } catch (err) {
-                console.error('[translate] 错误:', err);
-                _setTranslateBtnState('fail');
-                setTimeout(() => _setTranslateBtnState(''), 1500);
-            } finally {
-                btn.disabled = false;
-                btn.style.opacity = '';
-            }
-        }
-        // 兼容旧引用
-        const translatePrompt = promptTranslateDo;
-
         // === 提示词预设（通过预设选择器管理） ===
         function getActivePresetPrompts() {
             // 从当前 prompt 文本中反推还保留着的预设，而不是依赖可能过期的 presetPickerSelected
@@ -1573,62 +1519,6 @@
             }
         }
 
-        // === 智能提示词生成 ===
-        async function smartPromptGenerate() {
-            const promptInput = document.getElementById('prompt');
-            const btn = document.getElementById('smartPromptBtn');
-            if (!promptInput || !btn) return;
-            
-            const userText = promptInput.value.trim();
-            if (!userText) return alert('请先输入中文描述');
-            
-            const isIdeogram4Mode = currentWorkflow.includes('Ideogram4');
-            
-            btn.disabled = true;
-            btn.querySelector('span').textContent = '生成中...';
-            
-            try {
-                const res = await fetch('/api/smart-prompt', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: userText })
-                });
-                const data = await res.json();
-                
-                if (data.success && data.prompt) {
-                    if (isIdeogram4Mode) {
-                        // Ideogram4 模式：存储 JSON 提示词，显示描述
-                        try {
-                            const parsed = JSON.parse(data.prompt);
-                            ideogram4JsonPrompt = data.prompt;
-                            promptInput.value = parsed.high_level_description || '';
-                        } catch(e) {
-                            promptInput.value = data.prompt;
-                            ideogram4JsonPrompt = '';
-                        }
-                    } else {
-                        // 普通模式
-                        promptInput.value = data.prompt;
-                        ideogram4JsonPrompt = '';
-                    }
-                    // 先同步选择器状态，再渲染标签
-                    if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
-                    updatePromptTags();
-                    // 显示负向提示词提示
-                    if (data.negative) {
-                        console.log('[SmartPrompt] 负向提示词:', data.negative);
-                    }
-                } else {
-                    alert(data.error || '生成失败');
-                }
-            } catch(e) {
-                alert('请求失败: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.querySelector('span').textContent = 'AI 生成';
-            }
-        }
-
         // === 智能提示词配置（已集成到 API 设置页面） ===
         let animaRatioW = parseInt(localStorage.getItem('anima_ratio_w')) || 9;
         let animaRatioH = parseInt(localStorage.getItem('anima_ratio_h')) || 16;
@@ -1700,765 +1590,13 @@
             return { width: w, height: h };
         }
         
-        // === 提示词标签操作 ===
-        function removePromptTag(tag) {
-            const promptInput = document.getElementById('prompt');
-            if (!promptInput) return;
-            let raw = promptInput.value;
-            // 尝试删除完整的预设
-            if (raw.includes(tag)) {
-                raw = raw.replace(tag, '');
-            }
-            // 清理多余的逗号和空格
-            raw = raw.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p).join(', ');
-            promptInput.value = raw;
-            // 隐藏悬浮预览
-            if (typeof hideAnimaTagPreview === 'function') {
-                hideAnimaTagPreview();
-            }
-            // 先同步选择器状态，再渲染标签
-            if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
-            updatePromptTags();
-        }
-        
-        // === 提示词标签预览 ===
-        let PRESET_I18N_MAP = null;
-        let PRESET_NAME_TO_ID = null;  // 中文名 → 预设 id，供 cn/en 切换反查用
-        let PRESET_CN_TO_EN = null;    // i18n 反向：中文 token → 英文 token（供 lightbox 还原"翻译前英文"用）
-
-        function loadPresetI18n() {
-            if (PRESET_I18N_MAP !== null && PRESET_NAME_TO_ID !== null && PRESET_CN_TO_EN !== null) {
-                return Promise.resolve(PRESET_I18N_MAP);
-            }
-            return Promise.all([
-                fetch('/api/preset-i18n').then(r => r.json()),
-                fetch('/api/preset-bidir').then(r => r.json())
-            ]).then(([i18n, bidir]) => {
-                PRESET_I18N_MAP = i18n || {};
-                PRESET_NAME_TO_ID = (bidir && bidir.name_to_id) || {};
-                // 构建反向 i18n 表：中文 → 英文 key
-                const cn2en = {};
-                Object.keys(PRESET_I18N_MAP).forEach(k => {
-                    const cn = PRESET_I18N_MAP[k];
-                    if (cn && !cn2en[cn]) cn2en[cn] = k;
-                });
-                // 预设名（中文） → 预设 id（id 本身是英文） 也并入
-                if (bidir && bidir.id_to_name) {
-                    Object.keys(bidir.id_to_name).forEach(id => {
-                        const cn = bidir.id_to_name[id];
-                        if (cn && !cn2en[cn]) cn2en[cn] = id;
-                    });
-                }
-                PRESET_CN_TO_EN = cn2en;
-                return PRESET_I18N_MAP;
-            }).catch(e => { PRESET_I18N_MAP = {}; PRESET_NAME_TO_ID = {}; PRESET_CN_TO_EN = {}; return PRESET_I18N_MAP; });
-        }
-
-        // 把整段 prompt 翻译成中文（按 token 拆分，独立映射），未命中的 token 保持原文
-        function translatePromptToCn(prompt) {
-            if (!prompt) return '';
-            const i18n = PRESET_I18N_MAP || {};
-            return prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(Boolean).map(token => {
-                if (hasChinese(token)) {
-                    // 中文 token 优先查预设双向表（精准反查预设原 id），其余保留中文
-                    if (PRESET_NAME_TO_ID && PRESET_NAME_TO_ID[token]) {
-                        // 已是预设中文名，保留
-                        return token;
-                    }
-                    return token;
-                }
-                const key = normalizePresetKey(token);
-                return i18n[key] || token;
-            }).join(', ');
-        }
-
-        // 把 prompt 还原成"原始英文"形式：把中文 token 通过反向 i18n/预设表替换回英文
-        // 用于在 lightbox 第二行展示"翻译前的英文 prompt"
-        function translatePromptToEn(prompt) {
-            if (!prompt) return '';
-            const cn2en = PRESET_CN_TO_EN || {};
-            return prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(Boolean).map(token => {
-                if (hasChinese(token)) {
-                    // 优先预设名（精准），再回退到 i18n 反向表
-                    if (PRESET_NAME_TO_ID && PRESET_NAME_TO_ID[token]) return PRESET_NAME_TO_ID[token];
-                    if (cn2en[token]) return cn2en[token];
-                }
-                return token;
-            }).join(', ');
-        }
-
-        // 把英文 token 归一化为 i18n 的 key
-        function normalizePresetKey(token) {
-            return token.toLowerCase()
-                .replace(/[^a-z0-9]+/g, '_')
-                .replace(/^_+|_+$/g, '');
-        }
-
-        function presetI18nText(token) {
-            if (!PRESET_I18N_MAP) return null;
-            const key = normalizePresetKey(token);
-            const hit = PRESET_I18N_MAP[key] || null;
-            return hit;
-        }
-
-        // 是否包含中文字符
-        function hasChinese(s) {
-            return /[\u4e00-\u9fa5]/.test(s);
-        }
-
-        // 全局：标签显示模式 'cn' (默认) / 'en'
-        window.PROMPT_TAGS_LANG_MODE = window.PROMPT_TAGS_LANG_MODE || 'cn';
-
-        // 切换中英文显示模式
-        function togglePromptLang() {
-            window.PROMPT_TAGS_LANG_MODE = window.PROMPT_TAGS_LANG_MODE === 'en' ? 'cn' : 'en';
-            updatePromptTags();
-        }
-
-        // 渲染单个 tag 的最终显示文本
-        // - 英文模式：含中文 token 通过 PRESET_NAME_TO_ID 反查预设 id；其余显示原文
-        // - 中文模式：含中文直接显示；纯英文查 i18n
-        function resolveTagDisplay(token) {
-            const mode = window.PROMPT_TAGS_LANG_MODE;
-            if (mode === 'en') {
-                if (hasChinese(token)) {
-                    if (PRESET_NAME_TO_ID && PRESET_NAME_TO_ID[token]) {
-                        return { display: PRESET_NAME_TO_ID[token], original: token };
-                    }
-                    return { display: token, original: null };
-                }
-                return { display: token, original: null };
-            }
-            // cn 模式
-            if (hasChinese(token)) return { display: token, original: null };
-            // 先尝试直接匹配 i18n
-            const cn = presetI18nText(token);
-            if (cn) return { display: cn, original: token };
-            // 尝试通过预设的 prompt 查找中文名（使用 name 字段）
-            if (typeof presetPickerData !== 'undefined' && presetPickerData.categories) {
-                for (const cat of presetPickerData.categories) {
-                    if (cat.subcategories) {
-                        for (const sub of cat.subcategories) {
-                            if (sub.presets) {
-                                for (const p of sub.presets) {
-                                    if (p.prompt && p.prompt.trim() === token.trim()) {
-                                        // 优先使用 name 字段（如果有中文）
-                                        if (p.name && hasChinese(p.name)) {
-                                            return { display: p.name, original: token };
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return { display: token, original: null };
-        }
-
-        let promptTagsExpanded = false;
-        function togglePromptTags() {
-            const tags = document.getElementById('promptTags');
-            const text = document.getElementById('promptTagsToggleText');
-            const icon = document.getElementById('promptTagsToggleIcon');
-            if (!tags) return;
-            promptTagsExpanded = !promptTagsExpanded;
-            tags.style.maxHeight = promptTagsExpanded ? '200px' : '80px';
-            if (text) text.textContent = promptTagsExpanded ? '收起' : '展开';
-            if (icon) icon.style.transform = promptTagsExpanded ? 'rotate(180deg)' : '';
-        }
-
-        function updatePromptTags() {
-            const promptInput = document.getElementById('prompt');
-            const tagsContainer = document.getElementById('promptTags');
-            if (!promptInput || !tagsContainer) return;
-
-            // 同步翻译按钮语言色（中文=红 / 英文=蓝）
-            const tBtn = document.getElementById('translateBtn');
-            if (tBtn) {
-                const hasCn = /[\u4e00-\u9fa5]/.test(promptInput.value);
-                tBtn.setAttribute('data-lang', hasCn ? 'cn' : 'en');
-            }
-
-            // 显示/隐藏清空按钮
-            const hasText = !!promptInput.value.trim();
-            const clearBtn = document.getElementById('clearPromptBtn');
-            if (clearBtn) clearBtn.style.display = hasText ? 'flex' : 'none';
-            // 翻译按键：有内容时才显示
-            if (tBtn) tBtn.style.display = hasText ? 'inline-flex' : 'none';
-
-            // i18n 还没加载好时，等加载完再渲染（避免首屏预设应用时显示原文）
-            if (PRESET_I18N_MAP === null) {
-                loadPresetI18n().then(() => updatePromptTags());
-                return;
-            }
-
-            // 智能分拆：按逗号分拆后，尝试合并连续 token 还原多词预设，保持原始顺序
-            const raw = promptInput.value;
-            const simpleTokens = raw.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
-            const parts = [];
-
-            // 使用懒加载预设 prompt 索引（仅含多词预设）
-            const presetPromptSet = getPresetPromptSet();
-
-            // 贪心合并：从左到右扫描 token，尝试将连续 token 组合成已知预设
-            let i = 0;
-            while (i < simpleTokens.length) {
-                let matched = false;
-                // 尝试从当前位置向后组合 2~N 个 token，匹配已知预设
-                for (let len = Math.min(8, simpleTokens.length - i); len >= 2; len--) {
-                    const candidate = simpleTokens.slice(i, i + len).join(', ');
-                    if (presetPromptSet.has(candidate)) {
-                        parts.push(candidate);
-                        i += len;
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) {
-                    parts.push(simpleTokens[i]);
-                    i++;
-                }
-            }
-            // 过滤空字符串
-            const filteredParts = parts.filter(p => p && p.trim());
-            let html = '';
-
-            // 直接构建角色名称集合（旧版本写法：直接 typeof + 每次重建，绕开 safeDbAvailable 缓存链的回归 bug）
-            const charNames = new Set();
-            if (typeof ANIMA_CHAR_DB !== 'undefined' && ANIMA_CHAR_DB && ANIMA_CHAR_DB.length > 0) {
-                ANIMA_CHAR_DB.forEach(c => charNames.add(c.name.toLowerCase()));
-            }
-            
-            filteredParts.forEach((part, idx) => {
-                const safePart = part.replace(/'/g, "\'");
-                const lowerPart = part.toLowerCase();
-                const dd = 'draggable="true" data-idx="' + idx + '" ondragstart="promptTagDragStart(event)" ondragover="promptTagDragOver(event)" ondrop="promptTagDrop(event)" ondragend="promptTagDragEnd(event)"';
-
-                if (part.startsWith('@') || part.startsWith('by ')) {
-                    const name = part.replace(/^@/, '').replace(/^by /, '');
-                    // 判断是否为已知画师标签：查 ANIMA_ARTIST_DB
-                    const _artistNameLower = name.toLowerCase();
-                    const _isKnownArtist = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0) ?
-                        ANIMA_ARTIST_DB.some(a => (a.name || '').toLowerCase() === _artistNameLower) : false;
-                    if (_isKnownArtist) {
-                        // 画师标签：蓝色背景
-                        html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
-                    } else {
-                        // LoRA 触发词：橙色背景
-                        html += '<span class="prompt-tag-anima prompt-tag-lora prompt-tag-drag" ' + dd + ' data-tag-type="lora" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,140,50,0.3);color:#fff;border:1px solid rgba(255,140,50,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
-                    }
-                } else if (charNames.has(lowerPart)) {
-                    // 角色标签：紫色背景
-                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fff;border:1px solid rgba(168,85,247,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
-                } else if (_isLoraFallbackTag(lowerPart)) {
-                    // 没有触发词的 LoRA：用文件名作为标签，橙色背景
-                    html += '<span class="prompt-tag-anima prompt-tag-lora prompt-tag-drag" ' + dd + ' data-tag-type="lora" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,140,50,0.3);color:#fff;border:1px solid rgba(255,140,50,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
-                } else {
-                    // 其他标签：优先显示 i18n 中文（若 token 本身含中文则直接显示）
-                    const { display, original } = resolveTagDisplay(part);
-                    const safeDisplay = display.replace(/</g, '&lt;');
-                    const titleHtml = original ? (original.replace(/</g, '&lt;') + ' / ' + display) : part.replace(/</g, '&lt;');
-                    const color = original ? '#e0e7ef' : (hasChinese(part) ? '#e0e7ef' : '#9aa3b2');
-                    html += '<span title="' + titleHtml + '" class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:' + color + ';border:1px solid rgba(255,255,255,0.15);cursor:grab;">' +
-                        '<span>' + safeDisplay + '</span>' +
-                        '<button onclick="removePromptTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button>' +
-                    '</span>';
-                }
-            });
-
-            tagsContainer.innerHTML = html;
-            // 显示/隐藏标签容器和展开按钮
-            const tagsWrap = document.getElementById('promptTagsWrap');
-            const toggleBtn = document.getElementById('promptTagsToggle');
-            if (tagsWrap) {
-                const hasTags = !!html;
-                tagsWrap.style.display = hasTags ? '' : 'none';
-                // 标签数量多时显示展开按钮
-                const tagCount = filteredParts.length;
-                if (toggleBtn) toggleBtn.style.display = tagCount > 5 ? '' : 'none';
-                // 重置为折叠状态
-                promptTagsExpanded = false;
-                tagsContainer.style.maxHeight = '80px';
-                const toggleText = document.getElementById('promptTagsToggleText');
-                const toggleIcon = document.getElementById('promptTagsToggleIcon');
-                if (toggleText) toggleText.textContent = '展开';
-                if (toggleIcon) toggleIcon.style.transform = '';
-            }
-            bindAnimaTagHover();
-        }
-
-        // === Tag drag-and-drop reorder (live preview, simplified) ===
-        let _dragState = null; // { fromIdx, tags: [...], promptOriginal }
-        
-        function _mergePresetsForDrag(tokens) {
-            // 使用懒加载预设 prompt 索引（避免每次拖拽都重建 3w+ 预设的 Map）
-            const presetPromptSet = getPresetPromptSet();
-            const merged = [];
-            let i = 0;
-            while (i < tokens.length) {
-                let matched = false;
-                for (let len = Math.min(8, tokens.length - i); len >= 2; len--) {
-                    const candidate = tokens.slice(i, i + len).join(', ');
-                    if (presetPromptSet.has(candidate)) { merged.push(candidate); i += len; matched = true; break; }
-                }
-                if (!matched) { merged.push(tokens[i]); i++; }
-            }
-            return merged;
-        }
-        
-        const _TAG_STYLE_ID = 'prompt-tag-drag-css';
-        if (!document.getElementById(_TAG_STYLE_ID)) {
-            var _ds = document.createElement('style');
-            _ds.id = _TAG_STYLE_ID;
-            _ds.textContent = '.prompt-tag-dragging{opacity:0.25!important;transform:scale(0.92)!important}' +
-                '.prompt-tag-drop-left{box-shadow:-3px 0 0 0 #a855f7!important}' +
-                '.prompt-tag-drop-right{box-shadow:3px 0 0 0 #a855f7!important}' +
-                '@keyframes tagDropBounce{0%{transform:scale(0.9);opacity:0.5}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}' +
-                '.prompt-tag-just-dropped{animation:tagDropBounce 0.3s cubic-bezier(0.2,1,0.3,1)}';
-            document.head.appendChild(_ds);
-        }
-        
-        function _clearDragVisuals() {
-            document.querySelectorAll('.prompt-tag-dragging,.prompt-tag-drop-left,.prompt-tag-drop-right').forEach(el => {
-                el.classList.remove('prompt-tag-dragging', 'prompt-tag-drop-left', 'prompt-tag-drop-right');
-            });
-        }
-        
-        function promptTagDragStart(e) {
-            const el = e.target.closest('[data-idx]');
-            if (!el) return;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', '');
-            const fromIdx = parseInt(el.dataset.idx);
-            const promptInput = document.getElementById('prompt');
-            if (!promptInput) return;
-            const tokens = promptInput.value.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
-            const tags = _mergePresetsForDrag(tokens);
-            _dragState = { fromIdx, tags, promptOriginal: promptInput.value, lastOverIdx: -1, lastSide: '' };
-            // Mark original as dragging
-            el.classList.add('prompt-tag-dragging');
-        }
-        
-        function promptTagDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            if (!_dragState) return;
-            // Find closest tag by scanning all tags (more forgiving than e.target.closest)
-            const allTags = document.querySelectorAll('#promptTags [data-idx]');
-            if (!allTags.length) return;
-            let closestEl = null, closestDist = Infinity;
-            allTags.forEach(tag => {
-                const rect = tag.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const dist = Math.abs(e.clientX - cx) + Math.abs(e.clientY - cy) * 0.5;
-                if (dist < closestDist) { closestDist = dist; closestEl = tag; }
-            });
-            if (!closestEl || closestDist > 200) return;
-            const overIdx = parseInt(closestEl.dataset.idx);
-            const rect = closestEl.getBoundingClientRect();
-            const side = e.clientX < rect.left + rect.width / 2 ? 'left' : 'right';
-            if (overIdx === _dragState.lastOverIdx && side === _dragState.lastSide) return;
-            _dragState.lastOverIdx = overIdx;
-            _dragState.lastSide = side;
-            document.querySelectorAll('.prompt-tag-drop-left,.prompt-tag-drop-right').forEach(s => s.classList.remove('prompt-tag-drop-left', 'prompt-tag-drop-right'));
-            if (overIdx !== _dragState.fromIdx) {
-                closestEl.classList.add(side === 'left' ? 'prompt-tag-drop-left' : 'prompt-tag-drop-right');
-            }
-        }
-        
-        function promptTagDrop(e) {
-            e.preventDefault();
-            if (!_dragState) return;
-            // Find target same way as dragOver
-            const allTags = document.querySelectorAll('#promptTags [data-idx]');
-            if (!allTags.length) return;
-            let closestEl = null, closestDist = Infinity;
-            allTags.forEach(tag => {
-                const rect = tag.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const dist = Math.abs(e.clientX - cx) + Math.abs(e.clientY - cy) * 0.5;
-                if (dist < closestDist) { closestDist = dist; closestEl = tag; }
-            });
-            if (!closestEl) return;
-            const toIdx = parseInt(closestEl.dataset.idx);
-            const promptInput = document.getElementById('prompt');
-            if (!promptInput) return;
-            const tags = [..._dragState.tags];
-            const [moved] = tags.splice(_dragState.fromIdx, 1);
-            const rect = closestEl.getBoundingClientRect();
-            const insertIdx = e.clientX < rect.left + rect.width / 2 ? toIdx : toIdx + 1;
-            const adjustedIdx = _dragState.fromIdx < insertIdx ? insertIdx - 1 : insertIdx;
-            tags.splice(adjustedIdx, 0, moved);
-            promptInput.value = tags.join(', ');
-            const droppedIdx = adjustedIdx;
-            _dragState = null;
-            _clearDragVisuals();
-            updatePromptTags();
-            requestAnimationFrame(() => {
-                const dropped = document.querySelector('[data-idx="' + droppedIdx + '"]');
-                if (dropped) {
-                    dropped.classList.add('prompt-tag-just-dropped');
-                    dropped.addEventListener('animationend', () => dropped.classList.remove('prompt-tag-just-dropped'), { once: true });
-                }
-            });
-        }
-        
-        function promptTagDragEnd(e) {
-            if (_dragState) {
-                // Revert
-                const promptInput = document.getElementById('prompt');
-                if (promptInput) {
-                    promptInput.value = _dragState.promptOriginal;
-                    updatePromptTags();
-                }
-            }
-            _clearDragVisuals();
-            _dragState = null;
-        }
-
-        // 页面初始化时预加载 i18n 表
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadPresetI18n);
-        } else {
-            loadPresetI18n();
-        }
-
-        // 页面初始化时刷新一次按钮高亮（已选过的本地数据会在加载完成后显示高亮）
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
-                }, 500);
-            });
-        } else {
-            setTimeout(function() {
-                if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
-            }, 500);
-        }
-
-        // 暴露到 window，供历史记录 usePrompt 等跨模块调用
-        window.updatePromptTags = updatePromptTags;
-        window.loadPresetI18n = loadPresetI18n;
-        window.togglePromptLang = togglePromptLang;
-
-        // === 提示词 tag 悬浮预览（角色/画师缩略图） ===
-        const ANIMA_TAG_PREVIEW_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">' +
-            '<rect width="180" height="180" fill="#1f2235"/>' +
-            '<g fill="none" stroke="#3b3f5a" stroke-width="1.5">' +
-            '<circle cx="90" cy="75" r="22"/>' +
-            '<path d="M55 130 Q90 100 125 130"/>' +
-            '</g>' +
-            '<text x="90" y="160" fill="#525a78" font-family="sans-serif" font-size="11" text-anchor="middle">无缩略图</text>' +
-            '</svg>'
-        );
-
-        function buildAnimaTagThumbUrl(type, name) {
-            if (type === 'artist') {
-                if (typeof ANIMA_ARTIST_DB === 'undefined' || !ANIMA_ARTIST_DB.length) return '';
-                const item = ANIMA_ARTIST_DB.find(a => a.name && a.name.toLowerCase() === name.toLowerCase());
-                return (item && item.image_url) ? item.image_url : '';
-            }
-            if (type === 'char') {
-                if (typeof ANIMA_CHAR_DB === 'undefined' || !ANIMA_CHAR_DB.length) return '';
-                const item = ANIMA_CHAR_DB.find(c => c.name && c.name.toLowerCase() === name.toLowerCase());
-                if (!item) return '';
-                if (item.thumb_url) return item.thumb_url;
-                const raw = item.trigger || (item.copyright ? item.name + ', ' + item.copyright : item.name);
-                const encoded = encodeURIComponent(raw).replace(/%28/g, '(').replace(/%29/g, ')');
-                return 'https://blobs.animadex.net/Outputs/thumbs/' + encoded + '.webp';
-            }
-            if (type === 'lora') {
-                const lowerName = name.toLowerCase().replace(/^@/, '');
-                // 1) 优先用 triggerWordMap 快速查找（O(1)）
-                if (typeof loraState !== 'undefined' && loraState && loraState.triggerWordMap && loraState.triggerWordMap[lowerName]) {
-                    return loraState.triggerWordMap[lowerName].preview || '';
-                }
-                // 2) 回退：遍历 loraMap 按触发词或 displayName/文件名匹配
-                if (typeof loraState !== 'undefined' && loraState && loraState.loraMap) {
-                    for (const key of Object.keys(loraState.loraMap)) {
-                        const entry = loraState.loraMap[key];
-                        if (!entry) continue;
-                        // 按触发词匹配
-                        const tw = entry.triggerWords || [];
-                        if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lowerName)) {
-                            return entry.preview || '';
-                        }
-                        // 按 displayName 或文件名匹配（兜底：没有触发词的 LoRA）
-                        const dn = (entry.displayName || '').toLowerCase();
-                        const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
-                        if (dn === lowerName || fn === lowerName) {
-                            return entry.preview || '';
-                        }
-                    }
-                }
-                return '';
-            }
-            return '';
-        }
-
-        let animaTagPreviewEl = null;
-        let _previewHovered = false;
-        let _hidePreviewTimer = null;
-        function getAnimaTagPreviewEl() {
-            if (animaTagPreviewEl) return animaTagPreviewEl;
-            animaTagPreviewEl = document.createElement('div');
-            animaTagPreviewEl.id = 'animaTagPreview';
-            animaTagPreviewEl.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);';
-            // 鼠标移入预览框时保持显示（支持操作滑块）
-            animaTagPreviewEl.onmouseenter = () => { _previewHovered = true; _cancelHidePreview(); };
-            animaTagPreviewEl.onmouseleave = () => { _previewHovered = false; hideAnimaTagPreview(); };
-            document.body.appendChild(animaTagPreviewEl);
-            return animaTagPreviewEl;
-        }
-
-        // 判断一个普通标签是否匹配某个 LoRA
-        // 覆盖三种情况：有触发词（无@前缀）、无触发词用文件名兜底、displayName 匹配
-        function _isLoraFallbackTag(tagLower) {
-            if (!tagLower || !loraState || !loraState.loraMap) return false;
-            for (const key of Object.keys(loraState.loraMap)) {
-                const entry = loraState.loraMap[key];
-                if (!entry) continue;
-                // 1) 按触发词匹配（不管有没有 @ 前缀都能命中）
-                const tw = entry.triggerWords || [];
-                if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === tagLower)) return true;
-                // 2) 按 displayName 或文件名匹配（无触发词的兜底）
-                const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
-                if (dn === tagLower) return true;
-            }
-            return false;
-        }
-
-        // LoRA 预览滑块：全局 handler（避免内联引号转义问题）
-        function _onLoraPreviewStrength(inputEl, idx) {
-            const v = parseFloat(inputEl.value);
-            const p = ((v - 0.2) / 1.0 * 100).toFixed(1);
-            inputEl.style.setProperty('--lora-preview-pct', p + '%');
-            const valEl = inputEl.closest('#animaTagPreview').querySelector('.lora-preview-strength-val');
-            if (valEl) valEl.textContent = v.toFixed(2);
-            if (idx === -1) {
-                // LoRA 不在 active 中，从 data 属性取 name 并加入
-                const name = inputEl.dataset.loraName;
-                if (name && loraState && loraState.active) {
-                    loraState.active.push({ name: name, strength: v });
-                    inputEl.dataset.loraPreviewIdx = loraState.active.length - 1;
-                }
-            } else if (loraState && loraState.active && loraState.active[idx]) {
-                loraState.active[idx].strength = v;
-            }
-        }
-
-        // LoRA 预览滑块样式（只注入一次）
-        (function _injectLoraPreviewSliderCss() {
-            if (document.getElementById('loraPreviewSliderCss')) return;
-            const s = document.createElement('style');
-            s.id = 'loraPreviewSliderCss';
-            s.textContent =
-                '#animaTagPreview input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:999px;background:linear-gradient(to right,rgba(255,140,50,0.7) 0%,rgba(255,140,50,0.7) var(--lora-preview-pct,50%),rgba(255,140,50,0.15) var(--lora-preview-pct,50%),rgba(255,140,50,0.15) 100%)}' +
-                '#animaTagPreview input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff8c32,#ff6b1a);box-shadow:0 2px 8px rgba(255,100,20,0.5),0 0 0 2px rgba(255,140,50,0.3);margin-top:-5px;transition:transform 0.15s}' +
-                '#animaTagPreview input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}' +
-                '#animaTagPreview input[type=range]::-moz-range-track{height:6px;border-radius:999px;background:rgba(255,140,50,0.15)}' +
-                '#animaTagPreview input[type=range]::-moz-range-progress{height:6px;border-radius:999px;background:rgba(255,140,50,0.7)}' +
-                '#animaTagPreview input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff8c32,#ff6b1a);box-shadow:0 2px 8px rgba(255,100,20,0.5),0 0 0 2px rgba(255,140,50,0.3)}';
-            document.head.appendChild(s);
-        })();
-
-        // 根据触发词查找对应的活跃 LoRA 条目（返回 {index, entry} 或 null）
-        function _findActiveLoraByTrigger(triggerName) {
-            if (!triggerName || !loraState) return null;
-            const lower = triggerName.toLowerCase().replace(/^@/, '');
-            // 优先查 loraState.active（有强度信息）
-            if (loraState.active) {
-                for (let i = 0; i < loraState.active.length; i++) {
-                    const a = loraState.active[i];
-                    if (!a || !a.name) continue;
-                    const meta = loraState.loraMap && loraState.loraMap[a.name];
-                    if (!meta) continue;
-                    const tw = meta.triggerWords || [];
-                    if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) {
-                        return { index: i, entry: a, meta: meta };
-                    }
-                    const dn = (meta.displayName || '').toLowerCase();
-                    const fn = a.name.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
-                    if (dn === lower || fn === lower) {
-                        return { index: i, entry: a, meta: meta };
-                    }
-                }
-            }
-            // 回退：查 loraState.loraMap 全量（未加入 active 的也能找到）
-            if (loraState.loraMap) {
-                for (const key of Object.keys(loraState.loraMap)) {
-                    const entry = loraState.loraMap[key];
-                    if (!entry) continue;
-                    const tw = entry.triggerWords || [];
-                    if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) {
-                        return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
-                    }
-                    const dn = (entry.displayName || '').toLowerCase();
-                    const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
-                    if (dn === lower || fn === lower) {
-                        return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
-                    }
-                }
-            }
-            return null;
-        }
-
-        function showAnimaTagPreview(tagEl) {
-            _previewHovered = false;
-            const type = tagEl.dataset.tagType;
-            const name = tagEl.dataset.tagName;
-            if (!type || !name) return;
-            const url = buildAnimaTagThumbUrl(type, name);
-            const el = getAnimaTagPreviewEl();
-            const label = type === 'artist' ? '画师' : type === 'lora' ? 'LoRA' : '角色';
-            const safeName = name.replace(/</g, '&lt;');
-            // 角色/画师缩略图是 2:3 竖图：用高 200px 的容器（宽度自适应到 133px 左右）
-            const imgHeight = 200;
-            const imgWidth = Math.round(imgHeight * 2 / 3);
-
-            // LoRA 标签：查找对应的活跃条目，显示强度滑块
-            let strengthHtml = '';
-            if (type === 'lora') {
-                const found = _findActiveLoraByTrigger(name);
-                if (found) {
-                    const s = found.entry.strength || 0.8;
-                    const pct = ((s - 0.2) / 1.0 * 100).toFixed(1);
-                    const idx = found.index;
-                    strengthHtml =
-                        '<div style="padding:6px 4px 2px;max-width:' + imgWidth + 'px;" onclick="event.stopPropagation()">' +
-                            '<div style="display:flex;align-items:center;gap:6px;">' +
-                                '<span style="font-size:9px;font-weight:700;color:#ff8c32;flex-shrink:0;">STR</span>' +
-                                '<div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">' +
-                                    '<input type="range" min="0.2" max="1.2" step="0.05" value="' + s + '"' +
-                                    ' style="width:100%;height:6px;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;--lora-preview-pct:' + pct + '%;"' +
-                                    ' data-lora-name="' + (found.entry.name || '').replace(/"/g, '&quot;') + '"' +
-                                    ' oninput="_onLoraPreviewStrength(this,' + idx + ')"' +
-                                '/>' +
-                            '</div>' +
-                            '<span class="lora-preview-strength-val" style="font-size:10px;font-weight:900;color:#e0e7ef;background:rgba(255,140,50,0.18);padding:2px 6px;border-radius:6px;min-width:32px;text-align:center;flex-shrink:0;">' + s.toFixed(2) + '</span>' +
-                        '</div>';
-                }
-            }
-
-            el.innerHTML =
-                '<div style="font-size:10px;font-weight:700;color:' + (type === 'artist' ? '#00b4d8' : type === 'lora' ? '#ff8c32' : '#a855f7') + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;padding:0 4px;">' + label + '</div>' +
-                '<div style="position:relative;width:' + imgWidth + 'px;height:' + imgHeight + 'px;border-radius:8px;overflow:hidden;background:#1f2235;">' +
-                    (url
-                        ? '<img src="' + url + '" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="this.onerror=null;this.src=\'' + ANIMA_TAG_PREVIEW_SVG + '\';this.style.objectFit=\'contain\';this.style.opacity=\'0.55\';"/>'
-                        : '<img src="' + ANIMA_TAG_PREVIEW_SVG + '" style="width:100%;height:100%;object-fit:contain;opacity:0.7;display:block;"/>') +
-                '</div>' +
-                '<div style="font-size:12px;font-weight:600;color:#e0e7ef;padding:6px 4px 2px;text-align:center;max-width:' + imgWidth + 'px;word-break:break-word;">' + safeName + '</div>' +
-                strengthHtml;
-
-            const rect = tagEl.getBoundingClientRect();
-            const top = rect.bottom + window.scrollY;
-            const left = rect.left + rect.width / 2 + window.scrollX;
-            el.style.left = left + 'px';
-            el.style.top = top + 'px';
-            el.style.opacity = '1';
-        }
-
-        function hideAnimaTagPreview() {
-            if (_previewHovered) return;
-            // 延迟 150ms 再隐藏，给鼠标移到预览框的时间
-            clearTimeout(_hidePreviewTimer);
-            _hidePreviewTimer = setTimeout(() => {
-                if (_previewHovered) return;
-                const el = animaTagPreviewEl || document.getElementById('animaTagPreview');
-                if (el) el.style.opacity = '0';
-            }, 150);
-        }
-
-        function _cancelHidePreview() {
-            clearTimeout(_hidePreviewTimer);
-            _hidePreviewTimer = null;
-        }
-
-        function bindAnimaTagHover() {
-            const tags = document.querySelectorAll('.prompt-tag-anima');
-            tags.forEach(t => {
-                t.onmouseenter = () => { _cancelHidePreview(); showAnimaTagPreview(t); };
-                t.onmouseleave = hideAnimaTagPreview;
-            });
-        }
-        
-        // === 进度条 ===
-        // === 卡片内进度更新（CSS 圆环风格，附带经过时间） ===
-        // 每张卡片独立的计时器数据
-        const _progressTimers = new Map();
-        function _formatElapsed(ms) {
-            const s = Math.floor(ms / 1000);
-            const m = Math.floor(s / 60);
-            return m > 0 ? m + 'm' + (s % 60) + 's' : s + 's';
-        }
-        function _clearProgressTimer(card) {
-            if (_progressTimers.has(card)) {
-                clearInterval(_progressTimers.get(card).timer);
-                _progressTimers.delete(card);
-            }
-        }
-        function _startProgressTimer(card, prefix) {
-            _clearProgressTimer(card);
-            const start = Date.now();
-            const state = { timer: null, start };
-            // 环形中间固定显示百分比（初始 0%），下方文字显示 "排队中 5s"
-            const label = card.querySelector('.card-progress-label');
-            const pctEl2 = card.querySelector('.card-progress-pct');
-            if (pctEl2) { pctEl2.style.visibility = 'visible'; pctEl2.textContent = '0%'; }
-            if (label) label.textContent = prefix + ' ' + _formatElapsed(0);
-            state.timer = setInterval(() => {
-                const elapsed = Date.now() - start;
-                const l = card.querySelector('.card-progress-label');
-                if (l) l.textContent = prefix + ' ' + _formatElapsed(elapsed);
-            }, 1000);
-            _progressTimers.set(card, state);
-        }
-        function updateCardProgress(card, status) {
-            if (!card) return;
-            const label = card.querySelector('.card-progress-label');
-            const pctEl = card.querySelector('.card-progress-pct');
-            const outer = card.querySelector('.pg-ring-outer');
-            const inner = card.querySelector('.pg-ring-inner');
-            if (!label) return;
-            if (status.status === 'started' || status.status === 'executing') {
-                // 环形中间：百分比（初始 0%）；下方文字：排队中/执行中 + 经过时间
-                if (pctEl) pctEl.style.visibility = 'visible';
-                const prefix = status.status === 'started' ? '排队中' : '执行中';
-                _startProgressTimer(card, prefix);
-            } else if (status.status === 'sampling') {
-                _clearProgressTimer(card);
-                const v = status.value || 0, m = status.max || 1;
-                const p = Math.round((v / m) * 100);
-                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = p + '%'; }
-                const speed = Math.max(0.3, 1 - p * 0.007);
-                if (outer) outer.style.animationDuration = speed + 's';
-                if (inner) inner.style.animationDuration = (speed * 0.6) + 's';
-                label.textContent = '采样 ' + v + '/' + m;
-            } else if (status.status === 'done') {
-                _clearProgressTimer(card);
-                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = '95%'; }
-                label.textContent = '解码中...';
-            } else if (status.status === 'complete') {
-                _clearProgressTimer(card);
-                // 呼吸动画：缓慢旋转 + 透明度脉冲
-                if (outer) { outer.style.animation = 'breathSpin 3s ease-in-out infinite'; outer.style.borderColor = '#8b5cf6'; }
-                if (inner) { inner.style.animation = 'breathSpin 3s ease-in-out infinite reverse'; inner.style.borderColor = '#06b6d4'; }
-                if (pctEl) { pctEl.style.visibility = 'visible'; pctEl.textContent = '100%'; }
-                label.textContent = '完成!';
-                label.style.color = '#8b5cf6';
-            }
-        }
-        // 兼容旧引用（空操作）
+                // 兼容旧引用（空操作，进度已由 CardProgress 管理）
         function startProgress() {}
+        function hideProgress() {}
         function updateRealProgress() {}
         function completeProgress() {}
-        function hideProgress() {}
 
-        async function saveToUserOutput(comfyUrl, featureName) {
+                async function saveToUserOutput(comfyUrl, featureName) {
             try {
                 const u=new URL(comfyUrl,window.location.origin),fn=u.searchParams.get('filename')||'',sf=u.searchParams.get('subfolder')||'',tp=u.searchParams.get('type')||'output';
                 if(!fn)return comfyUrl;
@@ -2470,6 +1608,10 @@
 
         // === 主渲染逻辑 ===
         async function handleRender() {
+            // 生成前同步提示词 → 各选择器状态（确保粘贴的 LoRA 触发词能被检测到）
+            if (typeof syncPickerStatesFromPrompt === 'function') {
+                syncPickerStatesFromPrompt();
+            }
             // 随机功能：如果 🎲 开关已开启，每次生成前自动应用激活方案
             if (typeof RandomPrompt !== 'undefined' && RandomPrompt.isRandomEnabled()) {
                 const randomResult = await RandomPrompt.applyAutoRandom();
@@ -2503,21 +1645,7 @@
             placeholder.style.minHeight = '180px';
             placeholder.style.aspectRatio = _aspectRatio;
             placeholder.style.transition = 'all 0.4s ease';
-            placeholder.innerHTML = `
-                <div class="card-progress" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-                    <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
-                        <div class="pg-ring-outer" style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:renderSpin 1s linear infinite;"></div>
-                        <div class="pg-ring-inner" style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:renderSpin 0.6s linear infinite reverse;"></div>
-                        <span class="card-progress-pct" style="position:absolute;font-size:9px;font-weight:700;color:#6b7280;">0%</span>
-                    </div>
-                    <span class="card-progress-label" style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">排队中...</span>
-                    <style>
-                        @keyframes renderSpin { to { transform: rotate(360deg); } }
-                        @keyframes renderPulse { 0%,100% { transform:scale(1);opacity:1; } 50% { transform:scale(1.4);opacity:0.7; } }
-                        @keyframes breathSpin { 0%{transform:rotate(0deg) scale(0.9);opacity:0.4;} 50%{transform:rotate(180deg) scale(1.05);opacity:1;} 100%{transform:rotate(360deg) scale(0.9);opacity:0.4;} }
-                    </style>
-                </div>
-            `;
+            placeholder.innerHTML = CardProgress.HTML;
             document.getElementById('masonry').prepend(placeholder);
 
             try {
@@ -2655,7 +1783,7 @@
                 _registerTask(taskPid, placeholder, null);
 
                 // HTTP 轮询兜底（WS 连接失败或不可用时仍有进度显示）
-                updateCardProgress(placeholder, { status: 'started' });
+                CardProgress.update(placeholder, { status: 'started' });
                 let _pollDone = false;
                 let _pollExecutingShown = false;
                 const _pollTimer = setInterval(async () => {
@@ -2666,7 +1794,7 @@
                         const running = (qd.queue_running || []).length;
                         if (running > 0 && !_pollExecutingShown) {
                             _pollExecutingShown = true;
-                            updateCardProgress(placeholder, { status: 'executing' });
+                            CardProgress.update(placeholder, { status: 'executing' });
                         }
                     } catch(e) {}
                 }, 1000);
@@ -2727,7 +1855,7 @@
                     });
                 } catch(e) {}
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
-                updateCardProgress(placeholder, { status: 'complete' });
+                CardProgress.update(placeholder, { status: 'complete' });
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
                     const tempContainer = document.createElement('div');
                     window.GalleryCard.render(Object.assign({ container: tempContainer, record, isNew: true }, { eagerFirstImage: true }));
@@ -3004,593 +2132,18 @@
         else updateParamsUI();
 
         // ============================================================
-        // === LoRA 管理 ===
+        //  LoRA 管理器（已提取为独立模块 static/modules/lora-manager.js）
+        //  兼容别名定义在脚本顶部
         // ============================================================
-        const LORA_STORAGE_KEY = 'zimage_lora_config';
-        const LORA_NODE_BASE = 9000; // 动态 LoRA 节点 ID 起始
-
-        // LoRA 状态
-        let loraState = {
-            loraMap: {},         // name → {name, preview, videoUrl, triggerWords, baseModel, description, ...}
-            triggerWordMap: {},  // triggerWord(小写) → {preview, name, displayName}（反查索引）
-            available: [],       // LoRA 文件名列表（从 loraMap keys 生成）
-            models: [],          // 解析出的模型分类列表
-            modelFilter: 'all',  // 当前筛选的模型
-            active: []           // 用户添加的 LoRA [{name, strength}]
-        };
-        // 重建 triggerWordMap：从 loraMap 中提取所有触发词 → 预览图映射
-        function _rebuildTriggerWordMap() {
-            loraState.triggerWordMap = {};
-            if (!loraState.loraMap) return;
-            for (const key of Object.keys(loraState.loraMap)) {
-                const entry = loraState.loraMap[key];
-                if (!entry || !entry.triggerWords || !entry.triggerWords.length) continue;
-                for (const tw of entry.triggerWords) {
-                    const twLower = String(tw).toLowerCase().replace(/^@/, '');
-                    if (twLower && !loraState.triggerWordMap[twLower]) {
-                        loraState.triggerWordMap[twLower] = {
-                            preview: entry.preview || '',
-                            name: entry.name,
-                            displayName: entry.displayName || entry.name
-                        };
-                    }
-                }
-            }
-        }
-
-        // 文件夹名 → 中文显示名（未匹配的原样返回）
-        const FOLDER_CN_MAP = {
-            'anima': '动画角色', 'custom_anima': '自定义动画',
-            'flux1': 'FLUX1', 'flux2': 'FLUX2', 'custom_flux2': '自定义FLUX2',
-            'qwen': 'Qwen', 'qwen-edit': 'Qwen编辑',
-            'custom_qwen': '自定义Qwen', 'custom_qwen_edit': '自定义Qwen编辑',
-            'z-image': 'Z-Image', 'zimage': 'ZImage', 'custom_zimage': '自定义ZImage',
-            'recipes': '配方', 'character': '角色', 'style': '风格',
-            'lighting': '光影', 'concept': '概念', 'poses': '姿势',
-            'clothing': '服装', 'background': '背景', 'composition': '构图',
-            'detail': '细节', 'emotion': '表情', 'hair': '发型',
-            'camera': '镜头', 'texture': '材质', 'effect': '特效',
-            'person': '人物', 'scene': '场景', 'animal': '动物',
-            'architect': '建筑', 'food': '食物', 'vehicle': '载具',
-            'fantasy': '幻想', 'sci-fi': '科幻', 'cyberpunk': '赛博朋克',
-            'watercolor': '水彩', 'oil-painting': '油画', 'sketch': '素描',
-            'anime': '动漫', 'realistic': '写实', '3d': '3D', '2d': '2D',
-            'sd1': 'SD1.5', 'sd2': 'SD2', 'sdxl': 'SDXL', 'sd3': 'SD3',
-            'flux': 'FLUX', 'lora': 'LoRA', 'embedding': 'Embedding',
-            'controlnet': 'ControlNet', 'upscale': '放大', 'inpaint': '局部绘制'
-        };
-        function cnFolder(name) { return FOLDER_CN_MAP[name] || name; }
-
-        // 判断一个 URL 路径是否指向视频文件（用于 LoRA 预览）
-        // 对齐 ComfyUI-Lora-Manager 的做法：preview_url 字段既能放图也能放视频，靠后缀适配
-        // 注意：经 art-canvas 代理后，原始后缀被移到 query string（如 ?url=...mp4），
-        //      需要同时检查 query 里的 url= 参数本体
-        const LORA_VIDEO_EXT_RE = /\.(mp4|webm|mov|avi|mkv)(\?|&|$|%|$)/i;
-        function _loraIsVideoUrl(url) {
-            if (!url) return false;
-            const s = String(url);
-            // 1) 路径后缀（直链 /api/foo.mp4）
-            const noQuery = s.split('?')[0];
-            if (LORA_VIDEO_EXT_RE.test(noQuery)) return true;
-            // 2) 整 URL 内是否含视频扩展名（覆盖 ?url=...mp4 的代理场景）
-            if (LORA_VIDEO_EXT_RE.test(s)) return true;
-            // 3) 解码后的 query 路径（兜底：双层编码 %2520 等）
-            try {
-                const u = new URL(s, window.location.origin);
-                const innerUrl = u.searchParams.get('url') || '';
-                if (innerUrl) {
-                    const decoded = decodeURIComponent(innerUrl);
-                    if (LORA_VIDEO_EXT_RE.test(decoded.split('?')[0])) return true;
-                    if (LORA_VIDEO_EXT_RE.test(decoded)) return true;
-                }
-            } catch (e) { /* 忽略 URL 解析错误 */ }
-            return false;
-        }
-        // 把代理后的 preview URL 按是否为视频分配到 preview / videoUrl
-        function _loraSplitPreview(proxyUrl, rawUrl) {
-            if (!proxyUrl) return { preview: '', videoUrl: '' };
-            if (_loraIsVideoUrl(rawUrl || proxyUrl)) {
-                return { preview: '', videoUrl: proxyUrl };
-            }
-            return { preview: proxyUrl, videoUrl: '' };
-        }
-
-        // ============================================================
-        // LoRA 加载器（统一助手 + 4 条回退链）
-        // 数据源优先级：ComfyUI+本地扫描 → 本地扫描 → LoRA Manager → 兜底(扫描→ComfyUI 极简)
-        // ============================================================
-        const _LORA_EXT_RE = /\.(safetensors|ckpt|pt|bin|pth)$/i;
-        const _LORA_STEM_VER_RE = /[-_][vV](\d+(?:\.\d+)*)$/;
-
-        // 从路径中提取文件夹（路径用 / 或 \\ 都可以）
-        function _loraExtractFolder(name) {
-            const parts = name.replace(/\\/g, '/').split('/');
-            return parts.length > 1 ? parts[0] : '';
-        }
-        // 从路径中提取纯文件名（支持 \\ 和 /）
-        function _loraExtractFileName(name) {
-            return name.split('\\').pop().split('/').pop();
-        }
-
-        // 单条 LoRA entry 构造（用于分支 1/2/4a 这类"从 raw 列表 + previews 字典"加载）
-        //   name:        loraMap 的 key（通常是带文件夹的完整路径）
-        //   fileName:    用于 displayName 的文件名（已 strip / 不 strip 由 opts 决定）
-        //   previews:    preview URL 字典（可按 name 或 fileName 查找）
-        //   opts.stripExt:    displayName 是否去掉 .safetensors 后缀
-        //   opts.splitPreview: 是否走 _loraSplitPreview 拆分 video
-        function _loraBuildEntry(name, fileName, previews, opts) {
-            const { stripExt = false, splitPreview = false } = opts || {};
-            const pv = previews[name] || previews[fileName] || '';
-            const { preview, videoUrl } = splitPreview
-                ? _loraSplitPreview(pv, pv)
-                : { preview: pv, videoUrl: '' };
-            return {
-                name,
-                displayName: stripExt ? fileName.replace(_LORA_EXT_RE, '') : fileName,
-                preview,
-                videoUrl,
-                triggerWords: [],
-                baseModel: '',
-                folder: _loraExtractFolder(name)
+        if (typeof LoraManager !== 'undefined') {
+            LoraManager.init();
+            const _origLoraSW = switchWorkflow;
+            switchWorkflow = function(name) {
+                _origLoraSW(name);
+                LoraManager.updateVisibility();
             };
         }
 
-        // 从 civitai.images / 兼容字段中提取视频预览 URL（Manager / Enrich 共用）
-        function _loraExtractVideoUrl(civitai, fallbackRaw) {
-            if (civitai && civitai.images) {
-                for (const img of civitai.images) {
-                    if (img.type === 'video' && img.url) {
-                        return img.url.startsWith('/')
-                            ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(img.url)}`
-                            : img.url;
-                    }
-                }
-            }
-            const raw = fallbackRaw || '';
-            return raw
-                ? (raw.startsWith('/') ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(raw)}` : raw)
-                : '';
-        }
-
-        // Manager 单条 entry（含 civitai 元数据 + 视频预览抽取）
-        function _loraBuildManagerEntry(m) {
-            const folder = m.folder || '';
-            const fileName = m.file_name || '';
-            const filePath = m.file_path || '';
-            const fullFileName = filePath
-                ? filePath.split(/\\/).pop().split('/').pop()
-                : (fileName.endsWith('.safetensors') ? fileName : fileName + '.safetensors');
-            const loraName = folder ? `${folder}\\${fullFileName}` : fullFileName;
-            if (!loraName) return null;
-            const previewRaw = m.preview_url || '';
-            const previewProxy = previewRaw
-                ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}`
-                : '';
-            const split = _loraSplitPreview(previewProxy, previewRaw);
-            const civitai = m.civitai;
-            const triggerWords = (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords))
-                ? civitai.trainedWords.slice()
-                : [];
-            const videoUrl = _loraExtractVideoUrl(civitai, m.video_url || m.animated_preview || m.preview_video) || split.videoUrl;
-            return {
-                name: loraName,
-                displayName: m.model_name || fileName,
-                preview: split.preview,
-                videoUrl,
-                triggerWords,
-                baseModel: m.base_model || '',
-                tags: m.tags || '',
-                folder
-            };
-        }
-
-        // 后置：用 LoRA Manager 的 civitai 元数据补充已有 loraMap（分支 1 用）
-        function _loraEnrichFromManager(metaItems) {
-            if (!Array.isArray(metaItems)) return;
-            for (const m of metaItems) {
-                const folder = m.folder || '';
-                const fileName = m.file_name || '';
-                const filePath = m.file_path || '';
-                const fullFileName = filePath
-                    ? filePath.split(/\\/).pop().split('/').pop()
-                    : (fileName.endsWith('.safetensors') ? fileName : fileName + '.safetensors');
-                const key = folder ? `${folder}\\${fullFileName}` : fullFileName;
-                const matchedKey = loraState.loraMap[key] ? key
-                    : (loraState.loraMap[fullFileName] ? fullFileName : null);
-                if (!matchedKey) continue;
-                const entry = loraState.loraMap[matchedKey];
-                const previewRaw = m.preview_url || '';
-                const previewProxy = previewRaw
-                    ? `/api/lora-manager/proxy-preview?url=${encodeURIComponent(previewRaw)}`
-                    : '';
-                const split = _loraSplitPreview(previewProxy, previewRaw);
-                const civitai = m.civitai;
-                const triggerWords = (civitai && civitai.trainedWords && Array.isArray(civitai.trainedWords))
-                    ? civitai.trainedWords.slice()
-                    : [];
-                const videoUrl = _loraExtractVideoUrl(civitai, m.video_url || m.animated_preview || m.preview_video) || split.videoUrl;
-                if (split.preview) entry.preview = split.preview;
-                if (videoUrl) entry.videoUrl = videoUrl;
-                if (triggerWords.length) entry.triggerWords = triggerWords;
-                if (m.base_model) entry.baseModel = m.base_model;
-                if (m.tags) entry.tags = m.tags;
-                if (m.model_name) entry.displayName = m.model_name;
-            }
-        }
-
-        // 从 raw 列表自建 scanEntries（分支 2 用；分支 1/3/4b 不需要，因为不走 scanEntries）
-        function _loraBuildScanEntries(raw) {
-            return raw.map(name => {
-                const fileName = _loraExtractFileName(name);
-                const stem = fileName.replace(_LORA_EXT_RE, '');
-                const m = _LORA_STEM_VER_RE.exec(stem);
-                return {
-                    name,
-                    modelRoot: m ? stem.slice(0, m.index) : stem,
-                    versionLabel: m ? m[0].replace(/^[-_]/, '') : ''
-                };
-            });
-        }
-
-        // 原始本地扫描 fetcher（不 catch 异常，由调用方决定如何处理）
-        async function _loraFetchScanRaw() {
-            const res = await fetch('/api/loras/scan');
-            if (!res.ok) return { paths: [], previews: {}, entries: [] };
-            const data = await res.json();
-            return {
-                paths: data.loras || [],
-                previews: data.previews || {},
-                entries: data.entries || []
-            };
-        }
-
-        async function loadAvailableLoras() {
-            // ① 优先从 ComfyUI API 获取完整列表
-            try {
-                const res = await fetch('/api/comfyui/loras');
-                if (res.ok) {
-                    const data = await res.json();
-                    const raw = data.loras || [];
-                    if (raw.length > 0) {
-                        // 同时获取本地扫描数据（带文件夹路径）；内层 try 容错
-                        let scan = { paths: [], previews: {}, entries: [] };
-                        try {
-                            scan = await _loraFetchScanRaw();
-                        } catch (e) {
-                            console.warn('[LoRA] 本地扫描失败:', e);
-                        }
-                        // 构建纯文件名 → 完整路径（带文件夹）的映射
-                        const fileNameToFullPath = {};
-                        for (const fullPath of scan.paths) {
-                            const fileName = fullPath.split('\\').pop();
-                            if (!fileNameToFullPath[fileName]) fileNameToFullPath[fileName] = fullPath;
-                        }
-                        // 用本地扫描的完整路径作为主数据源，只保留 ComfyUI 中存在的
-                        loraState.available = [];
-                        loraState.loraMap = {};
-                        for (const comfyName of raw) {
-                            const fullPath = fileNameToFullPath[comfyName] || comfyName;
-                            loraState.available.push(fullPath);
-                            loraState.loraMap[fullPath] = _loraBuildEntry(fullPath, comfyName, scan.previews, { stripExt: true, splitPreview: false });
-                        }
-                        loraState.available.sort();
-                        loraState.models = [...new Set(loraState.available.map(n => _loraExtractFolder(n) || '通用'))].sort();
-                        // 把同 modelRoot 的多个 LoRA 合并为"多版本组"
-                        groupLoraVersions();
-                        console.log('[LoRA] ComfyUI + 本地扫描加载成功，共', loraState.available.length, '个，文件夹', loraState.models.length, '个');
-                        // 尝试从 LoRA Manager 补充元数据（预览图、触发词等）
-                        try {
-                            const metaRes = await fetch('/api/lora-manager/loras');
-                            if (metaRes.ok) {
-                                const metaData = await metaRes.json();
-                                _loraEnrichFromManager(metaData.items || metaData.models || []);
-                                _rebuildTriggerWordMap();
-                                console.log('[LoRA] LoRA Manager 元数据补充完成，触发词索引', Object.keys(loraState.triggerWordMap).length, '个');
-                            }
-                        } catch (e) {
-                            console.warn('[LoRA] LoRA Manager 元数据补充失败:', e);
-                        }
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.warn('[LoRA] ComfyUI API 失败:', e);
-            }
-
-            // ② 回退：本地文件夹扫描
-            try {
-                const scan = await _loraFetchScanRaw();
-                if (scan.paths.length > 0) {
-                    loraState.available = scan.paths;
-                    loraState.loraMap = {};
-                    for (const name of scan.paths) {
-                        loraState.loraMap[name] = _loraBuildEntry(name, _loraExtractFileName(name), scan.previews, { splitPreview: true });
-                    }
-                    loraState.models = [...new Set(scan.paths.map(n => _loraExtractFolder(n) || '通用'))].sort();
-                    // 设置 scanEntries 供 groupLoraVersions 使用
-                    loraState.scanEntries = _loraBuildScanEntries(scan.paths);
-                    groupLoraVersions();
-                    _rebuildTriggerWordMap();
-                    console.log('[LoRA] 本地扫描加载成功，共', scan.paths.length, '个，预览图', Object.keys(scan.previews).length, '个，文件夹', loraState.models.length, '个');
-                    return;
-                }
-            } catch (e) {
-                console.warn('[LoRA] 本地扫描失败:', e);
-            }
-
-            // ③ 最后回退：LoRA Manager（自带 civitai 元数据 + 视频预览抽取）
-            try {
-                const res = await fetch('/api/lora-manager/loras');
-                if (res.ok) {
-                    const data = await res.json();
-                    const items = data.items || data.models || [];
-                    if (Array.isArray(items) && items.length > 0) {
-                        loraState.loraMap = {};
-                        for (const m of items) {
-                            const entry = _loraBuildManagerEntry(m);
-                            if (!entry) continue;
-                            loraState.loraMap[entry.name] = entry;
-                        }
-                        loraState.available = Object.keys(loraState.loraMap).sort();
-                        loraState.models = [...new Set(loraState.available.map(n => _loraExtractFolder(n) || '通用'))].sort();
-                        // Manager 数据里通常没有 modelRoot/versionLabel，groupLoraVersions() 会兜底从 name 自行提取
-                        groupLoraVersions();
-                        _rebuildTriggerWordMap();
-                        console.log('[LoRA] LoRA Manager 加载成功，共', loraState.available.length, '个，触发词索引', Object.keys(loraState.triggerWordMap).length, '个');
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.warn('[LoRA] LoRA Manager 不可用，回退到 ComfyUI:', e);
-            }
-
-            // ④ 兜底：先尝试本地扫描（用后端 entries），再尝试 ComfyUI 极简版
-            try {
-                const scan = await _loraFetchScanRaw();
-                if (scan.paths.length > 0) {
-                    loraState.available = scan.paths;
-                    loraState.loraMap = {};
-                    for (const name of scan.paths) {
-                        loraState.loraMap[name] = _loraBuildEntry(name, _loraExtractFileName(name), scan.previews, { stripExt: true, splitPreview: true });
-                    }
-                    loraState.scanEntries = scan.entries;
-                    groupLoraVersions();
-                    _rebuildTriggerWordMap();
-                    loraState.models = [...new Set(scan.paths.map(n => _loraExtractFolder(n) || '通用'))].sort();
-                    console.log('[LoRA] 本地扫描加载成功，共', scan.paths.length, '个，文件夹', loraState.models.length, '个');
-                    return;
-                }
-            } catch (e) {
-                console.warn('[LoRA] 本地扫描失败，尝试 ComfyUI:', e);
-            }
-            // 极简回退：与原行为一致（displayName 用 split('/') 不剥扩展名）
-            try {
-                const res = await fetch('/api/comfyui/loras');
-                if (!res.ok) return;
-                const data = await res.json();
-                const raw = data.loras || [];
-                loraState.available = raw;
-                loraState.loraMap = {};
-                const modelSet = new Set();
-                for (const name of raw) {
-                    const folder = _loraExtractFolder(name);
-                    loraState.loraMap[name] = { name, displayName: name.split('/').pop(), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder };
-                    modelSet.add(folder || '通用');
-                }
-                loraState.models = [...modelSet].sort();
-                console.log('[LoRA] ComfyUI 回退加载成功，共', raw.length, '个，文件夹', modelSet.size, '个');
-            } catch (e) {
-                console.warn('[LoRA] 加载可用列表失败:', e);
-            }
-        }
-
-        // 把同 modelRoot 的多个 LoRA 合并为"多版本组"
-        // 数据来源：loraState.scanEntries（后端 /api/loras/scan 返回的 entries）
-        // 合并后：loraState.groups[root] = { isGroup, modelRoot, displayName, name, preview, videoUrl, ..., versions: [{name,label,preview,videoUrl,baseModel}], currentVersionIdx }
-        function groupLoraVersions() {
-            let entries = loraState.scanEntries || [];
-            // 兜底：LoRA Manager / ComfyUI 等分支没有 scanEntries 时，从 loraMap.name 自行提取
-            if (entries.length === 0 && loraState.loraMap) {
-                const stemRe = /[-_][vV](\d+(?:\.\d+)*)$/;
-                const newEntries = [];
-                for (const name of Object.keys(loraState.loraMap)) {
-                    const fileName = name.split('\\').pop().split('/').pop();
-                    const stem = fileName.replace(/\.(safetensors|ckpt|pt|bin|pth)$/i, '');
-                    const m = stemRe.exec(stem);
-                    newEntries.push({
-                        name,
-                        modelRoot: m ? stem.slice(0, m.index) : stem,
-                        versionLabel: m ? m[0].replace(/^[-_]/, '') : ''
-                    });
-                }
-                entries = newEntries;
-            }
-            // 1. 按 modelRoot 分组（只统计有 versionLabel 的 entries）
-            const buckets = {};
-            for (const e of entries) {
-                if (!e.modelRoot) continue;
-                if (!buckets[e.modelRoot]) buckets[e.modelRoot] = [];
-                buckets[e.modelRoot].push(e);
-            }
-            // 2. 版本号智能比较：v0.2 > v0.1 > v0.0.1；V2 > V1；v11 > v2（按数字段）
-            const compareVersion = (a, b) => {
-                const parse = (s) => (s || '').replace(/^[vV]/, '').split('.').map(n => parseInt(n, 10) || 0);
-                const arrA = parse(a);
-                const arrB = parse(b);
-                const maxLen = Math.max(arrA.length, arrB.length);
-                for (let i = 0; i < maxLen; i++) {
-                    const x = arrA[i] || 0;
-                    const y = arrB[i] || 0;
-                    if (x !== y) return y - x; // 降序：新的在前
-                }
-                return 0;
-            };
-            loraState.groups = {};
-            for (const [root, list] of Object.entries(buckets)) {
-                // 至少 2 个、且至少有 2 个非空 versionLabel，才算真正的"多版本组"
-                if (list.length < 2) continue;
-                const distinctVer = new Set(list.map(x => (x.versionLabel || '').toLowerCase()).filter(Boolean));
-                if (distinctVer.size < 2) continue;
-                list.sort((a, b) => compareVersion(a.versionLabel, b.versionLabel));
-                const versions = list.map(e => {
-                    const meta = loraState.loraMap[e.name] || {};
-                    return {
-                        name: e.name,
-                        label: e.versionLabel,
-                        preview: meta.preview || '',
-                        videoUrl: meta.videoUrl || '',
-                        baseModel: meta.baseModel || '',
-                        triggerWords: meta.triggerWords || [],
-                        folder: meta.folder || ''
-                    };
-                });
-                const defaultVer = versions[0]; // 最新版本
-                // 根名同名的所有 LoRA 共用同一个"displayName"（不再带版本号）
-                // 组的 folder 用 versions 里第一个非空 folder（兼容 v0.2 在根目录 + v0.1 在子目录的情况）
-                const groupFolder = versions.map(v => v.folder).find(f => f) || '';
-                loraState.groups[root] = {
-                    isGroup: true,
-                    modelRoot: root,
-                    name: defaultVer.name,  // 默认指向最新版本
-                    displayName: root,
-                    preview: defaultVer.preview,
-                    videoUrl: defaultVer.videoUrl,
-                    baseModel: defaultVer.baseModel,
-                    triggerWords: defaultVer.triggerWords,
-                    folder: groupFolder,
-                    versions,
-                    currentVersionIdx: 0
-                };
-                // 同时在 loraState.loraMap 里插入 modelRoot 合并条目（用 modelRoot 作为 key）
-                // 这样 lora-picker 能直接通过 loraMap[modelRoot] 取到带 versions 的合并卡片
-                loraState.loraMap[root] = loraState.groups[root];
-            }
-            const groupCount = Object.keys(loraState.groups).length;
-            if (groupCount > 0) {
-                console.log('[LoRA] 多版本组合并完成，共', groupCount, '组:', Object.keys(loraState.groups));
-            }
-        }
-
-        // 从 LoRA 数据提取模型分类（优先用 folder，回退到路径解析）
-        function extractLoraModel(loraName) {
-            const meta = loraState.loraMap[loraName];
-            if (meta && meta.folder) return meta.folder;
-            if (!loraName) return '通用';
-            const parts = loraName.replace(/\\/g, '/').split('/');
-            if (parts.length > 1) return parts[0];
-            return '通用';
-        }
-
-        // 获取筛选后的 LoRA 列表
-        function getFilteredLoras() {
-            if (!loraState.modelFilter || loraState.modelFilter === 'all') return loraState.available;
-            return loraState.available.filter(name => extractLoraModel(name) === loraState.modelFilter);
-        }
-
-        // 持久化（已禁用，每次刷新重置）
-        function saveLoraConfig() {}
-        function loadLoraConfig() {}
-
-        // UI: 显示/隐藏 LoRA 按钮（仅 anima 工作流时显示）
-        function updateLoraSwitcherVisibility() {
-            const btn = document.getElementById('loraBtn');
-            if (!btn) return;
-            const lower = currentWorkflow.toLowerCase();
-            const showLora = lower.includes('anima') || lower.includes('z-image') || lower.includes('z_image') || lower.includes('krea2') || lower.includes('ideogram4');
-            btn.style.display = showLora ? '' : 'none';
-            // 更新按钮文字显示数量
-            const btnText = document.getElementById('loraBtnText');
-            const count = loraState.active.length;
-            if (btnText) {
-                btnText.textContent = count > 0 ? ` LoRA(${count})` : ' LoRA';
-            }
-            // 高亮：已选 LoRA 时蓝色高亮
-            if (count > 0) btn.classList.add('is-in-use');
-            else btn.classList.remove('is-in-use');
-        }
-
-        // ── LoRA 触发词实时同步 ──────────────────────────────────────────────
-        // 用户在 LoRA 选择器中勾选/取消时，即时把对应的 triggerWords 写入/移出提示词框
-        // _loraActiveTriggerWords: 记录当前由 LoRA 注入到提示词中的所有词（用于精准删除）
-        let _loraActiveTriggerWords = new Set();
-
-        function _loraCollectTriggerWords(selectedArr) {
-            const words = [];
-            for (const lora of (selectedArr || [])) {
-                if (!lora.name) continue;
-                const meta = loraState.loraMap[lora.name];
-                if (meta && Array.isArray(meta.triggerWords) && meta.triggerWords.length > 0) {
-                    // 只取第一个触发词（主触发词），避免大量触发词淹没提示词
-                    words.push(meta.triggerWords[0]);
-                } else {
-                    // 没有触发词时，用 LoRA 文件名（去扩展名）作为兜底标签
-                    const fallbackName = (meta && meta.displayName) ? meta.displayName : lora.name.split('/').pop().replace(/\.safetensors$/i, '');
-                    if (fallbackName) words.push(fallbackName);
-                }
-            }
-            return words;
-        }
-
-        function _loraSyncTriggerWords(selectedArr) {
-            const promptEl = document.getElementById('prompt');
-            if (!promptEl) return;
-            const newTriggerWords = _loraCollectTriggerWords(selectedArr);
-            const newSet = new Set(newTriggerWords);
-
-            // 1) 移除：旧的 LoRA 触发词中，不再被任何活跃 LoRA 使用的
-            if (_loraActiveTriggerWords.size > 0) {
-                const parts = splitPrompt(promptEl.value);
-                const filtered = parts.filter(p => !_loraActiveTriggerWords.has(p.toLowerCase()));
-                promptEl.value = filtered.join(', ');
-            }
-
-            // 2) 添加：新的触发词中，提示词里还没有的
-            if (newTriggerWords.length > 0) {
-                const currentParts = splitPrompt(promptEl.value);
-                const currentLowerSet = new Set(currentParts.map(p => p.toLowerCase()));
-                const toAdd = newTriggerWords.filter(t => !currentLowerSet.has(t.toLowerCase()));
-                if (toAdd.length > 0) {
-                    const cur = promptEl.value.trim();
-                    promptEl.value = cur ? cur + ', ' + toAdd.join(', ') : toAdd.join(', ');
-                }
-            }
-
-            // 3) 更新记录
-            _loraActiveTriggerWords = newSet;
-
-            // 4) 刷新标签显示（.value 赋值不触发 oninput，需手动调用）
-            if (typeof updatePromptTags === 'function') updatePromptTags();
-            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
-        }
-
-        // UI: 切换面板（使用 LoRA Picker）
-        function toggleLoraPanel() {
-            // 打开前：记录当前提示词中由 LoRA 注入的触发词，便于取消时精准移除
-            _loraActiveTriggerWords = new Set(_loraCollectTriggerWords(loraState.active));
-
-            // 设置实时回调：每次勾选/取消即时同步触发词
-            loraPickerOnSelectionChange = function(selected) {
-                _loraSyncTriggerWords(selected);
-            };
-
-            loraPickerOpen(function(selected) {
-                // 确认后：最终同步 + 更新状态
-                loraPickerOnSelectionChange = null;
-                loraState.active = selected;
-                _loraSyncTriggerWords(selected);
-                saveLoraConfig();
-                updateLoraSwitcherVisibility();
-            });
-        }
-
-        // UI: 刷新所有选择器按钮的高亮/数量状态
-        // - 直接扫描当前提示词内容来识别各功能是否被使用，不依赖 pickerSelected 内部状态
-        //   这样无论用户通过选择器勾选、还是手动输入/删除 token，按钮角标与高亮都能正确同步
-        // - 角色：prompt 中命中 ANIMA_CHAR_DB 名称 / trigger 的 token 数
-        // - 画师：prompt 中以 @/by 开头且名称命中 ANIMA_ARTIST_DB 的 token 数
-        // - 预设：prompt 中命中预设名或预设 prompt 的项数
-        // - 参考图：根据 refImages 数量
-        // - LoRA：调用 updateLoraSwitcherVisibility() 处理
         function updatePickerButtonsHighlight() {
             const promptInput = document.getElementById('prompt');
             const parts = splitPrompt(promptInput ? promptInput.value : '');
@@ -3657,13 +2210,6 @@
         // 暴露到 window 供各选择器脚本调用
         window.updatePickerButtonsHighlight = updatePickerButtonsHighlight;
 
-        // === 提示词同步：手动修改/清空提示词时，反向同步各选择器的"已选"状态 ===
-        // - 角色：双向同步
-        //     ① 提示词中「真实存在」于 ANIMA_CHAR_DB 的 token → 自动加入 pickerSelected
-        //     ② 提示词中已移除的 token → 从 pickerSelected 中删除
-        // - 画师：双向同步，以 @/by 开头的 token 命中艺术家数据库则纳入
-        // - 预设：双向同步，命中预设名/prompt 则纳入
-        // - 同时同步各选择器的「上次应用快照」，避免下次打开时被误删普通提示词
         function syncPickerStatesFromPrompt() {
             const promptInput = document.getElementById('prompt');
             if (!promptInput) return;
@@ -3790,6 +2336,15 @@
             } catch (_) {}
 
             // ---- LoRA：双向同步（手动增删触发词/文件名 ↔ loraState.active） ----
+            // 辅助：判断 prompt 中是否包含某个词（支持 (word:1.2) / [word] 等格式）
+            function _loraPromptHas(lowerSet, parts, word) {
+                const wl = word.toLowerCase().replace(/^@/, '');
+                if (lowerSet.has(wl) || lowerSet.has('@' + wl)) return true;
+                return parts.some(p => {
+                    const t = p.toLowerCase();
+                    return t.includes(wl) || t.includes('@' + wl);
+                });
+            }
             try {
                 if (loraState && loraState.loraMap) {
                     const prevCount = (loraState.active || []).length;
@@ -3800,13 +2355,10 @@
                         const meta = loraState.loraMap[a.name];
                         const tw = (meta && meta.triggerWords) || [];
                         if (tw.length > 0) {
-                            return tw.some(w => {
-                                const wl = String(w).toLowerCase().replace(/^@/, '');
-                                return lowerSet.has(wl) || lowerSet.has('@' + wl);
-                            });
+                            return tw.some(w => _loraPromptHas(lowerSet, parts, w));
                         } else {
-                            const dn = (meta && meta.displayName ? meta.displayName : a.name.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
-                            return lowerSet.has(dn);
+                            const dn = (meta && meta.displayName ? meta.displayName : a.name.split('/').pop().replace(/\.safetensors$/i, ''));
+                            return _loraPromptHas(lowerSet, parts, dn);
                         }
                     });
 
@@ -3819,13 +2371,10 @@
                         const tw = entry.triggerWords || [];
                         let matched = false;
                         if (tw.length > 0) {
-                            matched = tw.some(w => {
-                                const wl = String(w).toLowerCase().replace(/^@/, '');
-                                return lowerSet.has(wl) || lowerSet.has('@' + wl);
-                            });
+                            matched = tw.some(w => _loraPromptHas(lowerSet, parts, w));
                         } else {
-                            const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
-                            matched = lowerSet.has(dn);
+                            const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, ''));
+                            matched = _loraPromptHas(lowerSet, parts, dn);
                         }
                         if (matched) {
                             loraState.active.push({ name: key, strength: 0.8 });
@@ -3851,14 +2400,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             const promptEl = document.getElementById('prompt');
             if (promptEl) {
+                // input 事件（打字/粘贴等）：立即同步，不加防抖（syncPickerStatesFromPrompt 本身足够轻量）
                 promptEl.addEventListener('input', () => {
-                    // 防抖：避免每个字符都重算，60ms 一次足够
-                    clearTimeout(window.__syncPickerStatesTimer);
-                    window.__syncPickerStatesTimer = setTimeout(() => {
+                    if (typeof syncPickerStatesFromPrompt === 'function') {
+                        syncPickerStatesFromPrompt();
+                    }
+                });
+                // 额外保底：paste 事件
+                promptEl.addEventListener('paste', () => {
+                    // 需等 paste 完成后 value 才更新，microtask 够了
+                    Promise.resolve().then(() => {
                         if (typeof syncPickerStatesFromPrompt === 'function') {
                             syncPickerStatesFromPrompt();
                         }
-                    }, 60);
+                    });
                 });
                 // Shift+Enter 触发生成
                 promptEl.addEventListener('keydown', (e) => {
@@ -3871,202 +2426,58 @@
             }
         });
 
-        // UI: 渲染面板内容（已移至 lora-picker.js）
-
-        // === 工作流注入 ===
-        function renderLoraPanel() {
-            if (builtinEl) {
-                const filterOptions = [
-                    { value: 'all', label: '全部模型' },
-                    ...loraState.models.map(m => ({ value: m, label: m === '通用' ? '通用（根目录）' : cnFolder(m) }))
-                ];
-                const filterHtml = filterOptions.map(o =>
-                    `<option value="${o.value}" ${loraState.modelFilter === o.value ? 'selected' : ''}>${o.label}</option>`
-                ).join('');
-                builtinEl.innerHTML = `
-                    <div class="lora-card-row" style="margin-bottom:12px;">
-                        <span style="font-size:10px;font-weight:700;color:#999;flex-shrink:0;">筛选模型</span>
-                        <select class="lora-select" onchange="setLoraModelFilter(this.value)" style="flex:1;">
-                            ${filterHtml}
-                        </select>
-                    </div>
-                `;
-            }
-
-            // 用户 LoRA 列表
-            const filteredLoras = getFilteredLoras();
-            const listEl = document.getElementById('loraCardList');
-            if (!listEl) return;
-            if (loraState.active.length === 0) {
-                listEl.innerHTML = '<div class="lora-empty-msg">点击「添加」按钮添加自定义 LoRA</div>';
-                return;
-            }
-            listEl.innerHTML = loraState.active.map((lora, i) => {
-                const loraModel = extractLoraModel(lora.name);
-                const showInFilter = loraState.modelFilter === 'all' || loraModel === loraState.modelFilter;
-                const meta = loraState.loraMap[lora.name] || {};
-                const preview = meta.preview || '';
-                const triggerWords = meta.triggerWords || [];
-                const baseModel = meta.baseModel || '';
-                const options = filteredLoras.map(name => {
-                    const m = loraState.loraMap[name] || {};
-                    const bm = m.baseModel ? ` (${m.baseModel})` : '';
-                    return `<option value="${name}" ${name === lora.name ? 'selected' : ''}>${m.displayName || name.split('/').pop()}${bm}</option>`;
-                }).join('');
-
-                // 触发词 HTML
-                const triggerHtml = triggerWords.length > 0 ? `
-                    <div class="lora-card-row">
-                        <span class="lora-trigger-label">触发词</span>
-                        <div class="lora-trigger-words">
-                            ${triggerWords.slice(0, 5).map(w =>
-                                `<span class="lora-trigger-tag" onclick="copyTriggerWord(this, '${w.replace(/'/g, "\\'")}')" title="点击复制">${w}</span>`
-                            ).join('')}
-                            ${triggerWords.length > 5 ? `<span class="lora-trigger-tag" style="opacity:0.6;">+${triggerWords.length - 5}</span>` : ''}
-                        </div>
-                    </div>
-                ` : '';
-
-                return `
-                    <div class="lora-card" style="${!showInFilter && lora.name ? 'opacity:0.5;' : ''}">
-                        <div class="lora-card-row">
-                            ${preview ? `<div class="lora-preview"><img src="${preview}" onerror="this.parentElement.innerHTML='<svg width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#ccc\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/></svg>'"></div>` : ''}
-                            <select class="lora-select" onchange="updateLora(${i}, 'name', this.value)" style="${preview ? 'flex:1;' : ''}">
-                                <option value="" disabled ${!lora.name ? 'selected' : ''}>选择 LoRA...</option>
-                                ${options}
-                                ${lora.name && !filteredLoras.includes(lora.name) ? `<option value="${lora.name}" selected>${lora.name}（不在筛选范围）</option>` : ''}
-                            </select>
-                            <button class="lora-remove-btn" onclick="removeLora(${i})" title="移除">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            </button>
-                        </div>
-                        ${triggerHtml}
-                        <div class="lora-card-row">
-                            ${baseModel ? `<span style="font-size:9px;font-weight:700;color:#999;">${baseModel}</span>` : ''}
-                            <div class="lora-strength-wrap" style="margin-left:auto;">
-                                <span style="font-size:10px;font-weight:700;color:#999;">强度</span>
-                                <input type="range" min="0.05" max="1.5" step="0.05" value="${lora.strength}" oninput="updateLora(${i}, 'strength', parseFloat(this.value))">
-                                <span class="lora-strength-val">${lora.strength.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // 复制触发词到剪贴板
-        function copyTriggerWord(el, word) {
-            navigator.clipboard.writeText(word).then(() => {
-                const orig = el.textContent;
-                el.textContent = '✓ 已复制';
-                el.style.background = 'rgba(74,222,128,0.15)';
-                el.style.color = '#16a34a';
-                setTimeout(() => {
-                    el.textContent = orig;
-                    el.style.background = '';
-                    el.style.color = '';
-                }, 1200);
-            });
-        }
-
-        // 设置模型筛选
-        function setLoraModelFilter(model) {
-            loraState.modelFilter = model;
-            saveLoraConfig();
-            renderLoraPanel();
-        }
-
-        // 操作
-        function addLora() {
-            loraState.active.push({ name: '', strength: 0.8 });
-            saveLoraConfig();
-            renderLoraPanel();
-            updateLoraSwitcherVisibility();
-        }
-
-        function removeLora(index) {
-            loraState.active.splice(index, 1);
-            saveLoraConfig();
-            renderLoraPanel();
-            updateLoraSwitcherVisibility();
-        }
-
-        function updateLora(index, field, value) {
-            const lora = loraState.active[index];
-            if (!lora) return;
-            lora[field] = value;
-            saveLoraConfig();
-            if (field === 'strength') {
-                const vals = document.querySelectorAll('.lora-strength-val');
-                if (vals[index]) vals[index].textContent = value.toFixed(2);
-            } else {
-                renderLoraPanel();
-            }
-            updateLoraSwitcherVisibility();
-        }
-
-        // === 工作流注入 ===
-        function injectLoraNodes(workflow) {
-            // 清理之前注入的动态节点 (ID >= LORA_NODE_BASE)
-            for (const key of Object.keys(workflow)) {
-                if (parseInt(key) >= LORA_NODE_BASE) delete workflow[key];
-            }
-
-            // 过滤出有效的用户 LoRA
-            const validLoras = loraState.active.filter(l => l.name);
-            if (validLoras.length === 0) return;
-
-            let nextNodeId = LORA_NODE_BASE;
-
-            // 动态查找需要注入 LoRA 的节点（按 class_type 匹配）
-            const targetClassTypes = ['KSampler', 'KSamplerAdvanced', 'SamplerCustom', 'SamplerCustomAdvanced'];
-            const injectedNodes = new Set();
-
-            for (const [wNodeId, node] of Object.entries(workflow)) {
-                if (!node?.class_type || !node?.inputs) continue;
-                if (!targetClassTypes.includes(node.class_type)) continue;
-                if (injectedNodes.has(wNodeId)) continue;
-
-                // 查找 model 输入来源
-                const modelInput = node.inputs.model;
-                if (!modelInput || !Array.isArray(modelInput)) continue;
-
-                let currentModelInput = modelInput;
-                for (const lora of validLoras) {
-                    const nid = String(nextNodeId++);
-                    workflow[nid] = {
-                        inputs: {
-                            lora_name: lora.name,
-                            strength_model: lora.strength,
-                            model: currentModelInput
-                        },
-                        class_type: 'LoraLoaderModelOnly',
-                        _meta: { title: '自定义 LoRA: ' + lora.name.split('/').pop() }
-                    };
-                    currentModelInput = [nid, 0];
-                }
-                node.inputs.model = currentModelInput;
-                injectedNodes.add(wNodeId);
-            }
-
-            console.log('[LoRA] 注入完成，用户 LoRA:', validLoras.length);
-        }
-
-        // 页面加载时初始化 LoRA
-        loadLoraConfig();
-        loadAvailableLoras();
-        // 监听工作流切换，更新 LoRA 按钮可见性
-        const _origSwitchWorkflow = switchWorkflow;
-        switchWorkflow = function(name) {
-            _origSwitchWorkflow(name);
-            updateLoraSwitcherVisibility();
-        };
-        updateLoraSwitcherVisibility();
-
         window.onload = () => { 
             updatePromptTags(); 
             spPickerInit(); 
             spmInit(); 
+            
+            // 初始化翻译 Toggle
+            if (typeof PromptTranslateUI !== 'undefined') {
+                const promptEl = document.getElementById('prompt');
+                PromptTranslateUI.init('translateBtnContainer', {
+                    getText: () => promptEl ? promptEl.value : '',
+                    onApply: function(text) {
+                        if (promptEl) {
+                            promptEl.value = text;
+                            promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    },
+                    onLangChange: function(mode) {
+                        window.PROMPT_TAGS_LANG_MODE = mode;
+                        localStorage.setItem('prompt_tags_lang_mode', mode);
+                        if (typeof updatePromptTags === 'function') updatePromptTags();
+                    }
+                });
+            }
+
+            // 初始化智能提示词组件
+            if (typeof SmartPrompt !== 'undefined') {
+                const promptEl = document.getElementById('prompt');
+                SmartPrompt.init('smartPromptContainer', {
+                    getText: () => promptEl ? promptEl.value : '',
+                    setText: function(text) {
+                        if (promptEl) {
+                            promptEl.value = text;
+                            promptEl.dispatchEvent(new Event('input'));
+                        }
+                    },
+                    isIdeogram4Mode: function() {
+                        return typeof currentWorkflow !== 'undefined' && currentWorkflow.includes('Ideogram4');
+                    },
+                    setIdeogram4Json: function(json) {
+                        ideogram4JsonPrompt = json || '';
+                    },
+                    syncPicker: function() {
+                        if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
+                    },
+                    onPromptUpdate: function() {
+                        if (typeof updatePromptTags === 'function') updatePromptTags();
+                    },
+                    onLongPress: function() {
+                        if (typeof spPickerOpen === 'function') spPickerOpen();
+                    }
+                });
+            }
             
             // 初始化随机提示词组件
             if (typeof RandomPrompt !== 'undefined') {
