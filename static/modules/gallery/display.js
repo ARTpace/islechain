@@ -791,9 +791,10 @@ body.studio-theme-dark .lightbox-thumb.active {
     let _scanTimer = null;
 
     function startAutoScan() {
-        // 自动扫描已禁用 —— 图片由 pushNewImage 实时推送，无需全量 reload
-        // setTimeout(() => { scanNewImages(); }, 5000);
-        // _scanTimer = setInterval(() => { scanNewImages(); }, 30000);
+        // 页面加载后延迟扫描一次，补上之前未入库的图片（跨 session 的图片）
+        setTimeout(() => { scanNewImages(); }, 3000);
+        // 之后每 60 秒自动检测一次
+        _scanTimer = setInterval(() => { scanNewImages(); }, 60000);
     }
 
     async function scanNewImages() {

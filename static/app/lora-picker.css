@@ -232,6 +232,57 @@
     flex: 1;
     min-width: 0;
     border-bottom: none;
+}
+
+/* 模型过滤条：显示当前工作流筛选的模型 */
+.lora-picker-model-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
+    background: oklch(18% 0.03 280 / 0.5);
+    flex-shrink: 0;
+    font-size: 12px;
+}
+.lora-picker-model-bar-label {
+    color: oklch(55% 0.03 280);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.lora-picker-model-bar-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: oklch(45% 0.15 260 / 0.25);
+    color: oklch(75% 0.12 240);
+    border: 1px solid oklch(45% 0.15 260 / 0.4);
+    white-space: nowrap;
+}
+.lora-picker-model-bar-chip.active {
+    background: oklch(50% 0.18 260 / 0.3);
+    color: oklch(80% 0.14 240);
+    border-color: oklch(55% 0.18 260 / 0.5);
+}
+.lora-picker-model-bar-all {
+    margin-left: auto;
+    padding: 3px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    border: 1px solid oklch(40% 0.02 280 / 0.4);
+    background: transparent;
+    color: oklch(60% 0.03 280);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.lora-picker-model-bar-all:hover {
+    background: oklch(35% 0.03 280 / 0.5);
+    color: oklch(75% 0.03 280);
+    border-color: oklch(50% 0.03 280 / 0.5);
+}
     background: transparent;
     max-height: 96px;
 }
@@ -306,6 +357,50 @@
 }
 .lora-picker-selected-chip .chip-x:hover {
     opacity: 1;
+}
+/* 触发词写入切换按钮 */
+.lora-picker-trigger-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-right: 2px;
+    flex-shrink: 0;
+    user-select: none;
+}
+.lora-picker-trigger-toggle.on {
+    background: oklch(65% 0.18 160 / 0.25);
+    color: oklch(75% 0.16 160);
+    border: 1px solid oklch(65% 0.18 160 / 0.35);
+}
+.lora-picker-trigger-toggle.on:hover {
+    background: oklch(65% 0.18 160 / 0.35);
+}
+.lora-picker-trigger-toggle.off {
+    background: oklch(40% 0.02 280 / 0.2);
+    color: oklch(50% 0.02 280);
+    border: 1px solid oklch(40% 0.02 280 / 0.25);
+    text-decoration: line-through;
+}
+.lora-picker-trigger-toggle.off:hover {
+    background: oklch(45% 0.02 280 / 0.3);
+}
+/* Light theme: trigger toggle */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-trigger-toggle.on {
+    background: oklch(55% 0.18 160 / 0.12);
+    color: oklch(50% 0.18 160);
+    border-color: oklch(55% 0.18 160 / 0.3);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-trigger-toggle.off {
+    background: oklch(0% 0 0 / 0.05);
+    color: oklch(55% 0.02 280);
+    border-color: oklch(75% 0.01 280 / 0.4);
 }
 .lora-picker-selected-empty {
     font-size: 11px;
@@ -972,4 +1067,25 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-select {
     background: oklch(94% 0.005 280);
     border-color: oklch(80% 0.01 280);
     color: oklch(15% 0.005 280);
+}
+/* Light theme: model filter bar */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar {
+    border-bottom-color: oklch(88% 0.01 280 / 0.6);
+    background: oklch(95% 0.005 280 / 0.6);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-label {
+    color: oklch(45% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-chip {
+    background: oklch(55% 0.18 350 / 0.1);
+    color: oklch(50% 0.18 350);
+    border-color: oklch(55% 0.18 350 / 0.3);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-all {
+    border-color: oklch(80% 0.01 280 / 0.5);
+    color: oklch(45% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-all:hover {
+    background: oklch(88% 0.01 280 / 0.5);
+    color: oklch(25% 0.01 280);
 }

@@ -1605,6 +1605,17 @@
             const prompt = document.getElementById('prompt').value.trim();
             if (!prompt) return alert("请输入提示词");
             if (currentEngine !== 'local') return alert("请切换到 COMFYUI 引擎");
+            // 生成时剔除 LoRA 触发词：触发词用于提示词框显示，但不应送到 ComfyUI 作为文字提示
+            let cleanPrompt = prompt;
+            if (typeof loraState !== 'undefined' && typeof _loraCollectTriggerWords === 'function') {
+                const loraWords = _loraCollectTriggerWords(loraState.active);
+                if (loraWords.length > 0) {
+                    const parts = splitPrompt(cleanPrompt);
+                    const lowerLoraWords = new Set(loraWords.map(w => w.toLowerCase()));
+                    const filtered = parts.filter(p => !lowerLoraWords.has(p.toLowerCase()));
+                    cleanPrompt = filtered.join(', ');
+                }
+            }
 
             // 不再锁定按钮，允许连续点击排队
             startProgress();
@@ -1657,7 +1668,7 @@
 
                 if (currentWorkflow.includes('anima')) {
                     // 解析提示词，分离角色和画师标签
-                    const parts = prompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
+                    const parts = cleanPrompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
                     const charTags = parts.filter(p => !p.startsWith('by ') && !p.startsWith('@')).join(', ');
                     const artistTags = parts.filter(p => p.startsWith('by ') || p.startsWith('@')).map(p => '@' + p.replace(/^by /, '').replace(/^@/, '')).join(', ');
                     
@@ -1687,7 +1698,7 @@
                 } else if (currentWorkflow.includes('Krea2')) {
                     // Krea2-Turbo：直接注入 prompt、尺寸、seed
                     const size = getAnimaSize();
-                    if (workflow["4"]?.inputs) workflow["4"].inputs.text = prompt;
+                    if (workflow["4"]?.inputs) workflow["4"].inputs.text = cleanPrompt;
                     if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = _gc.batchCount; }
                     if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
                 } else if (currentWorkflow.includes('Ideogram4')) {
@@ -1712,22 +1723,22 @@
                             }
                         } catch(e) {
                             // JSON 解析失败，降级到普通提示词
-                            if (workflow["190"]?.inputs) workflow["190"].inputs.text = prompt;
+                            if (workflow["190"]?.inputs) workflow["190"].inputs.text = cleanPrompt;
                         }
                     } else if (workflow["190"]?.inputs) {
                         // 无 JSON，直接注入普通提示词
-                        workflow["190"].inputs.text = prompt;
+                        workflow["190"].inputs.text = cleanPrompt;
                     }
                 } else if (currentWorkflow.includes('Boogu')) {
                     // Boogu：注入 prompt、尺寸、seed
                     const size = getAnimaSize();
-                    if (workflow["11"]?.inputs) workflow["11"].inputs.text = prompt;
+                    if (workflow["11"]?.inputs) workflow["11"].inputs.text = cleanPrompt;
                     if (workflow["8"]?.inputs) { workflow["8"].inputs.width = size.width; workflow["8"].inputs.height = size.height; }
                     if (workflow["32"]?.inputs) workflow["32"].inputs.seed = seed;
                 } else {
                     // Z-Image：使用与 ANIMA 相同的 ratio+res 尺寸计算
                     const size = getAnimaSize();
-                    if (workflow["23"]?.inputs) workflow["23"].inputs.text = prompt;
+                    if (workflow["23"]?.inputs) workflow["23"].inputs.text = cleanPrompt;
                     if (workflow["144"]?.inputs) { workflow["144"].inputs.width = size.width; workflow["144"].inputs.height = size.height; }
                     if (workflow["22"]?.inputs) workflow["22"].inputs.seed = seed;
                     if (workflow["144"]?.inputs) workflow["144"].inputs.batch_size = _gc.batchCount;
@@ -2103,10 +2114,20 @@
         // ============================================================
         if (typeof LoraManager !== 'undefined') {
             LoraManager.init();
+            // 初始化时根据当前工作流设置 LoRA 过滤
+            if (currentWorkflow) LoraManager.setWorkflowFilter(currentWorkflow);
             const _origLoraSW = switchWorkflow;
             switchWorkflow = function(name) {
                 _origLoraSW(name);
+                LoraManager.setWorkflowFilter(name);
                 LoraManager.updateVisibility();
+                // 如果 LoRA 选择器已打开，刷新数据
+                const shell = document.getElementById('loraPickerShell');
+                if (shell && shell.classList.contains('is-open')) {
+                    setTimeout(() => {
+                        if (typeof loraPickerRefreshData === 'function') loraPickerRefreshData();
+                    }, 50);
+                }
             };
         }
 

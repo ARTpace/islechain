@@ -29,6 +29,8 @@ const LoraManager = (function() {
         available: [],
         models: [],
         modelFilter: 'all',
+        modelFilterLabel: null,
+        modelFilterFolder: null,
         active: [],
         scanEntries: null,
         groups: {}
@@ -45,6 +47,11 @@ const LoraManager = (function() {
     }
     function _extractFileName(name) {
         return name.split('\\').pop().split('/').pop();
+    }
+    // 统一清理 displayName：只保留文件名（去掉路径前缀和 .safetensors 后缀）
+    function _cleanDisplayName(raw) {
+        if (!raw) return '';
+        return raw.split(/[/\\]/).pop().replace(/\.safetensors$/i, '');
     }
 
     const FOLDER_CN = {
@@ -99,7 +106,7 @@ const LoraManager = (function() {
         const { preview, videoUrl } = splitPreview ? _splitPreview(pv, pv) : { preview: pv, videoUrl: '' };
         return {
             name,
-            displayName: stripExt ? fileName.replace(LORA_EXT_RE, '') : fileName,
+            displayName: _cleanDisplayName(fileName),
             preview, videoUrl,
             triggerWords: [], baseModel: '', folder: _extractFolder(name)
         };
@@ -137,7 +144,7 @@ const LoraManager = (function() {
             ? civitai.trainedWords.slice() : [];
         const videoUrl = _extractVideoUrl(civitai, m.video_url || m.animated_preview || m.preview_video) || split.videoUrl;
         return {
-            name: loraName, displayName: m.model_name || fileName,
+            name: loraName, displayName: _cleanDisplayName(m.model_name || fileName),
             preview: split.preview, videoUrl, triggerWords,
             baseModel: m.base_model || '', tags: m.tags || '', folder
         };
@@ -170,7 +177,7 @@ const LoraManager = (function() {
             if (triggerWords.length) entry.triggerWords = triggerWords;
             if (m.base_model) entry.baseModel = m.base_model;
             if (m.tags) entry.tags = m.tags;
-            if (m.model_name) entry.displayName = m.model_name;
+            if (m.model_name) entry.displayName = _cleanDisplayName(m.model_name);
         }
     }
 
@@ -205,7 +212,7 @@ const LoraManager = (function() {
                     state.triggerWordMap[twLower] = {
                         preview: entry.preview || '',
                         name: entry.name,
-                        displayName: entry.displayName || entry.name
+                        displayName: _cleanDisplayName(entry.displayName) || _cleanDisplayName(entry.name)
                     };
                 }
             }
@@ -243,7 +250,7 @@ const LoraManager = (function() {
             const meta = state.loraMap[firstEntry.name] || {};
             state.groups[root] = {
                 isGroup: true, modelRoot: root,
-                displayName: meta.displayName || root,
+                displayName: _cleanDisplayName(meta.displayName) || _cleanDisplayName(root),
                 name: root, preview: meta.preview || '',
                 videoUrl: meta.videoUrl || '',
                 triggerWords: meta.triggerWords || [],
@@ -372,7 +379,7 @@ const LoraManager = (function() {
             const modelSet = new Set();
             for (const name of raw) {
                 const folder = _extractFolder(name);
-                state.loraMap[name] = { name, displayName: name.split('/').pop(), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder };
+                state.loraMap[name] = { name, displayName: _cleanDisplayName(name), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder };
                 modelSet.add(folder || '通用');
             }
             state.models = [...modelSet].sort();
@@ -386,13 +393,20 @@ const LoraManager = (function() {
         const words = [];
         for (const lora of (selectedArr || [])) {
             if (!lora.name) continue;
+            // 跳过用户标记为"不写入触发词"的 LoRA
+            if (lora.skipTriggerWord) continue;
             const meta = state.loraMap[lora.name];
             if (meta && Array.isArray(meta.triggerWords) && meta.triggerWords.length > 0) {
+                // 使用 API 返回的真正的触发词（如 Civitai trainedWords）
                 words.push(meta.triggerWords[0]);
             } else {
+                // 无真正触发词时 fallback 到 LoRA 显示名（方便用户在提示词框看到）
                 const fallbackName = (meta && meta.displayName) ? meta.displayName
-                    : lora.name.split('/').pop().replace(/\.safetensors$/i, '');
-                if (fallbackName) words.push(fallbackName);
+                    : lora.name.split(/[/\\]/).pop().replace(/\.safetensors$/i, '');
+                // 只把纯文本（不含路径分隔符的）作为 fallback，避免技术路径写入
+                if (fallbackName && !fallbackName.includes('\\') && !fallbackName.includes('/')) {
+                    words.push(fallbackName);
+                }
             }
         }
         return words;
@@ -547,13 +561,40 @@ const LoraManager = (function() {
         /** 获取筛选后的列表 */
         getFiltered: function() {
             if (!state.modelFilter || state.modelFilter === 'all') return state.available;
-            return state.available.filter(n => getModel(n) === state.modelFilter);
+            return state.available.filter(n => this.getModel(n) === state.modelFilter);
         },
         getModel: function(loraName) {
             const meta = state.loraMap[loraName];
             return meta ? meta.baseModel || _extractFolder(loraName) : _extractFolder(loraName);
         },
         setModelFilter: function(model) { state.modelFilter = model; },
+        /** 工作流 → 模型文件夹映射（用于按工作流筛选兼容 LoRA） */
+        workflowToFolder: function(workflowName) {
+            const wf = (workflowName || '').toLowerCase();
+            if (wf.includes('anima')) return 'anima';
+            if (wf.includes('krea2')) return 'flux2-klein';
+            if (wf.includes('ideogram4')) return 'ideogram4';
+            if (wf.includes('boogu')) return 'boogu';
+            if (wf.includes('zimage') || wf.includes('z-image')) return 'z-image';
+            return null; // 未知工作流 → 显示全部
+        },
+        /** 工作流 → 显示名映射 */
+        workflowToLabel: function(workflowName) {
+            const wf = (workflowName || '').toLowerCase();
+            if (wf.includes('anima')) return 'ANIMA';
+            if (wf.includes('krea2')) return 'Krea2';
+            if (wf.includes('ideogram4')) return 'Ideogram4';
+            if (wf.includes('boogu')) return 'Boogu';
+            if (wf.includes('zimage') || wf.includes('z-image')) return 'Z-Image';
+            return null;
+        },
+        /** 根据当前工作流设置模型过滤 */
+        setWorkflowFilter: function(workflowName) {
+            const folder = this.workflowToFolder(workflowName);
+            state.modelFilter = folder || 'all';
+            state.modelFilterLabel = this.workflowToLabel(workflowName) || '全部';
+            state.modelFilterFolder = folder;
+        },
         cnFolder,
         saveConfig,
         loadConfig

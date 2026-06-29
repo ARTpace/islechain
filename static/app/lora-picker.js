@@ -22,6 +22,9 @@ let loraPickerInitialized = false;
 let loraPickerPage = 1;            // 当前页码
 const loraPickerPageSize = 50;     // 每页数量
 let loraPickerSortBy = 'default';  // 排序模式：default/name-asc/name-desc/recent/most-used/folder-name
+let loraPickerModelFilter = null;  // 当前模型过滤（文件夹名），null=不过滤
+let loraPickerModelLabel = null;   // 当前模型过滤显示名（如 "Z-Image"）
+let loraPickerShowAll = false;     // 用户是否点了"显示全部"
 
 // 锁定顺序：打开选择器时计算一次（front-pin + 用户排序），运行期间点击不重排
 // 关闭时清空
@@ -287,7 +290,8 @@ function loraPickerInit() {
             </div>
             <div class="lora-picker-body">
                 <div class="lora-picker-sidebar" id="loraPickerSidebar"></div>
-                <div class="lora-picker-content">
+                    <div class="lora-picker-content">
+                    <div class="lora-picker-model-bar" id="loraPickerModelBar"></div>
                     <div class="lora-picker-toolbar">
                         <div class="lora-picker-tagbar" id="loraPickerTagbar"></div>
                         <div class="lora-picker-sort">
@@ -338,78 +342,18 @@ async function loraPickerOpen(callback) {
     const sortSel = document.getElementById('loraPickerSortSel');
     if (sortSel) sortSel.value = loraPickerSortBy;
 
+    // 初始化模型过滤状态
+    loraPickerShowAll = false;
+    if (typeof loraState !== 'undefined') {
+        loraPickerModelFilter = loraState.modelFilterFolder || null;
+        loraPickerModelLabel = loraState.modelFilterLabel || null;
+    }
+
     // 复制当前已选状态
     if (typeof loraState !== 'undefined') {
         loraPickerSelected = loraState.active.map(l => ({ ...l }));
-        // 把"已合并到多版本组"的具体文件去掉，组卡片（isGroup）统一从 groups 拿
-        const groupedNames = new Set();
-        const groups = loraState.groups || {};
-        for (const root in groups) {
-            for (const v of (groups[root].versions || [])) {
-                groupedNames.add(v.name);
-            }
-        }
-        // 单文件卡片
-        const singles = loraState.available
-            .filter(name => !groupedNames.has(name))
-            .map(name => {
-                const meta = loraState.loraMap[name] || {};
-                let tags = meta.tags || [];
-                if (typeof tags === 'string') tags = tags.split(',').map(s => s.trim()).filter(Boolean);
-                const item = {
-                    name: meta.name || name,
-                    displayName: meta.displayName || name.split('/').pop().replace('.safetensors', ''),
-                    folder: meta.folder || '通用',
-                    baseModel: meta.baseModel || ''
-                };
-                return {
-                    ...item,
-                    preview: meta.preview || '',
-                    videoUrl: meta.videoUrl || '',
-                    tags: tags,
-                    tagCategory: loraPickerMapToBigCategory(tags, item),
-                    isGroup: false
-                };
-            });
-        // 多版本组合并卡片（每个组一张卡）
-        const groupCards = Object.values(groups).map(g => {
-            const cur = g.versions[g.currentVersionIdx] || g.versions[0];
-            // 收集整个 group 的 tags 并集，给合并卡片归大类
-            const allTagsSet = new Set();
-            let gFolder = g.folder || '通用';
-            let gBase = g.baseModel || '';
-            for (const v of g.versions) {
-                let t = v.triggerWords || [];
-                if (typeof t === 'string') t = t.split(',').map(s => s.trim());
-                // 从 loraMap 拉一份更完整的 tags
-                const fullMeta = loraState.loraMap[v.name] || {};
-                const fullTags = fullMeta.tags || [];
-                const list = Array.isArray(fullTags) ? fullTags : (typeof fullTags === 'string' ? fullTags.split(',').map(s => s.trim()) : []);
-                for (const x of list) allTagsSet.add(x);
-                if (!gFolder && fullMeta.folder) gFolder = fullMeta.folder;
-                if (!gBase && fullMeta.baseModel) gBase = fullMeta.baseModel;
-            }
-            const allTags = Array.from(allTagsSet);
-            const gItem = { name: g.modelRoot, displayName: g.displayName, folder: gFolder, baseModel: gBase };
-            return {
-                name: g.modelRoot,             // 用 modelRoot 作为选中时的 key
-                modelRoot: g.modelRoot,
-                displayName: g.displayName,
-                preview: cur.preview || '',
-                videoUrl: cur.videoUrl || '',
-                baseModel: gBase,
-                tags: allTags,
-                folder: gFolder,
-                tagCategory: loraPickerMapToBigCategory(allTags, gItem),
-                isGroup: true,
-                versions: g.versions,
-                currentVersionIdx: g.currentVersionIdx,
-                // 实际加载时使用的文件路径
-                resolvedName: cur ? cur.name : ''
-            };
-        });
-        // 多版本组排前，单文件排后（具体排序规则由 loraPickerSortList 应用）
-        loraPickerAllItems = [...groupCards, ...singles];
+        // 使用统一刷新函数构建卡片列表（含模型过滤）
+        loraPickerRefreshData(false);
     } else {
         loraPickerSelected = [];
         loraPickerAllItems = [];
@@ -423,6 +367,7 @@ async function loraPickerOpen(callback) {
     // 之后运行期间点击只切换状态，不重排
     loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
 
+    loraPickerRenderModelBar();
     loraPickerRenderTagbar();
     loraPickerRenderSidebar();
     loraPickerRenderSelectedBar();
@@ -477,6 +422,117 @@ function loraPickerRestoreSort() {
         if (v && LORA_PICKER_SORTS.some(s => s.key === v)) loraPickerSortBy = v;
     } catch (e) {}
 }
+
+// ── 模型过滤条 ────────────────────────────────────────────────
+function loraPickerRenderModelBar() {
+    const el = document.getElementById('loraPickerModelBar');
+    if (!el) return;
+    if (!loraPickerModelFilter || loraPickerShowAll) {
+        el.innerHTML = '';
+        el.style.display = 'none';
+        return;
+    }
+    el.style.display = 'flex';
+    el.innerHTML = '<span class="lora-picker-model-bar-label">模型筛选</span>' +
+        '<span class="lora-picker-model-bar-chip active">' + (loraPickerModelLabel || loraPickerModelFilter) + '</span>' +
+        '<button class="lora-picker-model-bar-all" onclick="loraPickerToggleShowAll()">显示全部</button>';
+}
+
+// ── 切换显示全部 ──────────────────────────────────────────────
+function loraPickerToggleShowAll() {
+    loraPickerShowAll = !loraPickerShowAll;
+    // 重新构建所有卡片
+    loraPickerRefreshData();
+}
+
+// ── 外部刷新数据（工作流切换时调用）─────────────────────────
+function loraPickerRefreshData(resetPage) {
+    if (typeof loraState === 'undefined') return;
+    // 同步模型过滤状态
+    loraPickerModelFilter = loraState.modelFilterFolder || null;
+    loraPickerModelLabel = loraState.modelFilterLabel || null;
+    // 重新构建全量数据
+    const groupedNames = new Set();
+    const groups = loraState.groups || {};
+    for (const root in groups) {
+        for (const v of (groups[root].versions || [])) {
+            groupedNames.add(v.name);
+        }
+    }
+    const availableNames = (loraPickerModelFilter && !loraPickerShowAll && typeof LoraManager !== 'undefined')
+        ? LoraManager.getFiltered()
+        : loraState.available;
+    const singles = availableNames
+        .filter(name => !groupedNames.has(name))
+        .map(name => {
+            const meta = loraState.loraMap[name] || {};
+            let tags = meta.tags || [];
+            if (typeof tags === 'string') tags = tags.split(',').map(s => s.trim()).filter(Boolean);
+            const item = {
+                name: meta.name || name,
+                displayName: meta.displayName || name.split(/[/\\]/).pop().replace('.safetensors', ''),
+                folder: meta.folder || '通用',
+                baseModel: meta.baseModel || ''
+            };
+            return {
+                ...item,
+                preview: meta.preview || '',
+                videoUrl: meta.videoUrl || '',
+                tags: tags,
+                tagCategory: loraPickerMapToBigCategory(tags, item),
+                isGroup: false
+            };
+        });
+    // 构建可用名称集合用于组过滤
+    const availableNameSet = new Set(availableNames);
+    const groupCards = Object.values(groups)
+        .filter(g => {
+            const cur = g.versions[g.currentVersionIdx] || g.versions[0];
+            return availableNameSet.has(cur.name);
+        })
+        .map(g => {
+        const cur = g.versions[g.currentVersionIdx] || g.versions[0];
+        const allTagsSet = new Set();
+        let gFolder = g.folder || '通用';
+        let gBase = g.baseModel || '';
+        for (const v of g.versions) {
+            let t = v.triggerWords || [];
+            if (typeof t === 'string') t = t.split(',').map(s => s.trim());
+            const fullMeta = loraState.loraMap[v.name] || {};
+            const fullTags = fullMeta.tags || [];
+            const list = Array.isArray(fullTags) ? fullTags : (typeof fullTags === 'string' ? fullTags.split(',').map(s => s.trim()) : []);
+            for (const x of list) allTagsSet.add(x);
+            if (!gFolder && fullMeta.folder) gFolder = fullMeta.folder;
+            if (!gBase && fullMeta.baseModel) gBase = fullMeta.baseModel;
+        }
+        const allTags = Array.from(allTagsSet);
+        const gItem = { name: g.modelRoot, displayName: g.displayName, folder: gFolder, baseModel: gBase };
+        return {
+            name: g.modelRoot,
+            modelRoot: g.modelRoot,
+            displayName: g.displayName,
+            preview: cur.preview || '',
+            videoUrl: cur.videoUrl || '',
+            tags: allTags,
+            tagCategory: loraPickerMapToBigCategory(allTags, gItem),
+            isGroup: true,
+            folder: gFolder,
+            baseModel: gBase,
+            resolvedName: cur ? cur.name : ''
+        };
+    });
+    loraPickerAllItems = singles.concat(groupCards);
+    // 重新渲染
+    loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
+    loraPickerRenderModelBar();
+    loraPickerRenderSidebar();
+    loraPickerRenderTagbar();
+    loraPickerRenderSelectedBar();
+    if (resetPage !== false) loraPickerPage = 1;
+    loraPickerRenderGrid();
+    loraPickerUpdateFooter();
+}
+window.loraPickerRefreshData = loraPickerRefreshData;
 
 // ── 获取分类列表 ──────────────────────────────────────────────────
 function loraPickerGetCategories() {
@@ -659,7 +715,17 @@ function loraPickerRenderSelectedBar() {
     for (let i = 0; i < loraPickerSelected.length; i++) {
         const lora = loraPickerSelected[i];
         const displayName = lora.name.split(/[/\\]/).pop().replace('.safetensors', '');
+        // 触发词写入开关：始终显示 T 按钮，有/无触发词均可切换
+        const meta = loraState && loraState.loraMap && loraState.loraMap[lora.name];
+        const hasTrigger = meta && Array.isArray(meta.triggerWords) && meta.triggerWords.length > 0;
+        const skipTW = lora.skipTriggerWord;
+        const twActive = !skipTW && hasTrigger;
+        let twHtml = '<span class="lora-picker-trigger-toggle ' + (twActive ? 'on' : 'off') +
+            '" onclick="event.stopPropagation();loraPickerToggleTriggerWord(' + i + ')" title="' +
+            (skipTW ? '不写入提示词（点击启用）' : (hasTrigger ? '触发词：' + meta.triggerWords[0] + '（点击禁用）' : '无触发词，点击禁用写入') ) +
+            '">T</span>';
         html += '<span class="lora-picker-selected-chip" onclick="loraPickerRemoveSelected(' + i + ')">' +
+            twHtml +
             displayName + ' ×' + lora.strength.toFixed(1) +
             '<span class="chip-x">×</span>' +
         '</span>';
@@ -927,6 +993,17 @@ function loraPickerRemoveSelected(index) {
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
     // 实时回调：通知外部选中已变化
+    if (typeof loraPickerOnSelectionChange === 'function') {
+        try { loraPickerOnSelectionChange([...loraPickerSelected]); } catch(e) { console.error('[LoRA Picker] onSelectionChange error:', e); }
+    }
+}
+
+// ── 切换触发词写入 ──────────────────────────────────────────────
+function loraPickerToggleTriggerWord(index) {
+    if (!loraPickerSelected[index]) return;
+    loraPickerSelected[index].skipTriggerWord = !loraPickerSelected[index].skipTriggerWord;
+    loraPickerRenderSelectedBar();
+    // 实时回调：通知外部触发词状态已变化
     if (typeof loraPickerOnSelectionChange === 'function') {
         try { loraPickerOnSelectionChange([...loraPickerSelected]); } catch(e) { console.error('[LoRA Picker] onSelectionChange error:', e); }
     }
