@@ -10,9 +10,11 @@
 const RandomPrompt = (function() {
     // === 配置 ===
     const API_BASE = '/api/random';
-    const STORAGE_KEY = 'random_plans';
-    const AUTO_RANDOM_KEY = 'random_auto_enabled';
-    const AUTO_RANDOM_PLAN_KEY = 'random_auto_plan';
+const STORAGE_KEY = 'random_plans';
+const AUTO_RANDOM_KEY = 'random_auto_enabled';
+const AUTO_RANDOM_PLAN_KEY = 'random_auto_plan';
+const RANDOM_ENABLED_KEY = 'random_global_enabled';
+const ACTIVE_PLAN_KEY = 'random_active_plan';
 
     // === 状态 ===
     let plans = {};
@@ -20,6 +22,9 @@ const RandomPrompt = (function() {
     let onApplyCallback = null;
     let autoRandomEnabled = false;
     let autoRandomPlanName = '';
+    let randomEnabled = false;       // 随机全局开关（点击按钮切换）
+    let activePlanName = '';         // 当前选中的方案名
+    let triggerButton = null;        // 🎲 按钮引用
 
     // === 主题检测 ===
     function isDarkTheme() {
@@ -147,31 +152,183 @@ const RandomPrompt = (function() {
         onApplyCallback = options.onApply || null;
         loadPlans();
 
+        // 从旧 autoRandom 配置迁移（仅一次：迁移后清除旧 key）
+        if (autoRandomEnabled && !randomEnabled && autoRandomPlanName) {
+            randomEnabled = true;
+            activePlanName = autoRandomPlanName;
+            // 立即保存新状态并清除旧 key，防止每次加载都迁移
+            saveRandomEnabled();
+            saveActivePlan();
+            localStorage.removeItem(AUTO_RANDOM_KEY);
+            localStorage.removeItem(AUTO_RANDOM_PLAN_KEY);
+            autoRandomEnabled = false;
+            autoRandomPlanName = '';
+        }
+
         const btn = createTriggerButton();
         container.appendChild(btn);
 
         const panel = createMainPanel();
         document.body.appendChild(panel);
 
-        btn.addEventListener('click', () => togglePanel(panel, false));
+        // createTriggerButton 内部已调用 updateTriggerButtonStyle，无需重复
     }
 
     // ─────────────────────────────────────────────
     //  触发按钮（🎲）
     // ─────────────────────────────────────────────
     function createTriggerButton() {
+        // 注入长按动效样式
+        if (!document.getElementById('random-prompt-anim-style')) {
+            const style = document.createElement('style');
+            style.id = 'random-prompt-anim-style';
+            style.textContent = `
+                @keyframes rp-long-press-pulse {
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,180,216,0); }
+                    40% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(0,180,216,0.2); }
+                    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(0,180,216,0.1); }
+                    100% { transform: scale(1.12); box-shadow: 0 0 0 14px rgba(0,180,216,0); }
+                }
+                @keyframes rp-long-press-fill {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .rp-long-press-active {
+                    animation: rp-long-press-pulse 0.5s ease-in-out infinite alternate !important;
+                    position: relative;
+                    overflow: visible;
+                }
+                .rp-long-press-active::after {
+                    content: '';
+                    position: absolute;
+                    inset: -4px;
+                    border-radius: 14px;
+                    border: 2px solid rgba(0,180,216,0.4);
+                    animation: rp-long-press-pulse 0.6s ease-out infinite;
+                    pointer-events: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         const btn = document.createElement('button');
         btn.className = 'random-prompt-trigger';
-        btn.innerHTML = '🎲';
-        btn.title = '随机方案管理';
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" ry="3"/>
+            <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/>
+            <circle cx="16" cy="8" r="1.3" fill="currentColor" stroke="none"/>
+            <circle cx="8" cy="16" r="1.3" fill="currentColor" stroke="none"/>
+            <circle cx="16" cy="16" r="1.3" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+        </svg>`;
         btn.style.cssText = `
-            width:36px;height:36px;border-radius:10px;border:1px solid rgba(0,0,0,0.1);
-            background:transparent;cursor:pointer;font-size:18px;
-            display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;
+            width:34px;height:30px;border-radius:10px;border:none;
+            cursor:pointer;
+            display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;
         `;
-        btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,180,216,0.1)'; btn.style.borderColor = '#00b4d8'; });
-        btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; btn.style.borderColor = 'rgba(0,0,0,0.1)'; });
+        updateTriggerButtonStyle(btn);
+
+        initButtonHover(btn);
+
+        // ---- 长按检测 ----
+        let pressTimer = null;
+        let isLongPress = false;
+
+        function startPress(e) {
+            isLongPress = false;
+            btn.classList.add('rp-long-press-active');
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                pressTimer = null;
+                btn.classList.remove('rp-long-press-active');
+                // 长按 → 打开方案管理面板
+                const panel = document.getElementById('random-main-panel');
+                if (panel) togglePanel(panel, false);
+            }, 500);
+        }
+        function endPress() {
+            btn.classList.remove('rp-long-press-active');
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+            if (!isLongPress) {
+                // 短按 → 切换随机开关
+                toggleRandomSwitch(btn);
+            }
+            isLongPress = false;
+        }
+        function cancelPress() {
+            btn.classList.remove('rp-long-press-active');
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        }
+
+        btn.addEventListener('mousedown', startPress);
+        btn.addEventListener('mouseup', endPress);
+        btn.addEventListener('mouseleave', cancelPress);
+
+        // touch 支持
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); startPress(); });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); endPress(); });
+        btn.addEventListener('touchcancel', cancelPress);
+
+        triggerButton = btn;
         return btn;
+    }
+
+    function toggleRandomSwitch(btn) {
+        const planNames = Object.keys(plans);
+        if (!randomEnabled && planNames.length === 0) {
+            showToast('请先创建随机方案', 'error');
+            return;
+        }
+        randomEnabled = !randomEnabled;
+        // 如果开启但没有激活方案，自动选择第一个
+        if (randomEnabled && (!activePlanName || !plans[activePlanName])) {
+            activePlanName = planNames[0];
+            saveActivePlan();
+        }
+        updateTriggerButtonStyle(btn);
+        saveRandomEnabled();
+    }
+
+    function updateTriggerButtonStyle(btn) {
+        if (!btn) return;
+        const dark = isDarkTheme();
+        // 色子正面颜色：暗色主题用浅灰，亮色主题用深灰
+        const faceBase = dark ? '#b8c4d6' : '#555';
+        if (randomEnabled) {
+            btn.style.background = 'rgba(0,180,216,0.3)';
+            btn.style.borderColor = 'rgba(0,180,216,0.45)';
+            btn.style.color = '#00b4d8';
+            btn.title = '随机已开启（点击关闭，长按管理方案）';
+        } else {
+            // 采用 .anima-ctrl 统一的淡色底 + 圆角样式
+            btn.style.background = dark ? 'rgba(255,255,255,0.08)' : '#f1f1f1';
+            btn.style.borderColor = 'transparent';
+            btn.style.color = faceBase;
+            btn.title = '随机已关闭（点击开启，长按管理方案）';
+        }
+    }
+
+    function initButtonHover(btn) {
+        btn.addEventListener('mouseenter', () => {
+            if (!randomEnabled) {
+                btn.style.background = isDarkTheme()
+                    ? 'rgba(255,255,255,0.14)'
+                    : '#e5e5e5';
+            }
+        });
+        btn.addEventListener('mouseleave', () => {
+            if (!randomEnabled) {
+                btn.style.background = isDarkTheme()
+                    ? 'rgba(255,255,255,0.08)'
+                    : '#f1f1f1';
+            }
+        });
     }
 
     // ─────────────────────────────────────────────
@@ -187,24 +344,19 @@ const RandomPrompt = (function() {
             box-shadow:${colors.shadow};z-index:10000;display:none;overflow:hidden;color:${colors.text};
         `;
 
+        const activePlanDisplay = activePlanName && plans[activePlanName]
+            ? `<span id="active-plan-badge" style="font-size:11px;font-weight:600;color:${colors.accent};background:${colors.accent}15;padding:4px 10px;border-radius:8px;margin-left:8px;">当前: ${escapeHtml(activePlanName)}</span>`
+            : '<span id="active-plan-badge" style="display:none;"></span>';
+
         panel.innerHTML = `
             <div style="padding:18px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:17px;font-weight:800;">🎲 随机方案</div>
+                <div style="display:flex;align-items:center;">
+                    <div style="font-size:17px;font-weight:800;">🎲 随机方案</div>
+                    ${activePlanDisplay}
+                </div>
                 <button id="random-panel-close" style="width:36px;height:36px;border-radius:12px;border:none;background:${colors.bgSoft};cursor:pointer;font-size:18px;color:${colors.textSub};display:flex;align-items:center;justify-content:center;">✕</button>
             </div>
             <div style="padding:16px 20px;overflow-y:auto;max-height:calc(85vh - 140px);">
-                <div style="padding:14px;border-radius:14px;border:1px solid ${colors.border};margin-bottom:16px;background:${colors.bgSoft};">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                        <div style="font-size:14px;font-weight:700;">⚡ 自动随机</div>
-                        <div id="auto-random-toggle" style="width:44px;height:24px;border-radius:12px;cursor:pointer;transition:all 0.2s;background:${autoRandomEnabled ? colors.accent : colors.border};position:relative;">
-                            <div style="position:absolute;top:2px;left:${autoRandomEnabled ? '22px' : '2px'};width:20px;height:20px;background:#fff;border-radius:50%;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.15);"></div>
-                        </div>
-                    </div>
-                    <div style="font-size:12px;color:${colors.textSub};margin-bottom:10px;">开启后，每次生成图片时自动应用随机方案</div>
-                    <select id="auto-random-plan" style="width:100%;padding:10px;border:1px solid ${colors.border};border-radius:10px;font-size:13px;background:transparent;color:${colors.text};outline:none;${autoRandomEnabled ? '' : 'opacity:0.5;pointer-events:none;'}">
-                        <option value="">选择方案...</option>
-                    </select>
-                </div>
                 <div id="random-plan-list"></div>
             </div>
             <div style="padding:14px 20px;border-top:1px solid ${colors.border};">
@@ -222,20 +374,6 @@ const RandomPrompt = (function() {
         panel.querySelector('#random-panel-close').addEventListener('click', () => panel.style.display = 'none');
         panel.querySelector('#random-new-plan').addEventListener('click', () => openPlanEditor(null));
 
-        const autoToggle = panel.querySelector('#auto-random-toggle');
-        autoToggle.addEventListener('click', () => {
-            autoRandomEnabled = !autoRandomEnabled;
-            autoToggle.style.background = autoRandomEnabled ? colors.accent : colors.border;
-            autoToggle.querySelector('div').style.left = autoRandomEnabled ? '21px' : '3px';
-            const planSelect = panel.querySelector('#auto-random-plan');
-            planSelect.style.opacity = autoRandomEnabled ? '1' : '0.5';
-            planSelect.style.pointerEvents = autoRandomEnabled ? 'auto' : 'none';
-            saveAutoRandomSettings();
-        });
-
-        const autoPlanSelect = panel.querySelector('#auto-random-plan');
-        autoPlanSelect.addEventListener('change', () => { autoRandomPlanName = autoPlanSelect.value; saveAutoRandomSettings(); });
-
         return panel;
     }
 
@@ -248,11 +386,16 @@ const RandomPrompt = (function() {
         const colors = getThemeColors();
         const planNames = Object.keys(plans);
 
-        // 更新自动随机下拉
-        const autoPlanSelect = document.getElementById('auto-random-plan');
-        if (autoPlanSelect) {
-            autoPlanSelect.innerHTML = '<option value="">选择方案...</option>' +
-                planNames.map(n => `<option value="${escapeHtml(n)}" ${n === autoRandomPlanName ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+        // 更新面板标题中的"当前方案"徽章
+        const badge = document.getElementById('active-plan-badge');
+        if (badge) {
+            if (activePlanName && plans[activePlanName]) {
+                badge.style.display = '';
+                badge.textContent = '当前: ' + activePlanName;
+                badge.style.cssText = `font-size:11px;font-weight:600;color:${colors.accent};background:${colors.accent}15;padding:4px 10px;border-radius:8px;margin-left:8px;`;
+            } else {
+                badge.style.display = 'none';
+            }
         }
 
         if (planNames.length === 0) {
@@ -266,6 +409,7 @@ const RandomPrompt = (function() {
 
         container.innerHTML = planNames.map(name => {
             const plan = plans[name];
+            const isActive = name === activePlanName;
             const charCount = flattenCategory(plan.characters).length;
             const artistCount = flattenCategory(plan.artists).length;
             const presetCount = flattenCategory(plan.presets).length;
@@ -280,12 +424,17 @@ const RandomPrompt = (function() {
             if (loraCount > 0)   stats.push(`<span title="LoRA ${loraCount}">🧬${loraCount}</span>`);
             if (ratioCount > 0)  stats.push(`<span title="比例 ${ratioCount}">📐${ratioCount}</span>`);
             return `
-                <div class="random-plan-card" data-name="${escapeHtml(name)}" style="
-                    padding:14px 16px;margin-bottom:10px;border-radius:14px;border:1px solid ${colors.border};
-                    background:${colors.bgSoft};
+                <div class="random-plan-card ${isActive ? 'plan-active' : ''}" data-name="${escapeHtml(name)}" style="
+                    padding:14px 16px;margin-bottom:10px;border-radius:14px;
+                    border:1.5px solid ${isActive ? colors.accent : colors.border};
+                    background:${isActive ? colors.accent + '08' : colors.bgSoft};
+                    cursor:pointer;transition:all 0.15s;
                 ">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                        <div style="font-size:15px;font-weight:700;">${escapeHtml(name)}</div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            ${isActive ? `<span style="width:20px;height:20px;border-radius:50%;background:${colors.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">✓</span>` : `<span style="width:20px;height:20px;border-radius:50%;border:2px solid ${colors.border};flex-shrink:0;"></span>`}
+                            <div style="font-size:15px;font-weight:700;color:${isActive ? colors.accent : colors.text};">${escapeHtml(name)}</div>
+                        </div>
                         <div style="display:flex;gap:8px;">
                             <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="
                                 width:38px;height:38px;border-radius:12px;border:none;
@@ -307,7 +456,22 @@ const RandomPrompt = (function() {
                 </div>`;
         }).join('');
 
-        // 绑定事件
+        // 绑定事件：点击卡片选择激活方案
+        container.querySelectorAll('.random-plan-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // 如果点击的是按钮，不触发选择
+                if (e.target.closest('.plan-edit-btn') || e.target.closest('.plan-delete-btn')) return;
+                const name = card.dataset.name;
+                if (name === activePlanName) return;
+                activePlanName = name;
+                saveActivePlan();
+                renderPlanList();
+                if (triggerButton) updateTriggerButtonStyle(triggerButton);
+                showToast('已选择方案: ' + name, 'success');
+            });
+        });
+
+        // 绑定编辑/删除事件
         container.querySelectorAll('.plan-edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => { e.stopPropagation(); openPlanEditor(btn.dataset.name); });
         });
@@ -1174,6 +1338,11 @@ const RandomPrompt = (function() {
 
     function deletePlan(name) {
         delete plans[name];
+        if (activePlanName === name) {
+            const planNames = Object.keys(plans);
+            activePlanName = planNames.length > 0 ? planNames[0] : '';
+            saveActivePlan();
+        }
         savePlans();
         renderPlanList();
     }
@@ -1425,6 +1594,12 @@ const RandomPrompt = (function() {
             }
             autoRandomEnabled = localStorage.getItem(AUTO_RANDOM_KEY) === 'true';
             autoRandomPlanName = localStorage.getItem(AUTO_RANDOM_PLAN_KEY) || '';
+            randomEnabled = localStorage.getItem(RANDOM_ENABLED_KEY) === 'true';
+            activePlanName = localStorage.getItem(ACTIVE_PLAN_KEY) || '';
+            // 如果激活的方案不存在，重置
+            if (activePlanName && !plans[activePlanName]) {
+                activePlanName = '';
+            }
         } catch (e) {
             console.error('[RandomPrompt] 加载方案失败:', e);
             plans = {};
@@ -1438,6 +1613,14 @@ const RandomPrompt = (function() {
     function saveAutoRandomSettings() {
         localStorage.setItem(AUTO_RANDOM_KEY, autoRandomEnabled.toString());
         localStorage.setItem(AUTO_RANDOM_PLAN_KEY, autoRandomPlanName);
+    }
+
+    function saveRandomEnabled() {
+        localStorage.setItem(RANDOM_ENABLED_KEY, randomEnabled.toString());
+    }
+
+    function saveActivePlan() {
+        localStorage.setItem(ACTIVE_PLAN_KEY, activePlanName);
     }
 
     function togglePanel(panel, forceClose) {
@@ -1459,8 +1642,8 @@ const RandomPrompt = (function() {
         getPlan: (name) => plans[name],
 
         applyAutoRandom: async function() {
-            if (!autoRandomEnabled || !autoRandomPlanName || !plans[autoRandomPlanName]) return null;
-            const plan = plans[autoRandomPlanName];
+            if (!randomEnabled || !activePlanName || !plans[activePlanName]) return null;
+            const plan = plans[activePlanName];
             migratePlanData(plan);
 
             try {
@@ -1492,6 +1675,11 @@ const RandomPrompt = (function() {
             return applyRandomLoras(loras);
         },
 
-        isAutoRandomEnabled: () => autoRandomEnabled && autoRandomPlanName
+        isAutoRandomEnabled: () => autoRandomEnabled && autoRandomPlanName,
+
+        // == 新 API：随机开关 ==
+        isRandomEnabled: () => randomEnabled,
+        getActivePlanName: () => activePlanName,
+        getActivePlan: () => plans[activePlanName] || null
     };
 })();
