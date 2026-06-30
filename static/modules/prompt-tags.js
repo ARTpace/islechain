@@ -297,7 +297,7 @@ const PromptTags = (function() {
         if (animaTagPreviewEl) return animaTagPreviewEl;
         const el = document.createElement('div');
         el.id = 'animaTagPreview';
-        el.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);';
+        el.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);pointer-events:none;';
         el.onmouseenter = () => { _previewHovered = true; cancelHidePreview(); };
         el.onmouseleave = () => { _previewHovered = false; hidePreview(); };
         document.body.appendChild(el);
@@ -330,7 +330,7 @@ const PromptTags = (function() {
                 const pct = ((s - 0.2) / 1.0 * 100).toFixed(1);
                 const idx = found.index;
                 strengthHtml =
-                    '<div style="padding:6px 4px 2px;max-width:' + imgWidth + 'px;" onclick="event.stopPropagation()">' +
+                    '<div style="padding:6px 4px 2px;max-width:' + imgWidth + 'px;pointer-events:auto;" onclick="event.stopPropagation()">' +
                     '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:9px;font-weight:700;color:#ff8c32;flex-shrink:0;">STR</span>' +
                     '<div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">' +

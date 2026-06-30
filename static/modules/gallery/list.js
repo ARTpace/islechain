@@ -241,6 +241,8 @@
                     seenUrls.add(key);
                     return true;
                 });
+                // 按时间倒序排列（最新在前）
+                state.allHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 state.hasMore = norm.hasMore;
             } else {
                 if (trigger) trigger.innerText = 'Loading...';
@@ -260,6 +262,8 @@
                     return true;
                 });
                 state.allHistory = state.allHistory.concat(fresh);
+                // 追加后重新按时间倒序排列
+                state.allHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 state.hasMore = norm.hasMore;
                 state.currentPage = nextPage;
             }

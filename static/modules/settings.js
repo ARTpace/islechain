@@ -2,7 +2,7 @@
 // 设置面板模块 - 管理 API Key 配置 + 账号登录
 
 class SettingsStorage {
-    static STORAGE_KEY = 'xy_ai_settings';
+    static STORAGE_KEY = 'art_ai_settings';
     
     static DEFAULTS = {
         comfly_api_key: '',
@@ -447,7 +447,46 @@ class SettingsUI {
                         <div style="font-size:11px;color:var(--muted);">管理工作流和节点配置</div>
                     </div>
                 </button>
-                
+
+                <!-- ComfyUI 启动/停止控制 -->
+                <div id="comfy-start-control" style="width:100%;display:flex;flex-direction:column;gap:4px;">
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;">
+                        <div id="comfy-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--faint);flex-shrink:0;"></div>
+                        <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;">ComfyUI</span>
+                        <span id="comfy-status-text" style="font-size:11px;font-weight:700;color:var(--muted);">检查中...</span>
+                    </div>
+                    <div style="display:flex;gap:6px;padding:0 16px 10px;">
+                        <button id="comfy-start-btn" style="flex:1;height:36px;border-radius:10px;border:none;background:var(--accent);color:var(--bg);font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span>启动</span>
+                        </button>
+                        <button id="comfy-stop-btn" style="flex:1;height:36px;border-radius:10px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                            <span>停止</span>
+                        </button>
+                        <button id="comfy-log-btn" title="查看日志" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ComfyUI 日志面板 (默认隐藏，点击日志按钮展开) -->
+                <div id="comfy-log-panel" style="display:none;width:100%;flex-direction:column;gap:6px;padding:0 16px 10px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:11px;color:var(--muted);flex:1;font-family:ui-monospace,monospace;" id="comfy-log-path">logs/comfyui-…log</span>
+                        <button id="comfy-log-refresh" title="刷新" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        </button>
+                        <button id="comfy-log-clear" title="清空" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                        </button>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
+                            <input type="checkbox" id="comfy-log-auto" checked style="cursor:pointer;">自动
+                        </label>
+                    </div>
+                    <pre id="comfy-log-content" style="margin:0;padding:10px;background:#0a1628;color:#a7f3d0;border-radius:8px;font-size:10.5px;font-family:ui-monospace,Consolas,monospace;line-height:1.45;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-all;border:1px solid rgba(16,185,129,0.2);">(加载中...)</pre>
+                </div>
+
                 <button id="settings-users-btn" style="width:100%;height:56px;border-radius:14px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);cursor:pointer;display:none;align-items:center;gap:12px;padding:0 16px;transition:all 0.2s;text-align:left;">
                     <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1029,5 +1068,227 @@ class SettingsUI {
     }
 }
 
+// ---- ComfyUI 进程管理 (侧边栏 + 浮动面板) ----
+class ComfyProcessManager {
+    constructor() {
+        this.pollTimer = null;
+        this.logPollTimer = null;
+        this.startBtn = document.getElementById('comfy-start-btn');
+        this.stopBtn = document.getElementById('comfy-stop-btn');
+        this.statusDot = document.getElementById('comfy-status-dot');
+        this.statusText = document.getElementById('comfy-status-text');
+        this.logBtn = document.getElementById('comfy-log-btn');
+        this.logPanel = document.getElementById('comfy-log-panel');
+        this.logContent = document.getElementById('comfy-log-content');
+        this.logPath = document.getElementById('comfy-log-path');
+        this.logRefresh = document.getElementById('comfy-log-refresh');
+        this.logClear = document.getElementById('comfy-log-clear');
+        this.logAuto = document.getElementById('comfy-log-auto');
+        this.initialized = false;
+        this.logOpen = false;
+        this.lastLogSize = 0;
+    }
+
+    init() {
+        if (this.initialized) return;
+        this.initialized = true;
+
+        // 绑定按钮事件
+        if (this.startBtn) {
+            this.startBtn.onclick = () => this.startComfy();
+        }
+        if (this.stopBtn) {
+            this.stopBtn.onclick = () => this.stopComfy();
+        }
+
+        // 绑定日志面板
+        if (this.logBtn) {
+            this.logBtn.onclick = () => this.toggleLogPanel();
+        }
+        if (this.logRefresh) {
+            this.logRefresh.onclick = () => this.refreshLog();
+        }
+        if (this.logClear) {
+            this.logClear.onclick = () => this.clearLog();
+        }
+        if (this.logAuto) {
+            this.logAuto.onchange = () => {
+                if (this.logAuto.checked) this.startLogPolling();
+                else this.stopLogPolling();
+            };
+        }
+
+        // 绑定侧边栏重启按钮
+        const sbRestart = document.getElementById('sidebar-restart-btn');
+        if (sbRestart) {
+            // 保留原来的重启服务功能，加一个右键菜单
+            sbRestart.onclick = () => { fetch('/api/restart', { method: 'POST' }).catch(() => {}); setTimeout(() => location.reload(), 2000); };
+        }
+
+        // 初始状态轮询
+        this.pollStatus();
+    }
+
+    toggleLogPanel() {
+        if (!this.logPanel) return;
+        this.logOpen = !this.logOpen;
+        this.logPanel.style.display = this.logOpen ? 'flex' : 'none';
+        if (this.logOpen) {
+            this.refreshLog();
+            if (this.logAuto && this.logAuto.checked) this.startLogPolling();
+        } else {
+            this.stopLogPolling();
+        }
+    }
+
+    startLogPolling() {
+        this.stopLogPolling();
+        this.logPollTimer = setInterval(() => this.refreshLog(), 2000);
+    }
+
+    stopLogPolling() {
+        if (this.logPollTimer) {
+            clearInterval(this.logPollTimer);
+            this.logPollTimer = null;
+        }
+    }
+
+    async refreshLog() {
+        if (!this.logContent) return;
+        try {
+            const resp = await fetch('/api/comfyui/log-tail?lines=100');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            // 检查是否需要滚动到底部（只有用户在底部时才自动跟随）
+            const pre = this.logContent;
+            const wasAtBottom = (pre.scrollHeight - pre.scrollTop - pre.clientHeight) < 30;
+
+            if (this.logPath) {
+                this.logPath.textContent = data.path ? data.path.split(/[\\/]/).pop() : '(暂无)';
+            }
+            pre.textContent = data.content || '(空)';
+
+            if (wasAtBottom || this.lastLogSize === 0) {
+                pre.scrollTop = pre.scrollHeight;
+            }
+            this.lastLogSize = data.size || 0;
+        } catch (e) {
+            this.logContent.textContent = '加载失败: ' + e.message;
+        }
+    }
+
+    async clearLog() {
+        if (!confirm('清空当前 ComfyUI 日志？')) return;
+        try {
+            await fetch('/api/comfyui/log-clear', { method: 'POST' });
+            this.refreshLog();
+        } catch (e) {
+            alert('清空失败: ' + e.message);
+        }
+    }
+
+    async pollStatus() {
+        try {
+            const resp = await fetch('/api/comfyui/process-status');
+            if (!resp.ok) throw new Error('status failed');
+            const data = await resp.json();
+            this.updateUI(data);
+        } catch (e) {
+            this.updateUI({ running: false, reachable: false });
+        }
+
+        // 继续轮询
+        this.pollTimer = setTimeout(() => this.pollStatus(), 5000);
+    }
+
+    updateUI(data) {
+        const isRunning = data.running === true;
+        const isReachable = data.reachable === true;
+
+        if (this.startBtn) this.startBtn.style.display = isRunning ? 'none' : 'flex';
+        if (this.stopBtn) this.stopBtn.style.display = isRunning ? 'flex' : 'none';
+
+        if (this.statusDot) {
+            if (isReachable) {
+                this.statusDot.style.background = '#10b981';
+                this.statusDot.style.boxShadow = '0 0 6px rgba(16,185,129,0.8)';
+            } else if (isRunning) {
+                this.statusDot.style.background = '#f59e0b';
+                this.statusDot.style.boxShadow = '0 0 6px rgba(245,158,11,0.8)';
+            } else {
+                this.statusDot.style.background = 'var(--faint)';
+                this.statusDot.style.boxShadow = 'none';
+            }
+        }
+
+        if (this.statusText) {
+            if (isReachable) this.statusText.textContent = '运行中';
+            else if (isRunning) this.statusText.textContent = '启动中...';
+            else this.statusText.textContent = '已停止';
+        }
+    }
+
+    async startComfy() {
+        if (this.startBtn) { this.startBtn.disabled = true; this.startBtn.style.opacity = '0.5'; }
+        try {
+            const resp = await fetch('/api/comfyui/start', { method: 'POST' });
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || '启动失败');
+                return;
+            }
+            const data = await resp.json();
+            if (data.status === 'already_running') {
+                this.updateUI({ running: true, reachable: true });
+            } else {
+                // 启动后立即轮询等待
+                this.updateUI({ running: true, reachable: false });
+                this.waitForReady();
+            }
+        } catch (e) {
+            alert('启动失败: ' + e.message);
+        } finally {
+            if (this.startBtn) { this.startBtn.disabled = false; this.startBtn.style.opacity = '1'; }
+        }
+    }
+
+    async waitForReady(attempts = 30) {
+        for (let i = 0; i < attempts; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+                const resp = await fetch('/api/comfyui/process-status');
+                const data = await resp.json();
+                this.updateUI(data);
+                if (data.reachable) return;
+            } catch (e) {}
+        }
+    }
+
+    async stopComfy() {
+        if (this.stopBtn) { this.stopBtn.disabled = true; this.stopBtn.style.opacity = '0.5'; }
+        try {
+            const resp = await fetch('/api/comfyui/stop', { method: 'POST' });
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || '停止失败');
+                return;
+            }
+            this.updateUI({ running: false, reachable: false });
+        } catch (e) {
+            alert('停止失败: ' + e.message);
+        } finally {
+            if (this.stopBtn) { this.stopBtn.disabled = false; this.stopBtn.style.opacity = '1'; }
+        }
+    }
+}
+
 window._settingsUI = new SettingsUI();
 window._settingsUI.init();
+
+// 延迟初始化进程管理器（等 DOM 渲染 + 面板就绪）
+setTimeout(() => {
+    if (!window._comfyProcMgr) {
+        window._comfyProcMgr = new ComfyProcessManager();
+        window._comfyProcMgr.init();
+    }
+}, 500);

@@ -9,6 +9,7 @@ import os
 import sys
 import re
 import subprocess
+import glob
 import random
 import time
 import shutil
@@ -7145,10 +7146,26 @@ def generate(req: GenerateRequest, token: str = ""):
             data = json.dumps(p).encode('utf-8')
             try:
                 post_req = urllib.request.Request(f"http://{target_backend}/prompt", data=data)
-                prompt_id = json.loads(urllib.request.urlopen(post_req, timeout=10).read())['prompt_id']
+                resp_body = urllib.request.urlopen(post_req, timeout=10).read()
+                submit_result = json.loads(resp_body)
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode('utf-8')
                 raise Exception(f"HTTP Error {e.code}: {error_body}")
+
+            # ComfyUI 在节点类缺失/参数非法时,会以 HTTP 200 返回 prompt_id 同时附带 node_errors,
+            # 若不显式拦截,后续历史里 status 仍可能是 "success"(因为多数节点并未真正执行),
+            # 走到"未返回输出"兜底时排查非常困难。此处在提交阶段直接报错。
+            if isinstance(submit_result, dict) and submit_result.get("node_errors"):
+                err_lines = []
+                for nid, err in submit_result["node_errors"].items():
+                    for e_item in (err.get("errors") or [err]):
+                        msg = e_item.get("message") or e_item.get("exception_message") or str(e_item)
+                        details = e_item.get("details") or ""
+                        line = f"节点 {nid}: {msg}" + (f" ({details})" if details else "")
+                        err_lines.append(line)
+                raise Exception("ComfyUI 提交失败:\n" + "\n".join(err_lines))
+
+            prompt_id = submit_result['prompt_id']
 
         history_data = None
         poll_start = time.monotonic()
@@ -7237,7 +7254,18 @@ def generate(req: GenerateRequest, token: str = ""):
             if isinstance(history_data, dict):
                 status_info = history_data.get("status", {})
                 if isinstance(status_info, dict):
-                    comfy_error = status_info.get("status_str", "") or status_info.get("error", "") or ""
+                    # status_str 是工作流执行状态 ("success" / "error" 等),不是错误信息;
+                    # 仅当 status_str == "error" 时,才从 messages 中提取真正的异常描述
+                    if status_info.get("status_str") == "error":
+                        for msg in status_info.get("messages", []) or []:
+                            if isinstance(msg, list) and len(msg) >= 2 and msg[0] == "execution_error" and isinstance(msg[1], dict):
+                                exc_type = msg[1].get("exception_type", "") or "Error"
+                                exc_msg = msg[1].get("exception_message", "") or msg[1].get("message", "")
+                                comfy_error = f"{exc_type}: {exc_msg}".strip(": ")
+                                break
+                    # 兜底:status 字典里直接带 error 字段的情况
+                    if not comfy_error and status_info.get("error"):
+                        comfy_error = str(status_info.get("error"))
                 if not comfy_error:
                     for node_id, node_out in history_data.get("outputs", {}).items():
                         if isinstance(node_out, dict) and "error" in node_out:
@@ -7928,6 +7956,209 @@ async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
     BACKEND_LOCAL_LOAD = new_load
 
     return {"instances": COMFYUI_INSTANCES.copy()}
+
+# ---- ComfyUI 进程管理 (启动/停止) ----
+_comfyui_process: Optional[subprocess.Popen] = None
+
+@app.post("/api/comfyui/start")
+async def start_comfyui_process():
+    """启动 ComfyUI 后端进程"""
+    global _comfyui_process
+
+    # 检查是否已在运行
+    if await get_comfyui_health():
+        if _comfyui_process is not None and _comfyui_process.poll() is None:
+            return {"status": "already_running", "pid": _comfyui_process.pid}
+        return {"status": "already_running", "note": "ComfyUI 后端已达"}
+
+    base_path = COMFYUI_BASE_PATH or ""
+    if not base_path or not os.path.isdir(base_path):
+        # 尝试从 env 推断
+        base_path = os.environ.get("COMFYUI_BASE_PATH", "").rstrip("\\")
+        if not base_path or not os.path.isdir(base_path):
+            raise HTTPException(status_code=400, detail="未配置 ComfyUI 路径，请先在设置-路径中配置")
+
+    if not os.path.isfile(os.path.join(base_path, "main.py")):
+        # 也许 base_path 是 AIO 根目录，main.py 在 ComfyUI/ 下
+        if os.path.isfile(os.path.join(base_path, "ComfyUI", "main.py")):
+            base_path = os.path.join(base_path, "ComfyUI")
+        else:
+            raise HTTPException(status_code=400, detail=f"ComfyUI 主程序不存在: {os.path.join(base_path, 'main.py')}")
+
+    main_py = os.path.join(base_path, "main.py")
+
+    # 查找 Python 可执行文件
+    parent = os.path.dirname(base_path)
+    candidates = [
+        os.path.join(parent, "python", "python.exe"),
+        os.path.join(base_path, "..", "..", "python", "python.exe"),
+    ]
+    python_exe = ""
+    for c in candidates:
+        resolved = os.path.abspath(c)
+        if os.path.isfile(resolved):
+            python_exe = resolved
+            break
+    if not python_exe:
+        # 系统 PATH 中的 python
+        import shutil
+        python_exe = shutil.which("python") or shutil.which("python3") or "python"
+
+    cmd = [
+        python_exe, "-s", main_py,
+        "--windows-standalone-build",
+        "--fast", "fp16_accumulation",
+        "--disable-xformers",
+        "--listen",
+    ]
+
+    # 日志文件: logs/comfyui-YYYYMMDD-HHMMSS.log
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_name = time.strftime("comfyui-%Y%m%d-%H%M%S.log")
+    log_path = os.path.join(log_dir, log_name)
+    log_fh = open(log_path, "ab", buffering=0)
+
+    print(f"启动 ComfyUI: {' '.join(cmd)}")
+    print(f"  日志: {log_path}")
+    try:
+        _comfyui_process = subprocess.Popen(
+            cmd,
+            cwd=base_path,
+            stdout=log_fh,
+            stderr=log_fh,
+        )
+        return {"status": "started", "pid": _comfyui_process.pid, "log": log_path}
+    except Exception as e:
+        print(f"启动 ComfyUI 失败: {e}")
+        log_fh.close()
+        raise HTTPException(status_code=500, detail=f"启动失败: {e}")
+
+
+@app.post("/api/comfyui/stop")
+async def stop_comfyui_process():
+    """停止 ComfyUI 后端进程"""
+    global _comfyui_process
+
+    killed = []
+    if _comfyui_process is not None and _comfyui_process.poll() is None:
+        try:
+            _comfyui_process.terminate()
+            _comfyui_process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            _comfyui_process.kill()
+            _comfyui_process.wait()
+        killed.append(f"proc:{_comfyui_process.pid}")
+        _comfyui_process = None
+
+    # 也尝试通过端口 kill 残留进程（如果配置了实例地址）
+    for addr in COMFYUI_INSTANCES:
+        try:
+            host_part, _, port_part = addr.rpartition(":")
+            port = int(port_part)
+            try:
+                import psutil
+                for conn in psutil.net_connections():
+                    if conn.laddr.port == port and conn.status == "LISTEN":
+                        try:
+                            p = psutil.Process(conn.pid)
+                            p.terminate()
+                            p.wait(timeout=5)
+                            killed.append(f"port:{port} pid:{conn.pid}")
+                        except:
+                            pass
+            except ImportError:
+                pass
+        except:
+            pass
+
+    if killed:
+        return {"status": "stopped", "details": killed}
+    return {"status": "not_running"}
+
+
+async def get_comfyui_health() -> bool:
+    """检查 ComfyUI 后端是否可达"""
+    if not COMFYUI_INSTANCES:
+        return False
+    addr = COMFYUI_INSTANCES[0]
+    url = f"http://{addr}/system_stats"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(url)
+            return r.status_code == 200
+    except:
+        return False
+
+
+@app.get("/api/comfyui/process-status")
+async def get_comfyui_status():
+    """获取 ComfyUI 进程状态"""
+    running = _comfyui_process is not None and _comfyui_process.poll() is None
+    reachable = await get_comfyui_health()
+
+    return {
+        "running": running,
+        "pid": _comfyui_process.pid if running else None,
+        "reachable": reachable,
+    }
+
+
+def _find_latest_comfyui_log() -> Optional[str]:
+    """查找 logs/ 下最新的 comfyui-*.log"""
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    if not os.path.isdir(log_dir):
+        return None
+    logs = sorted(glob.glob(os.path.join(log_dir, "comfyui-*.log")), key=os.path.getmtime, reverse=True)
+    return logs[0] if logs else None
+
+
+@app.get("/api/comfyui/log-tail")
+async def get_comfyui_log_tail(lines: int = 80, max_bytes: int = 200_000):
+    """读取 ComfyUI 日志最后 N 行。max_bytes 限制读取大小，避免巨文件。"""
+    log_path = _find_latest_comfyui_log()
+    if not log_path or not os.path.isfile(log_path):
+        return {"path": None, "content": "(暂无日志)"}
+    try:
+        size = os.path.getsize(log_path)
+        with open(log_path, "rb") as f:
+            if size > max_bytes:
+                f.seek(size - max_bytes)
+            data = f.read()
+        # 容错解码: ComfyUI 的中文在 Windows 可能是 cp936/utf-8 混合
+        for enc in ("utf-8", "gbk", "latin-1"):
+            try:
+                text = data.decode(enc, errors="replace")
+                break
+            except:
+                continue
+        else:
+            text = data.decode("utf-8", errors="replace")
+        # 只保留最后 lines 行
+        all_lines = text.splitlines()
+        tail = "\n".join(all_lines[-lines:]) if lines > 0 else text
+        return {
+            "path": log_path,
+            "size": size,
+            "content": tail,
+        }
+    except Exception as e:
+        return {"path": log_path, "content": f"读取失败: {e}"}
+
+
+@app.post("/api/comfyui/log-clear")
+async def clear_comfyui_log():
+    """清空当前 ComfyUI 日志（截断到 0）"""
+    log_path = _find_latest_comfyui_log()
+    if not log_path or not os.path.isfile(log_path):
+        return {"status": "no_log"}
+    try:
+        with open(log_path, "wb") as f:
+            pass
+        return {"status": "cleared", "path": log_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清空失败: {e}")
+
 
 # --- ComfyUI 代理端点(供前端在 non-local 模式下使用) ---
 
@@ -12398,7 +12629,16 @@ async def random_apply_plan(config: Dict[str, Any]):
         if names:
             source = random_manager.get_source('preset')
             if source:
-                filtered = [item for item in source.items if item.get('name') in names]
+                # 跨分类同名时用 name_key(category_id::id)严格匹配;
+                # 旧方案可能存的是短 name,这里用 name 再兜底一次保持兼容
+                name_set = set(names)
+                def _preset_match(item):
+                    if item.get('name_key') in name_set:
+                        return True
+                    if item.get('name') in name_set:
+                        return True
+                    return False
+                filtered = [item for item in source.items if _preset_match(item)]
                 if filtered:
                     actual_count = min(count, len(filtered))
                     if actual_count == 1:

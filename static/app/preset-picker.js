@@ -101,6 +101,7 @@ function _buildFlatIndex() {
                         name: _presetI18nMap && _presetI18nMap[p.id] ? _presetI18nMap[p.id] : p.name,
                         nameLower: (_presetI18nMap && _presetI18nMap[p.id] ? _presetI18nMap[p.id] : p.name).toLowerCase(),
                         promptLower: p.prompt.toLowerCase(),
+                        name_key: (cat.id ? cat.id + '::' : '') + p.id,
                     });
                 }
             });
@@ -139,6 +140,7 @@ function _buildFlatIndex() {
                     _subcats: [{ id: sub.id, name: subName }],
                     nameLower: pName.toLowerCase(),
                     promptLower: (p.prompt || '').toLowerCase(),
+                    name_key: 'style_' + cat.id + '::' + p.id,
                 });
                 _flatById.set(key, _flatIndex[_flatIndex.length - 1]);
             });
@@ -445,16 +447,6 @@ function presetPickerGetFilteredList() {
 
 function presetPickerClearAll() { presetPickerSelected = []; document.getElementById('presetPickerSelectedCount').textContent = 0; presetPickerRenderGrid(); }
 
-// 是否含中文字符
-function hasChinese(s) {
-    return /[\u4e00-\u9fa5]/.test(s);
-}
-
-// 已是中文预设名（避免在下次拆分时被错误识别为角色/普通词）
-function isPresetNameToken(s) {
-    return hasChinese(s);
-}
-
 function presetPickerApply() {
     // 方案编辑器模式：有 callback 时不直接改 prompt，交给 callback 处理
     // （保持与 character / artist picker 一致的行为）
@@ -512,7 +504,9 @@ function presetPickerApply() {
         const lastSetLower = new Set([...lastSet].map(s => s.toLowerCase()));
         const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
         // 2) 重新分类：非预设 token（角色/普通词 + 画师）保持不动
-        const charParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !isPresetNameToken(p) && !p.startsWith('['));
+        //    注：上次应用的预设 token 已在步骤 1 通过 presetPickerLastAppliedTokens 精确移除，
+        //        此处不再用 isPresetNameToken（含中文即排除）做模糊过滤，避免误杀用户原有的中文提示词
+        const charParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !p.startsWith('['));
         const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
         // 3) 收集当前选中的预设 token（用 prompt 优先；name 作为 fallback）
         const newPresetTokens = presetPickerSelected.map(p => {

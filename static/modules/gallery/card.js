@@ -379,13 +379,15 @@
     // NSFW 提示词关键词检测（保守黑名单，匹配单词边界或紧邻分隔符）
     const NSFW_PATTERNS = [
         // 英文（单词边界）
-        /\b(nude|naked|nsfw|explicit|uncensored|hentai|porn|sex|pussy|penis|vagina|anus|nipple|orgasm|erotic|lewd|bdsm|fetish|genitals|masturbat|cumshot|blowjob|handjob|footjob|titfuck|deepthroat|gangbang|creampie|facial\W*cum|anal\W*sex|virgin\W*sex|rape\W*|rapist|incest|pedophil)\b/i,
+        /\b(nude|naked|nsfw|explicit|uncensored|hentai|porn|sex|pussy|penis|penetration|vagina|anus|nipple|orgasm|erotic|lewd|bdsm|fetish|genitals|masturbat|cumshot|blowjob|handjob|footjob|titfuck|deepthroat|gangbang|creampie|facial\W*cum|anal\W*sex|virgin\W*sex|rape\W*|rapist|incest|pedophil)\b/i,
         // 中文（紧邻分隔符或首尾）
         /(?:^|[\s,，、。;；])(裸体|裸露|色情|做爱|性交|阴茎|阴道|阴部|乳头|高潮|情色|自慰|口交|肛交|强暴|强奸|乱伦|恋童|卖淫|嫖娼|裸照|裸聊|裸舞|裸戏|三级片|黄片|黄网|毛片)(?=[\s,，、。;；]|$)/
     ];
     function isNsfwPrompt(prompt) {
         if (!prompt) return false;
-        const p = String(prompt);
+        // 先规范化：下划线/连字符替换为空格，避免 \b 边界失效
+        // 例如 "stealth_sex" → "stealth sex" 才能匹配 \bsex\b
+        const p = String(prompt).replace(/[-_]/g, ' ');
         return NSFW_PATTERNS.some(re => re.test(p));
     }
 

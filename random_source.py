@@ -185,51 +185,63 @@ class ArtistSource(RandomSource):
 
 class PresetSource(RandomSource):
     """预设随机源"""
-    
+
     def __init__(self):
         super().__init__("preset", "预设", "⚙️")
+        # 兼容:旧单文件 path;实际加载以 data/presets/*.json 多文件为准
         self.data_file = Path(__file__).parent / "data" / "prompt-presets.json"
-    
+        self.presets_dir = Path(__file__).parent / "data" / "presets"
+
     def load(self):
-        """加载预设数据"""
+        """加载预设数据(优先 data/presets/*.json 多文件,旧单文件作 fallback)"""
         try:
-            if not self.data_file.exists():
+            # 1) 多文件目录(data/presets/*.json)优先
+            files = []
+            if self.presets_dir.exists():
+                files = sorted(self.presets_dir.glob("*.json"))
+            # 2) 兼容旧单文件
+            if not files and self.data_file.exists():
+                files = [self.data_file]
+            if not files:
+                print(f"[PresetSource] 未找到预设数据: 既无 {self.presets_dir} 也无 {self.data_file}")
                 return
-            
-            with open(self.data_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
+
             self.items = []
             categories = set()
-            
-            # 解析嵌套结构: categories -> subcategories -> presets
-            for category in data.get('categories', []):
-                category_name = category.get('name', '')
-                category_id = category.get('id', '')
-                
-                for subcategory in category.get('subcategories', []):
-                    subcategory_name = subcategory.get('name', '')
-                    
-                    for preset in subcategory.get('presets', []):
-                        item = {
-                            "id": preset.get("id", ""),
-                            "name": preset.get("name", ""),
-                            "prompt": preset.get("prompt", ""),
-                            "categories": []
-                        }
-                        
-                        # 添加类别标签
-                        if category_name:
-                            item["categories"].append(category_name)
-                            categories.add(category_name)
-                        if subcategory_name:
-                            item["categories"].append(subcategory_name)
-                            categories.add(subcategory_name)
-                        
-                        self.items.append(item)
-            
+            seen_keys = set()  # 跨文件去重 name_key
+
+            for fpath in files:
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for category in data.get('categories', []):
+                    category_id = category.get('id', '') or ''
+                    category_name = category.get('name', '') or ''
+                    for subcategory in category.get('subcategories', []):
+                        subcategory_name = subcategory.get('name', '') or ''
+                        for preset in subcategory.get('presets', []):
+                            pid = preset.get('id', '') or ''
+                            pname = preset.get('name', '') or ''
+                            # 跨文件唯一键:category_id::preset_id;无 id 时退回 name
+                            name_key = (f"{category_id}::{pid}" if (category_id and pid) else (pid or pname)).strip()
+                            if not name_key or name_key in seen_keys:
+                                continue
+                            seen_keys.add(name_key)
+                            item = {
+                                "id": pid,
+                                "name": pname,
+                                "name_key": name_key,   # 后端按 name_key 严格匹配,避免同名串号
+                                "prompt": preset.get("prompt", ""),
+                                "categories": []
+                            }
+                            if category_name:
+                                item["categories"].append(category_name)
+                                categories.add(category_name)
+                            if subcategory_name:
+                                item["categories"].append(subcategory_name)
+                                categories.add(subcategory_name)
+                            self.items.append(item)
+
             self.categories = sorted(list(categories))
-            
         except Exception as e:
             print(f"[PresetSource] 加载失败: {e}")
 

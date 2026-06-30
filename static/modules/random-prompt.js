@@ -1185,47 +1185,51 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         if (promptEl && currentPickerGroupIdx !== null) {
             const planKey = type === 'character' ? 'characters' : type === 'artist' ? 'artists' : 'presets';
             const group = currentPlan[planKey]?.groups[currentPickerGroupIdx];
-            if (group && group.items.length > 0) {
-                // 注入前先去掉 prompt 中"角色"匹配项，避免 picker 解析时出现重复 token
-                // （applyPlan 后的 trigger 词会跟注入的 group.items 重复）
-                let existing = lastPickerOrigPrompt.split(',').map(p => p.trim()).filter(p => p);
-                if (type === 'character' && typeof window.ANIMA_CHAR_DB !== 'undefined' && Array.isArray(window.ANIMA_CHAR_DB) && window.ANIMA_CHAR_DB.length > 0) {
-                    const nameSet = new Set(window.ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
-                    const triggerSet = new Set();
-                    window.ANIMA_CHAR_DB.forEach(c => {
-                        if (Array.isArray(c.triggers)) c.triggers.forEach(t => triggerSet.add(String(t).toLowerCase()));
-                        else if (typeof c.trigger === 'string') triggerSet.add(c.trigger.toLowerCase());
+            if (group) {
+                if (group.items.length > 0) {
+                    // 有已选项：注入到 prompt 让 picker 打开时自动勾选
+                    // 先去掉 prompt 中该类型的已有匹配项，避免 picker 解析时出现重复 token
+                    let existing = lastPickerOrigPrompt.split(',').map(p => p.trim()).filter(p => p);
+                    if (type === 'character' && typeof window.ANIMA_CHAR_DB !== 'undefined' && Array.isArray(window.ANIMA_CHAR_DB) && window.ANIMA_CHAR_DB.length > 0) {
+                        const nameSet = new Set(window.ANIMA_CHAR_DB.map(c => (c.name || '').toLowerCase()).filter(Boolean));
+                        const triggerSet = new Set();
+                        window.ANIMA_CHAR_DB.forEach(c => {
+                            if (Array.isArray(c.triggers)) c.triggers.forEach(t => triggerSet.add(String(t).toLowerCase()));
+                            else if (typeof c.trigger === 'string') triggerSet.add(c.trigger.toLowerCase());
+                        });
+                        existing = existing.filter(p => {
+                            if (p.startsWith('@') || p.startsWith('by ')) return false;
+                            const pl = p.toLowerCase();
+                            return !(nameSet.has(pl) || triggerSet.has(pl));
+                        });
+                    } else if (type === 'artist' && typeof window.ANIMA_ARTIST_DB !== 'undefined' && Array.isArray(window.ANIMA_ARTIST_DB) && window.ANIMA_ARTIST_DB.length > 0) {
+                        const nameSet = new Set(window.ANIMA_ARTIST_DB.map(a => {
+                            const n = a.name || a.danbooru_tag || '';
+                            return n.replace(/^@/, '').toLowerCase();
+                        }).filter(Boolean));
+                        existing = existing.filter(p => {
+                            if (!(p.startsWith('@') || p.startsWith('by '))) return false;
+                            return !nameSet.has(p.replace(/^@/, '').toLowerCase());
+                        });
+                    } else if (type === 'preset' && typeof window.ANIMA_PRESET_DB !== 'undefined' && Array.isArray(window.ANIMA_PRESET_DB) && window.ANIMA_PRESET_DB.length > 0) {
+                        const nameSet = new Set(window.ANIMA_PRESET_DB.map(p => (p.name || '').toLowerCase()).filter(Boolean));
+                        existing = existing.filter(p => !nameSet.has(p.toLowerCase()));
+                    }
+                    // 注入 group.items
+                    const uniqInj = [];
+                    const seenInj = new Set();
+                    group.items.forEach(t => {
+                        const tl = String(t).toLowerCase();
+                        if (!seenInj.has(tl)) { seenInj.add(tl); uniqInj.push(t); }
                     });
-                    existing = existing.filter(p => {
-                        if (p.startsWith('@') || p.startsWith('by ')) return false;
-                        const pl = p.toLowerCase();
-                        return !(nameSet.has(pl) || triggerSet.has(pl));
-                    });
-                } else if (type === 'artist' && typeof window.ANIMA_ARTIST_DB !== 'undefined' && Array.isArray(window.ANIMA_ARTIST_DB) && window.ANIMA_ARTIST_DB.length > 0) {
-                    // 画师匹配 @ 前缀
-                    const nameSet = new Set(window.ANIMA_ARTIST_DB.map(a => {
-                        const n = a.name || a.danbooru_tag || '';
-                        return n.replace(/^@/, '').toLowerCase();
-                    }).filter(Boolean));
-                    existing = existing.filter(p => {
-                        if (!(p.startsWith('@') || p.startsWith('by '))) return false;
-                        return !nameSet.has(p.replace(/^@/, '').toLowerCase());
-                    });
-                } else if (type === 'preset' && typeof window.ANIMA_PRESET_DB !== 'undefined' && Array.isArray(window.ANIMA_PRESET_DB) && window.ANIMA_PRESET_DB.length > 0) {
-                    // 预设：按 name 匹配
-                    const nameSet = new Set(window.ANIMA_PRESET_DB.map(p => (p.name || '').toLowerCase()).filter(Boolean));
-                    existing = existing.filter(p => !nameSet.has(p.toLowerCase()));
+                    let injection = uniqInj.join(', ');
+                    if (type === 'artist') injection = uniqInj.map(i => '@' + i).join(', ');
+                    promptEl.value = existing.length > 0 ? existing.join(', ') + ', ' + injection : injection;
+                } else {
+                    // 新分组（items 为空）：清空 prompt，让 picker 从零开始选择
+                    // pickerCallback 关闭后会通过 lastPickerOrigPrompt 恢复原始值
+                    promptEl.value = '';
                 }
-                // injection 自身也要去重：处理历史脏数据（picker 解析 prompt 时 parts.filter 不过滤重复）
-                const uniqInj = [];
-                const seenInj = new Set();
-                group.items.forEach(t => {
-                    const tl = String(t).toLowerCase();
-                    if (!seenInj.has(tl)) { seenInj.add(tl); uniqInj.push(t); }
-                });
-                let injection = uniqInj.join(', ');
-                if (type === 'artist') injection = uniqInj.map(i => '@' + i).join(', ');
-                promptEl.value = existing.length > 0 ? existing.join(', ') + ', ' + injection : injection;
             }
         }
 
@@ -1290,13 +1294,13 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                         group.items.push(name);
                     });
                 } else if (currentPickerType === 'preset') {
-                    // 预设：按 name / id 小写去重
+                    // 预设:优先 name_key(category_id::id 跨文件唯一),向下兼容 name / id
                     selectedItems.forEach(item => {
-                        const name = item.name || item.id || '';
-                        if (!name) return;
-                        if (seen.has(name.toLowerCase())) return;
-                        seen.add(name.toLowerCase());
-                        group.items.push(name);
+                        const key = item.name_key || item.name || item.id || '';
+                        if (!key) return;
+                        if (seen.has(key.toLowerCase())) return;
+                        seen.add(key.toLowerCase());
+                        group.items.push(key);
                     });
                 }
             }
