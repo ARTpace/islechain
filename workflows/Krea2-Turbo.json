@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "unet_name": "flux2-klein\\redcraftKREA2RedMix_krea2Edition.safetensors",
+      "unet_name": "Krea2\\krea2_turbo_int8_convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -55,7 +55,7 @@
   },
   "7": {
     "inputs": {
-      "seed": 924920509938901,
+      "seed": 317368795980882,
       "steps": 6,
       "cfg": 1,
       "sampler_name": "er_sde",

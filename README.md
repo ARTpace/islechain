@@ -19,10 +19,23 @@ http://localhost:7000
 - **ComfyUI 图像应用**：集成图片编辑、3D 视角变换、CG 细化、2D 风格细化、抠图、扩图、高清修复、图像反推、文字抠图、万物移除等应用。
 - **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点、PS 节点、日志面板、小导航栏和资产库。
 - **在线生图**：通过 COMFLY / OpenAI 兼容协议调用在线图像模型，支持参考图、提示词预设和历史记录。
+- **提示词方案 (Prompt Plan)**：可创建 / 编辑 / 应用多个提示词组合方案（角色 + 画师 + 预设 + 固定提示词 + LoRA），支持随机 / 顺序两种抽取模式。面板从文生图页的 🎲 按钮打开。
+- **自动生成**：在提示词方案面板中可设置自动按方案生成图片——计次模式（生成 N 次后停止）或定时模式（每 N 分钟 × N 轮）。⚡ 主按钮长按可同步启动 / 停止自动生成，运行中按钮显示倒计时或进度。
+- **多图卡片拼图**：生成 2-4 张图时自动拼图布局（上下 / 上 1 下 2 / 2x2），5+ 张时在 2x2 第四格浮出「+N」。点击进入 Lightbox 大图预览可查看全套。
 - **智能对话**：支持多轮对话、SSE 流式响应、会话保存、文本对话与图片生成模式。
 - **API 多提供商管理**：支持 OpenAI 兼容协议、APIMart 异步协议、模型同步、连接测试和 API Key 管理。
 - **即梦 CLI 集成**：支持调用即梦（Dreamina）命令行工具，使用本机登录态进行文生图、图生图、文生视频、图生视频，无需 API Key。
 - **本地资产与历史**：生成图片、画布资产、对话、历史记录均以本地文件方式保存，方便迁移和备份。
+
+## 近期主要更新（2026-07）
+
+- **提示词方案重构**：原「随机提示词」升级为「提示词方案 (Prompt Plan)」，支持多个方案保存 / 切换 / 编辑；面板合并为单页布局（方案列表 + 自动生成分区）。
+- **自动生成引擎**：纯前端实现的自动生成循环，支持计次 / 定时两种模式，可中途停止、有进度条、完成 Toast 总结。
+- **⚡ 主按钮长按**：长按「生成」主按钮可快速启动 / 停止自动生成（带 600ms 长按计时 + 脉冲动效）。运行中按钮转为绿色呼吸光晕 + loader 图标 + 徽章进度（`3/10` 或 `mm:ss` 倒计时）。
+- **多图拼图布局**：单条历史记录多张图片自动拼图展示，1/2/3/4/5+ 张各有不同布局。
+- **孤儿记录清理**：新增 `/api/gallery/purge-orphans` 管理员接口，可一键清理 `history.json` 中指向已删图片的孤儿记录（含 `dry_run` 预览模式）。
+- **预设中英文双向切换**：新增 `/api/preset-i18n` 与 `/api/preset-bidir` 接口，预设面板支持中英文名切换。
+- **智能提示词预设**：`/api/smart-prompt/*` 系统，可保存 / 加载提示词模板预设，应用时自动插入到文生图提示词框。
 
 ## 技术栈
 
@@ -165,6 +178,7 @@ art-canvas/
 │   ├── canvas.html                 # 无限画布入口
 │   ├── app/                        # 独立 ComfyUI 应用页面
 │   ├── modules/                    # 无限画布和 ComfyUI 功能模块
+│   │   └── random-prompt.js        # 提示词方案 (Prompt Plan) 组件 + 自动生成引擎
 │   ├── setting/                    # API、ComfyUI 等设置页面
 │   ├── styles/canvas.css           # 画布样式
 │   ├── theme.css                   # 全局主题样式
@@ -176,6 +190,7 @@ art-canvas/
 │   ├── frontend-architecture.md    # 前端架构
 │   ├── deployment-guide.md         # 部署指南
 │   ├── kaifa.md                    # 开发更新日志
+│   ├── random_guide.md             # 提示词方案使用指南
 │   └── modules/                    # 模块文档
 ├── setup.bat                       # 环境初始化脚本
 ├── 启动.bat                        # Windows 启动脚本
@@ -247,7 +262,11 @@ art-canvas/
 | 画布 | `/api/canvases`、`/api/canvases/{id}`、`/api/canvases/trash`、`/api/canvases/{id}/restore`、`/api/canvases/{id}/purge` |
 | 资产 | `/api/user/assets`、`/api/user/assets/save-from-url`、`/api/canvases/{id}/assets/*` |
 | 上传下载 | `/api/upload`、`/api/ai/upload`、`/api/view`、`/output/{path}`、`/assets/{path}`、`/api/download-output`、`/api/download-output-zip` |
-| 历史与队列 | `/api/history`、`/api/history/save`、`/api/history/delete`、`/api/queue_status` |
+| 历史与队列 | `/api/history`、`/api/history/save`、`/api/history/delete`、`/api/history/delete-image`、`/api/queue_status` |
+| 画廊 | `/api/gallery/scan-new`、`/api/gallery/purge-orphans`（管理员可清理指向已删图片的孤儿记录） |
+| 随机提示词 | `/api/random/sources`、`/api/random/categories/{source_id}`、`/api/random/{source_id}`、`/api/random/all`、`/api/random/apply-plan` |
+| 智能提示词 | `/api/smart-prompt`、`/api/smart-prompt/presets`、`/api/smart-prompt/presets/{id}`、`/api/smart-prompt/selected-preset`、`/api/smart-prompt/config` |
+| 预设与翻译 | `/api/preset-i18n`、`/api/preset-bidir`、`/api/prompt-dict`、`/api/prompt-dict/learn`、`/api/translate` |
 | ComfyUI 设置 | `/api/comfyui/instances`、`/api/comfyui/system_stats`、`/api/comfyui/upload/image` |
 | 工作流 | `/api/workflows`、`/api/workflows/{name}`、`/api/workflows/{name}/config`、`/api/workflows/{name}/run` |
 | 提供商 | `/api/providers`、`/api/providers/test-connection`、`/api/providers/probe-async`、`/api/providers/fetch-models` |

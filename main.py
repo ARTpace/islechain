@@ -6182,6 +6182,7 @@ async def api_get_thumbnail(filename: str):
 
 from smart_prompt import generate_smart_prompt, load_config
 import smart_tts as smart_tts_module
+from smart_prompt import call_llm as _sp_call_llm
 
 class SmartPromptRequest(BaseModel):
     prompt: str
@@ -6343,6 +6344,69 @@ async def smart_prompt(req: SmartPromptRequest):
         return result
     except Exception as e:
         return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+
+# --- AI 生成提示词方案 ---
+class AIGenPlanRequest(BaseModel):
+    description: str
+
+@app.post("/api/random-plan/ai-generate")
+async def ai_generate_random_plan(req: AIGenPlanRequest):
+    """用 LLM 根据自然语言描述生成提示词方案结构 (角色 / 画师 / 预设)"""
+    try:
+        config = load_config()
+        if not config.get('api_key'):
+            return {"success": False, "error": "未配置 API Key，请先在设置中配置 LLM API"}
+
+        sys_prompt = (
+            "你是一个 AI 绘画提示词方案生成助手。用户会用自然语言描述他想要的方案主题，你需要输出一个 JSON 对象。\n"
+            "JSON 结构：\n"
+            "{\n"
+            '  "name": string,            // 方案名（简洁中文）\n'
+            '  "characters": string[],    // 角色 tag 数组（英文，如 "nahida (genshin impact)"）\n'
+            '  "artists": string[],       // 画师 tag 数组（英文，如 "wlop", \"ask\"）\n'
+            '  "presets": string[],       // 预设词数组（英文画质 / 风格 tag，如 \"masterpiece, best quality\", \"detailed background\"）\n'
+            '  "fixedPrompt": string      // 固定提示词（可选，其他需要每次都附加的词）\n'
+            "}\n\n"
+            "要求：\n"
+            "1. 只输出 JSON，不要 markdown 代码块标记，不要任何解释文字\n"
+            "2. 角色 / 画师都用英文 tag（与 stable diffusion 模型兼容）\n"
+            "3. 角色至少给 1 个，如果用户描述的是原创 / 通用主题，可留空数组\n"
+            "4. 画师给 1-3 个，符合主题风格\n"
+            "5. 预设给 2-5 个常用画质 / 风格 tag\n"
+            "6. 如果用户描述不明确，自行发挥创意填充合理内容\n"
+        )
+
+        raw = _sp_call_llm(req.description.strip(), sys_prompt, config)
+        if isinstance(raw, str) and raw.startswith('ERROR'):
+            return {"success": False, "error": raw}
+
+        # 尝试解析 JSON（容错：去掉可能的 markdown 标记）
+        import re as _re
+        cleaned = raw.strip()
+        # 去掉 ```json ... ``` 包裹
+        m = _re.search(r'```(?:json)?\s*(.*?)```', cleaned, _re.DOTALL)
+        if m:
+            cleaned = m.group(1).strip()
+        # 尝试截取第一个 { 到最后一个 }
+        s = cleaned.find('{')
+        e = cleaned.rfind('}')
+        if s >= 0 and e > s:
+            cleaned = cleaned[s:e+1]
+
+        data = json.loads(cleaned)
+        # 字段兼容性保证
+        plan = {
+            'name': str(data.get('name') or 'AI 方案')[:30],
+            'characters': list(data.get('characters') or []),
+            'artists': list(data.get('artists') or []),
+            'presets': list(data.get('presets') or []),
+            'fixedPrompt': str(data.get('fixedPrompt') or ''),
+        }
+        return {"success": True, "plan": plan, "raw": raw}
+    except json.JSONDecodeError as e:
+        return {"success": False, "error": f"AI 输出 JSON 解析失败: {e}", "raw": raw if 'raw' in dir() else ''}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 # --- 智能 TTS 文本精修 ---
 class SmartTTSRequest(BaseModel):

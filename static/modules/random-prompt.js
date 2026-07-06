@@ -1,5 +1,5 @@
 /**
- * 随机提示词配置组件（分组版）
+ * 提示词方案配置组件（分组版）
  * 支持方案管理、分组控制、复用现有选择器
  * 
  * 使用方法：
@@ -15,6 +15,7 @@ const AUTO_RANDOM_KEY = 'random_auto_enabled';
 const AUTO_RANDOM_PLAN_KEY = 'random_auto_plan';
 const RANDOM_ENABLED_KEY = 'random_global_enabled';
 const ACTIVE_PLAN_KEY = 'random_active_plan';
+const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
 
     // === 状态 ===
     let plans = {};
@@ -25,6 +26,107 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     let randomEnabled = false;       // 随机全局开关（点击按钮切换）
     let activePlanName = '';         // 当前选中的方案名
     let triggerButton = null;        // 🎲 按钮引用
+
+    // ─────────────────────────────────────
+    //  方案列表视图状态（搜索 / 滚动）
+    // ─────────────────────────────────────
+    let planListFilter = '';         // 当前搜索关键字
+    let planListScrollTop = 0;       // 虚拟滚动位置
+    const PLAN_ROW_HEIGHT = 78;      // 方案卡预估高度（紧凄卡）
+    const PLAN_VIRT_THRESHOLD = 50;  // 超过此数量启用虚拟滚动
+    let planListFilterTimer = null;  // 搜索防抖
+    let planListScrollPending = false; // raf 调度标志
+
+    // 顺序模式位置状态：{ `${planName}_${planKey}_${groupId}`: currentIndex }
+    let sequentialState = {};
+
+    function loadSequentialState() {
+        try {
+            const saved = localStorage.getItem(SEQUENTIAL_STATE_KEY);
+            if (saved) sequentialState = JSON.parse(saved);
+        } catch (e) { sequentialState = {}; }
+    }
+
+    function saveSequentialState() {
+        try { localStorage.setItem(SEQUENTIAL_STATE_KEY, JSON.stringify(sequentialState)); } catch (e) {}
+    }
+
+    function getSeqKey(planName, planKey, groupId) {
+        return `${planName}_${planKey}_${groupId}`;
+    }
+
+    function getSeqPosition(planName, planKey, groupId) {
+        const key = getSeqKey(planName, planKey, groupId);
+        return sequentialState[key] || 0;
+    }
+
+    function setSeqPosition(planName, planKey, groupId, pos) {
+        sequentialState[getSeqKey(planName, planKey, groupId)] = pos;
+    }
+
+    function updateSeqPosition(planName, planKey, groupId, count, total) {
+        const key = getSeqKey(planName, planKey, groupId);
+        const current = sequentialState[key] || 0;
+        const next = (current + count) % total;
+        sequentialState[key] = next;
+        saveSequentialState();
+    }
+
+    // ─────────────────────────────────────────────
+    //  自动生成引擎状态
+    // ─────────────────────────────────────────────
+    const AUTO_STORAGE_KEY = 'random_auto_gen_config';
+
+    let autoGenState = {
+        running: false,
+        mode: 'count',           // 'count' | 'timer'
+        totalCount: 10,           // 目标总次数
+        currentCount: 0,          // 已完成次数
+        timerMinutes: 1,          // 定时模式间隔（分钟）
+        timerBatch: 4,            // 定时模式每批次数
+        timerRunningCount: 0,     // 定时模式累加计数
+        abortController: new AbortController(),
+        timerId: null,            // setTimeout for count mode
+        intervalId: null,         // setInterval for timer mode
+        planAtStart: ''           // 开始时锁定的方案名
+    };
+
+    function loadAutoGenConfig() {
+        try {
+            const saved = localStorage.getItem(AUTO_STORAGE_KEY);
+            if (saved) {
+                const cfg = JSON.parse(saved);
+                if (cfg.mode) autoGenState.mode = cfg.mode;
+                if (cfg.totalCount) autoGenState.totalCount = cfg.totalCount;
+                if (cfg.timerMinutes) autoGenState.timerMinutes = cfg.timerMinutes;
+                if (cfg.timerBatch) autoGenState.timerBatch = cfg.timerBatch;
+            }
+        } catch(e) {}
+    }
+
+    function saveAutoGenConfig() {
+        try {
+            localStorage.setItem(AUTO_STORAGE_KEY, JSON.stringify({
+                mode: autoGenState.mode,
+                totalCount: autoGenState.totalCount,
+                timerMinutes: autoGenState.timerMinutes,
+                timerBatch: autoGenState.timerBatch
+            }));
+        } catch(e) {}
+    }
+
+    // 清理已删除分组的顺序状态
+    function cleanSeqState(planName, planKey, validGroupIds) {
+        const validKeys = new Set(validGroupIds.map(id => getSeqKey(planName, planKey, id)));
+        let changed = false;
+        Object.keys(sequentialState).forEach(k => {
+            if (k.startsWith(`${planName}_${planKey}_`) && !validKeys.has(k)) {
+                delete sequentialState[k];
+                changed = true;
+            }
+        });
+        if (changed) saveSequentialState();
+    }
 
     // === 主题检测 ===
     function isDarkTheme() {
@@ -95,9 +197,10 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                 changed = true;
             }
             // 给没有 color 的组补上
-            if (plan[key]?.groups) {
+                if (plan[key]?.groups) {
                 plan[key].groups.forEach((g, i) => {
                     if (!g.color) { g.color = GROUP_COLORS[i % GROUP_COLORS.length]; changed = true; }
+                    if (!g.mode) { g.mode = 'random'; changed = true; }
                 });
             }
         });
@@ -170,6 +273,18 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
 
         const panel = createMainPanel();
         document.body.appendChild(panel);
+
+        // 加载自动生成配置 + 预渲染自动生成面板内容（第一次打开才不空白）
+        loadAutoGenConfig();
+        renderAutoGenPanel();
+
+        // 页面关闭时停止自动生成
+        window.addEventListener('beforeunload', () => {
+            if (autoGenState.running) {
+                autoGenState.running = false;
+                autoGenState.abortController.abort();
+            }
+        });
 
         // createTriggerButton 内部已调用 updateTriggerButtonStyle，无需重复
     }
@@ -282,7 +397,7 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     function toggleRandomSwitch(btn) {
         const planNames = Object.keys(plans);
         if (!randomEnabled && planNames.length === 0) {
-            showToast('请先创建随机方案', 'error');
+            showToast('请先创建提示词方案', 'error');
             return;
         }
         randomEnabled = !randomEnabled;
@@ -349,32 +464,618 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
             : '<span id="active-plan-badge" style="display:none;"></span>';
 
         panel.innerHTML = `
-            <div style="padding:18px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
+            <div style="padding:14px 20px;border-bottom:1px solid ${colors.border};display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;">
-                    <div style="font-size:17px;font-weight:800;">🎲 随机方案</div>
+                    <div style="font-size:17px;font-weight:800;">📝 提示词方案</div>
                     ${activePlanDisplay}
                 </div>
                 <button id="random-panel-close" style="width:36px;height:36px;border-radius:12px;border:none;background:${colors.bgSoft};cursor:pointer;font-size:18px;color:${colors.textSub};display:flex;align-items:center;justify-content:center;">✕</button>
             </div>
-            <div style="padding:16px 20px;overflow-y:auto;max-height:calc(85vh - 140px);">
-                <div id="random-plan-list"></div>
-            </div>
-            <div style="padding:14px 20px;border-top:1px solid ${colors.border};">
-                <button id="random-new-plan" style="
-                    width:100%;padding:14px;border-radius:14px;border:1.5px dashed ${colors.accent}60;
-                    background:transparent;cursor:pointer;font-size:14px;font-weight:700;color:${colors.accent};
-                    display:flex;align-items:center;justify-content:center;gap:8px;
-                ">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                    新建方案
-                </button>
+            <div style="padding:16px 20px;overflow-y:auto;max-height:calc(85vh - 80px);">
+                <!-- 方案列表区 -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:12px;font-weight:700;color:${colors.textSub};letter-spacing:0.05em;">方案列表</div>
+                    <div style="display:flex;gap:6px;">
+                        <button id="random-ai-gen-plan" style="
+                            padding:6px 10px;border-radius:10px;border:1.5px solid ${colors.accent}60;
+                            background:${colors.accent}10;cursor:pointer;font-size:12px;font-weight:700;color:${colors.accent};
+                            display:flex;align-items:center;gap:4px;
+                        " title="让 AI 根据描述生成方案">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5L19 9.5 13.5 11 12 16l-1.5-5L5 9.5 10.5 8z"/></svg>
+                            AI 生成
+                        </button>
+                        <button id="random-new-plan" style="
+                            padding:6px 12px;border-radius:10px;border:1.5px dashed ${colors.accent}60;
+                            background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.accent};
+                            display:flex;align-items:center;gap:4px;
+                        ">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            新建方案
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 搜索框（仅在有方案时显示）-->
+                <div id="random-plan-search-wrap" style="display:none;margin-bottom:10px;">
+                    <div style="position:relative;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors.textSub}" stroke-width="2" stroke-linecap="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input id="random-plan-search" type="text" placeholder="搜索方案名…" style="
+                            width:100%;height:36px;padding:0 36px 0 36px;border:1.5px solid ${colors.border};border-radius:10px;
+                            background:transparent;color:${colors.text};font-size:13px;outline:none;box-sizing:border-box;
+                        ">
+                        <button id="random-plan-search-clear" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:50%;border:none;background:${colors.textSub}30;color:${colors.text};cursor:pointer;padding:0;font-size:12px;line-height:1;">✕</button>
+                    </div>
+                    <div id="random-plan-count" style="font-size:11px;color:${colors.textSub};margin-top:6px;padding-left:2px;"></div>
+                </div>
+
+                <div id="random-plan-list" style="position:relative;max-height:340px;overflow-y:auto;"></div>
+
+                <!-- 自动生成分区 -->
+                <div style="margin-top:24px;padding-top:18px;border-top:1px solid ${colors.border};">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <div style="font-size:12px;font-weight:700;color:${colors.textSub};letter-spacing:0.05em;">🔄 自动生成</div>
+                    </div>
+                    <div id="random-auto-panel"></div>
+                </div>
             </div>
         `;
 
         panel.querySelector('#random-panel-close').addEventListener('click', () => panel.style.display = 'none');
         panel.querySelector('#random-new-plan').addEventListener('click', () => openPlanEditor(null));
 
+        // ✨ AI 生成方案
+        panel.querySelector('#random-ai-gen-plan').addEventListener('click', () => openAIGenDialog());
+
+        // 搜索框输入（防抖 120ms）
+        const searchInput = panel.querySelector('#random-plan-search');
+        const searchClear = panel.querySelector('#random-plan-search-clear');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const v = e.target.value;
+                if (searchClear) searchClear.style.display = v ? 'block' : 'none';
+                clearTimeout(planListFilterTimer);
+                planListFilterTimer = setTimeout(() => {
+                    planListFilter = v.trim().toLowerCase();
+                    planListScrollTop = 0;
+                    renderPlanList();
+                }, 120);
+            });
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    if (searchClear) searchClear.style.display = 'none';
+                    planListFilter = '';
+                    planListScrollTop = 0;
+                    renderPlanList();
+                }
+            });
+        }
+        if (searchClear) {
+            searchClear.addEventListener('click', () => {
+                if (searchInput) searchInput.value = '';
+                searchClear.style.display = 'none';
+                planListFilter = '';
+                planListScrollTop = 0;
+                renderPlanList();
+            });
+        }
+
+        // 虚拟滚动监听（在列表容器上）
+        const planList = panel.querySelector('#random-plan-list');
+        if (planList) {
+            planList.addEventListener('scroll', () => {
+                if (planListScrollPending) return;
+                planListScrollPending = true;
+                requestAnimationFrame(() => {
+                    planListScrollTop = planList.scrollTop;
+                    planListScrollPending = false;
+                    // 只有超过阈值才虚拟滚动
+                    if (getSortedFilteredPlans().length > PLAN_VIRT_THRESHOLD) {
+                        renderPlanList();
+                    }
+                });
+            });
+        }
+
         return panel;
+    }
+
+    // ─────────────────────────────────────────────
+    //  自动生成面板渲染
+    // ─────────────────────────────────────────────
+    function renderAutoGenPanel() {
+        const container = document.getElementById('random-auto-panel');
+        if (!container) return;
+        const colors = getThemeColors();
+        const s = autoGenState;
+        const isCount = s.mode === 'count';
+
+        container.innerHTML = `
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:${colors.textSub};margin-bottom:8px;">模式选择</div>
+                <div style="display:flex;gap:10px;">
+                    <div id="auto-mode-count" class="auto-mode-option" style="
+                        flex:1;padding:14px;border-radius:14px;cursor:pointer;
+                        border:2px solid ${isCount ? colors.accent : colors.border};
+                        background:${isCount ? colors.accent + '12' : 'transparent'};
+                    ">
+                        <div style="text-align:center;margin-bottom:10px;">
+                            <div style="font-size:20px;margin-bottom:4px;">🔢</div>
+                            <div style="font-size:13px;font-weight:700;color:${isCount ? colors.accent : colors.text};">计次模式</div>
+                            <div style="font-size:10px;color:${colors.textSub};margin-top:2px;">生成指定次数后停止</div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;justify-content:center;" onclick="event.stopPropagation();">
+                            <span style="font-size:12px;font-weight:600;color:${colors.text};">生成</span>
+                            <input id="auto-count-total" type="number" min="1" max="999" value="${s.totalCount}" style="
+                                width:54px;height:28px;padding:0;border:1.5px solid ${colors.border};border-radius:8px;
+                                font-size:13px;text-align:center;background:transparent;color:${colors.text};outline:none;font-weight:700;
+                            ">
+                            <span style="font-size:12px;font-weight:600;color:${colors.text};">次</span>
+                        </div>
+                    </div>
+                    <div id="auto-mode-timer" class="auto-mode-option" style="
+                        flex:1;padding:14px;border-radius:14px;cursor:pointer;
+                        border:2px solid ${!isCount ? colors.accent : colors.border};
+                        background:${!isCount ? colors.accent + '12' : 'transparent'};
+                    ">
+                        <div style="text-align:center;margin-bottom:10px;">
+                            <div style="font-size:20px;margin-bottom:4px;">⏰</div>
+                            <div style="font-size:13px;font-weight:700;color:${!isCount ? colors.accent : colors.text};">定时模式</div>
+                            <div style="font-size:10px;color:${colors.textSub};margin-top:2px;">按固定间隔持续生成</div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;" onclick="event.stopPropagation();">
+                            <span style="font-size:12px;font-weight:600;color:${colors.text};">每</span>
+                            <input id="auto-timer-minutes" type="number" min="1" max="120" value="${s.timerMinutes}" style="
+                                width:46px;height:28px;padding:0;border:1.5px solid ${colors.border};border-radius:8px;
+                                font-size:13px;text-align:center;background:transparent;color:${colors.text};outline:none;font-weight:700;
+                            ">
+                            <span style="font-size:12px;font-weight:600;color:${colors.text};">分</span>
+                            <span style="font-size:12px;font-weight:600;color:${colors.textSub};">×</span>
+                            <input id="auto-timer-batch" type="number" min="1" max="20" value="${s.timerBatch}" style="
+                                width:40px;height:28px;padding:0;border:1.5px solid ${colors.border};border-radius:8px;
+                                font-size:13px;text-align:center;background:transparent;color:${colors.text};outline:none;font-weight:700;
+                            ">
+                            <span style="font-size:12px;font-weight:600;color:${colors.text};">轮</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="auto-gen-progress" style="display:none;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span id="auto-progress-text" style="font-size:12px;font-weight:700;color:${colors.accent};">0/0</span>
+                    <span id="auto-progress-status" style="font-size:11px;color:${colors.textSub};">准备中...</span>
+                </div>
+                <div style="width:100%;height:6px;background:${colors.border};border-radius:3px;overflow:hidden;">
+                    <div id="auto-progress-bar" style="width:0%;height:100%;background:${colors.accent};border-radius:3px;transition:width 0.3s ease;"></div>
+                </div>
+            </div>
+
+            <button id="auto-gen-start-btn" style="
+                width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;
+                font-size:15px;font-weight:800;
+                background:${s.running ? colors.danger : colors.accent};
+                color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;
+            ">
+                ${s.running
+                    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 停止`
+                    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> 开始自动生成`
+                }
+            </button>
+        `;
+
+        // 绑定事件
+        bindAutoGenEvents(container);
+    }
+
+    function bindAutoGenEvents(container) {
+        // 模式切换
+        container.querySelector('#auto-mode-count')?.addEventListener('click', () => {
+            autoGenState.mode = 'count';
+            saveAutoGenConfig();
+            renderAutoGenPanel();
+        });
+        container.querySelector('#auto-mode-timer')?.addEventListener('click', () => {
+            autoGenState.mode = 'timer';
+            saveAutoGenConfig();
+            renderAutoGenPanel();
+        });
+
+        // 输入框保存
+        const countInput = container.querySelector('#auto-count-total');
+        if (countInput) countInput.addEventListener('change', () => {
+            autoGenState.totalCount = Math.max(1, parseInt(countInput.value) || 10);
+            saveAutoGenConfig();
+        });
+        const timerMinutesInput = container.querySelector('#auto-timer-minutes');
+        if (timerMinutesInput) timerMinutesInput.addEventListener('change', () => {
+            autoGenState.timerMinutes = Math.max(1, parseInt(timerMinutesInput.value) || 1);
+            saveAutoGenConfig();
+        });
+        const timerBatchInput = container.querySelector('#auto-timer-batch');
+        if (timerBatchInput) timerBatchInput.addEventListener('change', () => {
+            autoGenState.timerBatch = Math.max(1, parseInt(timerBatchInput.value) || 4);
+            saveAutoGenConfig();
+        });
+
+        // 开始/停止按钮
+        const btn = container.querySelector('#auto-gen-start-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                if (autoGenState.running) {
+                    stopAutoGen();
+                } else {
+                    startAutoGen();
+                }
+            });
+        }
+    }
+
+    function updateAutoGenProgress(text, status, pct) {
+        const textEl = document.getElementById('auto-progress-text');
+        const statusEl = document.getElementById('auto-progress-status');
+        const barEl = document.getElementById('auto-progress-bar');
+        if (textEl) textEl.textContent = text;
+        if (statusEl) statusEl.textContent = status;
+        if (barEl) barEl.style.width = Math.min(100, pct) + '%';
+        const progress = document.getElementById('auto-gen-progress');
+        if (progress) progress.style.display = '';
+    }
+
+    function hideAutoGenProgress() {
+        const progress = document.getElementById('auto-gen-progress');
+        if (progress) progress.style.display = 'none';
+    }
+
+    // ─────────────────────────────────────────────
+    //  自动生成引擎 - 启动
+    // ─────────────────────────────────────────────
+    async function startAutoGen() {
+        if (autoGenState.running) return;
+        if (!activePlanName || !plans[activePlanName]) {
+            showToast('请先选择提示词方案', 'error');
+            return;
+        }
+        if (!randomEnabled) {
+            showToast('请先开启 🎲 随机开关', 'error');
+            return;
+        }
+
+        const s = autoGenState;
+        s.running = true;
+        s.currentCount = 0;
+        s.timerRunningCount = 0;
+        s.completedRounds = 0;
+        s.nextTickAt = 0;
+        s.planAtStart = activePlanName;
+        s.abortController = new AbortController();
+
+        // 关闭面板，只保留进度指示和 🎲 按钮动画
+        const panel = document.getElementById('random-main-panel');
+        if (panel) panel.style.display = 'none';
+
+        showToast('🔄 自动生成已启动', 'success');
+        addAutoGenButtonAnim(true);
+
+        if (s.mode === 'count') {
+            await runCountMode();
+        } else {
+            await runTimerMode();
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  计次模式 - 连续生成
+    // ─────────────────────────────────────────────
+    async function runCountMode() {
+        const s = autoGenState;
+        const target = s.totalCount;
+
+        // 重新渲染面板显示进度
+        const panel = document.getElementById('random-auto-panel');
+        if (panel) renderAutoGenPanel();
+
+        updateAutoGenProgress('0/' + target, '准备中...', 0);
+
+        for (let i = 0; i < target; i++) {
+            if (!s.running) break;
+            if (s.abortController.signal.aborted) break;
+
+            updateAutoGenProgress(
+                (i + 1) + '/' + target,
+                '正在生成第 ' + (i + 1) + ' 次...',
+                ((i) / target) * 100
+            );
+
+            const ok = await doOneAutoRound();
+            if (!ok) {
+                // 失败跳过
+                continue;
+            }
+            s.currentCount = i + 1;
+
+            if (i < target - 1) {
+                // 每次生成后等待 2 秒
+                await sleep(2000);
+            }
+        }
+
+        if (s.running) {
+            finishAutoGen('✅ 完成！共生成 ' + s.currentCount + ' 次');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  定时模式
+    // ─────────────────────────────────────────────
+    async function runTimerMode() {
+        const s = autoGenState;
+        const minutes = s.timerMinutes;
+        const batch = s.timerBatch;
+
+        // 立即执行一轮
+        const panel = document.getElementById('random-auto-panel');
+        if (panel) renderAutoGenPanel();
+
+        s.timerRunningCount = 0;
+        updateAutoGenProgress('第 1 轮', '正在生成...', 5);
+
+        // 先执行第一轮
+        for (let i = 0; i < batch; i++) {
+            if (!s.running) break;
+            if (s.abortController.signal.aborted) break;
+            const ok = await doOneAutoRound();
+            if (ok) s.timerRunningCount++;
+            // 每轮内部间隔 1.5 秒
+            if (i < batch - 1 && s.running) await sleep(1500);
+        }
+        s.completedRounds = 1;
+        s.currentCount = s.timerRunningCount;
+
+        // 后续按间隔周期执行
+        while (s.running && !s.abortController.signal.aborted) {
+            const nextMs = minutes * 60 * 1000;
+            updateAutoGenProgress(
+                '第 ' + (s.completedRounds + 1) + ' 轮',
+                '下一轮 ' + minutes + ' 分钟后...',
+                Math.min(95, (s.completedRounds % 20) * 5)
+            );
+
+            await sleepOrAbort(nextMs);
+            if (!s.running || s.abortController.signal.aborted) break;
+
+            s.completedRounds++;
+            updateAutoGenProgress(
+                '第 ' + s.completedRounds + ' 轮',
+                '正在生成...',
+                5
+            );
+
+            for (let i = 0; i < batch; i++) {
+                if (!s.running) break;
+                if (s.abortController.signal.aborted) break;
+                const ok = await doOneAutoRound();
+                if (ok) s.timerRunningCount++;
+                if (i < batch - 1 && s.running) await sleep(1500);
+            }
+            s.currentCount = s.timerRunningCount;
+        }
+
+        if (s.running) {
+            finishAutoGen('✅ 定时生成已停止，共 ' + s.timerRunningCount + ' 轮');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  执行单轮自动生成
+    // ─────────────────────────────────────────────
+    async function doOneAutoRound() {
+        const s = autoGenState;
+        if (!s.running || s.abortController.signal.aborted) return false;
+
+        // 检查方案是否仍有效
+        if (!plans[activePlanName] || !randomEnabled) {
+            stopAutoGen();
+            showToast('⚠ 方案已失效或随机已关闭，自动生成停止', 'error');
+            return false;
+        }
+
+        // 1. 执行自动随机：生成新的提示词
+        try {
+            const result = await _internalApplyAutoRandom();
+            if (!result || !result.positive) {
+                console.warn('[AutoGen] _internalApplyAutoRandom 返回空');
+                return false;
+            }
+
+            // 2. 将提示词写入文本框（handleRender 从这里读取）
+            const promptEl = document.getElementById('prompt');
+            if (promptEl) {
+                promptEl.value = result.positive;
+                promptEl.dispatchEvent(new Event('input'));
+            }
+
+            // 3. 应用负向提示词
+            if (result.negative) {
+                const negEl = document.getElementById('negativePrompt');
+                if (negEl) {
+                    negEl.value = result.negative;
+                }
+            }
+
+            // 4. 应用 LoRA 触发词（必须在 prompt 写入后调用）
+            if (result.plan && result.plan.loras && result.plan.loras.length > 0) {
+                applyRandomLoras(result.plan.loras, activePlanName);
+            }
+        } catch (e) {
+            console.error('[AutoGen] 应用随机提示词失败:', e);
+            return false;
+        }
+
+        return new Promise((resolve) => {
+            let done = false;
+
+            window.__autoGenNotifyDone = () => {
+                if (done) return;
+                done = true;
+                window.__autoGenNotifyDone = null;
+                window.__autoGenNotifyError = null;
+                window.__autoGenNotifyFinally = null;
+                resolve(true);
+            };
+
+            window.__autoGenNotifyError = (msg) => {
+                if (done) return;
+                done = true;
+                window.__autoGenNotifyDone = null;
+                window.__autoGenNotifyError = null;
+                window.__autoGenNotifyFinally = null;
+                console.warn('[AutoGen] 单轮生成失败:', msg);
+                resolve(false);
+            };
+
+            window.__autoGenNotifyFinally = () => {
+                // 仅用于清理
+            };
+
+            // 调用 handleRender
+            if (typeof handleRender === 'function') {
+                handleRender();
+            } else {
+                console.error('[AutoGen] handleRender 未定义');
+                window.__autoGenNotifyError('handleRender 未定义');
+            }
+
+            // 超时保护（10 分钟）
+            setTimeout(() => {
+                if (!done) {
+                    done = true;
+                    window.__autoGenNotifyDone = null;
+                    window.__autoGenNotifyError = null;
+                    window.__autoGenNotifyFinally = null;
+                    console.warn('[AutoGen] 单轮超时');
+                    resolve(false);
+                }
+            }, 10 * 60 * 1000);
+        });
+    }
+
+    // ─────────────────────────────────────────────
+    //  完成 / 停止
+    // ─────────────────────────────────────────────
+    function finishAutoGen(msg) {
+        autoGenState.running = false;
+        addAutoGenButtonAnim(false);
+
+        const panel = document.getElementById('random-auto-panel');
+        if (panel) renderAutoGenPanel();
+
+        updateAutoGenProgress('100%', msg, 100);
+        setTimeout(() => {
+            hideAutoGenProgress();
+            showToast(msg, 'success');
+        }, 2000);
+    }
+
+    function stopAutoGen() {
+        if (!autoGenState.running) return;
+        const s = autoGenState;
+        s.running = false;
+        s.abortController.abort();
+
+        if (s.timerId) {
+            clearTimeout(s.timerId);
+            s.timerId = null;
+        }
+        if (s.intervalId) {
+            clearInterval(s.intervalId);
+            s.intervalId = null;
+        }
+
+        // 清理渲染钩子
+        window.__autoGenNotifyDone = null;
+        window.__autoGenNotifyError = null;
+        window.__autoGenNotifyFinally = null;
+
+        addAutoGenButtonAnim(false);
+
+        const count = s.mode === 'count' ? s.currentCount : s.timerRunningCount;
+        const msg = s.mode === 'count'
+            ? '⏹ 已停止，完成 ' + count + '/' + s.totalCount + ' 次'
+            : '⏹ 已停止，共完成 ' + count + ' 次';
+
+        const panel = document.getElementById('random-auto-panel');
+        if (panel) renderAutoGenPanel();
+        hideAutoGenProgress();
+        showToast(msg, 'info');
+    }
+
+    // ─────────────────────────────────────────────
+    //  工具函数
+    // ─────────────────────────────────────────────
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function sleepOrAbort(ms) {
+        return new Promise((resolve) => {
+            const s = autoGenState;
+            // 记录预计唤醒时间戳，供外部读取（UI 倒计时）
+            s.nextTickAt = Date.now() + ms;
+            const tid = setTimeout(resolve, ms);
+            s.timerId = tid;
+
+            // 如果被中断，清除 timer
+            const check = setInterval(() => {
+                if (!s.running || s.abortController.signal.aborted) {
+                    clearTimeout(tid);
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 500);
+        });
+    }
+
+    function addAutoGenButtonAnim(active) {
+        const btn = triggerButton;
+        if (!btn) return;
+        if (active) {
+            btn.dataset.autoGen = '1';
+            // 注入呼吸动画
+            if (!document.getElementById('auto-gen-pulse-style')) {
+                const st = document.createElement('style');
+                st.id = 'auto-gen-pulse-style';
+                st.textContent = `
+                    [data-auto-gen="1"] {
+                        animation: auto-gen-pulse 1.2s ease-in-out infinite !important;
+                        box-shadow: 0 0 0 0 rgba(16,185,129,0);
+                    }
+                    @keyframes auto-gen-pulse {
+                        0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+                        50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+                    }
+                `;
+                document.head.appendChild(st);
+            }
+            btn.style.background = 'rgba(16,185,129,0.25)';
+            btn.style.color = '#10b981';
+            btn.title = '🔄 自动生成运行中（点击面板停止）';
+        } else {
+            delete btn.dataset.autoGen;
+            updateTriggerButtonStyle(btn);
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  (已移除 Tab 切换 — 方案 / 自动生成 合并为单页)
+    // ─────────────────────────────────────────────
+    function refreshMainPanel() {
+        const plansList = document.getElementById('random-plan-list');
+        const autoPanel = document.getElementById('random-auto-panel');
+        if (plansList) renderPlanList();
+        if (autoPanel) renderAutoGenPanel();
     }
 
     // ─────────────────────────────────────────────
@@ -384,7 +1085,6 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         const container = document.getElementById('random-plan-list');
         if (!container) return;
         const colors = getThemeColors();
-        const planNames = Object.keys(plans);
 
         // 更新面板标题中的"当前方案"徽章
         const badge = document.getElementById('active-plan-badge');
@@ -398,68 +1098,148 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
             }
         }
 
-        if (planNames.length === 0) {
+        // 搜索框可见性 + 计算过滤后的方案
+        const allNames = Object.keys(plans);
+        const searchWrap = document.getElementById('random-plan-search-wrap');
+        const countEl = document.getElementById('random-plan-count');
+        if (searchWrap) searchWrap.style.display = allNames.length >= 1 ? '' : 'none';
+
+        // 空状态
+        if (allNames.length === 0) {
             container.innerHTML = `<div style="text-align:center;padding:40px 20px;color:${colors.textSub};">
                 <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">📋</div>
                 <div style="font-size:13px;font-weight:600;">暂无方案</div>
-                <div style="font-size:11px;margin-top:4px;">点击"新建方案"创建你的第一个随机方案</div>
+                <div style="font-size:11px;margin-top:4px;">点击"新建方案"创建你的第一个提示词方案</div>
+            </div>`;
+            if (countEl) countEl.textContent = '';
+            return;
+        }
+
+        // 取过滤 + 排序后的列表
+        const sortedFiltered = getSortedFilteredPlans();
+        if (countEl) {
+            if (planListFilter) {
+                countEl.textContent = `匹配 ${sortedFiltered.length} / ${allNames.length} 个方案`;
+            } else {
+                countEl.textContent = `共 ${allNames.length} 个方案 · 按最近使用排序`;
+            }
+        }
+
+        // 过滤后为空
+        if (sortedFiltered.length === 0) {
+            container.innerHTML = `<div style="text-align:center;padding:30px 20px;color:${colors.textSub};">
+                <div style="font-size:28px;margin-bottom:6px;opacity:0.5;">🔍</div>
+                <div style="font-size:12px;font-weight:600;">没有匹配的方案</div>
+                <div style="font-size:11px;margin-top:4px;">试试别的关键字，或按 Esc 清除搜索</div>
             </div>`;
             return;
         }
 
-        container.innerHTML = planNames.map(name => {
-            const plan = plans[name];
-            const isActive = name === activePlanName;
-            const charCount = flattenCategory(plan.characters).length;
-            const artistCount = flattenCategory(plan.artists).length;
-            const presetCount = flattenCategory(plan.presets).length;
-            const textCount = flattenCategory(plan.texts).length;
-            const loraCount = flattenCategory(plan.loras).length;
-            const ratioCount = flattenCategory(plan.ratios).length;
-            const stats = [];
-            if (charCount > 0)  stats.push(`<span title="角色 ${charCount}">👤${charCount}</span>`);
-            if (artistCount > 0) stats.push(`<span title="画师 ${artistCount}">🎨${artistCount}</span>`);
-            if (presetCount > 0) stats.push(`<span title="预设 ${presetCount}">⚙️${presetCount}</span>`);
-            if (textCount > 0)   stats.push(`<span title="文本 ${textCount}">📝${textCount}</span>`);
-            if (loraCount > 0)   stats.push(`<span title="LoRA ${loraCount}">🧬${loraCount}</span>`);
-            if (ratioCount > 0)  stats.push(`<span title="比例 ${ratioCount}">📐${ratioCount}</span>`);
-            return `
-                <div class="random-plan-card ${isActive ? 'plan-active' : ''}" data-name="${escapeHtml(name)}" style="
-                    padding:14px 16px;margin-bottom:10px;border-radius:14px;
-                    border:1.5px solid ${isActive ? colors.accent : colors.border};
-                    background:${isActive ? colors.accent + '08' : colors.bgSoft};
-                    cursor:pointer;transition:all 0.15s;
-                ">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            ${isActive ? `<span style="width:20px;height:20px;border-radius:50%;background:${colors.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">✓</span>` : `<span style="width:20px;height:20px;border-radius:50%;border:2px solid ${colors.border};flex-shrink:0;"></span>`}
-                            <div style="font-size:15px;font-weight:700;color:${isActive ? colors.accent : colors.text};">${escapeHtml(name)}</div>
-                        </div>
-                        <div style="display:flex;gap:8px;">
-                            <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="
-                                width:38px;height:38px;border-radius:12px;border:none;
-                                background:rgba(0,180,216,0.1);color:${colors.accent};cursor:pointer;
-                                display:flex;align-items:center;justify-content:center;padding:0;
-                            " title="编辑">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                            </button>
-                            <button class="plan-delete-btn" data-name="${escapeHtml(name)}" style="
-                                width:38px;height:38px;border-radius:12px;border:none;
-                                background:rgba(239,68,68,0.08);color:${colors.textSub};cursor:pointer;
-                                display:flex;align-items:center;justify-content:center;padding:0;
-                            " title="删除">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    ${stats.length > 0 ? `<div style="font-size:12px;color:${colors.textSub};display:flex;gap:14px;">${stats.join('')}</div>` : ''}
-                </div>`;
-        }).join('');
+        // 虚拟滚动判断
+        const useVirt = sortedFiltered.length > PLAN_VIRT_THRESHOLD;
 
-        // 绑定事件：点击卡片选择激活方案
+        if (!useVirt) {
+            // 直接全量渲染
+            container.style.height = '';
+            container.innerHTML = sortedFiltered.map(name => renderPlanCard(name, colors)).join('');
+        } else {
+            // 虚拟滚动：上下 padding 占位 + 只渲染可见区
+            const viewportH = container.clientHeight || 480;
+            const overscan = 4;
+            const visibleCount = Math.ceil(viewportH / PLAN_ROW_HEIGHT) + overscan * 2;
+            const startIdx = Math.max(0, Math.floor(planListScrollTop / PLAN_ROW_HEIGHT) - overscan);
+            const endIdx = Math.min(sortedFiltered.length, startIdx + visibleCount);
+            const totalH = sortedFiltered.length * PLAN_ROW_HEIGHT;
+            const offsetTop = startIdx * PLAN_ROW_HEIGHT;
+
+            const visibleCards = sortedFiltered.slice(startIdx, endIdx).map(name => renderPlanCard(name, colors)).join('');
+            container.innerHTML = `
+                <div style="height:${totalH}px;position:relative;">
+                    <div style="position:absolute;top:${offsetTop}px;left:0;right:0;">${visibleCards}</div>
+                </div>`;
+        }
+
+        bindPlanListEvents(container);
+    }
+
+    // 过滤 + 排序：按 lastUsedAt DESC，未使用过放最后
+    function getSortedFilteredPlans() {
+        const q = planListFilter;
+        const all = Object.keys(plans);
+        const filtered = q
+            ? all.filter(n => n.toLowerCase().includes(q))
+            : all;
+        return filtered.sort((a, b) => {
+            const ta = plans[a].lastUsedAt || 0;
+            const tb = plans[b].lastUsedAt || 0;
+            if (tb !== ta) return tb - ta;           // 最近使用优先
+            return (plans[b].useCount || 0) - (plans[a].useCount || 0); // 再按频次
+        });
+    }
+
+    // 单张方案卡 HTML（保持原样）
+    function renderPlanCard(name, colors) {
+        const plan = plans[name];
+        const isActive = name === activePlanName;
+        const charCount = flattenCategory(plan.characters).length;
+        const artistCount = flattenCategory(plan.artists).length;
+        const presetCount = flattenCategory(plan.presets).length;
+        const textCount = flattenCategory(plan.texts).length;
+        const loraCount = flattenCategory(plan.loras).length;
+        const ratioCount = flattenCategory(plan.ratios).length;
+        const stats = [];
+        if (charCount > 0)  stats.push(`<span title="角色 ${charCount}">👤${charCount}</span>`);
+        if (artistCount > 0) stats.push(`<span title="画师 ${artistCount}">🎨${artistCount}</span>`);
+        if (presetCount > 0) stats.push(`<span title="预设 ${presetCount}">⚙️${presetCount}</span>`);
+        if (textCount > 0)   stats.push(`<span title="文本 ${textCount}">📝${textCount}</span>`);
+        if (loraCount > 0)   stats.push(`<span title="LoRA ${loraCount}">🧬${loraCount}</span>`);
+        if (ratioCount > 0)  stats.push(`<span title="比例 ${ratioCount}">📐${ratioCount}</span>`);
+        // 高亮搜索匹配
+        const displayName = planListFilter
+            ? escapeHtml(name).replace(new RegExp(escapeRegex(planListFilter), 'gi'), m => `<mark style="background:${colors.accent}30;color:${colors.accent};padding:0 2px;border-radius:3px;">${m}</mark>`)
+            : escapeHtml(name);
+        return `
+            <div class="random-plan-card ${isActive ? 'plan-active' : ''}" data-name="${escapeHtml(name)}" style="
+                padding:14px 16px;margin-bottom:10px;border-radius:14px;
+                border:1.5px solid ${isActive ? colors.accent : colors.border};
+                background:${isActive ? colors.accent + '08' : colors.bgSoft};
+                cursor:pointer;transition:all 0.15s;
+            ">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                        ${isActive ? `<span style="width:20px;height:20px;border-radius:50%;background:${colors.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">✓</span>` : `<span style="width:20px;height:20px;border-radius:50%;border:2px solid ${colors.border};flex-shrink:0;"></span>`}
+                        <div style="font-size:15px;font-weight:700;color:${isActive ? colors.accent : colors.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="
+                            width:34px;height:34px;border-radius:10px;border:none;
+                            background:rgba(0,180,216,0.1);color:${colors.accent};cursor:pointer;
+                            display:flex;align-items:center;justify-content:center;padding:0;
+                        " title="编辑">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        </button>
+                        <button class="plan-delete-btn" data-name="${escapeHtml(name)}" style="
+                            width:34px;height:34px;border-radius:10px;border:none;
+                            background:rgba(239,68,68,0.08);color:${colors.textSub};cursor:pointer;
+                            display:flex;align-items:center;justify-content:center;padding:0;
+                        " title="删除">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                        </button>
+                    </div>
+                </div>
+                ${stats.length > 0 ? `<div style="font-size:12px;color:${colors.textSub};display:flex;gap:12px;">${stats.join('')}</div>` : ''}
+            </div>`;
+    }
+
+    // 转义正则特殊字符
+    function escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // 绑定方案列表事件
+    function bindPlanListEvents(container) {
         container.querySelectorAll('.random-plan-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                // 如果点击的是按钮，不触发选择
                 if (e.target.closest('.plan-edit-btn') || e.target.closest('.plan-delete-btn')) return;
                 const name = card.dataset.name;
                 if (name === activePlanName) return;
@@ -470,14 +1250,135 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                 showToast('已选择方案: ' + name, 'success');
             });
         });
-
-        // 绑定编辑/删除事件
         container.querySelectorAll('.plan-edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => { e.stopPropagation(); openPlanEditor(btn.dataset.name); });
         });
         container.querySelectorAll('.plan-delete-btn').forEach(btn => {
             btn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('确定删除方案"' + btn.dataset.name + '"？')) deletePlan(btn.dataset.name); });
         });
+    }
+
+    // ─────────────────────────────────────
+    //  ✨ AI 生成方案
+    // ─────────────────────────────────────
+    function openAIGenDialog() {
+        const colors = getThemeColors();
+        // 如果已有弹窗则移除
+        const old = document.getElementById('random-ai-gen-dialog');
+        if (old) old.remove();
+
+        const dlg = document.createElement('div');
+        dlg.id = 'random-ai-gen-dialog';
+        dlg.style.cssText = `
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(90vw,440px);background:${colors.bg};border-radius:18px;
+            box-shadow:${colors.shadow};z-index:10010;padding:22px;color:${colors.text};
+        `;
+        dlg.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;">
+                    <span style="color:${colors.accent};">✨</span> AI 生成方案
+                </div>
+                <button id="ai-gen-close" style="width:30px;height:30px;border-radius:10px;border:none;background:${colors.bgSoft};cursor:pointer;color:${colors.textSub};font-size:16px;">✕</button>
+            </div>
+            <div style="font-size:12px;color:${colors.textSub};margin-bottom:10px;line-height:1.5;">
+                描述你想要的方案主题，AI 会自动填充角色、画师、预设。<br>
+                <span style="opacity:0.7;">示例："原神女性角色立绘" / "赛博朋克风格场景" / "日系校园少女"</span>
+            </div>
+            <textarea id="ai-gen-input" placeholder="输入方案主题描述…" style="
+                width:100%;height:80px;padding:10px 12px;border:1.5px solid ${colors.border};border-radius:12px;
+                background:transparent;color:${colors.text};font-size:13px;outline:none;resize:none;font-family:inherit;box-sizing:border-box;
+            "></textarea>
+            <div id="ai-gen-error" style="display:none;color:${colors.danger};font-size:12px;margin-top:8px;"></div>
+            <button id="ai-gen-submit" style="
+                width:100%;margin-top:14px;padding:12px;border-radius:12px;border:none;cursor:pointer;
+                background:${colors.accent};color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;
+            ">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5L19 9.5 13.5 11 12 16l-1.5-5L5 9.5 10.5 8z"/></svg>
+                开始生成
+            </button>
+        `;
+        document.body.appendChild(dlg);
+
+        const close = () => dlg.remove();
+        dlg.querySelector('#ai-gen-close').addEventListener('click', close);
+        dlg.querySelector('#ai-gen-input').focus();
+
+        // Enter 提交（Shift+Enter 换行）
+        dlg.querySelector('#ai-gen-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                dlg.querySelector('#ai-gen-submit').click();
+            }
+        });
+
+        dlg.querySelector('#ai-gen-submit').addEventListener('click', async () => {
+            const desc = dlg.querySelector('#ai-gen-input').value.trim();
+            const errEl = dlg.querySelector('#ai-gen-error');
+            errEl.style.display = 'none';
+            if (!desc) {
+                errEl.textContent = '请输入方案描述';
+                errEl.style.display = '';
+                return;
+            }
+            // 检查 API Key 配置（通过 /api/smart-prompt/config 间接判断）
+            const btn = dlg.querySelector('#ai-gen-submit');
+            const oldHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="spin" style="animation:spin 0.8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 生成中…`;
+
+            try {
+                const resp = await fetch('/api/random-plan/ai-generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: desc })
+                });
+                const data = await resp.json();
+                if (!data.success) {
+                    throw new Error(data.error || '生成失败');
+                }
+                const plan = data.plan;
+                // 生成成功：创建新方案并打开编辑器
+                const baseName = plan.name || 'AI 方案';
+                let uniqueName = baseName;
+                let i = 1;
+                while (plans[uniqueName]) {
+                    uniqueName = `${baseName} (${i++})`;
+                }
+                // 构造符合 migratePlanData 的初始结构
+                plans[uniqueName] = {
+                    characters: { groups: [{ id: genId(), name: '默认', items: plan.characters || [], enabled: true, count: 1, mode: 'random', color: GROUP_COLORS[0] }] },
+                    artists: { groups: [{ id: genId(), name: '默认', items: plan.artists || [], enabled: true, count: 1, mode: 'random', color: GROUP_COLORS[0] }] },
+                    presets: { groups: [{ id: genId(), name: '默认', items: plan.presets || [], enabled: true, count: 1, mode: 'random', color: GROUP_COLORS[0] }] },
+                    ratios: { groups: [] },
+                    texts: { groups: [] },
+                    loras: { groups: [] },
+                    fixedPrompt: plan.fixedPrompt || '',
+                    lastUsedAt: Date.now(),
+                    useCount: 0
+                };
+                savePlans();
+                activePlanName = uniqueName;
+                saveActivePlan();
+                renderPlanList();
+                close();
+                showToast(`✨ AI 已生成方案「${uniqueName}」`, 'success');
+                // 打开编辑器让用户检查 / 调整
+                openPlanEditor(uniqueName);
+            } catch (err) {
+                errEl.textContent = err.message || '生成失败，请检查 API Key 配置';
+                errEl.style.display = '';
+                btn.disabled = false;
+                btn.innerHTML = oldHTML;
+            }
+        });
+
+        // 点击遮罩关闭
+        setTimeout(() => {
+            dlg.addEventListener('click', (e) => {
+                if (e.target === dlg) close();
+            });
+        }, 0);
     }
 
     // ─────────────────────────────────────────────
@@ -637,6 +1538,7 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         const enabled = group.enabled !== false;
         const count = group.count || 1;
         const gColor = group.color || GROUP_COLORS[gIdx % GROUP_COLORS.length];
+        const mode = group.mode || 'random';
 
         return `
             <div class="group-card" data-plan-key="${planKey}" data-g-idx="${gIdx}" style="
@@ -676,6 +1578,17 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                         font-size:14px;text-align:center;background:transparent;color:${colors.text};outline:none;font-weight:700;
                     ">
                 </div>
+                <button class="group-mode-btn" data-plan-key="${planKey}" data-g-idx="${gIdx}" title="${mode === 'sequential' ? '顺序模式：按列表顺序依次生成' : '随机模式：从列表中随机抽取'}" style="
+                    width:32px;height:32px;border-radius:10px;border:none;
+                    background:${mode === 'sequential' ? `${gColor}20` : `${gColor}10`};
+                    cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;
+                    transition:all 0.2s;
+                ">
+                    ${mode === 'sequential'
+                        ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${gColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>`
+                        : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${gColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`
+                    }
+                </button>
                 <button class="delete-group-btn" data-plan-key="${planKey}" data-g-idx="${gIdx}" title="删除分组" style="
                     width:32px;height:32px;border-radius:10px;border:none;background:rgba(239,68,68,0.08);
                     cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;
@@ -696,7 +1609,7 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         section.querySelector('.add-group-btn')?.addEventListener('click', () => {
             const cat = currentPlan[planKey];
             if (!cat.groups) cat.groups = [];
-            cat.groups.push({ id: genId(), name: '新分组', items: [], enabled: true, count: 1, color: GROUP_COLORS[cat.groups.length % GROUP_COLORS.length] });
+            cat.groups.push({ id: genId(), name: '新分组', items: [], enabled: true, count: 1, color: GROUP_COLORS[cat.groups.length % GROUP_COLORS.length], mode: 'random' });
             refreshCategory(editor, planKey);
         });
 
@@ -756,6 +1669,17 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                     currentPlan[planKey].groups.splice(gIdx, 1);
                     refreshCategory(editor, planKey);
                 }
+            });
+        });
+
+        // 模式切换（随机 ↔ 顺序）
+        section.querySelectorAll('.group-mode-btn').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gIdx = parseInt(el.dataset.gIdx);
+                const group = currentPlan[planKey].groups[gIdx];
+                group.mode = group.mode === 'sequential' ? 'random' : 'sequential';
+                refreshCategory(editor, planKey);
             });
         });
 
@@ -1341,6 +2265,12 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     }
 
     function deletePlan(name) {
+        // 清除该方案的顺序状态
+        Object.keys(sequentialState).forEach(k => {
+            if (k.startsWith(name + '_')) delete sequentialState[k];
+        });
+        saveSequentialState();
+
         delete plans[name];
         if (activePlanName === name) {
             const planNames = Object.keys(plans);
@@ -1354,15 +2284,28 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     // ─────────────────────────────────────────────
     //  分组抽样 + 提示词构建
     // ─────────────────────────────────────────────
-    function sampleFromGroups(cat) {
+    function sampleFromGroups(cat, planName, planKey) {
         if (!cat || !cat.groups) return [];
         const result = [];
         cat.groups.forEach(group => {
             if (group.enabled === false) return;
             if (!group.items || group.items.length === 0) return;
             const count = Math.min(group.count || 1, group.items.length);
-            const shuffled = [...group.items].sort(() => Math.random() - 0.5);
-            result.push(...shuffled.slice(0, count));
+            const mode = group.mode || 'random';
+            
+            if (mode === 'sequential' && planName && planKey && group.id) {
+                // 顺序模式：从上次位置依次取 count 个
+                const startPos = getSeqPosition(planName, planKey, group.id);
+                for (let i = 0; i < count; i++) {
+                    const idx = (startPos + i) % group.items.length;
+                    result.push(group.items[idx]);
+                }
+                updateSeqPosition(planName, planKey, group.id, count, group.items.length);
+            } else {
+                // 随机模式：随机洗牌取 count 个
+                const shuffled = [...group.items].sort(() => Math.random() - 0.5);
+                result.push(...shuffled.slice(0, count));
+            }
         });
         return result;
     }
@@ -1375,15 +2318,9 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     }
 
     // 从比例分组中随机选一个并应用
-    function applyRandomRatio(ratios) {
+    function applyRandomRatio(ratios, planName) {
         if (!ratios?.groups) return;
-        const sampled = [];
-        ratios.groups.forEach(g => {
-            if (g.enabled === false || !g.items?.length) return;
-            const count = Math.min(g.count || 1, g.items.length);
-            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
-            sampled.push(...shuffled.slice(0, count));
-        });
+        const sampled = sampleFromGroups(ratios, planName, 'ratios');
         if (sampled.length === 0) { console.log('[RandomPrompt] 比例分组无样本'); return; }
         const picked = sampled[Math.floor(Math.random() * sampled.length)];
         const [w, h] = picked.split(':').map(Number);
@@ -1408,15 +2345,9 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
     }
 
     // 从 LoRA 分组中抽样，写到 loraState.active；触发词自动同步到 prompt
-    function applyRandomLoras(loras) {
+    function applyRandomLoras(loras, planName) {
         if (!loras?.groups) return;
-        const sampled = [];
-        loras.groups.forEach(g => {
-            if (g.enabled === false || !g.items?.length) return;
-            const count = Math.min(g.count || 1, g.items.length);
-            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
-            sampled.push(...shuffled.slice(0, count));
-        });
+        const sampled = sampleFromGroups(loras, planName, 'loras');
         if (sampled.length === 0) return;
         // 重要：loraState 是 zimage.html 顶层 let，不挂在 window 上，必须用裸引用 + typeof 守卫
         if (typeof loraState === 'undefined' || !loraState) {
@@ -1450,17 +2381,11 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
 
     // 对单个大类调用 API
     // 从各组本地抽样，然后调 API 查元数据
-    async function fetchCategoryFromAPI(catKey, cat) {
+    async function fetchCategoryFromAPI(catKey, cat, planName) {
         if (!cat?.groups) return null;
 
-        // 每组独立抽样
-        const sampledNames = [];
-        cat.groups.forEach(g => {
-            if (g.enabled === false || !g.items?.length) return;
-            const count = Math.min(g.count || 1, g.items.length);
-            const shuffled = [...g.items].sort(() => Math.random() - 0.5);
-            sampledNames.push(...shuffled.slice(0, count));
-        });
+        // 每组独立抽样（支持 random / sequential 两种模式）
+        const sampledNames = sampleFromGroups(cat, planName, catKey);
         if (sampledNames.length === 0) return null;
 
         // 一次性交给 API 查元数据（触发词/danbooru_tag/预设文本）
@@ -1507,24 +2432,24 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         try {
             const parts = [];
             for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
-                const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
+                const result = await fetchCategoryFromAPI(apiKey, plan[catKey], name);
                 if (result) parts.push(buildPromptFromResult(result));
             }
             // 文本类（本地抽样，每行一条，不走 API）
-            const textParts = sampleFromGroups(plan.texts);
+            const textParts = sampleFromGroups(plan.texts, name, 'texts');
             textParts.forEach(t => { if (t) parts.push(t); });
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, plan.fixedPrompt);
 
             // 比例
-            applyRandomRatio(plan.ratios);
+            applyRandomRatio(plan.ratios, name);
 
             // 先把 positive 抛给 onApplyCallback，外部会把它写入 prompt 框
             if (onApplyCallback) onApplyCallback({ positive, negative: '', raw: {} });
 
             // LoRA：必须等 prompt 框被新 positive 覆盖之后再调，
             // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
-            applyRandomLoras(plan.loras);
+            applyRandomLoras(plan.loras, name);
 
             document.getElementById('random-main-panel').style.display = 'none';
             showToast('已应用方案: ' + name, 'success');
@@ -1552,17 +2477,17 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         try {
             const parts = [];
             for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
-                const result = await fetchCategoryFromAPI(apiKey, currentPlan[catKey]);
+                const result = await fetchCategoryFromAPI(apiKey, currentPlan[catKey], currentPlan.name);
                 if (result) parts.push(buildPromptFromResult(result));
             }
             // 文本类本地抽样
-            const textParts = sampleFromGroups(currentPlan.texts);
+            const textParts = sampleFromGroups(currentPlan.texts, currentPlan.name, 'texts');
             textParts.forEach(t => { if (t) parts.push(t); });
             let positive = parts.filter(Boolean).join(', ');
             positive = mergeWithFixed(positive, currentPlan.fixedPrompt);
 
             // 比例
-            applyRandomRatio(currentPlan.ratios);
+            applyRandomRatio(currentPlan.ratios, currentPlan.name);
 
             // 先把 positive 写入 prompt 框
             const promptEl = document.getElementById('prompt');
@@ -1573,7 +2498,7 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
 
             // LoRA：必须等 prompt 框被新 positive 覆盖之后再调，
             // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
-            applyRandomLoras(currentPlan.loras);
+            applyRandomLoras(currentPlan.loras, currentPlan.name);
 
             showToast('测试已应用到提示词框', 'success');
         } catch (e) {
@@ -1596,6 +2521,7 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
                 Object.values(plans).forEach(p => migratePlanData(p));
                 savePlans();
             }
+            loadSequentialState();
             autoRandomEnabled = localStorage.getItem(AUTO_RANDOM_KEY) === 'true';
             autoRandomPlanName = localStorage.getItem(AUTO_RANDOM_PLAN_KEY) || '';
             randomEnabled = localStorage.getItem(RANDOM_ENABLED_KEY) === 'true';
@@ -1625,13 +2551,54 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
 
     function saveActivePlan() {
         localStorage.setItem(ACTIVE_PLAN_KEY, activePlanName);
+        // 记录 lastUsedAt / useCount（供“最近使用”排序）
+        if (activePlanName && plans[activePlanName]) {
+            const p = plans[activePlanName];
+            p.lastUsedAt = Date.now();
+            p.useCount = (p.useCount || 0) + 1;
+            // 方案量多时 JSON.stringify 会比较重，防抖 500ms
+            clearTimeout(saveActivePlan._t);
+            saveActivePlan._t = setTimeout(savePlans, 500);
+        }
     }
 
     function togglePanel(panel, forceClose) {
         if (forceClose) { panel.style.display = 'none'; }
         else {
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            if (panel.style.display === 'block') renderPlanList();
+            if (panel.style.display === 'block') refreshMainPanel();
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  内部自动随机逻辑（供导出 API 和自动生成引擎共用）
+    // ─────────────────────────────────────────────
+    async function _internalApplyAutoRandom() {
+        if (!randomEnabled || !activePlanName || !plans[activePlanName]) return null;
+        const plan = plans[activePlanName];
+        migratePlanData(plan);
+
+        try {
+            const parts = [];
+            for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
+                const result = await fetchCategoryFromAPI(apiKey, plan[catKey], activePlanName);
+                if (result) parts.push(buildPromptFromResult(result));
+            }
+            // 文本类（本地抽样，每行一条，不走 API）
+            const textParts = sampleFromGroups(plan.texts, activePlanName, 'texts');
+            textParts.forEach(t => { if (t) parts.push(t); });
+            let positive = parts.filter(Boolean).join(', ');
+            positive = mergeWithFixed(positive, plan.fixedPrompt);
+
+            // 比例
+            applyRandomRatio(plan.ratios, activePlanName);
+
+            // 注意：LoRA 不在这里调！必须等调用方把 positive 写入 prompt 框之后再调，
+            // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
+            return { positive, plan };
+        } catch (e) {
+            console.error('[RandomPrompt] 自动随机失败:', e);
+            return null;
         }
     }
 
@@ -1646,37 +2613,12 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         getPlan: (name) => plans[name],
 
         applyAutoRandom: async function() {
-            if (!randomEnabled || !activePlanName || !plans[activePlanName]) return null;
-            const plan = plans[activePlanName];
-            migratePlanData(plan);
-
-            try {
-                const parts = [];
-                for (const [catKey, apiKey] of [['characters', 'character'], ['artists', 'artist'], ['presets', 'preset']]) {
-                    const result = await fetchCategoryFromAPI(apiKey, plan[catKey]);
-                    if (result) parts.push(buildPromptFromResult(result));
-                }
-                // 文本类（本地抽样，每行一条，不走 API）
-                const textParts = sampleFromGroups(plan.texts);
-                textParts.forEach(t => { if (t) parts.push(t); });
-                let positive = parts.filter(Boolean).join(', ');
-                positive = mergeWithFixed(positive, plan.fixedPrompt);
-
-                // 比例
-                applyRandomRatio(plan.ratios);
-
-                // 注意：LoRA 不在这里调！必须等调用方把 positive 写入 prompt 框之后再调，
-                // 否则 _loraSyncTriggerWords 会基于旧 prompt 拼触发词，被新 positive 覆盖
-                return { positive, plan };
-            } catch (e) {
-                console.error('[RandomPrompt] 自动随机失败:', e);
-                return null;
-            }
+            return _internalApplyAutoRandom();
         },
 
         // 在 prompt 框已写入新 positive 之后调用，把 LoRA 触发词拼到末尾
         applyLoras: function(loras) {
-            return applyRandomLoras(loras);
+            return applyRandomLoras(loras, activePlanName);
         },
 
         isAutoRandomEnabled: () => autoRandomEnabled && autoRandomPlanName,
@@ -1684,6 +2626,46 @@ const ACTIVE_PLAN_KEY = 'random_active_plan';
         // == 新 API：随机开关 ==
         isRandomEnabled: () => randomEnabled,
         getActivePlanName: () => activePlanName,
-        getActivePlan: () => plans[activePlanName] || null
+        getActivePlan: () => plans[activePlanName] || null,
+
+        // == 外部调用：切换自动生成状态 ==
+        toggleAutoGen: function() {
+            if (autoGenState.running) {
+                stopAutoGen();
+            } else if (randomEnabled && activePlanName && plans[activePlanName]) {
+                startAutoGen();
+            } else {
+                const panel = document.getElementById('random-main-panel');
+                if (panel) {
+                    panel.style.display = 'block';
+                    refreshMainPanel();
+                }
+                if (!randomEnabled) {
+                    showToast('请先打开随机开关', 'error');
+                } else if (!activePlanName || !plans[activePlanName]) {
+                    showToast('请先选择提示词方案', 'error');
+                }
+            }
+        },
+
+        // == 外部调用：读取自动生成状态快照 ==
+        getAutoGenSnapshot: function() {
+            const s = autoGenState;
+            const now = Date.now();
+            const remainingMs = s.nextTickAt && s.running ? Math.max(0, s.nextTickAt - now) : 0;
+            return {
+                running: !!s.running,
+                mode: s.mode,
+                currentCount: s.currentCount || 0,
+                totalCount: s.totalCount,
+                completedRounds: s.completedRounds || 0,
+                timerMinutes: s.timerMinutes,
+                timerBatch: s.timerBatch,
+                timerRunningCount: s.timerRunningCount || 0,
+                planName: s.planAtStart || '',
+                nextTickAt: s.nextTickAt || 0,
+                remainingMs
+            };
+        }
     };
 })();

@@ -32,7 +32,7 @@
     <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
-    <script src="/static/modules/random-prompt.js?v=20260629003"></script>
+    <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
     <script src="/static/modules/smart-prompt.js?v=20260629001"></script>
     <script src="/static/modules/card-progress.js?v=20260629001"></script>
     <script src="/static/modules/lora-manager.js?v=20260629001"></script>
@@ -122,6 +122,38 @@
         .btn-render { background:rgba(0,0,0,0.06)!important; color:#000!important; transition:all 0.3s ease; border:1px solid rgba(0,0,0,0.1); }
         .btn-render:hover { background:rgba(0,0,0,0.1)!important; transform:translateY(-1px); }
         .btn-render:disabled { background:#ccc!important; cursor:not-allowed; color:#666!important; border-color:transparent!important; }
+        @keyframes btn-render-longpress-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+            50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(16,185,129,0.25); }
+        }
+        .btn-render-longpress {
+            animation: btn-render-longpress-pulse 0.55s ease-in-out infinite !important;
+        }
+        /* 自动生成运行中：背景转绿 + 呼吸动画 */
+        @keyframes btn-render-autogen {
+            0%, 100% { background: rgba(16,185,129,0.18) !important; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+            50%      { background: rgba(16,185,129,0.32) !important; box-shadow: 0 0 0 6px rgba(16,185,129,0.15); }
+        }
+        .btn-render-autogen {
+            animation: btn-render-autogen 1.2s ease-in-out infinite !important;
+            color: #10b981 !important;
+            border-color: rgba(16,185,129,0.5) !important;
+        }
+        body.studio-theme-dark .btn-render-autogen {
+            color: #34d399 !important;
+            border-color: rgba(52,211,153,0.5) !important;
+        }
+        .btn-render-autogen-text {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            margin-left: 4px;
+            padding: 1px 5px;
+            background: rgba(16,185,129,0.25);
+            border: 1px solid rgba(16,185,129,0.4);
+            border-radius: 5px;
+            font-size: 10px;
+            line-height: 1.2;
+        }
         body.studio-theme-dark .btn-render { background:rgba(0,240,255,0.1)!important; color:#00f0ff!important; border-color:rgba(0,240,255,0.2)!important; }
         body.studio-theme-dark .btn-render:hover { background:rgba(0,240,255,0.18)!important; }
         body.studio-theme-dark .btn-render:disabled { background:#1a3050!important; color:#4a5a6e!important; border-color:transparent!important; }
@@ -267,7 +299,7 @@
         .control-bar #modelSwitcher { width:auto; min-width:0; flex:0 0 auto; }
         .gen-row { display:flex; width:auto; justify-content:flex-start; flex-wrap:nowrap; gap:8px; align-items:center; flex-shrink:0; }
         .gen-row #animaControls { flex-wrap:nowrap; flex-shrink:0; display:flex; align-items:center; }
-        .gen-row #mainGenBtn { flex-shrink:0; min-width:80px; height:32px; }
+        .gen-row #mainGenBtn { flex-shrink:0; min-width:110px; height:32px; }
         /* === Responsive === */
         @media(max-width:768px) {
             .console-card { border-radius:20px!important; }
@@ -283,7 +315,7 @@
             .control-bar #modelSwitcher { width:auto!important; min-width:0; flex:0 0 auto; }
             .gen-row { width:auto!important; justify-content:flex-start!important; flex-wrap:nowrap!important; gap:8px!important; align-items:center; flex-shrink:0; margin-left:8px; }
             .gen-row #animaControls { flex-wrap:nowrap!important; flex-shrink:0; display:flex; align-items:center; }
-            .gen-row #mainGenBtn { flex-shrink:0; min-width:80px; height:32px; }
+            .gen-row #mainGenBtn { flex-shrink:0; min-width:110px; height:32px; }
             .anima-ctrl { margin:0; }
         }
         @media(max-width:480px) {
@@ -562,6 +594,7 @@
                         <button id="mainGenBtn" onclick="handleRender()" class="h-8 px-5 btn-render rounded-xl font-bold text-[11px] uppercase flex items-center justify-center gap-2">
                             <i data-lucide="zap" id="btnIcon" class="w-3.5 h-3.5 text-yellow-400"></i>
                             <span id="btnText" class="btn-text">生成</span>
+                            <span id="btnAutoBadge" class="btn-render-autogen-text" style="display:none;"></span>
                         </button>
                     </div>
                 </div>
@@ -1587,7 +1620,7 @@
             if (typeof syncPickerStatesFromPrompt === 'function') {
                 syncPickerStatesFromPrompt();
             }
-            // 随机功能：如果 🎲 开关已开启，每次生成前自动应用激活方案
+            // 方案功能：如果 🎲 开关已开启，每次生成前自动应用激活方案
             if (typeof RandomPrompt !== 'undefined' && RandomPrompt.isRandomEnabled()) {
                 const randomResult = await RandomPrompt.applyAutoRandom();
                 if (randomResult && randomResult.positive) {
@@ -1885,11 +1918,19 @@
                     placeholder.remove();
                 }
                 hideProgress();
+                // 自动生成完成回调
+                window.__autoGenNotifyDone?.();
             } catch(e) {
                 if (placeholder.parentNode) placeholder.remove();
-                alert(e.message || "生成失败");
+                // 自动生成模式不弹 alert，通过回调通知
+                if (window.__autoGenNotifyError) {
+                    window.__autoGenNotifyError(e.message || '生成失败');
+                } else {
+                    alert(e.message || "生成失败");
+                }
             } finally {
                 setTimeout(() => hideProgress(), 2000);
+                window.__autoGenNotifyFinally?.();
             }
         }
 
@@ -2475,7 +2516,7 @@
                 });
             }
             
-            // 初始化随机提示词组件
+            // 初始化提示词方案组件
             if (typeof RandomPrompt !== 'undefined') {
                 RandomPrompt.init('randomPromptContainer', {
                     onApply: function(result) {
@@ -2496,6 +2537,125 @@
                     }
                 });
             }
+
+            // === 「⚡ 生成」按钮长按 → 启动/停止自动生成 ===
+            (function bindMainGenLongPress() {
+                const btn = document.getElementById('mainGenBtn');
+                if (!btn) return;
+                btn.title = '单击生成 | 长按自动生成';
+
+                let pressTimer = null;
+                let longPressFired = false;
+                const LONG_PRESS_MS = 600;
+
+                function startPress(e) {
+                    longPressFired = false;
+                    btn.classList.add('btn-render-longpress');
+                    pressTimer = setTimeout(() => {
+                        longPressFired = true;
+                        pressTimer = null;
+                        btn.classList.remove('btn-render-longpress');
+                        // 调用 RandomPrompt 的自动生成 API
+                        if (typeof RandomPrompt !== 'undefined' && RandomPrompt.toggleAutoGen) {
+                            RandomPrompt.toggleAutoGen();
+                        }
+                        // 防止 long-press 之后 mouseup 意外触发原生 onclick
+                        setTimeout(() => { longPressFired = false; }, 100);
+                    }, LONG_PRESS_MS);
+                }
+                function endPress() {
+                    btn.classList.remove('btn-render-longpress');
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                    // 短按不拦截（让原生 onclick 继续处理生成）
+                }
+                function cancelPress() {
+                    btn.classList.remove('btn-render-longpress');
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                }
+
+                btn.addEventListener('mousedown', startPress);
+                btn.addEventListener('mouseup', endPress);
+                btn.addEventListener('mouseleave', cancelPress);
+                btn.addEventListener('touchstart', startPress, { passive: true });
+                btn.addEventListener('touchend', endPress);
+                btn.addEventListener('touchcancel', cancelPress);
+
+                // 拦截 long-press 之后的 click，避免双触发
+                btn.addEventListener('click', (e) => {
+                    if (longPressFired) {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        longPressFired = false;
+                    }
+                }, true);
+
+                // === 自动生成状态同步：轮询快照 → 按钮上显示计数/倒计时 + 动效 ===
+                const btnIcon = document.getElementById('btnIcon');
+                const btnText = document.getElementById('btnText');
+                const btnBadge = document.getElementById('btnAutoBadge');
+                const origIconHTML = btnIcon ? btnIcon.outerHTML : '';
+                const origText = btnText ? btnText.textContent : '生成';
+
+                function fmtCountdown(ms) {
+                    const total = Math.ceil(ms / 1000);
+                    const m = Math.floor(total / 60);
+                    const s = total % 60;
+                    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                }
+
+                function applyAutoGenVisual(snap) {
+                    if (snap.running) {
+                        btn.classList.add('btn-render-autogen');
+                        if (btnText) btnText.textContent = '自动';
+                        if (btnIcon) btnIcon.outerHTML = '<i data-lucide="loader" id="btnIcon" class="w-3.5 h-3.5" style="animation:spin 1s linear infinite"></i>';
+                        if (btnBadge) {
+                            btnBadge.style.display = 'inline-block';
+                            if (snap.mode === 'count') {
+                                const cur = snap.currentCount || 0;
+                                const tot = snap.totalCount || 0;
+                                btnBadge.textContent = cur + '/' + tot;
+                            } else {
+                                btnBadge.textContent = snap.remainingMs > 0 ? fmtCountdown(snap.remainingMs) : '00:00';
+                            }
+                        }
+                    } else {
+                        btn.classList.remove('btn-render-autogen');
+                        if (btnText) btnText.textContent = origText;
+                        // 复原 zap 图标
+                        const cur = document.getElementById('btnIcon');
+                        if (cur && !cur.getAttribute('data-lucide')) {
+                            cur.outerHTML = origIconHTML;
+                        } else if (cur && cur.getAttribute('data-lucide') !== 'zap') {
+                            cur.outerHTML = origIconHTML;
+                        }
+                        if (btnBadge) {
+                            btnBadge.style.display = 'none';
+                            btnBadge.textContent = '00:00';
+                        }
+                    }
+                }
+
+                // 补一个 spin 动画
+                if (!document.getElementById('btn-render-spin-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'btn-render-spin-style';
+                    st.textContent = '@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }';
+                    document.head.appendChild(st);
+                }
+
+                // 轮询 250ms（足够丝滑，消耗可忽略）
+                setInterval(() => {
+                    if (typeof RandomPrompt === 'undefined' || !RandomPrompt.getAutoGenSnapshot) return;
+                    const snap = RandomPrompt.getAutoGenSnapshot();
+                    applyAutoGenVisual(snap);
+                }, 250);
+            })();
         };
     </script>
 </body>
