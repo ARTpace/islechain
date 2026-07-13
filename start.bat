@@ -47,8 +47,26 @@ echo Starting server...
 echo Local: http://127.0.0.1:7000
 echo.
 
+rem 环境安全: 清除可能干扰 httpx 的环境变量
+set HTTP_PROXY=
+set HTTPS_PROXY=
+set SSL_CERT_FILE=
+set NO_PROXY=127.0.0.1,localhost,::1,0.0.0.0
+
+rem 显示 LAN IP（方便其他设备访问）
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /r /c:"IPv4"') do set LAN_IP=%%a
+set LAN_IP=%LAN_IP: =%
+if defined LAN_IP echo LAN:   http://%LAN_IP%:7000
+
+rem 1) 新窗口启动后端(和启动.bat一样标准启动,能看到日志)
+start "" "%PY_EXE%" main.py
+
+rem 2) 等后端就绪
+timeout /t 5 /nobreak >nul
+
+rem 3) 后端就绪后打开浏览器
 start "" http://127.0.0.1:7000
 
-"%PY_EXE%" main.py
-
-pause
+rem 4) 原窗口自动退出,只保留后端窗口
+echo.
+echo Server started. Close the new window to stop.

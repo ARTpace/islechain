@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "unet_name": "Krea2\\krea2_turbo_int8_convrot.safetensors",
+      "unet_name": "Krea2\\krea2_turbo_fp8_scaled.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -44,9 +44,9 @@
   },
   "6": {
     "inputs": {
-      "width": 512,
+      "width": 1024,
       "height": 1024,
-      "batch_size": 1
+      "batch_size": 4
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
@@ -55,7 +55,7 @@
   },
   "7": {
     "inputs": {
-      "seed": 317368795980882,
+      "seed": 576006758001928,
       "steps": 6,
       "cfg": 1,
       "sampler_name": "er_sde",
@@ -124,20 +124,6 @@
       "title": "条件零化"
     }
   },
-  "13": {
-    "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "VRAMCleanup",
-    "_meta": {
-      "title": "释放显存"
-    }
-  },
   "14": {
     "inputs": {
       "lora_01": "None",
@@ -160,6 +146,36 @@
     "class_type": "Lora Loader Stack (rgthree)",
     "_meta": {
       "title": "LoRA堆加载器"
+    }
+  },
+  "16": {
+    "inputs": {
+      "offload_model": true,
+      "offload_cache": true,
+      "anything": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VRAMCleanup",
+    "_meta": {
+      "title": "释放显存"
+    }
+  },
+  "18": {
+    "inputs": {
+      "clean_file_cache": true,
+      "clean_processes": true,
+      "clean_dlls": true,
+      "retry_times": 3,
+      "anything": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "RAMCleanup",
+    "_meta": {
+      "title": "释放内存"
     }
   }
 }

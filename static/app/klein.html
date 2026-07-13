@@ -34,6 +34,10 @@
         .engine-panel { background: #fff; border: 1px solid #edf0f3; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
         .engine-label { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
         .engine-switch { background: #f8fafc; border: 1px solid #edf2f7; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
+        /* 提供商切换器:只有 2 个选项,用 2 列 */
+        .provider-switch { grid-template-columns: 1fr 1fr !important; }
+        /* 模型区:4 个模型一行(桌面),1fr 1fr 1fr 1fr */
+        #modelSwitch { grid-template-columns: repeat(4, 1fr) !important; }
         .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
         .engine-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
         .engine-btn:not(.active):hover { color: #111827; background: rgba(0,0,0,.04); }
@@ -70,9 +74,9 @@
         }
         
         body.studio-theme-dark .engine-btn.active {
-            background: #0d1520 !important;
-            color: #e0e7ef !important;
-            box-shadow: 0 1px 3px rgba(0, 240, 255, 0.15);
+            background: rgba(0, 240, 255, 0.18) !important;
+            color: #00f0ff !important;
+            box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.45), 0 0 8px rgba(0, 240, 255, 0.25) !important;
         }
         
         body.studio-theme-dark .engine-btn:not(.active) {
@@ -177,7 +181,7 @@
             .container-box { padding:0 12px; margin-top:16px; }
             header { flex-direction:column !important; align-items:flex-start !important; gap:12px; margin-bottom:16px !important; }
             header h1 { font-size:1.5rem !important; }
-            #modelSwitch { min-width:0 !important; width:100%; grid-template-columns:1fr 1fr 1fr; }
+            #modelSwitch { min-width:0 !important; width:100%; grid-template-columns:1fr 1fr !important; }
             #modelSwitch .engine-btn { font-size:9px; padding:0 4px; height:30px; }
             .main-grid { grid-template-columns:1fr !important; gap:12px !important; padding:0 !important; }
             .nano-input { padding:16px !important; border-radius:16px !important; }
@@ -251,117 +255,85 @@
                     <button onclick="toggleModel('klein')" id="btnModelKlein" class="engine-btn active">FLUX Klein</button>
                     <button onclick="toggleModel('qwen')" id="btnModelQwen" class="engine-btn">Qwen Edit</button>
                     <button onclick="toggleModel('boogu')" id="btnModelBoogu" class="engine-btn">Boogu Edit</button>
+                    <button onclick="toggleModel('krea2')" id="btnModelKrea2" class="engine-btn">Krea2 Edit</button>
                 </div>
             </div>
         </header>
 
-        <section class="main-grid grid grid-cols-2 gap-12 max-w-6xl mx-auto w-full" style="flex-shrink:0;">
-            <!-- 左侧：图片上传区域 -->
-            <div class="space-y-6">
-                <div class="flex items-center gap-2 text-gray-400">
-                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
-                    <span class="text-xs font-black uppercase tracking-widest">图片上传</span>
-                    <span id="imgCount" class="ml-auto text-xs font-bold bg-black/5 px-2 py-0.5 rounded-full">0/2</span>
+        <section class="main-grid grid grid-cols-2 gap-4 max-w-4xl mx-auto w-full" style="flex-shrink:0;">
+            <!-- 左侧：图片上传面板(独立面板) -->
+            <div class="nano-input w-full p-4 rounded-2xl flex flex-col gap-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="image" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">图片</span>
+                    <span id="imgCount" class="ml-auto text-[9px] font-bold text-gray-300">0/2</span>
                 </div>
-                <div class="nano-input w-full p-6 rounded-3xl">
-                    <div id="uploadGrid" class="grid grid-cols-2 gap-4">
-                        <div id="slot0" class="upload-item rounded-2xl aspect-square flex items-center justify-center cursor-pointer" data-index="0">
-                            <div class="text-center pointer-events-none">
-                                <i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i>
-                                <span class="text-[9px] font-bold uppercase">主图</span>
-                            </div>
-                        </div>
-                        <div id="slot1" class="upload-item rounded-2xl aspect-square flex items-center justify-center cursor-pointer" data-index="1">
-                            <div class="text-center pointer-events-none">
-                                <i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i>
-                                <span class="text-[9px] font-bold uppercase">参考图</span>
-                            </div>
+                <div class="flex flex-row gap-2.5">
+                    <div id="slot0" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="0" style="height:120px;">
+                        <div class="text-center pointer-events-none">
+                            <i data-lucide="plus" class="w-4 h-4 mx-auto mb-0.5"></i>
+                            <span class="text-[8px] font-bold uppercase">主图</span>
                         </div>
                     </div>
-                    <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
-                    <div class="mt-4 flex items-center justify-between toggle-row">
-                        <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
-                            <div>
-                                <div class="text-xs font-bold mb-1">单图模式</div>
-                                <div class="text-[10px] text-gray-400">开启后仅使用主图编辑</div>
-                            </div>
-                            <div id="ignoreToggle" class="toggle-switch active" onclick="toggleIgnoreRef()"></div>
-                        </div>
-                        <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
-                            <div>
-                                <div class="text-xs font-bold mb-1">连续编辑</div>
-                                <div class="text-[10px] text-gray-400">生成结果自动导入，可连续迭代</div>
-                            </div>
-                            <div id="continuousToggle" class="toggle-switch" onclick="toggleContinuous()"></div>
+                    <div id="slot1" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="1" style="height:120px;">
+                        <div class="text-center pointer-events-none">
+                            <i data-lucide="plus" class="w-4 h-4 mx-auto mb-0.5"></i>
+                            <span class="text-[8px] font-bold uppercase">参考图</span>
                         </div>
                     </div>
-                    <!-- 历史图幻灯片 -->
-                    <div id="historySection" class="mt-3 hidden">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">历史</span>
-                            <button onclick="clearHistory()" class="ml-auto text-[9px] font-bold text-gray-300 hover:text-red-400 transition-colors">清空</button>
-                        </div>
-                        <div id="historyStrip" class="history-strip"></div>
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+                <div class="flex items-center gap-3 mt-1 flex-wrap" title="单图模式 / 连续编辑 / 缩放">
+                    <div id="ignoreToggle" class="toggle-switch active" onclick="toggleIgnoreRef()" title="单图模式"></div>
+                    <span class="text-[9px] font-bold text-gray-400">单图</span>
+                    <div id="continuousToggle" class="toggle-switch" onclick="toggleContinuous()" title="连续编辑"></div>
+                    <span class="text-[9px] font-bold text-gray-400">连编</span>
+                    <span class="text-[9px] font-bold text-gray-400 ml-1">缩放</span>
+                    <div id="scaleToggle" class="toggle-switch" onclick="toggleScale()" title="缩放最长边"></div>
+                    <div id="scaleSizeRow" class="flex items-center gap-1">
+                        <input id="sizeInput" type="number" value="1024" class="w-14 bg-transparent outline-none border-b border-gray-200 focus:border-blue-500 text-xs font-bold text-center">
                     </div>
-                    <button id="clearBtn" onclick="clearAllImages()" class="mt-4 text-[10px] font-bold text-gray-400 hover:text-black transition-colors hidden">清除所有图片</button>
+                    <button id="clearBtn" onclick="clearAllImages()" class="ml-auto text-[9px] font-bold text-gray-300 hover:text-red-400 transition-colors hidden">清空</button>
+                </div>
+                <!-- 历史图幻灯片 -->
+                <div id="historySection" class="hidden">
+                    <div id="historyStrip" class="history-strip"></div>
                 </div>
             </div>
 
-            <!-- 右侧：提示词和参数 -->
-            <div class="space-y-6">
-                <div class="flex items-center gap-2 text-gray-400">
-                    <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-                    <span class="text-xs font-black uppercase tracking-widest">输入提示词</span>
+            <!-- 右侧：提示词 + 选项 + 按钮(独立面板) -->
+            <div class="nano-input w-full p-4 rounded-2xl flex flex-col gap-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">提示词</span>
                 </div>
-                <div class="nano-input w-full p-6 rounded-3xl space-y-6">
-                    <textarea id="promptInput" rows="6" class="w-full text-sm outline-none resize-none placeholder-gray-300 bg-transparent" placeholder="描述你的创作愿景..."></textarea>
-                    
-                    <div id="localParams" class="space-y-6 border-t border-gray-100 pt-6">
-                        <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
-                            <div>
-                                <div class="text-xs font-bold mb-1">缩放最长边</div>
-                                <div class="text-[10px] text-gray-400">开启后将图片缩放到指定尺寸</div>
-                            </div>
-                            <div id="scaleToggle" class="toggle-switch" onclick="toggleScale()"></div>
-                        </div>
-                        <div id="scaleSizeRow" class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 hidden">
-                            <div>
-                                <div class="text-xs font-bold mb-1">目标长度</div>
-                                <input id="sizeInput" type="number" value="1024" class="w-24 bg-transparent outline-none border-b-2 border-gray-200 focus:border-blue-500 text-sm font-bold">
-                            </div>
-                        </div>
-
-                        <div class="engine-panel border border-gray-100 rounded-2xl">
-                            <div class="engine-label">
-                                <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
-                                <span>引擎</span>
-                            </div>
-                            <div class="engine-switch">
-                                <button id="providerLocal" onclick="setProvider('local')" class="engine-btn active">
-                                    <i data-lucide="cpu" class="w-3 h-3"></i> 本地
-                                </button>
-                                <button id="providerMs" onclick="setProvider('ms')" class="engine-btn">
-                                    <i data-lucide="cloud" class="w-3 h-3"></i> ModelScope
-                                </button>
-                            </div>
-                        </div>
+                <textarea id="promptInput" rows="8" class="w-full text-sm outline-none resize-none placeholder-gray-300 bg-transparent border border-gray-100 rounded-xl p-3 flex-1" placeholder="描述你的创作愿景..."></textarea>
+                <div id="localParams" class="flex items-center gap-2.5 flex-wrap">
+                    <div class="engine-switch provider-switch">
+                        <button id="providerLocal" onclick="setProvider('local')" class="engine-btn active">
+                            <i data-lucide="cpu" class="w-3 h-3"></i> 本地
+                        </button>
+                        <button id="providerMs" onclick="setProvider('ms')" class="engine-btn">
+                            <i data-lucide="cloud" class="w-3 h-3"></i> ModelScope
+                        </button>
                     </div>
-
-                    <button id="genBtn" onclick="handleGenerate()" class="gen-btn glass-btn w-full py-5 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 shadow-xl shadow-black/10" disabled>
-                        <i data-lucide="zap" id="btnIcon" class="w-4 h-4 text-yellow-400"></i>
+                    <button id="genBtn" onclick="handleGenerate()" class="gen-btn glass-btn ml-auto py-3 px-6 text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 shadow-lg shadow-black/10" disabled>
+                        <i data-lucide="zap" id="btnIcon" class="w-3.5 h-3.5 text-yellow-400"></i>
                         <span id="btnText">开始生成</span>
                     </button>
-                    <div id="progressInline" class="hidden mt-4 p-4 bg-white rounded-2xl border border-gray-100 space-y-2">
-                        <div class="flex items-center justify-between text-[10px] font-bold">
-                            <span id="progressStatus" class="text-gray-500">准备中...</span>
-                            <span id="progressPercent" class="text-gray-400">0%</span>
-                        </div>
-                        <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div id="progressFill" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width:0%"></div>
-                        </div>
+                </div>
+                <!-- 进度条 -->
+                <div id="progressInline" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-[10px] font-bold">
+                        <span id="progressStatus" class="text-gray-500">准备中...</span>
+                        <span id="progressPercent" class="text-gray-400">0%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="progressFill" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width:0%"></div>
                     </div>
                 </div>
             </div>
+        </section>
         </section>
 
         <!-- 工具栏吸顶 -->
@@ -533,7 +505,6 @@
         function toggleScale() {
             var el = document.getElementById('scaleToggle');
             el.classList.toggle('active');
-            document.getElementById('scaleSizeRow').classList.toggle('hidden', !el.classList.contains('active'));
         }
 
         // ---- 连续编辑 ----
@@ -718,7 +689,18 @@
         /** 为指定模型构建工作流数据 */
         function buildWorkflowForModel(model, prompt, seed, scaleEnabled, size) {
             var workflowData = JSON.parse(JSON.stringify(getWorkflowForModel(model).workflow));
-            if (model === 'qwen') {
+            if (model === 'krea2') {
+                workflowData["101"]["inputs"]["prompt"] = prompt;
+                workflowData["53"]["inputs"]["seed"] = seed;
+                // GJJ_MultiImageLoader (节点102) 喂图:依赖后端在 extra_pnginfo.workflow.nodes[]
+                //   .properties.selected_images 里写文件名(主图+参考图)。
+                // 真实文件复制在 krea2_postProcess 钩子里完成。
+                workflowData["101"]["inputs"]["resize_size"] = size;
+                if (scaleEnabled === false) {
+                    // GJJ 节点 resize_type 合法值: ['缩短边', '长边', '宽度', '高度', '不缩放']
+                    workflowData["101"]["inputs"]["resize_type"] = "不缩放";
+                }
+            } else if (model === 'qwen') {
                 workflowData["16"]["inputs"]["text"] = prompt;
                 workflowData["21"]["inputs"]["seed"] = seed;
                 workflowData["14"]["inputs"]["image"] = uploadedImages[0];
@@ -792,7 +774,8 @@
                     var previewSrc = slots[0].querySelector('img')?.src;
                     if (!previewSrc) throw new Error("请先上传图片");
                     updateProgress(0, '提交到 ModelScope...');
-                    var msModel = activeModels[0] === 'qwen' ? 'Qwen/Qwen-Image-Edit-2511' : (activeModels[0] === 'boogu' ? 'boogu/Boogu-Image-Edit' : 'black-forest-labs/FLUX.2-klein-9B');
+                    var msModel = activeModels[0] === 'qwen' ? 'Qwen/Qwen-Image-Edit-2511' : (activeModels[0] === 'boogu' ? 'boogu/Boogu-Image-Edit' : (activeModels[0] === 'krea2' ? null : 'black-forest-labs/FLUX.2-klein-9B'));
+                    if (!msModel) throw new Error('Krea2 Edit 暂不支持 ModelScope 云端模式，请切换到本地 ComfyUI');
                     var msRes = await fetch('/api/ms/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -887,9 +870,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     workflow_data: workflowData,
-                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : 'klein'),
+                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein')),
                     feature: '图片编辑',
-                    client_id: CLIENT_ID
+                    client_id: CLIENT_ID,
+                    extra_pnginfo: model === 'krea2' ? buildKrea2ExtraPngInfo(uploadedImages[0], uploadedImages[1] || uploadedImages[0]) : undefined
                 })
             });
             var data = await res.json();
@@ -1008,110 +992,130 @@
 
         // renderCard / openLightbox / closeLightbox / handleOutsideClick / downloadImage
         // are now provided by gallery-display.js
-        // ---- 双模型工作流配置 ----
-        let activeModels = ['klein']; // 多选模型数组
-
-        const KLEIN_WORKFLOW = {
-            name: "图像编辑",
-            type: "klein",
-            workflow: {
-                "1": { "inputs": { "sampler_name": "euler" }, "class_type": "KSamplerSelect", "_meta": { "title": "K采样器选择" } },
-                "2": { "inputs": { "vae_name": "flux2-vae.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
-                "3": { "inputs": { "upscale_method": "nearest-exact", "megapixels": 1, "resolution_steps": 1, "image": ["4", 0] }, "class_type": "ImageScaleToTotalPixels", "_meta": { "title": "缩放图像（像素）" } },
-                "4": { "inputs": { "image": "ref_image.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像-参考图" } },
-                "5": { "inputs": { "conditioning": ["17", 0], "latent": ["6", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-负向" } },
-                "6": { "inputs": { "pixels": ["3", 0], "vae": ["2", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码-参考图" } },
-                "7": { "inputs": { "conditioning": ["18", 0], "latent": ["6", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-正向" } },
-                "8": { "inputs": { "image": "main_image.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像-主图" } },
-                "10": { "inputs": { "image": ["33", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } },
-                "11": { "inputs": { "width": ["10", 0], "height": ["10", 1], "batch_size": 1 }, "class_type": "EmptyFlux2LatentImage", "_meta": { "title": "Flux2代 空Latent" } },
-                "12": { "inputs": { "steps": 6, "width": ["10", 0], "height": ["10", 1] }, "class_type": "Flux2Scheduler", "_meta": { "title": "Flux2代 调度器" } },
-                "13": { "inputs": { "cfg": 1, "model": ["14", 0], "positive": ["7", 0], "negative": ["5", 0] }, "class_type": "CFGGuider", "_meta": { "title": "CFG引导" } },
-                "14": { "inputs": { "unet_name": "Flux2-Klein-9B-True-v2-fp8mixed.safetensors", "weight_dtype": "default" }, "class_type": "UNETLoader", "_meta": { "title": "UNET加载器" } },
-                "15": { "inputs": { "clip_name": "qwen_3_8b_fp8mixed.safetensors", "type": "flux2", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
-                "16": { "inputs": { "text": "图1的人物抱着图2的机械鲨鱼" }, "class_type": "CR Text", "_meta": { "title": "🔤 文本" } },
-                "17": { "inputs": { "conditioning": ["24", 0], "latent": ["19", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-主图负向" } },
-                "18": { "inputs": { "conditioning": ["25", 0], "latent": ["19", 0] }, "class_type": "ReferenceLatent", "_meta": { "title": "参考Latent-主图正向" } },
-                "19": { "inputs": { "pixels": ["33", 0], "vae": ["2", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码-主图" } },
-                "20": { "inputs": { "noise": ["23", 0], "guider": ["13", 0], "sampler": ["1", 0], "sigmas": ["12", 0], "latent_image": ["11", 0] }, "class_type": "SamplerCustomAdvanced", "_meta": { "title": "自定义采样器(高级)" } },
-                "21": { "inputs": { "samples": ["20", 0], "vae": ["2", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
-                "22": { "inputs": { "filename_prefix": "Flux2-Klein-4b-base", "images": ["21", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } },
-                "23": { "inputs": { "noise_seed": 300548267917431 }, "class_type": "RandomNoise", "_meta": { "title": "随机噪波" } },
-                "24": { "inputs": { "text": "", "嵌入提示词": null, "clip": ["15", 0] }, "class_type": "CLIPTextEncode", "_meta": { "title": "CLIP Text Encode ( Negative Prompt)" } },
-                "25": { "inputs": { "text": ["16", 0], "嵌入提示词": null, "clip": ["15", 0] }, "class_type": "CLIPTextEncode", "_meta": { "title": "CLIP Text Encode (Positive Prompt)" } },
-                "33": { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": 1024, "background_color": "#000000", "image": ["8", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } }
-            },
-            nodeMappings: {
-                "8": { param: "image", label: "主图", type: "upload" },
-                "4": { param: "image", label: "参考图", type: "upload" },
+        // ---- 工作流定义:从后端 /api/workflows 加载 ----
+        // 后端会返回 {name, workflow, config, builtin}, 归一化为 {name, type, apiEndpoint, flow}
+        const WORKFLOW_BASE = '/api/workflows/';
+        const WORKFLOW_FILES = {
+            klein: 'image-edit/klein-image-edit.json',
+            qwen:  'image-edit/qwen-image-edit-2511.json',
+            boogu: 'image-edit/boogu-image-edit.json',
+            krea2: 'image-edit/krea2-image-edit.json'
+        };
+        // nodeMappings 是前端 UI 绑定逻辑, 仍内联(不属于工作流拓扑)
+        const NODE_MAPPINGS = {
+            klein: {
+                "8":  { param: "image", label: "主图", type: "upload" },
+                "4":  { param: "image", label: "参考图", type: "upload" },
                 "16": { param: "text", label: "提示词", type: "textarea" },
                 "33": { param: "scale_to_length", label: "缩放最长边", type: "number" }
             },
-            apiEndpoint: "/api/generate"
-        };
-
-        const QWEN_WORKFLOW = {
-            name: "Qwen 图像编辑",
-            type: "klein",
-            workflow: {
-                "1": { "inputs": { "prompt": "", "clip": ["4", 0], "vae": ["3", 0], "image1": ["11", 0] }, "class_type": "TextEncodeQwenImageEditPlus", "_meta": { "title": "文本编码（负向）" } },
-                "2": { "inputs": { "pixels": ["11", 0], "vae": ["3", 0] }, "class_type": "VAEEncode", "_meta": { "title": "VAE编码" } },
-                "3": { "inputs": { "vae_name": "qwen_image_vae.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
-                "4": { "inputs": { "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
-                "5": { "inputs": { "lora_name": "qwen-edit\\Qwen-Image-Edit-2511-Lightning-4steps-V1.0-fp32.safetensors", "strength_model": 1, "model": ["7", 0] }, "class_type": "LoraLoaderModelOnly", "_meta": { "title": "Lightning LoRA" } },
-                "7": { "inputs": { "unet_name": "qwen-image-edit-2511-Q4_K_S.gguf" }, "class_type": "UnetLoaderGGUF", "_meta": { "title": "UNet加载器(GGUF)" } },
-                "8": { "inputs": { "prompt": ["16", 0], "clip": ["4", 0], "vae": ["3", 0], "image1": ["11", 0] }, "class_type": "TextEncodeQwenImageEditPlus", "_meta": { "title": "文本编码（正向）" } },
-                "11": { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "crop", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": 1024, "background_color": "#000000", "image": ["14", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放" } },
-                "14": { "inputs": { "image": "input.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像" } },
-                "16": { "inputs": { "text": "" }, "class_type": "CR Text", "_meta": { "title": "提示词" } },
-                "17": { "inputs": { "shift": 3.1, "model": ["5", 0] }, "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "采样算法" } },
-                "18": { "inputs": { "strength": 1, "model": ["17", 0] }, "class_type": "CFGNorm", "_meta": { "title": "CFG归一化" } },
-                "19": { "inputs": { "reference_latents_method": "index_timestep_zero", "conditioning": ["8", 0] }, "class_type": "FluxKontextMultiReferenceLatentMethod", "_meta": { "title": "正向参考" } },
-                "20": { "inputs": { "reference_latents_method": "index_timestep_zero", "conditioning": ["1", 0] }, "class_type": "FluxKontextMultiReferenceLatentMethod", "_meta": { "title": "负向参考" } },
-                "21": { "inputs": { "seed": 411725770964575, "steps": 4, "cfg": 1, "sampler_name": "euler", "scheduler": "simple", "denoise": 1, "model": ["18", 0], "positive": ["19", 0], "negative": ["20", 0], "latent_image": ["2", 0] }, "class_type": "KSampler", "_meta": { "title": "K采样器" } },
-                "22": { "inputs": { "samples": ["21", 0], "vae": ["3", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
-                "23": { "inputs": { "filename_prefix": "Qwen_Edit_2511", "images": ["22", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } }
-            },
-            nodeMappings: {
+            qwen: {
                 "14": { param: "image", label: "主图", type: "upload" },
                 "16": { param: "text", label: "提示词", type: "textarea" },
                 "11": { param: "scale_to_length", label: "缩放最长边", type: "number" }
             },
-            apiEndpoint: "/api/generate"
-        };
-
-        const BOOGU_WORKFLOW = {
-            name: "Boogu 图像编辑",
-            type: "boogu",
-            workflow: {
-                "2": { "inputs": { "unet_name": "boogu\\edit\\boogu_image_edit_fp8_scaled.safetensors", "weight_dtype": "default" }, "class_type": "UNETLoader", "_meta": { "title": "UNet加载器" } },
-                "5": { "inputs": { "vae_name": "flux1_vae_bf16.safetensors" }, "class_type": "VAELoader", "_meta": { "title": "加载VAE" } },
-                "7": { "inputs": { "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors", "type": "boogu", "device": "default" }, "class_type": "CLIPLoader", "_meta": { "title": "加载CLIP" } },
-                "8": { "inputs": { "width": 1536, "height": 1024, "batch_size": 1 }, "class_type": "EmptyLatentImage", "_meta": { "title": "空Latent图像" } },
-                "21": { "inputs": { "add_noise": true, "noise_seed": 123456789, "cfg": 3.5, "model": ["2", 0], "positive": ["36", 0], "negative": ["36", 1], "sampler": ["22", 0], "sigmas": ["26", 0], "latent_image": ["8", 0] }, "class_type": "SamplerCustom", "_meta": { "title": "自定义采样器" } },
-                "22": { "inputs": { "sampler_name": "dpmpp_2m" }, "class_type": "KSamplerSelect", "_meta": { "title": "K采样器选择" } },
-                "26": { "inputs": { "scheduler": "simple", "steps": 25, "denoise": 1, "model": ["33", 0] }, "class_type": "BasicScheduler", "_meta": { "title": "基本调度器" } },
-                "32": { "inputs": { "image": "input.png" }, "class_type": "LoadImage", "_meta": { "title": "加载图像" } },
-                "33": { "inputs": { "shift": 3.16, "model": ["2", 0] }, "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "采样算法（AuraFlow）" } },
-                "36": { "inputs": { "clip": ["7", 0], "vae": ["5", 0], "prompt": "编辑提示词", "negative_prompt": "", "image1": ["32", 0], "ref_longest_edge": 1024, "ref_resize_mode": "longest_edge" }, "class_type": "BooguEditTextEncode_EditUtils", "_meta": { "title": "Boogu编辑文本编码" } },
-                "40": { "inputs": { "samples": ["21", 0], "vae": ["5", 0] }, "class_type": "VAEDecode", "_meta": { "title": "VAE解码" } },
-                "45": { "inputs": { "filename_prefix": "boogu_edit", "images": ["40", 0] }, "class_type": "SaveImage", "_meta": { "title": "保存图像" } }
-            },
-            nodeMappings: {
+            boogu: {
                 "32": { param: "image", label: "主图", type: "upload" },
                 "36": { param: "prompt", label: "提示词", type: "textarea" },
-                "8": { param: "width", label: "宽度", type: "number" },
+                "8":  { param: "width", label: "宽度", type: "number" },
                 "8_height": { param: "height", label: "高度", type: "number", node: "8", key: "height" }
             },
-            apiEndpoint: "/api/generate"
+            krea2: {
+                "102_main": { param: "main_image", label: "主图", type: "upload", node: "102", key: "selected_images", slot: 1 },
+                "102_ref":  { param: "ref_image",  label: "参考图", type: "upload", node: "102", key: "selected_images", slot: 2 },
+                "101": { param: "text", label: "提示词", type: "textarea" },
+                "53":  { param: "seed", label: "Seed", type: "number" }
+            }
         };
+        // 全局容器: key=model, value=JSON 加载的 {name, type, apiEndpoint, flow, nodeMappings}
+        let WORKFLOWS = {};
+        let WORKFLOWS_LOADED = false;
 
-        let WORKFLOW_CONFIG = KLEIN_WORKFLOW;
+        async function loadImageEditWorkflows() {
+            const entries = Object.entries(WORKFLOW_FILES);
+            const results = await Promise.allSettled(entries.map(([model, file]) =>
+                fetch(WORKFLOW_BASE + file).then(r => {
+                    if (!r.ok) throw new Error(model + ' HTTP ' + r.status);
+                    return r.json().then(data => [model, data]);
+                })
+            ));
+            const errors = [];
+            for (const r of results) {
+                if (r.status === 'fulfilled') {
+                    const [model, data] = r.value;
+                    // 后端 /api/workflows/{name} 返回 {name, workflow, config, builtin},
+                    // 其中 workflow 字段是 JSON 文件整体。我自己生成的 4 个 JSON 是双层包装
+                    // ({_comment, name, type, apiEndpoint, workflow: {节点字典}}),
+                    // 所以真实节点字典在 data.workflow.workflow。
+                    // 为兼容两种格式(双层包装 vs 直接节点字典), 优先取 .workflow.workflow, 不存在则 .workflow
+                    const rawFlow = data.workflow;
+                    const nodes = (rawFlow && rawFlow.workflow && typeof rawFlow.workflow === 'object')
+                        ? rawFlow.workflow
+                        : rawFlow;
+                    if (!nodes || typeof nodes !== 'object') {
+                        errors.push(model + ': 节点字典为空或格式错误');
+                        continue;
+                    }
+                    WORKFLOWS[model] = {
+                        name: data.name || model,
+                        type: (rawFlow && rawFlow.type) || model,
+                        apiEndpoint: (rawFlow && rawFlow.apiEndpoint) || '/api/generate',
+                        workflow: nodes,
+                        nodeMappings: NODE_MAPPINGS[model]
+                    };
+                } else {
+                    errors.push(r.reason && r.reason.message ? r.reason.message : String(r.reason));
+                }
+            }
+            if (errors.length === entries.length) {
+                throw new Error('所有工作流加载失败: ' + errors.join('; '));
+            }
+            WORKFLOWS_LOADED = true;
+            if (errors.length) {
+                console.warn('[klein.html] 部分工作流加载失败:', errors);
+            }
+        }
 
         function getWorkflowForModel(model) {
-            if (model === 'qwen') return QWEN_WORKFLOW;
-            if (model === 'boogu') return BOOGU_WORKFLOW;
-            return KLEIN_WORKFLOW;
+            return WORKFLOWS[model] || WORKFLOWS.klein;
+        }
+
+        // ---- 双模型工作流配置 ----
+        let activeModels = ['klein']; // 多选模型数组
+
+
+        /**
+         * Krea2 Edit 专用:为 GJJ_MultiImageLoader (节点 102) 生成 extra_pnginfo,
+         * 后端 main.py line 7243 会将其原样转发到 ComfyUI 的 extra_data.extra_pnginfo。
+         * 节点 102 会从 properties.selected_images 读取已上传文件名列表,
+         *   其中第 1 张作为 image (主图),第 2 张作为 image_b (参考图)。
+         * 如果 GJJ 节点的 selected_images 期望是对象数组 (含 {filename, subfolder} 字段),
+         *   请改这里为 [{filename: main, subfolder: ''}, {filename: ref, subfolder: ''}]。
+         */
+        function buildKrea2ExtraPngInfo(mainName, refName) {
+            // GJJ_MultiImageLoader 节点 (gjj_multi_image_loader.py:533)
+            //   读取顺序: widget value → properties.selected_images
+            //   解析方式: json.loads() 后要求是对象数组,每项 {filename, subfolder, type}
+            //   type ∈ {input, temp, output}, 空 subfolder 走 ComfyUI input 根目录
+            //   节点按 (type, subfolder, filename) 三元组找图
+            // selected_images 在 workflow JSON 里必须是 JSON 字符串,不是数组
+            var selectedJson = JSON.stringify([
+                { filename: mainName, subfolder: "", type: "input" },
+                { filename: refName,  subfolder: "", type: "input" }
+            ]);
+            return {
+                workflow: {
+                    nodes: [
+                        {
+                            id: "102",
+                            type: "GJJ_MultiImageLoader",
+                            properties: {
+                                selected_images: selectedJson
+                            }
+                        }
+                    ]
+                }
+            };
         }
 
         function toggleModel(model) {
@@ -1124,14 +1128,15 @@
                 activeModels.push(model);
             }
             // 更新 UI
-            ['klein', 'qwen', 'boogu'].forEach(function(m) {
+            ['klein', 'qwen', 'boogu', 'krea2'].forEach(function(m) {
                 document.getElementById('btnModel' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', activeModels.indexOf(m) >= 0);
             });
-            // 兼容旧代码：WORKFLOW_CONFIG 指向第一个选中的
-            WORKFLOW_CONFIG = getWorkflowForModel(activeModels[0]);
+            // 兼容旧代码:WORKFLOW_CONFIG 指向第一个选中的(已废弃, 留空操作)
+            // WORKFLOWS[activeModels[0]] 始终是当前选中
         }
 
         window.onload = async () => {
+            await loadImageEditWorkflows();
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);

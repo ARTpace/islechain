@@ -24,9 +24,44 @@ from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
+# 清除坏掉的 SSL_CERT_FILE 环境变量(ComfyUI/python_embeded 遗留的 CA 路径可能不存在)
+os.environ.pop("SSL_CERT_FILE", None)
+os.environ.pop("REQUESTS_CA_BUNDLE", None)
 import websockets as ws_client
 # 强制本地地址绕过系统代理(VPN 等),避免 httpx 误走代理导致 502
-os.environ.setdefault('NO_PROXY', '127.0.0.1,localhost,::1,0.0.0.0')
+# 注意: 原代码用 os.environ.setdefault, 在用户环境已存在 NO_PROXY(如 Clash 注入,
+# 只含 localhost 不含 127.0.0.1) 时会直接失效, 导致 127.0.0.1:8188 仍走代理 -> 502。
+# 改为"在原有 NO_PROXY 基础上追加本地地址", 确保 127.0.0.1 必被豁免, 同时保留用户其他豁免项。
+_existing_np = os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or ""
+_required_np = ["127.0.0.1", "localhost", "::1", "0.0.0.0"]
+_parts_np = [p.strip() for p in _existing_np.split(",") if p.strip()]
+for _r in _required_np:
+    if _r not in _parts_np:
+        _parts_np.append(_r)
+os.environ["NO_PROXY"] = ",".join(_parts_np)
+os.environ["no_proxy"] = os.environ["NO_PROXY"]
+
+# ── 启动环境诊断日志 ──────────────────────────────────
+try:
+    _env_keys = ["HTTP_PROXY","HTTPS_PROXY","NO_PROXY","no_proxy","http_proxy","https_proxy",
+                 "COMFYUI_INSTANCES","COMFYUI_BASE_PATH","ALL_PROXY","all_proxy",
+                 "SystemRoot","USERNAME","HOMEPATH"]
+    _log_lines = [f"=== art-canvas startup {datetime.now().isoformat()} ==="]
+    for _k in _env_keys:
+        _v = os.environ.get(_k, "<NOT SET>")
+        _log_lines.append(f"  {_k}={_v!r}")
+    _log_lines.append(f"  PYTHON_EXE={sys.executable}")
+    _log_lines.append(f"  CWD={os.getcwd()}")
+    _log_lines.append(f"  httpx_version={httpx.__version__}")
+    import platform; _log_lines.append(f"  platform={platform.platform()}")
+    _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    os.makedirs(_log_dir, exist_ok=True)
+    with open(os.path.join(_log_dir, "startup_env.log"), "w", encoding="utf-8") as _f:
+        _f.write("\n".join(_log_lines))
+except Exception:
+    pass  # 启动诊断日志失败不阻塞启动
+# ──────────────────────────────────────────────────────
+
 from PIL import Image, ImageOps
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form, Query
 from fastapi.staticfiles import StaticFiles
@@ -8281,7 +8316,38 @@ async def list_comfyui_loras():
                     continue
         return {"loras": sorted(all_loras)}
     except Exception as e:
+        import traceback as _tb
+        _tb.print_exc()
         raise HTTPException(status_code=502, detail=f"获取 LoRA 列表失败: {str(e)}")
+
+import socket as _sock
+@app.get("/api/_dbug")
+async def _dbug():
+    import traceback as _tb_
+    r = {}
+    # 0) COMFYUI_ADDRESS 的真面目
+    r["address_repr"] = repr(COMFYUI_ADDRESS)
+    # 1) 原生 socket
+    try:
+        s = _sock.create_connection(("127.0.0.1", 8188), timeout=5); s.close()
+        r["raw"] = "OK"
+    except Exception as e:
+        r["raw"] = f"{type(e).__name__}: {e}"; r["raw_tb"] = _tb_.format_exc()
+    # 2) httpx GET system_stats
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            resp = await c.get(f"http://{COMFYUI_ADDRESS}/system_stats")
+        r["httpx_get"] = f"OK {resp.status_code}"
+    except Exception as e:
+        r["httpx_get"] = f"{type(e).__name__}: {e}"; r["httpx_get_tb"] = _tb_.format_exc()
+    # 3) httpx POST prompt (同生成)
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            resp = await c.post(f"http://{COMFYUI_ADDRESS}/prompt", json={"prompt":{},"client_id":"_dbug"})
+        r["httpx_post"] = f"OK {resp.status_code}"
+    except Exception as e:
+        r["httpx_post"] = f"{type(e).__name__}: {e}"; r["httpx_post_tb"] = _tb_.format_exc()
+    return r
 
 @app.get("/api/loras/scan")
 async def scan_lora_folder(subfolder: str = ""):
@@ -8605,6 +8671,8 @@ async def proxy_comfyui_prompt(request: Request):
             resp = await client.post(url, content=body, headers={"Content-Type": "application/json"})
         return Response(content=resp.content, media_type="application/json", status_code=resp.status_code)
     except Exception as e:
+        import traceback as _tb
+        _tb.print_exc()
         raise HTTPException(status_code=502, detail=f"ComfyUI prompt 请求失败: {str(e)}")
 
 @app.get("/api/comfyui/view")

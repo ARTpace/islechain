@@ -561,7 +561,7 @@ const LoraManager = (function() {
         /** 获取筛选后的列表 */
         getFiltered: function() {
             if (!state.modelFilter || state.modelFilter === 'all') return state.available;
-            return state.available.filter(n => this.getModel(n) === state.modelFilter);
+            return state.available.filter(n => (this.getModel(n) || '').toLowerCase() === (state.modelFilter || '').toLowerCase());
         },
         getModel: function(loraName) {
             const meta = state.loraMap[loraName];

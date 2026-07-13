@@ -34,7 +34,7 @@
   },
   "4": {
     "inputs": {
-      "image": "img_v3_0211f_455ee825-fd1d-40c3-b613-1a31c05f136g.png"
+      "image": "Ideogram_4.0_00001_.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -91,7 +91,7 @@
   },
   "8": {
     "inputs": {
-      "image": "微信图片_20260512145408_4367_91.png"
+      "image": "Ideogram_4.0_00001_.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -167,7 +167,7 @@
   },
   "14": {
     "inputs": {
-      "unet_name": "Flux2-Klein-9B-True-v2-fp8mixed.safetensors",
+      "unet_name": "Klein\\flux-2-klein-9b_int8_convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -188,7 +188,7 @@
   },
   "16": {
     "inputs": {
-      "text": "图1的人物抱着图2的机械鲨鱼"
+      "text": "猫变成一只猪"
     },
     "class_type": "CR Text",
     "_meta": {
@@ -287,22 +287,9 @@
       "title": "VAE解码"
     }
   },
-  "22": {
-    "inputs": {
-      "filename_prefix": "Flux2-Klein-4b-base",
-      "images": [
-        "21",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "保存图像"
-    }
-  },
   "23": {
     "inputs": {
-      "noise_seed": 592605809318144
+      "noise_seed": 960897286294512
     },
     "class_type": "RandomNoise",
     "_meta": {
@@ -312,7 +299,6 @@
   "24": {
     "inputs": {
       "text": "",
-      "嵌入提示词": null,
       "clip": [
         "15",
         0
@@ -329,7 +315,6 @@
         "16",
         0
       ],
-      "嵌入提示词": null,
       "clip": [
         "15",
         0
@@ -359,6 +344,32 @@
     "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
     "_meta": {
       "title": "图层工具：按宽高比缩放_V2"
+    }
+  },
+  "36": {
+    "inputs": {
+      "images": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "37": {
+    "inputs": {
+      "清理显存": true,
+      "清理内存": true,
+      "任意数据": [
+        "36",
+        0
+      ]
+    },
+    "class_type": "ZML_MemoryCleaner",
+    "_meta": {
+      "title": "ZML_清理内存显存"
     }
   }
 }
