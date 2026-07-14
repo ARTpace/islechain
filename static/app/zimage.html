@@ -1097,7 +1097,7 @@
                 if (!modelName) return true;
                 if (prefixes === null) return true;
                 const lower = modelName.replace(/\\/g, '/').toLowerCase();
-                return prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')));
+                return prefixes.some(p => lower.startsWith(p.replace(/\\/g, '/').toLowerCase()));
             };
             if (selectedUnetModel && !isCompatible(selectedUnetModel)) {
                 selectedUnetModel = '';
@@ -1264,7 +1264,7 @@
                     ? g.items  // 未知模式显示全部
                     : g.items.filter(name => {
                         const lower = name.replace(/\\/g, '/').toLowerCase();
-                        return prefixes.some(p => lower.startsWith(p.replace(/\\/, '/')));
+                        return prefixes.some(p => lower.startsWith(p.replace(/\\/g, '/').toLowerCase()));
                     });
                 if (filteredItems.length === 0) return '';
                 const cards = filteredItems.map(name => {
