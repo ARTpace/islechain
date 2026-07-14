@@ -21,6 +21,42 @@
     <script src="/static/lucide.min.js"></script>
     <script src="/static/theme.js"></script>
     <script src="/static/history-bulk-manager.js"></script>
+    <script src="/static/modules/interrogator.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var mount = document.getElementById('interrogator-mount');
+      if (!mount || !window.Interrogator) return;
+      var ig = new Interrogator();
+      ig.mountButton(mount, {
+        label: '反推提示词',
+        provider: 'auto',
+        resolve: function () {
+          var wf = (window.currentWorkflow || '').toLowerCase();
+          var mode = wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
+          var ts = '';
+          if (window.BUILTIN_WF_META) {
+            for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
+              if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
+                ts = window.BUILTIN_WF_META[i].model_folder || '';
+                break;
+              }
+            }
+          }
+          return { mode: mode, targetStyle: ts };
+        },
+        onApply: function (text, applyMode, result) {
+          var ta = document.getElementById('prompt');
+          if (!ta) return;
+          if (applyMode === 'append' && ta.value.trim()) {
+            ta.value = ta.value.trim() + ', ' + text;
+          } else {
+            ta.value = text;
+          }
+          if (window.updatePromptTags) window.updatePromptTags();
+        }
+      });
+    });
+    </script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
@@ -495,6 +531,8 @@
                         </button>
                         <!-- 翻译按键：仅在有内容时显示 -->
                         <div id="translateBtnContainer"></div>
+                        <!-- 反推提示词挂载点 -->
+                        <div id="interrogator-mount" style="margin-top:8px;"></div>
                     </div>
                     <div id="promptTagsWrap" style="display:none;">
                         <div id="promptTags" class="flex flex-wrap gap-2 mt-2 overflow-y-auto" style="max-height:80px;"></div>

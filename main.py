@@ -12988,6 +12988,162 @@ async def api_wildcards_validate(payload: dict):
     return {"warnings": _wc_engine().validate(text)}
 
 
+# ================= 通用反推提示词模块 (Interrogator) =================
+# 对外只暴露 image / mode / target_style / provider,屏蔽 ComfyUI 与多模态 API 细节。
+# 文生图 / 图生图 / LoRA 标注 / 参考图分析 等任意功能均可复用 /api/interrogate。
+
+INTERROGATE_WF = "图像反推 .json"   # ComfyUI 本地 llama.cpp 视觉模型反推工作流
+INTERROGATE_LOAD_NODE = "6"         # LoadImage 节点
+INTERROGATE_PROMPT_NODE = "3"       # llama_cpp_instruct_adv.custom_prompt
+INTERROGATE_OUTPUT_NODE = "15"      # ShowText 输出节点(预留)
+
+_INTERROGATE_MODE_PROMPTS = {
+    "tags": "用 Danbooru 英文标签描述这张图,逗号分隔,只输出标签,不要句子和解释。",
+    "caption": "用一段英文描述这张图,包含主体、场景、光线、镜头与画风,只输出描述。",
+    "vl": "作为提示词工程师,输出一段高质量英文 T2I 提示词,包含主体、细节、风格、光线、构图,只输出提示词。",
+}
+
+
+def _interrogate_prompt_for(mode, target_style):
+    p = _INTERROGATE_MODE_PROMPTS.get(mode, _INTERROGATE_MODE_PROMPTS["caption"])
+    if target_style:
+        p += f"\n目标风格参考: {target_style}。"
+    return p
+
+
+async def _interrogate_via_comfyui(abs_path, mode, target_style):
+    """ComfyUI 路线:上传图 -> 注入反推工作流 -> 轮询 history -> 取 ShowText 文本。"""
+    if not COMFYUI_ADDRESS:
+        raise RuntimeError("未配置 ComfyUI 地址")
+    prompt_text = _interrogate_prompt_for(mode, target_style)
+    wf_path = os.path.join(WORKFLOW_DIR, INTERROGATE_WF)
+    if not os.path.exists(wf_path):
+        raise RuntimeError(f"反推工作流不存在: {INTERROGATE_WF}")
+    with open(wf_path, 'r', encoding='utf-8') as f:
+        wf = json.load(f)
+    with open(abs_path, 'rb') as fb:
+        content = fb.read()
+    ctype = content_type_for_path(abs_path)
+    up = await asyncio.to_thread(
+        requests.post,
+        f"http://{COMFYUI_ADDRESS}/upload/image",
+        files={'image': ('interrogate.png', content, ctype)},
+        timeout=30,
+    )
+    up.raise_for_status()
+    up_data = up.json()
+    filename = up_data.get('filename') or up_data.get('name')
+    if not filename:
+        raise RuntimeError("图片上传到 ComfyUI 失败")
+    if INTERROGATE_LOAD_NODE in wf:
+        wf[INTERROGATE_LOAD_NODE]["inputs"]["image"] = filename
+    if INTERROGATE_PROMPT_NODE in wf:
+        wf[INTERROGATE_PROMPT_NODE]["inputs"]["custom_prompt"] = prompt_text
+        # 注: 保留 preset_prompt 原值。它是 COMBO 下拉预设项,置空会触发 ComfyUI
+        # 的 value_not_in_list 校验 -> 返回 400 Bad Request。custom_prompt 才是驱动
+        # 输出的指令,保留预设风格不影响我们注入的 tags/caption/vl 模式指令生效。
+    pr = await asyncio.to_thread(
+        requests.post,
+        f"http://{COMFYUI_ADDRESS}/prompt",
+        json={"prompt": wf, "client_id": CLIENT_ID},
+        timeout=60,
+    )
+    if pr.status_code != 200:
+        # 抓取 ComfyUI 返回的校验细节(含 node_errors / value_not_in_list 等),便于定位
+        _detail = pr.text
+        try:
+            _detail = pr.json().get("error", {}).get("message") or _detail
+        except Exception:
+            pass
+        raise RuntimeError(f"ComfyUI 提交被拒绝({pr.status_code}): {_detail[:600]}")
+    prompt_id = pr.json().get("prompt_id")
+    if not prompt_id:
+        raise RuntimeError("ComfyUI 未返回 prompt_id")
+    poll_start = time.monotonic()
+    history_data = None
+    while True:
+        res = await asyncio.to_thread(get_comfy_history, COMFYUI_ADDRESS, prompt_id)
+        if prompt_id in res:
+            history_data = res[prompt_id]
+            break
+        if time.monotonic() - poll_start > 300:
+            raise RuntimeError("ComfyUI 反推超时")
+        await asyncio.sleep(0.5)
+    output_text = ""
+    if isinstance(history_data, dict) and 'outputs' in history_data:
+        for _nid, node_out in history_data['outputs'].items():
+            if isinstance(node_out, dict) and 'text' in node_out:
+                tv = node_out['text']
+                if isinstance(tv, list) and tv:
+                    output_text = '\n'.join([str(t) for t in tv])
+                elif isinstance(tv, str):
+                    output_text = tv
+                break
+    if not output_text:
+        raise RuntimeError("ComfyUI 未返回文本输出")
+    return output_text.strip()
+
+
+async def _interrogate_via_vision(abs_path, mode, target_style):
+    """多模态大模型 API 路线:复用已有的 caption_image_with_provider。"""
+    prompt_text = _interrogate_prompt_for(mode, target_style)
+    text, _model = await caption_image_with_provider(
+        abs_path, prompt_text, get_primary_provider_id(), ""
+    )
+    return (text or "").strip()
+
+
+@app.post("/api/interrogate")
+async def api_interrogate(
+    file: UploadFile = File(...),
+    mode: str = Form("caption"),
+    target_style: str = Form(""),
+    provider: str = Form("auto"),
+):
+    """通用反推提示词接口。provider: auto | comfyui | vision。"""
+    suffix = os.path.splitext(file.filename or "x.png")[1] or ".png"
+    tmp_path = os.path.join(DATA_DIR, f".interrogate_{uuid.uuid4().hex}{suffix}")
+    content = await file.read()
+    with open(tmp_path, 'wb') as f:
+        f.write(content)
+    try:
+        text = None
+        errs = []
+        if provider in ("auto", "comfyui"):
+            try:
+                text = await _interrogate_via_comfyui(tmp_path, mode, target_style)
+            except Exception as e:
+                errs.append(f"comfyui:{e}")
+        if not text and provider in ("auto", "vision"):
+            # auto 模式下,仅在已配置 COMFLY_API_KEY 时才尝试云端兜底,
+            # 避免 ComfyUI 偶发失败时错误信息被「未配置 key」污染,掩盖真实原因。
+            vision_enabled = (provider == "vision") or bool(
+                read_api_env_value("COMFLY_API_KEY") or os.getenv("COMFLY_API_KEY", "")
+            )
+            if vision_enabled:
+                try:
+                    text = await _interrogate_via_vision(tmp_path, mode, target_style)
+                except Exception as e:
+                    errs.append(f"vision:{e}")
+        if not text:
+            raise HTTPException(status_code=502, detail="反推失败: " + "; ".join(errs))
+        tags = []
+        if mode == "tags":
+            tags = [t.strip() for t in text.split(',') if t.strip()]
+        return {
+            "text": text,
+            "format": mode,
+            "tags": tags,
+            "raw": text,
+            "provider": provider,
+        }
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     import uvicorn
     import socket
