@@ -397,8 +397,14 @@ const LoraManager = (function() {
             if (lora.skipTriggerWord) continue;
             const meta = state.loraMap[lora.name];
             if (meta && Array.isArray(meta.triggerWords) && meta.triggerWords.length > 0) {
-                // 使用 API 返回的真正的触发词（如 Civitai trainedWords）
-                words.push(meta.triggerWords[0]);
+                // Civitai trainedWords 可能包含逗号分隔的多词触发词（如 "@bstyle, bstyle"）
+                // 需拆开为独立词条，否则写入 prompt 后被逗号拆分导致反向同步失败
+                const raw = meta.triggerWords[0];
+                if (raw.includes(',')) {
+                    raw.split(/,\s*/).filter(Boolean).forEach(w => words.push(w.trim()));
+                } else {
+                    words.push(raw);
+                }
             } else {
                 // 无真正触发词时 fallback 到 LoRA 显示名（方便用户在提示词框看到）
                 const fallbackName = (meta && meta.displayName) ? meta.displayName

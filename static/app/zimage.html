@@ -2364,13 +2364,18 @@
             } catch (_) {}
 
             // ---- LoRA：双向同步（手动增删触发词/文件名 ↔ loraState.active） ----
-            // 辅助：判断 prompt 中是否包含某个词（支持 (word:1.2) / [word] 等格式）
+            // 辅助：判断 prompt 中是否包含某个触发词（支持 (word:1.2) / [word] 等格式）
+            // 触发词可能含逗号（如 "@bstyle, bstyle"），拆开后任意一个匹配即可
             function _loraPromptHas(lowerSet, parts, word) {
-                const wl = word.toLowerCase().replace(/^@/, '');
-                if (lowerSet.has(wl) || lowerSet.has('@' + wl)) return true;
-                return parts.some(p => {
-                    const t = p.toLowerCase();
-                    return t.includes(wl) || t.includes('@' + wl);
+                const subWords = word.includes(',') ? word.split(/,\s*/).filter(Boolean) : [word];
+                return subWords.some(sw => {
+                    const wl = sw.trim().toLowerCase().replace(/^@/, '');
+                    if (!wl) return false;
+                    if (lowerSet.has(wl) || lowerSet.has('@' + wl)) return true;
+                    return parts.some(p => {
+                        const t = p.toLowerCase();
+                        return t.includes(wl) || t.includes('@' + wl);
+                    });
                 });
             }
             try {

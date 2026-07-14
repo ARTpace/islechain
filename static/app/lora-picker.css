@@ -151,63 +151,38 @@
     color: oklch(72% 0.18 350);
 }
 
-/* ============ 顶部 tag 大类条（卡片上方一栏） ============ */
-.lora-picker-tagbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 10px 14px;
-    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
-    background: oklch(16% 0.025 280 / 0.4);
-    flex-shrink: 0;
-    max-height: 96px;
-    overflow-y: auto;
+/* ============ 侧边栏分隔线 & tag 项 ============ */
+.lora-sidebar-divider {
+    height: 1px;
+    background: oklch(28% 0.02 280 / 0.4);
+    margin: 6px 2px;
 }
-.lora-picker-tagbar::-webkit-scrollbar { width: 4px; }
-.lora-picker-tagbar::-webkit-scrollbar-thumb { background: oklch(28% 0.02 280); border-radius: 4px; }
-.lora-tagbar-item {
-    display: inline-flex;
+.lora-sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.lora-tag-item {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 11.5px;
+    font-weight: 600;
     color: oklch(75% 0.01 280);
-    background: oklch(100% 0 0 / 0.03);
-    border: 1px solid oklch(28% 0.02 280 / 0.4);
     transition: all 0.15s;
     user-select: none;
     white-space: nowrap;
 }
-.lora-tagbar-item:hover {
-    background: oklch(100% 0 0 / 0.07);
+.lora-tag-item:hover {
+    background: oklch(100% 0 0 / 0.04);
     color: oklch(95% 0.005 280);
-    border-color: oklch(40% 0.02 280 / 0.6);
 }
-.lora-tagbar-item.active {
-    background: oklch(72% 0.18 350 / 0.18);
-    color: oklch(85% 0.18 350);
-    border-color: oklch(72% 0.18 350 / 0.55);
-    box-shadow: 0 1px 4px oklch(72% 0.18 350 / 0.25);
-}
-.lora-tagbar-label {
-    letter-spacing: 0.04em;
-}
-.lora-tagbar-count {
-    font-size: 10px;
-    font-weight: 800;
-    color: oklch(50% 0.01 280);
-    background: oklch(100% 0 0 / 0.05);
-    padding: 0 6px;
-    border-radius: 999px;
-    min-width: 18px;
-    text-align: center;
-}
-.lora-tagbar-item.active .lora-tagbar-count {
-    color: oklch(85% 0.18 350);
-    background: oklch(72% 0.18 350 / 0.2);
+.lora-tag-item.active {
+    background: oklch(72% 0.18 350 / 0.12);
+    color: oklch(72% 0.18 350);
 }
 
 /* ============ 内容区 ============ */
@@ -219,41 +194,24 @@
     overflow: hidden;
 }
 
-/* 工具栏：tag 大类 + 排序下拉（同行） */
-.lora-picker-toolbar {
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
-    background: oklch(16% 0.025 280 / 0.4);
-    flex-shrink: 0;
-    min-height: 36px;
-}
-.lora-picker-toolbar .lora-picker-tagbar {
-    flex: 1;
-    min-width: 0;
-    border-bottom: none;
-}
-
 /* 模型过滤条：显示当前工作流筛选的模型 */
-.lora-picker-model-bar {
+.lora-sidebar-model-bar {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-bottom: 1px solid oklch(28% 0.02 280 / 0.5);
-    background: oklch(18% 0.03 280 / 0.5);
-    flex-shrink: 0;
-    font-size: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 6px 10px 8px;
 }
-.lora-picker-model-bar-label {
+.lora-sidebar-model-label {
     color: oklch(55% 0.03 280);
     font-size: 11px;
     white-space: nowrap;
 }
-.lora-picker-model-bar-chip {
-    display: inline-flex;
+.lora-sidebar-model-chip {
+    display: flex;
     align-items: center;
-    padding: 2px 10px;
+    justify-content: center;
+    padding: 3px 10px;
     border-radius: 10px;
     font-size: 12px;
     font-weight: 600;
@@ -262,14 +220,8 @@
     border: 1px solid oklch(45% 0.15 260 / 0.4);
     white-space: nowrap;
 }
-.lora-picker-model-bar-chip.active {
-    background: oklch(50% 0.18 260 / 0.3);
-    color: oklch(80% 0.14 240);
-    border-color: oklch(55% 0.18 260 / 0.5);
-}
-.lora-picker-model-bar-all {
-    margin-left: auto;
-    padding: 3px 12px;
+.lora-sidebar-model-btn {
+    padding: 4px 10px;
     border-radius: 6px;
     font-size: 11px;
     border: 1px solid oklch(40% 0.02 280 / 0.4);
@@ -277,26 +229,22 @@
     color: oklch(60% 0.03 280);
     cursor: pointer;
     transition: all 0.15s;
+    text-align: center;
 }
-.lora-picker-model-bar-all:hover {
+.lora-sidebar-model-btn:hover {
     background: oklch(35% 0.03 280 / 0.5);
     color: oklch(75% 0.03 280);
     border-color: oklch(50% 0.03 280 / 0.5);
-}
-    background: transparent;
-    max-height: 96px;
 }
 .lora-picker-sort {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 12px;
     flex-shrink: 0;
-    border-left: 1px solid oklch(28% 0.02 280 / 0.5);
     color: oklch(75% 0.01 280);
 }
 .lora-picker-sort select {
-    height: 26px;
+    height: 28px;
     padding: 0 8px;
     border-radius: 6px;
     border: 1px solid oklch(28% 0.02 280 / 0.5);
@@ -313,6 +261,58 @@
 }
 .lora-picker-sort select:focus {
     border-color: oklch(72% 0.18 350);
+}
+
+/* 卡片尺寸分段滑条（header 行，搜索框右边） */
+.lora-picker-size-slider {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border-radius: 8px;
+    background: oklch(22% 0.025 280);
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    padding: 2px;
+    flex-shrink: 0;
+    user-select: none;
+}
+.lora-size-seg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    min-width: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: oklch(60% 0.02 280);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    letter-spacing: 0.04em;
+}
+.lora-size-seg:hover {
+    color: oklch(85% 0.01 280);
+}
+.lora-size-seg.active {
+    background: oklch(72% 0.18 350 / 0.95);
+    color: oklch(14% 0.02 280);
+    box-shadow: 0 1px 4px oklch(65% 0.2 350 / 0.35);
+}
+
+/* Light theme override */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-size-slider {
+    background: oklch(92% 0.005 280);
+    border-color: oklch(80% 0.01 280 / 0.5);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg {
+    color: oklch(40% 0.01 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg:hover {
+    color: oklch(10% 0.005 280);
+}
+body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg.active {
+    background: oklch(55% 0.18 350 / 0.9);
+    color: #fff;
 }
 
 /* 已选 LoRA 条 */
@@ -506,6 +506,9 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-trigger-toggle.off {
     display: flex;
     flex-direction: column;
     height: 280px;
+    /* off-screen cards skip layout & paint — massive perf win for grids */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 280px;
 }
 .lora-card-item:hover {
     border-color: oklch(40% 0.03 280 / 0.6);
@@ -873,12 +876,71 @@ video.lora-card-img {
     .lora-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
     .lora-card-item { height: 240px; }
     .lora-card-img, .lora-card-img-placeholder { height: 180px; }
+    .lora-card-strength { height: 180px; }
 }
 @media (max-width: 480px) {
     .lora-picker-sidebar { display: none; }
     .lora-picker-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     .lora-card-item { height: 220px; }
     .lora-card-img, .lora-card-img-placeholder { height: 160px; }
+    .lora-card-strength { height: 160px; }
+}
+
+/* ============ 卡片尺寸变体（小/中/大） ============ */
+/* 小卡片 */
+.lora-picker-grid--sm {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+}
+.lora-picker-grid--sm .lora-card-item {
+    height: 220px;
+    contain-intrinsic-size: auto 220px;
+}
+.lora-picker-grid--sm .lora-card-img,
+.lora-picker-grid--sm .lora-card-img-placeholder,
+.lora-picker-grid--sm .lora-card-strength {
+    height: 160px;
+}
+.lora-picker-grid--sm .lora-card-info {
+    padding: 6px 8px;
+    padding-right: 36px;
+}
+.lora-picker-grid--sm .lora-card-name {
+    font-size: 10px;
+}
+.lora-picker-grid--sm .lora-card-base,
+.lora-picker-grid--sm .lora-card-tags {
+    font-size: 8px;
+}
+
+/* 中卡片（默认） */
+.lora-picker-grid--md {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+.lora-picker-grid--md .lora-card-item {
+    height: 280px;
+    contain-intrinsic-size: auto 280px;
+}
+.lora-picker-grid--md .lora-card-img,
+.lora-picker-grid--md .lora-card-img-placeholder,
+.lora-picker-grid--md .lora-card-strength {
+    height: 220px;
+}
+
+/* 大卡片 */
+.lora-picker-grid--lg {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+.lora-picker-grid--lg .lora-card-item {
+    height: 340px;
+    contain-intrinsic-size: auto 340px;
+}
+.lora-picker-grid--lg .lora-card-img,
+.lora-picker-grid--lg .lora-card-img-placeholder,
+.lora-picker-grid--lg .lora-card-strength {
+    height: 280px;
 }
 
 /* ========================================================================
@@ -933,9 +995,7 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-item.active {
 }
 body:not(.studio-theme-dark):not(.theme-dark) .lora-cat-count {
     color: oklch(55% 0.01 280);
-}
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-toolbar {
-    border-bottom-color: oklch(85% 0.01 280 / 0.6);
+    background: oklch(0% 0 0 / 0.05);
 }
 body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-sort select {
     background: oklch(94% 0.005 280);
@@ -1068,24 +1128,20 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-select {
     border-color: oklch(80% 0.01 280);
     color: oklch(15% 0.005 280);
 }
-/* Light theme: model filter bar */
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar {
-    border-bottom-color: oklch(88% 0.01 280 / 0.6);
-    background: oklch(95% 0.005 280 / 0.6);
-}
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-label {
+/* Light theme: sidebar model filter */
+body:not(.studio-theme-dark):not(.theme-dark) .lora-sidebar-model-label {
     color: oklch(45% 0.01 280);
 }
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-chip {
+body:not(.studio-theme-dark):not(.theme-dark) .lora-sidebar-model-chip {
     background: oklch(55% 0.18 350 / 0.1);
     color: oklch(50% 0.18 350);
     border-color: oklch(55% 0.18 350 / 0.3);
 }
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-all {
+body:not(.studio-theme-dark):not(.theme-dark) .lora-sidebar-model-btn {
     border-color: oklch(80% 0.01 280 / 0.5);
     color: oklch(45% 0.01 280);
 }
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-model-bar-all:hover {
+body:not(.studio-theme-dark):not(.theme-dark) .lora-sidebar-model-btn:hover {
     background: oklch(88% 0.01 280 / 0.5);
     color: oklch(25% 0.01 280);
 }

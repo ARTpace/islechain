@@ -670,7 +670,7 @@
             if(protocolInput) protocolInput.value = item.protocol || 'openai';
             if(item.has_key) {
                 keyInput.type = 'password';
-                keyInput.value = item.key_preview || '••••••••';
+                keyInput.value = '';
                 keyInput.placeholder = tr('api.keepCurrentKey') + ' ' + (item.key_preview || '');
                 keyInput.style.letterSpacing = '3px';
             } else {

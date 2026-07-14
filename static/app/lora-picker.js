@@ -22,6 +22,7 @@ let loraPickerInitialized = false;
 let loraPickerPage = 1;            // 当前页码
 const loraPickerPageSize = 50;     // 每页数量
 let loraPickerSortBy = 'default';  // 排序模式：default/name-asc/name-desc/recent/most-used/folder-name
+let loraPickerCardSize = 'md';   // 卡片尺寸：sm/md/lg
 let loraPickerModelFilter = null;  // 当前模型过滤（文件夹名），null=不过滤
 let loraPickerModelLabel = null;   // 当前模型过滤显示名（如 "Z-Image"）
 let loraPickerShowAll = false;     // 用户是否点了"显示全部"
@@ -78,7 +79,6 @@ function loraPickerRecordUsage(selectedItems) {
         }
     }
     loraPickerSetUsageStats(stats);
-    loraPickerClearCardCache();
 }
 // 获取某张卡的使用统计（兼容 group / single）
 function loraPickerItemUsage(item) {
@@ -92,40 +92,100 @@ function loraPickerItemUsage(item) {
     return entry || { lastUsed: 0, count: 0 };
 }
 
+// ── 缩略图 Blob 缓存（前端内存层）────────────────────────────
+// fetch 后存为 blob: URL，之后所有 <img>/<video> 直接从内存读，零网络请求。
+// 即使 DOM 重建、卡片过滤/Sort/翻页，blob URL 始终有效。
+// Map<url, {blobUrl, type}>
+const loraPickerBlobCache = new Map();
+
+/**
+ * 异步获取 blob URL（已缓存则直接返回，否则 fetch）
+ * @param {string} url - 原始 URL
+ * @returns {Promise<string>} blob URL
+ */
+async function loraPickerGetBlobUrl(url) {
+    if (!url) return '';
+    const cached = loraPickerBlobCache.get(url);
+    if (cached) return cached.blobUrl;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return url; // 失败回退到原始 URL
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const contentType = res.headers.get('content-type') || '';
+        const type = contentType.startsWith('video/') ? 'video' : 'image';
+        loraPickerBlobCache.set(url, { blobUrl, type });
+        return blobUrl;
+    } catch (e) {
+        return url; // fetch 失败时回退到原始 URL（让浏览器自己去请求）
+    }
+}
+
+/**
+ * 同步获取 blob URL（仅缓存命中，未命中返回空字符串）
+ */
+function loraPickerGetBlobUrlSync(url) {
+    if (!url) return '';
+    const cached = loraPickerBlobCache.get(url);
+    return cached ? cached.blobUrl : '';
+}
+
+/** 清除所有 blob URL */
+function loraPickerClearBlobCache() {
+    for (const entry of loraPickerBlobCache.values()) {
+        try { URL.revokeObjectURL(entry.blobUrl); } catch (e) { /* ignore */ }
+    }
+    loraPickerBlobCache.clear();
+}
+
 // ── 卡片 HTML 缓存（按 itemKey） ────────────────────────────────
 // 同一张卡在筛选/排序/翻页时复用已渲染的 HTML 字符串，避免重复字符串拼接
 // 也减少 DOM 抖动，让浏览器更容易命中已缓存的图片/视频
+// 注意：图片 URL 用原始 URL 作为 key，blob 缓存独立于 HTML 缓存。
+// 当 HTML 缓存因版本切换等原因被删时，blob 缓存仍然保留。
 const loraPickerCardHtmlCache = new Map();
 function loraPickerGetItemKey(item) {
     return item.isGroup ? ('g::' + (item.modelRoot || '')) : ('s::' + (item.name || ''));
 }
 function loraPickerClearCardCache() { loraPickerCardHtmlCache.clear(); }
 
-// ── 预览预热（保守策略） ──────────────────────────────────────
-// 只预热当前页可见的卡片，且每批最多 6 个并发，避免同时 200+ 请求压垮浏览器。
-// 不再用隐藏 <video>（videos 体积大、metadata 也可能拉很久），视频交给
-// 真正渲染到 <video> 元素时按需加载；用过的卡片走 ETag/304 命中缓存。
-const loraPickerPrewarmedSet = new Set();
+// ── 预览预热（前端 Blob 缓存） ────────────────────────────────
+// fetch 存入 loraPickerBlobCache，关闭时图片已在前端内存中。
+// 第二次打开选择器时，<img> 直接使用 blob: URL，零网络请求。
+// 策略：
+//   - 打开时预热当前页 12 张图的 blob（并发 6）
+//   - 滚动/翻页时按需 fetch 新卡片的 blob（lazy）
+//   - 版本切换时新预览图也走 blob 缓存
 function loraPickerPrewarmPreviews(items, max) {
     if (!Array.isArray(items) || items.length === 0) return;
     const limit = Math.min(items.length, max || 12);
-    let i = 0;
-    const inFlight = new Set();
-    const launch = () => {
-        while (inFlight.size < 6 && i < limit) {
-            const item = items[i++];
-            if (!item || !item.preview) continue;
-            if (loraPickerPrewarmedSet.has(item.preview)) continue;
-            loraPickerPrewarmedSet.add(item.preview);
-            const img = new Image();
-            img.decoding = 'async';
-            img.src = item.preview;
-            inFlight.add(img);
-            img.onload = img.onerror = () => inFlight.delete(img);
+    // 只预热 preview（图片），video 太大，只在渲染到 DOM 时按需 blob
+    const urls = [];
+    for (let i = 0; i < limit; i++) {
+        const item = items[i];
+        if (!item) continue;
+        if (item.preview && !loraPickerBlobCache.has(item.preview)) {
+            urls.push(item.preview);
         }
+    }
+    if (urls.length === 0) return;
+    // 并发 fetch 并存入 blob 缓存
+    const concurrency = 6;
+    let i = 0;
+    const run = () => {
+        const batch = urls.slice(i, i + concurrency);
+        i += concurrency;
+        if (batch.length === 0) return;
+        Promise.allSettled(batch.map(url => loraPickerGetBlobUrl(url))).finally(() => {
+            if (i < urls.length) {
+                // 下一批用 idle 调度，不阻塞 UI
+                const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 50));
+                idle(() => run());
+            }
+        });
     };
     const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 30));
-    idle(() => launch());
+    idle(() => run());
 }
 
 // ── 文件夹名 → 中文显示名 ──────────────────────────────────────────
@@ -284,6 +344,17 @@ function loraPickerInit() {
             <div class="lora-picker-header">
                 <span class="lora-picker-title">⚡ LoRA 选择器</span>
                 <input type="text" class="lora-picker-search" id="loraPickerSearch" placeholder="搜索 LoRA 名称、标签..." oninput="loraPickerOnSearch(this.value)">
+                <div class="lora-picker-sort">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.7"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                    <select id="loraPickerSortSel" onchange="loraPickerOnSortChange(this.value)" title="排序方式">
+                        ${LORA_PICKER_SORTS.map(s => `<option value="${s.key}" ${s.key === loraPickerSortBy ? 'selected' : ''}>${s.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="lora-picker-size-slider" id="loraPickerSizeSlider" title="切换卡片尺寸">
+                    <span class="lora-size-seg ${loraPickerCardSize==='sm'?'active':''}" data-size="sm" onclick="loraPickerSetSize('sm')">小</span>
+                    <span class="lora-size-seg ${loraPickerCardSize==='md'?'active':''}" data-size="md" onclick="loraPickerSetSize('md')">中</span>
+                    <span class="lora-size-seg ${loraPickerCardSize==='lg'?'active':''}" data-size="lg" onclick="loraPickerSetSize('lg')">大</span>
+                </div>
                 <button class="lora-picker-close" onclick="loraPickerClose()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
@@ -291,16 +362,6 @@ function loraPickerInit() {
             <div class="lora-picker-body">
                 <div class="lora-picker-sidebar" id="loraPickerSidebar"></div>
                     <div class="lora-picker-content">
-                    <div class="lora-picker-model-bar" id="loraPickerModelBar"></div>
-                    <div class="lora-picker-toolbar">
-                        <div class="lora-picker-tagbar" id="loraPickerTagbar"></div>
-                        <div class="lora-picker-sort">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.7"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-                            <select id="loraPickerSortSel" onchange="loraPickerOnSortChange(this.value)" title="排序方式">
-                                ${LORA_PICKER_SORTS.map(s => `<option value="${s.key}" ${s.key === loraPickerSortBy ? 'selected' : ''}>${s.label}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
                     <div class="lora-picker-selected-bar" id="loraPickerSelectedBar"></div>
                     <div class="lora-picker-grid" id="loraPickerGrid"></div>
                     <div class="lora-picker-pager" id="loraPickerPager"></div>
@@ -338,9 +399,17 @@ async function loraPickerOpen(callback) {
     loraPickerCategory = 'all';
     loraPickerTagCategory = 'all';
     loraPickerRestoreSort();  // 恢复上次选择的排序模式
+    loraPickerRestoreSize();  // 恢复上次卡片尺寸
     // 同步排序下拉的显示
     const sortSel = document.getElementById('loraPickerSortSel');
     if (sortSel) sortSel.value = loraPickerSortBy;
+    // 同步尺寸滑条 active 态
+    const slider = document.getElementById('loraPickerSizeSlider');
+    if (slider) {
+        slider.querySelectorAll('.lora-size-seg').forEach(seg => {
+            seg.classList.toggle('active', seg.dataset.size === loraPickerCardSize);
+        });
+    }
 
     // 初始化模型过滤状态
     loraPickerShowAll = false;
@@ -363,12 +432,15 @@ async function loraPickerOpen(callback) {
     document.getElementById('loraPickerShell').classList.add('is-open');
     document.body.style.overflow = 'hidden';
 
-    // 计算锁定顺序：用户排序 + 已选置顶
-    // 之后运行期间点击只切换状态，不重排
+    // 同步排序/锁定顺序 + 尺寸按钮
     loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
-
-    loraPickerRenderModelBar();
-    loraPickerRenderTagbar();
+    const lbl2 = document.getElementById('loraPickerSizeLabel');
+    const btn2 = document.getElementById('loraPickerSizeBtn');
+    if (lbl2 && btn2) {
+        const curSize = LORA_PICKER_SIZES.find(s => s.key === loraPickerCardSize) || LORA_PICKER_SIZES[1];
+        lbl2.textContent = curSize.label;
+        btn2.title = curSize.tooltip;
+    }
     loraPickerRenderSidebar();
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
@@ -423,21 +495,39 @@ function loraPickerRestoreSort() {
     } catch (e) {}
 }
 
-// ── 模型过滤条 ────────────────────────────────────────────────
-function loraPickerRenderModelBar() {
-    const el = document.getElementById('loraPickerModelBar');
-    if (!el) return;
-    if (!loraPickerModelFilter || loraPickerShowAll) {
-        el.innerHTML = '';
-        el.style.display = 'none';
-        return;
+// ── 卡片尺寸切换 ───────────────────────────────────────────────
+const LORA_PICKER_SIZE_STORAGE_KEY = 'loraPickerCardSize';
+const LORA_PICKER_SIZES = [
+    { key: 'sm', label: '小', tooltip: '小卡片' },
+    { key: 'md', label: '中', tooltip: '中卡片' },
+    { key: 'lg', label: '大', tooltip: '大卡片' }
+];
+function loraPickerRestoreSize() {
+    try {
+        const v = localStorage.getItem(LORA_PICKER_SIZE_STORAGE_KEY);
+        if (v && LORA_PICKER_SIZES.some(s => s.key === v)) loraPickerCardSize = v;
+    } catch (e) {}
+}
+function loraPickerSetSize(size) {
+    if (!LORA_PICKER_SIZES.some(s => s.key === size)) return;
+    if (loraPickerCardSize === size) return;
+    loraPickerCardSize = size;
+    try { localStorage.setItem(LORA_PICKER_SIZE_STORAGE_KEY, loraPickerCardSize); } catch (e) {}
+    // 更新分段滑块 active
+    const slider = document.getElementById('loraPickerSizeSlider');
+    if (slider) {
+        slider.querySelectorAll('.lora-size-seg').forEach(seg => {
+            seg.classList.toggle('active', seg.dataset.size === size);
+        });
     }
-    el.style.display = 'flex';
-    el.innerHTML = '<span class="lora-picker-model-bar-label">模型筛选</span>' +
-        '<span class="lora-picker-model-bar-chip active">' + (loraPickerModelLabel || loraPickerModelFilter) + '</span>' +
-        '<button class="lora-picker-model-bar-all" onclick="loraPickerToggleShowAll()">显示全部</button>';
+    // 切换尺寸需要全量重绘（每张卡高度/列宽变了）
+    loraPickerClearCardCache();
+    loraPickerPage = 1;
+    loraPickerRenderGrid();
+    loraPickerUpdateFooter();
 }
 
+// ── 模型过滤条 ────────────────────────────────────────────────
 // ── 切换显示全部 ──────────────────────────────────────────────
 function loraPickerToggleShowAll() {
     loraPickerShowAll = !loraPickerShowAll;
@@ -524,9 +614,7 @@ function loraPickerRefreshData(resetPage) {
     loraPickerAllItems = singles.concat(groupCards);
     // 重新渲染
     loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
-    loraPickerRenderModelBar();
     loraPickerRenderSidebar();
-    loraPickerRenderTagbar();
     loraPickerRenderSelectedBar();
     if (resetPage !== false) loraPickerPage = 1;
     loraPickerRenderGrid();
@@ -559,31 +647,11 @@ function loraPickerGetTagCategories() {
     return counts;
 }
 
-// ── 渲染 tag 大类条（顶部） ─────────────────────────────────────
-function loraPickerRenderTagbar() {
-    const el = document.getElementById('loraPickerTagbar');
-    if (!el) return;
-    const counts = loraPickerGetTagCategories();
-    let html = '';
-    for (const cat of LORA_BIG_CATEGORIES) {
-        const count = counts[cat.key] || 0;
-        // 0 个的类别不展示（避免太拥挤），但保留"全部"
-        if (cat.key !== 'all' && count === 0) continue;
-        const isActive = loraPickerTagCategory === cat.key;
-        const safeKey = cat.key.replace(/'/g, "\\'");
-        html += '<div class="lora-tagbar-item ' + (isActive ? 'active' : '') + '" onclick="loraPickerSelectTagCategory(\'' + safeKey + '\')">' +
-            '<span class="lora-tagbar-label">' + cat.label + '</span>' +
-            '<span class="lora-tagbar-count">' + count + '</span>' +
-        '</div>';
-    }
-    el.innerHTML = html;
-}
-
 // ── 选择 tag 大类 ─────────────────────────────────────────────
 function loraPickerSelectTagCategory(key) {
     loraPickerTagCategory = key;
     loraPickerPage = 1;
-    loraPickerRenderTagbar();
+    loraPickerRenderSidebar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
 }
@@ -675,7 +743,21 @@ function loraPickerRenderSidebar() {
     const cats = loraPickerGetCategories();
     const totalCount = loraPickerAllItems.length;
 
-    let html = '<div class="lora-cat-item ' + (loraPickerCategory === 'all' ? 'active' : '') + '" onclick="loraPickerSelectCategory(\'all\')">' +
+    let html = '';
+
+    // ── section: 模型筛选（如果启用了模型过滤） ──
+    if (loraPickerModelFilter && !loraPickerShowAll) {
+        html += '<div class="lora-sidebar-model-bar">';
+        html += '<div class="lora-sidebar-model-label">模型筛选</div>';
+        html += '<div class="lora-sidebar-model-chip">' + (loraPickerModelLabel || loraPickerModelFilter) + '</div>';
+        html += '<button class="lora-sidebar-model-btn" onclick="loraPickerToggleShowAll()">显示全部</button>';
+        html += '</div>';
+        html += '<div class="lora-sidebar-divider"></div>';
+    }
+
+    // ── section: Folder 分类 ──
+    html += '<div class="lora-sidebar-section">';
+    html += '<div class="lora-cat-item ' + (loraPickerCategory === 'all' ? 'active' : '') + '" onclick="loraPickerSelectCategory(\'all\')">' +
         '<span>全部</span>' +
         '<span class="lora-cat-count">' + totalCount + '</span>' +
     '</div>';
@@ -688,17 +770,33 @@ function loraPickerRenderSidebar() {
             '<span class="lora-cat-count">' + count + '</span>' +
         '</div>';
     }
+    html += '</div>';
+
+    // ── section: Tag 大类 ──
+    const tagCounts = loraPickerGetTagCategories();
+    html += '<div class="lora-sidebar-divider"></div>';
+    html += '<div class="lora-sidebar-section">';
+    for (const cat of LORA_BIG_CATEGORIES) {
+        const count = tagCounts[cat.key] || 0;
+        if (cat.key !== 'all' && count === 0) continue;
+        const isActive = loraPickerTagCategory === cat.key;
+        const safeKey = cat.key.replace(/'/g, "\\'");
+        html += '<div class="lora-tag-item ' + (isActive ? 'active' : '') + '" onclick="loraPickerSelectTagCategory(\'' + safeKey + '\')">' +
+            '<span>' + cat.label + '</span>' +
+            '<span class="lora-cat-count">' + count + '</span>' +
+        '</div>';
+    }
+    html += '</div>';
+
     el.innerHTML = html;
 }
 
 // ── 选择分类 ─────────────────────────────────────────────────────
 function loraPickerSelectCategory(cat) {
     loraPickerCategory = cat;
-    // 切换 folder 后，把 tag 大类重置为"全部"（上一个 folder 的 tag 在新 folder 里可能没意义）
     loraPickerTagCategory = 'all';
     loraPickerPage = 1;
     loraPickerRenderSidebar();
-    loraPickerRenderTagbar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
 }
@@ -749,9 +847,29 @@ function loraPickerBuildCardHtml(item) {
     // 视频只拉 metadata（不解码首帧），避免多卡时浏览器把首帧都解码一遍
     let mediaHtml = '';
     if (item.videoUrl) {
-        mediaHtml = '<video class="lora-card-img" src="' + item.videoUrl + '" autoplay loop muted playsinline preload="metadata" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"></video>';
+        const blobSrc = loraPickerGetBlobUrlSync(item.videoUrl) || item.videoUrl;
+        // video 懒 blob：如果还没有 blob 缓存，先用原始 URL 挂上，后台异步 fetch blob
+        if (!loraPickerGetBlobUrlSync(item.videoUrl)) {
+            loraPickerGetBlobUrl(item.videoUrl).then(blobUrl => {
+                if (blobUrl && blobUrl !== item.videoUrl) {
+                    const cards = document.querySelectorAll('[data-raw-video="' + encodeURIComponent(item.videoUrl) + '"]');
+                    cards.forEach(card => { card.src = blobUrl; });
+                }
+            }).catch(() => {});
+        }
+        mediaHtml = '<video class="lora-card-img" src="' + blobSrc + '" data-raw-video="' + encodeURIComponent(item.videoUrl) + '" autoplay loop muted playsinline preload="metadata" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"></video>';
     } else if (item.preview) {
-        mediaHtml = '<img class="lora-card-img" src="' + item.preview + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+        const blobSrc = loraPickerGetBlobUrlSync(item.preview) || item.preview;
+        // 图片懒 blob：如果还没有 blob 缓存，先用原始 URL 挂上，后台异步 fetch blob
+        if (!loraPickerGetBlobUrlSync(item.preview)) {
+            loraPickerGetBlobUrl(item.preview).then(blobUrl => {
+                if (blobUrl && blobUrl !== item.preview) {
+                    const cards = document.querySelectorAll('[data-raw-img="' + encodeURIComponent(item.preview) + '"]');
+                    cards.forEach(card => { card.src = blobUrl; });
+                }
+            }).catch(() => {});
+        }
+        mediaHtml = '<img class="lora-card-img" src="' + blobSrc + '" data-raw-img="' + encodeURIComponent(item.preview) + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
     }
     const placeholderDisplay = (item.videoUrl || item.preview) ? 'none' : 'flex';
 
@@ -814,6 +932,8 @@ function loraPickerBuildStrengthHtml(selIdx, strength) {
 function loraPickerRenderGrid() {
     const el = document.getElementById('loraPickerGrid');
     if (!el) return;
+    // 卡片尺寸 class（sm/md/lg），驱动 CSS 网格列宽和卡片高度
+    el.className = 'lora-picker-grid lora-picker-grid--' + loraPickerCardSize;
     const filtered = loraPickerGetFiltered();
 
     if (filtered.length === 0) {
@@ -906,6 +1026,37 @@ function loraPickerGoPage(page) {
     loraPickerRenderGrid();
 }
 
+// ── DOM 修补：对单张卡片局部更新选中态 + 强度条 ──────────────
+// 取代全量重绘 loraPickerRenderGrid()，避免所有 <img> 重新请求
+function loraPickerPatchCard(cardKey, isSelected, strength, selIdx) {
+    const el = document.getElementById('loraPickerGrid');
+    if (!el) return;
+    // querySelector 无法处理含反斜杠的路径，改用遍历 dataset.key
+    const cards = el.querySelectorAll('.lora-card-item');
+    let card = null;
+    for (const c of cards) {
+        if (c.dataset.key === cardKey) { card = c; break; }
+    }
+    if (!card) return;
+    if (isSelected) {
+        card.classList.add('selected');
+        // 选中勾
+        const check = card.querySelector('.lora-card-check');
+        if (check) check.style.display = '';
+        // 强度滑块
+        const wrap = card.querySelector('.lora-card-strength-wrap');
+        if (wrap && !wrap.querySelector('.lora-card-strength')) {
+            wrap.innerHTML = loraPickerBuildStrengthHtml(selIdx, strength);
+        }
+    } else {
+        card.classList.remove('selected');
+        const check = card.querySelector('.lora-card-check');
+        if (check) check.style.display = 'none';
+        const wrap = card.querySelector('.lora-card-strength-wrap');
+        if (wrap) wrap.innerHTML = '';
+    }
+}
+
 // ── 切换选中 ─────────────────────────────────────────────────────
 function loraPickerToggleItem(itemKey) {
     // itemKey: 单文件=文件路径；多版本组="g::" + modelRoot
@@ -922,12 +1073,15 @@ function loraPickerToggleItem(itemKey) {
     const idx = loraPickerSelected.findIndex(s => s.name === entryName);
     if (idx >= 0) {
         loraPickerSelected.splice(idx, 1);
+        // DOM 局部修补：仅取消这张卡的选中态
+        // 组卡片 data-key 是 itemKey（已有 g:: 前缀），单卡片是 s::entryName
+        loraPickerPatchCard(isGroup ? itemKey : ('s::' + entryName), false, 0, -1);
     } else {
         loraPickerSelected.push({ name: entryName, strength: 0.8 });
+        const newSelIdx = loraPickerSelected.length - 1;
+        loraPickerPatchCard(isGroup ? itemKey : ('s::' + entryName), true, 0.8, newSelIdx);
     }
-    // 不要再 loraPickerPage = 1：选中后强度条就出现在这张卡上，强行跳回首页会让用户失去当前页上下文
     loraPickerRenderSelectedBar();
-    loraPickerRenderGrid();
     loraPickerUpdateFooter();
     // 实时回调：通知外部选中已变化
     if (typeof loraPickerOnSelectionChange === 'function') {
@@ -980,17 +1134,47 @@ function loraPickerSwitchVersion(modelRoot, idx) {
         }
         return s;
     });
-    // 切换版本后预览图/视频变了，清掉这张卡的缓存让新版本生效
+    // 切换版本后只刷新这一张卡的 DOM（替换预览图/视频 src），不重绘整页
     loraPickerCardHtmlCache.delete('g::' + modelRoot);
     loraPickerRenderSelectedBar();
-    loraPickerRenderGrid();
+    // 局部替换这张卡
+    const grid = document.getElementById('loraPickerGrid');
+    if (grid) {
+        const oldCards = grid.querySelectorAll('.lora-card-item');
+        let oldCard = null;
+        for (const c of oldCards) {
+            if (c.dataset.key === 'g::' + modelRoot) { oldCard = c; break; }
+        }
+        if (oldCard) {
+            // 找到对应的 item 数据
+            const item = loraPickerAllItems.find(it => it.isGroup && it.modelRoot === modelRoot);
+            if (item) {
+                const selIdx = loraPickerSelected.findIndex(s => s.name === item.resolvedName);
+                const isSelected = selIdx >= 0;
+                const strength = isSelected ? loraPickerSelected[selIdx].strength : 0.8;
+                let newHtml = loraPickerBuildCardHtml(item);
+                if (isSelected) {
+                    newHtml = newHtml.replace('class="lora-card-item', 'class="lora-card-item selected');
+                    newHtml = newHtml.replace(
+                        '<div class="lora-card-strength-wrap"></div>',
+                        '<div class="lora-card-strength-wrap">' + loraPickerBuildStrengthHtml(selIdx, strength) + '</div>'
+                    );
+                }
+                const temp = document.createElement('div');
+                temp.innerHTML = newHtml;
+                const newCard = temp.firstElementChild;
+                if (newCard) oldCard.replaceWith(newCard);
+            }
+        }
+    }
 }
 
 // ── 移除已选 ─────────────────────────────────────────────────────
 function loraPickerRemoveSelected(index) {
-    loraPickerSelected.splice(index, 1);
+    const removed = loraPickerSelected.splice(index, 1)[0];
+    // DOM 局部修补：仅取消这张卡的选中态
+    if (removed) loraPickerPatchCard('s::' + removed.name, false, 0, -1);
     loraPickerRenderSelectedBar();
-    loraPickerRenderGrid();
     loraPickerUpdateFooter();
     // 实时回调：通知外部选中已变化
     if (typeof loraPickerOnSelectionChange === 'function') {

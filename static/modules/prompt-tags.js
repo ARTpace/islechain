@@ -1,4 +1,4 @@
-/**
+if (tw.some(w => { const sw = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)]; return sw.some(s => s.trim().toLowerCase().replace(/^@/, '') === lowerName); })) return entry.preview || '';if (tw.some(w => { const sw = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)]; return sw.some(s => s.trim().toLowerCase().replace(/^@/, '') === lowerName); })) return entry.preview || '';/**
  * 提示词标签系统（模块化版）
  * 渲染 + 拖拽排序 + 悬浮预览 + 预设 i18n
  * 
@@ -217,7 +217,11 @@ const PromptTags = (function() {
             const entry = loraState.loraMap[key];
             if (!entry) continue;
             const tw = entry.triggerWords || [];
-            if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === tagLower)) return true;
+            // 触发词可能含逗号（如 "@bstyle, bstyle"），拆开后逐个匹配
+            if (tw.some(w => {
+                const subWords = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)];
+                return subWords.some(sw => sw.trim().toLowerCase().replace(/^@/, '') === tagLower);
+            })) return true;
             const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, '')).toLowerCase();
             if (dn === tagLower) return true;
         }
@@ -227,6 +231,13 @@ const PromptTags = (function() {
     function findActiveLoraByTrigger(triggerName) {
         if (!triggerName || !loraState) return null;
         const lower = triggerName.toLowerCase().replace(/^@/, '');
+        // 辅助：触发词可能含逗号（如 "@bstyle, bstyle"），拆开后逐个匹配
+        function _twMatch(triggerWords, target) {
+            return triggerWords.some(w => {
+                const subWords = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)];
+                return subWords.some(sw => sw.trim().toLowerCase().replace(/^@/, '') === target);
+            });
+        }
         if (loraState.active) {
             for (let i = 0; i < loraState.active.length; i++) {
                 const a = loraState.active[i];
@@ -234,7 +245,7 @@ const PromptTags = (function() {
                 const meta = loraState.loraMap && loraState.loraMap[a.name];
                 if (!meta) continue;
                 const tw = meta.triggerWords || [];
-                if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) return { index: i, entry: a, meta };
+                if (_twMatch(tw, lower)) return { index: i, entry: a, meta };
                 const dn = (meta.displayName || '').toLowerCase();
                 const fn = a.name.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
                 if (dn === lower || fn === lower) return { index: i, entry: a, meta };
@@ -245,7 +256,7 @@ const PromptTags = (function() {
                 const entry = loraState.loraMap[key];
                 if (!entry) continue;
                 const tw = entry.triggerWords || [];
-                if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lower)) return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
+                if (_twMatch(tw, lower)) return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
                 const dn = (entry.displayName || '').toLowerCase();
                 const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
                 if (dn === lower || fn === lower) return { index: -1, entry: { name: key, strength: 0.8 }, meta: entry };
@@ -359,6 +370,7 @@ const PromptTags = (function() {
         el.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px';
         el.style.top = (rect.bottom + window.scrollY) + 'px';
         el.style.opacity = '1';
+        el.style.pointerEvents = 'auto';
     }
 
     function hidePreview() {
@@ -367,7 +379,10 @@ const PromptTags = (function() {
         _hidePreviewTimer = setTimeout(() => {
             if (_previewHovered) return;
             const el = animaTagPreviewEl || document.getElementById('animaTagPreview');
-            if (el) el.style.opacity = '0';
+            if (el) {
+                el.style.opacity = '0';
+                el.style.pointerEvents = 'none';
+            }
         }, 150);
     }
 

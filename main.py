@@ -1278,9 +1278,9 @@ def public_provider(provider):
     }
 
 def get_provider_api_key(provider_id: str) -> str:
-    """从 API/.env 读取指定 provider 的 API Key"""
+    """从 API/.env 读取指定 provider 的 API Key（优先读实时文件，避免沿用进程启动时的旧值）"""
     env_key = provider_key_env(provider_id)
-    return os.getenv(env_key, "") or read_api_env_value(env_key)
+    return read_api_env_value(env_key) or os.getenv(env_key, "")
 
 def get_api_provider(provider_id):
     """根据 ID 获取提供商"""
@@ -1340,7 +1340,7 @@ def load_env_file():
                 key, value = line.split("=", 1)
                 key = key.strip()
                 value = value.strip().strip('"').strip("'")
-                os.environ.setdefault(key, value)
+                os.environ[key] = value
     except Exception as e:
         print(f"加载 API/.env 失败: {e}")
 
@@ -7582,8 +7582,11 @@ async def test_provider_connection(payload: TestConnectionPayload):
         raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
 
     api_key = (payload.api_key or "").strip()
+    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
+    if any(ch in api_key for ch in ("•", "…", "****")):
+        api_key = ""
     if not api_key and payload.provider_id:
-        api_key = os.getenv(provider_key_env(payload.provider_id), "")
+        api_key = read_api_env_value(provider_key_env(payload.provider_id))
 
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
@@ -7650,8 +7653,11 @@ async def probe_async_endpoint(payload: TestConnectionPayload):
         raise HTTPException(status_code=400, detail="请先填写请求地址")
 
     api_key = (payload.api_key or "").strip()
+    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
+    if any(ch in api_key for ch in ("•", "…", "****")):
+        api_key = ""
     if not api_key and payload.provider_id:
-        api_key = os.getenv(provider_key_env(payload.provider_id), "")
+        api_key = read_api_env_value(provider_key_env(payload.provider_id))
 
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
@@ -7772,15 +7778,18 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
 async def fetch_upstream_models_from_payload(payload: TestConnectionPayload):
     """按页面当前表单值拉取模型"""
     api_key = (payload.api_key or "").strip()
+    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
+    if any(ch in api_key for ch in ("•", "…", "****")):
+        api_key = ""
     if not api_key and payload.provider_id:
-        api_key = os.getenv(provider_key_env(payload.provider_id), "")
+        api_key = read_api_env_value(provider_key_env(payload.provider_id))
     return await fetch_models_from_upstream(payload.base_url, api_key)
 
 @app.get("/api/providers/{provider_id}/fetch-models")
 async def fetch_upstream_models(provider_id: str):
     """从已保存的上游接口拉取模型列表"""
     provider = get_api_provider_exact(provider_id)
-    api_key = os.getenv(provider_key_env(provider["id"]), "")
+    api_key = read_api_env_value(provider_key_env(provider["id"]))
     if not api_key:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
     return await fetch_models_from_upstream(provider.get("base_url") or "", api_key)
