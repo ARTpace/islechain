@@ -1,14 +1,4 @@
 {
-  "2": {
-    "inputs": {
-      "unet_name": "boogu\\base\\boogu_image_base_fp8_scaled.safetensors",
-      "weight_dtype": "default"
-    },
-    "class_type": "UNETLoader",
-    "_meta": {
-      "title": "UNET加载器"
-    }
-  },
   "3": {
     "inputs": {
       "samples": [
@@ -16,7 +6,7 @@
         0
       ],
       "vae": [
-        "5",
+        "39",
         0
       ]
     },
@@ -25,29 +15,9 @@
       "title": "VAE解码"
     }
   },
-  "5": {
-    "inputs": {
-      "vae_name": "flux1_vae_bf16.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "加载VAE"
-    }
-  },
-  "7": {
-    "inputs": {
-      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
-      "type": "boogu",
-      "device": "default"
-    },
-    "class_type": "CLIPLoader",
-    "_meta": {
-      "title": "加载CLIP"
-    }
-  },
   "8": {
     "inputs": {
-      "width": 1024,
+      "width": 768,
       "height": 1024,
       "batch_size": 1
     },
@@ -70,10 +40,10 @@
   },
   "11": {
     "inputs": {
-      "text": "",
+      "text": "Image of a red panda holding a sign that says \"你大爷!\"",
       "clip": [
-        "7",
-        0
+        "38",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -83,14 +53,14 @@
   },
   "32": {
     "inputs": {
-      "seed": 1118077479952030,
-      "steps": 30,
-      "cfg": 4,
-      "sampler_name": "dpmpp_2m",
+      "seed": 575421459763693,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "lcm",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "2",
+        "38",
         0
       ],
       "positive": [
@@ -115,7 +85,7 @@
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [
-        "37",
+        "3",
         0
       ]
     },
@@ -124,34 +94,58 @@
       "title": "保存图像"
     }
   },
-  "36": {
+  "38": {
     "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "3",
+      "lora_01": "None",
+      "strength_01": 1,
+      "lora_02": "None",
+      "strength_02": 1,
+      "lora_03": "None",
+      "strength_03": 1,
+      "lora_04": "None",
+      "strength_04": 1,
+      "model": [
+        "41",
+        0
+      ],
+      "clip": [
+        "40",
         0
       ]
     },
-    "class_type": "VRAMCleanup",
+    "class_type": "Lora Loader Stack (rgthree)",
     "_meta": {
-      "title": "释放显存"
+      "title": "LoRA堆加载器"
     }
   },
-  "37": {
+  "39": {
     "inputs": {
-      "clean_file_cache": true,
-      "clean_processes": true,
-      "clean_dlls": true,
-      "retry_times": 1,
-      "anything": [
-        "36",
-        0
-      ]
+      "vae_name": "flux1_vae_bf16.safetensors"
     },
-    "class_type": "RAMCleanup",
+    "class_type": "VAELoader",
     "_meta": {
-      "title": "释放内存"
+      "title": "加载VAE"
+    }
+  },
+  "40": {
+    "inputs": {
+      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "boogu",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "41": {
+    "inputs": {
+      "unet_name": "boogu\\turbo\\booguImageTurboInt8_hotfix.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET加载器"
     }
   }
 }

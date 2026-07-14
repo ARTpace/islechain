@@ -33,7 +33,7 @@
   },
   "12": {
     "inputs": {
-      "text": "worst quality, low quality, score_3, score_2, score_1, old, oldest, black hair, head out of frame，text，watermark， animal ears，nsfw， sex， sweat",
+      "text": "",
       "clip": [
         "45",
         0
@@ -55,14 +55,14 @@
   },
   "19": {
     "inputs": {
-      "seed": 689569793656749,
+      "seed": 209497549632423,
       "steps": 10,
       "cfg": 1,
       "sampler_name": "er_sde",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "50",
+        "9000",
         0
       ],
       "positive": [
@@ -125,7 +125,7 @@
   },
   "51": {
     "inputs": {
-      "character_tags": "ibuki suika, ",
+      "character_tags": "",
       "mode": "append"
     },
     "class_type": "AnimaCharacterTagSelector",
@@ -145,8 +145,8 @@
   },
   "69": {
     "inputs": {
-      "width": 864,
-      "height": 1288,
+      "width": 1536,
+      "height": 2048,
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
@@ -223,6 +223,20 @@
     "class_type": "Switch any [Crystools]",
     "_meta": {
       "title": "切换任意"
+    }
+  },
+  "9000": {
+    "inputs": {
+      "lora_name": "skin texture style zib v2.1.safetensors",
+      "strength_model": 0.8,
+      "model": [
+        "50",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "自定义 LoRA: skin texture style zib v2.1.safetensors"
     }
   }
 }

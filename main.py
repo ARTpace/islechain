@@ -992,7 +992,7 @@ async def generate_jimeng_video(payload, provider):
 CLIENT_ID = str(uuid.uuid4())
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
-WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
+WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "text2image", "z-image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 INPUT_DIR = os.path.join(BASE_DIR, "input")
@@ -5989,7 +5989,7 @@ async def scan_new_images(type: str = "", token: str = ""):
                 resolution = 2 if max(width, height) > 1200 else 1
 
             gen_params = {
-                'workflow': 'anima 动漫文生图.json' if is_anima else 'Z-Image.json',
+                'workflow': 'text2image/anima.json' if is_anima else 'text2image/z-image.json',
                 'ratioW': ratio_w, 'ratioH': ratio_h,
                 'resolution': resolution,
                 'batchCount': batch,
@@ -7152,8 +7152,8 @@ def generate(req: GenerateRequest, token: str = ""):
         if req.workflow_data:
             workflow = req.workflow_data
         elif req.workflow_json:
-            workflow_path = os.path.join(WORKFLOW_DIR, req.workflow_json)
-            if not os.path.exists(workflow_path) and req.workflow_json == "Z-Image.json":
+            workflow_path = os.path.join(WORKFLOW_DIR, *req.workflow_json.split("/"))
+            if not os.path.exists(workflow_path) and req.workflow_json in ("Z-Image.json", "text2image/z-image.json"):
                 workflow_path = WORKFLOW_PATH
             if not os.path.exists(workflow_path):
                 raise Exception(f"Workflow file not found: {req.workflow_json}")
@@ -7940,12 +7940,16 @@ async def jimeng_query_media(payload: JimengQueryMediaRequest):
 # 工作流名称校验正则
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
-# 内置工作流列表(workflows/ 目录下根级的文件)
+# 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器)
+BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image")]
 BUILTIN_WORKFLOWS = set()
-if os.path.exists(WORKFLOW_DIR):
-    for fn in os.listdir(WORKFLOW_DIR):
-        if fn.endswith('.json') and os.path.isfile(os.path.join(WORKFLOW_DIR, fn)):
-            BUILTIN_WORKFLOWS.add(fn)
+for _wd in BUILTIN_WORKFLOW_DIRS:
+    if not os.path.isdir(_wd):
+        continue
+    for fn in os.listdir(_wd):
+        if fn.endswith('.json') and not fn.endswith('.config.json') and os.path.isfile(os.path.join(_wd, fn)):
+            rel = os.path.relpath(os.path.join(_wd, fn), WORKFLOW_DIR).replace("\\", "/")
+            BUILTIN_WORKFLOWS.add(rel)
 
 def update_env_values(updates):
     """更新 .env 文件中的配置值"""
@@ -7993,8 +7997,9 @@ def workflow_config_path(name: str) -> str:
     return workflow_path_from_name(name).replace(".json", ".config.json")
 
 def is_builtin_workflow(name: str) -> bool:
-    """判断是否为内置工作流"""
-    return "/" not in name and os.path.basename(name) in BUILTIN_WORKFLOWS
+    """判断是否为内置工作流(支持子目录相对路径,如 text2image/z-image.json)"""
+    rel = os.path.normpath(name).replace("\\", "/")
+    return rel in BUILTIN_WORKFLOWS
 
 class ComfyUIInstancesUpdateRequest(BaseModel):
     instances: List[str] = []
@@ -8995,6 +9000,72 @@ async def proxy_comfyui_ws(websocket: WebSocket, client_id: str = None):
 
 # --- 工作流管理 API ---
 
+def _extract_workflow_meta(filepath):
+    """从工作流 JSON 提取元数据：unet_name、model_folder、是否包含 UNETLoader"""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            wf = json.load(f)
+    except Exception:
+        return None
+    unet_name = ""
+    has_unet = False
+    for nid, node in wf.items():
+        if not isinstance(node, dict) or not node.get("inputs"):
+            continue
+        ct = node.get("class_type", "")
+        if ct == "UNETLoader" and "unet_name" in node["inputs"]:
+            unet_name = node["inputs"]["unet_name"]
+            has_unet = True
+            break
+        if isinstance(ct, str) and "LoadDiffusionModel" in ct and "model_name" in node["inputs"]:
+            unet_name = node["inputs"]["model_name"]
+            has_unet = True
+            break
+    # 从 unet_name 提取文件夹前缀（第一个 \ 或 / 前的部分）
+    model_folder = ""
+    if unet_name:
+        sep_idx = max(unet_name.find("\\"), unet_name.find("/"))
+        if sep_idx > 0:
+            model_folder = unet_name[:sep_idx]
+    return {
+        "unet_name": unet_name,
+        "model_folder": model_folder,
+        "has_unet": has_unet,
+    }
+
+
+@app.get("/api/workflows/builtin")
+async def list_builtin_workflows():
+    """列出所有内置工作流及元数据（含模型文件夹前缀）"""
+    if not os.path.isdir(WORKFLOW_DIR):
+        return {"workflows": []}
+    items = []
+    for rel in sorted(BUILTIN_WORKFLOWS):
+        filepath = os.path.join(WORKFLOW_DIR, *rel.split("/"))
+        if not os.path.isfile(filepath):
+            continue
+        meta = _extract_workflow_meta(filepath)
+        # 读取 config.json
+        cfg = {}
+        cfg_path = filepath.replace(".json", ".config.json")
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f) or {}
+            except Exception:
+                cfg = {}
+        title = cfg.get("title") or os.path.basename(rel).replace(".json", "")
+        items.append({
+            "name": rel,
+            "title": title,
+            "builtin": True,
+            "has_unet": meta and meta.get("has_unet"),
+            "model_folder": (meta and meta.get("model_folder")) or "",
+            "unet_name": (meta and meta.get("unet_name")) or "",
+        })
+    return {"workflows": items}
+
+
 @app.get("/api/workflows")
 async def list_workflows():
     """获取工作流列表"""
@@ -9353,7 +9424,7 @@ async def poster_generate(req: Request, token: str = ""):
             full_prompt = f"{prompt}, {style_prompt}"
 
         # 选择工作流
-        workflow_name = "Boogu-Turbo.json" if mode == 'turbo' else "Boogu-Base.json"
+        workflow_name = "text2image/boogu-turbo.json" if mode == 'turbo' else "text2image/boogu-base.json"
         workflow_path = os.path.join(WORKFLOW_DIR, workflow_name)
         if not os.path.exists(workflow_path):
             return {"error": f"工作流 {workflow_name} 不存在"}

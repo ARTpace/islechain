@@ -44,9 +44,41 @@ body.studio-theme-dark .sp-picker-item.active { background: rgba(0,240,255,0.06)
 }
 .sp-picker-item.active .sp-picker-dot { background: #00b4d8; border-color: #00b4d8; }
 body.studio-theme-dark .sp-picker-item.active .sp-picker-dot { background: #00f0ff; border-color: #00f0ff; }
+.sp-picker-info { flex: 1; min-width: 0; }
 .sp-picker-name { font-size: 13px; font-weight: 700; color: var(--text-main, #1a1a1a); }
 body.studio-theme-dark .sp-picker-name { color: #e0e7ef; }
 .sp-picker-desc { font-size: 11px; color: #999; margin-top: 1px; }
+.sp-picker-model-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px;
+}
+.sp-picker-model-label {
+    font-size: 10px; font-weight: 800; color: #aaa;
+    letter-spacing: 0.03em; flex-shrink: 0;
+}
+body.studio-theme-dark .sp-picker-model-label { color: #666; }
+.sp-picker-model-select {
+    flex: 1; min-width: 0; height: 26px;
+    padding: 0 8px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 7px;
+    font-size: 11px; font-weight: 700;
+    background: transparent;
+    color: var(--text-main, #1a1a1a);
+    cursor: pointer; outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none; appearance: none;
+    /* 自定义下拉箭头 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23999'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 22px;
+}
+body.studio-theme-dark .sp-picker-model-select {
+    border-color: rgba(255,255,255,0.1); color: #ccc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23666'/%3E%3C/svg%3E");
+}
+.sp-picker-model-select:focus { border-color: var(--accent, #00b4d8); }
 .sp-picker-foot {
     padding: 8px 12px 12px; display: flex; gap: 8px;
     border-top: 1px solid rgba(0,0,0,0.06);

@@ -12154,7 +12154,7 @@ async function generateUrlsForCurrentSettings(node, prompt, refs, runSettings=se
             const data = await fetch('/api/generate', {
                 method:'POST',
                 headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'Z-Image.json', type:'zimage'})
+                body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
             }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
             const urls = resultMediaUrls(data);
             return {urls, kind:mediaKindForUrls(urls, 'image')};
@@ -12246,7 +12246,7 @@ async function generateComfyUrlsWithSettings(runSettings, prompt, refs){
         const data = await fetch('/api/generate', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({prompt, width:Number(runSettings.width || 1024), height:Number(runSettings.height || 1024), workflow_json:'Z-Image.json', type:'zimage'})
+            body:JSON.stringify({prompt, width:Number(runSettings.width || 1024), height:Number(runSettings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
         }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
         const urls = resultMediaUrls(data);
         return {urls, kind:mediaKindForUrls(urls, 'image')};
@@ -12255,7 +12255,7 @@ async function generateComfyUrlsWithSettings(runSettings, prompt, refs){
         const data = await fetch('/api/generate', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({prompt, width:Number(runSettings.width || 1280), height:Number(runSettings.height || 2048), workflow_json:'Krea2-Turbo.json', type:'krea2'})
+            body:JSON.stringify({prompt, width:Number(runSettings.width || 1280), height:Number(runSettings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'})
         }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
         const urls = resultMediaUrls(data);
         return {urls, kind:mediaKindForUrls(urls, 'image')};
@@ -13254,7 +13254,7 @@ async function runComfyText(node, prompt, pendingNode, meta){
     const data = await fetch('/api/generate', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'Z-Image.json', type:'zimage'})
+        body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
     }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
     const out = data.outputs || data.images || [];
     if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
@@ -13272,7 +13272,7 @@ async function runComfyKrea2(node, prompt, pendingNode, meta){
     const data = await fetch('/api/generate', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt, width:Number(settings.width || 1280), height:Number(settings.height || 2048), workflow_json:'Krea2-Turbo.json', type:'krea2'})
+        body:JSON.stringify({prompt, width:Number(settings.width || 1280), height:Number(settings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'})
     }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
     const out = data.outputs || data.images || [];
     if(!out.length) throw new Error(tr('smart.errComfyNoImages'));

@@ -193,20 +193,120 @@ class SettingsUI {
                 0%, 100% { box-shadow: 0 0 6px var(--accent-glow, #06B6D4), 0 0 14px var(--accent-glow, #06B6D4), 0 4px 20px var(--monitor-shadow, rgba(0,180,216,0.15)); }
                 50% { box-shadow: 0 0 12px var(--accent-glow, #06B6D4), 0 0 30px var(--accent-glow, #06B6D4), 0 4px 20px var(--monitor-shadow, rgba(0,180,216,0.15)); }
             }
+            /* 系统设置 - 手机 App 风格功能按钮 */
+            /* ===== 统一 Tile 样式（顶部入口 & 系统功能共用）===== */
+            .sys-tile,
+            .set-card {
+                width: 100%;
+                min-height: 58px;
+                border-radius: 16px;
+                border: 1px solid var(--border);
+                background: rgba(120, 130, 150, 0.10);
+                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 14%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #0ea5e9)) 4%, transparent));
+                color: var(--text);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 13px;
+                padding: 11px 14px;
+                text-align: left;
+                transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .sys-tile:hover,
+            .set-card:hover {
+                border-color: color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 45%, var(--border));
+                box-shadow: 0 6px 18px color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 22%, transparent);
+            }
+            .sys-tile:active,
+            .set-card:active {
+                transform: scale(0.97);
+                background: rgba(120, 130, 150, 0.16);
+                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 22%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #0ea5e9)) 10%, transparent));
+            }
+
+            /* 统一图标容器 */
+            .sys-tile-ico,
+            .set-card-ico {
+                width: 41px;
+                height: 41px;
+                border-radius: 13px;
+                background: linear-gradient(135deg, var(--tile, var(--sc, #38bdf8)), var(--tile2, var(--sc2, #0ea5e9)));
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                color: #fff;
+                box-shadow: 0 4px 14px color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 28%, transparent);
+            }
+
+            /* 统一文字区域 */
+            .sys-tile-txt,
+            .set-card-body {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+            }
+            .sys-tile-title,
+            .set-card-title {
+                font-size: 14px;
+                font-weight: 700;
+                line-height: 1.25;
+                color: var(--text);
+            }
+            .sys-tile-sub,
+            .set-card-sub {
+                font-size: 11.5px;
+                font-weight: 600;
+                color: var(--muted);
+                line-height: 1.25;
+            }
+
+            /* 统一右侧 trailing 元素（箭头 / 胶囊） */
+            .sys-tile-trail,
+            .set-card-arrow {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 28px;
+                height: 26px;
+                padding: 0 10px;
+                border-radius: 8px;
+                font-size: 11.5px;
+                font-weight: 800;
+                color: var(--faint);
+                transition: color 0.15s, background 0.15s, opacity 0.15s, transform 0.15s;
+            }
+            .sys-tile:hover .sys-tile-trail,
+            .set-card:hover .set-card-arrow {
+                color: var(--tile, var(--sc, #38bdf8));
+                background: color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 12%, transparent);
+            }
+
+
+
+            /* 退出登录强调色 */
+            .sys-tile-danger {
+                border-color: color-mix(in srgb, #f87171 40%, var(--border));
+            }
+            .sys-tile-danger:hover {
+                border-color: color-mix(in srgb, #f87171 60%, var(--border));
+                box-shadow: 0 6px 18px rgba(248,113,113,0.22);
+            }
         `;
         document.head.appendChild(style);
 
-        // 检测侧边栏按钮是否已存在
+        // 检测侧边栏设置按钮是否已存在
         const sbSettings = document.getElementById('sidebar-settings-btn');
-        const sbTheme = document.getElementById('sidebar-theme-btn');
-        const sbLogin = document.getElementById('sidebar-login-btn');
-        const sbRestart = document.getElementById('sidebar-restart-btn');
-        if (sbSettings && sbTheme) {
+        if (sbSettings) {
             this._useSidebar = true;
             this.buttonEl = sbSettings;
-            this.themeBtnEl = sbTheme;
-            this.loginBtnEl = sbLogin;
-            if (sbRestart) sbRestart.onclick = () => { fetch('/api/restart', { method: 'POST' }).catch(() => {}); setTimeout(() => location.reload(), 2000); };
+            // 主题/登录/重启已移至设置面板内的"系统设置"卡片，侧边栏不再单独展示
+            this.themeBtnEl = null;
+            this.loginBtnEl = null;
             this.updateThemeIcon();
             return; // 跳过浮动按钮创建
         }
@@ -391,6 +491,24 @@ class SettingsUI {
     }
     
     createPanel() {
+        // 全屏遮罩：点击空白处关闭面板（可穿透 iframe 捕获点击）
+        const backdrop = document.createElement('div');
+        backdrop.id = 'settings-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            inset: 0;
+            z-index: 998;
+            background: rgba(8, 15, 30, 0.5);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        `;
+        document.body.appendChild(backdrop);
+        backdrop.addEventListener('click', () => this.hidePanel());
+        this.backdropEl = backdrop;
+
         const panel = document.createElement('div');
         panel.id = 'settings-panel';
         panel.style.cssText = `
@@ -398,16 +516,18 @@ class SettingsUI {
             bottom: 80px;
             left: 20px;
             z-index: 999;
-            width: 280px;
+            width: min(340px, calc(100vw - 40px));
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
             background: var(--sidebar-bg);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
-            padding: 24px;
+            border-radius: 22px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            padding: 22px;
             display: none;
             opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: translateY(16px) scale(0.97);
+            transition: opacity 0.22s ease, transform 0.22s ease;
         `;
         
         panel.innerHTML = `
@@ -422,49 +542,51 @@ class SettingsUI {
             </div>
             
             <div style="display:flex;flex-direction:column;gap:12px;">
-                <button id="settings-api-btn" style="width:100%;height:56px;border-radius:14px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;padding:0 16px;transition:all 0.2s;text-align:left;">
-                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#00b4d8,#00f0ff);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="settings-api-btn" class="set-card" style="--sc:#00b4d8;--sc2:#00f0ff;">
+                    <span class="set-card-ico">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:13px;font-weight:700;margin-bottom:2px;">API 设置</div>
-                        <div style="font-size:11px;color:var(--muted);">配置 API Key 和模型参数</div>
-                    </div>
+                    </span>
+                    <span class="set-card-body">
+                        <span class="set-card-title">API 设置</span>
+                        <span class="set-card-sub">配置 API Key 和模型参数</span>
+                    </span>
+                    <span class="set-card-arrow">›</span>
                 </button>
                 
-                <button id="settings-comfyui-btn" style="width:100%;height:56px;border-radius:14px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;padding:0 16px;transition:all 0.2s;text-align:left;">
-                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#c084fc);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="settings-comfyui-btn" class="set-card" style="--sc:#8b5cf6;--sc2:#c084fc;">
+                    <span class="set-card-ico">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                             <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                             <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                         </svg>
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:13px;font-weight:700;margin-bottom:2px;">ComfyUI 设置</div>
-                        <div style="font-size:11px;color:var(--muted);">管理工作流和节点配置</div>
-                    </div>
+                    </span>
+                    <span class="set-card-body">
+                        <span class="set-card-title">ComfyUI 设置</span>
+                        <span class="set-card-sub">管理工作流和节点配置</span>
+                    </span>
+                    <span class="set-card-arrow">›</span>
                 </button>
 
-                <!-- ComfyUI 启动/停止控制 -->
-                <div id="comfy-start-control" style="width:100%;display:flex;flex-direction:column;gap:4px;">
-                    <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;">
+                <!-- ComfyUI 启动/停止控制（统一样式卡片） -->
+                <div id="comfy-start-control" class="sys-tile" style="--tile:#06b6d4;--tile2:#22d3ee;cursor:default;flex-direction:column;align-items:stretch;gap:0;padding:0;min-height:auto;">
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;">
                         <div id="comfy-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--faint);flex-shrink:0;"></div>
                         <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;">ComfyUI</span>
                         <span id="comfy-status-text" style="font-size:11px;font-weight:700;color:var(--muted);">检查中...</span>
                     </div>
-                    <div style="display:flex;gap:6px;padding:0 16px 10px;">
-                        <button id="comfy-start-btn" style="flex:1;height:36px;border-radius:10px;border:none;background:var(--accent);color:var(--bg);font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                    <div style="display:flex;gap:6px;padding:0 14px 12px;">
+                        <button id="comfy-start-btn" style="flex:1;height:34px;border-radius:10px;border:none;background:var(--accent);color:var(--bg);font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             <span>启动</span>
                         </button>
-                        <button id="comfy-stop-btn" style="flex:1;height:36px;border-radius:10px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                        <button id="comfy-stop-btn" style="flex:1;height:34px;border-radius:10px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
                             <span>停止</span>
                         </button>
-                        <button id="comfy-log-btn" title="查看日志" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <button id="comfy-log-btn" title="查看日志" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         </button>
                     </div>
@@ -487,23 +609,90 @@ class SettingsUI {
                     <pre id="comfy-log-content" style="margin:0;padding:10px;background:#0a1628;color:#a7f3d0;border-radius:8px;font-size:10.5px;font-family:ui-monospace,Consolas,monospace;line-height:1.45;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-all;border:1px solid rgba(16,185,129,0.2);">(加载中...)</pre>
                 </div>
 
-                <button id="settings-users-btn" style="width:100%;height:56px;border-radius:14px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);cursor:pointer;display:none;align-items:center;gap:12px;padding:0 16px;transition:all 0.2s;text-align:left;">
-                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="settings-users-btn" class="set-card" style="--sc:#f59e0b;--sc2:#fbbf24;display:none;">
+                    <span class="set-card-ico">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                             <circle cx="9" cy="7" r="4"></circle>
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                         </svg>
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:13px;font-weight:700;margin-bottom:2px;">用户管理</div>
-                        <div style="font-size:11px;color:var(--muted);">管理用户和重置密码</div>
-                    </div>
+                    </span>
+                    <span class="set-card-body">
+                        <span class="set-card-title">用户管理</span>
+                        <span class="set-card-sub">管理用户和重置密码</span>
+                    </span>
+                    <span class="set-card-arrow">›</span>
                 </button>
-            </div>
+
+                <!-- 系统设置（统一样式容器） -->
+                <div class="set-card" style="--sc:#6366f1;--sc2:#818cf8;cursor:default;overflow:hidden;flex-direction:column;align-items:stretch;gap:0;padding:0;min-height:auto;">
+                    <!-- 头部 -->
+                    <div style="display:flex;align-items:center;gap:13px;padding:11px 14px 6px;">
+                        <span class="set-card-ico">
+                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </span>
+                        <span class="set-card-body">
+                            <span class="set-card-title">系统设置</span>
+                            <span class="set-card-sub">外观、侧边栏与服务</span>
+                        </span>
+                    </div>
+                    <!-- 分割线 -->
+                    <div style="height:1px;background:var(--border);margin:0 14px;opacity:0.5;"></div>
+                    <!-- 功能行 -->
+                    <div style="display:flex;flex-direction:column;padding:8px 10px 12px;gap:8px;" id="sys-settings-rows">
+                        <!-- 侧边栏锁定 -->
+                        <button id="sys-lock-btn" class="sys-tile" style="--tile:#38bdf8;--tile2:#0ea5e9;">
+                            <span class="sys-tile-ico">
+                                <svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                                <svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+                            </span>
+                            <span class="sys-tile-txt">
+                                <span class="sys-tile-title">锁定侧边栏</span>
+                                <span id="sys-lock-status" class="sys-tile-sub">关闭</span>
+                            </span>
+                            <span class="sys-tile-trail" id="sys-lock-trail">关</span>
+                        </button>
+                        <!-- 深浅主题 -->
+                        <button id="sys-theme-btn" class="sys-tile" style="--tile:#a78bfa;--tile2:#8b5cf6;">
+                            <span class="sys-tile-ico">
+                                <svg id="sys-icon-moon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                                <svg id="sys-icon-sun" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                            </span>
+                            <span class="sys-tile-txt">
+                                <span class="sys-tile-title">切换主题</span>
+                                <span id="sys-theme-status" class="sys-tile-sub">深色</span>
+                            </span>
+                            <span class="sys-tile-trail" id="sys-theme-trail">深色</span>
+                        </button>
+                        <!-- 登录/退出 -->
+                        <button id="sys-auth-btn" class="sys-tile" style="--tile:#34d399;--tile2:#10b981;">
+                            <span class="sys-tile-ico">
+                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </span>
+                            <span class="sys-tile-txt">
+                                <span class="sys-tile-title" id="sys-auth-label">登录</span>
+                                <span id="sys-auth-hint" class="sys-tile-sub">未登录</span>
+                            </span>
+                            <span class="sys-tile-trail" id="sys-auth-trail">›</span>
+                        </button>
+                        <!-- 重启服务 -->
+                        <button id="sys-restart-btn" class="sys-tile" style="--tile:#fb923c;--tile2:#f97316;">
+                            <span class="sys-tile-ico">
+                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                            </span>
+                            <span class="sys-tile-txt">
+                                <span class="sys-tile-title">重启服务</span>
+                                <span class="sys-tile-sub">立即重启生效</span>
+                            </span>
+                            <span class="sys-tile-trail">›</span>
+                        </button>
+                    </div>
         `;
-        
+
         document.body.appendChild(panel);
         this.panelEl = panel;
     }
@@ -586,22 +775,26 @@ class SettingsUI {
             if (this.buttonEl.classList.contains('disabled')) return;
             this.togglePanel();
         };
-        
-        this.themeBtnEl.onclick = () => {
-            if (typeof toggleTheme === 'function') {
-                toggleTheme();
-                this.updateThemeIcon();
-            }
-        };
-        
-        this.loginBtnEl.onclick = (e) => {
-            e.stopPropagation();
-            if (AuthManager.isLoggedIn()) {
-                this.confirmLogout();
-            } else {
-                this.showLoginModal();
-            }
-        };
+
+        if (this.themeBtnEl) {
+            this.themeBtnEl.onclick = () => {
+                if (typeof toggleTheme === 'function') {
+                    toggleTheme();
+                    this.updateThemeIcon();
+                }
+            };
+        }
+
+        if (this.loginBtnEl) {
+            this.loginBtnEl.onclick = (e) => {
+                e.stopPropagation();
+                if (AuthManager.isLoggedIn()) {
+                    this.confirmLogout();
+                } else {
+                    this.showLoginModal();
+                }
+            };
+        }
         
         document.getElementById('settings-close-btn').onclick = () => this.hidePanel();
         
@@ -647,6 +840,41 @@ class SettingsUI {
                 if (e.key === 'Enter') this.handleLogin();
             });
         });
+
+        // ---- 系统设置卡片事件绑定 ----
+        const sysLockBtn = document.getElementById('sys-lock-btn');
+        const sysThemeBtn = document.getElementById('sys-theme-btn');
+        const sysAuthBtn = document.getElementById('sys-auth-btn');
+        const sysRestartBtn = document.getElementById('sys-restart-btn');
+
+        if (sysLockBtn) {
+            sysLockBtn.onclick = () => {
+                if (typeof toggleSidebarLock === 'function') toggleSidebarLock();
+                this.updateSysSettingsState();
+            };
+        }
+        if (sysThemeBtn) {
+            sysThemeBtn.onclick = () => {
+                if (typeof toggleTheme === 'function') toggleTheme();
+                this.updateThemeIcon();
+                this.updateSysThemeStatus();
+            };
+        }
+        if (sysAuthBtn) {
+            sysAuthBtn.onclick = () => {
+                if (AuthManager.isLoggedIn()) {
+                    this.confirmLogout();
+                } else {
+                    this.showLoginModal();
+                }
+            };
+        }
+        if (sysRestartBtn) {
+            sysRestartBtn.onclick = () => {
+                fetch('/api/restart', { method: 'POST' }).catch(() => {});
+                setTimeout(() => location.reload(), 2000);
+            };
+        }
     }
     
     togglePanel() {
@@ -658,7 +886,7 @@ class SettingsUI {
     }
     
     updateThemeIcon() {
-        const isDark = document.body.classList.contains('theme-dark') || 
+        const isDark = document.body.classList.contains('theme-dark') ||
                        document.documentElement.classList.contains('studio-theme-dark');
         // 更新浮动按钮图标
         const moonIcon = document.getElementById('icon-moon');
@@ -674,23 +902,44 @@ class SettingsUI {
             sbMoon.style.display = isDark ? 'none' : 'block';
             sbSun.style.display = isDark ? 'block' : 'none';
         }
+        // 同步系统设置卡片图标
+        this.updateSysThemeStatus();
+    }
+
+    updateSysThemeStatus() {
+        const isDark = document.body.classList.contains('theme-dark') ||
+                       document.documentElement.classList.contains('studio-theme-dark');
+        const sysMoon = document.getElementById('sys-icon-moon');
+        const sysSun = document.getElementById('sys-icon-sun');
+        const sysStatus = document.getElementById('sys-theme-status');
+        const sysTrail = document.getElementById('sys-theme-trail');
+        if (sysMoon) sysMoon.style.display = isDark ? 'none' : 'block';
+        if (sysSun) sysSun.style.display = isDark ? 'block' : 'none';
+        if (sysStatus) sysStatus.textContent = isDark ? '深色' : '浅色';
+        if (sysTrail) sysTrail.textContent = isDark ? '深色' : '浅色';
     }
     
     showPanel() {
+        this.backdropEl.style.opacity = '1';
+        this.backdropEl.style.pointerEvents = 'auto';
         this.panelEl.style.display = 'block';
         requestAnimationFrame(() => {
             this.panelEl.style.opacity = '1';
-            this.panelEl.style.transform = 'translateY(0)';
+            this.panelEl.style.transform = 'translateY(0) scale(1)';
         });
         this.panelVisible = true;
+        // 同步系统设置卡片内所有状态
+        this.updateSysSettingsState();
     }
-    
+
     hidePanel() {
+        this.backdropEl.style.opacity = '0';
+        this.backdropEl.style.pointerEvents = 'none';
         this.panelEl.style.opacity = '0';
-        this.panelEl.style.transform = 'translateY(10px)';
+        this.panelEl.style.transform = 'translateY(16px) scale(0.97)';
         setTimeout(() => {
             this.panelEl.style.display = 'none';
-        }, 200);
+        }, 220);
         this.panelVisible = false;
     }
     
@@ -807,13 +1056,18 @@ class SettingsUI {
         document.getElementById('logout-cancel-btn').onclick = () => overlay.remove();
         document.getElementById('logout-confirm-btn').onclick = async () => {
             overlay.remove();
-            this.loginBtnEl.title = '退出中...';
+            if (this.loginBtnEl) this.loginBtnEl.title = '退出中...';
             await AuthManager.logout();
             window.location.href = '/static/login.html';
         };
     }
     
     updateLoginState() {
+        // 侧边栏模式下 loginBtnEl 为空（登录功能已移至设置面板内），仅同步卡片状态
+        if (!this.loginBtnEl) {
+            this.updateSysAuthState();
+            return;
+        }
         const isSidebar = this._useSidebar;
         if (AuthManager.isLoggedIn()) {
             const user = AuthManager.getUser();
@@ -850,6 +1104,49 @@ class SettingsUI {
                 this.loginBtnEl.style.borderRadius = '50%';
                 this.loginBtnEl.classList.remove('logged-in');
             }
+        }
+        // 同步系统设置卡片登录状态
+        this.updateSysAuthState();
+    }
+
+    updateSysSettingsState() {
+        this.updateSysLockStatus();
+        this.updateSysThemeStatus();
+        this.updateSysAuthState();
+    }
+
+    updateSysLockStatus() {
+        const isLocked = localStorage.getItem('sidebarLocked') === 'true';
+        const iconOpen = document.getElementById('sys-icon-lock-open');
+        const iconClosed = document.getElementById('sys-icon-lock-closed');
+        const status = document.getElementById('sys-lock-status');
+        const trail = document.getElementById('sys-lock-trail');
+        const tile = document.getElementById('sys-lock-btn');
+        if (iconOpen) iconOpen.style.display = isLocked ? 'none' : 'block';
+        if (iconClosed) iconClosed.style.display = isLocked ? 'block' : 'none';
+        if (status) status.textContent = isLocked ? '已锁定' : '关闭';
+        if (trail) trail.textContent = isLocked ? '开' : '关';
+        if (tile) tile.style.setProperty('--tile', isLocked ? '#f59e0b' : '#38bdf8'),
+                 tile.style.setProperty('--tile2', isLocked ? '#d97706' : '#0ea5e9');
+    }
+
+    updateSysAuthState() {
+        const label = document.getElementById('sys-auth-label');
+        const hint = document.getElementById('sys-auth-hint');
+        const trail = document.getElementById('sys-auth-trail');
+        const tile = document.getElementById('sys-auth-btn');
+        if (!label || !hint) return;
+        if (typeof AuthManager !== 'undefined' && AuthManager.isLoggedIn()) {
+            const user = AuthManager.getUser();
+            label.textContent = '退出登录';
+            hint.textContent = this.escapeHtml(user.username);
+            if (trail) trail.textContent = '退出';
+            if (tile) tile.classList.add('sys-tile-danger');
+        } else {
+            label.textContent = '登录';
+            hint.textContent = '未登录';
+            if (trail) trail.textContent = '›';
+            if (tile) tile.classList.remove('sys-tile-danger');
         }
     }
     

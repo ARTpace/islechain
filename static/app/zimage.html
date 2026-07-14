@@ -541,31 +541,7 @@
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
                                 <div id="modelMenu" class="anima-ctrl-menu" style="min-width:160px">
-                                    <div onclick="selectModel('Z-Image.json')" data-model-key="Z-Image.json" class="anima-ctrl-menu-item">
-                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
-                                        <span class="ratio-label">Z-Image</span>
-                                        <span class="chk" style="opacity:1">✓</span>
-                                    </div>
-                                    <div onclick="selectModel('anima 动漫文生图.json')" data-model-key="anima 动漫文生图.json" class="anima-ctrl-menu-item">
-                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
-                                        <span class="ratio-label">ANIMA</span>
-                                        <span class="chk" style="opacity:0">✓</span>
-                                    </div>
-                                    <div onclick="selectModel('Krea2-Turbo.json')" data-model-key="Krea2-Turbo.json" class="anima-ctrl-menu-item">
-                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
-                                        <span class="ratio-label">Krea2</span>
-                                        <span class="chk" style="opacity:0">✓</span>
-                                    </div>
-                                    <div onclick="selectModel('Ideogram4-Structured.json')" data-model-key="Ideogram4-Structured.json" class="anima-ctrl-menu-item">
-                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
-                                        <span class="ratio-label">Ideogram4</span>
-                                        <span class="chk" style="opacity:0">✓</span>
-                                    </div>
-                                    <div onclick="selectBoogu()" data-model-key="Boogu" class="anima-ctrl-menu-item">
-                                        <span class="ratio-icon" style="width:12px;height:12px;"></span>
-                                        <span class="ratio-label">Boogu</span>
-                                        <span class="chk" style="opacity:0">✓</span>
-                                    </div>
+                                    <!-- 动态渲染，由 renderModelMenu() 填充 -->
                                 </div>
                             </div>
                             <button onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
@@ -1008,20 +984,96 @@
             _activeTasks.set(promptId, { card, onDone });
             await _ensureWs();
         }
-        function _unregisterTask(promptId) {
-            _activeTasks.delete(promptId);
+        // 动态渲染模型菜单（从 BUILTIN_WF_META 推导）
+        // Boogu 是特殊项：它有 Base/Turbo 变体，需要在菜单里只显示一个“Boogu”项
+        function renderModelMenu() {
+            const menu = document.getElementById('modelMenu');
+            if (!menu) return;
+            menu.innerHTML = '';  // 清空硬编码
+            // 按 title 分组 Boogu 变体（Boogu-Base / Boogu-Turbo → 同一个菜单项）
+            const seenTitles = new Set();
+            const uniqueItems = [];
+            for (const m of BUILTIN_WF_META) {
+                if (!m.has_unet) continue;  // 跳过没有 UNETLoader 的工具型工作流
+                if (!m.name.startsWith('text2image/')) continue;  // 仅显示文生图工作流（排除根目录编辑/增强类）
+                // Boogu 变体合并
+                if (seenTitles.has(m.title)) continue;
+                seenTitles.add(m.title);
+                uniqueItems.push(m);
+            }
+            for (const m of uniqueItems) {
+                const isBoogu = m.name.includes('boogu');
+                const div = document.createElement('div');
+                div.className = 'anima-ctrl-menu-item';
+                if (isBoogu) {
+                    div.setAttribute('data-model-key', 'Boogu');
+                    div.onclick = () => selectBoogu();
+                } else {
+                    div.setAttribute('data-model-key', m.name);
+                    div.onclick = () => selectModel(m.name);
+                }
+                const isActive = isBoogu
+                    ? currentWorkflow.toLowerCase().includes('boogu')
+                    : currentWorkflow === m.name;
+                div.innerHTML = `<span class="ratio-icon" style="width:12px;height:12px;"></span>
+                    <span class="ratio-label">${m.title}</span>
+                    <span class="chk" style="opacity:${isActive ? 1 : 0}">✓</span>`;
+                menu.appendChild(div);
+            }
+        }
+
+        // === 内置工作流元数据（从后端动态加载） ===
+        let BUILTIN_WF_META = [];  // [{name, title, has_unet, model_folder, unet_name}]
+        // 暴露给独立模块（如 lora-manager），避免跨文件硬编码映射表
+        function _syncBuiltinMeta() { window.BUILTIN_WF_META = BUILTIN_WF_META; }
+        // 元数据就绪后，重新同步依赖它的 UI：模型按钮文案 + LoRA 过滤
+        function _resyncAfterMeta() {
+            const txt = document.getElementById('modelText');
+            if (txt) txt.textContent = getCurrentModelMode();
+            if (typeof LoraManager !== 'undefined' && currentWorkflow) {
+                LoraManager.setWorkflowFilter(currentWorkflow);
+                if (typeof LoraManager.updateVisibility === 'function') LoraManager.updateVisibility();
+            }
+        }
+        async function loadBuiltinWorkflowMeta() {
+            try {
+                const res = await fetch('/api/workflows/builtin');
+                const data = await res.json();
+                BUILTIN_WF_META = data.workflows || [];
+            } catch (e) {
+                // 回退：硬编码列表（仅网络异常时兜底）
+                BUILTIN_WF_META = [
+                    {name:'text2image/z-image.json', title:'Z-Image', has_unet:true, model_folder:'z-image', unet_name:''},
+                    {name:'text2image/anima.json', title:'ANIMA', has_unet:true, model_folder:'anima', unet_name:''},
+                    {name:'text2image/krea2-turbo.json', title:'Krea2', has_unet:true, model_folder:'Krea2', unet_name:''},
+                    {name:'text2image/ideogram4-structured.json', title:'Ideogram4 Structured', has_unet:true, model_folder:'ideogram4', unet_name:''},
+                    {name:'text2image/boogu-base.json', title:'Boogu', has_unet:true, model_folder:'boogu', unet_name:''},
+                ];
+            }
+            _syncBuiltinMeta();
+            renderModelMenu();
+            _resyncAfterMeta();
+        }
+        // 根据工作流文件名查找元数据
+        function _wfMeta(name) {
+            // Boogu 动态变体：text2image/boogu-base.json / text2image/boogu-turbo.json
+            const n = name || currentWorkflow;
+            const direct = BUILTIN_WF_META.find(m => m.name === n);
+            if (direct) return direct;
+            // 前缀匹配（Boogu-xxx.json → 任何 Boogu 元数据）
+            const prefix = n.split('/').pop().split('-')[0];
+            const alt = BUILTIN_WF_META.find(m => m.name.toLowerCase().startsWith(prefix.toLowerCase()));
+            return alt || null;
         }
 
         // === 工作流切换 ===
-        let currentWorkflow = 'Z-Image.json';
-        // 获取当前模型模式（供预设选择器过滤用）
+        let currentWorkflow = 'text2image/z-image.json';
+        // 获取当前模型模式（供预设选择器过滤用）—— 现从元数据推导
         function getCurrentModelMode() {
-            if (currentWorkflow.includes('anima 图生图')) return 'Anima图生图';
-            if (currentWorkflow.includes('anima')) return 'ANIMA';
-            if (currentWorkflow.includes('Krea2')) return 'Krea2';
-            if (currentWorkflow.includes('Ideogram4')) return 'Ideogram4';
-            if (currentWorkflow.includes('Boogu')) return 'Boogu';
-            return 'Z-Image';
+            const meta = _wfMeta();
+            if (meta) return meta.title;
+            // 回退：从文件名推导
+            return currentWorkflow.replace('.json', '');
         }
         let currentEngine = localStorage.getItem('zimage_engine') || 'local';
         // currentBatchCount 等生成参数已移至 GenerationControls 模块
@@ -1076,13 +1128,28 @@
 
 
         // === 当前工作流兼容的模型文件夹前缀列表 ===
+        // 从后端元数据推导，不再硬编码
         function _compatModelPrefixes() {
-            const wf = currentWorkflow.toLowerCase();
-            if (wf.includes('anima')) return ['anima\\', 'anima/'];
-            if (wf.includes('krea2')) return ['flux2-klein\\', 'flux2-klein/'];
-            if (wf.includes('ideogram4')) return ['ideogram4\\', 'ideogram4/'];
-            if (wf.includes('boogu')) return ['boogu\\', 'boogu/'];
-            if (wf.includes('zimage') || wf.includes('z-image')) return ['z-image\\', 'z-image/'];
+            const meta = _wfMeta();
+            if (meta && meta.model_folder) {
+                return [meta.model_folder + '\\', meta.model_folder + '/'];
+            }
+            // 回退：尝试从 _wfCache 中的 unet_name 推导
+            const wf = window._wfCache && window._wfCache[currentWorkflow];
+            if (wf) {
+                for (const nid in wf) {
+                    const node = wf[nid];
+                    if (!node || !node.inputs) continue;
+                    const ct = node.class_type || '';
+                    const unetField = ct === 'UNETLoader' ? node.inputs.unet_name : '';
+                    if (!unetField) continue;
+                    const sepIdx = Math.max(unetField.indexOf('\\'), unetField.indexOf('/'));
+                    if (sepIdx > 0) {
+                        const folder = unetField.substring(0, sepIdx);
+                        return [folder + '\\', folder + '/'];
+                    }
+                }
+            }
             return null; // unknown -> show all
         }
         // === 模型选择面板（UNET 模型文件） ===
@@ -1282,14 +1349,28 @@
         document.addEventListener('DOMContentLoaded', applyCompactMode);
 
         // 紧凑模式下按钮直接切换
-        const _modelOptions = ['Z-Image.json', 'anima 动漫文生图.json', 'Krea2-Turbo.json', 'Ideogram4-Structured.json'];
-        const _modelLabels = ['Z-Image', 'ANIMA', 'Krea2', 'Ideogram4'];
+        // 紧凑模式循环切换：工作流列表从 BUILTIN_WF_META 动态推导（不再硬编码）
+        function getModelOptions() {
+            if (BUILTIN_WF_META.length) {
+                const seen = new Set();
+                const out = [];
+                for (const m of BUILTIN_WF_META) {
+                    if (!m.has_unet) continue;          // 跳过工具型工作流（无 UNETLoader）
+                    if (seen.has(m.title)) continue;    // Boogu 多变体只留一个
+                    seen.add(m.title);
+                    out.push(m.name);
+                }
+                if (out.length) return out;
+            }
+            return ['text2image/z-image.json', 'text2image/anima.json', 'text2image/krea2-turbo.json', 'text2image/ideogram4-structured.json'];
+        }
         function _isCompact() { return document.querySelector('.control-bar')?.classList.contains('compact-toggle') || window.innerWidth <= 900; }
         function compactModelToggle() {
             if (!_isCompact()) return false;
-            const idx = _modelOptions.indexOf(currentWorkflow);
-            const next = (idx + 1) % _modelOptions.length;
-            selectModel(_modelOptions[next]);
+            const opts = getModelOptions();
+            const idx = opts.indexOf(currentWorkflow);
+            const next = (idx + 1) % opts.length;
+            selectModel(opts[next]);
             return true;
         }
         const _engineOptions = ['local', 'cloud'];
@@ -1354,15 +1435,15 @@
         let booguQuality = localStorage.getItem('boogu_quality') || 'Turbo';
 
         function selectBoogu() {
-            selectModel('Boogu-' + booguQuality + '.json');
+            selectModel('text2image/boogu-' + booguQuality.toLowerCase() + '.json');
         }
 
         function setBooguQuality(q) {
             booguQuality = q;
             localStorage.setItem('boogu_quality', q);
             // 如果当前是 Boogu 模型，切换对应变体
-            if (currentWorkflow.includes('Boogu')) {
-                selectModel('Boogu-' + q + '.json');
+            if (currentWorkflow.toLowerCase().includes('boogu')) {
+                selectModel('text2image/boogu-' + q.toLowerCase() + '.json');
             }
             // 更新按钮状态
             document.querySelectorAll('[data-boogu-quality]').forEach(el => {
@@ -1373,10 +1454,10 @@
         function updateParamsUI() {
             const el = document.getElementById('dynamicParams');
             const ctrlEl = document.getElementById('animaControls');
-            const isAnima = currentWorkflow.includes('anima');
-            const isKrea2 = currentWorkflow.includes('Krea2');
-            const isIdeogram4 = currentWorkflow.includes('Ideogram4');
-            const isBoogu = currentWorkflow.includes('Boogu');
+            const isAnima = currentWorkflow.toLowerCase().includes('anima');
+            const isKrea2 = currentWorkflow.toLowerCase().includes('krea2');
+            const isIdeogram4 = currentWorkflow.toLowerCase().includes('ideogram4');
+            const isBoogu = currentWorkflow.toLowerCase().includes('boogu');
             // Ideogram4 模式自动切换预设
             if (isIdeogram4 && typeof spPickerSelect === 'function') {
                 // 延迟执行，确保预设列表已加载
@@ -1578,7 +1659,7 @@
         }
 
         // 自动切换工作流：有参考图→图生图，无参考图→文生图
-        const WORKFLOW_TEXT2IMG = 'Z-Image.json';
+        const WORKFLOW_TEXT2IMG = 'text2image/z-image.json';
         const WORKFLOW_IMG2IMG = 'anima_图生图.json';
 
         function refImageAutoSwitch() {
@@ -1654,7 +1735,7 @@
             startProgress();
             // 锁定当前工作流，生成期间切换模型不影响保存路径
             const lockedWorkflow = currentWorkflow;
-            const lockedFeatureName = lockedWorkflow.includes('anima') ? 'anima' : lockedWorkflow.includes('Krea2') ? 'krea2' : lockedWorkflow.includes('Ideogram4') ? 'ideogram4' : lockedWorkflow.includes('Boogu') ? 'boogu' : 'zimage';
+            const lockedFeatureName = lockedWorkflow.toLowerCase().includes('anima') ? 'anima' : lockedWorkflow.toLowerCase().includes('krea2') ? 'krea2' : lockedWorkflow.toLowerCase().includes('ideogram4') ? 'ideogram4' : lockedWorkflow.toLowerCase().includes('boogu') ? 'boogu' : 'zimage';
 
             // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
             const _aspectSize = getAnimaSize();
@@ -1699,7 +1780,7 @@
                     }
                 }
 
-                if (currentWorkflow.includes('anima')) {
+                if (currentWorkflow.toLowerCase().includes('anima')) {
                     // 解析提示词，分离角色和画师标签
                     const parts = cleanPrompt.split(PROMPT_TAG_SPLITTER).map(p => p.trim()).filter(p => p);
                     const charTags = parts.filter(p => !p.startsWith('by ') && !p.startsWith('@')).join(', ');
@@ -1728,13 +1809,13 @@
                     // 覆盖 batch_size（使用与 KSampler(19).latent_image 来源节点对齐的值）
                     if (workflow["69"]?.inputs) workflow["69"].inputs.batch_size = _gc.batchCount;
                     if (workflow["64"]?.inputs) workflow["64"].inputs.batch_size = _gc.batchCount;
-                } else if (currentWorkflow.includes('Krea2')) {
-                    // Krea2-Turbo：直接注入 prompt、尺寸、seed
+                } else if (currentWorkflow.toLowerCase().includes('krea2')) {
+                    // Krea2：直接注入 prompt、尺寸、seed
                     const size = getAnimaSize();
                     if (workflow["4"]?.inputs) workflow["4"].inputs.text = cleanPrompt;
                     if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = _gc.batchCount; }
                     if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
-                } else if (currentWorkflow.includes('Ideogram4')) {
+                } else if (currentWorkflow.toLowerCase().includes('ideogram4')) {
                     // Ideogram4：注入 prompt、尺寸、seed、质量控制
                     const size = getAnimaSize();
                     if (workflow["192"]?.inputs) workflow["192"].inputs.value = size.width;
@@ -1746,13 +1827,16 @@
                     if (ideogram4JsonPrompt) {
                         try {
                             const j = JSON.parse(ideogram4JsonPrompt);
-                            // 直接注入各字段到 Ideogram4PromptBuilderKJ (节点 220)
+                            // 直接注入各字段到 Ideogram4PromptBuilderKJ (节点 220，仅 structured 变体有)
                             if (workflow["220"]?.inputs) {
                                 workflow["220"].inputs.high_level_description = j.high_level_description || '';
                                 workflow["220"].inputs.background = j.background || '';
                                 workflow["220"].inputs.aesthetics = j.style?.aesthetics || '';
                                 workflow["220"].inputs.lighting = j.style?.lighting || '';
                                 workflow["220"].inputs.medium = j.style?.medium || '';
+                            } else {
+                                // 节点 220 不存在（ideogram4.json 无此节点），降级到普通文本提示词
+                                if (workflow["190"]?.inputs) workflow["190"].inputs.text = cleanPrompt;
                             }
                         } catch(e) {
                             // JSON 解析失败，降级到普通提示词
@@ -1762,11 +1846,11 @@
                         // 无 JSON，直接注入普通提示词
                         workflow["190"].inputs.text = cleanPrompt;
                     }
-                } else if (currentWorkflow.includes('Boogu')) {
-                    // Boogu：注入 prompt、尺寸、seed
+                } else if (currentWorkflow.toLowerCase().includes('boogu')) {
+                    // Boogu：注入 prompt、尺寸、seed、batch_size
                     const size = getAnimaSize();
                     if (workflow["11"]?.inputs) workflow["11"].inputs.text = cleanPrompt;
-                    if (workflow["8"]?.inputs) { workflow["8"].inputs.width = size.width; workflow["8"].inputs.height = size.height; }
+                    if (workflow["8"]?.inputs) { workflow["8"].inputs.width = size.width; workflow["8"].inputs.height = size.height; workflow["8"].inputs.batch_size = _gc.batchCount; }
                     if (workflow["32"]?.inputs) workflow["32"].inputs.seed = seed;
                 } else {
                     // Z-Image：使用与 ANIMA 相同的 ratio+res 尺寸计算
@@ -1776,7 +1860,7 @@
                     if (workflow["22"]?.inputs) workflow["22"].inputs.seed = seed;
                     if (workflow["144"]?.inputs) workflow["144"].inputs.batch_size = _gc.batchCount;
                 }
-                console.log('[BatchCount] model=' + (currentWorkflow.includes('anima') ? 'ANIMA' : currentWorkflow.includes('Krea2') ? 'Krea2' : currentWorkflow.includes('Ideogram4') ? 'Ideogram4' : 'Z-Image') + ' currentBatchCount=' + _gc.batchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size) + ' n185=' + (workflow['185']?.inputs?.batch_size));
+                console.log('[BatchCount] model=' + (currentWorkflow.toLowerCase().includes('anima') ? 'ANIMA' : currentWorkflow.toLowerCase().includes('krea2') ? 'Krea2' : currentWorkflow.toLowerCase().includes('ideogram4') ? 'Ideogram4' : currentWorkflow.toLowerCase().includes('boogu') ? 'Boogu' : 'Z-Image') + ' currentBatchCount=' + _gc.batchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n6=' + (workflow['6']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size) + ' n185=' + (workflow['185']?.inputs?.batch_size) + ' n8=' + (workflow['8']?.inputs?.batch_size));
 
                 // 注入自定义 LoRA 节点
                 const wfLower = currentWorkflow.toLowerCase();
@@ -2145,8 +2229,19 @@
             const placeholder = document.getElementById('toolbarPlaceholder');
             if (toolbar && placeholder) placeholder.appendChild(toolbar);
         }, 100);
-        const savedWf = localStorage.getItem('zimage_workflow');
-        if (savedWf && (savedWf === 'Z-Image.json' || savedWf.includes('anima'))) switchWorkflow(savedWf);
+        // 旧文件名 → 新相对路径(迁移 localStorage 中保存的工作流选择)
+        const LEGACY_WF_MAP = {
+            'Z-Image.json': 'text2image/z-image.json',
+            'anima 动漫文生图.json': 'text2image/anima.json',
+            'Krea2-Turbo.json': 'text2image/krea2-turbo.json',
+            'Ideogram4-Structured.json': 'text2image/ideogram4-structured.json',
+            'Ideogram4.json': 'text2image/ideogram4.json',
+            'Boogu-Base.json': 'text2image/boogu-base.json',
+            'Boogu-Turbo.json': 'text2image/boogu-turbo.json',
+        };
+        const savedRaw = localStorage.getItem('zimage_workflow');
+        const savedWf = (savedRaw && LEGACY_WF_MAP[savedRaw]) || savedRaw;
+        if (savedWf && (savedWf.startsWith('text2image/') || LEGACY_WF_MAP[savedRaw])) switchWorkflow(savedWf);
         else updateParamsUI();
 
         // ============================================================
@@ -2473,6 +2568,9 @@
             // 初始化生成参数控制
             GenerationControls.init();
 
+            // 从后端动态加载内置工作流元数据（驱动模型菜单 / 模型前缀 / LoRA 过滤）
+            loadBuiltinWorkflowMeta();
+
             // 初始化翻译 Toggle
             if (typeof PromptTranslateUI !== 'undefined') {
                 const promptEl = document.getElementById('prompt');
@@ -2504,7 +2602,7 @@
                         }
                     },
                     isIdeogram4Mode: function() {
-                        return typeof currentWorkflow !== 'undefined' && currentWorkflow.includes('Ideogram4');
+                        return typeof currentWorkflow !== 'undefined' && currentWorkflow.toLowerCase().includes('ideogram4');
                     },
                     setIdeogram4Json: function(json) {
                         ideogram4JsonPrompt = json || '';

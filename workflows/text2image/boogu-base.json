@@ -1,0 +1,151 @@
+{
+  "2": {
+    "inputs": {
+      "unet_name": "boogu\\base\\booguCenterV01_v10.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET加载器"
+    }
+  },
+  "3": {
+    "inputs": {
+      "samples": [
+        "32",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "5": {
+    "inputs": {
+      "vae_name": "flux1_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "7": {
+    "inputs": {
+      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "boogu",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "8": {
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent"
+    }
+  },
+  "9": {
+    "inputs": {
+      "conditioning": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text": "\"portrait_prompt\": \n    \"subject\": \n      \"description\": \"Based on <User Portrait>, a young woman with soft fair skin, delicate facial features, large glossy eyes, airy wispy bangs, and dark slightly tousled hair, rendered in a dreamy rainy-day portrait style.\",\n      \"features\": \n        \"hair\": \"dark brown to black hair, soft loose texture, airy see-through bangs, slightly tousled around the forehead and cheeks\",\n        \"eyes\": \"large moist-looking eyes gazing upward through the umbrella, soft catchlights, gentle and slightly wistful\",\n        \"expression\": \"quiet, dreamy, tender, slightly melancholic, soft pink blush across the cheeks\"\n      ,\n      \"pose\": \"close-up portrait from above, the subject is tucked under a transparent umbrella and looks upward toward the camera through the wet umbrella surface, head slightly tilted, one hand raised near the cheek while delicately holding a small white blossom, shoulders relaxed and folded inward\"\n    ,\n    \"attire\": \n      \"type\": \"dark navy to black long-sleeve top or light jacket\",\n      \"details\": [\n        \"deep navy or black fabric with a soft matte texture\",\n        \"white double-stripe trim at the cuff\",\n        \"minimal visible styling because the umbrella and face dominate the frame\"\n      ],\n      \"color\": \"deep navy-black with small white cuff accents\"\n    ,\n    \"composition\": \n      \"shot_type\": \"Close-up\",\n      \"focal_length\": \"28-35mm equivalent\",\n      \"aperture\": \"smartphone-like deep focus with soft natural diffusion\",\n      \"camera_angle\": \"high angle, top-down\",\n      \"camera_height\": \"above head\",\n      \"framing\": \"the transparent umbrella fills almost the entire frame as a foreground layer, curved umbrella ribs create arcs across the image, the subject's face sits slightly right of center and low-mid frame, flower petals and raindrops are scattered across the umbrella surface, with the hand and blossom entering from the lower right\",\n      \"aspect_ratio\": \"3:4\"\n    ,\n    \"lighting\": \n      \"type\": \"soft overcast rainy daylight filtered through a clear umbrella\",\n      \"direction\": \"diffused ambient light from above and front, softened by clouds and the transparent umbrella surface, with no hard shadow edges\",\n      \"mood\": \"misty, intimate, quiet, spring-rain softness\"\n    ,\n    \"color_palette\": \n      \"film_simulation\": \"Fujifilm Pro 400H inspired rainy pastel grading\",\n      \"style\": \"cool-neutral rainy editorial tones with pale pink petals, translucent gray highlights, soft blush skin, and gently lifted blacks\",\n      \"tones\": [\n        \"soft rainy gray\",\n        \"translucent clear silver\",\n        \"pale pink petals\",\n        \"deep charcoal-navy clothing\",\n        \"delicate rosy skin tones\"\n      ],\n      \"grade_notes\": [\n        \"highlight roll-off: soft and milky on the wet transparent umbrella\",\n        \"shadow tint: neutral-cool with slightly lifted blacks\",\n        \"contrast curve: low to medium contrast, soft and airy rather than punchy\",\n        \"saturation: restrained overall, with selective soft pink in petals and blush\",\n        \"grain: minimal to very subtle, clean smartphone editorial finish\"\n      ]\n    ,\n    \"environment\": \n      \"setting\": \"outdoor rainy spring street scene viewed almost entirely through a transparent umbrella\",\n      \"background\": \"the environment is mostly obscured by the umbrella, raindrops, and shallow urban gray shapes beneath, with only faint hints of the ground and nearby objects visible\",\n      \"atmosphere\": \"wet, delicate, romantic, slightly melancholic, intimate\"\n    ,\n    \"mood\": \"dreamy rainy-day portrait, intimate, soft, poetic, delicate spring melancholy\",\n    \"technical_tags\": [\n      \"photorealistic\",\n      \"top-down portrait\",\n      \"through transparent umbrella\",\n      \"raindrops on umbrella\",\n      \"flower petals on umbrella\",\n      \"soft overcast daylight\",\n      \"dreamy rainy aesthetic\",\n      \"smartphone editorial realism\",\n      \"high detail water droplets\",\n      \"soft skin texture\"\n    ],\n    \"character_reference\": \"Based on user-uploaded character reference\",\n    \"clothing_reference\": \"Not required; keep the dark navy-black top with white striped cuffs described above unless a matching clothing reference is provided\",\n    \"negative_prompt\": \"opaque umbrella, colored umbrella, dry umbrella, no raindrops, no flower petals, side angle shot, eye-level shot, low angle shot, hard flash, studio lighting, sunny weather, warm golden-hour lighting, heavy HDR, oversaturated colors, sharp commercial beauty retouching, plastic skin, distorted face through extreme refraction, broken fingers, broken hand, messy anatomy, stiff pose, random background clutter, strong bokeh, low-resolution eyes, text, watermark, logo\"",
+      "clip": [
+        "38",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "32": {
+    "inputs": {
+      "seed": 681747715106574,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "38",
+        0
+      ],
+      "positive": [
+        "11",
+        0
+      ],
+      "negative": [
+        "9",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "34": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "38": {
+    "inputs": {
+      "lora_01": "None",
+      "strength_01": 1,
+      "lora_02": "None",
+      "strength_02": 1,
+      "lora_03": "None",
+      "strength_03": 1,
+      "lora_04": "None",
+      "strength_04": 1,
+      "model": [
+        "2",
+        0
+      ],
+      "clip": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "Lora Loader Stack (rgthree)",
+    "_meta": {
+      "title": "LoRA堆加载器"
+    }
+  }
+}

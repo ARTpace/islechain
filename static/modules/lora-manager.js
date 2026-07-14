@@ -574,25 +574,44 @@ const LoraManager = (function() {
             return meta ? meta.baseModel || _extractFolder(loraName) : _extractFolder(loraName);
         },
         setModelFilter: function(model) { state.modelFilter = model; },
-        /** 工作流 → 模型文件夹映射（用于按工作流筛选兼容 LoRA） */
-        workflowToFolder: function(workflowName) {
-            const wf = (workflowName || '').toLowerCase();
-            if (wf.includes('anima')) return 'anima';
-            if (wf.includes('krea2')) return 'flux2-klein';
-            if (wf.includes('ideogram4')) return 'ideogram4';
-            if (wf.includes('boogu')) return 'boogu';
-            if (wf.includes('zimage') || wf.includes('z-image')) return 'z-image';
-            return null; // 未知工作流 → 显示全部
+        /** 从 window.BUILTIN_WF_META 查找工作流元数据（按名/前缀匹配） */
+        _builtinMeta: function(workflowName) {
+            const list = window.BUILTIN_WF_META || [];
+            if (!list.length) return null;
+            const n = (workflowName || '').toLowerCase();
+            let hit = list.find(function (m) { return m.name && m.name.toLowerCase() === n; });
+            if (!hit) {
+                const prefix = n.split('-')[0];
+                hit = list.find(function (m) { return m.name && m.name.toLowerCase().indexOf(prefix) === 0; });
+            }
+            return hit || null;
         },
-        /** 工作流 → 显示名映射 */
-        workflowToLabel: function(workflowName) {
-            const wf = (workflowName || '').toLowerCase();
-            if (wf.includes('anima')) return 'ANIMA';
-            if (wf.includes('krea2')) return 'Krea2';
-            if (wf.includes('ideogram4')) return 'Ideogram4';
-            if (wf.includes('boogu')) return 'Boogu';
-            if (wf.includes('zimage') || wf.includes('z-image')) return 'Z-Image';
+        /** 从已加载工作流 JSON 的 unet_name 提取文件夹前缀（兜底） */
+        _folderFromWfCache: function(workflowName) {
+            const wf = window._wfCache && window._wfCache[workflowName];
+            if (!wf) return null;
+            for (const nid in wf) {
+                const node = wf[nid];
+                if (!node || !node.inputs) continue;
+                const ct = node.class_type || '';
+                const un = ct === 'UNETLoader' ? node.inputs.unet_name
+                         : (ct.indexOf('LoadDiffusionModel') >= 0 ? node.inputs.model_name : '');
+                if (!un) continue;
+                const sep = Math.max(un.indexOf('\\'), un.indexOf('/'));
+                if (sep > 0) return un.substring(0, sep);
+            }
             return null;
+        },
+        /** 工作流 → 模型文件夹映射（用于按工作流筛选兼容 LoRA），动态推导 */
+        workflowToFolder: function(workflowName) {
+            const meta = this._builtinMeta(workflowName);
+            if (meta && meta.model_folder) return meta.model_folder;
+            return this._folderFromWfCache(workflowName); // 未知 → null（显示全部）
+        },
+        /** 工作流 → 显示名映射，动态推导 */
+        workflowToLabel: function(workflowName) {
+            const meta = this._builtinMeta(workflowName);
+            return (meta && meta.title) || null; // 未知 → null（显示“全部”）
         },
         /** 根据当前工作流设置模型过滤 */
         setWorkflowFilter: function(workflowName) {

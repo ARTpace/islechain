@@ -1,4 +1,4 @@
-if (tw.some(w => { const sw = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)]; return sw.some(s => s.trim().toLowerCase().replace(/^@/, '') === lowerName); })) return entry.preview || '';if (tw.some(w => { const sw = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)]; return sw.some(s => s.trim().toLowerCase().replace(/^@/, '') === lowerName); })) return entry.preview || '';/**
+/**
  * 提示词标签系统（模块化版）
  * 渲染 + 拖拽排序 + 悬浮预览 + 预设 i18n
  * 
@@ -293,7 +293,7 @@ const PromptTags = (function() {
                     const entry = loraState.loraMap[key];
                     if (!entry) continue;
                     const tw = entry.triggerWords || [];
-                    if (tw.some(w => String(w).toLowerCase().replace(/^@/, '') === lowerName)) return entry.preview || '';
+                    if (tw.some(w => { const subWords = String(w).includes(',') ? String(w).split(/,\s*/) : [String(w)]; return subWords.some(sw => sw.trim().toLowerCase().replace(/^@/, '') === lowerName); })) return entry.preview || '';
                     const dn = (entry.displayName || '').toLowerCase();
                     const fn = key.split('/').pop().replace(/\.safetensors$/i, '').toLowerCase();
                     if (dn === lowerName || fn === lowerName) return entry.preview || '';

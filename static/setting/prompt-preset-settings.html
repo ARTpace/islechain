@@ -54,6 +54,9 @@
         .btn-test:hover{background:rgba(0,180,216,0.15);}
         .test-result{margin-top:12px;padding:12px;border-radius:10px;background:rgba(0,0,0,0.02);font-size:12px;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;min-height:40px;color:#666;}
         body.studio-theme-dark .test-result{background:rgba(255,255,255,0.03);color:#999;}
+        .global-model-card{background:#fff;border-color:rgba(0,0,0,0.06);}
+        body.studio-theme-dark .global-model-card{background:#0d1520;border-color:rgba(255,255,255,0.06);}
+        .global-model-card select:focus{border-color:var(--accent);}
         .empty-state{text-align:center;padding:40px;color:#999;font-size:13px;}
         body.studio-theme-dark .empty-state{color:#555;}
     </style>
@@ -63,6 +66,17 @@
         <div class="page-head">
             <h1>提示词预设管理</h1>
             <p>创建和管理不同的 AI 提示词生成规则，文生图页面可快速切换</p>
+        </div>
+
+        <!-- 全局 AI 模型选择（与 ComfyUI 设置同步） -->
+        <div class="global-model-card" style="margin-bottom:20px;padding:16px 20px;border-radius:14px;border:1.5px solid rgba(0,0,0,0.06);background:#fff;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
+                <span style="font-size:13px;font-weight:800;">全局 AI 模型</span>
+            </div>
+            <select id="globalProvider" onchange="saveGlobalProvider()" style="flex:1;min-width:200px;height:36px;padding:0 12px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;font-size:12px;font-weight:700;background:transparent;color:var(--text-main);cursor:pointer;outline:none;transition:border-color 0.15s;"></select>
+            <div id="globalProviderStatus" style="font-size:11px;color:#999;font-weight:600;flex-shrink:0;">当前：--</div>
+            <div style="font-size:10px;color:#bbb;font-weight:600;flex-shrink:0;">此设置与 ComfyUI 设置中的「AI 智能提示词」模型同步</div>
         </div>
 
         <div style="display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start;">
@@ -262,7 +276,69 @@
             } catch (e) { resultEl.textContent = '请求失败：' + e.message; }
         }
 
+        // ── 全局 AI 模型选择（与 ComfyUI 设置同步） ──
+        async function loadGlobalProvider() {
+            const sel = document.getElementById('globalProvider');
+            if (!sel) return;
+            try {
+                const [configRes, providersRes] = await Promise.all([
+                    fetch('/api/smart-prompt/config').then(r => r.json()),
+                    fetch('/api/config').then(r => r.json())
+                ]);
+                const current = configRes.provider_id || '';
+                const chatProviders = providersRes.chat_providers || [];sel.innerHTML = '';
+                // 内置 comfly
+                if (providersRes.has_api_key) {
+                    const opt = document.createElement('option');
+                    opt.value = 'comfly';
+                    opt.textContent = 'ComfyUI (' + (providersRes.chat_model || '') + ')';
+                    sel.appendChild(opt);
+                }
+                // 内置 modelscope
+                if (providersRes.has_ms_key && providersRes.ms_chat_models?.length) {
+                    const opt = document.createElement('option');
+                    opt.value = 'modelscope';
+                    opt.textContent = 'ModelScope (' + providersRes.ms_chat_models[0] + ')';
+                    sel.appendChild(opt);
+                }
+                // 自定义 providers
+                chatProviders.forEach(p => {
+                    (p.chat_models || []).forEach(model => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id + '::' + model;
+                        opt.textContent = p.name + ' (' + model + ')';
+                        sel.appendChild(opt);
+                    });
+                });
+                if (current && sel.querySelector('option[value="' + current + '"]')) {
+                    sel.value = current;
+                } else if (sel.options.length > 0) {
+                    sel.selectedIndex = 0;
+                }
+                const status = document.getElementById('globalProviderStatus');
+                if (status) status.textContent = '当前：' + (sel.options[sel.selectedIndex]?.textContent || '未选择');
+            } catch (e) {}
+        }
+
+        async function saveGlobalProvider() {
+            const sel = document.getElementById('globalProvider');
+            if (!sel) return;
+            const val = sel.value;
+            const status = document.getElementById('globalProviderStatus');
+            try {
+                await fetch('/api/smart-prompt/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ provider_id: val })
+                });
+                if (status) status.textContent = '✓ 已保存：' + (sel.options[sel.selectedIndex]?.textContent || '');
+            } catch (e) {
+                if (status) status.textContent = '保存失败';
+            }
+        }
+
         function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        loadGlobalProvider();
         loadPresets();
     </script>
 </body>

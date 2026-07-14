@@ -3,12 +3,16 @@
  */
 let spmPresets = [];
 let spmEditingId = null;
+let spmProvidersData = null; // 缓存 /api/config 数据
 
 async function spmLoad() {
     try {
-        const res = await fetch('/api/smart-prompt/presets').then(r => r.json());
-        spmPresets = res.presets || [];
-    } catch (e) { spmPresets = []; }
+        const [presetsRes, configRes] = await Promise.all([
+            fetch('/api/smart-prompt/presets').then(r => r.json()),
+            fetch('/api/config').then(r => r.json())
+        ]);
+        spmPresets = presetsRes.presets || [];spmProvidersData = configRes;
+    } catch (e) { spmPresets = []; spmProvidersData = null; }
     spmRenderList();
     // 自动选中第一个或当前编辑的预设
     if (spmEditingId && spmPresets.find(x => x.id === spmEditingId)) {
@@ -23,9 +27,18 @@ async function spmLoad() {
 function spmRenderList() {
     const el = document.getElementById('spmList');
     if (!el) return;
+    const chatProviders = spmProvidersData?.chat_providers || [];
+    function providerLabel(pid) {
+        if (!pid) return '自动';
+        if (pid === 'comfly') return 'ComfyUI';
+        if (pid === 'modelscope') return 'ModelScope';
+        if (pid.includes('::')) { const [pidPart, model] = pid.split('::'); const p = chatProviders.find(x=>x.id===pidPart); return p ? p.name : pidPart; }
+        return pid;
+    }
     el.innerHTML = spmPresets.map(p => `
         <div class="spm-item ${p.id === spmEditingId ? 'active' : ''}" onclick="spmEdit('${p.id}')">
             <div class="spm-item-name">${spmEsc(p.name || p.id)}</div>
+            <div class="spm-item-model-badge">${spmEsc(providerLabel(p.provider_id))}</div>
             ${p.id !== 'default' ? `<button class="spm-item-del" onclick="event.stopPropagation();spmDelete('${p.id}')" title="删除">✕</button>` : ''}
         </div>
     `).join('');

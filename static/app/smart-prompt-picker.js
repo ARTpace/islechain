@@ -4,6 +4,7 @@
  */
 let spPickerPresets = [];
 let spPickerSelectedId = 'default';
+let spPickerProviders = [];   // 可用 provider 列表（从 /api/config 加载）
 
 async function spPickerLoadPresets() {
     try {
@@ -19,6 +20,37 @@ async function spPickerLoadPresets() {
     }
 }
 
+async function spPickerLoadProviders() {
+    try {
+        const data = await fetch('/api/config').then(r => r.json());
+        spPickerProviders = [];
+        // 内置 comfly
+        if (data.has_api_key) {
+            spPickerProviders.push({ id: 'comfly', label: 'ComfyUI (' + (data.chat_model || '') + ')' });
+        }
+        // 内置 modelscope
+        if (data.has_ms_key && data.ms_chat_models?.length) {
+            spPickerProviders.push({ id: 'modelscope', label: 'ModelScope (' + data.ms_chat_models[0] + ')' });
+        }
+        // 自定义 providers
+        (data.chat_providers || []).forEach(p => {
+            (p.chat_models || []).forEach(m => {
+                spPickerProviders.push({ id: p.id + '::' + m, label: p.name + ' (' + m + ')' });
+            });
+        });
+    } catch (e) {
+        spPickerProviders = [];
+    }
+}
+
+function spPickerProviderOptionsHtml(selected) {
+    let html = '<option value="">自动（全局默认）</option>';
+    spPickerProviders.forEach(p => {
+        html += `<option value="${escHtml(p.id)}"${p.id === selected ? ' selected' : ''}>${escHtml(p.label)}</option>`;
+    });
+    return html;
+}
+
 function spPickerRender() {
     const body = document.getElementById('spPickerBody');
     if (!body) return;
@@ -31,14 +63,33 @@ function spPickerRender() {
     }
     body.innerHTML = filtered.map(p => {
         const active = p.id === spPickerSelectedId ? 'active' : '';
+        const providerId = p.provider_id || '';
+        const providerLabel = spPickerProviders.find(x => x.id === providerId)?.label || '自动';
         return `<div class="sp-picker-item ${active}" onclick="spPickerSelect('${p.id}')">
             <div class="sp-picker-dot"></div>
-            <div>
+            <div class="sp-picker-info">
                 <div class="sp-picker-name">${escHtml(p.name || p.id)}</div>
                 <div class="sp-picker-desc">${escHtml(p.description || '')}</div>
+                <div class="sp-picker-model-row">
+                    <span class="sp-picker-model-label">模型</span>
+                    <select class="sp-picker-model-select" onchange="spPickerChangeProvider('${p.id}', this.value); event.stopPropagation();" onclick="event.stopPropagation();">${spPickerProviderOptionsHtml(providerId)}</select>
+                </div>
             </div>
         </div>`;
     }).join('');
+}
+
+async function spPickerChangeProvider(presetId, providerId) {
+    const p = spPickerPresets.find(x => x.id === presetId);
+    if (!p) return;
+    p.provider_id = providerId;
+    try {
+        await fetch('/api/smart-prompt/presets/' + presetId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(p)
+        });
+    } catch (e) {}
 }
 
 async function spPickerSelect(id) {
@@ -55,12 +106,11 @@ async function spPickerSelect(id) {
     const preset = spPickerPresets.find(p => p.id === id);
     const label = document.getElementById('spCurrentLabel');
     if (label && preset) label.textContent = preset.name;
-    spPickerRender();
     spPickerClose();
 }
 
 function spPickerOpen() {
-    spPickerLoadPresets().then(() => {
+    Promise.all([spPickerLoadPresets(), spPickerLoadProviders()]).then(() => {
         spPickerRender();
         const shell = document.getElementById('spPickerShell');
         if (shell) { shell.style.display = 'flex'; requestAnimationFrame(() => shell.classList.add('is-open')); }
@@ -100,7 +150,7 @@ function spPickerInit() {
     document.body.appendChild(shell);
 
     // 加载当前选中的预设名
-    spPickerLoadPresets().then(() => {
+    Promise.all([spPickerLoadPresets(), spPickerLoadProviders()]).then(() => {
         const preset = spPickerPresets.find(p => p.id === spPickerSelectedId);
         const label = document.getElementById('spCurrentLabel');
         if (label && preset) label.textContent = preset.name;

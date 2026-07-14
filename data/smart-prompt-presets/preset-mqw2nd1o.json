@@ -2,7 +2,7 @@
   "id": "preset-mqw2nd1o",
   "name": "摄影",
   "description": "摄影师专用",
-  "provider_id": "",
+  "provider_id": "agnes::agnes-2.0-flash",
   "model_mode": "all",
   "temperature": 0.3,
   "max_tokens": 1024,

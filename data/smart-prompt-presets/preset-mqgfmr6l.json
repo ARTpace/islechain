@@ -2,7 +2,7 @@
   "id": "preset-mqgfmr6l",
   "name": "Anima二次元",
   "description": "Anima二次元",
-  "provider_id": "mimo::mimo-v2.5",
+  "provider_id": "agnes::agnes-2.0-flash",
   "temperature": 0.5,
   "max_tokens": 1024,
   "quality_tags": "masterpiece, best quality, ultra detailed, highres",

@@ -21,14 +21,14 @@
   },
   "22": {
     "inputs": {
-      "seed": 1104391495230198,
+      "seed": 51375495668282,
       "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "33",
+        "145",
         0
       ],
       "positive": [
@@ -53,8 +53,8 @@
     "inputs": {
       "text": "",
       "clip": [
-        "34",
-        0
+        "145",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -124,13 +124,37 @@
   },
   "144": {
     "inputs": {
-      "width": 512,
-      "height": 512,
+      "width": 1024,
+      "height": 576,
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
       "title": "空Latent"
+    }
+  },
+  "145": {
+    "inputs": {
+      "lora_01": "None",
+      "strength_01": 1,
+      "lora_02": "None",
+      "strength_02": 1,
+      "lora_03": "None",
+      "strength_03": 1,
+      "lora_04": "None",
+      "strength_04": 1,
+      "model": [
+        "33",
+        0
+      ],
+      "clip": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "Lora Loader Stack (rgthree)",
+    "_meta": {
+      "title": "LoRA堆加载器"
     }
   }
 }
