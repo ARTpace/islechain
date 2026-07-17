@@ -1,0 +1,82 @@
+{
+  "title": "LTX23 图生视频",
+  "description": "LTX-2.3 distilled 图生视频 (图+文→mp4, 含音轨)",
+  "fields": [
+    {
+      "id": "input_image",
+      "node": "173",
+      "input": "image",
+      "type": "image",
+      "display_name": "输入图像",
+      "required": true
+    },
+    {
+      "id": "prompt",
+      "node": "175:5",
+      "input": "text",
+      "type": "text",
+      "display_name": "正向提示词",
+      "default": "眼神跟随着镜头移动, 轻轻抿嘴一笑, 抬起手在半空中做了一个虚握的动作。seamless loop"
+    },
+    {
+      "id": "negative_prompt",
+      "node": "175:6",
+      "input": "text",
+      "type": "text",
+      "display_name": "反向提示词",
+      "default": "text, subtitles, caption, watermark, logo, signage, letter, word, character,"
+    },
+    {
+      "id": "total_frames",
+      "node": "175:10",
+      "input": "value",
+      "type": "slider",
+      "display_name": "总帧数",
+      "min": 49,
+      "max": 481,
+      "step": 8,
+      "default": 97
+    },
+    {
+      "id": "fps",
+      "node": "175:12",
+      "input": "value",
+      "type": "slider",
+      "display_name": "帧率",
+      "min": 12,
+      "max": 50,
+      "step": 1,
+      "default": 24
+    },
+    {
+      "id": "size",
+      "node": "175:179",
+      "input": "size",
+      "type": "slider",
+      "display_name": "长边尺寸",
+      "min": 256,
+      "max": 1280,
+      "step": 32,
+      "default": 720
+    },
+    {
+      "id": "seed",
+      "node": "175:16",
+      "input": "noise_seed",
+      "type": "number",
+      "display_name": "随机种子",
+      "default": -1
+    },
+    {
+      "id": "steps",
+      "node": "175:22",
+      "input": "steps",
+      "type": "slider",
+      "display_name": "采样步数",
+      "min": 4,
+      "max": 20,
+      "step": 1,
+      "default": 8
+    }
+  ]
+}

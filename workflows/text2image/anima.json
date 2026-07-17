@@ -55,14 +55,14 @@
   },
   "19": {
     "inputs": {
-      "seed": 209497549632423,
+      "seed": 937835841702783,
       "steps": 10,
       "cfg": 1,
       "sampler_name": "er_sde",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "9000",
+        "50",
         0
       ],
       "positive": [
@@ -223,20 +223,6 @@
     "class_type": "Switch any [Crystools]",
     "_meta": {
       "title": "切换任意"
-    }
-  },
-  "9000": {
-    "inputs": {
-      "lora_name": "skin texture style zib v2.1.safetensors",
-      "strength_model": 0.8,
-      "model": [
-        "50",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "自定义 LoRA: skin texture style zib v2.1.safetensors"
     }
   }
 }

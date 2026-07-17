@@ -1175,6 +1175,20 @@ def get_username_by_token(token):
     username, user = find_user_by_token(token)
     return username
 
+def require_valid_token(token):
+    """要求有效的登录令牌,否则抛出 401。用于需要登录才能使用的接口(如图片生成)。
+
+    返回对应的用户名。这样既能强制登录,又能继续沿用 username 做文件隔离等逻辑。
+    """
+    # 空 token 一律视为未登录(注意: 已注销用户的 token 字段为 "", 必须显式拒绝,
+    # 否则 find_user_by_token("") 会把空串误匹配成该用户而放行)
+    if not token:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    username, user = find_user_by_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    return username
+
 def is_admin_by_token(token):
     """根据 token 判断是否为管理员"""
     if not token:
@@ -1928,6 +1942,42 @@ def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, us
         return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载音频失败: {e}")
+        if comfy_url_path.startswith("/view"):
+            return comfy_url_path.replace("/view", "/api/view", 1)
+        return full_url
+
+def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, username=None, subfolder="video"):
+    """从 ComfyUI 下载视频文件(SaveVideo / VHS_VideoCombine 等)"""
+    # 推断扩展名: ComfyUI SaveVideo 默认 mp4; 也能从 URL 路径识别 webm/mov/mkv/gif
+    ext = ".mp4"
+    url_lower = comfy_url_path.lower()
+    if ".webm" in url_lower:
+        ext = ".webm"
+    elif ".mov" in url_lower:
+        ext = ".mov"
+    elif ".mkv" in url_lower:
+        ext = ".mkv"
+    elif ".gif" in url_lower:
+        ext = ".gif"
+
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
+    if canvas:
+        canvas_output_dir = get_canvas_output_dir(canvas)
+    elif username:
+        canvas_output_dir, _ = get_user_output_dir(username)
+    else:
+        canvas_output_dir = OUTPUT_DIR
+    if subfolder:
+        canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
+    os.makedirs(canvas_output_dir, exist_ok=True)
+    local_path = os.path.join(canvas_output_dir, filename)
+    full_url = f"http://{comfy_address}{comfy_url_path}"
+    try:
+        with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+        return build_output_url(canvas, filename, username, subfolder=subfolder)
+    except Exception as e:
+        print(f"下载视频失败: {e}")
         if comfy_url_path.startswith("/view"):
             return comfy_url_path.replace("/view", "/api/view", 1)
         return full_url
@@ -3692,6 +3742,31 @@ def get_primary_provider_id(providers=None):
             return p["id"]
     return "comfly"
 
+def get_vision_provider_id():
+    """为反推(多模态)选择一个真正可用的 chat provider,复用与「AI 提示词」相同的 API 配置。
+    条件: enabled + 有 chat_models + 已配 API Key。优先 primary,其次首个可用,最后 comfly 兜底。
+    这样能自动跳过像 uki 这种没有 chat_models 的平台,避免落到未配 key 的默认 comfly。"""
+    providers = load_api_providers()
+    usable = [
+        p for p in providers
+        if p.get("enabled", True) and p.get("chat_models") and get_provider_api_key(p["id"])
+    ]
+    for p in usable:
+        if p.get("primary"):
+            return p["id"]
+    if usable:
+        return usable[0]["id"]
+    if AI_API_KEY:
+        return "comfly"
+    return get_primary_provider_id()
+
+def has_usable_vision_provider():
+    """是否存在可用于反推的多模态 chat provider(已配 key)。"""
+    for p in load_api_providers():
+        if p.get("enabled", True) and p.get("chat_models") and get_provider_api_key(p["id"]):
+            return True
+    return bool(AI_API_KEY)
+
 # --- 资产分类辅助 ---
 
 ASSET_CLASSIFICATION_PROMPT = """请识别这张图片,输出严格 JSON,不要 Markdown,不要解释。
@@ -4803,7 +4878,7 @@ async def update_config(payload: ConfigUpdateRequest):
 
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest, token: str = ""):
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
     model = selected_model(payload.model, IMAGE_MODEL)
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     try:
@@ -4898,7 +4973,7 @@ async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, usern
 @app.post("/api/canvas-image-tasks")
 async def create_canvas_image_task(payload: OnlineImageRequest, token: str = ""):
     task_id = f"canvas_img_{uuid.uuid4().hex}"
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
     with CANVAS_TASK_LOCK:
         CANVAS_TASKS[task_id] = {
             "id": task_id,
@@ -6385,8 +6460,9 @@ class AIGenPlanRequest(BaseModel):
     description: str
 
 @app.post("/api/random-plan/ai-generate")
-async def ai_generate_random_plan(req: AIGenPlanRequest):
+async def ai_generate_random_plan(req: AIGenPlanRequest, token: str = ""):
     """用 LLM 根据自然语言描述生成提示词方案结构 (角色 / 画师 / 预设)"""
+    require_valid_token(token)
     try:
         config = load_config()
         if not config.get('api_key'):
@@ -6781,7 +6857,7 @@ async def poll_angle_cloud(req: CloudPollRequest):
 
 @app.post("/api/angle/generate")
 async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
     if not clean_token:
@@ -6880,7 +6956,7 @@ async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
 
 @app.post("/generate")
 async def generate_cloud(req: CloudGenRequest, token: str = ""):
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
     if not clean_token:
@@ -6977,7 +7053,7 @@ async def generate_cloud(req: CloudGenRequest, token: str = ""):
 
 @app.post("/api/ms/generate")
 async def ms_generate(req: MsGenerateRequest, token: str = ""):
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key(MODELSCOPE_API_KEY.strip())
     if not clean_token:
@@ -7084,12 +7160,13 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
 
 # --- 本地 ComfyUI 生图 ---
 
-@app.post("/api/generate")
-def generate(req: GenerateRequest, token: str = ""):
+def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
+    """Execute a ComfyUI generate task synchronously. Returns result dict.
+    Used by both /api/generate (backward compat) and async canvas-comfy-tasks."""
     global NEXT_TASK_ID
     current_task = None
     target_backend = None
-    username = get_username_by_token(token)
+    username = require_valid_token(token)
 
     # 加载画布(如果提供了 canvas_id)
     canvas = None
@@ -7268,22 +7345,97 @@ def generate(req: GenerateRequest, token: str = ""):
 
         history_data = None
         poll_start = time.monotonic()
-        while True:  # 无硬性超时限制，等待 ComfyUI 自行完成
-            try:
-                res = get_comfy_history(target_backend, prompt_id)
-                if prompt_id in res:
-                    history_data = res[prompt_id]
-                    break
-            except Exception:
-                pass
-            elapsed = time.monotonic() - poll_start
-            # 长任务日志：超过 60s 后每 60s 打一次进度
-            if elapsed > 60 and int(elapsed) % 60 < 1:
-                print(f'[Generate] 等待 ComfyUI 完成中… 已等待 {int(elapsed)}s, prompt_id={prompt_id}')
-            time.sleep(0.5)
+
+        # ── WebSocket 进度监听（仅异步任务使用）──
+        ws_thread = None
+        _ws_stop = threading.Event()
+        _cached_task_id = getattr(req, '_cached_task_id', None)
+        if _cached_task_id and _cached_task_id in CANVAS_TASKS:
+            def _comfy_ws_worker():
+                import websocket as ws_lib
+                _rel_pid = None
+                ws_url = f"ws://{target_backend}/ws?clientId={CLIENT_ID}"
+                try:
+                    sock = ws_lib.create_connection(ws_url, timeout=5)
+                    while not _ws_stop.is_set():
+                        sock.settimeout(1.0)
+                        try:
+                            raw = sock.recv()
+                        except ws_lib.WebSocketTimeoutException:
+                            continue
+                        except Exception:
+                            break
+                        if isinstance(raw, bytes):
+                            try:
+                                raw_str = raw.decode('utf-8', errors='replace')
+                            except:
+                                continue
+                        else:
+                            raw_str = raw
+                        if not raw_str.startswith('{'):
+                            continue
+                        try:
+                            msg = json.loads(raw_str)
+                        except json.JSONDecodeError:
+                            continue
+                        if msg.get('type') == 'status':
+                            continue
+                        data = msg.get('data') or {}
+                        pid = data.get('prompt_id')
+                        if pid:
+                            _rel_pid = pid
+                        if _rel_pid != prompt_id:
+                            continue
+                        if msg.get('type') == 'progress':
+                            d = msg.get('data') or {}
+                            val = d.get('value', 0)
+                            mx = d.get('max', 100)
+                            pct = round((val / max(mx, 1)) * 100)
+                            with CANVAS_TASK_LOCK:
+                                if _cached_task_id in CANVAS_TASKS:
+                                    CANVAS_TASKS[_cached_task_id].update({
+                                        'progress': pct,
+                                        'progress_value': val,
+                                        'progress_max': mx,
+                                    })
+                        elif msg.get('type') == 'executing':
+                            node_val = data.get('node')
+                            with CANVAS_TASK_LOCK:
+                                if _cached_task_id in CANVAS_TASKS:
+                                    if node_val is None:
+                                        CANVAS_TASKS[_cached_task_id].update({
+                                            'progress': 100,
+                                            'progress_node': '完成',
+                                        })
+                                    else:
+                                        CANVAS_TASKS[_cached_task_id]['progress_node'] = str(node_val)
+                    sock.close()
+                except Exception:
+                    pass
+            ws_thread = threading.Thread(target=_comfy_ws_worker, daemon=True)
+            ws_thread.start()
+
+        try:
+            while True:
+                try:
+                    res = get_comfy_history(target_backend, prompt_id)
+                    if prompt_id in res:
+                        history_data = res[prompt_id]
+                        break
+                except Exception:
+                    pass
+                elapsed = time.monotonic() - poll_start
+                if elapsed > 60 and int(elapsed) % 60 < 1:
+                    print(f'[Generate] 等待 ComfyUI 完成中… 已等待 {int(elapsed)}s, prompt_id={prompt_id}')
+                time.sleep(0.5)
+        finally:
+            if ws_thread and ws_thread.is_alive():
+                _ws_stop.set()
+                ws_thread.join(timeout=2)
 
         local_urls = []
         audio_urls = []
+        video_urls = []
         output_text = ""
         current_timestamp = time.time()
         if 'outputs' in history_data:
@@ -7314,6 +7466,23 @@ def generate(req: GenerateRequest, token: str = ""):
                         prefix = f"{save_prefix}_{int(current_timestamp)}_"
                         local_path = download_audio(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, subfolder="tts")
                         audio_urls.append(local_path)
+
+                # Extract video outputs (LTX23 / VHS_VideoCombine / SaveVideo 等)
+                if 'videos' in node_output:
+                    for vid in node_output['videos']:
+                        vid_filename = vid.get('filename', '')
+                        vid_subfolder = vid.get('subfolder', '')
+                        vid_type = vid.get('type', 'output')
+                        vid_format = vid.get('format', '')  # ComfyUI SaveVideo 会带 format 字段
+                        # ComfyUI URL 路径拼接要 url-encode
+                        from urllib.parse import quote
+                        comfy_url_path = f"/view?filename={quote(vid_filename, safe='')}&subfolder={quote(vid_subfolder, safe='')}&type={quote(vid_type, safe='')}"
+                        save_prefix = req.params.get('save_prefix', 'video') if req.params else 'video'
+                        prefix = f"{save_prefix}_{int(current_timestamp)}_"
+                        local_path = download_video(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, subfolder="video")
+                        # 视频同时追加到 local_urls(画廊 card 按后缀判断 <video>) 和 video_urls(前端可明确识别)
+                        local_urls.append(local_path)
+                        video_urls.append(local_path)
 
                 # Extract text output from ShowText and text-based nodes
                 # 只有 promptgen 类型才保存文本输出(图像反推等)
@@ -7391,7 +7560,9 @@ def generate(req: GenerateRequest, token: str = ""):
             "timestamp": current_timestamp,
             "type": req.type,
             "user": username,
-            "params": req.params
+            "params": req.params,
+            "videos": video_urls,
+            "video_urls": video_urls
         }
         save_to_history(result)
         # Broadcast if there are images, audio OR text output
@@ -7401,7 +7572,7 @@ def generate(req: GenerateRequest, token: str = ""):
         return result
 
     except Exception as e:
-        return {"images": [], "audio": [], "error": str(e)}
+        return {"images": [], "audio": [], "videos": [], "video_urls": [], "error": str(e)}
     finally:
         if target_backend:
             with LOAD_LOCK:
@@ -7411,6 +7582,66 @@ def generate(req: GenerateRequest, token: str = ""):
             with QUEUE_LOCK:
                 if current_task in QUEUE:
                     QUEUE.remove(current_task)
+
+
+async def run_canvas_comfy_task(task_id: str, req: GenerateRequest, token: str = ""):
+    """Background task runner for ComfyUI canvas tasks."""
+    with CANVAS_TASK_LOCK:
+        if task_id in CANVAS_TASKS:
+            CANVAS_TASKS[task_id]["status"] = "running"
+            CANVAS_TASKS[task_id]["updated_at"] = time.time()
+    try:
+        req._cached_task_id = task_id
+        result = await asyncio.to_thread(_run_comfy_generate_sync, req, token)
+        with CANVAS_TASK_LOCK:
+            CANVAS_TASKS[task_id].update({
+                "status": "succeeded",
+                "result": result,
+                "error": "",
+                "updated_at": time.time(),
+            })
+    except Exception as exc:
+        detail = getattr(exc, "detail", None) or str(exc)
+        status_code = getattr(exc, "status_code", 500)
+        with CANVAS_TASK_LOCK:
+            CANVAS_TASKS[task_id].update({
+                "status": "failed",
+                "error": str(detail),
+                "status_code": status_code,
+                "updated_at": time.time(),
+            })
+
+
+@app.post("/api/canvas-comfy-tasks")
+async def create_canvas_comfy_task(payload: GenerateRequest, token: str = ""):
+    """Create an async ComfyUI task. Returns task_id immediately."""
+    task_id = f"canvas_comfy_{uuid.uuid4().hex}"
+    with CANVAS_TASK_LOCK:
+        CANVAS_TASKS[task_id] = {
+            "id": task_id,
+            "type": "comfy-generate",
+            "status": "queued",
+            "created_at": time.time(),
+            "updated_at": time.time(),
+            "result": None,
+            "error": "",
+        }
+    asyncio.create_task(run_canvas_comfy_task(task_id, payload, token))
+    return {"task_id": task_id, "status": "queued"}
+
+
+@app.get("/api/canvas-comfy-tasks/{task_id}")
+async def get_canvas_comfy_task(task_id: str):
+    with CANVAS_TASK_LOCK:
+        task = dict(CANVAS_TASKS.get(task_id) or {})
+    if not task:
+        raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
+    return task
+
+
+@app.post("/api/generate")
+def generate(req: GenerateRequest, token: str = ""):
+    return _run_comfy_generate_sync(req, token)
 
 # --- API 设置相关 API ---
 
@@ -8709,6 +8940,13 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
     params = {"filename": filename, "subfolder": subfolder, "type": type}
     url = f"http://{target}/view"
 
+    # 视频文件短路：避免 PIL 打开 .mp4/.webm/.mov/.mkv/.gif 报错
+    from urllib.parse import quote as _q
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in ('.mp4', '.webm', '.mov', '.mkv', '.gif'):
+        redirect_url = f"http://{target}/view?filename={_q(filename, safe='')}&subfolder={_q(subfolder, safe='')}&type={_q(type, safe='')}"
+        return RedirectResponse(redirect_url, status_code=302)
+
     immutable_headers = {"Cache-Control": "public, max-age=2592000, immutable"}
 
     # === 缩略图分支:缓存命中秒出 ===
@@ -8893,6 +9131,9 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
 
         # === 预生成 WebP 缩略图(与 /api/media-preview 共用缓存,刷新秒出) ===
         async def _prewarm_thumb():
+            # 视频文件不预生成 PIL 缩图(可用 ffmpeg 取首帧,这里先跳过)
+            if ext.lower() in ('.mp4', '.webm', '.mov', '.mkv'):
+                return
             try:
                 from PIL import Image, ImageOps
                 def _gen():
@@ -8937,13 +9178,18 @@ async def proxy_comfyui_system_stats():
         raise HTTPException(status_code=502, detail=f"ComfyUI 连接失败: {str(e)}")
 
 @app.post("/api/comfyui/upload/image")
-async def proxy_comfyui_upload_image(file: UploadFile = File(...)):
+async def proxy_comfyui_upload_image(image: UploadFile = File(None), file: UploadFile = File(None)):
     """代理上传图片到 ComfyUI(兼容前端 apiFetch 模式)"""
-    content = await file.read()
+    upload = image or file
+    if upload is None:
+        raise HTTPException(status_code=422, detail="缺少 image 或 file 字段")
+    content = await upload.read()
+    file_filename = upload.filename
+    file_content_type = upload.content_type
     result = None
     for addr in COMFYUI_INSTANCES:
         try:
-            files_data = {'image': (file.filename or f"upload_{int(time.time())}.png", content, file.content_type or "image/png")}
+            files_data = {'image': (file_filename or f"upload_{int(time.time())}.png", content, file_content_type or "image/png")}
             resp = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=10)
             if resp.status_code == 200 and result is None:
                 result = resp.json()
@@ -9405,6 +9651,7 @@ async def get_poster_styles():
 @app.post("/api/poster/generate")
 async def poster_generate(req: Request, token: str = ""):
     """生成海报"""
+    require_valid_token(token)
     try:
         body = await req.json()
         prompt = body.get('prompt', '')
@@ -10714,6 +10961,7 @@ async def tts_generate(request: Request, token: str = Query(default="")):
             token = form.get("token", "")
         except:
             pass
+    require_valid_token(token)
     try:
         return await _tts_generate_inner(request, token)
     except HTTPException:
@@ -12678,6 +12926,7 @@ class Ideogram4JsonRequest(BaseModel):
 @app.post("/api/ideogram4/generate-json")
 async def generate_ideogram4_json(req: Ideogram4JsonRequest, token: str = ""):
     """调用 LLM 将中文创意描述转换为 Ideogram4 结构化 JSON 提示词"""
+    require_valid_token(token)
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="提示词不能为空")
 
@@ -13084,11 +13333,13 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     return output_text.strip()
 
 
-async def _interrogate_via_vision(abs_path, mode, target_style):
-    """多模态大模型 API 路线:复用已有的 caption_image_with_provider。"""
+async def _interrogate_via_vision(abs_path, mode, target_style, provider_id=None):
+    """多模态大模型 API 路线:复用已有的 caption_image_with_provider。
+    provider_id 缺省时自动选一个已配 key 的可用 chat provider(与「AI 提示词」同一套 API)。"""
     prompt_text = _interrogate_prompt_for(mode, target_style)
+    pid = provider_id or get_vision_provider_id()
     text, _model = await caption_image_with_provider(
-        abs_path, prompt_text, get_primary_provider_id(), ""
+        abs_path, prompt_text, pid, ""
     )
     return (text or "").strip()
 
@@ -13099,8 +13350,12 @@ async def api_interrogate(
     mode: str = Form("caption"),
     target_style: str = Form(""),
     provider: str = Form("auto"),
+    vision_provider_id: str = Form(""),
 ):
-    """通用反推提示词接口。provider: auto | comfyui | vision。"""
+    """通用反推提示词接口。
+    provider: auto | comfyui | vision
+    vision_provider_id: 可选,指定走 vision 路线时用哪个 chat provider(复用「AI 提示词」的 API);
+                        缺省时自动选一个已配 key 的可用平台(如 mimo/agnes)。"""
     suffix = os.path.splitext(file.filename or "x.png")[1] or ".png"
     tmp_path = os.path.join(DATA_DIR, f".interrogate_{uuid.uuid4().hex}{suffix}")
     content = await file.read()
@@ -13115,14 +13370,15 @@ async def api_interrogate(
             except Exception as e:
                 errs.append(f"comfyui:{e}")
         if not text and provider in ("auto", "vision"):
-            # auto 模式下,仅在已配置 COMFLY_API_KEY 时才尝试云端兜底,
+            # auto 模式下,仅在存在可用多模态 provider(已配 key)时才尝试云端兜底,
             # 避免 ComfyUI 偶发失败时错误信息被「未配置 key」污染,掩盖真实原因。
-            vision_enabled = (provider == "vision") or bool(
-                read_api_env_value("COMFLY_API_KEY") or os.getenv("COMFLY_API_KEY", "")
-            )
+            vision_enabled = (provider == "vision") or has_usable_vision_provider()
             if vision_enabled:
                 try:
-                    text = await _interrogate_via_vision(tmp_path, mode, target_style)
+                    text = await _interrogate_via_vision(
+                        tmp_path, mode, target_style,
+                        provider_id=(vision_provider_id or None),
+                    )
                 except Exception as e:
                     errs.append(f"vision:{e}")
         if not text:

@@ -768,6 +768,13 @@
                     </svg>
                     <span class="nav-text">TTS 语音</span>
                 </div>
+                <div class="nav-item" onclick="switchUI(this, 'litevideo')" title="视频生成 (LTX23)">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="14" height="16" rx="2"></rect>
+                        <path d="m22 8-6 4 6 4V8Z"></path>
+                    </svg>
+                    <span class="nav-text">视频生成</span>
+                </div>
                 <div class="nav-item" onclick="switchUI(this, 'gpt-chat')" title="GPT 对话">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -875,6 +882,7 @@
             <iframe id="frame-poster" data-src="/static/app/poster.html?v=20260626001"></iframe>
             <iframe id="frame-online" data-src="/static/online.html?v=20260529002"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
+    <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20260717-1"></iframe>
             <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20260526008"></iframe>
             <iframe id="frame-canvas" data-src="/static/canvas.html?v=20260526008"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html"></iframe>

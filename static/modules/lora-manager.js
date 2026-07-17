@@ -451,19 +451,12 @@ const LoraManager = (function() {
     //  面板操作
     // ─────────────────────────────────────────────
     function togglePanel() {
-        _activeTriggerWords = new Set(collectTriggerWords(state.active));
-        if (typeof window.loraPickerOnSelectionChange !== 'undefined') {
-            window.loraPickerOnSelectionChange = function(selected) {
-                syncTriggerWords(selected);
-            };
-        }
         if (typeof window.loraPickerOpen === 'function') {
             window.loraPickerOpen(function(selected) {
-                if (typeof window.loraPickerOnSelectionChange !== 'undefined') window.loraPickerOnSelectionChange = null;
                 state.active = selected;
-                syncTriggerWords(selected);
                 saveConfig();
                 updateVisibility();
+                if (typeof renderLoraActiveBar === 'function') renderLoraActiveBar();
             });
         }
     }

@@ -442,6 +442,38 @@ video.node-img { object-fit:cover; background:#0f172a; }
 .loading-cell.single { width:260px; height:180px; }
 @keyframes shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 .jimeng-pending-cell { position:relative; display:flex; align-items:center; justify-content:center; }
+.comfy-progress.loading-cell.single {
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--card) !important;
+    animation:none !important;
+}
+.comfy-progress-inner {
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.comfy-progress-ring {
+    display:block;
+    color:var(--accent, #6366f1);
+}
+.comfy-progress-ring-bg {
+    stroke:rgba(255,255,255,0.08);
+}
+.comfy-progress-ring-fill {
+    transition:stroke-dashoffset 0.3s ease;
+}
+.comfy-progress-text {
+    position:absolute;
+    font-size:13px;
+    font-weight:700;
+    color:var(--accent, #6366f1);
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+}
 .jimeng-pending-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:14px; box-sizing:border-box; text-align:center; }
 .jimeng-pending-spinner i { width:26px; height:26px; color:var(--accent, #6366f1); animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }

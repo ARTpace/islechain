@@ -22,41 +22,7 @@
     <script src="/static/theme.js"></script>
     <script src="/static/history-bulk-manager.js"></script>
     <script src="/static/modules/interrogator.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      var mount = document.getElementById('interrogator-mount');
-      if (!mount || !window.Interrogator) return;
-      var ig = new Interrogator();
-      ig.mountButton(mount, {
-        label: '反推提示词',
-        provider: 'auto',
-        resolve: function () {
-          var wf = (window.currentWorkflow || '').toLowerCase();
-          var mode = wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
-          var ts = '';
-          if (window.BUILTIN_WF_META) {
-            for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
-              if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
-                ts = window.BUILTIN_WF_META[i].model_folder || '';
-                break;
-              }
-            }
-          }
-          return { mode: mode, targetStyle: ts };
-        },
-        onApply: function (text, applyMode, result) {
-          var ta = document.getElementById('prompt');
-          if (!ta) return;
-          if (applyMode === 'append' && ta.value.trim()) {
-            ta.value = ta.value.trim() + ', ' + text;
-          } else {
-            ta.value = text;
-          }
-          if (window.updatePromptTags) window.updatePromptTags();
-        }
-      });
-    });
-    </script>
+    <script src="/static/modules/ref-image-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
@@ -71,8 +37,8 @@
     <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
     <script src="/static/modules/smart-prompt.js?v=20260629001"></script>
     <script src="/static/modules/card-progress.js?v=20260629001"></script>
-    <script src="/static/modules/lora-manager.js?v=20260629001"></script>
-    <script src="/static/modules/prompt-tags.js?v=20260629001"></script>
+    <script src="/static/modules/lora-manager.js?v=20260717001"></script>
+    <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
     <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260629002"></script>
@@ -380,6 +346,12 @@
             .gen-row #mainGenBtn > svg, .gen-row #mainGenBtn > i { flex-shrink:0; width:14px!important; min-width:14px!important; height:14px!important; }
             .gen-row #mainGenBtn .btn-text { flex-shrink:0; white-space:nowrap!important; }
             .history-bulk-btn { padding:0 10px!important; min-width:32px; justify-content:center; }
+            /* 小屏：LoRA 卡片缩小 */
+            .lac-card { width:72px!important; padding:3px!important; }
+            .lac-cover { width:60px!important; height:60px!important; }
+            .lac-name { max-width:66px!important; font-size:9px!important; }
+            .lac-slider { height:2px!important; }
+            .lac-val { font-size:8px!important; min-width:18px!important; }
         }
         /* LoRA 悬浮面板 */
         .lora-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.2); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
@@ -439,6 +411,31 @@
         body.studio-theme-dark .lora-trigger-tag:hover { background:rgba(255,255,255,0.12); color:#fff; }
         .lora-trigger-label { font-size:9px; font-weight:700; color:#999; flex-shrink:0; }
         body.studio-theme-dark .lora-trigger-label { color:#4a5a6e; }
+        /* LoRA 激活栏 —— 72×72 封面卡片 + 下方滑条 */
+        .lac-card { display:inline-flex; flex-direction:column; align-items:center; width:86px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.06); margin-bottom:4px; text-align:center; position:relative; }
+        .lac-card:hover { background:rgba(255,255,255,0.9); border-color:rgba(0,0,0,0.12); }
+        body.studio-theme-dark .lac-card { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.06); }
+        body.studio-theme-dark .lac-card:hover { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.12); }
+        .lac-card.lac-disabled { opacity:0.45; filter:grayscale(0.6); }
+        .lac-cover { width:72px; height:72px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(0,0,0,0.04); }
+        .lac-cover img { width:100%; height:100%; object-fit:cover; }
+        body.studio-theme-dark .lac-cover { background:rgba(255,255,255,0.04); }
+        .lac-name { font-size:10px; font-weight:700; color:#333; max-width:78px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; margin-top:2px; }
+        body.studio-theme-dark .lac-name { color:#e0e7ef; }
+        .lac-slider-wrap { width:100%; display:flex; align-items:center; gap:2px; padding:0 2px; box-sizing:border-box; }
+        .lac-slider { flex:1; height:3px; accent-color:#000; cursor:pointer; min-width:0; }
+        body.studio-theme-dark .lac-slider { accent-color:#00f0ff; }
+        .lac-val { font-size:9px; font-weight:800; color:#666; min-width:22px; text-align:right; flex-shrink:0; }
+        body.studio-theme-dark .lac-val { color:#8aa0b8; }
+        /* 封面上的按钮层 */
+        .lac-actions { position:absolute; top:4px; right:4px; display:flex; gap:2px; opacity:0; transition:opacity 0.15s; pointer-events:none; }
+        .lac-card:hover .lac-actions { opacity:1; pointer-events:auto; }
+        .lac-action-btn { width:22px; height:22px; border:none; border-radius:5px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; flex-shrink:0; padding:0; transition:all 0.15s; background:rgba(0,0,0,0.45); color:#fff; }
+        .lac-action-btn:hover { background:#ff4444; color:#fff; }
+        body.studio-theme-dark .lac-action-btn { background:rgba(0,0,0,0.55); }
+        body.studio-theme-dark .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.5); color:#fff; }
+        .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.8); color:#fff; }
+        .lac-action-btn.lac-toggle-on:hover { background:rgba(74,222,128,0.9); }
     /* === 模型选择面板 === */
     .model-picker-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
     .model-picker-overlay.open { display:flex; align-items:center; justify-content:center; }
@@ -508,10 +505,10 @@
                         <button onclick="presetPickerOpen()" id="presetPickerBtn" class="anima-ctrl" title="提示词预设">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="btn-text" id="presetPickerBtnText"> 预设</span>
                         </button>
-                        <button onclick="document.getElementById('refImageInput').click()" id="refImageBtn" class="anima-ctrl" title="添加参考图">
+                        <button onclick="initRefImageManager();if(_refImgMgr)_refImgMgr.upload()" id="refImageBtn" class="anima-ctrl" title="添加参考图">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text" id="refImageBtnText"> 参考图</span>
                         </button>
-                        <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" onchange="refImageHandleUpload(this)">
+                        <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" >
                         <!-- LoRA 管理按钮 -->
                         <button onclick="toggleLoraPanel()" id="loraBtn" class="anima-ctrl" style="display:none;" title="LoRA 管理">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
@@ -531,9 +528,28 @@
                         </button>
                         <!-- 翻译按键：仅在有内容时显示 -->
                         <div id="translateBtnContainer"></div>
-                        <!-- 反推提示词挂载点 -->
-                        <div id="interrogator-mount" style="margin-top:8px;"></div>
+                        <!-- 反推 Provider 切换 -->
+                        <span class="flex items-center gap-1" style="font-size:10px;color:rgba(0,0,0,0.3);white-space:nowrap;margin-left:2px;">反推</span>
+                        <div class="anima-ctrl-wrap anima-ctrl-wrap-reverse" style="position:relative;">
+                            <button class="anima-ctrl" id="reverseProviderBtn" onclick="toggleReverseProviderMenu()" style="min-width:52px;justify-content:center;font-size:10px;" title="反推方式">
+                                <span id="reverseProviderLabel">自动</span>
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="anima-ctrl-menu" id="reverseProviderMenu" style="left:auto;right:0;">
+                                <div class="anima-ctrl-menu-item" data-provider="auto" onclick="selectReverseProvider('auto')"><span>自动</span><span class="chk" id="rpChkAuto" style="display:none;">✓</span></div>
+                                <div class="anima-ctrl-menu-item" data-provider="comfyui" onclick="selectReverseProvider('comfyui')"><span>本地 ComfyUI 工作流</span><span class="chk" id="rpChkComfyui" style="display:none;">✓</span></div>
+                                <div class="anima-ctrl-menu-item" data-provider="vision" onclick="selectReverseProvider('vision')"><span>AI API 多模态</span><span class="chk" id="rpChkVision" style="display:none;">✓</span></div>
+                                <div style="border-top:1px solid rgba(255,255,255,0.1);margin:4px 0;padding:4px 12px 0;display:flex;flex-direction:column;gap:4px;">
+                                    <span style="font-size:9px;color:#666;">AI 平台</span>
+                                    <select id="reverseVisionProvider" onchange="onReverseVisionProviderChange(this.value)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 6px;font-size:10px;color:#999;outline:none;cursor:pointer;">
+                                        <option value="">自动选择</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    <!-- LoRA 激活栏：封面 + 强度调节 -->
+                    <div id="loraActiveBar" class="flex flex-wrap gap-1"></div>
                     <div id="promptTagsWrap" style="display:none;">
                         <div id="promptTags" class="flex flex-wrap gap-2 mt-2 overflow-y-auto" style="max-height:80px;"></div>
                         <button id="promptTagsToggle" onclick="togglePromptTags()" style="display:none;" class="text-[10px] text-gray-400 hover:text-gray-600 mt-1 cursor-pointer bg-transparent border-none p-0">
@@ -676,6 +692,70 @@
             var _loraSplitPreview = () => ({ preview: '', videoUrl: '' });
             var _loraExtractVideoUrl = () => '';
             var LORA_NODE_BASE = 9000;
+
+            // ── LoRA 激活栏渲染 ──
+            window.renderLoraActiveBar = function() {
+                var bar = document.getElementById('loraActiveBar');
+                if (!bar) return;
+                var active = (loraState && loraState.active) || [];
+                if (active.length === 0) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+                bar.style.display = '';
+                var base = (typeof currentWorkflow !== 'undefined' && currentWorkflow) ? currentWorkflow : '';
+                var htmls = [];
+                active.forEach(function(item, idx) {
+                    var name = item.name || '';
+                    var strength = (item.strength || 0.8).toFixed(2);
+                    var previewUrl = '';
+                    if (item.preview) previewUrl = item.preview;
+                    else if (name) previewUrl = '/loras/preview/' + encodeURIComponent(name) + '?workflow=' + encodeURIComponent(base);
+                    var isOn = item.disabled !== true;
+                    var cls = isOn ? '' : ' lac-disabled';
+                    var displayVal = parseFloat(strength);
+                    var displayText = displayVal === 1 ? '1' : strength.replace(/0+$/, '').replace(/\.$/, '');
+                    htmls.push('<span class="lac-card' + cls + '">');
+                    htmls.push('<span class="lac-cover"><img src="' + previewUrl + '" alt="" onerror="this.style.display=\'none\'" loading="lazy"></span>');
+                    htmls.push('<span class="lac-name" title="' + name.replace(/"/g,'&quot;') + '">' + name.split('/').pop() + '</span>');
+                    htmls.push('<span class="lac-slider-wrap">');
+                    htmls.push('<input type="range" min="0" max="2" step="0.01" value="' + strength + '" class="lac-slider" oninput="loraManagerSetStrength(' + idx + ',this.value)" onpointerup="loraManagerUpdateVal(' + idx + ',this.value)" ontouchend="loraManagerUpdateVal(' + idx + ',this.value)">');
+                    htmls.push('<span class="lac-val" id="lacVal' + idx + '">' + displayText + '</span>');
+                    htmls.push('</span>');
+                    htmls.push('<span class="lac-actions">');
+                    htmls.push('<button class="lac-action-btn' + (isOn ? ' lac-toggle-on' : '') + '" onclick="loraManagerToggle(' + idx + ')" title="' + (isOn ? '已启用，点击禁用' : '已禁用，点击启用') + '">' + (isOn ? '✓' : '○') + '</button>');
+                    htmls.push('<button class="lac-action-btn" onclick="loraManagerRemove(' + idx + ')" title="移除">×</button>');
+                    htmls.push('</span>');
+                    htmls.push('</span>');
+                });
+                bar.innerHTML = htmls.join('');
+            };
+            window.loraManagerSetStrength = function(idx, val) {
+                if (loraState && loraState.active && loraState.active[idx]) {
+                    loraState.active[idx].strength = parseFloat(val);
+                    saveLoraConfig();
+                }
+            };
+            window.loraManagerUpdateVal = function(idx, val) {
+                var el = document.getElementById('lacVal' + idx);
+                if (el) el.textContent = parseFloat(val).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+            };
+            window.loraManagerRemove = function(idx) {
+                if (loraState && loraState.active && loraState.active.length > idx) {
+                    loraState.active.splice(idx, 1);
+                    saveLoraConfig();
+                    renderLoraActiveBar();
+                    updateLoraSwitcherVisibility();
+                    if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+                }
+            };
+            window.loraManagerToggle = function(idx) {
+                if (loraState && loraState.active && loraState.active[idx]) {
+                    var item = loraState.active[idx];
+                    item.disabled = !item.disabled;
+                    saveLoraConfig();
+                    renderLoraActiveBar();
+                }
+            };
+            // 初始化时渲染一次
+            setTimeout(function(){ if (typeof renderLoraActiveBar === 'function') renderLoraActiveBar(); }, 100);
         }
 
         // ── PromptTags 管理器兼容别名 ──
@@ -1624,86 +1704,110 @@
             promptInput.focus();
         }
 
-        // === 参考图管理 ===
-        let refImages = []; // {file, url, name}
+        // === 参考图管理（由 ref-image-manager.js 提供） ===
+        let _refImgMgr = null;
+        function initRefImageManager() {
+            if (_refImgMgr) return;
+            var container = document.getElementById('refImagePreview');
+            if (!container) return;
+            _refImgMgr = new RefImageManager(container, {
+                inputId: 'refImageInput',
+                getReverseOptions: function () {
+                    var wf = (window.currentWorkflow || '').toLowerCase();
+                    var mode = wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
+                    var ts = '';
+                    if (window.BUILTIN_WF_META) {
+                        for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
+                            if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
+                                ts = window.BUILTIN_WF_META[i].model_folder || '';
+                                break;
+                            }
+                        }
+                    }
+                    var rp = document.getElementById('reverseProviderLabel');
+                    var rpv = document.getElementById('reverseVisionProvider');
+                    return {
+                        mode: mode,
+                        targetStyle: ts,
+                        provider: rp ? rp.textContent === '自动' ? 'auto' : rp.textContent.trim() : 'auto',
+                        visionProviderId: rpv ? rpv.value || '' : ''
+                    };
+                },
+                onReverseApply: function (text, applyMode) {
+                    var ta = document.getElementById('prompt');
+                    if (!ta) return;
+                    if (applyMode === 'append' && ta.value.trim()) {
+                        ta.value = ta.value.trim() + ', ' + text;
+                    } else {
+                        ta.value = text;
+                    }
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    if (window.updatePromptTags) window.updatePromptTags();
+                },
+                onChange: function () {
+                    refImageAutoSwitch();
+                    if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+                }
+            });
+            window._refImgMgr = _refImgMgr;
+        }
+        document.addEventListener('DOMContentLoaded', initRefImageManager);
+
+        // ── 反推 Provider 管理 ──
+        var _reverseProvider = 'auto';
+        var _reverseProvidersLoaded = false;
+        function toggleReverseProviderMenu() {
+            var m = document.getElementById('reverseProviderMenu');
+            if (!m) return;
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+            if (m.style.display === 'block' && !_reverseProvidersLoaded) {
+                _reverseProvidersLoaded = true;
+                fetch('/api/providers').then(function(r){return r.json();}).then(function(d){
+                    var sel = document.getElementById('reverseVisionProvider');
+                    if (!sel) return;
+                    sel.innerHTML = '<option value="">自动选择</option>';
+                    (d.providers||[]).forEach(function(p){
+                        if (!p.chat_models || !p.chat_models.length) return;
+                        var o = document.createElement('option');
+                        o.value = p.id;
+                        o.textContent = p.name + (p.primary ? ' ★' : '');
+                        if (p.has_key) o.textContent += ' ✓';
+                        sel.appendChild(o);
+                    });
+                }).catch(function(){});
+            }
+        }
+        function selectReverseProvider(val) {
+            _reverseProvider = val;
+            ['rpChkAuto','rpChkComfyui','rpChkVision'].forEach(function(id){
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            var chk = document.getElementById('rpChk' + val.charAt(0).toUpperCase() + val.slice(1));
+            if (chk) chk.style.display = 'inline';
+            var lbl = document.getElementById('reverseProviderLabel');
+            if (lbl) {
+                var names = {auto:'自动',comfyui:'本地',vision:'AI API'};
+                lbl.textContent = names[val] || '自动';
+            }
+            var m = document.getElementById('reverseProviderMenu');
+            if (m) m.style.display = 'none';
+        }
+        function onReverseVisionProviderChange(val) {
+            // 存着给 getReverseOptions 用
+        }
 
         function refImageHandleUpload(input) {
-            const files = Array.from(input.files);
-            files.forEach(file => {
-                if (!file.type.startsWith('image/')) return;
-                const url = URL.createObjectURL(file);
-                refImages.push({ file, url, name: file.name });
-            });
-            input.value = '';
-            refImageRenderPreviews();
-            refImageAutoSwitch();
-            // 刷新主界面按钮高亮
-            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+            initRefImageManager();
+            if (_refImgMgr) _refImgMgr.upload();
         }
-
-        function refImageRenderPreviews() {
-            const container = document.getElementById('refImagePreview');
-            if (!container) return;
-            if (refImages.length === 0) {
-                container.style.display = 'none';
-                container.innerHTML = '';
-                return;
-            }
-            container.style.display = 'flex';
-            container.style.alignItems = 'center';
-            container.innerHTML = refImages.map((img, i) => `
-                <div class="ref-thumb" onclick="refImageView(${i})" style="width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.15);flex-shrink:0;cursor:pointer;position:relative;transition:border-color 0.2s;" onmouseenter="this.style.borderColor='rgba(0,180,216,0.6)'" onmouseleave="this.style.borderColor='rgba(255,255,255,0.15)'">
-                    <img src="${img.url}" style="width:100%;height:100%;object-fit:cover;pointer-events:none;" />
-                    <button onclick="event.stopPropagation();refImageRemove(${i})" class="ref-del-btn" style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(239,68,68,0.85);color:#fff;border:none;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.15s;">&times;</button>
-                    <div style="position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:8px;color:#fff;truncate px-1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:rgba(0,0,0,0.5);">${img.name}</div>
-                </div>
-            `).join('') + `
-                <button onclick="refImageClearAll()" title="清空全部参考图" style="width:64px;height:64px;border-radius:8px;border:1px dashed rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.4);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" onmouseenter="this.style.borderColor='rgba(239,68,68,0.5)';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='rgba(255,255,255,0.2)';this.style.color='rgba(255,255,255,0.4)'">🗑</button>
-            `;
-            // hover 显示删除按钮
-            container.querySelectorAll('.ref-thumb').forEach(el => {
-                el.onmouseenter = () => el.querySelector('.ref-del-btn').style.opacity = '1';
-                el.onmouseleave = () => el.querySelector('.ref-del-btn').style.opacity = '0';
-            });
-        }
-
-        function refImageView(index) {
-            if (!refImages[index]) return;
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);';
-            overlay.innerHTML = `<img src="${refImages[index].url}" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5);" /><div style="position:absolute;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,0.1);transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.2)'" onmouseleave="this.style.background='rgba(255,255,255,0.1)'">&times;</div><div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:12px;">${refImages[index].name}</div>`;
-            overlay.onclick = () => overlay.remove();
-            document.body.appendChild(overlay);
-        }
-
-        function refImageRemove(index) {
-            if (refImages[index]) {
-                URL.revokeObjectURL(refImages[index].url);
-                refImages.splice(index, 1);
-                refImageRenderPreviews();
-                refImageAutoSwitch();
-                // 刷新主界面按钮高亮
-                if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
-            }
-        }
-
-        function refImageClearAll() {
-            refImages.forEach(img => URL.revokeObjectURL(img.url));
-            refImages = [];
-            refImageRenderPreviews();
-            refImageAutoSwitch();
-            // 刷新主界面按钮高亮
-            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
-        }
-
-        // 自动切换工作流：有参考图→图生图，无参考图→文生图
-        const WORKFLOW_TEXT2IMG = 'text2image/z-image.json';
-        const WORKFLOW_IMG2IMG = 'anima_图生图.json';
 
         function refImageAutoSwitch() {
-            const hasRef = refImages.length > 0;
-            const target = hasRef ? WORKFLOW_IMG2IMG : WORKFLOW_TEXT2IMG;
+            var count = _refImgMgr ? _refImgMgr.getCount() : 0;
+            var hasRef = count > 0;
+            var target = hasRef ? 'anima_图生图.json' : 'text2image/z-image.json';
             if (currentWorkflow !== target) {
+
                 switchWorkflow(target);
             }
         }
@@ -2362,7 +2466,7 @@
             setPickerButtonState('presetPickerBtn', 'presetPickerBtnText', presetCount, ' 预设');
 
             // ---- 参考图 ----
-            const refCount = (typeof refImages !== 'undefined' && Array.isArray(refImages)) ? refImages.length : 0;
+            var refCount = (typeof _refImgMgr !== 'undefined' && _refImgMgr) ? _refImgMgr.getCount() : 0;
             setPickerButtonState('refImageBtn', 'refImageBtnText', refCount, ' 参考图');
 
             // LoRA
@@ -2599,7 +2703,7 @@
         });
 
         window.onload = () => { 
-            updatePromptTags(); 
+            if (typeof window.updatePromptTags === 'function') updatePromptTags();
             spPickerInit(); 
             spmInit(); 
             

@@ -143,6 +143,41 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 /* === NSFW 屏蔽：彻底隐藏卡片，避免空白分隔线 === */
 body.nsfw-mode .masonry-item[data-nsfw="1"] { display: none !important; }
 
+/* === NSFW Only：仅显示 NSFW 图片 === */
+body.nsfw-only-mode .masonry-item:not([data-nsfw="1"]) { display: none !important; }
+body.nsfw-only-mode .date-separator { display: none !important; }
+
+/* === NSFW 按钮长按进度指示器 === */
+.nsfw-longpress-progress {
+    position: absolute;
+    inset: -3px;
+    border-radius: 999px;
+    pointer-events: none;
+    border: 2px solid transparent;
+    transition: none;
+    z-index: 1;
+    box-sizing: border-box;
+}
+.nsfw-longpress-progress.active {
+    animation: nsfwLongPressFill 5s linear forwards;
+}
+@keyframes nsfwLongPressFill {
+    0%   { border-color: rgba(220,38,38,0); border-top-color: rgba(220,38,38,0.9); }
+    25%  { border-color: rgba(220,38,38,0.15); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); }
+    50%  { border-color: rgba(220,38,38,0.25); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); border-bottom-color: rgba(220,38,38,0.9); }
+    75%  { border-color: rgba(220,38,38,0.35); border-left-color: rgba(220,38,38,0); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); border-bottom-color: rgba(220,38,38,0.9); }
+    100% { border-color: rgba(220,38,38,0.7); border-left-color: rgba(220,38,38,0.7); }
+}
+/* 长按时按钮底色的淡入效果 */
+.nsfw-pulsing {
+    animation: nsfwPulseBg 1s ease-in-out infinite alternate !important;
+    position: relative;
+}
+@keyframes nsfwPulseBg {
+    from { background: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+    to   { background: rgba(220,38,38,0.7) !important; box-shadow: 0 0 0 6px rgba(220,38,38,0.2); }
+}
+
 /* === Scroll to Top === */
 #galleryScrollToTop {
     position: fixed;
@@ -710,20 +745,28 @@ body.studio-theme-dark .lightbox-thumb.active {
             extraButtons.push({
                 id: 'nsfw-toggle',
                 label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> NSFW</span>',
-                title: '不显示 NSFW 相关图片',
+                title: '不显示 NSFW 相关图片（长按 5 秒切换 NSFW Only 模式）',
                 onClick: (btn) => {
+                    // 长按触发的 NSFW Only 切换已在 attach 后的 setTimeout 中完成，阻止 click 重复执行
+                    if (window.__nsfwLongPressTriggered) {
+                        window.__nsfwLongPressTriggered = false;
+                        return;
+                    }
+                    const isOnly = document.body.classList.contains('nsfw-only-mode');
+                    if (isOnly) {
+                        document.body.classList.remove('nsfw-only-mode');
+                        btn.classList.remove('is-only-on');
+                        try { localStorage.removeItem('gallery_nsfw_only'); } catch (_) {}
+                    }
                     const on = !document.body.classList.contains('nsfw-mode');
                     document.body.classList.toggle('nsfw-mode', on);
                     btn.classList.toggle('is-on', on);
                     try { localStorage.setItem('gallery_nsfw_block', on ? '1' : '0'); } catch (_) {}
-                    // NSFW 状态变化后：清理空分隔线 + 确保触发 load more（可见图片太少时）
                     setTimeout(() => {
-                        if (window.GalleryList) {
-                            GalleryList.pruneEmptySeparators();
-                            GalleryList.ensureLoadMore();
-                        }
+                        if (window.GalleryList) { GalleryList.pruneEmptySeparators(); GalleryList.ensureLoadMore(); }
                     }, 50);
-                }
+                },
+
             });
         }
 
@@ -737,6 +780,67 @@ body.studio-theme-dark .lightbox-thumb.active {
             masonry: config.masonrySelector,
             extraButtons
         });
+
+        // NSFW 按钮长按绑定（HistoryBulkManager 不支持 onMount，手动绑）
+        setTimeout(() => {
+            const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
+            if (!nsfwBtn) return;
+            let pressTimer = null;
+            let progressEl = null;
+            let triggered = false;
+            const startPress = () => {
+                if (triggered) return;
+                triggered = false;
+                if (!progressEl) {
+                    progressEl = document.createElement('span');
+                    progressEl.className = 'nsfw-longpress-progress';
+                    nsfwBtn.style.position = 'relative';
+                    nsfwBtn.appendChild(progressEl);
+                }
+                progressEl.classList.add('active');
+                nsfwBtn.classList.add('nsfw-pulsing');
+                pressTimer = setTimeout(() => {
+                    triggered = true;
+                    const isOnly = !document.body.classList.contains('nsfw-only-mode');
+                    document.body.classList.toggle('nsfw-only-mode', isOnly);
+                    nsfwBtn.classList.remove('is-on');
+                    if (isOnly) {
+                        nsfwBtn.classList.add('is-only-on');
+                        document.body.classList.remove('nsfw-mode');
+                        try { localStorage.setItem('gallery_nsfw_only', '1'); localStorage.setItem('gallery_nsfw_block', '0'); } catch (_) {}
+                    } else {
+                        nsfwBtn.classList.remove('is-only-on');
+                        try { localStorage.removeItem('gallery_nsfw_only'); } catch (_) {}
+                    }
+                    if (progressEl) progressEl.classList.remove('active');
+                    nsfwBtn.classList.remove('nsfw-pulsing');
+                    pressTimer = null;
+                    // 标记长按已触发，防止紧随的 click 重复执行
+                    window.__nsfwLongPressTriggered = true;
+                }, 5000);
+            };
+            const cancelPress = () => {
+                if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+                if (triggered) {
+                    triggered = false;
+                    // 重新标记确保 mouseup 后的 click 事件能捕获到，500ms 足够覆盖
+                    window.__nsfwLongPressTriggered = true;
+                    setTimeout(() => {
+                        window.__nsfwLongPressTriggered = false;
+                        if (window.GalleryList) { GalleryList.pruneEmptySeparators(); GalleryList.ensureLoadMore(); }
+                    }, 500);
+                    return;
+                }
+                if (progressEl) progressEl.classList.remove('active');
+                nsfwBtn.classList.remove('nsfw-pulsing');
+            };
+            nsfwBtn.addEventListener('mousedown', startPress);
+            nsfwBtn.addEventListener('mouseup', cancelPress);
+            nsfwBtn.addEventListener('mouseleave', cancelPress);
+            nsfwBtn.addEventListener('touchstart', startPress, { passive: true });
+            nsfwBtn.addEventListener('touchend', cancelPress);
+            nsfwBtn.addEventListener('touchcancel', cancelPress);
+        }, 100);
 
         // 恢复收藏过滤偏好
         try {
@@ -763,7 +867,19 @@ body.studio-theme-dark .lightbox-thumb.active {
                     if (btn) btn.classList.add('is-on');
                 }, 0);
             }
+            // 恢复 NSFW Only 模式
+            if (localStorage.getItem('gallery_nsfw_only') === '1') {
+                document.body.classList.add('nsfw-only-mode');
+                document.body.classList.remove('nsfw-mode');
+                setTimeout(() => {
+                    const btn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
+                    if (btn) { btn.classList.add('is-only-on'); btn.classList.remove('is-on'); }
+                }, 0);
+            }
         } catch (_) {}
+
+        // 清除长按触发标记
+        window.__nsfwLongPressTriggered = false;
 
         // 恢复缩略图尺寸偏好
         try {

@@ -59,6 +59,7 @@
       if (opts.mode) fd.append('mode', opts.mode);
       if (opts.targetStyle) fd.append('target_style', opts.targetStyle);
       if (opts.provider) fd.append('provider', opts.provider);
+      if (opts.visionProviderId) fd.append('vision_provider_id', opts.visionProviderId);
       fetch(self.endpoint, { method: 'POST', body: fd })
         .then(function (res) {
           if (!res.ok) {

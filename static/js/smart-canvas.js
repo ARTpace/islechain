@@ -6218,7 +6218,22 @@ function nodeBodyHtml(node, layout){
     }
     if(node.pending && imgs.length === 0){
         const count = Math.max(1, Number(node.pending) || 1);
-        if(count <= 1) return `<div class="loading-cell single" style="width:${layout.width}px;height:${layout.height}px"></div>`;
+        if(count <= 1){
+            // 显示 ComfyUI 进度条（当 comfyProgress 存在且 > 0）
+            if(typeof node.comfyProgress === 'number' && node.comfyProgress >= 0 && node.comfyProgress < 100){
+                const pct = Math.min(100, Math.max(0, node.comfyProgress));
+                return `<div class="loading-cell single comfy-progress" style="width:${layout.width}px;height:${layout.height}px">
+                    <div class="comfy-progress-inner">
+                        <svg class="comfy-progress-ring" viewBox="0 0 80 80" width="80" height="80">
+                            <circle class="comfy-progress-ring-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+                            <circle class="comfy-progress-ring-fill" cx="40" cy="40" r="34" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="213.63" stroke-dashoffset="${213.63 - (213.63 * pct / 100)}" transform="rotate(-90 40 40)"/>
+                        </svg>
+                        <span class="comfy-progress-text">${pct}%</span>
+                    </div>
+                </div>`;
+            }
+            return `<div class="loading-cell single" style="width:${layout.width}px;height:${layout.height}px"></div>`;
+        }
         const cols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(count))));
         const rows = Math.ceil(count / cols);
         return `<div class="loading-skeleton" style="grid-template-columns:repeat(${cols}, 1fr);grid-template-rows:repeat(${rows}, 1fr);width:${layout.width}px;height:${layout.height}px;padding:8px;box-sizing:border-box">${Array.from({length:count}).map(() => `<div class="loading-cell"></div>`).join('')}</div>`;
@@ -12146,42 +12161,6 @@ function buildPromptRequestForNode(node, defaultImages, ctx=smartLoopContext){
 async function generateUrlsForCurrentSettings(node, prompt, refs, runSettings=settings){
     const activeSettings = runSettings || settings;
     if(activeSettings.engine === 'comfy') return generateComfyUrlsWithSettings(activeSettings, prompt, refs);
-    if(activeSettings.engine === 'comfy'){
-        const allRefs = refs || [];
-        const imageRefs = imageRefsOnly(allRefs);
-        const mode = settings.comfyMode || 'text';
-        if(mode === 'text'){
-            const data = await fetch('/api/generate', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
-            }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-            const urls = resultMediaUrls(data);
-            return {urls, kind:mediaKindForUrls(urls, 'image')};
-        }
-        if(mode === 'enhance'){
-            if(!imageRefs.length) throw new Error(tr('smart.errEnhanceNeedRefs'));
-            const inputName = await comfyNameForRef(imageRefs[0]);
-            const data = await fetch('/api/generate', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({workflow_json:'Z-Image-Enhance.json', type:'enhance', params:{"15":{image:inputName},"204":{value:Number(settings.enhanceStrength ?? 0.5)}}})
-            }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-            const urls = resultMediaUrls(data);
-            return {urls, kind:mediaKindForUrls(urls, 'image')};
-        }
-        if(mode === 'edit'){
-            if(!imageRefs.length) throw new Error(tr('smart.errEditNeedRefs'));
-            const names = [];
-            for(const ref of imageRefs.slice(0, 3)) names.push(await comfyNameForRef(ref));
-            const data = await fetch('/api/generate', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}})
-            }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-            const urls = resultMediaUrls(data);
-            return {urls, kind:mediaKindForUrls(urls, 'image')};
-        }
         const workflowName = settings.comfyWorkflow || comfyWorkflows[0]?.name || '';
         if(!workflowName) throw new Error(tr('smart.errNeedWorkflow'));
         const wf = await fetch(`/api/workflows/${encodeURIComponent(workflowName)}`).then(async r => {
@@ -12243,45 +12222,33 @@ async function generateComfyUrlsWithSettings(runSettings, prompt, refs){
     const imageRefs = imageRefsOnly(allRefs);
     const mode = runSettings.comfyMode || 'text';
     if(mode === 'text'){
-        const data = await fetch('/api/generate', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({prompt, width:Number(runSettings.width || 1024), height:Number(runSettings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
-        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-        const urls = resultMediaUrls(data);
-        return {urls, kind:mediaKindForUrls(urls, 'image')};
+        const {task_id} = await createCanvasComfyTask({prompt, width:Number(runSettings.width || 1024), height:Number(runSettings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'});
+        const {images, kind} = await pollCanvasComfyTask(task_id);
+        const urls = images.map(img => img.url).filter(Boolean);
+        return {urls, kind};
     }
     if(mode === 'krea2'){
-        const data = await fetch('/api/generate', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({prompt, width:Number(runSettings.width || 1280), height:Number(runSettings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'})
-        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-        const urls = resultMediaUrls(data);
-        return {urls, kind:mediaKindForUrls(urls, 'image')};
+        const {task_id} = await createCanvasComfyTask({prompt, width:Number(runSettings.width || 1280), height:Number(runSettings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'});
+        const {images, kind} = await pollCanvasComfyTask(task_id);
+        const urls = images.map(img => img.url).filter(Boolean);
+        return {urls, kind};
     }
     if(mode === 'enhance'){
         if(!imageRefs.length) throw new Error(tr('smart.errEnhanceNeedRefs'));
         const inputName = await comfyNameForRef(imageRefs[0]);
-        const data = await fetch('/api/generate', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({workflow_json:'Z-Image-Enhance.json', type:'enhance', params:{"15":{image:inputName},"204":{value:Number(runSettings.enhanceStrength ?? 0.5)}}})
-        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-        const urls = resultMediaUrls(data);
-        return {urls, kind:mediaKindForUrls(urls, 'image')};
+        const {task_id} = await createCanvasComfyTask({workflow_json:'Z-Image-Enhance.json', type:'enhance', params:{"15":{image:inputName},"204":{value:Number(runSettings.enhanceStrength ?? 0.5)}}});
+        const {images, kind} = await pollCanvasComfyTask(task_id);
+        const urls = images.map(img => img.url).filter(Boolean);
+        return {urls, kind};
     }
     if(mode === 'edit'){
         if(!imageRefs.length) throw new Error(tr('smart.errEditNeedRefs'));
         const names = [];
         for(const ref of imageRefs.slice(0, 3)) names.push(await comfyNameForRef(ref));
-        const data = await fetch('/api/generate', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}})
-        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-        const urls = resultMediaUrls(data);
-        return {urls, kind:mediaKindForUrls(urls, 'image')};
+        const {task_id} = await createCanvasComfyTask({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}});
+        const {images, kind} = await pollCanvasComfyTask(task_id);
+        const urls = images.map(img => img.url).filter(Boolean);
+        return {urls, kind};
     }
     const workflowName = runSettings.comfyWorkflow || comfyWorkflows[0]?.name || '';
     if(!workflowName) throw new Error(tr('smart.errNeedWorkflow'));
@@ -12899,9 +12866,18 @@ async function runGeneration(){
     try {
         if(settings.engine === 'comfy'){
             await runComfyGeneration(pendingNode, prompt, refs, pendingNode, pendingMeta);
+            if(pendingNode.jimengPending || smartRecoverableImageTask(pendingNode)){
+                if(sourceVisualState) restoreSourceVisualState(node, sourceVisualState);
+                clearPromptInput({preserveDraft:true});
+                settings = previousSettings;
+                scheduleSave();
+                return;
+            }
             if(sourceVisualState) restoreSourceVisualState(node, sourceVisualState);
             addSmartGenerationLog({run:runLog, outputs:(pendingNode.images || []).map(img => img.url).filter(Boolean), runMs:nowMs() - runLogStart});
+            clearPromptInput({preserveDraft:true});
             settings = previousSettings;
+            scheduleSave();
             return;
         }
         if(isApiLikeEngine(settings.engine) && settings.apiKind === 'video'){
@@ -13191,139 +13167,139 @@ async function urlToBase64(url){
     });
 }
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+// --- 异步 ComfyUI 辅助: 创建 task, 轮询, finalize ---
+
+async function pollCanvasComfyTask(taskId, onProgress){
+    if(!taskId) throw new Error(tr('smart.errRunFailed'));
+    for(let i = 0; i < 900; i++){
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const task = await fetch(`/api/canvas-comfy-tasks/${encodeURIComponent(taskId)}`).then(async r => {
+            if(!r.ok) throw new Error(await r.text());
+            return r.json();
+        });
+        if(task.status === 'succeeded'){
+            const result = task.result || {};
+            const urls = result.outputs || result.images || [];
+            if(!urls.length) throw new Error(tr('smart.errComfyNoImages'));
+            const kind = result.kind || 'image';
+            const ext = kind === 'video' ? 'mp4' : kind === 'audio' ? 'mp3' : kind === 'text' ? 'txt' : 'png';
+            const images = urls.map((url, i) => ({url, name:`comfy-${i + 1}.${ext}`, kind, generatedResult:true}));
+            return {images, kind};
+        }
+        if(task.status === 'failed'){
+            throw new Error(task.error || tr('smart.errRunFailed'));
+        }
+        // 进度回传
+        if(onProgress && typeof task.progress === 'number' && task.progress > 0){
+            onProgress({
+                progress: task.progress,
+                progressNode: task.progress_node || '',
+                progressValue: task.progress_value,
+                progressMax: task.progress_max
+            });
+        }
+    }
+    throw new Error(tr('smart.errRunTimeout'));
+}
+
 async function runComfyGeneration(node, prompt, refs, pendingNode, meta){
     const allRefs = refs || [];
     refs = imageRefsOnly(allRefs);
     const mode = settings.comfyMode || 'text';
-    if(mode === 'text') return runComfyText(node, prompt, pendingNode, meta);
-    if(mode === 'krea2') return runComfyKrea2(node, prompt, pendingNode, meta);
-    if(mode === 'enhance') return runComfyEnhance(node, refs, pendingNode, meta);
-    if(mode === 'edit') return runComfyEdit(node, prompt, refs, pendingNode, meta);
-    const workflowName = settings.comfyWorkflow || comfyWorkflows[0]?.name || '';
-    if(!workflowName) throw new Error(tr('smart.errNeedWorkflow'));
-    const wf = await fetch(`/api/workflows/${encodeURIComponent(workflowName)}`).then(async r => {
-        if(!r.ok) throw new Error(await r.text());
-        return r.json();
-    });
-    const fields = wf.config?.fields || [];
-    const values = {};
-    fields.filter(f => comfyFieldKind(f) === 'prompt').forEach((field, index) => {
-        values[field.id] = index === 0 ? prompt : (field.default ?? '');
-    });
-    const assignMediaFields = async (mediaFields, mediaRefs) => {
-        for(let i = 0; i < mediaFields.length && i < mediaRefs.length; i++){
-            values[mediaFields[i].id] = await comfyNameForRef(mediaRefs[i]);
+    let taskId, taskKind = 'image';
+    if(mode === 'text'){
+        ({task_id: taskId} = await createCanvasComfyTask({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'}));
+    } else if(mode === 'krea2'){
+        ({task_id: taskId} = await createCanvasComfyTask({prompt, width:Number(settings.width || 1280), height:Number(settings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'}));
+    } else if(mode === 'enhance'){
+        if(!refs.length) throw new Error(tr('smart.errEnhanceNeedRefs'));
+        const inputName = await comfyNameForRef(refs[0]);
+        ({task_id: taskId} = await createCanvasComfyTask({workflow_json:'Z-Image-Enhance.json', type:'enhance', params:{"15":{image:inputName},"204":{value:Number(settings.enhanceStrength ?? 0.5)}}}));
+    } else if(mode === 'edit'){
+        if(!refs.length) throw new Error(tr('smart.errEditNeedRefs'));
+        const names = [];
+        for(const ref of refs.slice(0, 3)) names.push(await comfyNameForRef(ref));
+        ({task_id: taskId} = await createCanvasComfyTask({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}}));
+    } else {
+        // 自定义 workflow
+        const workflowName = settings.comfyWorkflow || comfyWorkflows[0]?.name || '';
+        if(!workflowName) throw new Error(tr('smart.errNeedWorkflow'));
+        const wf = await fetch(`/api/workflows/${encodeURIComponent(workflowName)}`).then(async r => {
+            if(!r.ok) throw new Error(await r.text());
+            return r.json();
+        });
+        const fields = wf.config?.fields || [];
+        const values = {};
+        fields.filter(f => comfyFieldKind(f) === 'prompt').forEach((field, index) => {
+            values[field.id] = index === 0 ? prompt : (field.default ?? '');
+        });
+        const assignMediaFields = async (mediaFields, mediaRefs) => {
+            for(let i = 0; i < mediaFields.length && i < mediaRefs.length; i++){
+                values[mediaFields[i].id] = await comfyNameForRef(mediaRefs[i]);
+            }
+        };
+        await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'image'), refs);
+        await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'video'), videoRefsOnly(allRefs));
+        await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'audio'), audioRefsOnly(allRefs));
+        fields.filter(f => comfyFieldKind(f) === 'setting').forEach(field => {
+            if(comfyRandomEnabledField(field) && smartComfyRandomActive(field.id)){
+                values[field.id] = smartComfyRandomValue(field);
+            } else {
+                values[field.id] = settings.comfyParams?.[field.id] ?? field.default;
+            }
+        });
+        // 自定义 workflow 走原有同步 /api/workflows/{name}/run (后端没有 async task endpoint)
+        const wfResult = await fetch(`/api/workflows/${encodeURIComponent(workflowName)}/run`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({config:wf.config || {fields:[]}, fields:values})
+        }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
+        const wfUrls = resultMediaUrls(wfResult);
+        if(!wfUrls.length) throw new Error(tr('smart.errComfyNoImages'));
+        const wfKind = mediaKindForUrls(wfUrls, wfResult.videos?.length ? 'video' : wfResult.audios?.length ? 'audio' : wfResult.texts?.length ? 'text' : 'image');
+        const wfExt = wfKind === 'video' ? 'mp4' : wfKind === 'audio' ? 'mp3' : 'png';
+        const wfImages = wfUrls.map((url, i) => ({url, name:`comfy-${i + 1}.${wfExt}`, kind:wfKind, generatedResult:true}));
+        if(!pendingNode) throw new Error(tr('smart.errRunFailed'));
+        finalizeSmartPendingTask(pendingNode, 'custom-wf-' + nowMs(), wfImages, wfKind);
+        render();
+        scheduleSave();
+        return;
+    }
+    if(!taskId) throw new Error(tr('smart.errRunFailed'));
+
+    // 设置 pendingTasks 状态 → 卡片显示 loading 骨架 + 计时器
+    if(!pendingNode) throw new Error(tr('smart.errRunFailed'));
+    pendingNode.pendingTasks = [{taskId, kind:taskKind}];
+    pendingNode.pending = 1;
+    pendingNode.running = false;
+    pendingNode.runStartedAt = nowMs();
+    pendingNode.runTimerHidden = false;
+    // 预置 comfyProgress=0 让首次 render 直接渲染 SVG 进度环骨架
+    pendingNode.comfyProgress = 0;
+    render();
+    scheduleSave();
+    await saveCanvas();
+
+    // 轮询结果（带进度回传）
+    const result = await pollCanvasComfyTask(taskId, (prog) => {
+        pendingNode.comfyProgress = prog.progress;
+        const nodeEl = world.querySelector(`.image-node[data-id="${CSS.escape(pendingNode.id)}"]`);
+        if(nodeEl){
+            const body = nodeEl.querySelector('.node-body');
+            if(body){
+                const progText = body.querySelector('.comfy-progress-text');
+                const ringFill = body.querySelector('.comfy-progress-ring-fill');
+                if(progText && ringFill){
+                    progText.textContent = prog.progress + '%';
+                    const circumference = 213.63;
+                    ringFill.style.strokeDashoffset = circumference - (circumference * prog.progress / 100);
+                }
+            }
         }
-    };
-    await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'image'), refs);
-    await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'video'), videoRefsOnly(allRefs));
-    await assignMediaFields(fields.filter(f => comfyFieldKind(f) === 'audio'), audioRefsOnly(allRefs));
-    fields.filter(f => comfyFieldKind(f) === 'setting').forEach(field => {
-        if(comfyRandomEnabledField(field) && smartComfyRandomActive(field.id)){
-            values[field.id] = smartComfyRandomValue(field);
-        } else {
-            values[field.id] = settings.comfyParams?.[field.id] ?? field.default;
-        }
     });
-    const result = await fetch(`/api/workflows/${encodeURIComponent(workflowName)}/run`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({config:wf.config || {fields:[]}, fields:values})
-    }).then(async r => {
-        if(!r.ok) throw new Error(await r.text());
-        return r.json();
-    });
-    const urls = resultMediaUrls(result);
-    if(!urls.length) throw new Error(tr('smart.errComfyNoImages'));
-    const kind = mediaKindForUrls(urls, result.videos?.length ? 'video' : result.audios?.length ? 'audio' : result.texts?.length ? 'text' : 'image');
-    const ext = kind === 'video' ? 'mp4' : kind === 'audio' ? 'mp3' : 'png';
-    const out = urls.map((url, i) => ({url, name:`comfy-${i + 1}.${ext}`, kind})).filter(x => x.url);
-    if(!out.length) throw new Error(tr('smart.errComfyEmpty'));
-    const outputUrls = out.map(o => o.url);
-    if(pendingNode){
-        finalizePendingNode(pendingNode, outputUrls, meta, kind);
-    } else {
-        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out);
-        attachRunMeta(created, meta);
-        addConnection(node.id, created.id);
-    }
-    clearPromptInput({preserveDraft:true});
-    scheduleSave();
-}
-async function runComfyText(node, prompt, pendingNode, meta){
-    const data = await fetch('/api/generate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt, width:Number(settings.width || 1024), height:Number(settings.height || 1024), workflow_json:'text2image/z-image.json', type:'zimage'})
-    }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-    const out = data.outputs || data.images || [];
-    if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
-    if(pendingNode){
-        finalizePendingNode(pendingNode, out, meta);
-    } else {
-        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`comfy-${i + 1}.png`})));
-        attachRunMeta(created, meta);
-        addConnection(node.id, created.id);
-    }
-    clearPromptInput({preserveDraft:true});
-    scheduleSave();
-}
-async function runComfyKrea2(node, prompt, pendingNode, meta){
-    const data = await fetch('/api/generate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt, width:Number(settings.width || 1280), height:Number(settings.height || 2048), workflow_json:'text2image/krea2-turbo.json', type:'krea2'})
-    }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-    const out = data.outputs || data.images || [];
-    if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
-    if(pendingNode){
-        finalizePendingNode(pendingNode, out, meta);
-    } else {
-        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`krea2-${i + 1}.png`})));
-        attachRunMeta(created, meta);
-        addConnection(node.id, created.id);
-    }
-    clearPromptInput({preserveDraft:true});
-    scheduleSave();
-}
-async function runComfyEnhance(node, refs, pendingNode, meta){
-    if(!refs.length) throw new Error(tr('smart.errEnhanceNeedRefs'));
-    const inputName = await comfyNameForRef(refs[0]);
-    const data = await fetch('/api/generate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({workflow_json:'Z-Image-Enhance.json', type:'enhance', params:{"15":{image:inputName},"204":{value:Number(settings.enhanceStrength ?? 0.5)}}})
-    }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-    const out = data.outputs || data.images || [];
-    if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
-    if(pendingNode){
-        finalizePendingNode(pendingNode, out, meta);
-    } else {
-        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`enhance-${i + 1}.png`})));
-        attachRunMeta(created, meta);
-        addConnection(node.id, created.id);
-    }
-    scheduleSave();
-}
-async function runComfyEdit(node, prompt, refs, pendingNode, meta){
-    if(!refs.length) throw new Error(tr('smart.errEditNeedRefs'));
-    const names = [];
-    for(const ref of refs.slice(0, 3)) names.push(await comfyNameForRef(ref));
-    const data = await fetch('/api/generate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}})
-    }).then(async r => { if(!r.ok) throw new Error(await r.text()); return r.json(); });
-    const out = data.outputs || data.images || [];
-    if(!out.length) throw new Error(tr('smart.errComfyNoImages'));
-    if(pendingNode){
-        finalizePendingNode(pendingNode, out, meta);
-    } else {
-        const created = createNode((node.x || 0) + nodeRect(node).width + 40, node.y || 0, out.map((url, i) => ({url, name:`edit-${i + 1}.png`})));
-        attachRunMeta(created, meta);
-        addConnection(node.id, created.id);
-    }
-    clearPromptInput({preserveDraft:true});
+    delete pendingNode.comfyProgress;
+    finalizeSmartPendingTask(pendingNode, taskId, result?.images || [], result?.kind || 'image');
+    render();
     scheduleSave();
 }
 async function comfyNameForRef(ref){
@@ -13568,6 +13544,19 @@ function resumeJimengPendingNodes(){
         startJimengPoll(n);
     });
 }
+// --- 异步 ComfyUI 任务 (两段式: 提交 + 轮询结果) ---
+
+async function createCanvasComfyTask(body){
+    const resp = await fetch('/api/canvas-comfy-tasks', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+    });
+    if(!resp.ok) throw new Error(await smartResponseErrorMessage(resp, '提交生图任务失败'));
+    return resp.json();
+}
+
+
 async function pollSmartCanvasTask(taskId){
     if(!taskId) throw new Error(tr('smart.errRunFailed'));
     if(activeSmartTaskPolls.has(taskId)) return activeSmartTaskPolls.get(taskId);

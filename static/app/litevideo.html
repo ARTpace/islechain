@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <title>视频生成 | ART AI</title>
+    <script>
+        (function(){
+            try {
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'dark';
+                if(theme === 'dark') {
+                    document.documentElement.classList.add('studio-theme-dark');
+                    document.documentElement.classList.add('theme-dark');
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <script src="/static/modules/auth-token.js"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="/static/lucide.min.js"></script>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
+    <style>
+        :root {
+            --bg-base: #f8f8f8;
+            --bg-card: #ffffff;
+            --bg-soft: #fafafa;
+            --bg-soft-hover: #f0f0f0;
+            --bg-btn-ghost-hover: #f5f5f5;
+            --text-main: #1a1a1a;
+            --text-soft: #666666;
+            --text-mute: #888888;
+            --text-faint: #999999;
+            --border: #e5e5e5;
+            --border-strong: #d4d4d4;
+            --accent: #000000;
+            --accent-soft: #222222;
+            --primary: #007aff;
+            --primary-soft: #5ac8fa;
+            --success: #16a34a;
+            --warn: #d97706;
+            --scrollbar-thumb: #d8d8d8;
+            --stage-bg: #000000;
+            --overlay-bg: rgba(0,0,0,0.6);
+            --slider-track: #e5e5e5;
+            --slider-thumb: #000000;
+            --max-w: 1280px;
+            --easing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* 暗色主题变量重定义 (与 zimage.html 一致的赛博青风格) */
+        body.studio-theme-dark {
+            --bg-base: #0a0e17;
+            --bg-card: #0d1520;
+            --bg-soft: #0a0e17;
+            --bg-soft-hover: #142030;
+            --bg-btn-ghost-hover: #1a3050;
+            --text-main: #e0e7ef;
+            --text-soft: #a0b8c8;
+            --text-mute: #6a8fa8;
+            --text-faint: #4a5a6a;
+            --border: rgba(0,240,255,0.12);
+            --border-strong: rgba(0,240,255,0.20);
+            --accent: #00f0ff;
+            --accent-soft: #00b8cc;
+            --primary: #00f0ff;
+            --primary-soft: #5ac8fa;
+            --success: #34d399;
+            --warn: #fbbf24;
+            --scrollbar-thumb: rgba(0,240,255,0.18);
+            --stage-bg: #050810;
+            --overlay-bg: rgba(10,14,23,0.78);
+            --slider-track: rgba(0,240,255,0.12);
+            --slider-thumb: #00f0ff;
+        }
+        *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
+        *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
+        *::-webkit-scrollbar-thumb { background-color:var(--scrollbar-thumb)!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
+        * { scrollbar-width:thin!important; scrollbar-color:var(--scrollbar-thumb) transparent!important; }
+        body { background-color:var(--bg-base); font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--text-main); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; transition:background-color .3s, color .3s; }
+        .layout-container { max-width:var(--max-w); margin:0 auto; padding:0 40px; width:100%; }
+        @media(max-width:768px){ .layout-container{ padding:0 16px; } }
+        .lv-root { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .lv-header { padding:18px 0 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; transition:border-color .3s; }
+        .lv-title { font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--text-main); }
+        .lv-wf-select { padding:8px 14px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-card); color:var(--text-main); font-size:13px; cursor:pointer; min-width:220px; transition:border-color .2s, background .2s; }
+        .lv-wf-select:hover { border-color:var(--primary); }
+        .lv-body { flex:1; overflow:hidden; display:grid; grid-template-columns: 360px 1fr; gap:18px; padding:18px 0; }
+        .lv-side { overflow-y:auto; padding-right:4px; }
+        .lv-main { display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+        .lv-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; transition:background .3s, border-color .3s; }
+        .lv-card-title { font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-main); display:flex; align-items:center; gap:6px; }
+        .lv-card-title [data-lucide] { color:var(--primary); }
+        .lv-field { margin-bottom:12px; }
+        .lv-label { font-size:12px; color:var(--text-soft); margin-bottom:5px; display:flex; justify-content:space-between; }
+        .lv-input, .lv-textarea, .lv-select { width:100%; padding:8px 10px; border:1px solid var(--border-strong); border-radius:8px; font-size:13px; background:var(--bg-card); color:var(--text-main); box-sizing:border-box; font-family:inherit; transition:border-color .2s, background .2s; }
+        .lv-input:focus, .lv-textarea:focus, .lv-select:focus { outline:none; border-color:var(--primary); background:var(--bg-soft); }
+        .lv-input::placeholder, .lv-textarea::placeholder { color:var(--text-faint); }
+        .lv-textarea { min-height:72px; resize:vertical; }
+        .lv-slider { width:100%; -webkit-appearance:none; appearance:none; height:4px; background:var(--slider-track); border-radius:2px; outline:none; transition:background .3s; }
+        .lv-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; box-shadow:0 0 8px rgba(0,240,255,0.4); transition:transform .15s; }
+        .lv-slider::-webkit-slider-thumb:hover { transform:scale(1.2); }
+        .lv-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; border:none; }
+        .lv-img-drop { width:100%; min-height:120px; max-height:280px; border:2px dashed var(--border-strong); border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--bg-soft); transition:.2s; overflow:hidden; position:relative; box-sizing:border-box; }
+        .lv-img-drop:hover { border-color:var(--primary); background:var(--bg-soft-hover); }
+        .lv-img-drop.drag-over { border-color:var(--primary); background:var(--bg-soft-hover); box-shadow:inset 0 0 0 3px rgba(0,240,255,0.18); }
+        .lv-img-drop.has-image { border-style:solid; padding:0; background:#000; min-height:160px; }
+        .lv-img-drop .lv-img-preview { display:block; max-width:100%; max-height:280px; width:auto; height:auto; object-fit:contain; background:#000; margin:auto; }
+        .lv-img-drop .placeholder { color:var(--text-faint); font-size:13px; text-align:center; padding:0 16px; pointer-events:none; }
+        .lv-img-clear { position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:5; backdrop-filter:blur(6px); transition:background .2s, transform .2s; }
+        .lv-img-clear:hover { background:rgba(220,38,38,.85); transform:scale(1.1); }
+        .lv-img-drop.has-image .lv-img-clear { display:flex; }
+        .lv-img-clear [data-lucide] { width:14px; height:14px; }
+        .lv-img-info { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--text-faint); }
+        .lv-img-info .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .lv-img-info .size { color:var(--text-mute); }
+        /* 反向提示词折叠 */
+        details.lv-collapse { margin-top:8px; }
+        details.lv-collapse > summary { list-style:none; cursor:pointer; padding:6px 0; font-size:12px; color:var(--text-soft); display:flex; align-items:center; gap:4px; user-select:none; }
+        details.lv-collapse > summary::-webkit-details-marker { display:none; }
+        details.lv-collapse > summary::after { content:''; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid currentColor; transition:transform .2s; margin-left:auto; opacity:.6; }
+        details.lv-collapse[open] > summary::after { transform:rotate(180deg); }
+        details.lv-collapse > summary:hover { color:var(--text-main); }
+        details.lv-collapse[open] > summary { margin-bottom:6px; }
+        details.lv-collapse .lv-field { margin-bottom:0; }
+        .lv-btn { padding:10px 18px; border-radius:10px; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:.2s; display:inline-flex; align-items:center; gap:6px; font-family:inherit; }
+        .lv-btn-primary { background:var(--accent); color:var(--bg-card); }
+        body.studio-theme-dark .lv-btn-primary { color:#0a0e17; box-shadow:0 0 16px rgba(0,240,255,0.25); }
+        .lv-btn-primary:hover { background:var(--accent-soft); }
+        body.studio-theme-dark .lv-btn-primary:hover { box-shadow:0 0 22px rgba(0,240,255,0.45); }
+        .lv-btn-primary:disabled { background:var(--text-faint); cursor:not-allowed; box-shadow:none; }
+        .lv-btn-ghost { background:transparent; color:var(--text-main); border:1px solid var(--border-strong); }
+        .lv-btn-ghost:hover { background:var(--bg-btn-ghost-hover); border-color:var(--primary); }
+        .lv-stage { flex:1; min-height:300px; background:var(--stage-bg); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.4); transition:background .3s; }
+        body.studio-theme-dark .lv-stage { border:1px solid var(--border); box-shadow:inset 0 0 80px rgba(0,240,255,0.04); }
+        .lv-stage video { max-width:100%; max-height:100%; width:auto; height:auto; }
+        .lv-stage .empty { color:var(--text-mute); font-size:14px; text-align:center; }
+        .lv-progress { width:100%; height:6px; background:rgba(255,255,255,.18); border-radius:3px; overflow:hidden; position:absolute; bottom:0; left:0; }
+        body.studio-theme-dark .lv-progress { background:rgba(0,240,255,0.08); }
+        .lv-progress-bar { height:100%; background:linear-gradient(90deg,var(--primary-soft),var(--primary)); width:0; transition:width .3s; box-shadow:0 0 12px rgba(0,240,255,0.4); }
+        .lv-overlay-msg { position:absolute; top:12px; left:12px; background:var(--overlay-bg); color:#fff; padding:6px 12px; border-radius:6px; font-size:12px; backdrop-filter:blur(8px); }
+        .lv-status { font-size:12px; color:var(--text-mute); }
+        .lv-status.active { color:var(--primary); }
+        .lv-history { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; flex-shrink:0; }
+        .lv-history-item { width:80px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; background:#222; flex-shrink:0; position:relative; border:1px solid var(--border); transition:transform .2s, border-color .2s; }
+        .lv-history-item:hover { transform:scale(1.05); border-color:var(--primary); }
+        .lv-history-item video { width:100%; height:100%; object-fit:cover; }
+        .lv-row { display:flex; gap:8px; align-items:center; }
+        .lv-note { font-size:11px; color:var(--text-faint); margin-top:4px; }
+        .lv-tip-warn { color:var(--warn); font-size:11px; }
+        .lv-tip-ok { color:var(--success); font-size:11px; }
+        .lv-spinner { width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; }
+        body.studio-theme-dark .lv-spinner { border-color:rgba(10,14,23,0.3); border-top-color:#0a0e17; }
+        .lv-empty-hint { color:var(--text-faint); font-size:12px; padding:14px; }
+        /* 暗色下的画廊样式微调 */
+        body.studio-theme-dark .lv-card { box-shadow:0 0 0 1px rgba(0,240,255,0.04), 0 4px 12px rgba(0,0,0,0.3); }
+        body.studio-theme-dark .lv-card:hover { border-color:rgba(0,240,255,0.25); }
+        body.studio-theme-dark .lv-title [data-lucide] { color:var(--primary); }
+        .lv-empty-hint { color:var(--text-faint); font-size:12px; padding:14px; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="lv-root">
+    <div class="layout-container lv-header">
+        <div class="lv-title">
+            <i data-lucide="film"></i>
+            <span>视频生成</span>
+        </div>
+        <select id="workflowSelect" class="lv-wf-select" title="切换工作流">
+            <option value="LTX23-图生视频.json">LTX23 图生视频</option>
+        </select>
+        <div class="lv-status" id="status">就绪</div>
+        <div style="flex:1"></div>
+        <button class="lv-btn lv-btn-ghost" id="randomSeed" title="随机种子">
+            <i data-lucide="dices"></i>
+        </button>
+    </div>
+
+    <div class="layout-container lv-body">
+        <aside class="lv-side">
+            <div class="lv-card">
+                <div class="lv-card-title"><i data-lucide="image"></i>输入图像</div>
+                <label class="lv-img-drop" id="imgDrop">
+                    <input type="file" id="imgInput" accept="image/*" style="display:none">
+                    <div class="placeholder" id="imgPlaceholder">
+                        <i data-lucide="upload-cloud" style="width:32px;height:32px;"></i>
+                        <div style="margin-top:6px;">点击或拖入图片</div>
+                    </div>
+                    <button type="button" class="lv-img-clear" id="imgClear" title="清除图片">
+                        <i data-lucide="x"></i>
+                    </button>
+                </label>
+                <div class="lv-img-info" id="imgInfo" style="display:none;">
+                    <i data-lucide="file-image" style="width:12px;height:12px;flex-shrink:0;"></i>
+                    <span class="name" id="imgName">—</span>
+                    <span class="size" id="imgSize">—</span>
+                </div>
+                <div class="lv-note" id="imgNote" style="margin-top:6px;">支持 PNG/JPG/WEBP，作为视频首帧</div>
+            </div>
+
+            <div class="lv-card">
+                <div class="lv-card-title"><i data-lucide="type"></i>提示词</div>
+                <div class="lv-field">
+                    <div class="lv-label">正向提示词</div>
+                    <textarea class="lv-textarea" id="prompt" placeholder="描述视频内容…"></textarea>
+                </div>
+                <details class="lv-collapse">
+                    <summary>反向提示词</summary>
+                    <div class="lv-field">
+                        <textarea class="lv-textarea" id="negative_prompt" style="min-height:60px" placeholder="不想出现的内容…"></textarea>
+                    </div>
+                </details>
+            </div>
+
+            <div class="lv-card">
+                <div class="lv-card-title"><i data-lucide="sliders-horizontal"></i>参数</div>
+
+                <div class="lv-field">
+                    <div class="lv-label"><span>总帧数</span><span id="total_frames_val">97</span></div>
+                    <input class="lv-slider" type="range" id="total_frames" min="49" max="481" step="8" value="97">
+                    <div class="lv-note" id="total_frames_note">≈4 秒 @ 24fps</div>
+                </div>
+
+                <div class="lv-field">
+                    <div class="lv-label"><span>帧率</span><span id="fps_val">24</span></div>
+                    <input class="lv-slider" type="range" id="fps" min="12" max="50" step="1" value="24">
+                    <div class="lv-note" id="fps_note">FPS</div>
+                </div>
+
+                <div class="lv-field">
+                    <div class="lv-label"><span>长边尺寸</span><span id="size_val">720</span></div>
+                    <input class="lv-slider" type="range" id="size" min="256" max="1280" step="32" value="720">
+                    <div class="lv-note" id="size_note">长边像素(短边按比例缩放)</div>
+                </div>
+
+                <div class="lv-field">
+                    <div class="lv-label"><span>采样步数</span><span id="steps_val">8</span></div>
+                    <input class="lv-slider" type="range" id="steps" min="4" max="20" step="1" value="8">
+                    <div class="lv-note">distilled 推荐 4-8</div>
+                </div>
+
+                <div class="lv-field">
+                    <div class="lv-label">随机种子</div>
+                    <input class="lv-input" type="number" id="seed" value="-1" placeholder="-1 为随机">
+                </div>
+            </div>
+
+            <div class="lv-card">
+                <button class="lv-btn lv-btn-primary" id="runBtn" style="width:100%;justify-content:center;">
+                    <i data-lucide="play"></i>
+                    <span>生成视频</span>
+                </button>
+                <div class="lv-note" id="vramNote" style="margin-top:8px;"></div>
+            </div>
+        </aside>
+
+        <main class="lv-main">
+            <div class="lv-stage" id="stage">
+                <div class="empty" id="emptyStage">
+                    <i data-lucide="film" style="width:48px;height:48px;opacity:.3;"></i>
+                    <div style="margin-top:10px;">视频生成后会显示在这里</div>
+                </div>
+                <video id="resultVideo" controls style="display:none;"></video>
+                <div class="lv-progress" id="progress" style="display:none;">
+                    <div class="lv-progress-bar" id="progressBar"></div>
+                </div>
+                <div class="lv-overlay-msg" id="overlayMsg" style="display:none;"></div>
+            </div>
+            <div class="lv-card" style="padding:12px 16px;">
+                <div class="lv-card-title" style="margin-bottom:8px;">
+                    <i data-lucide="history"></i>
+                    本次会话
+                    <span style="flex:1"></span>
+                    <span class="lv-status" id="historyCount">0 个</span>
+                </div>
+                <div class="lv-history" id="historyList">
+                    <div class="lv-empty-hint">尚无生成记录</div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+// ============= 状态 =============
+const WORKFLOW_NAME = "LTX23-图生视频.json";
+// 节点覆盖映射（直接覆盖 prompt 格式 workflow 的叶子节点）
+// LTX23 workflow 展开后是拍平的 prompt 格式, 没有 subgraph wrapper
+// 每个 node 字段写 leaf node id, input 字段是该节点的 input 名字
+const NODE_MAP = {
+    input_image:     { node: "173",    input: "image" },
+    prompt:          { node: "175:5",  input: "text" },
+    negative_prompt: { node: "175:6",  input: "text" },
+    total_frames:    { node: "175:10", input: "value" },
+    fps:             { node: "175:12", input: "value" },
+    size:            { node: "175:179", input: "size" },
+    seed:            { node: "175:16", input: "noise_seed" },
+    steps:           { node: "175:22", input: "steps" }
+};
+let inputImageFile = null;
+let inputImageObjectUrl = null;  // 避免内存泄漏, 重新选择时 revoke 旧的
+let inputImageComfyName = null;  // 上传到 ComfyUI 后的文件名
+let currentSession = [];  // {url, ts, prompt}
+let isRunning = false;
+let progressTimer = null;
+
+// ============= 工具 =============
+function getToken() {
+    return (window.AUTH_TOKEN && window.AUTH_TOKEN.get && window.AUTH_TOKEN.get())
+        || window.localStorage.getItem('auth_token')
+        || '';
+}
+function status(msg, active) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'lv-status' + (active ? ' active' : '');
+}
+function showProgress(pct, msg) {
+    document.getElementById('progress').style.display = 'block';
+    document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, pct)) + '%';
+    if (msg) {
+        const m = document.getElementById('overlayMsg');
+        m.textContent = msg;
+        m.style.display = 'block';
+    }
+}
+function hideProgress() {
+    document.getElementById('progress').style.display = 'none';
+    document.getElementById('overlayMsg').style.display = 'none';
+}
+function randSeed() {
+    return Math.floor(Math.random() * 2 ** 31);
+}
+
+// ============= 输入图 =============
+const imgDrop = document.getElementById('imgDrop');
+const imgInput = document.getElementById('imgInput');
+const imgPlaceholder = document.getElementById('imgPlaceholder');
+imgDrop.addEventListener('click', () => imgInput.click());
+imgDrop.addEventListener('dragover', e => { e.preventDefault(); imgDrop.classList.add('drag-over'); });
+imgDrop.addEventListener('dragleave', e => { e.preventDefault(); imgDrop.classList.remove('drag-over'); });
+imgDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    imgDrop.classList.remove('drag-over');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]);
+});
+imgInput.addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) handleImage(e.target.files[0]);
+});
+document.getElementById('imgClear').addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();  // 阻止冒泡到 label 触发 file dialog
+    clearImage();
+});
+function handleImage(file) {
+    if (!file.type.startsWith('image/')) {
+        status('请选择图片文件'); return;
+    }
+    inputImageFile = file;
+    if (inputImageObjectUrl) {
+        URL.revokeObjectURL(inputImageObjectUrl);
+    }
+    inputImageObjectUrl = URL.createObjectURL(file);
+    imgDrop.classList.add('has-image');
+    // 不清空 imgDrop 整个内部, 只修改占位区, 保留 <input> 和 label 包裹关系
+    let preview = imgDrop.querySelector('.lv-img-preview');
+    if (!preview) {
+        preview = document.createElement('img');
+        preview.className = 'lv-img-preview';
+        // 插在 input 之前, 保留 input 在 DOM 里 (label 包裹 input 才能点击触发 file dialog)
+        imgDrop.insertBefore(preview, imgInput);
+    }
+    preview.src = inputImageObjectUrl;
+    // 文件信息条
+    const info = document.getElementById('imgInfo');
+    const nameEl = document.getElementById('imgName');
+    const sizeEl = document.getElementById('imgSize');
+    nameEl.textContent = file.name;
+    sizeEl.textContent = '(' + (file.size/1024).toFixed(1) + ' KB)';
+    info.style.display = 'flex';
+    if (window.lucide) window.lucide.createIcons();
+}
+function clearImage() {
+    inputImageFile = null;
+    inputImageComfyName = null;
+    if (inputImageObjectUrl) {
+        URL.revokeObjectURL(inputImageObjectUrl);
+        inputImageObjectUrl = null;
+    }
+    const preview = imgDrop.querySelector('.lv-img-preview');
+    if (preview) preview.src = '';
+    imgDrop.classList.remove('has-image');
+    imgInput.value = '';  // 重置 file input, 否则选同一张图不触发 change
+    document.getElementById('imgInfo').style.display = 'none';
+    status('已清除输入图');
+}
+
+// ============= 参数联动显示 =============
+['total_frames', 'fps', 'size', 'steps'].forEach(id => {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(id + '_val');
+    el.addEventListener('input', () => {
+        valEl.textContent = el.value;
+        updateDerived();
+    });
+});
+function updateDerived() {
+    const frames = parseInt(document.getElementById('total_frames').value);
+    const fps = parseInt(document.getElementById('fps').value);
+    const size = parseInt(document.getElementById('size').value);
+    const sec = (frames / fps).toFixed(1);
+    document.getElementById('total_frames_note').textContent = `≈ ${sec} 秒 @ ${fps}fps`;
+    // 显存粗估: 481 帧 + 1280 像素 + int8 ≈ 28GB
+    const pixels = size * size * (frames / 30);
+    const estGB = (pixels / 1.5e8).toFixed(0);  // 经验系数
+    const note = document.getElementById('vramNote');
+    if (parseInt(estGB) >= 20) {
+        note.innerHTML = `<span class="lv-tip-warn">⚠ 预估显存 ≈ ${estGB}GB, 24GB 显卡可能 OOM</span>`;
+    } else {
+        note.innerHTML = `<span class="lv-tip-ok">预估显存 ≈ ${estGB}GB</span>`;
+    }
+}
+document.getElementById('randomSeed').addEventListener('click', () => {
+    document.getElementById('seed').value = randSeed();
+});
+updateDerived();
+
+// ============= 上传图到 ComfyUI =============
+async function uploadInputImage() {
+    if (!inputImageFile) throw new Error('请先选择输入图像');
+    const fd = new FormData();
+    fd.append('image', inputImageFile);
+    fd.append('type', 'input');
+    fd.append('overwrite', 'true');
+    const token = getToken();
+    const resp = await fetch('/api/comfyui/upload/image', {
+        method: 'POST',
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+        body: fd
+    });
+    if (!resp.ok) throw new Error('上传图像失败: HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.name && !data.filename) throw new Error('上传响应缺少 name');
+    return data.name || data.filename;
+}
+
+// ============= WebSocket 进度订阅 =============
+// litevideo 需要实时进度, /api/generate 是同步等所有节点跑完才返回, 进度条要靠 WS 事件驱动
+let progressWs = null;
+let progressWsCloseTimer = null;
+function openProgressWs(clientId, onProgress) {
+    closeProgressWs();
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${window.location.host}/api/comfyui/ws?client_id=${encodeURIComponent(clientId)}`;
+    try {
+        progressWs = new WebSocket(url);
+    } catch (e) {
+        console.warn('[litevideo] WS 创建失败', e);
+        return;
+    }
+    progressWs.onopen = () => {
+        console.log('[litevideo] WS 已连接', clientId);
+    };
+    progressWs.onmessage = (e) => {
+        try {
+            if (typeof e.data !== 'string') return;
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'progress' && msg.data) {
+                // value/max 是当前节点的采样进度
+                const v = msg.data.value, mx = msg.data.max || 1;
+                onProgress({ kind: 'progress', value: v, max: mx, node: msg.data.node });
+            } else if (msg.type === 'executing') {
+                onProgress({ kind: 'executing', node: msg.data.node });
+            } else if (msg.type === 'execution_start') {
+                onProgress({ kind: 'start' });
+            } else if (msg.type === 'execution_error') {
+                onProgress({ kind: 'error', message: msg.data?.exception_message || 'ComfyUI 节点错误' });
+            } else if (msg.type === 'executed' && msg.data?.node === '174') {
+                // SaveVideo 节点 174 完成后 -> 视频即将可读, 进度推到 99%
+                onProgress({ kind: 'video_ready' });
+            }
+        } catch (err) {
+            console.warn('[litevideo] WS 消息解析失败', err);
+        }
+    };
+    progressWs.onerror = () => {};
+    progressWs.onclose = () => { progressWs = null; };
+}
+function closeProgressWs() {
+    if (progressWsCloseTimer) { clearTimeout(progressWsCloseTimer); progressWsCloseTimer = null; }
+    if (progressWs) {
+        try { progressWs.close(); } catch (e) {}
+        progressWs = null;
+    }
+}
+// 依据当前帧数 + 步数粗估总采样步数, 用作进度条分母
+function estimateTotalSteps() {
+    const steps = parseInt(document.getElementById('steps').value) || 8;
+    return Math.max(steps, 1);
+}
+let _progressPct = 0;
+function applyProgress(evt) {
+    if (evt.kind === 'start') {
+        _progressPct = 5;
+        showProgress(_progressPct, 'ComfyUI 已开始执行…');
+    } else if (evt.kind === 'progress') {
+        // 单节点内部 value/max 是该节点的采样进度, 步数阶段大约占 70%, 视频编码占 30%
+        const stepsPct = (evt.value / Math.max(evt.max, 1)) * 70;
+        _progressPct = Math.max(_progressPct, 5 + stepsPct);
+        showProgress(_progressPct, `采样中 ${evt.value}/${evt.max}`);
+    } else if (evt.kind === 'executing') {
+        if (evt.node === null) {
+            // 全部执行完毕, 但视频还在编码
+            _progressPct = Math.max(_progressPct, 85);
+            showProgress(_progressPct, '编码视频…');
+        } else {
+            const nodeNames = { '173': '加载图像', '175:179': '缩放', '175:10': '生成帧', '175:22': '调度', '174': '保存视频' };
+            showProgress(_progressPct, `执行节点 ${evt.node} ${nodeNames[evt.node] || ''}`);
+        }
+    } else if (evt.kind === 'video_ready') {
+        _progressPct = Math.max(_progressPct, 99);
+        showProgress(_progressPct, '视频已生成, 准备加载…');
+    } else if (evt.kind === 'error') {
+        showProgress(0, '错误: ' + (evt.message || '未知'));
+    }
+}
+
+// ============= 提交生成 =============
+document.getElementById('runBtn').addEventListener('click', async () => {
+    if (isRunning) return;
+    if (!inputImageFile) {
+        status('请先选择输入图像'); return;
+    }
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="lv-spinner"></span><span>排队中…</span>';
+    isRunning = true;
+    _progressPct = 0;
+    status('上传图像…', true);
+    showProgress(1, '上传输入图…');
+    try {
+        // 0. 预先准备稳定的 client_id, 让 WS 和提交使用同一个
+        const clientId = 'litevideo_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+        openProgressWs(clientId, applyProgress);
+        // 1. 上传图像
+        const imgComfyName = await uploadInputImage();
+        inputImageComfyName = imgComfyName;
+        status('提交工作流…', true);
+        showProgress(3, '提交到 ComfyUI…');
+        // 2. 组装参数
+        const seedVal = parseInt(document.getElementById('seed').value);
+        const finalSeed = isNaN(seedVal) || seedVal === -1 ? Math.floor(Math.random() * 2 ** 31) : seedVal;
+        const fields = {
+            input_image: imgComfyName,
+            prompt: document.getElementById('prompt').value,
+            negative_prompt: document.getElementById('negative_prompt').value,
+            total_frames: parseInt(document.getElementById('total_frames').value),
+            fps: parseInt(document.getElementById('fps').value),
+            size: parseInt(document.getElementById('size').value),
+            steps: parseInt(document.getElementById('steps').value),
+            seed: finalSeed
+        };
+        // 3. 提交 (走 /api/generate, params 走 { nodeId: { inputName: value } } 覆盖)
+        const token = getToken();
+        const params = {};
+        for (const [fid, value] of Object.entries(fields)) {
+            const m = NODE_MAP[fid];
+            if (!m) continue;
+            if (!params[m.node]) params[m.node] = {};
+            params[m.node][m.input] = value;
+        }
+        const resp = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+            },
+            body: JSON.stringify({
+                prompt: '',
+                workflow_json: WORKFLOW_NAME,
+                type: 'video',
+                client_id: clientId,
+                params: params
+            })
+        });
+        if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error('HTTP ' + resp.status + ': ' + txt.substring(0, 300));
+        }
+        const data = await resp.json();
+        console.log('[litevideo] run result', data);
+        // 4. 取视频 URL
+        const urls = (data.images || []).concat(data.video_urls || []);
+        if (!urls.length) throw new Error('未返回视频文件');
+        const videoUrl = urls[0];
+        // 5. 显示
+        const v = document.getElementById('resultVideo');
+        v.src = videoUrl;
+        v.style.display = 'block';
+        document.getElementById('emptyStage').style.display = 'none';
+        status('完成 ✓', false);
+        // 6. push 到 session history
+        currentSession.unshift({ url: videoUrl, ts: Date.now(), prompt: fields.prompt });
+        renderSession();
+        // 7. 收尾进度条
+        showProgress(100, '完成 ✓');
+        setTimeout(hideProgress, 1500);
+    } catch (e) {
+        console.error(e);
+        status('失败: ' + e.message);
+        showProgress(0, '失败: ' + e.message);
+        setTimeout(hideProgress, 4000);
+    } finally {
+        isRunning = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="play"></i><span>生成视频</span>';
+        if (window.lucide) window.lucide.createIcons();
+        // 关闭 WS (但要等几秒让最后的 executed 事件过来)
+        if (progressWsCloseTimer) clearTimeout(progressWsCloseTimer);
+        progressWsCloseTimer = setTimeout(closeProgressWs, 3000);
+    }
+});
+
+function renderSession() {
+    const list = document.getElementById('historyList');
+    document.getElementById('historyCount').textContent = currentSession.length + ' 个';
+    if (!currentSession.length) {
+        list.innerHTML = '<div class="lv-empty-hint">尚无生成记录</div>';
+        return;
+    }
+    list.innerHTML = '';
+    currentSession.forEach((it, i) => {
+        const div = document.createElement('div');
+        div.className = 'lv-history-item';
+        div.title = it.prompt || ('#' + (i + 1));
+        const v = document.createElement('video');
+        v.src = it.url;
+        v.muted = true;
+        v.preload = 'metadata';
+        div.appendChild(v);
+        div.addEventListener('click', () => {
+            const main = document.getElementById('resultVideo');
+            main.src = it.url;
+            main.style.display = 'block';
+            document.getElementById('emptyStage').style.display = 'none';
+        });
+        list.appendChild(div);
+    });
+}
+
+// 启动时补图标
+if (window.lucide) window.lucide.createIcons();
+status('就绪');
+</script>
+</body>
+</html>

@@ -1,6 +1,12 @@
 (function() {
     var AUTH_TOKEN = null;
 
+    function refreshToken() {
+        if (!AUTH_TOKEN) {
+            try { AUTH_TOKEN = localStorage.getItem('xy_auth_token') || null; } catch (e) {}
+        }
+    }
+
     // 1) URL 参数优先
     var match = location.search.match(/[?&]token=([^&]+)/);
     if (match) {
@@ -8,9 +14,7 @@
     }
 
     // 2) localStorage 兜底（父页面 postMessage 可能因时序丢失）
-    if (!AUTH_TOKEN) {
-        try { AUTH_TOKEN = localStorage.getItem('xy_auth_token') || null; } catch (e) {}
-    }
+    refreshToken();
 
     // 3) 父页面 postMessage 更新
     window.addEventListener('message', function(e) {
@@ -19,16 +23,43 @@
         }
     });
 
+    // 需要附带 token 的请求: 所有 /api/ 接口,以及云生成 /generate
+    function shouldAttach(url) {
+        if (typeof url !== 'string') return false;
+        if (url.indexOf('/api/') === 0) return true;
+        if (url === '/generate' || url.indexOf('/generate?') === 0 || url.indexOf('/generate#') === 0) return true;
+        return false;
+    }
+
+    // 生成类接口(命中后若返回 401 则跳转登录)
+    function isGenerateUrl(url) {
+        return typeof url === 'string' && url.indexOf('/generate') > -1;
+    }
+
+    function redirectToLogin() {
+        if (window.location.pathname.endsWith('login.html')) return;
+        window.location.replace('/static/login.html');
+    }
+
     var originalFetch = window.fetch;
     window.fetch = function(url, options) {
-        // 每次调用时也刷新一次 localStorage，防止 token 过期/切换后仍是旧值
-        if (!AUTH_TOKEN) {
-            try { AUTH_TOKEN = localStorage.getItem('xy_auth_token') || null; } catch (e) {}
-        }
-        if (AUTH_TOKEN && typeof url === 'string' && url.startsWith('/api/')) {
+        // 每次调用时刷新一次 localStorage,防止 token 过期/切换后仍是旧值
+        refreshToken();
+        if (AUTH_TOKEN && shouldAttach(url)) {
             var separator = url.indexOf('?') > -1 ? '&' : '?';
             url = url + separator + 'token=' + encodeURIComponent(AUTH_TOKEN);
         }
-        return originalFetch.call(window, url, options);
+        var resp = originalFetch.call(window, url, options);
+        // 未登录(token 无效/过期)触发生成接口时,跳转登录页
+        if (resp && typeof resp.then === 'function') {
+            resp.then(function(r) {
+                if (r && r.status === 401 && isGenerateUrl(url)) {
+                    redirectToLogin();
+                }
+            }).catch(function() {});
+        } else if (resp && resp.status === 401 && isGenerateUrl(url)) {
+            redirectToLogin();
+        }
+        return resp;
     };
 })();
