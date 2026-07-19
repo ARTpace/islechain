@@ -63,7 +63,7 @@
       "model_patch_enabled": false,
       "clip_vision_name": "",
       "preset_lora_1_enabled": true,
-      "preset_lora_1_name": "Krea-2\\Krea2-realism-V1.safetensors",
+      "preset_lora_1_name": "Krea2\\Krea2-realism-V1.safetensors",
       "preset_lora_1_strength": "0.5",
       "preset_lora_2_enabled": false,
       "preset_lora_2_name": "",
@@ -88,7 +88,7 @@
     "inputs": {
       "prompt": "把这只狗改成柴犬，带着圣诞帽，舌头露出来\n",
       "negative_prompt": "",
-      "lora_name": "Krea-2\\krea2_identity_edit_v1_1.safetensors",
+      "lora_name": "Krea2\\krea2_identity_edit_v1_1.safetensors",
       "lora_strength": 1,
       "resize_type": "缩短边",
       "resize_size": 1024,

@@ -1024,6 +1024,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         refreshThumbnails,
         scrollToTop,
         switchImage,
+        scanNewImages,
     };
 
     // 兼容旧代码：window.openLightbox = GalleryDisplay.openLightbox

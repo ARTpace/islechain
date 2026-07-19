@@ -1,109 +1,255 @@
 {
-  "2": {
+  "44": {
     "inputs": {
-      "unet_name": "boogu\\edit\\boogu_image_edit_fp8_scaled.safetensors",
-      "weight_dtype": "default"
+      "filename_prefix": "Boogu_image_edit",
+      "images": [
+        "61",
+        0
+      ]
     },
-    "class_type": "UNETLoader",
-    "_meta": {"title": "UNet加载器"}
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
   },
-  "5": {
+  "46": {
     "inputs": {
-      "vae_name": "flux1_vae_bf16.safetensors"
+      "image": [
+        "49",
+        0
+      ]
     },
-    "class_type": "VAELoader",
-    "_meta": {"title": "加载VAE"}
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸"
+    }
   },
-  "7": {
+  "49": {
     "inputs": {
-      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
-      "type": "boogu",
-      "device": "default"
+      "resize_type": "scale total pixels",
+      "resize_type.megapixels": 1,
+      "scale_method": "lanczos",
+      "input": [
+        "55",
+        1
+      ]
     },
-    "class_type": "CLIPLoader",
-    "_meta": {"title": "加载CLIP"}
+    "class_type": "ResizeImageMaskNode",
+    "_meta": {
+      "title": "缩放 图像和遮罩"
+    }
   },
-  "8": {
+  "53": {
     "inputs": {
-      "width": 1536,
-      "height": 1024,
+      "compare_view": {
+        "beforeImages": [
+          "/api/view?filename=comfy.compare.a_temp_kiegy_00001_.png&subfolder=&type=temp&rand=0.19624254093634708"
+        ],
+        "afterImages": [
+          "/api/view?filename=comfy.compare.b_temp_kiegy_00001_.png&subfolder=&type=temp&rand=0.19624254093634708"
+        ]
+      },
+      "image_a": [
+        "55",
+        1
+      ],
+      "image_b": [
+        "44",
+        0
+      ]
+    },
+    "class_type": "ImageCompare",
+    "_meta": {
+      "title": "图像对比"
+    }
+  },
+  "55": {
+    "inputs": {
+      "template_text": "提示词（positive_text_input）:把图中的女人改成迪丽热巴\n参考图（end_image）：https://raw.githubusercontent.com/Comfy-Org/example_workflows/main/controlnet/pose_controlnet_2_pass.png",
+      "values_json": "{\"positive_text_input\":\"把图片改成水粉风格\\n\",\"end_image\":\"Ideogram_4.0_00001_.png\"}",
+      "schema_json": "[{\"key\":\"positive_text_input\",\"label\":\"提示词\",\"output_enabled\":true,\"broadcast_key\":\"positive_text_input\",\"broadcast_keys\":[\"positive_text_input\"],\"default\":\"把图中的女人改成迪丽热巴\",\"tooltip\":\"\",\"socket_type\":\"\",\"type\":\"STRING\",\"options\":[]},{\"key\":\"end_image\",\"label\":\"参考图\",\"output_enabled\":true,\"broadcast_key\":\"end_image\",\"broadcast_keys\":[\"end_image\"],\"default\":\"https://raw.githubusercontent.com/Comfy-Org/example_workflows/main/controlnet/pose_controlnet_2_pass.png\",\"tooltip\":\"\",\"socket_type\":\"\",\"type\":\"IMAGE\",\"options\":[]}]"
+    },
+    "class_type": "GJJ_TemplateParams",
+    "_meta": {
+      "title": "GJJ · ⚙️ 模板参数输入器"
+    }
+  },
+  "58": {
+    "inputs": {
+      "width": [
+        "46",
+        0
+      ],
+      "height": [
+        "46",
+        1
+      ],
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
-    "_meta": {"title": "空Latent图像"}
+    "_meta": {
+      "title": "空Latent"
+    }
   },
-  "21": {
+  "59": {
+    "inputs": {
+      "shift": 3.16,
+      "model": [
+        "69",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "模型采样算法AuraFlow"
+    }
+  },
+  "61": {
+    "inputs": {
+      "samples": [
+        "63",
+        0
+      ],
+      "vae": [
+        "69",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "63": {
     "inputs": {
       "add_noise": true,
-      "noise_seed": 123456789,
-      "cfg": 3.5,
-      "model": ["2", 0],
-      "positive": ["36", 0],
-      "negative": ["36", 1],
-      "sampler": ["22", 0],
-      "sigmas": ["26", 0],
-      "latent_image": ["8", 0]
+      "noise_seed": 748797393753257,
+      "cfg": 1,
+      "positive": [
+        "74",
+        0
+      ],
+      "negative": [
+        "74",
+        1
+      ],
+      "sampler": [
+        "64",
+        0
+      ],
+      "sigmas": [
+        "65",
+        0
+      ],
+      "latent_image": [
+        "58",
+        0
+      ],
+      "model": [
+        "69",
+        0
+      ]
     },
     "class_type": "SamplerCustom",
-    "_meta": {"title": "自定义采样器"}
+    "_meta": {
+      "title": "自定义采样器"
+    }
   },
-  "22": {
+  "64": {
     "inputs": {
       "sampler_name": "dpmpp_2m"
     },
     "class_type": "KSamplerSelect",
-    "_meta": {"title": "K采样器选择"}
+    "_meta": {
+      "title": "K采样器选择"
+    }
   },
-  "26": {
+  "65": {
     "inputs": {
       "scheduler": "simple",
-      "steps": 25,
+      "steps": 8,
       "denoise": 1,
-      "model": ["33", 0]
+      "model": [
+        "59",
+        0
+      ]
     },
     "class_type": "BasicScheduler",
-    "_meta": {"title": "基本调度器"}
+    "_meta": {
+      "title": "基础调度器"
+    }
   },
-  "32": {
+  "69": {
     "inputs": {
-      "image": "input.png"
+      "unet_name": "boogu\\edit\\boogu_image_edit_fp8_scaled.safetensors",
+      "unet_dtype": "default",
+      "clip_name": "qwen\\qwen3vl_8b_fp8_scaled.safetensors",
+      "clip_type": "boogu",
+      "clip_dtype": "default",
+      "vae_name": "flux1_vae_bf16.safetensors",
+      "vae_dtype": "default",
+      "use_separate_vae": false,
+      "steps": 4,
+      "cfg": 1,
+      "denoise": 1,
+      "template_id": "boogu_image",
+      "model_patch_name": "",
+      "model_patch_enabled": false,
+      "clip_vision_name": "",
+      "preset_lora_1_enabled": false,
+      "preset_lora_1_name": "",
+      "preset_lora_1_strength": "",
+      "preset_lora_2_enabled": false,
+      "preset_lora_2_name": "",
+      "preset_lora_2_strength": "",
+      "flux_clip_l_name": "",
+      "clip_device": "default",
+      "control_net_name": "",
+      "control_net_2_name": "",
+      "control_net_3_name": "",
+      "control_net_4_name": "",
+      "control_net_5_name": "",
+      "control_net_6_name": "",
+      "control_net_7_name": "",
+      "control_net_8_name": ""
     },
-    "class_type": "LoadImage",
-    "_meta": {"title": "加载图像"}
+    "class_type": "GJJ_ModelBundleLoader",
+    "_meta": {
+      "title": "GJJ · 🟡🟠🔴智能批量模型加载🧡图像版"
+    }
   },
-  "33": {
+  "74": {
     "inputs": {
-      "shift": 3.16,
-      "model": ["2", 0]
-    },
-    "class_type": "ModelSamplingAuraFlow",
-    "_meta": {"title": "采样算法（AuraFlow）"}
-  },
-  "36": {
-    "inputs": {
-      "prompt": "编辑提示词",
+      "prompt": [
+        "55",
+        0
+      ],
       "negative_prompt": "",
-      "clip": ["7", 0],
-      "vae": ["5", 0],
-      "images.image_1": ["32", 0]
+      "image_1": [
+        "55",
+        1
+      ],
+      "clip": [
+        "69",
+        1
+      ],
+      "vae": [
+        "69",
+        2
+      ]
     },
-    "class_type": "TextEncodeBooguEdit",
-    "_meta": {"title": "Boogu编辑文本编码"}
+    "class_type": "GJJ_TextEncodeBooguEdit",
+    "_meta": {
+      "title": "GJJ · Boogu图像编辑编码"
+    }
   },
-  "40": {
+  "77": {
     "inputs": {
-      "samples": ["21", 0],
-      "vae": ["5", 0]
+      "config_json": "{\"version\":5,\"text\":\"Boogu_Image_Edit 图生图 Turbo\",\"font\":\"simhei.ttf\",\"width\":2190,\"fontSize\":72,\"colorA\":\"#FFB8FF\",\"colorB\":\"#81CAA0\",\"gradient\":true,\"gradientDirection\":\"水平\",\"opacity\":1,\"letterSpacing\":1,\"lineSpacing\":0,\"paddingX\":0,\"paddingY\":0,\"strokeWidth\":0,\"strokeMode\":\"自定义\",\"strokeColor\":\"#2E7D62\",\"strokeOpacity\":1,\"backgroundColor\":\"#1E5A48\",\"borderMode\":\"透明\",\"borderColor\":\"#8FC7A6\",\"borderOpacity\":0,\"shadowEnabled\":false,\"shadowColor\":\"#F2FF04\",\"shadowOpacity\":0.42,\"shadowBlur\":0,\"shadowX\":2,\"shadowY\":-142,\"align\":\"居中\"}"
     },
-    "class_type": "VAEDecode",
-    "_meta": {"title": "VAE解码"}
-  },
-  "45": {
-    "inputs": {
-      "filename_prefix": "boogu_edit",
-      "images": ["40", 0]
-    },
-    "class_type": "SaveImage",
-    "_meta": {"title": "保存图像"}
+    "class_type": "GJJ_WorkflowTitle",
+    "_meta": {
+      "title": "GJJ · 🏷️ 工作流标题"
+    }
   }
 }

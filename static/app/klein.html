@@ -269,13 +269,13 @@
                     <span id="imgCount" class="ml-auto text-[9px] font-bold text-gray-300">0/2</span>
                 </div>
                 <div class="flex flex-row gap-2.5">
-                    <div id="slot0" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="0" style="height:120px;">
+                    <div id="slot0" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="0" style="height:260px; min-height: 200px;">
                         <div class="text-center pointer-events-none">
-                            <i data-lucide="plus" class="w-4 h-4 mx-auto mb-0.5"></i>
-                            <span class="text-[8px] font-bold uppercase">主图</span>
+                            <i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i>
+                            <span class="text-[9px] font-bold uppercase">主图</span>
                         </div>
                     </div>
-                    <div id="slot1" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="1" style="height:120px;">
+                    <div id="slot1" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="1" style="height:260px; min-height: 200px;">
                         <div class="text-center pointer-events-none">
                             <i data-lucide="plus" class="w-4 h-4 mx-auto mb-0.5"></i>
                             <span class="text-[8px] font-bold uppercase">参考图</span>
@@ -686,23 +686,39 @@
             if (count > 0) document.getElementById('clearBtn').classList.remove('hidden');
         }
 
+        /** 上传图片到 ComfyUI，返回 ComfyUI 文件名 */
+        async function uploadToComfyUI(imageUrl) {
+            try {
+                const resp = await fetch(imageUrl);
+                const blob = await resp.blob();
+                const formData = new FormData();
+                formData.append('image', blob, 'edit_input.png');
+                const uploadResp = await fetch('/api/comfyui/upload/image', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!uploadResp.ok) throw new Error('上传到 ComfyUI 失败');
+                const data = await uploadResp.json();
+                return data.name || data.filename;
+            } catch (e) {
+                console.error('uploadToComfyUI error:', e);
+                throw e;
+            }
+        }
+
         /** 为指定模型构建工作流数据 */
-        function buildWorkflowForModel(model, prompt, seed, scaleEnabled, size) {
+        async function buildWorkflowForModel(model, prompt, seed, scaleEnabled, size) {
             var workflowData = JSON.parse(JSON.stringify(getWorkflowForModel(model).workflow));
             if (model === 'krea2') {
                 workflowData["101"]["inputs"]["prompt"] = prompt;
                 workflowData["53"]["inputs"]["seed"] = seed;
-                // GJJ_MultiImageLoader (节点102) 喂图:依赖后端在 extra_pnginfo.workflow.nodes[]
-                //   .properties.selected_images 里写文件名(主图+参考图)。
-                // 真实文件复制在 krea2_postProcess 钩子里完成。
                 workflowData["101"]["inputs"]["resize_size"] = size;
                 if (scaleEnabled === false) {
-                    // GJJ 节点 resize_type 合法值: ['缩短边', '长边', '宽度', '高度', '不缩放']
                     workflowData["101"]["inputs"]["resize_type"] = "不缩放";
                 }
             } else if (model === 'qwen') {
-                workflowData["16"]["inputs"]["text"] = prompt;
-                workflowData["21"]["inputs"]["seed"] = seed;
+                workflowData["55"]["inputs"]["text"] = prompt;
+                workflowData["20"]["inputs"]["seed"] = seed;
                 workflowData["14"]["inputs"]["image"] = uploadedImages[0];
                 if (scaleEnabled) {
                     workflowData["11"]["inputs"]["scale_to_length"] = size;
@@ -712,26 +728,25 @@
                     workflowData["1"]["inputs"]["image1"] = ["14", 0];
                     workflowData["8"]["inputs"]["image1"] = ["14", 0];
                 }
-                workflowData["23"]["inputs"]["filename_prefix"] = "Qwen_Edit_" + Date.now();
             } else if (model === 'boogu') {
-                workflowData["36"]["inputs"]["prompt"] = prompt;
-                workflowData["21"]["inputs"]["noise_seed"] = seed;
-                workflowData["32"]["inputs"]["image"] = uploadedImages[0];
-                if (scaleEnabled) {
-                    workflowData["8"]["inputs"]["width"] = size;
-                    workflowData["8"]["inputs"]["height"] = size;
-                }
-                workflowData["45"]["inputs"]["filename_prefix"] = "Boogu_Edit_" + Date.now();
+                // 图片已经通过 /api/upload 或 autoImportToSlot0 上传到了 ComfyUI input,
+                // uploadedImages[0] 就是 comfy_name,直接用作 end_image 即可。
+                // uploadToComfyUI 传的是 "edit_input.png" 这种短名,fetch 会 404,所以不用它。
+                var comfyName = uploadedImages[0];
+                var valuesJson = JSON.parse(workflowData["55"]["inputs"]["values_json"] || '{}');
+                valuesJson["positive_text_input"] = prompt + '\n';
+                valuesJson["end_image"] = comfyName;
+                workflowData["55"]["inputs"]["values_json"] = JSON.stringify(valuesJson);
+                workflowData["63"]["inputs"]["noise_seed"] = seed;
+                workflowData["44"]["inputs"]["filename_prefix"] = "Boogu_Edit_" + Date.now();
             } else {
                 workflowData["16"]["inputs"]["text"] = prompt;
                 workflowData["23"]["inputs"]["noise_seed"] = seed;
-                if (scaleEnabled) {
-                    workflowData["33"]["inputs"]["scale_to_length"] = size;
-                } else {
-                    delete workflowData["33"];
-                    workflowData["10"]["inputs"]["image"] = ["8", 0];
-                    workflowData["19"]["inputs"]["pixels"] = ["8", 0];
-                }
+                // 节点 8 是上传的原图。节点 11 (EmptyFlux2Latent) 需要从原图拿 width/height
+                // 节点 10 (GetImageSize) 原本指向节点 33 (LayerUtility 缩放),该节点被删后必须重指 8
+                workflowData["10"]["inputs"]["image"] = ["8", 0];
+                // 节点 19 (VAEEncode) 用原图原比例编码作为参考
+                workflowData["19"]["inputs"]["pixels"] = ["8", 0];
                 workflowData["8"]["inputs"]["image"] = uploadedImages[0];
                 if (uploadedImages[1]) {
                     workflowData["4"]["inputs"]["image"] = uploadedImages[1];
@@ -747,7 +762,6 @@
                     workflowData["13"]["inputs"]["positive"] = ["18", 0];
                     workflowData["13"]["inputs"]["negative"] = ["17", 0];
                 }
-                workflowData["22"]["inputs"]["filename_prefix"] = "Flux2-Klein_" + Date.now();
             }
             return workflowData;
         }
@@ -756,6 +770,17 @@
             const prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) return alert("请输入提示词");
             if (!uploadedImages[0]) return alert("请上传主图");
+
+            // 读取主图原始尺寸,用于后端 EmptyLatent 覆盖(避免被默认 1024×1024 强压成正方形)
+            // 必须在 try 之前声明,因为 submitWorkflow (外层函数) 也要访问
+            var srcW = 0, srcH = 0;
+            try {
+                var mainImg = slots[0].querySelector('img');
+                if (mainImg && mainImg.naturalWidth) {
+                    srcW = mainImg.naturalWidth; srcH = mainImg.naturalHeight;
+                }
+            } catch (e) {}
+            var genW = srcW, genH = srcH;
 
             var btn = document.getElementById('genBtn');
             var ws = null;
@@ -779,7 +804,7 @@
                     var msRes = await fetch('/api/ms/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: prompt, model: msModel, image_urls: [previewSrc], client_id: CLIENT_ID })
+                        body: JSON.stringify({ prompt: prompt, model: msModel, image_urls: [previewSrc], client_id: CLIENT_ID, width: genW, height: genH })
                     });
                     if (!msRes.ok) throw new Error("MS生成失败");
                     var msData = await msRes.json();
@@ -789,8 +814,8 @@
                 } else if (activeModels.length === 1) {
                     // ---- 单模型模式 ----
                     var model = activeModels[0];
-                    var workflowData = buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
-                    var result = await submitWorkflow(workflowData, model);
+                    var workflowData = await buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
+                    var result = await submitWorkflow(workflowData, model, genW, genH);
                     showResult(result);
                 } else {
                     // ---- 多模型并行模式 ----
@@ -800,9 +825,9 @@
                     var modelLabels = [];
                     updateProgress(0, '并行生成 ' + total + ' 个模型...');
 
-                    var promises = activeModels.map(function(model, i) {
-                        var workflowData = buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
-                        return submitWorkflow(workflowData, model).then(function(result) {
+                    var promises = activeModels.map(async function(model, i) {
+                        var workflowData = await buildWorkflowForModel(model, prompt, seed, scaleEnabled, size);
+                        return submitWorkflow(workflowData, model, genW, genH).then(function(result) {
                             completed++;
                             updateProgress(Math.round(completed / total * 100), model + ' 完成 (' + completed + '/' + total + ')');
                             if (result.images && result.images[0]) {
@@ -823,6 +848,7 @@
                         throw new Error('所有模型生成均失败');
                     }
                 }
+                if (window.GalleryDisplay && GalleryDisplay.scanNewImages) GalleryDisplay.scanNewImages();
             } catch (error) {
                 console.error("Generation Error", error);
                 alert('Error: ' + error.message);
@@ -836,7 +862,7 @@
         }
 
         /** 提交单个模型的工作流 */
-        async function submitWorkflow(workflowData, model) {
+        async function submitWorkflow(workflowData, model, genW, genH) {
             var wsUrl = buildWsUrl();
             var ws = null;
 
@@ -870,9 +896,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     workflow_data: workflowData,
-                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein')),
+                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein_edit')),
                     feature: '图片编辑',
                     client_id: CLIENT_ID,
+                    width: genW, height: genH,
                     extra_pnginfo: model === 'krea2' ? buildKrea2ExtraPngInfo(uploadedImages[0], uploadedImages[1] || uploadedImages[0]) : undefined
                 })
             });
@@ -896,7 +923,7 @@
                     rebuildCardImages(continuousRecord);
                 } else {
                     continuousRecord = Object.assign({}, data, {
-                        type: 'klein',
+                        type: data.type || 'klein_edit',
                         model: modelLabel,
                         prompt: currentPrompt || (data.prompt || ''),
                         images: [imgUrl]
@@ -907,7 +934,7 @@
             } else {
                 continuousRecord = null;
                 const record = Object.assign({}, data, {
-                    type: 'klein',
+                    type: data.type || 'klein_edit',
                     model: modelLabel,
                     prompt: currentPrompt || (data.prompt || '')
                 });
@@ -1015,10 +1042,9 @@
                 "11": { param: "scale_to_length", label: "缩放最长边", type: "number" }
             },
             boogu: {
-                "32": { param: "image", label: "主图", type: "upload" },
-                "36": { param: "prompt", label: "提示词", type: "textarea" },
-                "8":  { param: "width", label: "宽度", type: "number" },
-                "8_height": { param: "height", label: "高度", type: "number", node: "8", key: "height" }
+                "7":  { param: "image", label: "主图", type: "upload" },
+                "31": { param: "prompt", label: "提示词", type: "textarea" },
+                "45": { param: "scale_to_length", label: "缩放最长边", type: "number" }
             },
             krea2: {
                 "102_main": { param: "main_image", label: "主图", type: "upload", node: "102", key: "selected_images", slot: 1 },
@@ -1142,7 +1168,7 @@
             setInterval(checkServerConnection, 5000);
             // 统一由 gallery-display.js 初始化
             GalleryDisplay.init({
-                historyType: 'klein',
+                historyType: '图片编辑',
                 favoritesStorageKey: 'gallery_favorites',
                 galleryFeatures: {
                     delete: true,
@@ -1163,7 +1189,7 @@
                 },
             });
             lucide.createIcons();
-            toggleIgnoreRef();
+            try { toggleIgnoreRef(); } catch(e) { console.warn('toggleIgnoreRef init error:', e); }
         };
     </script>
 </body>

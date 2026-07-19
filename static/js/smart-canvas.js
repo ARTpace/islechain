@@ -12245,7 +12245,9 @@ async function generateComfyUrlsWithSettings(runSettings, prompt, refs){
         if(!imageRefs.length) throw new Error(tr('smart.errEditNeedRefs'));
         const names = [];
         for(const ref of imageRefs.slice(0, 3)) names.push(await comfyNameForRef(ref));
-        const {task_id} = await createCanvasComfyTask({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}});
+        const params = {"16":{text:prompt},"23":{noise_seed:Math.floor(Math.random()*1000000)},"8":{image:names[0] || ""}};
+        if(names[1]) params["4"] = {image:names[1]};
+        const {task_id} = await createCanvasComfyTask({prompt, workflow_json:'image-edit/klein-image-edit.json', type:'klein', params});
         const {images, kind} = await pollCanvasComfyTask(task_id);
         const urls = images.map(img => img.url).filter(Boolean);
         return {urls, kind};
@@ -13219,7 +13221,9 @@ async function runComfyGeneration(node, prompt, refs, pendingNode, meta){
         if(!refs.length) throw new Error(tr('smart.errEditNeedRefs'));
         const names = [];
         for(const ref of refs.slice(0, 3)) names.push(await comfyNameForRef(ref));
-        ({task_id: taskId} = await createCanvasComfyTask({prompt, workflow_json:'Flux2-Klein.json', type:'klein', params:{"168":{text:prompt},"158":{noise_seed:Math.floor(Math.random()*1000000)},"278":{image:names[0] || ""},"270":{image:names[1] || ""},"292":{image:names[2] || ""},"313":{value:Boolean(names[1])},"314":{value:Boolean(names[2])}}}));
+        const params = {"16":{text:prompt},"23":{noise_seed:Math.floor(Math.random()*1000000)},"8":{image:names[0] || ""}};
+        if(names[1]) params["4"] = {image:names[1]};
+        ({task_id: taskId} = await createCanvasComfyTask({prompt, workflow_json:'image-edit/klein-image-edit.json', type:'klein', params}));
     } else {
         // 自定义 workflow
         const workflowName = settings.comfyWorkflow || comfyWorkflows[0]?.name || '';

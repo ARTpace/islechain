@@ -1,7 +1,7 @@
 {
   "53": {
     "inputs": {
-      "seed": 42,
+      "seed": 744412641671367,
       "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
@@ -47,7 +47,7 @@
   },
   "99": {
     "inputs": {
-      "unet_name": "Krea2\\krea2_turbo_fp8_scaled.safetensors",
+      "unet_name": "Krea2\\krea2_turbo_int8_convrot.safetensors",
       "unet_dtype": "default",
       "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
       "clip_type": "krea2",
@@ -55,7 +55,7 @@
       "vae_name": "qwen_image_vae.safetensors",
       "vae_dtype": "default",
       "use_separate_vae": false,
-      "steps": 8,
+      "steps": 6,
       "cfg": 1,
       "denoise": 1,
       "template_id": "krea2_turbo",
@@ -63,7 +63,7 @@
       "model_patch_enabled": false,
       "clip_vision_name": "",
       "preset_lora_1_enabled": true,
-      "preset_lora_1_name": "Krea-2\\Krea2-realism-V1.safetensors",
+      "preset_lora_1_name": "Krea2\\Krea2-realism-V1.safetensors",
       "preset_lora_1_strength": "0.5",
       "preset_lora_2_enabled": false,
       "preset_lora_2_name": "",
@@ -86,9 +86,9 @@
   },
   "101": {
     "inputs": {
-      "prompt": "把这只狗改成柴犬，带着圣诞帽，舌头露出来\n",
+      "prompt": "把这只猫改成柴犬，带着圣诞帽，舌头露出来\n",
       "negative_prompt": "",
-      "lora_name": "Krea-2\\krea2_identity_edit_v1_1.safetensors",
+      "lora_name": "Krea2\\krea2_identity_edit_v1_1.safetensors",
       "lora_strength": 1,
       "resize_type": "缩短边",
       "resize_size": 1024,
@@ -145,7 +145,7 @@
   },
   "104": {
     "inputs": {
-      "config_json": "{\"version\":5,\"text\":\"Krea2_Edit 图片编辑\",\"font\":\"simhei.ttf\",\"width\":1690,\"fontSize\":72,\"colorA\":\"#FFB8FF\",\"colorB\":\"#81CAA0\",\"gradient\":true,\"gradientDirection\":\"水平\",\"opacity\":1,\"letterSpacing\":1,\"lineSpacing\":0,\"paddingX\":0,\"paddingY\":0,\"strokeWidth\":0,\"strokeMode\":\"自定义\",\"strokeColor\":\"#2E7D62\",\"strokeOpacity\":1,\"backgroundColor\":\"#1E5A48\",\"borderMode\":\"透明\",\"borderColor\":\"#8FC7A6\",\"borderOpacity\":0,\"shadowEnabled\":false,\"shadowColor\":\"#F2FF04\",\"shadowOpacity\":0.42,\"shadowBlur\":0,\"shadowX\":2,\"shadowY\":-142,\"align\":\"居中\"}"
+      "config_json": "{\"version\":5,\"text\":\"工作流标题\",\"font\":\"simhei.ttf\",\"width\":400,\"fontSize\":72,\"colorA\":\"#FFB8FF\",\"colorB\":\"#81CAA0\",\"gradient\":true,\"gradientDirection\":\"水平\",\"opacity\":1,\"letterSpacing\":1,\"lineSpacing\":0,\"paddingX\":0,\"paddingY\":0,\"strokeWidth\":0,\"strokeMode\":\"自定义\",\"strokeColor\":\"#2E7D62\",\"strokeOpacity\":1,\"backgroundColor\":\"#1E5A48\",\"borderMode\":\"透明\",\"borderColor\":\"#8FC7A6\",\"borderOpacity\":0,\"shadowEnabled\":false,\"shadowColor\":\"#F2FF04\",\"shadowOpacity\":0.42,\"shadowBlur\":0,\"shadowX\":2,\"shadowY\":-142,\"align\":\"居中\"}"
     },
     "class_type": "GJJ_WorkflowTitle",
     "_meta": {
