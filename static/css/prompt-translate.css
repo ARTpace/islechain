@@ -1,8 +1,13 @@
-/* ──────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────
  * 提示词翻译按钮：浮在 textarea 右下角
  * 共享给 zimage.html 和 smart-canvas.html
- * ────────────────────────────────────────────────────────────── */
-.prompt-translate-corner {
+ *
+ * 重要：所有规则都限定在 .prompt-node-text-wrap 内（smart-canvas 节点）
+ *       zimage.html 改用 .prompt-corner-btn .prompt-translate-corner
+ *       由 prompt-translate-ui.js 的 injectStyles() 注入样式管理
+ *       这样 zimage.html 的翻译按钮和清除/网格按钮完全一致
+ * ───────────────────────────────────────────────────────────── */
+.prompt-node-text-wrap .prompt-translate-corner {
     position:absolute;
     display:inline-flex;
     align-items:center;
@@ -20,47 +25,47 @@
     line-height:1;
     z-index:2;
 }
-.prompt-translate-corner:hover {
+.prompt-node-text-wrap .prompt-translate-corner:hover {
     background:rgba(0,0,0,0.12);
     color:#000;
 }
-.prompt-translate-corner:disabled {
+.prompt-node-text-wrap .prompt-translate-corner:disabled {
     cursor:default;
     pointer-events:none;
 }
-.prompt-translate-corner span,
-.prompt-translate-corner .btn-text {
+.prompt-node-text-wrap .prompt-translate-corner span,
+.prompt-node-text-wrap .prompt-translate-corner .btn-text {
     white-space:nowrap;
 }
-.prompt-translate-corner i,
-.prompt-translate-corner svg {
+.prompt-node-text-wrap .prompt-translate-corner i,
+.prompt-node-text-wrap .prompt-translate-corner svg {
     width:14px;
     height:14px;
 }
 
 /* 颜色方案：中文=红，英文=蓝 */
-.prompt-translate-corner[data-lang="cn"] {
+.prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"] {
     color:#e53935;
 }
-.prompt-translate-corner[data-lang="en"] {
+.prompt-node-text-wrap .prompt-translate-corner[data-lang="en"] {
     color:#1e88e5;
 }
-.prompt-translate-corner[data-lang="cn"]:hover {
+.prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"]:hover {
     background:rgba(229,57,53,0.12);
 }
-.prompt-translate-corner[data-lang="en"]:hover {
+.prompt-node-text-wrap .prompt-translate-corner[data-lang="en"]:hover {
     background:rgba(30,136,229,0.12);
 }
 
 /* 状态反馈：loading / ok / fail */
-.prompt-translate-corner[data-state="loading"] svg {
+.prompt-node-text-wrap .prompt-translate-corner[data-state="loading"] svg {
     animation: pt-spin 0.9s linear infinite;
     opacity:0.7;
 }
-.prompt-translate-corner[data-state="ok"] {
+.prompt-node-text-wrap .prompt-translate-corner[data-state="ok"] {
     color:#16a34a !important;
 }
-.prompt-translate-corner[data-state="fail"] {
+.prompt-node-text-wrap .prompt-translate-corner[data-state="fail"] {
     color:#dc2626 !important;
 }
 @keyframes pt-spin {
@@ -90,33 +95,32 @@
     height:11px;
 }
 
-/* zimage.html 主输入框内的按钮（让出右侧"清空"按钮位置） */
-.prompt-wrapper .prompt-translate-corner {
-    bottom:6px;
-    right:34px;
-}
-/* 随机按钮在翻译按钮左边 */
-.prompt-wrapper #quickRandomBtn {
+/* zimage.html 主输入框内的按钮(让出右侧"清空"按钮位置)
+ * 注意: 这一段已经废弃,zimage.html 改用 .prompt-corner-btn 复用样式
+ * 保留规则但加上 .prompt-node-text-wrap 限定(在 zimage.html 不再匹配)
+ * 随机按钮在翻译按钮左边
+ */
+.prompt-node-text-wrap #quickRandomBtn {
     right:62px;
 }
 
 /* 深色主题 */
-body.studio-theme-dark .prompt-translate-corner,
-.theme-dark .prompt-translate-corner {
+body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner,
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner {
     background:rgba(255,255,255,0.08);
     color:#8aa0b8;
 }
-body.studio-theme-dark .prompt-translate-corner:hover,
-.theme-dark .prompt-translate-corner:hover {
+body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover,
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover {
     background:rgba(255,255,255,0.16);
     color:#fff;
 }
-body.studio-theme-dark .prompt-translate-corner[data-lang="cn"],
-.theme-dark .prompt-translate-corner[data-lang="cn"] {
+body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"],
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"] {
     color:#ef5350;
 }
-body.studio-theme-dark .prompt-translate-corner[data-lang="en"],
-.theme-dark .prompt-translate-corner[data-lang="en"] {
+body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"],
+.theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"] {
     color:#42a5f5;
 }
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner {

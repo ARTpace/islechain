@@ -23,10 +23,15 @@
     st.id = 'ref-img-mgr-style';
     st.textContent =
       // ── 缩略图 80x80 基础样式（更大） ──
-      '.ref-thumb{width:80px;height:80px;border-radius:10px;overflow:hidden;' +
+      '.ref-thumb{width:80px;height:80px;border-radius:10px;' +
       'border:1px solid rgba(128,128,128,0.3);background:#1a1f2e;flex-shrink:0;cursor:pointer;' +
       'position:relative;transition:border-color 0.18s,box-shadow 0.18s;}' +
+      // ref-thumb 自身不裁切(避免遮罩 loading 气泡);只对内部 img 裁切
+      '.ref-thumb img{border-radius:9px;}' +
       '.ref-thumb:hover{border-color:rgba(0,180,216,0.7);box-shadow:0 4px 12px rgba(0,0,0,0.4);}' +
+      // is-loading 时 ref-thumb 持续显示操作条(避免鼠标移走导致操作条消失,用户看不到进度)
+      '.ref-thumb.is-loading{border-color:rgba(0,180,216,0.7);box-shadow:0 4px 12px rgba(0,0,0,0.4);}' +
+      '.ref-thumb.is-loading .ref-action-bar{opacity:1;transform:translateY(0);pointer-events:auto;}' +
       '.ref-thumb img{width:100%;height:100%;object-fit:cover;pointer-events:none;display:block;}' +
       // ── 堆叠容器（固定 108x108px，padding 6px 容纳操作条溢出） ──
       '.ref-stack{position:relative;flex-shrink:0;display:inline-block;width:108px;height:108px;}' +
@@ -54,6 +59,28 @@
       '.ref-act-del:hover{background:rgba(239,68,68,0.75)!important;}' +
       '.ref-act-rev:hover{background:rgba(50,140,255,0.75)!important;}' +
       '.ref-act svg{width:13px;height:13px;stroke-width:2;}' +
+      // ── 反推 loading 状态：spinner + 阶段文字(浮在缩略图上方,不挡 SVG) ──
+      // ref-act 在缩略图底部(操作条内),气泡基于 ref-thumb 定位
+      '.ref-thumb > .ref-btn-loading{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);' +
+      'display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;' +
+      'color:#fff;background:rgba(0,180,216,0.95);padding:3px 8px;border-radius:10px;' +
+      'white-space:nowrap;pointer-events:none;z-index:20;' +
+      'box-shadow:0 2px 8px rgba(0,0,0,0.4);animation:refBtnLoadingSlide 0.3s ease;}' +
+      '.ref-btn-loading::after{content:"";display:inline-block;width:8px;height:8px;' +
+      'border:1.5px solid #fff;border-top-color:transparent;border-radius:50%;' +
+      'animation:refBtnLoadingSpin 0.8s linear infinite;}' +
+      '.ref-btn-loading.is-done{background:rgba(34,197,94,0.95);}' +
+      '.ref-btn-loading.is-done::after{display:none;}' +
+      '.ref-btn-loading.is-error{background:rgba(239,68,68,0.95);}' +
+      '.ref-btn-loading.is-error::after{display:none;}' +
+      '@keyframes refBtnLoadingSlide{from{opacity:0;transform:translateX(-50%) translateY(4px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}' +
+      '@keyframes refBtnLoadingSpin{to{transform:rotate(360deg);}}' +
+      // ── 全屏顶部进度条(更醒目的反推反馈) ──
+      '.ref-top-progress{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:99999;pointer-events:none;}' +
+      '.ref-top-progress-bar{height:100%;width:0;background:linear-gradient(90deg,rgba(0,180,216,0.8),rgba(0,180,216,1));' +
+      'box-shadow:0 0 10px rgba(0,180,216,0.5);transition:width 0.4s ease;}' +
+      '.ref-top-progress.is-done .ref-top-progress-bar{background:rgba(34,197,94,0.9);}' +
+      '.ref-top-progress.is-error .ref-top-progress-bar{background:rgba(239,68,68,0.9);}' +
       // ── 二次确认 armed 状态：按钮变红 + 轻微脉冲动画 ──
       '.ref-act-clear.is-armed{background:rgba(239,68,68,0.85)!important;color:#fff;animation:refArmPulse 0.6s ease-in-out infinite;}' +
       '.ref-act-clear.is-armed svg{stroke-width:2.5;}' +
@@ -682,7 +709,80 @@
       ? this._getReverseOptions() : { mode: 'caption', targetStyle: '', provider: 'auto' };
 
     var btn = this.container.querySelector('.ref-rev-btn[data-idx="' + index + '"]');
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    // 阶段提示:不同阶段用不同文字, 增强用户感知
+    // 反推完整流程: 上传(~1s) + 提交(1-2s) + 模型加载(10-30s) + 推理(60-120s)
+    var STAGES = [
+      { at: 0,     label: '上传中…', pct: 5 },
+      { at: 2000,  label: '提交任务…', pct: 10 },
+      { at: 5000,  label: '加载模型…', pct: 30 },
+      { at: 20000, label: '分析图像…', pct: 60 },
+      { at: 60000, label: '生成中…', pct: 80 }
+    ];
+    var startTime = Date.now();
+
+    // 全屏顶部进度条(强烈视觉反馈,用户一眼能看到反推在进行)
+    var topProgress = document.createElement('div');
+    topProgress.className = 'ref-top-progress';
+    var topBar = document.createElement('div');
+    topBar.className = 'ref-top-progress-bar';
+    topProgress.appendChild(topBar);
+    document.body.appendChild(topProgress);
+    // 强制 reflow 后再设置 width 才能触发动画
+    void topBar.offsetWidth;
+    topBar.style.width = '5%';
+
+    var stageEl = null;
+    var thumb = null;
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+      // 找到最近的外层 ref-thumb 容器,loading 气泡加到这里(浮在缩略图上方)
+      thumb = btn.closest('.ref-thumb');
+      if (thumb) {
+        thumb.classList.add('is-loading');
+        stageEl = document.createElement('span');
+        stageEl.className = 'ref-btn-loading';
+        stageEl.textContent = '…';
+        thumb.appendChild(stageEl);
+      }
+    }
+    var stageTimer = setInterval(function () {
+      var elapsed = Date.now() - startTime;
+      var label = STAGES[0].label;
+      var pct = STAGES[0].pct;
+      for (var i = STAGES.length - 1; i >= 0; i--) {
+        if (elapsed >= STAGES[i].at) { label = STAGES[i].label; pct = STAGES[i].pct; break; }
+      }
+      if (stageEl) stageEl.textContent = label;
+      // 进度条带不确定性增长:到达当前阶段值后慢慢往下一阶段涨,直到 95%
+      var now = Date.now();
+      var cur = elapsed;
+      // 找到下一阶段的时间点
+      var nextAt = null;
+      for (var j = 0; j < STAGES.length; j++) {
+        if (STAGES[j].at > elapsed) { nextAt = STAGES[j].at; break; }
+      }
+      if (nextAt) {
+        // 在当前阶段内,从 pct 涨到下一阶段的 pct (用 elapsed 比例)
+        var stageStart = elapsed;
+        var nextStageIdx = 0;
+        for (var k = 0; k < STAGES.length; k++) {
+          if (STAGES[k].at >= elapsed) { nextStageIdx = k; break; }
+        }
+        var nextStage = STAGES[nextStageIdx];
+        var prevStage = STAGES[Math.max(0, nextStageIdx - 1)];
+        var stageDur = nextStage.at - prevStage.at;
+        var stageProgress = stageDur > 0 ? Math.min(1, (elapsed - prevStage.at) / stageDur) : 1;
+        var fromPct = prevStage.pct;
+        var toPct = nextStage.pct;
+        var actualPct = fromPct + (toPct - fromPct) * stageProgress;
+        topBar.style.width = actualPct + '%';
+      } else {
+        // 已经过了所有阶段,缓慢增长到 95%
+        var overflow = Math.min(95, pct + (elapsed - 60000) / 1000);
+        topBar.style.width = overflow + '%';
+      }
+    }, 500);
 
     ig.reverse(img.file, {
       mode: revOpts.mode || 'caption',
@@ -691,6 +791,24 @@
       visionProviderId: revOpts.visionProviderId || ''
     })
       .then(function (result) {
+        clearInterval(stageTimer);
+        if (stageEl) {
+          stageEl.textContent = '✓ 完成';
+          stageEl.classList.add('is-done');
+        }
+        // 顶部进度条满格 + 绿色,1.2s 后消失
+        if (topProgress) {
+          topBar.style.width = '100%';
+          topProgress.classList.add('is-done');
+          setTimeout(function () {
+            if (topProgress && topProgress.parentNode) topProgress.parentNode.removeChild(topProgress);
+          }, 1200);
+        }
+        setTimeout(function () {
+          if (stageEl && stageEl.parentNode) stageEl.parentNode.removeChild(stageEl);
+          if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); }
+          if (thumb) thumb.classList.remove('is-loading');
+        }, 1200);
         ig._showResult(result, {
           onApply: function (text, applyMode) {
             if (typeof self._onReverseApply === 'function') {
@@ -699,9 +817,25 @@
           }
         });
       })
-      .catch(function (e) { alert('反推失败: ' + e.message); })
-      .then(function () {
-        if (btn) { btn.disabled = false; btn.textContent = '🔍'; }
+      .catch(function (e) {
+        clearInterval(stageTimer);
+        if (stageEl) {
+          stageEl.textContent = '✗ 失败';
+          stageEl.classList.add('is-error');
+          setTimeout(function () {
+            if (stageEl && stageEl.parentNode) stageEl.parentNode.removeChild(stageEl);
+          }, 2000);
+        }
+        // 顶部进度条变红,2s 后消失
+        if (topProgress) {
+          topProgress.classList.add('is-error');
+          setTimeout(function () {
+            if (topProgress && topProgress.parentNode) topProgress.parentNode.removeChild(topProgress);
+          }, 2000);
+        }
+        if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); }
+        if (thumb) thumb.classList.remove('is-loading');
+        alert('反推失败: ' + e.message);
       });
   };
   RefImageManager.prototype.reverse = function (index) {

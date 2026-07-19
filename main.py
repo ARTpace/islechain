@@ -13247,10 +13247,10 @@ async def api_wildcards_validate(payload: dict):
 # 对外只暴露 image / mode / target_style / provider,屏蔽 ComfyUI 与多模态 API 细节。
 # 文生图 / 图生图 / LoRA 标注 / 参考图分析 等任意功能均可复用 /api/interrogate。
 
-INTERROGATE_WF = "图像反推 .json"   # ComfyUI 本地 llama.cpp 视觉模型反推工作流
-INTERROGATE_LOAD_NODE = "6"         # LoadImage 节点
-INTERROGATE_PROMPT_NODE = "3"       # llama_cpp_instruct_adv.custom_prompt
-INTERROGATE_OUTPUT_NODE = "15"      # ShowText 输出节点(预留)
+INTERROGATE_WF = "提示词/图片反推-Qwen3提示词.json"   # ComfyUI 本地 Qwen3-VL 反推工作流
+INTERROGATE_LOAD_NODE = "22"        # LoadImage 节点(参考图)
+INTERROGATE_PROMPT_NODE = "20"      # Qwen3_VQA 节点(inputs.text 注入模式提示词)
+INTERROGATE_OUTPUT_NODE = "19"      # ShowText 输出节点(同时 23.easy saveText 也保存)
 
 _INTERROGATE_MODE_PROMPTS = {
     "tags": "用 Danbooru 英文标签描述这张图,逗号分隔,只输出标签,不要句子和解释。",
@@ -13266,6 +13266,78 @@ def _interrogate_prompt_for(mode, target_style):
     return p
 
 
+def _ui_workflow_to_api_prompt(wf_ui):
+    """把前端 UI 格式的 ComfyUI 工作流 JSON( nodes 列表 + links + groups )
+    转换为 /prompt API 接受的格式( {node_id: {class_type, inputs}} )。
+
+    转换规则:
+      - class_type = node.type
+      - inputs 合并 widgets_values(按 widget 字段顺序)与原 inputs(优先取非空值)
+      - 忽略 inputs 列表中的元数据( label / widget / type / shape / link )
+      - 处理 nodes[].inputs[] 里 shape:7(隐式输入)→ 不写进 API
+    """
+    nodes = wf_ui.get("nodes") or []
+    out = {}
+    # 1. 收集 links: link_id -> [from_node, from_slot]
+    link_map = {}  # link_id -> (src_node_id, src_slot)
+    for ln in wf_ui.get("links") or []:
+        # 新格式: [id, src_node, src_slot, dst_node, dst_slot, type]
+        if isinstance(ln, (list, tuple)) and len(ln) >= 5:
+            link_map[ln[0]] = (str(ln[1]), ln[2])
+    for n in nodes:
+        nid = str(n.get("id"))
+        ntype = n.get("type") or n.get("class_type")
+        if not ntype:
+            continue
+        api_inputs = {}
+        # 1) 处理显式 inputs 列表
+        for inp in (n.get("inputs") or []):
+            if not isinstance(inp, dict):
+                continue
+            iname = inp.get("name")
+            if not iname:
+                continue
+            # 跳过 shape:7 (隐式输入) 和 link-only (这些由 links 数组管)
+            # 但保留 widget 字段(它们的值在 widgets_values 中)
+            if inp.get("shape") == 7:
+                continue
+            # 已有 link 引用 (新格式 inputs 列表里也直接含 link?)
+            if "link" in inp and inp["link"] is not None:
+                src = link_map.get(inp["link"])
+                if src:
+                    api_inputs[iname] = [src[0], src[1]]
+                continue
+            # widget 字段：值来自 widgets_values
+            if "widget" in inp:
+                continue
+        # 2) widgets_values 按顺序填入 widget 字段
+        #    widget 字段顺序来自 inputs[].name (按 inputs 列表里的 widget.name 排序)
+        widget_fields = [inp["name"] for inp in (n.get("inputs") or [])
+                        if isinstance(inp, dict) and inp.get("widget")]
+        wv = n.get("widgets_values") or []
+        for i, fname in enumerate(widget_fields):
+            if i < len(wv):
+                # 修复: Qwen3_VQA widgets_values[10] = "fixed" 不是合法值
+                if ntype == "Qwen3_VQA" and fname == "attention" and wv[i] == "fixed":
+                    api_inputs[fname] = "eager"
+                else:
+                    api_inputs[fname] = wv[i]
+        # 3) 走一遍原 inputs 里的 link 字段 (某些节点 inputs 同时含 widget 标记 + link)
+        #    如果还没填入,从 links 补
+        for inp in (n.get("inputs") or []):
+            if not isinstance(inp, dict):
+                continue
+            iname = inp.get("name")
+            if not iname or iname in api_inputs:
+                continue
+            if "link" in inp and inp["link"] is not None:
+                src = link_map.get(inp["link"])
+                if src:
+                    api_inputs[iname] = [src[0], src[1]]
+        out[nid] = {"class_type": ntype, "inputs": api_inputs}
+    return out
+
+
 async def _interrogate_via_comfyui(abs_path, mode, target_style):
     """ComfyUI 路线:上传图 -> 注入反推工作流 -> 轮询 history -> 取 ShowText 文本。"""
     if not COMFYUI_ADDRESS:
@@ -13275,7 +13347,10 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     if not os.path.exists(wf_path):
         raise RuntimeError(f"反推工作流不存在: {INTERROGATE_WF}")
     with open(wf_path, 'r', encoding='utf-8') as f:
-        wf = json.load(f)
+        wf_ui = json.load(f)
+    # 把前端 UI 格式工作流( nodes 列表 ) 转换为 ComfyUI /prompt API 格式
+    # ( {node_id: {class_type, inputs}} )，包括 widgets_values → inputs、links → 节点引用
+    wf = _ui_workflow_to_api_prompt(wf_ui)
     with open(abs_path, 'rb') as fb:
         content = fb.read()
     ctype = content_type_for_path(abs_path)
@@ -13293,10 +13368,18 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     if INTERROGATE_LOAD_NODE in wf:
         wf[INTERROGATE_LOAD_NODE]["inputs"]["image"] = filename
     if INTERROGATE_PROMPT_NODE in wf:
-        wf[INTERROGATE_PROMPT_NODE]["inputs"]["custom_prompt"] = prompt_text
-        # 注: 保留 preset_prompt 原值。它是 COMBO 下拉预设项,置空会触发 ComfyUI
-        # 的 value_not_in_list 校验 -> 返回 400 Bad Request。custom_prompt 才是驱动
-        # 输出的指令,保留预设风格不影响我们注入的 tags/caption/vl 模式指令生效。
+        # Qwen3_VQA 节点 inputs.text 默认来自工作流 widgets_values[0]
+        # (工作流作者写的中文"专业提示词工程师"系统提示词)
+        # mode != "caption" 时,我们用 mode 派生的指令覆盖默认 prompt
+        # mode == "caption" 时,保留工作流默认的优质中文反推 prompt
+        # target_style 始终追加(在 caption 模式追加到工作流默认后)
+        if mode == "caption":
+            # 保留工作流内置 prompt,只追加 target_style
+            if target_style and wf[INTERROGATE_PROMPT_NODE]["inputs"].get("text"):
+                wf[INTERROGATE_PROMPT_NODE]["inputs"]["text"] += f"\n目标风格参考: {target_style}。"
+        else:
+            # tags / vl 模式:用 mode 派生 prompt 完全覆盖
+            wf[INTERROGATE_PROMPT_NODE]["inputs"]["text"] = prompt_text
     pr = await asyncio.to_thread(
         requests.post,
         f"http://{COMFYUI_ADDRESS}/prompt",
@@ -13329,10 +13412,16 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
         for _nid, node_out in history_data['outputs'].items():
             if isinstance(node_out, dict) and 'text' in node_out:
                 tv = node_out['text']
-                if isinstance(tv, list) and tv:
-                    output_text = '\n'.join([str(t) for t in tv])
-                elif isinstance(tv, str):
-                    output_text = tv
+                # ComfyUI 输出可能是嵌套 list: [[["text1", "text2"]]] (节点输出列表 → slot 列表 → 文本列表)
+                # 递归展平,把所有字符串元素拼起来
+                def _flatten(v):
+                    if isinstance(v, list):
+                        for x in v:
+                            yield from _flatten(x)
+                    else:
+                        yield v
+                strings = [str(s) for s in _flatten(tv) if s is not None]
+                output_text = '\n'.join(strings)
                 break
     if not output_text:
         raise RuntimeError("ComfyUI 未返回文本输出")

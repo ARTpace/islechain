@@ -26,36 +26,47 @@ const PromptTranslateUI = (function() {
         if (document.getElementById('ptui-style')) return;
         const s = document.createElement('style');
         s.id = 'ptui-style';
+        // 翻译按钮复用 .prompt-corner-btn 完整样式,这里只覆盖 hover 颜色和 loading 动画
+        // 关键: 默认 display:none (没输入时隐藏),有内容时 .ptui-visible 切到 display:flex
         s.textContent = `
-            .prompt-translate-corner { width:28px !important; height:28px !important; border:none; border-radius:8px; cursor:pointer; display:none; align-items:center; justify-content:center; padding:0; margin:0; background:rgba(0,0,0,0.08); color:#999; transition:all .15s; line-height:0; box-sizing:border-box; }
+            .prompt-translate-corner { display:none !important; }
             .prompt-translate-corner.ptui-visible { display:flex !important; }
             .prompt-translate-corner[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
             .prompt-translate-corner[data-state="ok"] { color:#16a34a!important; }
             .prompt-translate-corner[data-state="fail"] { color:#dc2626!important; }
             .prompt-translate-corner:hover { background:rgba(0,180,216,0.12) !important; color:#00b4d8 !important; }
-            body.studio-theme-dark .prompt-translate-corner { background:rgba(255,255,255,0.12); color:#6a8fa8; }
             body.studio-theme-dark .prompt-translate-corner:hover { background:rgba(0,240,255,0.12) !important; color:#00f0ff !important; }
             @keyframes ptui-spin { to { transform: rotate(360deg); } }
         `;
         document.head.appendChild(s);
     }
 
-    // ─────────────────────────────────────────────
-    //  创建按钮
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    //  创建按钮（使用 .prompt-corner-btn 类,与其他 corner-btn 完全一致)
+    // ─────────────────────────────────────────────────────────────
     function createButton() {
         const btn = document.createElement('button');
-        btn.className = 'prompt-translate-corner';
+        // 关键: 复用 zimage.html 里的 .prompt-corner-btn 类,保证三个按钮 100% 一致
+        btn.className = 'prompt-corner-btn prompt-translate-corner';
         btn.title = '翻译提示词（自动同步标签语言）';
         btn.oncontextmenu = (e) => e.preventDefault();
+        // 图标: "译"字风格 (讠部 + 又部) - 直观表示翻译功能
+        // 左侧短竖线表示"讠"偏旁,右侧"A→中"风格组合
         btn.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m5 8 6 6"/>
-                <path d="m4 14 6-6 2-3"/>
-                <path d="M2 5h12"/>
-                <path d="M7 2h1"/>
-                <path d="m22 22-5-10-5 10"/>
-                <path d="M14 18h6"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;overflow:visible;">
+                <!-- 左: 讠偏旁 (短竖线) -->
+                <path d="M3 5h3"/>
+                <path d="M4.5 5v8"/>
+                <path d="M3 13h3"/>
+                <!-- 右: A→中 翻译标识 -->
+                <path d="M10 6h6"/>
+                <path d="M13 4v2"/>
+                <path d="M10 6l-2 6"/>
+                <path d="M10 6l2 6"/>
+                <path d="M16 6l2 6"/>
+                <path d="M18 12l2 6"/>
+                <path d="M18 12l-2 6"/>
+                <path d="M20 18h-4"/>
             </svg>`;
         btn.addEventListener('click', handleTranslate);
         return btn;
