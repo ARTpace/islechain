@@ -47,26 +47,26 @@
         // 取触发按钮并判断是否处于"待确认"状态
         const btn = event && event.target && event.target.closest && event.target.closest('button');
         if (btn && btn.classList.contains('is-confirming')) {
-            // 第二次点击：清除定时器，执行删除
+            // 第二次点击（按钮）：清除定时器，执行删除
             clearTimeout(btn._confirmTimer);
             btn.classList.remove('is-confirming');
             btn._confirmTimer = null;
+        } else if (btn) {
+            // 第一次点击（按钮）：进入待确认态
+            // 先复位其他卡片的 confirming 态（避免误删）
+            document.querySelectorAll('button.is-confirming').forEach(b => {
+                if (b !== btn) {
+                    b.classList.remove('is-confirming');
+                    if (b._confirmTimer) { clearTimeout(b._confirmTimer); b._confirmTimer = null; }
+                }
+            });
+            btn.classList.add('is-confirming');
+            btn._confirmTimer = setTimeout(() => {
+                btn.classList.remove('is-confirming');
+                btn._confirmTimer = null;
+            }, 3000);
+            return;
         } else {
-            // 第一次点击：进入待确认态
-            if (btn) {
-                // 先复位其他卡片的 confirming 态（避免误删）
-                document.querySelectorAll('button.is-confirming').forEach(b => {
-                    if (b !== btn) {
-                        b.classList.remove('is-confirming');
-                        if (b._confirmTimer) { clearTimeout(b._confirmTimer); b._confirmTimer = null; }
-                    }
-                });
-                btn.classList.add('is-confirming');
-                btn._confirmTimer = setTimeout(() => {
-                    btn.classList.remove('is-confirming');
-                    btn._confirmTimer = null;
-                }, 3000);
-            }
             return;
         }
 
@@ -235,7 +235,8 @@
         }
 
         // 找到所属卡片并更新状态
-        const card = btn && btn.closest('.masonry-item');
+        // 兼容右键菜单（btn 为 null）和按钮点击：btn 存在则从其找 card，否则通过 record.timestamp 查找
+        const card = btn ? btn.closest('.masonry-item') : (record && document.getElementById('history-' + record.timestamp));
         if (card) {
             // 更新卡片内所有图片的收藏按钮状态
             card.querySelectorAll('.img-fav-btn').forEach(favBtn => {
@@ -427,6 +428,35 @@
     }
 
     /**
+     * 查看这条图的 prompt（弹出通用 PromptPanel 悬浮面板）
+     * - 任意功能模块复用，无需各自实现提示词展示 UI
+     */
+    function viewPrompt(record, event) {
+        if (event) event.stopPropagation();
+        const text = (record && record.prompt) || '';
+        const cfg = global.GALLERY_CONFIG || {};
+        const translate = (typeof cfg.onPromptDisplay === 'function') ? cfg.onPromptDisplay : null;
+        const anchor = (event && event.currentTarget) ? event.currentTarget : null;
+        if (global.PromptPanel) {
+            global.PromptPanel.open({
+                cn: text,
+                negative: (record && record.negative_prompt) || '',
+                genParams: (record && record.genParams) || null,
+                recordMeta: {
+                    type: (record && record.type) || undefined,
+                    model: (record && record.model) || undefined,
+                    seed: (record && record.seed) != null ? record.seed : undefined
+                },
+                translate: translate,
+                anchor: anchor
+            });
+        } else {
+            if (!text) showToast('该图没有提示词', 'warn');
+            else showToast(text, 'info', 5000);
+        }
+    }
+
+    /**
      * 把这条图的 prompt 覆盖写入提示词输入框
      * - 业务页可挂 GALLERY_CONFIG.onUsePrompt 自定义处理
      * - 默认行为:写入 #prompt,触发 input/change,触发 updatePromptTags(如存在)
@@ -498,6 +528,7 @@
         isImageFavorited,
         copyPrompt,
         usePrompt,
+        viewPrompt,
         copyToCanvas,
         regenerate
     };

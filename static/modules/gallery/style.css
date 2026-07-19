@@ -71,6 +71,19 @@ html.studio-theme-dark .gallery-context-divider {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* 右键菜单删除项 — 确认态变红 */
+.gallery-context-item.gallery-context-confirming,
+body.studio-theme-dark .gallery-context-item.gallery-context-confirming,
+html.studio-theme-dark .gallery-context-item.gallery-context-confirming {
+    background: #dc2626 !important;
+    color: #fff !important;
+}
+.gallery-context-item.gallery-context-confirming:hover,
+body.studio-theme-dark .gallery-context-item.gallery-context-confirming:hover,
+html.studio-theme-dark .gallery-context-item.gallery-context-confirming:hover {
+    background: #b91c1c !important;
+}
+
 /* 卡片淡入动画 */
 .animate-in {
     animation: gallerySlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);

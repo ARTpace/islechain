@@ -1,0 +1,43 @@
+{
+  "19": {
+    "inputs": {
+      "text_0": "solo, looking_at_viewer, short_hair, shirt, 1boy, gloves, red_eyes, hair_between_eyes, closed_mouth, jewelry, standing, jacket, full_body, white_hair, male_focus, short_sleeves, earrings, shoes, socks, pants, belt, fingerless_gloves, bag, english_text, white_jacket, sunglasses, backpack, sneakers, eyewear_on_head, white_pants, grey_gloves, fashion, nike_\\(company\\)",
+      "text": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "ShowText|pysssss",
+    "_meta": {
+      "title": "展示文本🐍"
+    }
+  },
+  "21": {
+    "inputs": {
+      "model": "wd-eva02-large-tagger-v3",
+      "threshold": 0.35,
+      "character_threshold": 0.85,
+      "replace_underscore": false,
+      "trailing_comma": false,
+      "exclude_tags": "",
+      "tags": "solo, looking_at_viewer, short_hair, shirt, 1boy, gloves, red_eyes, hair_between_eyes, closed_mouth, jewelry, standing, jacket, full_body, white_hair, male_focus, short_sleeves, earrings, shoes, socks, pants, belt, fingerless_gloves, bag, english_text, white_jacket, sunglasses, backpack, sneakers, eyewear_on_head, white_pants, grey_gloves, fashion, nike_\\(company\\)",
+      "image": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "WD14Tagger|pysssss",
+    "_meta": {
+      "title": "WD14反推提示词"
+    }
+  },
+  "22": {
+    "inputs": {
+      "image": "20260715004556.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  }
+}

@@ -234,6 +234,7 @@
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
     <script src="/static/history-bulk-manager.js"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20260719"></script>
     <script src="/static/modules/gallery/actions.js?v=20260611"></script>
     <script src="/static/modules/gallery/list.js?v=20260611"></script>
     <script src="/static/modules/gallery/card.js?v=20260611"></script>
@@ -268,7 +269,7 @@
                     <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">图片</span>
                     <span id="imgCount" class="ml-auto text-[9px] font-bold text-gray-300">0/2</span>
                 </div>
-                <div class="flex flex-row gap-2.5">
+                <div id="uploadGrid" class="flex flex-row gap-2.5">
                     <div id="slot0" class="upload-item rounded-xl flex items-center justify-center cursor-pointer flex-1" data-index="0" style="height:260px; min-height: 200px;">
                         <div class="text-center pointer-events-none">
                             <i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i>
@@ -427,7 +428,8 @@
 
         async function checkServerConnection() {
             try {
-                const statsUrl = IS_LOCAL_SERVER ? '/system_stats' : '/api/comfyui/system_stats';
+                // 始终走后端代理，避免本地 ComfyUI 8188 端口跨源（CORS）问题
+                const statsUrl = '/api/comfyui/system_stats';
                 const response = await apiFetch(statsUrl);
                 if (response.ok) {
                     const statusEl = document.getElementById("statusText");
@@ -449,7 +451,7 @@
         let provider = 'local';
         let uploadedImages = [null, null];
         let uploadedFiles = [null, null];
-        let ignoreRef = false;
+        let ignoreRef = true;   // 与 HTML #ignoreToggle 的初始 active 状态一致（单图模式）
 
         // 连续编辑
         let continuousMode = false;
@@ -486,20 +488,21 @@
             document.getElementById('providerMs').classList.toggle('active', p === 'ms');
         }
 
-        function toggleIgnoreRef() {
-            ignoreRef = !ignoreRef;
-            document.getElementById('ignoreToggle').classList.toggle('active', ignoreRef);
+        // 供 onload 初始化调用：只读 ignoreRef 当前值同步视觉，不翻转状态
+        function applyIgnoreRefState() {
+            const tog = document.getElementById('ignoreToggle');
             const slot1 = document.getElementById('slot1');
             const grid = document.getElementById('uploadGrid');
-            if (ignoreRef) {
-                slot1.style.display = 'none';
-                grid.classList.remove('grid-cols-2');
-                grid.classList.add('grid-cols-1');
-            } else {
-                slot1.style.display = 'flex';
-                grid.classList.remove('grid-cols-1');
-                grid.classList.add('grid-cols-2');
+            if (tog) tog.classList.toggle('active', !!ignoreRef);
+            if (slot1) slot1.style.display = ignoreRef ? 'none' : 'flex';
+            if (grid) {
+                grid.classList.remove('grid-cols-1', 'grid-cols-2');
+                grid.classList.add(ignoreRef ? 'grid-cols-1' : 'grid-cols-2');
             }
+        }
+        function toggleIgnoreRef() {
+            ignoreRef = !ignoreRef;
+            applyIgnoreRefState();
         }
 
         function toggleScale() {
@@ -1189,7 +1192,7 @@
                 },
             });
             lucide.createIcons();
-            try { toggleIgnoreRef(); } catch(e) { console.warn('toggleIgnoreRef init error:', e); }
+            try { applyIgnoreRefState(); } catch(e) { console.warn('applyIgnoreRefState init error:', e); }
         };
     </script>
 </body>

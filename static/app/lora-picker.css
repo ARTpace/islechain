@@ -263,56 +263,40 @@
     border-color: oklch(72% 0.18 350);
 }
 
-/* 卡片尺寸分段滑条（header 行，搜索框右边） */
-.lora-picker-size-slider {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
-    border-radius: 8px;
-    background: oklch(22% 0.025 280);
-    border: 1px solid oklch(28% 0.02 280 / 0.5);
-    padding: 2px;
-    flex-shrink: 0;
-    user-select: none;
-}
-.lora-size-seg {
+/* 卡片尺寸切换按钮（header 行，搜索框右边）— 单个图标按钮，3 个 SVG 按状态显示 */
+.lora-picker-size-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 26px;
-    min-width: 28px;
-    padding: 0 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    color: oklch(60% 0.02 280);
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    border-radius: 8px;
+    background: oklch(22% 0.025 280);
+    border: 1px solid oklch(28% 0.02 280 / 0.5);
+    color: oklch(80% 0.01 280);
     cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
     transition: all 0.18s ease;
-    letter-spacing: 0.04em;
 }
-.lora-size-seg:hover {
-    color: oklch(85% 0.01 280);
+.lora-picker-size-btn:hover {
+    color: oklch(95% 0.005 280);
+    background: oklch(26% 0.025 280);
 }
-.lora-size-seg.active {
-    background: oklch(72% 0.18 350 / 0.95);
-    color: oklch(14% 0.02 280);
-    box-shadow: 0 1px 4px oklch(65% 0.2 350 / 0.35);
+.lora-picker-size-btn:active {
+    transform: scale(0.96);
 }
 
 /* Light theme override */
-body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-size-slider {
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-size-btn {
     background: oklch(92% 0.005 280);
     border-color: oklch(80% 0.01 280 / 0.5);
+    color: oklch(30% 0.01 280);
 }
-body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg {
-    color: oklch(40% 0.01 280);
-}
-body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg:hover {
+body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-size-btn:hover {
     color: oklch(10% 0.005 280);
-}
-body:not(.studio-theme-dark):not(.theme-dark) .lora-size-seg.active {
-    background: oklch(55% 0.18 350 / 0.9);
-    color: #fff;
+    background: oklch(88% 0.005 280);
 }
 
 /* 已选 LoRA 条 */

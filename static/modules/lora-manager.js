@@ -101,14 +101,16 @@ const LoraManager = (function() {
     }
 
     function _buildEntry(name, fileName, previews, opts) {
-        const { stripExt = false, splitPreview = false } = opts || {};
+        const { stripExt = false, splitPreview = false, addedTime = 0 } = opts || {};
         const pv = previews[name] || previews[fileName] || '';
         const { preview, videoUrl } = splitPreview ? _splitPreview(pv, pv) : { preview: pv, videoUrl: '' };
         return {
             name,
             displayName: _cleanDisplayName(fileName),
             preview, videoUrl,
-            triggerWords: [], baseModel: '', folder: _extractFolder(name)
+            triggerWords: [], baseModel: '', folder: _extractFolder(name),
+            // 文件修改时间(秒),用于 "按添加时间" 排序;无则 0
+            addedTime: addedTime || 0
         };
     }
 
@@ -181,12 +183,17 @@ const LoraManager = (function() {
         }
     }
 
-    function _buildScanEntries(raw) {
+    function _buildScanEntries(raw, mtimes) {
         return raw.map(name => {
             const fileName = _extractFileName(name);
             const stem = fileName.replace(LORA_EXT_RE, '');
             const m = LORA_STEM_VER_RE.exec(stem);
-            return { name, modelRoot: m ? stem.slice(0, m.index) : stem, versionLabel: m ? m[0].replace(/^[-_]/, '') : '' };
+            return {
+                name,
+                modelRoot: m ? stem.slice(0, m.index) : stem,
+                versionLabel: m ? m[0].replace(/^[-_]/, '') : '',
+                addedTime: (mtimes && mtimes[name] != null) ? mtimes[name] : 0
+            };
         });
     }
 
@@ -233,7 +240,8 @@ const LoraManager = (function() {
                 entries.push({
                     name,
                     modelRoot: m ? stem.slice(0, m.index) : stem,
-                    versionLabel: m ? m[0].replace(/^[-_]/, '') : ''
+                    versionLabel: m ? m[0].replace(/^[-_]/, '') : '',
+                    addedTime: (state.loraMap[name] && state.loraMap[name].addedTime) || 0
                 });
             }
         }
@@ -261,9 +269,15 @@ const LoraManager = (function() {
                     return {
                         name: v.name, label: v.versionLabel || 'v1',
                         preview: m.preview || '', videoUrl: m.videoUrl || '',
-                        baseModel: m.baseModel || ''
+                        baseModel: m.baseModel || '',
+                        addedTime: m.addedTime || 0
                     };
                 }),
+                // 组时间取最新版本的文件修改时间
+                addedTime: vers.reduce((max, v) => {
+                    const t = (state.loraMap[v.name] && state.loraMap[v.name].addedTime) || 0;
+                    return t > max ? t : max;
+                }, 0),
                 currentVersionIdx: 0
             };
             if (state.loraMap) {
@@ -295,7 +309,8 @@ const LoraManager = (function() {
                     for (const comfyName of raw) {
                         const fullPath = fileNameToFullPath[comfyName] || comfyName;
                         state.available.push(fullPath);
-                        state.loraMap[fullPath] = _buildEntry(fullPath, comfyName, scan.previews, { stripExt: true, splitPreview: false });
+                        const _mt = (scan.mtimes && scan.mtimes[fullPath] != null) ? scan.mtimes[fullPath] : 0;
+                        state.loraMap[fullPath] = _buildEntry(fullPath, comfyName, scan.previews, { stripExt: true, splitPreview: false, addedTime: _mt });
                     }
                     state.available.sort();
                     state.models = [...new Set(state.available.map(n => _extractFolder(n) || '通用'))].sort();
@@ -320,10 +335,11 @@ const LoraManager = (function() {
                 state.available = scan.paths;
                 state.loraMap = {};
                 for (const name of scan.paths) {
-                    state.loraMap[name] = _buildEntry(name, _extractFileName(name), scan.previews, { splitPreview: true });
+                    const _mt = (scan.mtimes && scan.mtimes[name] != null) ? scan.mtimes[name] : 0;
+                    state.loraMap[name] = _buildEntry(name, _extractFileName(name), scan.previews, { splitPreview: true, addedTime: _mt });
                 }
                 state.models = [...new Set(scan.paths.map(n => _extractFolder(n) || '通用'))].sort();
-                state.scanEntries = _buildScanEntries(scan.paths);
+                state.scanEntries = _buildScanEntries(scan.paths, scan.mtimes);
                 groupVersions();
                 rebuildTriggerWordMap();
                 return;
@@ -359,9 +375,10 @@ const LoraManager = (function() {
                 state.available = scan.paths;
                 state.loraMap = {};
                 for (const name of scan.paths) {
-                    state.loraMap[name] = _buildEntry(name, _extractFileName(name), scan.previews, { stripExt: true, splitPreview: true });
+                    const _mt = (scan.mtimes && scan.mtimes[name] != null) ? scan.mtimes[name] : 0;
+                    state.loraMap[name] = _buildEntry(name, _extractFileName(name), scan.previews, { stripExt: true, splitPreview: true, addedTime: _mt });
                 }
-                state.scanEntries = scan.entries;
+                state.scanEntries = _buildScanEntries(scan.paths, scan.mtimes);
                 groupVersions();
                 rebuildTriggerWordMap();
                 state.models = [...new Set(scan.paths.map(n => _extractFolder(n) || '通用'))].sort();
@@ -557,10 +574,10 @@ const LoraManager = (function() {
         collectTriggerWords: (arr) => collectTriggerWords(arr),
         /** 注入 LoRA 节点到工作流 */
         injectNodes,
-        /** 获取筛选后的列表 */
+        /** 获取筛选后的列表：按文件夹名匹配（modelFilter 来自工作流 unet 的文件夹前缀） */
         getFiltered: function() {
             if (!state.modelFilter || state.modelFilter === 'all') return state.available;
-            return state.available.filter(n => (this.getModel(n) || '').toLowerCase() === (state.modelFilter || '').toLowerCase());
+            return state.available.filter(n => (_extractFolder(n) || '').toLowerCase() === (state.modelFilter || '').toLowerCase());
         },
         getModel: function(loraName) {
             const meta = state.loraMap[loraName];

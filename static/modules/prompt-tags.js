@@ -561,6 +561,8 @@ const PromptTags = (function() {
         const clearBtn = document.getElementById('clearPromptBtn');
         if (clearBtn) clearBtn.style.display = hasText ? 'flex' : 'none';
         if (tBtn) tBtn.style.display = hasText ? 'inline-flex' : 'none';
+        const tagsSw = document.getElementById('promptTagsSwitch');
+        if (tagsSw) tagsSw.style.display = hasText ? 'flex' : 'none';
 
         // i18n 懒加载保护
         if (PRESET_I18N_MAP === null) {
@@ -623,7 +625,8 @@ const PromptTags = (function() {
         const toggleBtn = document.getElementById('promptTagsToggle');
         if (tagsWrap) {
             const hasTags = !!html;
-            tagsWrap.style.display = hasTags ? '' : 'none';
+            const visible = (typeof window !== 'undefined' && window.promptTagsVisible !== undefined) ? window.promptTagsVisible : true;
+            tagsWrap.style.display = (hasTags && visible) ? '' : 'none';
             const tagCount = filteredParts.length;
             if (toggleBtn) toggleBtn.style.display = tagCount > 5 ? '' : 'none';
             promptTagsExpanded = false;

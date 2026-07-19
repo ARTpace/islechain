@@ -70,7 +70,7 @@
                 <div class="output-text-title">${escapeHtml(t.preset || '')}</div>
                 <pre class="output-text-pre">${escapeHtml(t.text || '').substring(0, 500)}</pre>
                 <div class="output-text-actions">
-                    <button onclick="window.outputNode.copyText(event, '${node.id}', ${i})" class="text-[10px] text-gray-400 hover:text-black">📋 复制</button>
+                    <button onclick="window.outputNode.copyText(event, '${node.id}', ${i})" class="text-[10px] text-gray-400 hover:text-black flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制</button>
                     <button onclick="window.outputNode.deleteText(event, '${node.id}', ${i})" class="text-[10px] text-red-400 hover:text-red-600" title="删除">×</button>
                 </div>
             </div>`

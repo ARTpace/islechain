@@ -92,14 +92,74 @@ function loraPickerItemUsage(item) {
     return entry || { lastUsed: 0, count: 0 };
 }
 
-// ── 缩略图 Blob 缓存（前端内存层）────────────────────────────
-// fetch 后存为 blob: URL，之后所有 <img>/<video> 直接从内存读，零网络请求。
-// 即使 DOM 重建、卡片过滤/Sort/翻页，blob URL 始终有效。
+// ── 缩略图 Blob 缓存（前端内存层 + IndexedDB 持久化）────────────
+// 内存层：fetch 后存为 blob: URL，DOM 重建/筛选/翻页零网络请求。
+// 持久层：IndexedDB 保存 blob 二进制，重启后从 DB 恢复到内存缓存，避免重新 fetch。
 // Map<url, {blobUrl, type}>
 const loraPickerBlobCache = new Map();
 
+const LORA_DB_NAME = 'loraPreviewCache';
+const LORA_DB_VERSION = 1;
+const LORA_DB_STORE = 'previews';
+
+/** 打开 IndexedDB */
+function loraPickerOpenDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(LORA_DB_NAME, LORA_DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(LORA_DB_STORE)) {
+                db.createObjectStore(LORA_DB_STORE);
+            }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+/** 从 IndexedDB 加载所有缓存的 blob 到内存 */
+async function loraPickerLoadBlobDb() {
+    try {
+        const db = await loraPickerOpenDb();
+        const tx = db.transaction(LORA_DB_STORE, 'readonly');
+        const store = tx.objectStore(LORA_DB_STORE);
+        const keys = await new Promise((res, rej) => {
+            const r = store.getAllKeys();
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(r.error);
+        });
+        if (!keys.length) { db.close(); return; }
+        const entries = await new Promise((res, rej) => {
+            const r = store.getAll();
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(r.error);
+        });
+        db.close();
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const blob = entries[i];
+            if (blob && !loraPickerBlobCache.has(key)) {
+                const blobUrl = URL.createObjectURL(blob);
+                const type = blob.type.startsWith('video/') ? 'video' : 'image';
+                loraPickerBlobCache.set(key, { blobUrl, type });
+            }
+        }
+    } catch (e) {
+        console.warn('[LoRA Picker] IndexedDB load failed:', e);
+    }
+}
+
+/** 将 blob 异步写入 IndexedDB（不阻塞调用方） */
+function loraPickerSaveBlobDb(url, blob) {
+    loraPickerOpenDb().then(db => {
+        const tx = db.transaction(LORA_DB_STORE, 'readwrite');
+        tx.objectStore(LORA_DB_STORE).put(blob, url);
+        tx.oncomplete = () => db.close();
+    }).catch(() => {});
+}
+
 /**
- * 异步获取 blob URL（已缓存则直接返回，否则 fetch）
+ * 异步获取 blob URL（已缓存则直接返回，否则 fetch + 持久化）
  * @param {string} url - 原始 URL
  * @returns {Promise<string>} blob URL
  */
@@ -115,6 +175,8 @@ async function loraPickerGetBlobUrl(url) {
         const contentType = res.headers.get('content-type') || '';
         const type = contentType.startsWith('video/') ? 'video' : 'image';
         loraPickerBlobCache.set(url, { blobUrl, type });
+        // 异步持久化到 IndexedDB（不阻塞）
+        loraPickerSaveBlobDb(url, blob);
         return blobUrl;
     } catch (e) {
         return url; // fetch 失败时回退到原始 URL（让浏览器自己去请求）
@@ -130,12 +192,17 @@ function loraPickerGetBlobUrlSync(url) {
     return cached ? cached.blobUrl : '';
 }
 
-/** 清除所有 blob URL */
+/** 清除所有 blob URL（内存+IndexedDB） */
 function loraPickerClearBlobCache() {
     for (const entry of loraPickerBlobCache.values()) {
         try { URL.revokeObjectURL(entry.blobUrl); } catch (e) { /* ignore */ }
     }
     loraPickerBlobCache.clear();
+    // 同时清除 IndexedDB
+    loraPickerOpenDb().then(db => {
+        db.transaction(LORA_DB_STORE, 'readwrite').objectStore(LORA_DB_STORE).clear();
+        db.close();
+    }).catch(() => {});
 }
 
 // ── 卡片 HTML 缓存（按 itemKey） ────────────────────────────────
@@ -350,11 +417,27 @@ function loraPickerInit() {
                         ${LORA_PICKER_SORTS.map(s => `<option value="${s.key}" ${s.key === loraPickerSortBy ? 'selected' : ''}>${s.label}</option>`).join('')}
                     </select>
                 </div>
-                <div class="lora-picker-size-slider" id="loraPickerSizeSlider" title="切换卡片尺寸">
-                    <span class="lora-size-seg ${loraPickerCardSize==='sm'?'active':''}" data-size="sm" onclick="loraPickerSetSize('sm')">小</span>
-                    <span class="lora-size-seg ${loraPickerCardSize==='md'?'active':''}" data-size="md" onclick="loraPickerSetSize('md')">中</span>
-                    <span class="lora-size-seg ${loraPickerCardSize==='lg'?'active':''}" data-size="lg" onclick="loraPickerSetSize('lg')">大</span>
-                </div>
+                <button type="button" class="lora-picker-size-btn" id="loraPickerSizeBtn" onclick="loraPickerCycleSize()" title="切换卡片尺寸">
+                    <svg id="loraSizeIconSm" class="lora-size-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+                        <rect x="3"  y="3"  width="5" height="5" rx="1"/>
+                        <rect x="9.5" y="3"  width="5" height="5" rx="1"/>
+                        <rect x="16" y="3"  width="5" height="5" rx="1"/>
+                        <rect x="3"  y="9.5" width="5" height="5" rx="1"/>
+                        <rect x="9.5" y="9.5" width="5" height="5" rx="1"/>
+                        <rect x="16" y="9.5" width="5" height="5" rx="1"/>
+                        <rect x="3"  y="16"  width="5" height="5" rx="1"/>
+                        <rect x="9.5" y="16"  width="5" height="5" rx="1"/>
+                        <rect x="16" y="16"  width="5" height="5" rx="1"/>
+                    </svg>
+                    <svg id="loraSizeIconMd" class="lora-size-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3"  y="3"  width="9" height="18" rx="1.5"/>
+                        <rect x="13" y="3"  width="9" height="9"  rx="1.5"/>
+                        <rect x="13" y="12" width="9" height="9"  rx="1.5"/>
+                    </svg>
+                    <svg id="loraSizeIconLg" class="lora-size-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+                        <rect x="3" y="3" width="18" height="18" rx="1.5"/>
+                    </svg>
+                </button>
                 <button class="lora-picker-close" onclick="loraPickerClose()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
@@ -403,13 +486,9 @@ async function loraPickerOpen(callback) {
     // 同步排序下拉的显示
     const sortSel = document.getElementById('loraPickerSortSel');
     if (sortSel) sortSel.value = loraPickerSortBy;
-    // 同步尺寸滑条 active 态
-    const slider = document.getElementById('loraPickerSizeSlider');
-    if (slider) {
-        slider.querySelectorAll('.lora-size-seg').forEach(seg => {
-            seg.classList.toggle('active', seg.dataset.size === loraPickerCardSize);
-        });
-    }
+
+    // 从 IndexedDB 恢复持久化 blob 缓存到内存（重启后加速图片加载）
+    await loraPickerLoadBlobDb();
 
     // 初始化模型过滤状态
     loraPickerShowAll = false;
@@ -434,13 +513,11 @@ async function loraPickerOpen(callback) {
 
     // 同步排序/锁定顺序 + 尺寸按钮
     loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
-    const lbl2 = document.getElementById('loraPickerSizeLabel');
+    // 同步尺寸按钮的 SVG icon（只显示当前尺寸对应的那个）
+    const curSize = LORA_PICKER_SIZES.find(s => s.key === loraPickerCardSize) || LORA_PICKER_SIZES[1];
+    loraPickerRenderSizeIcon(curSize.key);
     const btn2 = document.getElementById('loraPickerSizeBtn');
-    if (lbl2 && btn2) {
-        const curSize = LORA_PICKER_SIZES.find(s => s.key === loraPickerCardSize) || LORA_PICKER_SIZES[1];
-        lbl2.textContent = curSize.label;
-        btn2.title = curSize.tooltip;
-    }
+    if (btn2) btn2.title = curSize.tooltip;
     loraPickerRenderSidebar();
     loraPickerRenderSelectedBar();
     loraPickerRenderGrid();
@@ -508,23 +585,32 @@ function loraPickerRestoreSize() {
         if (v && LORA_PICKER_SIZES.some(s => s.key === v)) loraPickerCardSize = v;
     } catch (e) {}
 }
-function loraPickerSetSize(size) {
-    if (!LORA_PICKER_SIZES.some(s => s.key === size)) return;
-    if (loraPickerCardSize === size) return;
-    loraPickerCardSize = size;
+// 单个图标按钮循环切换 sm → md → lg → sm
+function loraPickerCycleSize() {
+    const order = LORA_PICKER_SIZES.map(s => s.key);
+    const idx = order.indexOf(loraPickerCardSize);
+    const next = order[(idx < 0 ? 1 : (idx + 1) % order.length)];
+    if (next === loraPickerCardSize) return;
+    loraPickerCardSize = next;
     try { localStorage.setItem(LORA_PICKER_SIZE_STORAGE_KEY, loraPickerCardSize); } catch (e) {}
-    // 更新分段滑块 active
-    const slider = document.getElementById('loraPickerSizeSlider');
-    if (slider) {
-        slider.querySelectorAll('.lora-size-seg').forEach(seg => {
-            seg.classList.toggle('active', seg.dataset.size === size);
-        });
-    }
+    // 切换显示的 SVG icon
+    loraPickerRenderSizeIcon(next);
+    const btn = document.getElementById('loraPickerSizeBtn');
+    const meta = LORA_PICKER_SIZES.find(s => s.key === next);
+    if (btn && meta) btn.title = meta.tooltip;
     // 切换尺寸需要全量重绘（每张卡高度/列宽变了）
     loraPickerClearCardCache();
     loraPickerPage = 1;
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+}
+// 切尺寸按钮的 SVG icon 可见性（只显示当前尺寸对应那个）
+function loraPickerRenderSizeIcon(key) {
+    const map = { sm: 'loraSizeIconSm', md: 'loraSizeIconMd', lg: 'loraSizeIconLg' };
+    Object.entries(map).forEach(([k, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (k === key) ? '' : 'none';
+    });
 }
 
 // ── 模型过滤条 ────────────────────────────────────────────────
@@ -562,7 +648,8 @@ function loraPickerRefreshData(resetPage) {
                 name: meta.name || name,
                 displayName: meta.displayName || name.split(/[/\\]/).pop().replace('.safetensors', ''),
                 folder: meta.folder || '通用',
-                baseModel: meta.baseModel || ''
+                baseModel: meta.baseModel || '',
+                addedTime: meta.addedTime || 0
             };
             return {
                 ...item,
@@ -608,6 +695,7 @@ function loraPickerRefreshData(resetPage) {
             isGroup: true,
             folder: gFolder,
             baseModel: gBase,
+            addedTime: g.addedTime || 0,
             resolvedName: cur ? cur.name : ''
         };
     });
@@ -654,6 +742,9 @@ function loraPickerSelectTagCategory(key) {
     loraPickerRenderSidebar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+    // 预热当前页图片（前 12 张）
+    const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
+    if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
 }
 
 // ── 锁定顺序：按当前排序对全部 LoRA 排序，并把已选 pin 到前面 ──
@@ -715,6 +806,14 @@ function loraPickerSortList(list) {
             arr.sort((a, b) => {
                 const fc = (a.folder || '通用').localeCompare(b.folder || '通用', 'zh-Hans-CN');
                 return fc !== 0 ? fc : keyOf(a).localeCompare(keyOf(b), 'zh-Hans-CN');
+            });
+            break;
+        case 'added-desc':
+            // 按文件修改时间(添加时间)降序:新的在前;时间相同时按名称稳定排序
+            arr.sort((a, b) => {
+                const ta = a.addedTime || 0, tb = b.addedTime || 0;
+                if (tb !== ta) return tb - ta;
+                return keyOf(a).localeCompare(keyOf(b), 'zh-Hans-CN');
             });
             break;
         case 'default':
@@ -799,6 +898,9 @@ function loraPickerSelectCategory(cat) {
     loraPickerRenderSidebar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
+    // 预热当前页图片（前 12 张）
+    const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
+    if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
 }
 
 // ── 渲染已选条 ──────────────────────────────────────────────────

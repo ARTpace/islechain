@@ -27,10 +27,14 @@ const PromptTranslateUI = (function() {
         const s = document.createElement('style');
         s.id = 'ptui-style';
         s.textContent = `
-            .prompt-translate-corner { display:none; }
+            .prompt-translate-corner { width:28px !important; height:28px !important; border:none; border-radius:8px; cursor:pointer; display:none; align-items:center; justify-content:center; padding:0; margin:0; background:rgba(0,0,0,0.08); color:#999; transition:all .15s; line-height:0; box-sizing:border-box; }
+            .prompt-translate-corner.ptui-visible { display:flex !important; }
             .prompt-translate-corner[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
             .prompt-translate-corner[data-state="ok"] { color:#16a34a!important; }
             .prompt-translate-corner[data-state="fail"] { color:#dc2626!important; }
+            .prompt-translate-corner:hover { background:rgba(0,180,216,0.12) !important; color:#00b4d8 !important; }
+            body.studio-theme-dark .prompt-translate-corner { background:rgba(255,255,255,0.12); color:#6a8fa8; }
+            body.studio-theme-dark .prompt-translate-corner:hover { background:rgba(0,240,255,0.12) !important; color:#00f0ff !important; }
             @keyframes ptui-spin { to { transform: rotate(360deg); } }
         `;
         document.head.appendChild(s);
@@ -148,7 +152,7 @@ const PromptTranslateUI = (function() {
     function updateVisibility() {
         if (!_btn) return;
         const hasText = typeof _opts.getText === 'function' && !!_opts.getText().trim();
-        _btn.style.display = hasText ? 'inline-flex' : 'none';
+        _btn.classList.toggle('ptui-visible', hasText);
     }
 
     // ─────────────────────────────────────────────

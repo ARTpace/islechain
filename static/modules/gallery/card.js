@@ -5,6 +5,59 @@
 (function (global) {
     'use strict';
 
+    // 一次性注入缩略图「查看提示词」按钮样式：默认隐藏，悬停卡片时由 JS 加 .show 显示。
+    // 关键：全部用注入的全局 CSS（非 Tailwind 动态 class），避免预构建 tailwind.min.css 不编译动态类。
+    (function ensureCardCSS() {
+        if (document.getElementById('gallery-card-style')) return;
+        const style = document.createElement('style');
+        style.id = 'gallery-card-style';
+        style.textContent = [
+            '.gallery-vpfab{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:pointer;}',
+            '.gallery-vpfab.show{opacity:1;pointer-events:auto;}',
+            '.gallery-vpfab:hover{transform:scale(1.12)}',
+            '.gallery-vpfab:active{transform:scale(0.9)}',
+            '.gallery-magnify{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:pointer;}',
+            '.gallery-magnify.show{opacity:1;pointer-events:auto;}',
+            '.gallery-magnify:hover{transform:scale(1.12)}',
+            '.gallery-magnify:active{transform:scale(0.9)}',
+            '.gallery-fav{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:pointer;}',
+            '.gallery-fav.show{opacity:1;pointer-events:auto;}',
+            '.gallery-fav:hover{transform:scale(1.12)}',
+            '.gallery-fav:active{transform:scale(0.9)}',
+            '.gallery-fav.is-fav{opacity:1!important;pointer-events:auto!important;color:#d97706;filter:drop-shadow(0 0 6px rgba(217,119,6,.4)) drop-shadow(0 3px 10px rgba(217,119,6,.25))!important;}',
+            '.masonry-item.gallery-selected{outline:3px solid #38bdf8;outline-offset:-3px;border-radius:8px;}'
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(style);
+    })();
+
+    // 用于 onclick="..." 属性中双引号转义
+    var escAttr = function(v) { return String(v).replace(/"/g, '&quot;'); };
+
+    // 收藏按钮 22x22 星星 SVG
+    var FAV_FULL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    var FAV_OUT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+
+    /** 收藏切换（22x22 图标，与统一样式一致） */
+    function toggleFav(record, event, imgUrl) {
+        if (event) event.stopPropagation();
+        var url = imgUrl || (record && record.images && record.images[0]) || '';
+        if (!url) return;
+        var set = (global.__galleryFavorites = global.__galleryFavorites || new Set());
+        var added = !set.has(url);
+        if (added) set.add(url); else set.delete(url);
+        try { localStorage.setItem('zimage_favorites', JSON.stringify(Array.from(set))); } catch (_) {}
+        var btn = event && event.currentTarget;
+        if (btn) {
+            btn.classList.toggle('is-fav', added);
+            btn.innerHTML = added ? FAV_FULL_SVG : FAV_OUT_SVG;
+        }
+        var card = btn ? btn.closest('.masonry-item') : document.getElementById('history-' + record.timestamp);
+        if (card) {
+            card.dataset.fav = added ? '1' : '0';
+        }
+    }
+    if (!global.toggleFav) global.toggleFav = toggleFav;
+
     // SVG 图标模板
     const ICONS = {
         folder: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
@@ -17,7 +70,8 @@
         clipboard: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
         pencilLine: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
         check: '<svg class="check-icon w-4 h-4 text-cyan-500" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-        imageFallback: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>'
+        imageFallback: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>',
+        info: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
     };
 
     // 按钮配置表：feature → {icon, title, className, action, primary}
@@ -27,6 +81,7 @@
         copyToCanvas:{ icon: 'copy',    title: '复制到画布', className: 'hover:bg-purple-600 hover:text-white', action: 'copyToCanvas' },
         favorite:  { icon: 'star',   title: '收藏',       className: 'hover:bg-amber-400 hover:text-white', action: 'toggleFavorite' },
         copyPrompt:  { icon: 'clipboard', title: '复制提示词',  className: 'hover:bg-cyan-600 hover:text-white', action: 'copyPrompt' },
+        viewPrompt: { icon: 'info', title: '查看提示词', className: 'hover:bg-violet-600 hover:text-white', action: 'viewPrompt' },
         usePrompt:   { icon: 'pencilLine', title: '把这条提示词载入到输入框', className: 'hover:bg-indigo-600 hover:text-white', action: 'usePrompt' },
         regenerate: { icon: 'refresh', title: '重新生成',   className: 'hover:bg-amber-500 hover:text-white', action: 'regenerate' },
         delete:     { icon: 'trash',   title: '删除',       className: 'hover:bg-black hover:text-white',     action: 'deleteHistoryItem' }
@@ -45,7 +100,9 @@
         batchSelect: false,     // 默认关闭（rmbg 启用）
         contextMenu: true,
         imageFallback: true,
-        modelBadge: null        // 左上角徽标 URL
+        modelBadge: null,       // 左上角徽标 URL
+        viewPrompt: true,        // 缩略图「查看提示词」按钮（默认开启，点击弹出通用 PromptPanel）
+        viewFullImage: true      // 左上角「查看大图」放大镜按钮（默认开启；点击图片切换选中态，点击此按钮才打开 lightbox）
     };
 
     /**
@@ -75,17 +132,12 @@
         card.dataset.historyType = historyType;
         card.className = 'masonry-item group cursor-zoom-in animate-in fade-in duration-700';
 
-        // 单击 → lightbox（兼容 openLightbox 的两种签名）
-        card.onclick = (e) => {
-            if (document.body.classList.contains('history-bulk-selecting')) return;
-            if (document.body.classList.contains('nsfw-mode') && card.dataset.nsfw === '1') return;
-            if (e.target.closest('button') || e.target.closest('.batch-checkbox')) return;
+        // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用
+        function openLightboxForRecord(r) {
             if (typeof global.openLightbox !== 'function') return;
-            const prompt = record.prompt || '';
+            const prompt = r.prompt || '';
             if (global.openLightbox.length >= 4) {
-                // 4/5 参版本：openLightbox(image, allImages, startIndex, prompt[, allPrompts])
-                // 多张生成：展开所有 images 到 allImages，同 record 的 prompt 共享
-                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [record];
+                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
                 const allImages = [];
                 const allPrompts = [];
                 for (const item of allHistory) {
@@ -95,38 +147,46 @@
                         allPrompts.push(item.prompt || '');
                     }
                 }
-                const historyIndex = allHistory.findIndex(item => item.timestamp === record.timestamp);
+                const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
                 let startIndex = 0;
                 for (let i = 0; i < historyIndex; i++) {
                     startIndex += ((allHistory[i].images || []).filter(Boolean)).length;
                 }
                 if (global.openLightbox.length >= 5) {
-                    global.openLightbox(record.images[0], allImages, startIndex, prompt, allPrompts);
+                    global.openLightbox(r.images[0], allImages, startIndex, prompt, allPrompts);
                 } else {
-                    global.openLightbox(record.images[0], allImages, startIndex, prompt);
+                    global.openLightbox(r.images[0], allImages, startIndex, prompt);
                 }
             } else if (global.openLightbox.length >= 3) {
-                // 3 参版本：openLightbox(image, allImages, startIndex)
-                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [record];
+                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
                 const allImages = [];
                 for (const item of allHistory) {
                     const imgs = (item.images || []).filter(Boolean);
                     for (const u of imgs) allImages.push(u);
                 }
-                const historyIndex = allHistory.findIndex(item => item.timestamp === record.timestamp);
+                const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
                 let startIndex = 0;
                 for (let i = 0; i < historyIndex; i++) {
                     startIndex += ((allHistory[i].images || []).filter(Boolean)).length;
                 }
-                global.openLightbox(record.images[0], allImages, startIndex, prompt);
+                global.openLightbox(r.images[0], allImages, startIndex, prompt);
             } else {
-                // 2 参版本：openLightbox(image, prompt) — 多张生成时传图片数组
-                if ((record.images || []).length > 1) {
-                    global.openLightbox(record.images, prompt);
+                if ((r.images || []).length > 1) {
+                    global.openLightbox(r.images, prompt);
                 } else {
-                    global.openLightbox(record.images[0], prompt);
+                    global.openLightbox(r.images[0], prompt);
                 }
             }
+        }
+        // 暴露到全局，供 HTML onclick 调用
+        if (!global.openLightboxForRecord) global.openLightboxForRecord = openLightboxForRecord;
+
+        // 单击卡片：切换选中态（视觉高亮），不再直接打开大图
+        card.onclick = (e) => {
+            if (document.body.classList.contains('history-bulk-selecting')) return;
+            if (document.body.classList.contains('nsfw-mode') && card.dataset.nsfw === '1') return;
+            if (e.target.closest('button') || e.target.closest('.batch-checkbox')) return;
+            card.classList.toggle('gallery-selected');
         };
 
         // 收藏状态标记（按图片 URL，支持多图组中只收藏某几张）
@@ -137,16 +197,30 @@
         // 每张子图的收藏状态
         card.dataset.favImages = JSON.stringify(images.map(u => favSet.has(u) ? 1 : 0));
 
-        // 构建操作按钮 HTML
-        const buttons = [];
-        if (features.openFolder)  buttons.push(buttonHTML('openFolder', record));
-        if (features.usePrompt)   buttons.push(buttonHTML('usePrompt', record));
-        if (features.copyPrompt)  buttons.push(buttonHTML('copyPrompt', record));
-        if (features.favorite)    buttons.push(buttonHTML('favorite', record, { active: anyFav }));
-        if (features.download)    buttons.push(buttonHTML('download', record));
-        if (features.copyToCanvas) buttons.push(buttonHTML('copyToCanvas', record));
-        if (features.regenerate)  buttons.push(buttonHTML('regenerate', record));
-        if (features.delete)      buttons.push(buttonHTML('delete', record));
+        // 三个悬浮按钮统一样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示
+        // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
+        const BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+        const SVG_22 = ' xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"';
+
+        // ① 左上角 — 查看大图（放大镜）
+        const magHandler = `openLightboxForRecord(${JSON.stringify(record).replace(/"/g, '&quot;')})`;
+        const magnifyHTML = features.viewFullImage
+            ? `<button onclick="${magHandler}" class="gallery-magnify" title="查看大图" aria-label="查看大图" style="left:12px;top:12px;${BTN_INLINE}"><svg${SVG_22}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>`
+            : '';
+
+        // ② 右上角 — 收藏（统一透明+drop-shadow 样式，hover 显示）
+        const favImgUrl = (record.images && record.images[0]) || '';
+        const favHandler = `toggleFav(${escAttr(JSON.stringify(record))}, event, ${escAttr(JSON.stringify(favImgUrl))})`;
+        const favIconSvg = anyFav ? FAV_FULL_SVG : FAV_OUT_SVG;
+        const favHTML = features.favorite
+            ? `<button onclick="${favHandler}" class="gallery-fav${anyFav ? ' is-fav' : ''}" title="收藏" aria-label="收藏" style="right:12px;top:12px;${BTN_INLINE}">${favIconSvg}</button>`
+            : '';
+
+        // ③ 左下角 — 查看提示词（感叹号）
+        const vpHandler = `GalleryActions.viewPrompt(${JSON.stringify(record).replace(/"/g, '&quot;')}, event)`;
+        const viewPromptHTML = features.viewPrompt
+            ? `<button onclick="${vpHandler}" class="gallery-vpfab" title="查看提示词" aria-label="查看提示词" style="left:12px;bottom:12px;${BTN_INLINE}"><svg${SVG_22}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`
+            : '';
 
         // 徽标：右下角 model 名称（悬停显示）
         let badgeHTML = '';
@@ -201,11 +275,12 @@
             ${buildImagesHTML(record, features, onerror, { eagerFirstImage: eager })}
             ${fallbackHTML}
             ${badgeHTML}
+            ${viewPromptHTML}
+            ${magnifyHTML}
+            ${favHTML}
             ${batchHTML}
             ${nsfwBadge}
-            <div class="gallery-actions absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-1">
-                ${buttons.join('')}
-            </div>`;
+            `;
 
         // 右键菜单
         if (features.contextMenu) {
@@ -228,9 +303,18 @@
                 });
             }, { once: true, passive: true });
         }
+        // 悬停卡片显示悬浮按钮（每次进入都触发，非 once）
+        card.addEventListener('mouseenter', () => {
+            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav').forEach(el => el.classList.add('show'));
+        }, { passive: true });
+        // 鼠标离开卡片时隐藏按钮
+        card.addEventListener('mouseleave', () => {
+            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav').forEach(el => el.classList.remove('show'));
+        }, { passive: true });
 
         if (isNew) containerEl.prepend(card);
         else containerEl.appendChild(card);
+
         // 强制瀑布流重新布局
         if (isNew && containerEl) {
             // 使用 requestAnimationFrame 延迟触发
@@ -272,12 +356,9 @@
      * - 4 张：2x2 拼图
      * - 5+ 张：2x2 拼图 + 最后一张叠加 "+N"
      */
-    /** 单张图片收藏星标按钮 HTML */
+    /** 单张图片收藏星标按钮 HTML — 已废弃，改用统一的 favOldHTML 单按钮，禁用子图收藏按钮避免重叠 */
     function imgFavBtnHTML(url, isFav) {
-        const svg = isFav ? ICONS.star : ICONS.starOutline;
-        const cls = isFav ? ' is-fav' : '';
-        const qUrl = String(url).replace(/"/g, '&quot;');
-        return '<button data-fav-url="' + qUrl + '" onclick="event.stopPropagation(); GalleryActions.toggleFavorite({}, event, this.dataset.favUrl)" class="img-fav-btn absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity' + cls + '" title="收藏此图">' + svg + '</button>';
+        return '';
     }
 
     /**

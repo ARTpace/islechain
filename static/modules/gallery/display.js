@@ -82,10 +82,24 @@
     max-height: 100%;
     object-fit: contain;
 }
-#lightboxPrompt {
-    word-break: break-word;
+/* === 提示词查看按钮（悬浮面板已抽到通用 PromptPanel 组件） === */
+.lb-icon-btn {
+    width: 38px; height: 38px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.12);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.18);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    transition: background .15s ease, color .15s ease, transform .15s ease;
+    cursor: pointer;
+    padding: 0;
 }
-#lightboxPrompt:empty { display: none !important; }
+.lb-icon-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.lb-icon-btn:active { transform: scale(0.94); }
+.lb-icon-btn.active { background: rgba(0,180,216,0.35); color: #fff; border-color: rgba(0,180,216,0.6); }
+/* 提示词悬浮面板的样式已迁移到 prompt-panel.js（通用组件） */
 #lightboxThumbnails {
     gap: 8px;
     padding: 8px 12px;
@@ -286,19 +300,11 @@ body.studio-theme-dark .lightbox-thumb.active {
         if (config.lightbox && !document.getElementById('lightbox')) {
             const lightboxHTML = `
 <div id="lightbox" onclick="GalleryDisplay.handleOutsideClick(event)" class="hidden fixed inset-0 z-50 gallery-lightbox flex flex-col items-center justify-center">
-    <button onclick="GalleryDisplay.closeLightbox()" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 text-gray-400 hover:text-white transition-colors p-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-    </button>
-    <!-- 左右切换按钮已移除，使用键盘左右键切换 -->
-    <div class="flex flex-col w-full max-h-[100vh] sm:max-h-[90vh]">
-        <div id="lightboxImgContainer" class="flex items-center justify-center p-2 sm:p-4 overflow-hidden relative" style="height:65vh; min-height:0;">
+    <div class="flex flex-col w-full">
+        <div id="lightboxImgContainer" class="flex items-center justify-center overflow-hidden relative" style="height:80vh; min-height:0; padding:4px;">
             <img id="lightboxImg" src="" class="object-contain rounded-lg sm:rounded-2xl shadow-2xl">
         </div>
         <div id="lightboxActions" class="z-50 flex gap-1.5 justify-center flex-shrink-0" style="display:none;"></div>
-        <div id="lightboxPrompt" class="bg-black/40 backdrop-blur-sm text-white px-5 py-3 sm:px-6 sm:py-4 rounded-xl text-[12px] sm:text-[13px] leading-relaxed overflow-y-auto text-center flex-shrink-0" style="display:none; max-width:min(88vw, 580px); margin:0 auto; max-height:clamp(60px, 12vh, 140px); min-height:0;">
-            <div id="lightboxPromptEn" class="opacity-90"></div>
-            <div id="lightboxPromptCn" class="opacity-50 text-[11px] sm:text-[12px] mt-1.5"></div>
-        </div>
         <div id="lightboxRes" class="text-center text-white/70 text-[10px] sm:text-[11px] font-bold tracking-wider py-1" style="display:none;"></div>
         <div id="lightboxThumbnails" class="flex overflow-x-auto" style="display:none; width:100%; max-width:min(95vw, 800px); margin:0 auto;"></div>
     </div>
@@ -339,6 +345,8 @@ body.studio-theme-dark .lightbox-thumb.active {
         copyPrompt: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
         usePrompt: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
         delete: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+        prompt: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        close: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
     };
 
     function renderLightboxActions() {
@@ -352,6 +360,8 @@ body.studio-theme-dark .lightbox-thumb.active {
             { key: 'copyPrompt', title: '复制提示词', hover: 'hover:bg-cyan-600 hover:text-white' },
             { key: 'usePrompt', title: '载入提示词', hover: 'hover:bg-indigo-600 hover:text-white' },
             { key: 'delete', title: '删除', hover: 'hover:bg-black hover:text-white' },
+            { key: 'prompt', id: 'lightboxPromptBtn', title: '查看提示词', hover: 'hover:bg-violet-600 hover:text-white' },
+            { key: 'close', title: '关闭', hover: 'hover:bg-red-600 hover:text-white' },
         ];
         el.innerHTML = actions.map(a => {
             const idAttr = a.id ? ` id="${a.id}"` : '';
@@ -519,9 +529,6 @@ body.studio-theme-dark .lightbox-thumb.active {
     function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam, allPrompts) {
         if (!config.lightbox) return;
 
-        const promptEl = document.getElementById('lightboxPrompt');
-        const promptCnEl = document.getElementById('lightboxPromptCn');
-        const promptEnEl = document.getElementById('lightboxPromptEn');
         const actionsEl = document.getElementById('lightboxActions');
 
         // 切图后回调
@@ -530,7 +537,10 @@ body.studio-theme-dark .lightbox-thumb.active {
             lightboxState.currentRecord = findRecord(imgUrl);
             refreshThumbnails();
             refreshFavBtn();
-            updatePromptDisplay(newPrompt || '');
+            // newPrompt 可能是 ImageViewer 传入的 Promise，统一 await 后再存
+            Promise.resolve(newPrompt).then(function (v) {
+                updatePromptDisplay(typeof v === 'string' ? v : (v && (v.en || v.text || v.prompt)) || '');
+            });
         };
 
         // 确定首图 URL
@@ -584,35 +594,42 @@ body.studio-theme-dark .lightbox-thumb.active {
 
         refreshThumbnails();
         updatePromptDisplay(lightboxState.currentPrompt);
+        hidePromptPanel();
     }
 
     function updatePromptDisplay(prompt) {
-        const promptEl = document.getElementById('lightboxPrompt');
-        const promptCnEl = document.getElementById('lightboxPromptCn');
-        const promptEnEl = document.getElementById('lightboxPromptEn');
-        if (!promptEl) return;
+        // 仅记录当前提示词，供悬浮面板与复制使用；不再自动显示
+        // （点击顶部「提示词」图标按钮 → GalleryDisplay.togglePromptPanel → 通用 PromptPanel 组件）
+        lightboxState.currentPrompt = prompt || '';
+    }
 
-        if (!prompt) {
-            promptEl.style.display = 'none';
-            return;
+    /* 显示 / 隐藏 提示词悬浮面板（委托给通用 PromptPanel 组件） */
+    function togglePromptPanel() {
+        const btn = document.getElementById('lightboxPromptBtn');
+        const record = lightboxState.currentRecord;
+        // 锚定到图片容器（而非底部工具栏按钮），避免和 "自动/✕/键鼠" 等工具栏按键水平重叠
+        const imgBox = document.getElementById('lightboxImgContainer');
+        if (global.PromptPanel) {
+            // 与缩略图 viewPrompt (actions.js) 保持完全一致
+            const text = (record && record.prompt) || '';
+            global.PromptPanel.toggle({
+                cn: text,
+                negative: (record && record.negative_prompt) || '',
+                genParams: (record && record.genParams) || null,
+                recordMeta: {
+                    type: (record && record.type) || undefined,
+                    model: (record && record.model) || undefined,
+                    seed: (record && record.seed) != null ? record.seed : undefined
+                },
+                translate: (typeof config.onPromptDisplay === 'function') ? config.onPromptDisplay : null,
+                anchor: imgBox || btn || null
+            });
         }
+        if (btn) btn.classList.toggle('active', global.PromptPanel ? global.PromptPanel.isOpen() : false);
+    }
 
-        if (promptCnEl) promptCnEl.textContent = prompt;
-        promptEl.style.display = '';
-
-        // 业务页自定义翻译
-        if (typeof config.onPromptDisplay === 'function') {
-            const result = config.onPromptDisplay(prompt);
-            if (result && promptEnEl) {
-                Promise.resolve(result.en || result).then(enText => {
-                    if (enText && document.getElementById('lightbox') && !document.getElementById('lightbox').classList.contains('hidden')) {
-                        promptEnEl.textContent = enText;
-                    }
-                });
-            }
-        } else if (promptEnEl) {
-            promptEnEl.textContent = '';
-        }
+    function hidePromptPanel() {
+        if (global.PromptPanel) global.PromptPanel.close();
     }
 
     function lightboxAction(action) {
@@ -665,6 +682,12 @@ body.studio-theme-dark .lightbox-thumb.active {
                     }
                 }
                 break;
+            case 'prompt':
+                togglePromptPanel();
+                break;
+            case 'close':
+                closeLightbox();
+                break;
         }
     }
 
@@ -674,6 +697,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         document.body.style.overflow = '';
         const actionsEl = document.getElementById('lightboxActions');
         if (actionsEl) actionsEl.style.display = 'none';
+        hidePromptPanel();
         lightboxState.currentRecord = null;
         setTimeout(() => {
             const img = document.getElementById('lightboxImg');
@@ -1020,6 +1044,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         closeLightbox,
         handleOutsideClick,
         lightboxAction,
+        togglePromptPanel,
         refreshFavBtn,
         refreshThumbnails,
         scrollToTop,

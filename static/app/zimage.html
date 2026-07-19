@@ -24,6 +24,7 @@
     <script src="/static/modules/interrogator.js"></script>
     <script src="/static/modules/ref-image-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
+    <script src="/static/modules/gallery/prompt-panel.js?v=20260719"></script>
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
     <script src="/static/modules/gallery/card.js?v=20260628"></script>
@@ -37,13 +38,13 @@
     <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
     <script src="/static/modules/smart-prompt.js?v=20260629001"></script>
     <script src="/static/modules/card-progress.js?v=20260629001"></script>
-    <script src="/static/modules/lora-manager.js?v=20260717001"></script>
+    <script src="/static/modules/lora-manager.js?v=20260719001"></script>
     <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
     <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260629002"></script>
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260628">
-    <script src="/static/app/lora-picker.js?v=20260619015"></script>
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260719003">
+    <script src="/static/app/lora-picker.js?v=20260719003"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js"></script>
     <script src="/static/app/smart-prompt-picker.js"></script>
@@ -162,8 +163,8 @@
         body.studio-theme-dark { --bg-base:#0a0e17; --text-main:#e0e7ef; }
         body.studio-theme-dark .console-card { background:#0d1520!important; border-color:rgba(0,240,255,0.12)!important; }
         body.studio-theme-dark .bg-gray-100 { background:rgba(255,255,255,0.1)!important; }
-        body.studio-theme-dark textarea { color:#e0e7ef!important; }
-        body.studio-theme-dark textarea::placeholder { color:#4a5a6e!important; }
+        body.studio-theme-dark textarea, body.studio-theme-dark .prompt-editable { color:#e0e7ef!important; }
+        body.studio-theme-dark textarea::placeholder, body.studio-theme-dark .prompt-editable:empty::before { color:#4a5a6e!important; }
         body.studio-theme-dark .mode-switcher { background:rgba(255,255,255,0.05)!important; }
         body.studio-theme-dark .mode-btn { color:#6a8fa8!important; }
         body.studio-theme-dark .mode-btn.active { color:#00f0ff!important; }
@@ -222,10 +223,58 @@
         body.studio-theme-dark .preset-dropdown-menu input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
         body.studio-theme-dark .preset-dropdown-menu input::placeholder { color:#6a8fa8; }
         .seed-toggle-btn { height:30px; min-width:36px; border:none; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; background:#f1f1f1; color:#666; }
-        #clearPromptBtn { background:rgba(0,0,0,0.08); color:#999; }
-        #clearPromptBtn:hover { background:rgba(239,68,68,0.15)!important; color:#ef4444!important; }
-        body.studio-theme-dark #clearPromptBtn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
-        body.studio-theme-dark #clearPromptBtn:hover { background:rgba(239,68,68,0.2)!important; color:#f87171!important; }
+        /* 提示词框右下角统一按钮样式 */
+        .prompt-corner-btn {
+            width: 28px !important;
+            height: 28px !important;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: rgba(0,0,0,0.08);
+            color: #999;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .prompt-corner-btn:hover {
+            background: rgba(239,68,68,0.15) !important;
+            color: #ef4444 !important;
+        }
+        body.studio-theme-dark .prompt-corner-btn {
+            background: rgba(255,255,255,0.12);
+            color: #6a8fa8;
+        }
+        body.studio-theme-dark .prompt-corner-btn:hover {
+            background: rgba(239,68,68,0.2) !important;
+            color: #f87171 !important;
+        }
+        .prompt-tags-switch-btn:hover {
+            background: rgba(0,180,216,0.12) !important;
+            color: #00b4d8 !important;
+        }
+        .prompt-tags-switch-btn.active {
+            color: #00b4d8 !important;
+            background: rgba(0,180,216,0.15) !important;
+        }
+        .prompt-tags-switch-btn.active:hover {
+            background: rgba(0,180,216,0.15) !important;
+            color: #00b4d8 !important;
+        }
+        body.studio-theme-dark .prompt-tags-switch-btn:hover {
+            background: rgba(0,240,255,0.12) !important;
+            color: #00f0ff !important;
+        }
+        body.studio-theme-dark .prompt-tags-switch-btn.active {
+            color: #00f0ff !important;
+            background: rgba(0,240,255,0.15) !important;
+        }
+        body.studio-theme-dark .prompt-tags-switch-btn.active:hover {
+            background: rgba(0,240,255,0.15) !important;
+            color: #00f0ff !important;
+        }
         #translateDirLabel { transition:color .15s, font-weight .15s; }
         body.studio-theme-dark #translateDirLabel { color:#8aa0b8; }
         .anima-ctrl-split-left { border-right:1px solid rgba(0,0,0,0.1) !important; }
@@ -494,8 +543,6 @@
                             <div id="dotColor" class="w-1.5 h-1.5 bg-black rounded-full"></div>
                         </div>
                     </div>
-                    <!-- 参考图预览区 -->
-                    <div id="refImagePreview" class="flex flex-wrap gap-2 mb-2" style="display:none;"></div>
                     <div class="flex items-center gap-2 mb-2 prompt-row">
                         <div id="smartPromptContainer"></div>
                         <div id="animaTagSwitcher" style="display:none;">
@@ -505,7 +552,7 @@
                         <button onclick="presetPickerOpen()" id="presetPickerBtn" class="anima-ctrl" title="提示词预设">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="btn-text" id="presetPickerBtnText"> 预设</span>
                         </button>
-                        <button onclick="initRefImageManager();if(_refImgMgr)_refImgMgr.upload()" id="refImageBtn" class="anima-ctrl" title="添加参考图">
+                        <button onclick="initRefImageManager();_refImgMgr.upload()" id="refImageBtn" class="anima-ctrl" title="参考图管理">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text" id="refImageBtnText"> 参考图</span>
                         </button>
                         <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" >
@@ -521,13 +568,23 @@
                         <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
                     </div>
-                    <div class="prompt-wrapper" style="position:relative;">
-                        <textarea id="prompt" rows="3" class="w-full bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="描述你想生成的画面..." style="padding-right:96px;min-height:80px;" oninput="this.value=this.value.replace(/`/g, '');updatePromptTags()"></textarea>
-                        <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border:none;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
-                        <!-- 翻译按键：仅在有内容时显示 -->
-                        <div id="translateBtnContainer"></div>
+                    <div class="flex gap-3 items-start">
+                        <div id="refImagePreview" class="ref-img-sidebar" style="display:none;"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="prompt-wrapper" style="position:relative;">
+                        <div id="prompt" contenteditable="true" data-placeholder="描述你想生成的画面..." class="prompt-editable bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 leading-relaxed" style="font-size:15px;min-height:80px;line-height:1.6;padding:8px 0;color:inherit;"></div>
+                        <div style="position:absolute;bottom:6px;right:6px;display:flex;align-items:center;gap:4px;z-index:5;">
+                            <!-- 清除提示词 -->
+                            <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" class="prompt-corner-btn" style="display:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                            <!-- 翻译 -->
+                            <div id="translateBtnContainer" style="width:28px;height:28px;flex-shrink:0;"></div>
+                            <!-- 提示词标签开关 -->
+                            <button id="promptTagsSwitch" onclick="togglePromptTagsVisibility()" title="提示词标签开关" class="prompt-corner-btn prompt-tags-switch-btn" style="display:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </button>
+                        </div>
                         <!-- 反推 Provider 切换 -->
                         <span class="flex items-center gap-1" style="font-size:10px;color:rgba(0,0,0,0.3);white-space:nowrap;margin-left:2px;">反推</span>
                         <div class="anima-ctrl-wrap anima-ctrl-wrap-reverse" style="position:relative;">
@@ -546,6 +603,8 @@
                                     </select>
                                 </div>
                             </div>
+                        </div>
+                    </div>
                         </div>
                     </div>
                     <!-- LoRA 激活栏：封面 + 强度调节 -->
@@ -758,6 +817,16 @@
             setTimeout(function(){ if (typeof renderLoraActiveBar === 'function') renderLoraActiveBar(); }, 100);
         }
 
+        // ── PromptTags 可见性开关 ──
+        window.promptTagsVisible = localStorage.getItem('prompt_tags_visible') !== 'false'; // 默认开启
+        function togglePromptTagsVisibility() {
+            window.promptTagsVisible = !window.promptTagsVisible;
+            localStorage.setItem('prompt_tags_visible', window.promptTagsVisible ? 'true' : 'false');
+            const sw = document.getElementById('promptTagsSwitch');
+            if (sw) sw.classList.toggle('active', window.promptTagsVisible);
+            updatePromptTags();
+        }
+
         // ── PromptTags 管理器兼容别名 ──
         if (typeof PromptTags !== 'undefined') {
             PromptTags.init();
@@ -780,10 +849,17 @@
             var _findActiveLoraByTrigger = (t) => PromptTags.findActiveLoraByTrigger ? PromptTags.findActiveLoraByTrigger(t) : null;
             var _onLoraPreviewStrength = (el, i) => PromptTags.onLoraStrength(el, i);
             window.updatePromptTags = updatePromptTags;
+            window.togglePromptTagsVisibility = togglePromptTagsVisibility;
             window.togglePromptLang = togglePromptLang;
             window.loadPresetI18n = loadPresetI18n;
             window.PROMPT_TAGS_LANG_MODE = window.PROMPT_TAGS_LANG_MODE || 'cn';
         }
+
+        // 初始化提示词标签开关按钮状态
+        (function initTagsSwitch() {
+            const sw = document.getElementById('promptTagsSwitch');
+            if (sw) sw.classList.toggle('active', window.promptTagsVisible);
+        })();
 
         // === 通用工具函数（纯函数，无副作用） ===
         // - splitPrompt(text)             : 把提示词按逗号拆成 token 数组（trim + 过滤空）
@@ -1750,8 +1826,112 @@
                 }
             });
             window._refImgMgr = _refImgMgr;
+
+            // 提示词框拖拽导入
+            (function () {
+                var pw = document.querySelector('.prompt-wrapper');
+                if (!pw) return;
+                var dc = 0;
+                pw.addEventListener('dragenter', function (e) {
+                    e.preventDefault(); e.stopPropagation();
+                    dc++;
+                    if (dc === 1) { pw.style.outline = '2px dashed rgba(0,180,216,0.8)'; pw.style.outlineOffset = '-2px'; pw.style.background = 'rgba(0,180,216,0.06)'; }
+                });
+                pw.addEventListener('dragleave', function (e) {
+                    e.preventDefault(); e.stopPropagation();
+                    dc--;
+                    if (dc <= 0) { dc = 0; pw.style.outline = ''; pw.style.background = ''; }
+                });
+                pw.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); });
+                pw.addEventListener('drop', function (e) {
+                    e.preventDefault(); e.stopPropagation(); dc = 0;
+                    pw.style.outline = ''; pw.style.background = '';
+                    var files = e.dataTransfer.files;
+                    if (files.length > 0) _refImgMgr.addFiles(files);
+                });
+            })();
         }
         document.addEventListener('DOMContentLoaded', initRefImageManager);
+
+        // ── prompt 输入框兼容层（textarea → contenteditable） ──
+        // 让 ta.value 之类的老代码继续工作
+        (function () {
+            function sync(el) { el.textContent = el.textContent.replace(/`/g, ''); }
+            function init() {
+                var el = document.getElementById('prompt');
+                if (!el || el._compatReady) return;
+                el._compatReady = true;
+
+                // 工具：从 prompt 中收集所有 ref chip（保留它们）
+                function preserveChips() {
+                    return Array.prototype.slice.call(el.querySelectorAll('.ref-chip'));
+                }
+
+                // 工具：恢复 chips 到 prompt 开头
+                function restoreChips(chips) {
+                    if (!chips || chips.length === 0) return;
+                    // 把每个 chip 重新塞到 prompt 第一个文字节点之前
+                    var firstText = null;
+                    for (var i = 0; i < el.childNodes.length; i++) {
+                        if (el.childNodes[i].nodeType === 3) { firstText = el.childNodes[i]; break; }
+                    }
+                    chips.forEach(function (chip) {
+                        el.insertBefore(chip, firstText);
+                    });
+                    // 每个 chip 后补一个空格
+                    chips.forEach(function (chip) {
+                        if (chip.nextSibling && chip.nextSibling.nodeType === 3) return;
+                        el.insertBefore(document.createTextNode(' '), chip.nextSibling);
+                    });
+                }
+
+                // .value getter/setter
+                Object.defineProperty(el, 'value', {
+                    get: function () {
+                        // 只返回文本节点（剔除 ref-chip 内联图片）
+                        var out = '';
+                        el.childNodes.forEach(function (n) {
+                            if (n.nodeType === 3) out += n.nodeValue; // text
+                            // 不取 .ref-chip（它们不参与提示词）
+                        });
+                        return out;
+                    },
+                    set: function (v) {
+                        // 关键修复：保留 .ref-chip 节点，只清掉文字节点
+                        var savedChips = preserveChips();
+                        var vStr = v == null ? '' : String(v);
+                        // 清掉所有非 ref-chip 子节点
+                        Array.prototype.slice.call(el.childNodes).forEach(function (n) {
+                            if (n.nodeType === 1 && n.classList && n.classList.contains('ref-chip')) return;
+                            el.removeChild(n);
+                        });
+                        // 插入新文字
+                        if (vStr) el.appendChild(document.createTextNode(vStr));
+                        // 恢复 chips
+                        restoreChips(savedChips);
+                        if (typeof updatePromptTags === 'function') updatePromptTags();
+                    }
+                });
+
+                // input 事件触发 updatePromptTags（兼容原 oninput）
+                el.addEventListener('input', function () {
+                    // 只清理反引号；不要重建结构（chip 仍保留）
+                    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+                    var n;
+                    while ((n = walker.nextNode())) {
+                        if (n.nodeValue.indexOf('`') >= 0) n.nodeValue = n.nodeValue.replace(/`/g, '');
+                    }
+                    if (typeof updatePromptTags === 'function') updatePromptTags();
+                });
+
+                // placeholder 通过 :empty::before 显示（CSS 已加）
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
 
         // ── 反推 Provider 管理 ──
         var _reverseProvider = 'auto';
@@ -2600,63 +2780,10 @@
                 }
             } catch (_) {}
 
-            // ---- LoRA：双向同步（手动增删触发词/文件名 ↔ loraState.active） ----
-            // 辅助：判断 prompt 中是否包含某个触发词（支持 (word:1.2) / [word] 等格式）
-            // 触发词可能含逗号（如 "@bstyle, bstyle"），拆开后任意一个匹配即可
-            function _loraPromptHas(lowerSet, parts, word) {
-                const subWords = word.includes(',') ? word.split(/,\s*/).filter(Boolean) : [word];
-                return subWords.some(sw => {
-                    const wl = sw.trim().toLowerCase().replace(/^@/, '');
-                    if (!wl) return false;
-                    if (lowerSet.has(wl) || lowerSet.has('@' + wl)) return true;
-                    return parts.some(p => {
-                        const t = p.toLowerCase();
-                        return t.includes(wl) || t.includes('@' + wl);
-                    });
-                });
-            }
-            try {
-                if (loraState && loraState.loraMap) {
-                    const prevCount = (loraState.active || []).length;
-
-                    // ① 移除：active 中触发词/文件名已不在 prompt 里的
-                    loraState.active = (loraState.active || []).filter(a => {
-                        if (!a || !a.name) return false;
-                        const meta = loraState.loraMap[a.name];
-                        const tw = (meta && meta.triggerWords) || [];
-                        if (tw.length > 0) {
-                            return tw.some(w => _loraPromptHas(lowerSet, parts, w));
-                        } else {
-                            const dn = (meta && meta.displayName ? meta.displayName : a.name.split('/').pop().replace(/\.safetensors$/i, ''));
-                            return _loraPromptHas(lowerSet, parts, dn);
-                        }
-                    });
-
-                    // ② 添加：prompt 中出现的触发词/文件名但 active 里还没有的
-                    const activeNames = new Set(loraState.active.map(a => a.name));
-                    for (const key of Object.keys(loraState.loraMap)) {
-                        if (activeNames.has(key)) continue;
-                        const entry = loraState.loraMap[key];
-                        if (!entry) continue;
-                        const tw = entry.triggerWords || [];
-                        let matched = false;
-                        if (tw.length > 0) {
-                            matched = tw.some(w => _loraPromptHas(lowerSet, parts, w));
-                        } else {
-                            const dn = (entry.displayName || key.split('/').pop().replace(/\.safetensors$/i, ''));
-                            matched = _loraPromptHas(lowerSet, parts, dn);
-                        }
-                        if (matched) {
-                            loraState.active.push({ name: key, strength: 0.8 });
-                        }
-                    }
-
-                    // ③ 同步触发词记录
-                    if (loraState.active.length !== prevCount) {
-                        _loraActiveTriggerWords = new Set(_loraCollectTriggerWords(loraState.active));
-                    }
-                }
-            } catch (_) {}
+            // ---- LoRA：自动按触发词/文件名匹配的功能已移除 ----
+            // 现在 LoRA 仅由用户在 LoRA 选择器中手动勾选，勾选结果记入图片生成参数。
+            // 不再根据提示词文本自动增删 loraState.active（避免写实提示词里的通用词
+            // 如 detailed/photorealistic/sharp 被误挂上对应 LoRA）。
 
             // ---- 刷新按钮高亮/角标 ----
             if (typeof updatePickerButtonsHighlight === 'function') {

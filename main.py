@@ -8655,10 +8655,16 @@ async def scan_lora_folder(subfolder: str = ""):
                 # 拆分 modelRoot + versionLabel,用于前端合并多版本
                 file_stem = os.path.splitext(f)[0]
                 model_root, version_label = _split_model_root(file_stem)
+                try:
+                    _mtime = os.path.getmtime(full_path)
+                except OSError:
+                    _mtime = 0
                 entries.append({
                     "name": rel_path_bs,
                     "modelRoot": model_root,
                     "versionLabel": version_label,
+                    # 文件修改时间(秒,浮点),供前端 "按 LoRA 添加时间" 排序使用
+                    "mtime": _mtime,
                 })
     return {
         "loras": sorted(loras),
