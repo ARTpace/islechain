@@ -28,9 +28,10 @@ const LoraManager = (function() {
         triggerWordMap: {},
         available: [],
         models: [],
-        modelFilter: 'all',
+        modelFilter: 'all',          // 兼容字段,string ('all' / unet folder)
+        modelFilterFolders: [],         // 多 folder 列表(来自 config.json);空数组 = 全部
         modelFilterLabel: null,
-        modelFilterFolder: null,
+        modelFilterFolder: null,        // 旧 UI 字段,等于 modelFilterFolders[0]
         active: [],
         scanEntries: null,
         groups: {}
@@ -574,16 +575,36 @@ const LoraManager = (function() {
         collectTriggerWords: (arr) => collectTriggerWords(arr),
         /** 注入 LoRA 节点到工作流 */
         injectNodes,
-        /** 获取筛选后的列表：按文件夹名匹配（modelFilter 来自工作流 unet 的文件夹前缀） */
+        /** 模糊匹配:忽略大小写、忽略所有空白字符 */
+        _normFolder: function(s) {
+            return String(s || '').toLowerCase().replace(/\s+/g, '');
+        },
+        /** 获取筛选后的列表:支持多 folder 列表 + 模糊匹配 */
         getFiltered: function() {
-            if (!state.modelFilter || state.modelFilter === 'all') return state.available;
-            return state.available.filter(n => (_extractFolder(n) || '').toLowerCase() === (state.modelFilter || '').toLowerCase());
+            const folders = state.modelFilterFolders;
+            if (!folders || folders.length === 0) return state.available;
+            const norm = folders.map(f => this._normFolder(f));
+            return state.available.filter(n => {
+                const f = this._normFolder(_extractFolder(n));
+                return norm.includes(f);
+            });
         },
         getModel: function(loraName) {
             const meta = state.loraMap[loraName];
             return meta ? meta.baseModel || _extractFolder(loraName) : _extractFolder(loraName);
         },
-        setModelFilter: function(model) { state.modelFilter = model; },
+        setModelFilter: function(model) {
+            // string 入参:空/all → 显示全部;否则 → 单元素数组
+            if (!model || model === 'all') {
+                state.modelFilter = 'all';
+                state.modelFilterFolders = [];
+                state.modelFilterFolder = null;
+            } else {
+                state.modelFilter = model;
+                state.modelFilterFolders = [model];
+                state.modelFilterFolder = model;
+            }
+        },
         /** 从 window.BUILTIN_WF_META 查找工作流元数据（按名/前缀匹配） */
         _builtinMeta: function(workflowName) {
             const list = window.BUILTIN_WF_META || [];
@@ -612,23 +633,41 @@ const LoraManager = (function() {
             }
             return null;
         },
-        /** 工作流 → 模型文件夹映射（用于按工作流筛选兼容 LoRA），动态推导 */
-        workflowToFolder: function(workflowName) {
+        /** 从 BUILTIN_WF_META 解析工作流对应的 LoRA folder 列表(多对一) */
+        _foldersFromMeta: function(workflowName) {
             const meta = this._builtinMeta(workflowName);
-            if (meta && meta.model_folder) return meta.model_folder;
-            return this._folderFromWfCache(workflowName); // 未知 → null（显示全部）
+            if (meta) {
+                if (Array.isArray(meta.model_folders) && meta.model_folders.length > 0) {
+                    return meta.model_folders.slice();
+                }
+                if (meta.model_folder) return [meta.model_folder];
+            }
+            return null;  // 没找到 → 走 unet 兜底
+        },
+        /** 工作流 → 模型文件夹列表(空数组 = 全部) */
+        workflowToFolders: function(workflowName) {
+            const list = this._foldersFromMeta(workflowName);
+            if (list) return list;
+            const one = this._folderFromWfCache(workflowName);
+            return one ? [one] : [];
+        },
+        /** 工作流 → 模型文件夹(旧接口,取第一个) */
+        workflowToFolder: function(workflowName) {
+            const list = this.workflowToFolders(workflowName);
+            return list.length > 0 ? list[0] : null;
         },
         /** 工作流 → 显示名映射，动态推导 */
         workflowToLabel: function(workflowName) {
             const meta = this._builtinMeta(workflowName);
             return (meta && meta.title) || null; // 未知 → null（显示“全部”）
         },
-        /** 根据当前工作流设置模型过滤 */
+        /** 根据当前工作流设置模型过滤(支持多 folder) */
         setWorkflowFilter: function(workflowName) {
-            const folder = this.workflowToFolder(workflowName);
-            state.modelFilter = folder || 'all';
+            const folders = this.workflowToFolders(workflowName) || [];
+            state.modelFilterFolders = folders;
+            state.modelFilter = (folders.length > 0 ? folders[0] : 'all');
             state.modelFilterLabel = this.workflowToLabel(workflowName) || '全部';
-            state.modelFilterFolder = folder;
+            state.modelFilterFolder = (folders.length > 0 ? folders[0] : null);
         },
         cnFolder,
         saveConfig,

@@ -95,6 +95,25 @@
         .lightbox-thumb.active { opacity:1; border-color:#00b4d8; box-shadow:0 0 12px rgba(0,180,216,0.5); }
         .lightbox-thumb img { width:100%; height:100%; object-fit:cover; }
         .masonry-item .model-badge { opacity:1 !important; position:absolute; bottom:12px; right:12px; z-index:10; }
+        /* 时间角标：左上角,让多列瀑布流用户一眼能确认排序 */
+        .masonry-item .time-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+            padding: 2px 6px;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.85);
+            font-family: 'SF Mono', 'Menlo', monospace;
+            letter-spacing: 0.02em;
+            pointer-events: none;
+            line-height: 1.2;
+        }
         #lightboxThumbnails { gap:8px; padding:8px 12px; overflow-x:auto; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; cursor:grab; display:flex; flex-wrap:nowrap; }
         #lightboxThumbnails:active { cursor:grabbing; }
         #lightboxThumbnails::-webkit-scrollbar { display:none; }
@@ -1237,11 +1256,11 @@
             } catch (e) {
                 // 回退：硬编码列表（仅网络异常时兜底）
                 BUILTIN_WF_META = [
-                    {name:'text2image/z-image.json', title:'Z-Image', has_unet:true, model_folder:'z-image', unet_name:''},
-                    {name:'text2image/anima.json', title:'ANIMA', has_unet:true, model_folder:'anima', unet_name:''},
-                    {name:'text2image/krea2-turbo.json', title:'Krea2', has_unet:true, model_folder:'Krea2', unet_name:''},
-                    {name:'text2image/ideogram4-structured.json', title:'Ideogram4 Structured', has_unet:true, model_folder:'ideogram4', unet_name:''},
-                    {name:'text2image/boogu-base.json', title:'Boogu', has_unet:true, model_folder:'boogu', unet_name:''},
+                    {name:'text2image/z-image.json', title:'Z-Image', has_unet:true, model_folder:'z-image', model_folders:['z-image'], unet_name:''},
+                    {name:'text2image/anima.json', title:'ANIMA', has_unet:true, model_folder:'anima', model_folders:['Anima'], unet_name:''},
+                    {name:'text2image/krea2-turbo.json', title:'Krea2', has_unet:true, model_folder:'Krea2', model_folders:['Krea 2'], unet_name:''},
+                    {name:'text2image/ideogram4-structured.json', title:'Ideogram4 Structured', has_unet:true, model_folder:'ideogram4', model_folders:['ideogram4'], unet_name:''},
+                    {name:'text2image/boogu-base.json', title:'Boogu', has_unet:true, model_folder:'boogu', model_folders:['boogu'], unet_name:''},
                 ];
             }
             _syncBuiltinMeta();
@@ -1290,8 +1309,8 @@
             const isCompatible = (modelName) => {
                 if (!modelName) return true;
                 if (prefixes === null) return true;
-                const lower = modelName.replace(/\\/g, '/').toLowerCase();
-                return prefixes.some(p => lower.startsWith(p.replace(/\\/g, '/').toLowerCase()));
+                const lower = _normFolderPart(modelName);
+                return prefixes.some(p => lower.startsWith(_normFolderPart(p)));
             };
             if (selectedUnetModel && !isCompatible(selectedUnetModel)) {
                 selectedUnetModel = '';
@@ -1411,6 +1430,26 @@
             if (!n) return '';
             return String(n).replace(/\\/g, '/').replace(/\.safetensors$/i, '').toLowerCase();
         }
+        // 规范化文件夹段：小写 + 去空格 + 反斜杠转正斜杠，用于跨平台 / 带空格文件夹前缀匹配。
+        // ComfyUI 里 Krea2 权重可能存于 "Krea2" 或 "Krea 2" 文件夹，两种写法都要命中前缀。
+        function _normFolderPart(s) {
+            return String(s).toLowerCase().replace(/\\/g, '/').replace(/\s+/g, '');
+        }
+        // 将用户选择的 UNET / Diffusion 模型写入工作流对应加载节点。
+        // 参考图编辑分支会重新 fetch 并覆盖 workflow，所以必须在覆盖后再次调用本函数。
+        function _applySelectedUnet(wf) {
+            if (!selectedUnetModel || !wf) return;
+            for (const nid in wf) {
+                const node = wf[nid];
+                if (!node || !node.inputs) continue;
+                if (node.class_type === 'UNETLoader' && node.inputs.unet_name !== undefined) {
+                    node.inputs.unet_name = selectedUnetModel;
+                }
+                if (node.class_type && node.class_type.includes('LoadDiffusionModel') && node.inputs.model_name !== undefined) {
+                    node.inputs.model_name = selectedUnetModel;
+                }
+            }
+        }
 
         // 主动加载当前工作流到 _wfCache（如果还没有），让 getCurrentWorkflowUnet 能在
         // 打开弹窗时就拿到工作流 JSON 中默认的 UNET 模型名，免去必须先跑一次才能高亮的体验。
@@ -1457,8 +1496,8 @@
                 const filteredItems = prefixes === null
                     ? g.items  // 未知模式显示全部
                     : g.items.filter(name => {
-                        const lower = name.replace(/\\/g, '/').toLowerCase();
-                        return prefixes.some(p => lower.startsWith(p.replace(/\\/g, '/').toLowerCase()));
+                        const lower = _normFolderPart(name);
+                        return prefixes.some(p => lower.startsWith(_normFolderPart(p)));
                     });
                 if (filteredItems.length === 0) return '';
                 const cards = filteredItems.map(name => {
@@ -1985,6 +2024,13 @@
         function refImageAutoSwitch() {
             var count = _refImgMgr ? _refImgMgr.getCount() : 0;
             var hasRef = count > 0;
+            var isKrea2 = currentWorkflow.toLowerCase().includes('krea2');
+            // Krea2 模式:导入参考图即走图片编辑工作流(单/双图),不切走模型
+            if (isKrea2) {
+                var rb = document.getElementById('refImageBtnText');
+                if (rb) rb.textContent = hasRef ? ' 参考图(Krea2编辑)' : ' 参考图';
+                return;
+            }
             var target = hasRef ? 'anima_图生图.json' : 'text2image/z-image.json';
             if (currentWorkflow !== target) {
 
@@ -2016,6 +2062,27 @@
 
         // tag 分隔符：英文逗号 + 中文标点（顿号、；，）
         const PROMPT_TAG_SPLITTER = /[，,、；;]/;
+
+        // 上传参考图到 ComfyUI 并返回 comfy_name 列表(按图片缓存,避免重复上传)
+        // 供 Krea2 图片编辑工作流注入 LoadImage 节点使用
+        async function ensureRefComfyNames() {
+            if (!_refImgMgr) return [];
+            const imgs = _refImgMgr.getFiles() || [];
+            const names = [];
+            for (const img of imgs) {
+                if (img._comfyName) { names.push(img._comfyName); continue; }
+                const fd = new FormData();
+                fd.append('files', img.file);
+                const res = await fetch('/api/upload', { method: 'POST', body: fd });
+                if (!res.ok) throw new Error('参考图上传失败: ' + res.status);
+                const data = await res.json();
+                const f = data.files && data.files[0];
+                if (!f || !f.comfy_name) throw new Error('参考图上传未返回文件名');
+                img._comfyName = f.comfy_name;
+                names.push(f.comfy_name);
+            }
+            return names;
+        }
 
         // === 主渲染逻辑 ===
         async function handleRender() {
@@ -2057,6 +2124,8 @@
             startProgress();
             // 锁定当前工作流，生成期间切换模型不影响保存路径
             const lockedWorkflow = currentWorkflow;
+            // 实际提交的工作流名: krea2 有参考图时会切换到 image-edit 工作流,这里记录真实使用的文件
+            let actualWorkflowName = currentWorkflow;
             const lockedFeatureName = lockedWorkflow.toLowerCase().includes('anima') ? 'anima' : lockedWorkflow.toLowerCase().includes('krea2') ? 'krea2' : lockedWorkflow.toLowerCase().includes('ideogram4') ? 'ideogram4' : lockedWorkflow.toLowerCase().includes('boogu') ? 'boogu' : 'zimage';
 
             // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
@@ -2086,21 +2155,8 @@
                 }
                 const seed = (_gc.seedMode === 'fixed' && _gc.fixedSeed > 0) ? _gc.fixedSeed : Math.floor(Math.random() * 10**15);
 
-                // 注入用户选择的 UNET 模型
-                if (selectedUnetModel) {
-                    for (const nid in workflow) {
-                        const node = workflow[nid];
-                        if (!node || !node.inputs) continue;
-                        // UNETLoader 节点
-                        if (node.class_type === 'UNETLoader' && node.inputs.unet_name !== undefined) {
-                            node.inputs.unet_name = selectedUnetModel;
-                        }
-                        // LoadDiffusionModelShared //Inspire 节点
-                        if (node.class_type && node.class_type.includes('LoadDiffusionModel') && node.inputs.model_name !== undefined) {
-                            node.inputs.model_name = selectedUnetModel;
-                        }
-                    }
-                }
+                // 注入用户选择的 UNET 模型（若已显式选择）
+                _applySelectedUnet(workflow);
 
                 if (currentWorkflow.toLowerCase().includes('anima')) {
                     // 解析提示词，分离角色和画师标签
@@ -2132,11 +2188,65 @@
                     if (workflow["69"]?.inputs) workflow["69"].inputs.batch_size = _gc.batchCount;
                     if (workflow["64"]?.inputs) workflow["64"].inputs.batch_size = _gc.batchCount;
                 } else if (currentWorkflow.toLowerCase().includes('krea2')) {
-                    // Krea2：直接注入 prompt、尺寸、seed
-                    const size = getAnimaSize();
-                    if (workflow["4"]?.inputs) workflow["4"].inputs.text = cleanPrompt;
-                    if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = _gc.batchCount; }
-                    if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
+                    // Krea2:根据是否导入参考图,决定走纯文生图还是图片编辑工作流
+                    const refNames = await ensureRefComfyNames();
+                    if (refNames.length > 0) {
+                        // 有参考图 → 图片编辑的 krea2 工作流(单图/双图按数量自动选)
+                        const useDual = refNames.length >= 2;
+                        const wfName = useDual ? 'image-edit/krea2-two_image-edit.json' : 'image-edit/krea2-image-edit.json';
+                        actualWorkflowName = wfName; // 记录真实提交的工作流,供历史复用
+                        const wfRes2 = await fetch('/api/workflows/' + encodeURIComponent(wfName));
+                        if (!wfRes2.ok) throw new Error('Krea2 图片编辑工作流加载失败');
+                        const env2 = await wfRes2.json();
+                        workflow = JSON.parse(JSON.stringify(env2.workflow || env2));
+                        // 重新 fetch 覆盖了 workflow,需再次注入用户选择的 UNET 权重
+                        _applySelectedUnet(workflow);
+                        if (useDual) {
+                            workflow["13"].inputs.image = refNames[0];
+                            workflow["14"].inputs.image = refNames[1];
+                            workflow["16"].inputs.prompt = cleanPrompt;
+                            workflow["6"].inputs.seed = seed;
+                        } else {
+                            workflow["23"].inputs.image = refNames[0];
+                            workflow["34"].inputs.prompt = cleanPrompt;
+                            workflow["8"].inputs.seed = seed;
+                        }
+                        // 注入目标比例 + 尺寸(1K/2K)到缩放节点 → 输出不再受参考图比例限制
+                        // 图片编辑页(klein.html)不注入此项,故保持 aspect_ratio='original' 原图比例
+                        const _size = getAnimaSize();
+                        const _scaleLen = Math.max(_size.width, _size.height);
+                        const _applyScale = (nd) => {
+                            if (nd && nd.inputs) {
+                                // 用 custom + 比例宽高,支持任意比例(ImageScaleByAspectRatio V2 的
+                                // aspect_ratio 枚举仅含 original/custom/1:1/3:2/4:3/16:9/2:3/3:4/9:16,
+                                // 直接写比例字符串对非枚举比例会触发校验报错,故统一走 custom)。
+                                nd.inputs.aspect_ratio = 'custom';
+                                nd.inputs.proportional_width = _gc.ratioW;
+                                nd.inputs.proportional_height = _gc.ratioH;
+                                nd.inputs.scale_to_length = _scaleLen;
+                                nd.inputs.fit = 'letterbox';
+                            }
+                        };
+                        if (useDual) { _applyScale(workflow["1"]); _applyScale(workflow["5"]); }
+                        else { _applyScale(workflow["24"]); }
+                        // 下方统一执行 injectLoraNodes / mergeExtraNegative(对 image-edit 同样安全)
+                    } else {
+                        // 纯文生图:沿用 krea2-turbo。
+                        // 若当前已是 image-edit 的 krea2 工作流(复用历史记录场景,用户未重新导入参考图),
+                        // 退回 krea2-turbo.json,避免往不存在的节点注入导致报错。
+                        if (!currentWorkflow.toLowerCase().includes('krea2-turbo')) {
+                            const wfRes0 = await fetch('/api/workflows/' + encodeURIComponent('text2image/krea2-turbo.json'));
+                            if (!wfRes0.ok) throw new Error('Krea2 工作流加载失败');
+                            const env0 = await wfRes0.json();
+                            workflow = JSON.parse(JSON.stringify(env0.workflow || env0));
+                            _applySelectedUnet(workflow);
+                            actualWorkflowName = 'text2image/krea2-turbo.json';
+                        }
+                        const size = getAnimaSize();
+                        if (workflow["4"]?.inputs) workflow["4"].inputs.text = cleanPrompt;
+                        if (workflow["6"]?.inputs) { workflow["6"].inputs.width = size.width; workflow["6"].inputs.height = size.height; workflow["6"].inputs.batch_size = _gc.batchCount; }
+                        if (workflow["7"]?.inputs) workflow["7"].inputs.seed = seed;
+                    }
                 } else if (currentWorkflow.toLowerCase().includes('ideogram4')) {
                     // Ideogram4：注入 prompt、尺寸、seed、质量控制
                     const size = getAnimaSize();
@@ -2267,7 +2377,7 @@
                     type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : lockedFeatureName === 'ideogram4' ? 'ideogram4' : lockedFeatureName === 'boogu' ? 'boogu' : 'zimage',
                     model: lockedFeatureName.toUpperCase(),
                     genParams: {
-                        workflow: lockedWorkflow,
+                        workflow: actualWorkflowName,
                         seed: seed,
                         width: _sz.width,
                         height: _sz.height,
@@ -2545,6 +2655,8 @@
                 try { document.querySelector('main')?.scrollTo({top:0, behavior:'smooth'}); } catch(_){}
             },
         });
+        // 接入批量管理：画廊图片「长按」进入批量模式（并预选该图），工具条含搜索/全选/删除
+        window.HistoryBulkManager?.attach({ masonry: '#masonry', longPressToSelect: true });
         // 移动工具栏到固定位置
         setTimeout(() => {
             const toolbar = document.querySelector('.history-bulk-toolbar');

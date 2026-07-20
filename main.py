@@ -7288,9 +7288,12 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                 elif not inp['text'] and req.prompt:
                     inp['text'] = req.prompt
             # latent 尺寸: EmptyLatentImage / Empty.*Latent
+            # krea2 的 EmptyLatent 尺寸由缩放后的原图(VAEEncode 的 source_latent)派生,
+            # 若强制覆盖成主图自然尺寸会与 source_latent 形状不匹配,故对 krea2 跳过覆盖
             if ('EmptyLatent' in ct or 'EmptyFlux' in ct) and 'width' in inp and 'height' in inp:
-                inp['width'] = req.width
-                inp['height'] = req.height
+                if req.type != 'krea2':
+                    inp['width'] = req.width
+                    inp['height'] = req.height
             # seed: KSampler / SamplerCustom 等
             if ct in ('KSampler', 'KSamplerAdvanced', 'SamplerCustom', 'SamplerCustomAdvanced'):
                 if 'seed' in inp:
@@ -9279,9 +9282,11 @@ def _extract_workflow_meta(filepath):
         sep_idx = max(unet_name.find("\\"), unet_name.find("/"))
         if sep_idx > 0:
             model_folder = unet_name[:sep_idx]
+    # model_folders 由 list_builtin_workflows 从 config.json 读后合并;此处先填空数组
     return {
         "unet_name": unet_name,
         "model_folder": model_folder,
+        "model_folders": [],
         "has_unet": has_unet,
     }
 
@@ -9307,12 +9312,20 @@ async def list_builtin_workflows():
             except Exception:
                 cfg = {}
         title = cfg.get("title") or os.path.basename(rel).replace(".json", "")
+        # model_folders 优先取 config.json,fallback 到 unet 解析的 model_folder
+        _mf = cfg.get("model_folders")
+        if isinstance(_mf, list) and _mf:
+            model_folders = _mf
+        else:
+            _unet_folder = (meta and meta.get("model_folder")) or ""
+            model_folders = [_unet_folder] if _unet_folder else []
         items.append({
             "name": rel,
             "title": title,
             "builtin": True,
             "has_unet": meta and meta.get("has_unet"),
-            "model_folder": (meta and meta.get("model_folder")) or "",
+            "model_folder": (model_folders[0] if model_folders else ((meta and meta.get("model_folder")) or "")),
+            "model_folders": model_folders,
             "unet_name": (meta and meta.get("unet_name")) or "",
         })
     return {"workflows": items}

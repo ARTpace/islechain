@@ -13,8 +13,8 @@
 // ── 状态 ─────────────────────────────────────────────────────────────
 let loraPickerAllItems = [];       // 全量 LoRA 数据
 let loraPickerSelected = [];       // 已选 LoRA [{name, strength}]
-let loraPickerCategory = 'all';    // 当前 folder 分类
-let loraPickerTagCategory = 'all'; // 当前 tag 大类分类
+let loraPickerModel = 'all';      // 当前一级分类(模型/顶层 folder,key 用 lowercase,display 用原名)
+let loraPickerSubcat = 'all';     // 当前二级分类(子目录,key 用 lowercase,'all'=该模型下全部)
 let loraPickerSearch = '';         // 搜索关键词
 let loraPickerCallback = null;     // 确认回调
 let loraPickerOnSelectionChange = null; // 实时选中变化回调（每次 toggle/remove 时触发）
@@ -26,6 +26,92 @@ let loraPickerCardSize = 'md';   // 卡片尺寸：sm/md/lg
 let loraPickerModelFilter = null;  // 当前模型过滤（文件夹名），null=不过滤
 let loraPickerModelLabel = null;   // 当前模型过滤显示名（如 "Z-Image"）
 let loraPickerShowAll = false;     // 用户是否点了"显示全部"
+
+// ── NSFW 状态 ──────────────────────────────────────────────────────────
+// loraPickerNsfwRevealed: 本次会话内已被用户点击"显示"的 LoRA key 集合
+let loraPickerNsfwRevealed = new Set();
+// loraPickerNsfwOverrides: localStorage 持久化的"强制标记/取消标记"字典 { key: true|false }
+//   true  = 强制 NSFW(即便 civitai 说不 NSFW)
+//   false = 强制非 NSFW(用户已确认)
+const LORA_PICKER_NSFW_OVERRIDES_KEY = 'loraPicker.nsfwOverrides';
+let loraPickerNsfwOverrides = {};
+try { loraPickerNsfwOverrides = JSON.parse(localStorage.getItem(LORA_PICKER_NSFW_OVERRIDES_KEY) || '{}') || {}; } catch (e) { loraPickerNsfwOverrides = {}; }
+
+// NSFW 启发式关键词(大小写不敏感)
+const LORA_PICKER_NSFW_KEYWORDS = [
+    'nsfw', 'nude', 'naked', 'nudity', 'sex', 'sexy', 'sexual', 'erotic', 'erotica',
+    'porn', 'pornography', 'hentai', 'xxx', 'adult', 'explicit', 'fetish',
+    'nsfw', 'uncensored', 'lewd', 'kinky',
+    '裸', '色情', '情色', '成人', '性爱', '情欲', '裸露'
+];
+function loraPickerIsNsfwName(name) {
+    if (!name) return false;
+    const s = String(name).toLowerCase();
+    return LORA_PICKER_NSFW_KEYWORDS.some(kw => s.includes(kw));
+}
+function loraPickerIsNsfwTags(tags) {
+    if (!tags) return false;
+    const list = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []);
+    return list.some(t => loraPickerIsNsfwName(t));
+}
+function loraPickerCheckCivitaiNsfw(civitai) {
+    if (!civitai) return false;
+    if (civitai.nsfw === true) return true;
+    if (civitai.nsfwLevel != null && Number(civitai.nsfwLevel) >= 4) return true;
+    if (civitai.nsfwLevel != null && Number(civitai.nsfwLevel) >= 1) return false; // 1-3 = 软,不算
+    return false;
+}
+/**
+ * 检查 LoraManager 返回的扁平条目中是否含 NSFW 标记。
+ * LoraManager 会返回 preview_nsfw_level(预览图的 NSFW 等级) 和 civitai 原始对象。
+ */
+function loraPickerCheckMetaNsfwFlat(meta) {
+    if (!meta) return false;
+    // LoraManager 扁平字段:preview_nsfw_level(预览图 NSFW 等级)
+    if (meta.preview_nsfw_level != null && Number(meta.preview_nsfw_level) >= 4) return true;
+    // 也可能顶层 nsfw
+    if (meta.nsfw === true) return true;
+    return false;
+}
+/**
+ * 综合判断某 LoRA 是否 NSFW(各路数据 OR,任一为真即 NSFW)
+ *  - localStorage 强制标记 / 强制取消标记
+ *  - civitai 官方 nsfw 字段
+ *  - tags / displayName 启发式
+ * @param {string} key - 卡片唯一 key(单 LoRA 用 name,组用 modelRoot)
+ * @param {object} meta - loraState.loraMap 对应条目(可空)
+ * @param {string} displayName
+ * @param {string[]} tags
+ */
+function loraPickerDetectNsfw(key, meta, displayName, tags) {
+    // 1. 强制 override 优先
+    if (Object.prototype.hasOwnProperty.call(loraPickerNsfwOverrides, key)) {
+        return !!loraPickerNsfwOverrides[key];
+    }
+    // 2. civitai 官方 / LoraManager 扁平字段
+    if (meta) {
+        if (loraPickerCheckCivitaiNsfw(meta.civitai)) return true;
+        if (loraPickerCheckMetaNsfwFlat(meta)) return true;
+    }
+    // 3. tags 启发式
+    if (loraPickerIsNsfwTags(tags)) return true;
+    // 4. displayName 启发式
+    if (loraPickerIsNsfwName(displayName)) return true;
+    return false;
+}
+function loraPickerToggleNsfwReveal(key) {
+    if (loraPickerNsfwRevealed.has(key)) loraPickerNsfwRevealed.delete(key);
+    else loraPickerNsfwRevealed.add(key);
+}
+function loraPickerSetNsfwOverride(key, val) {
+    if (val) loraPickerNsfwOverrides[key] = true;
+    else delete loraPickerNsfwOverrides[key];
+    try { localStorage.setItem(LORA_PICKER_NSFW_OVERRIDES_KEY, JSON.stringify(loraPickerNsfwOverrides)); } catch (e) {}
+}
+// 卡片 key 约定:单 LoRA 用 name,组用 modelRoot
+function loraPickerCardKey(item) {
+    return item.isGroup ? (item.modelRoot || item.name) : (item.name);
+}
 
 // 锁定顺序：打开选择器时计算一次（front-pin + 用户排序），运行期间点击不重排
 // 关闭时清空
@@ -279,122 +365,60 @@ const _PICKER_FOLDER_CN = {
 function pickerCnFolder(name) { return _PICKER_FOLDER_CN[name] || name; }
 
 // ── LoRA tag 大类映射 ────────────────────────────────────────────────
-// 与 ComfyUI-LoRA-Manager / civitai 习惯一致：按 tag / 文件名关键字归类到 14 大类
-// 注意：baseModel 名称（anima、illustrious、kanzarin 等）不作为分类关键词，
-//       否则会把所有"用 Anima 训练的 LoRA"都误归到 BASE MODEL
-const LORA_BIG_CATEGORIES = [
-    { key: 'all',        label: '全部' },
-    { key: 'character',  label: '角色',  match: ['character', 'girl', 'boy', 'woman', 'women', 'man', 'men', '人物', '角色', '女性', '男性', 'female', 'male', 'frieren', 'sousou no frieren', 'huge breasts', 'nsfw', 'nude', 'mature', 'face', 'mangaka', 'cosplay', 'frieren beyond journey', 'empress', 'emperor', 'princess', 'prince', 'royal', 'noble', '颜值', '女帝'] },
-    { key: 'style',      label: '风格',      match: ['style', 'styles', 'artstyle', 'artist', 'artists', 'manga', 'anime', 'cartoon', 'chinese', 'guofeng', '国风', 'illustrat', '996beshi', 'ink', 'painting', 'painterly', 'gothic', 'core', 'flat', 'blending', 'shadow', 'lineart', 'realistic', 'realism', 'animecore', '3d', 'cinematic', 'watercolor', 'sketch', 'doodle', 'monochrome', 'neon', '写实', '风格', 'filter'] },
-    { key: 'concept',    label: '概念',    match: ['concept', 'theme', 'idea', 'fantasy', 'scifi', 'cyberpunk', 'masterpiece', 'dark', 'dream', 'magic', 'epic', 'vintage', 'retro', 'futuristic'] },
-    { key: 'clothing',   label: '服装',   match: ['clothing', 'clothes', 'dress', 'costume', 'uniform', '服装', '衣服', 'outfit', 'armor', 'attire', 'wearing', 'wear', 'skin', 'hair', '衣服', '衣服提取', 'nude'] },
-    { key: 'base_model', label: '底模', match: ['base model', 'lycoris', 'lokr', 'loha', 'locon', 'lora', 'model', 'turbo', 'predistill', 'distill', 'lcm', 'detail', 'tweaker', 'slider', 'fix', 'fixer', 'color', '颜色', '强化', 'epoch', 'step', 'adapter', 'adetailer', 'nsfw', 'nudity', 'fluxgym', 'checkpoint'] },
-    { key: 'poses',      label: '姿势',      match: ['pose', 'poses', 'body', '动作', 'gesture', '动作学习', 'anypose', '姿势', 'posture', 'cospose', 'angle'] },
-    { key: 'background', label: '背景', match: ['background', 'bg', 'scenery', 'landscape', '背景', 'scene', 'environment', 'enchancer', 'enhancer', 'photo-background', 'view'] },
-    { key: 'tool',       label: '工具',       match: ['tool', 'utility', 'helper', 'helper-', 'lrzjason', 'flux2klein', 'anime2real', 'anything2real', '2real', '2anime', '转换', '转真人', 'qwen', 'edit', '编辑', 'editplus', 'controlnet', 'control', 'imgedit', 'recolor', 'restore', 'upscale'] },
-    { key: 'assets',     label: '素材',     match: ['asset', 'assets', 'resource', 'library', 'pack', 'bundle', 'checkpoint'] },
-    { key: 'vehicle',    label: '载具',    match: ['vehicle', 'car', 'mecha', 'ship', 'boat', 'aircraft', '车辆', 'plane', 'tank', '火车'] },
-    { key: 'buildings',  label: '建筑',  match: ['building', 'architecture', 'house', '建筑', 'castle', 'city', 'tower', 'palace', 'coruscant'] },
-    { key: 'objects',    label: '物品',    match: ['object', 'prop', 'item', '物品', '道具', 'thing', 'stuff', 'gem', 'sword', 'weapon', 'artifact', 'crystal'] },
-    { key: 'animal',     label: '动物',     match: ['animal', 'cat', 'dog', 'creature', 'beast', '动物', 'bird', 'dragon', 'monster', 'fish', 'horse', 'wolf', 'fox', 'pet'] },
-    { key: 'action',     label: '动作',     match: ['action', 'emotion', 'expression', '表情', '战斗', 'fighting', '动作', '动态', 'dynamic', 'movement', 'dance'] }
-];
-
-// 把字符串切成可比较的"词元"，避免 "anima" 误匹配 "man"、"anime" 误匹配 "nim"
-// 切分规则：先按非字母数字/中文切，再按大小写转换边界切
-// 例：AnimaNSS5anime → [anima, nss5, anime]、frieren_beyond_journey → [frieren, beyond, journey]
-function _loraTokenize(s) {
-    if (!s) return [];
-    let s2 = String(s);
-    // 1) 在大写转小写的驼峰边界插入分隔符（AnimaNSS5anime → Anima NSS 5 anime）
-    s2 = s2.replace(/([a-z])([A-Z])/g, '$1 $2');
-    s2 = s2.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
-    s2 = s2.replace(/([0-9])([A-Za-z])/g, '$1 $2');
-    s2 = s2.replace(/([A-Za-z])([0-9])/g, '$1 $2');
-    s2 = s2.toLowerCase();
-    // 2) 按非字母数字 / 非中文 切
-    return s2.split(/[^a-z0-9\u4e00-\u9fa5]+/i).filter(Boolean);
+// ── 树形分类：按磁盘路径层级 ──────────────────────────────────
+// 把 "Anima/style/foo.safetensors" 拆成 { modelKey:"anima", modelDisplay:"Anima", subKey:"style", subDisplay:"style" }
+// 平铺在根目录的（无子目录）→ subKey = "__root__"（空字符串容易被误判）
+// 内部 key 一律 lowercase，大小写合并去重；display 用首次扫到的原始大小写
+function _loraPickerSplitPath(name) {
+    const norm = String(name || '').replace(/\\/g, '/');
+    const parts = norm.split('/').filter(Boolean);
+    if (parts.length <= 1) {
+        return { modelKey: '', modelDisplay: '通用', subKey: '__root__', subDisplay: '根目录' };
+    }
+    const modelRaw = parts[0];
+    const subRaw = parts.length >= 3 ? parts[1] : '__root__';
+    return {
+        modelKey: modelRaw.toLowerCase(),
+        modelDisplay: modelRaw,
+        subKey: subRaw.toLowerCase(),
+        subDisplay: subRaw === '__root__' ? '根目录' : subRaw
+    };
 }
 
-// tag 匹配改为 token 匹配：tag 本身作为整体词元参与比较；fileName/folder/baseModel 拆 token 后比较
-// 对长 token 做"子串搜索"，能匹配到 "Gentleeeeeeecat" → "cat"、"danimeface" → "anime" / "face"
-// 注意：子串匹配要求 匹配词 ≥ 4 字符，避免 "man" 子串误判 "animaNSS8" → "man"
-// 例外：超长 token（≥10 字符，明显是多词合并串）才允许 3 字符匹配词做子串
-// 例外：中文 token 任何长度都允许子串匹配（中文组合词的子串比较安全）
-function _loraMatchTokens(targetTokens, matchList) {
-    // 把所有 match 词展平为一个"匹配词集合"
-    const flat = [];
-    for (const ml of matchList) {
-        const t = _loraTokenize(ml);
-        if (t.length > 0) flat.push(...t);
-    }
-    if (flat.length === 0) return false;
-
-    const isChinese = s => /[\u4e00-\u9fa5]/.test(s);
-    for (const tk of targetTokens) {
-        if (tk.length === 0) continue;
-        // 1) 精确匹配（任意长度的匹配词都可命中，避免漏掉短词如 "cat"）
-        if (flat.includes(tk)) return true;
-        // 2) 中文 token：放宽子串匹配（任意匹配词长度）
-        if (isChinese(tk) && tk.length >= 2) {
-            for (const m of flat) {
-                if (m.length < 2) continue;
-                if (tk.includes(m)) return true;
-            }
-        }
-        // 3) 英文 token 做子串匹配
-        if (tk.length >= 5) {
-            for (const m of flat) {
-                if (m.length < 4) continue; // 默认 3 字符匹配词不做子串
-                if (tk.includes(m)) return true;
-            }
-            // 例外：≥10 字符的多词合并串，允许 3 字符匹配词做子串
-            // 例：Gentleeeeeeecat(15) → "cat"、starcat_anima → "cat"
-            if (tk.length >= 10) {
-                for (const m of flat) {
-                    if (m.length !== 3) continue;
-                    if (tk.includes(m)) return true;
-                }
-            }
-        }
-    }
-    return false;
+// 一级分类（模型）前的 emoji：按 modelKey 匹配，未匹配的用默认
+const _LORA_MODEL_EMOJI = {
+    'anima': '🎭', 'z-image': '🖼️', 'zimage': '🖼️',
+    'qwen': '🐼', 'qwen-edit': '✏️',
+    'flux1': '🌊', 'flux2': '🌊', 'flux': '🌊',
+    'krea 2': '✨', 'krea2': '✨',
+    'ltxv 2.3': '🎬', 'ltxv2': '🎬', 'ltxv': '🎬',
+    'recipes': '📜',
+    'custom_anima': '🎭', 'custom_flux2': '🌊', 'custom_qwen': '🐼', 'custom_zimage': '🖼️'
+};
+function _loraPickerModelEmoji(modelKey) {
+    return _LORA_MODEL_EMOJI[modelKey] || '📦';
 }
 
-// 把 LoRA 的 tag 归到第一个匹配的大类；无 tag 或不匹配任何类别时返回 'all'
-// item 可选：{ name, folder, baseModel } —— 用于 fallback 分类（无 tags 的本地 LoRA）
-function loraPickerMapToBigCategory(tagsArr, item) {
-    // ① tags 路径：把每个 tag 当作一个独立"词元集合"（不再拆词，避免误判）
-    const norm = Array.isArray(tagsArr)
-        ? tagsArr.map(t => _loraTokenize(t)).filter(a => a.length > 0)
-        : [];
-
-    for (const cat of LORA_BIG_CATEGORIES) {
-        if (cat.key === 'all') continue;
-        for (const tTokens of norm) {
-            if (_loraMatchTokens(tTokens, cat.match)) return cat.key;
+// 收集树形分类：{ modelKey: { display, total, subs: { subKey: { display, count } } } }
+// 规则：
+//   - modelKey / subKey 用 lowercase
+//   - display 用首次扫到的原始大小写
+//   - 大小写合并：Anime / anime 视为同一个 subKey，display 保留先到那个
+//   - 计数为 0 的子目录不展示（渲染层过滤）
+function _loraPickerBuildTree(items) {
+    const tree = {};
+    for (const it of items || []) {
+        const p = _loraPickerSplitPath(it.name);
+        if (!tree[p.modelKey]) {
+            tree[p.modelKey] = { display: p.modelDisplay, total: 0, subs: {} };
         }
+        const m = tree[p.modelKey];
+        m.total += 1;
+        const sub = m.subs[p.subKey] || { display: p.subDisplay, count: 0 };
+        sub.count += 1;
+        if (!m.subs[p.subKey]) m.subs[p.subKey] = sub;
     }
-
-    // ② fallback：把 fileName / folder / baseModel 拆词后比较
-    if (item) {
-        const fileBase = (item.displayName || item.name || '').toLowerCase();
-        const fileFull = String(item.name || '').toLowerCase();
-        const folder = String(item.folder || '').toLowerCase();
-        const base = String(item.baseModel || '').toLowerCase();
-        const pseudo = [fileBase, fileFull, folder, base]
-            .filter(Boolean)
-            .map(s => _loraTokenize(s))
-            .filter(a => a.length > 0);
-        for (const cat of LORA_BIG_CATEGORIES) {
-            if (cat.key === 'all') continue;
-            for (const tTokens of pseudo) {
-                if (_loraMatchTokens(tTokens, cat.match)) return cat.key;
-            }
-        }
-    }
-
-    return 'all';
+    return tree;
 }
 
 // ── 初始化 ──────────────────────────────────────────────────────────
@@ -479,8 +503,8 @@ async function loraPickerOpen(callback) {
     loraPickerInit();
     loraPickerCallback = callback;
     loraPickerSearch = '';
-    loraPickerCategory = 'all';
-    loraPickerTagCategory = 'all';
+    loraPickerModel = 'all';
+    loraPickerSubcat = 'all';
     loraPickerRestoreSort();  // 恢复上次选择的排序模式
     loraPickerRestoreSize();  // 恢复上次卡片尺寸
     // 同步排序下拉的显示
@@ -493,7 +517,11 @@ async function loraPickerOpen(callback) {
     // 初始化模型过滤状态
     loraPickerShowAll = false;
     if (typeof loraState !== 'undefined') {
-        loraPickerModelFilter = loraState.modelFilterFolder || null;
+        // 优先用新的 folders 列表(支持多 folder);旧字段做兜底
+        const _folders = loraState.modelFilterFolders && loraState.modelFilterFolders.length > 0
+            ? loraState.modelFilterFolders
+            : (loraState.modelFilterFolder ? [loraState.modelFilterFolder] : []);
+        loraPickerModelFilter = _folders.length > 0 ? _folders : null;  // 数组或 null
         loraPickerModelLabel = loraState.modelFilterLabel || null;
     }
 
@@ -624,8 +652,11 @@ function loraPickerToggleShowAll() {
 // ── 外部刷新数据（工作流切换时调用）─────────────────────────
 function loraPickerRefreshData(resetPage) {
     if (typeof loraState === 'undefined') return;
-    // 同步模型过滤状态
-    loraPickerModelFilter = loraState.modelFilterFolder || null;
+    // 同步模型过滤状态(支持多 folder)
+    const _folders = loraState.modelFilterFolders && loraState.modelFilterFolders.length > 0
+        ? loraState.modelFilterFolders
+        : (loraState.modelFilterFolder ? [loraState.modelFilterFolder] : []);
+    loraPickerModelFilter = _folders.length > 0 ? _folders : null;  // 数组或 null
     loraPickerModelLabel = loraState.modelFilterLabel || null;
     // 重新构建全量数据
     const groupedNames = new Set();
@@ -635,7 +666,9 @@ function loraPickerRefreshData(resetPage) {
             groupedNames.add(v.name);
         }
     }
-    const availableNames = (loraPickerModelFilter && !loraPickerShowAll && typeof LoraManager !== 'undefined')
+    // 防御性兼容:loraPickerModelFilter 可能是 string(老路径)或 array(新路径)
+    if (typeof loraPickerModelFilter === 'string') loraPickerModelFilter = [loraPickerModelFilter];
+    const availableNames = (loraPickerModelFilter && loraPickerModelFilter.length > 0 && !loraPickerShowAll && typeof LoraManager !== 'undefined')
         ? LoraManager.getFiltered()
         : loraState.available;
     const singles = availableNames
@@ -651,13 +684,17 @@ function loraPickerRefreshData(resetPage) {
                 baseModel: meta.baseModel || '',
                 addedTime: meta.addedTime || 0
             };
+            const _displayName = item.displayName;
+            const _tags = tags;
+            const _key = item.name;
             return {
                 ...item,
                 preview: meta.preview || '',
                 videoUrl: meta.videoUrl || '',
                 tags: tags,
-                tagCategory: loraPickerMapToBigCategory(tags, item),
-                isGroup: false
+                // 分类已改为按路径层级，不再需要 tagCategory 字段
+                isGroup: false,
+                isNsfw: loraPickerDetectNsfw(_key, meta, _displayName, _tags)
             };
         });
     // 构建可用名称集合用于组过滤
@@ -684,6 +721,19 @@ function loraPickerRefreshData(resetPage) {
         }
         const allTags = Array.from(allTagsSet);
         const gItem = { name: g.modelRoot, displayName: g.displayName, folder: gFolder, baseModel: gBase };
+        // 组的 NSFW 判断:遍历所有版本,任一版本 NSFW 即整组 NSFW
+        const _gKey = g.modelRoot;
+        let _gIsNsfw = Object.prototype.hasOwnProperty.call(loraPickerNsfwOverrides, _gKey)
+            ? !!loraPickerNsfwOverrides[_gKey]
+            : loraPickerDetectNsfw(_gKey, null, g.displayName, allTags);
+        if (!_gIsNsfw) {
+            for (const v of g.versions) {
+                const vMeta = loraState.loraMap[v.name] || {};
+                const vDisplay = (vMeta.displayName) || v.name;
+                const vTags = vMeta.tags || [];
+                if (loraPickerDetectNsfw(v.name, vMeta, vDisplay, vTags)) { _gIsNsfw = true; break; }
+            }
+        }
         return {
             name: g.modelRoot,
             modelRoot: g.modelRoot,
@@ -691,8 +741,9 @@ function loraPickerRefreshData(resetPage) {
             preview: cur.preview || '',
             videoUrl: cur.videoUrl || '',
             tags: allTags,
-            tagCategory: loraPickerMapToBigCategory(allTags, gItem),
+            // 分类已改为按路径层级，不再需要 tagCategory 字段
             isGroup: true,
+            isNsfw: _gIsNsfw,
             folder: gFolder,
             baseModel: gBase,
             addedTime: g.addedTime || 0,
@@ -710,42 +761,34 @@ function loraPickerRefreshData(resetPage) {
 }
 window.loraPickerRefreshData = loraPickerRefreshData;
 
+// ── NSFW 揭面：本会话内点击“显示” → 取消该卡片的模糊遮罩
+function loraPickerRevealNsfw(key) {
+    loraPickerToggleNsfwReveal(key);
+    // 清掉该卡片的 HTML 缓存(下次 build 会重新生成不带遮罩的版本)
+    // 实际 cache key 是 's::name' / 'g::modelRoot',用 s::/g:: 前缀试试
+    if (loraPickerCardHtmlCache && loraPickerCardHtmlCache.delete) {
+        loraPickerCardHtmlCache.delete('s::' + key);
+        loraPickerCardHtmlCache.delete('g::' + key);
+    }
+    // 重新渲染整页 grid(简单可靠)
+    if (typeof loraPickerRenderGrid === 'function') {
+        loraPickerRenderGrid();
+    }
+}
+window.loraPickerRevealNsfw = loraPickerRevealNsfw;
+
 // ── 获取分类列表 ──────────────────────────────────────────────────
 function loraPickerGetCategories() {
-    const cats = {};
-    for (const item of loraPickerAllItems) {
-        const cat = item.folder || '通用';
-        cats[cat] = (cats[cat] || 0) + 1;
+    // 旧接口保留（返回一级 map），内部走树形工具
+    const tree = _loraPickerBuildTree(loraPickerAllItems);
+    const out = { 'all': loraPickerAllItems.length };
+    for (const k of Object.keys(tree)) {
+        out[k] = tree[k].total;
     }
-    return cats;
+    return out;
 }
 
-// ── tag 大类列表（按 LORA_BIG_CATEGORIES 顺序输出，count=0 的不展示）──
-// 按当前左侧 folder 过滤后再统计，让分类数量反映"当前文件夹下各 tag 分类有多少个"
-function loraPickerGetTagCategories() {
-    // 1) 先按 folder 过滤（与 GetFiltered 第 1 步保持一致）
-    const folderList = loraPickerCategory === 'all'
-        ? loraPickerAllItems
-        : loraPickerAllItems.filter(item => (item.folder || '通用') === loraPickerCategory);
-    const counts = { all: folderList.length };
-    for (const item of folderList) {
-        const k = item.tagCategory || 'all';
-        counts[k] = (counts[k] || 0) + 1;
-    }
-    return counts;
-}
-
-// ── 选择 tag 大类 ─────────────────────────────────────────────
-function loraPickerSelectTagCategory(key) {
-    loraPickerTagCategory = key;
-    loraPickerPage = 1;
-    loraPickerRenderSidebar();
-    loraPickerRenderGrid();
-    loraPickerUpdateFooter();
-    // 预热当前页图片（前 12 张）
-    const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
-    if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
-}
+// （旧的 tag 大类相关函数已删除——按用户要求改为按文件夹层级分类）
 
 // ── 锁定顺序：按当前排序对全部 LoRA 排序，并把已选 pin 到前面 ──
 function loraPickerBuildFrozenOrder() {
@@ -758,13 +801,19 @@ function loraPickerGetFiltered() {
     let list = loraPickerFrozenOrder
         ? loraPickerFrozenOrder.slice()
         : loraPickerAllItems;
-    // 1) folder 维度
-    if (loraPickerCategory !== 'all') {
-        list = list.filter(item => (item.folder || '通用') === loraPickerCategory);
+    // 1) 一级 model 维度（按 modelKey 比对）
+    if (loraPickerModel !== 'all') {
+        list = list.filter(item => {
+            const p = _loraPickerSplitPath(item.name);
+            return p.modelKey === loraPickerModel;
+        });
     }
-    // 2) tag 大类维度
-    if (loraPickerTagCategory !== 'all') {
-        list = list.filter(item => (item.tagCategory || 'all') === loraPickerTagCategory);
+    // 2) 二级 sub 维度（在已选 model 内，按 subKey 比对）
+    if (loraPickerSubcat !== 'all') {
+        list = list.filter(item => {
+            const p = _loraPickerSplitPath(item.name);
+            return p.subKey === loraPickerSubcat;
+        });
     }
     // 3) 搜索
     if (loraPickerSearch) {
@@ -835,11 +884,11 @@ function loraPickerSortList(list) {
     return arr;
 }
 
-// ── 渲染侧边栏 ──────────────────────────────────────────────────
+// ── 渲染侧边栏（树形） ──────────────────────────────────────────
 function loraPickerRenderSidebar() {
     const el = document.getElementById('loraPickerSidebar');
     if (!el) return;
-    const cats = loraPickerGetCategories();
+    const tree = _loraPickerBuildTree(loraPickerAllItems);
     const totalCount = loraPickerAllItems.length;
 
     let html = '';
@@ -848,59 +897,91 @@ function loraPickerRenderSidebar() {
     if (loraPickerModelFilter && !loraPickerShowAll) {
         html += '<div class="lora-sidebar-model-bar">';
         html += '<div class="lora-sidebar-model-label">模型筛选</div>';
-        html += '<div class="lora-sidebar-model-chip">' + (loraPickerModelLabel || loraPickerModelFilter) + '</div>';
+        // 兼容 array / string;array 用 ', ' 连接显示
+        const _mfDisplay = Array.isArray(loraPickerModelFilter) ? loraPickerModelFilter.join(', ') : loraPickerModelFilter;
+        html += '<div class="lora-sidebar-model-chip">' + (loraPickerModelLabel || _mfDisplay) + '</div>';
         html += '<button class="lora-sidebar-model-btn" onclick="loraPickerToggleShowAll()">显示全部</button>';
         html += '</div>';
         html += '<div class="lora-sidebar-divider"></div>';
     }
 
-    // ── section: Folder 分类 ──
+    // ── 全部 ──
     html += '<div class="lora-sidebar-section">';
-    html += '<div class="lora-cat-item ' + (loraPickerCategory === 'all' ? 'active' : '') + '" onclick="loraPickerSelectCategory(\'all\')">' +
-        '<span>全部</span>' +
+    const allActive = (loraPickerModel === 'all' && loraPickerSubcat === 'all');
+    html += '<div class="lora-cat-item lora-cat-root ' + (allActive ? 'active' : '') + '" onclick="loraPickerSelectModel(\'all\')">' +
+        '<span class="lora-cat-emoji">📚</span>' +
+        '<span class="lora-cat-label">全部</span>' +
         '<span class="lora-cat-count">' + totalCount + '</span>' +
     '</div>';
-
-    const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
-    for (const [cat, count] of sorted) {
-        const safeCat = cat.replace(/'/g, "\\'");
-        html += '<div class="lora-cat-item ' + (loraPickerCategory === cat ? 'active' : '') + '" onclick="loraPickerSelectCategory(\'' + safeCat + '\')">' +
-            '<span>' + cat + '</span>' +
-            '<span class="lora-cat-count">' + count + '</span>' +
-        '</div>';
-    }
     html += '</div>';
 
-    // ── section: Tag 大类 ──
-    const tagCounts = loraPickerGetTagCategories();
-    html += '<div class="lora-sidebar-divider"></div>';
-    html += '<div class="lora-sidebar-section">';
-    for (const cat of LORA_BIG_CATEGORIES) {
-        const count = tagCounts[cat.key] || 0;
-        if (cat.key !== 'all' && count === 0) continue;
-        const isActive = loraPickerTagCategory === cat.key;
-        const safeKey = cat.key.replace(/'/g, "\\'");
-        html += '<div class="lora-tag-item ' + (isActive ? 'active' : '') + '" onclick="loraPickerSelectTagCategory(\'' + safeKey + '\')">' +
-            '<span>' + cat.label + '</span>' +
-            '<span class="lora-cat-count">' + count + '</span>' +
+    // ── 一级：按总数降序排 ──
+    const entries = Object.entries(tree).sort((a, b) => b[1].total - a[1].total);
+    for (const [modelKey, m] of entries) {
+        const isModelActive = (loraPickerModel === modelKey);
+        const emoji = _loraPickerModelEmoji(modelKey);
+        const safeModel = modelKey.replace(/'/g, "\\'");
+        html += '<div class="lora-sidebar-section">';
+        html += '<div class="lora-cat-item lora-cat-model ' + (isModelActive ? 'active' : '') + '" onclick="loraPickerSelectModel(\'' + safeModel + '\')">' +
+            '<span class="lora-cat-emoji">' + emoji + '</span>' +
+            '<span class="lora-cat-label">' + m.display + '</span>' +
+            '<span class="lora-cat-count">' + m.total + '</span>' +
         '</div>';
+
+        // 二级：只在当前 model 激活时展开；按子目录计数降序
+        if (isModelActive) {
+            const subEntries = Object.entries(m.subs)
+                .filter(([subKey, sub]) => sub.count > 0)
+                .sort((a, b) => b[1].count - a[1].count);
+            for (const [subKey, sub] of subEntries) {
+                const isSubActive = (loraPickerSubcat === subKey);
+                const safeSub = subKey.replace(/'/g, "\\'");
+                html += '<div class="lora-cat-item lora-cat-sub ' + (isSubActive ? 'active' : '') + '" onclick="loraPickerSelectSub(\'' + safeModel + '\', \'' + safeSub + '\')">' +
+                    '<span class="lora-cat-sub-indent">└</span>' +
+                    '<span class="lora-cat-label">' + sub.display + '</span>' +
+                    '<span class="lora-cat-count">' + sub.count + '</span>' +
+                '</div>';
+            }
+            if (loraPickerSubcat !== 'all') {
+                html += '<div class="lora-cat-item lora-cat-sub-reset" onclick="loraPickerSelectSub(\'' + safeModel + '\', \'all\')">' +
+                    '<span class="lora-cat-sub-indent">└</span>' +
+                    '<span class="lora-cat-label">查看全部</span>' +
+                '</div>';
+            }
+        }
+        html += '</div>';
     }
-    html += '</div>';
 
     el.innerHTML = html;
 }
 
-// ── 选择分类 ─────────────────────────────────────────────────────
-function loraPickerSelectCategory(cat) {
-    loraPickerCategory = cat;
-    loraPickerTagCategory = 'all';
+// ── 选择一级 model ─────────────────────────────────────────────
+function loraPickerSelectModel(modelKey) {
+    loraPickerModel = modelKey || 'all';
+    loraPickerSubcat = 'all';  // 切一级时重置二级
     loraPickerPage = 1;
     loraPickerRenderSidebar();
     loraPickerRenderGrid();
     loraPickerUpdateFooter();
-    // 预热当前页图片（前 12 张）
     const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
     if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
+}
+
+// ── 选择二级 sub ─────────────────────────────────────────────
+function loraPickerSelectSub(modelKey, subKey) {
+    if (modelKey) loraPickerModel = modelKey;
+    loraPickerSubcat = subKey || 'all';
+    loraPickerPage = 1;
+    loraPickerRenderSidebar();
+    loraPickerRenderGrid();
+    loraPickerUpdateFooter();
+    const visibleNow = loraPickerGetFiltered().slice(0, loraPickerPageSize);
+    if (visibleNow.length > 0) loraPickerPrewarmPreviews(visibleNow, 12);
+}
+
+// 保留旧名以防外部引用（返回一级全部，二级 all）
+function loraPickerSelectCategory(cat) {
+    loraPickerSelectModel(cat === 'all' ? 'all' : (cat || 'all'));
 }
 
 // ── 渲染已选条 ──────────────────────────────────────────────────
@@ -975,6 +1056,19 @@ function loraPickerBuildCardHtml(item) {
     }
     const placeholderDisplay = (item.videoUrl || item.preview) ? 'none' : 'flex';
 
+    // NSFW 覆盖层:封面模糊 + 黑遮罩 + "X 级内容" + "显示"按钮
+    let nsfwOverlayHtml = '';
+    if (item.isNsfw) {
+        const _cardKey = loraPickerCardKey(item);
+        const _revealed = loraPickerNsfwRevealed.has(_cardKey);
+        if (!_revealed) {
+            nsfwOverlayHtml = '<div class="lora-card-nsfw-overlay" data-card-key="' + _cardKey.replace(/"/g, '&quot;') + '">' +
+                '<div class="lora-card-nsfw-badge">X 级内容</div>' +
+                '<button type="button" class="lora-card-nsfw-reveal" data-card-key="' + _cardKey.replace(/"/g, '&quot;') + '" onclick="event.stopPropagation();loraPickerRevealNsfw(this.dataset.cardKey)">显示</button>' +
+            '</div>';
+        }
+    }
+
     // 多版本组：当前显示的版本标签（右上角小角标）
     let versionBadgeHtml = '';
     if (item.isGroup && item.versions && item.versions.length > 0) {
@@ -999,10 +1093,11 @@ function loraPickerBuildCardHtml(item) {
 
     // 卡片基础结构（不含 selected class、不含强度条）
     // 通过在根 div 上加 data-key 标识，方便后续局部更新选中状态
-    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')" title="' + item.displayName + '\n' + (item.baseModel || '') + '\n' + (item.tags || '') + '">' +
+    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + (item.isNsfw && !loraPickerNsfwRevealed.has(loraPickerCardKey(item)) ? ' is-nsfw' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')" title="' + item.displayName + '\n' + (item.baseModel || '') + '\n' + (item.tags || '') + '">' +
         mediaHtml +
         versionBadgeHtml +
         usageBadgeHtml +
+        nsfwOverlayHtml +
         '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
             '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
         '</div>' +

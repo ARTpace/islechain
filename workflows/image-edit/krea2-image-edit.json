@@ -1,27 +1,57 @@
 {
-  "53": {
+  "4": {
     "inputs": {
-      "seed": 744412641671367,
+      "unet_name": "Krea2\\sinoxeditKrea2Uncen_v10Int8Convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET加载器"
+    }
+  },
+  "5": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "6": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "8": {
+    "inputs": {
+      "seed": 767363502904256,
       "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
-      "scheduler": "simple",
+      "scheduler": "beta",
       "denoise": 1,
       "model": [
-        "101",
+        "30",
         0
       ],
       "positive": [
-        "101",
-        1
+        "28",
+        0
       ],
       "negative": [
-        "101",
-        2
+        "29",
+        0
       ],
       "latent_image": [
-        "101",
-        3
+        "32",
+        0
       ]
     },
     "class_type": "KSampler",
@@ -29,15 +59,15 @@
       "title": "K采样器"
     }
   },
-  "54": {
+  "19": {
     "inputs": {
       "samples": [
-        "53",
+        "8",
         0
       ],
       "vae": [
-        "99",
-        2
+        "6",
+        0
       ]
     },
     "class_type": "VAEDecode",
@@ -45,141 +75,159 @@
       "title": "VAE解码"
     }
   },
-  "99": {
+  "23": {
     "inputs": {
-      "unet_name": "Krea2\\krea2_turbo_int8_convrot.safetensors",
-      "unet_dtype": "default",
-      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
-      "clip_type": "krea2",
-      "clip_dtype": "default",
-      "vae_name": "qwen_image_vae.safetensors",
-      "vae_dtype": "default",
-      "use_separate_vae": false,
-      "steps": 6,
-      "cfg": 1,
-      "denoise": 1,
-      "template_id": "krea2_turbo",
-      "model_patch_name": "",
-      "model_patch_enabled": false,
-      "clip_vision_name": "",
-      "preset_lora_1_enabled": true,
-      "preset_lora_1_name": "Krea2\\Krea2-realism-V1.safetensors",
-      "preset_lora_1_strength": "0.5",
-      "preset_lora_2_enabled": false,
-      "preset_lora_2_name": "",
-      "preset_lora_2_strength": "",
-      "flux_clip_l_name": "",
-      "clip_device": "default",
-      "control_net_name": "",
-      "control_net_2_name": "",
-      "control_net_3_name": "",
-      "control_net_4_name": "",
-      "control_net_5_name": "",
-      "control_net_6_name": "",
-      "control_net_7_name": "",
-      "control_net_8_name": ""
+      "image": ""
     },
-    "class_type": "GJJ_ModelBundleLoader",
+    "class_type": "LoadImage",
     "_meta": {
-      "title": "GJJ · 🟡🟠🔴智能批量模型加载🧡图像版"
+      "title": "加载图像"
     }
   },
-  "101": {
+  "24": {
     "inputs": {
-      "prompt": "把这只猫改成柴犬，带着圣诞帽，舌头露出来\n",
-      "negative_prompt": "",
-      "lora_name": "Krea2\\krea2_identity_edit_v1_1.safetensors",
-      "lora_strength": 1,
-      "resize_type": "缩短边",
-      "resize_size": 1024,
-      "scale_method": "最近邻精确",
-      "grounding_px": 768,
-      "batch_size": 1,
-      "ground_image_b": false,
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "8",
+      "scale_to_side": "longest",
+      "scale_to_length": 1280,
+      "background_color": "#000000",
+      "image": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "图层工具：按宽高比缩放_V2"
+    }
+  },
+  "27": {
+    "inputs": {
+      "lora_name": "Krea 2\\tool\\krea2_identity_edit_v1_1.safetensors",
+      "strength_model": 1,
       "model": [
-        "99",
+        "4",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器(仅模型)"
+    }
+  },
+  "28": {
+    "inputs": {
+      "prompt": [
+        "34",
         0
       ],
+      "grounding_px": 768,
+      "system_prompt": "",
       "clip": [
-        "99",
-        1
-      ],
-      "vae": [
-        "99",
-        2
+        "5",
+        0
       ],
       "image": [
-        "102",
-        1
+        "24",
+        0
+      ]
+    },
+    "class_type": "Krea2EditGroundedEncode",
+    "_meta": {
+      "title": "Krea2 Edit (grounded encode)"
+    }
+  },
+  "29": {
+    "inputs": {
+      "prompt": "",
+      "grounding_px": 768,
+      "system_prompt": "",
+      "clip": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "Krea2EditGroundedEncode",
+    "_meta": {
+      "title": "Krea2 Edit (grounded encode)"
+    }
+  },
+  "30": {
+    "inputs": {
+      "ref_boost": 1,
+      "ref_boost_a": 1,
+      "fit_mode": "fit",
+      "model": [
+        "27",
+        0
       ],
-      "image_b": [
-        "102",
-        2
-      ]
-    },
-    "class_type": "GJJ_Krea2Edit2RefAIO",
-    "_meta": {
-      "title": "GJJ · Krea2 双参考编辑单节点"
-    }
-  },
-  "102": {
-    "inputs": {
-      "sequence_range": ""
-    },
-    "class_type": "GJJ_MultiImageLoader",
-    "_meta": {
-      "title": "GJJ · 🧡·📂 批量多图加载浏览,队列执行"
-    }
-  },
-  "103": {
-    "inputs": {
-      "any_01": [
-        "54",
+      "source_latent": [
+        "31",
         0
       ]
     },
-    "class_type": "GJJ_AnyPreview",
+    "class_type": "Krea2EditModelPatch",
     "_meta": {
-      "title": "GJJ · 👀 任意对象预览器"
+      "title": "Krea2 Edit (source patch)"
     }
   },
-  "104": {
+  "31": {
     "inputs": {
-      "config_json": "{\"version\":5,\"text\":\"工作流标题\",\"font\":\"simhei.ttf\",\"width\":400,\"fontSize\":72,\"colorA\":\"#FFB8FF\",\"colorB\":\"#81CAA0\",\"gradient\":true,\"gradientDirection\":\"水平\",\"opacity\":1,\"letterSpacing\":1,\"lineSpacing\":0,\"paddingX\":0,\"paddingY\":0,\"strokeWidth\":0,\"strokeMode\":\"自定义\",\"strokeColor\":\"#2E7D62\",\"strokeOpacity\":1,\"backgroundColor\":\"#1E5A48\",\"borderMode\":\"透明\",\"borderColor\":\"#8FC7A6\",\"borderOpacity\":0,\"shadowEnabled\":false,\"shadowColor\":\"#F2FF04\",\"shadowOpacity\":0.42,\"shadowBlur\":0,\"shadowX\":2,\"shadowY\":-142,\"align\":\"居中\"}"
-    },
-    "class_type": "GJJ_WorkflowTitle",
-    "_meta": {
-      "title": "GJJ · 🏷️ 工作流标题"
-    }
-  },
-  "105": {
-    "inputs": {
-      "clean_file_cache": true,
-      "clean_processes": true,
-      "clean_dlls": true,
-      "retry_times": 3,
-      "anything": [
-        "103",
+      "pixels": [
+        "24",
+        0
+      ],
+      "vae": [
+        "6",
         0
       ]
     },
-    "class_type": "RAMCleanup",
+    "class_type": "VAEEncode",
     "_meta": {
-      "title": "释放内存"
+      "title": "VAE编码"
     }
   },
-  "106": {
+  "32": {
     "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "105",
+      "width": [
+        "24",
+        3
+      ],
+      "height": [
+        "24",
+        4
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent"
+    }
+  },
+  "33": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "19",
         0
       ]
     },
-    "class_type": "VRAMCleanup",
+    "class_type": "SaveImage",
     "_meta": {
-      "title": "释放显存"
+      "title": "保存图像"
+    }
+  },
+  "34": {
+    "inputs": {
+      "prompt": "使用参考图的人物，生成她在欧洲图书馆里站着认真的看书，全身照。衣服换成古典女仆服，带着无框眼镜"
+    },
+    "class_type": "CR Prompt Text",
+    "_meta": {
+      "title": "⚙️ 提示词文本"
     }
   }
 }

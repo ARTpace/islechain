@@ -92,6 +92,22 @@
             color: #00d9ff !important;
         }
         
+        /* 槽位序号角标:图1/图2 (Krea2 双图模式) 或 主图/参考图 */
+        .slot-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.62);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            border-radius: 6px;
+            z-index: 5;
+            pointer-events: none;
+        }
+
         body.studio-theme-dark .upload-item {
             background: #0d1520 !important;
             border-color: #1a2a3a !important;
@@ -461,6 +477,38 @@
 
         const slots = [document.getElementById('slot0'), document.getElementById('slot1')];
 
+        // 槽位标签:Krea2 双图模式显示 图1/图2 (方便在 prompt 里指代),其它情况显示 主图/参考图
+        function slotLabel(i) {
+            if (activeModels.indexOf('krea2') >= 0 && !ignoreRef) {
+                return '图' + (i + 1);
+            }
+            return i === 0 ? '主图' : '参考图';
+        }
+
+        // 空槽位 HTML (带动态标签)
+        function slotEmptyHTML(i) {
+            return '<div class="text-center pointer-events-none"><i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i>'
+                + '<span class="text-[9px] font-bold uppercase">' + slotLabel(i) + '</span></div>';
+        }
+
+        // 切换模型 / 单图·双图时刷新所有槽位标签 (含已填充槽位的角标)
+        function refreshSlotLabels() {
+            slots.forEach((slot, i) => {
+                if (slot.querySelector('img.preview-img')) {
+                    var badge = slot.querySelector('.slot-badge');
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'slot-badge';
+                        slot.appendChild(badge);
+                    }
+                    badge.textContent = slotLabel(i);
+                } else {
+                    slot.innerHTML = slotEmptyHTML(i);
+                }
+            });
+            try { lucide.createIcons(); } catch (e) {}
+        }
+
         function updateProgress(percent, text) {
             var bar = document.getElementById('progressInline');
             var fill = document.getElementById('progressFill');
@@ -499,6 +547,7 @@
                 grid.classList.remove('grid-cols-1', 'grid-cols-2');
                 grid.classList.add(ignoreRef ? 'grid-cols-1' : 'grid-cols-2');
             }
+            refreshSlotLabels();
         }
         function toggleIgnoreRef() {
             ignoreRef = !ignoreRef;
@@ -608,8 +657,8 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 const slot = slots[index];
-                const labels = ['主图', '参考图'];
                 slot.innerHTML = `<img src="${e.target.result}" class="preview-img">`
+                    + `<span class="slot-badge">${slotLabel(index)}</span>`
                     + `<button id="del${index}" onclick="clearSlot(${index},event)" class="hidden absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full shadow-sm z-10 font-bold text-base flex items-center justify-center hover:bg-white">\u00D7</button>`
                     + `<button id="edit${index}" onclick="handleEdit(${index},event)" class="hidden absolute top-2 right-12 w-8 h-8 bg-white/90 rounded-full shadow-sm z-10 text-sm font-bold flex items-center justify-center hover:bg-white">\u270E</button>`;
                 slot.style.position = 'relative';
@@ -643,8 +692,7 @@
             uploadedImages[index] = null;
             uploadedFiles[index] = null;
             var slot = slots[index];
-            var labels = ['主图', '参考图'];
-            slot.innerHTML = '<div class="text-center pointer-events-none"><i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i><span class="text-[9px] font-bold uppercase">' + labels[index] + '</span></div>';
+            slot.innerHTML = slotEmptyHTML(index);
             lucide.createIcons();
             updateCount();
             updateButtonState();
@@ -672,8 +720,7 @@
             uploadedImages = [null, null];
             uploadedFiles = [null, null];
             slots.forEach((slot, i) => {
-                const labels = ['主图', '参考图'];
-                slot.innerHTML = `<div class="text-center pointer-events-none"><i data-lucide="plus" class="w-5 h-5 mx-auto mb-1"></i><span class="text-[9px] font-bold uppercase">${labels[i]}</span></div>`;
+                slot.innerHTML = slotEmptyHTML(i);
                 slot.style.opacity = '1';
                 slot.style.pointerEvents = 'auto';
             });
@@ -713,11 +760,21 @@
         async function buildWorkflowForModel(model, prompt, seed, scaleEnabled, size) {
             var workflowData = JSON.parse(JSON.stringify(getWorkflowForModel(model).workflow));
             if (model === 'krea2') {
-                workflowData["101"]["inputs"]["prompt"] = prompt;
-                workflowData["53"]["inputs"]["seed"] = seed;
-                workflowData["101"]["inputs"]["resize_size"] = size;
-                if (scaleEnabled === false) {
-                    workflowData["101"]["inputs"]["resize_type"] = "不缩放";
+                // 按导入图片数量选单图/双图工作流: >=2 张用双图, 否则单图
+                var imgs = (uploadedImages || []).filter(Boolean);
+                var useDual = imgs.length >= 2 && WORKFLOWS.krea2_dual;
+                var wfSrc = useDual ? WORKFLOWS.krea2_dual : WORKFLOWS.krea2;
+                if (!wfSrc || !wfSrc.workflow) throw new Error('Krea2 工作流未加载');
+                workflowData = JSON.parse(JSON.stringify(wfSrc.workflow));
+                if (useDual) {
+                    workflowData["13"]["inputs"]["image"] = imgs[0];
+                    workflowData["14"]["inputs"]["image"] = imgs[1];
+                    workflowData["16"]["inputs"]["prompt"] = prompt;
+                    workflowData["6"]["inputs"]["seed"] = seed;
+                } else {
+                    workflowData["23"]["inputs"]["image"] = imgs[0];
+                    workflowData["34"]["inputs"]["prompt"] = prompt;   // 单图 prompt 在节点34(CR Prompt Text), 节点28 链接读取
+                    workflowData["8"]["inputs"]["seed"] = seed;
                 }
             } else if (model === 'qwen') {
                 workflowData["55"]["inputs"]["text"] = prompt;
@@ -903,7 +960,7 @@
                     feature: '图片编辑',
                     client_id: CLIENT_ID,
                     width: genW, height: genH,
-                    extra_pnginfo: model === 'krea2' ? buildKrea2ExtraPngInfo(uploadedImages[0], uploadedImages[1] || uploadedImages[0]) : undefined
+                    extra_pnginfo: undefined
                 })
             });
             var data = await res.json();
@@ -1029,7 +1086,8 @@
             klein: 'image-edit/klein-image-edit.json',
             qwen:  'image-edit/qwen-image-edit-2511.json',
             boogu: 'image-edit/boogu-image-edit.json',
-            krea2: 'image-edit/krea2-image-edit.json'
+            krea2: 'image-edit/krea2-image-edit.json',
+            krea2_dual: 'image-edit/krea2-two_image-edit.json'
         };
         // nodeMappings 是前端 UI 绑定逻辑, 仍内联(不属于工作流拓扑)
         const NODE_MAPPINGS = {
@@ -1050,10 +1108,9 @@
                 "45": { param: "scale_to_length", label: "缩放最长边", type: "number" }
             },
             krea2: {
-                "102_main": { param: "main_image", label: "主图", type: "upload", node: "102", key: "selected_images", slot: 1 },
-                "102_ref":  { param: "ref_image",  label: "参考图", type: "upload", node: "102", key: "selected_images", slot: 2 },
-                "101": { param: "text", label: "提示词", type: "textarea" },
-                "53":  { param: "seed", label: "Seed", type: "number" }
+                "23": { param: "image", label: "主图", type: "upload" },
+                "34": { param: "text", label: "提示词", type: "textarea" },
+                "8":  { param: "seed", label: "Seed", type: "number" }
             }
         };
         // 全局容器: key=model, value=JSON 加载的 {name, type, apiEndpoint, flow, nodeMappings}
@@ -1113,40 +1170,6 @@
         let activeModels = ['klein']; // 多选模型数组
 
 
-        /**
-         * Krea2 Edit 专用:为 GJJ_MultiImageLoader (节点 102) 生成 extra_pnginfo,
-         * 后端 main.py line 7243 会将其原样转发到 ComfyUI 的 extra_data.extra_pnginfo。
-         * 节点 102 会从 properties.selected_images 读取已上传文件名列表,
-         *   其中第 1 张作为 image (主图),第 2 张作为 image_b (参考图)。
-         * 如果 GJJ 节点的 selected_images 期望是对象数组 (含 {filename, subfolder} 字段),
-         *   请改这里为 [{filename: main, subfolder: ''}, {filename: ref, subfolder: ''}]。
-         */
-        function buildKrea2ExtraPngInfo(mainName, refName) {
-            // GJJ_MultiImageLoader 节点 (gjj_multi_image_loader.py:533)
-            //   读取顺序: widget value → properties.selected_images
-            //   解析方式: json.loads() 后要求是对象数组,每项 {filename, subfolder, type}
-            //   type ∈ {input, temp, output}, 空 subfolder 走 ComfyUI input 根目录
-            //   节点按 (type, subfolder, filename) 三元组找图
-            // selected_images 在 workflow JSON 里必须是 JSON 字符串,不是数组
-            var selectedJson = JSON.stringify([
-                { filename: mainName, subfolder: "", type: "input" },
-                { filename: refName,  subfolder: "", type: "input" }
-            ]);
-            return {
-                workflow: {
-                    nodes: [
-                        {
-                            id: "102",
-                            type: "GJJ_MultiImageLoader",
-                            properties: {
-                                selected_images: selectedJson
-                            }
-                        }
-                    ]
-                }
-            };
-        }
-
         function toggleModel(model) {
             var idx = activeModels.indexOf(model);
             if (idx >= 0) {
@@ -1162,6 +1185,7 @@
             });
             // 兼容旧代码:WORKFLOW_CONFIG 指向第一个选中的(已废弃, 留空操作)
             // WORKFLOWS[activeModels[0]] 始终是当前选中
+            refreshSlotLabels();
         }
 
         window.onload = async () => {
@@ -1193,6 +1217,7 @@
             });
             lucide.createIcons();
             try { applyIgnoreRefState(); } catch(e) { console.warn('applyIgnoreRefState init error:', e); }
+            try { refreshSlotLabels(); } catch(e) { console.warn('refreshSlotLabels init error:', e); }
         };
     </script>
 </body>

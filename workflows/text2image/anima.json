@@ -35,8 +35,8 @@
     "inputs": {
       "text": "",
       "clip": [
-        "45",
-        0
+        "81",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -55,8 +55,8 @@
   },
   "19": {
     "inputs": {
-      "seed": 937835841702783,
-      "steps": 10,
+      "seed": 329023482536646,
+      "steps": 4,
       "cfg": 1,
       "sampler_name": "er_sde",
       "scheduler": "simple",
@@ -114,7 +114,7 @@
       "only_anima": true,
       "optimize_outside_range": true,
       "model": [
-        "76",
+        "81",
         0
       ]
     },
@@ -133,20 +133,10 @@
       "title": "Anima 角色 Tag 选择器"
     }
   },
-  "53": {
-    "inputs": {
-      "artist_tags": "",
-      "mode": "append"
-    },
-    "class_type": "AnimaArtistTagSelector",
-    "_meta": {
-      "title": "Anima 画师 Tag 选择器"
-    }
-  },
   "69": {
     "inputs": {
-      "width": 1536,
-      "height": 2048,
+      "width": 768,
+      "height": 1240,
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
@@ -194,35 +184,23 @@
       "title": "4-step LoRA: DMDX"
     }
   },
-  "76": {
+  "81": {
     "inputs": {
-      "lora_name": "Anima\\anima-turbo-lora-v0.2.safetensors",
-      "strength_model": 0.8,
+      "lora_name": "Anima\\style\\wlop_v1_epoch16.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
       "model": [
-        "44",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoRA加载器(仅模型)"
-    }
-  },
-  "78": {
-    "inputs": {
-      "boolean": true,
-      "on_true": [
         "74",
         0
       ],
-      "on_false": [
-        "76",
+      "clip": [
+        "45",
         0
       ]
     },
-    "class_type": "Switch any [Crystools]",
+    "class_type": "LoraLoader",
     "_meta": {
-      "title": "切换任意"
+      "title": "加载LoRA"
     }
   }
 }

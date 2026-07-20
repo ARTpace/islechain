@@ -1,173 +1,7 @@
 {
-  "1": {
-    "inputs": {
-      "sampler_name": "euler"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "K采样器选择"
-    }
-  },
-  "2": {
-    "inputs": {
-      "vae_name": "flux2-vae.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "加载VAE"
-    }
-  },
-  "3": {
-    "inputs": {
-      "upscale_method": "nearest-exact",
-      "megapixels": 1,
-      "resolution_steps": 1,
-      "image": [
-        "4",
-        0
-      ]
-    },
-    "class_type": "ImageScaleToTotalPixels",
-    "_meta": {
-      "title": "缩放图像（像素）"
-    }
-  },
   "4": {
     "inputs": {
-      "image": "Ideogram_4.0_00001_.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "加载图像"
-    }
-  },
-  "5": {
-    "inputs": {
-      "conditioning": [
-        "17",
-        0
-      ],
-      "latent": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "参考Latent"
-    }
-  },
-  "6": {
-    "inputs": {
-      "pixels": [
-        "3",
-        0
-      ],
-      "vae": [
-        "2",
-        0
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE编码"
-    }
-  },
-  "7": {
-    "inputs": {
-      "conditioning": [
-        "18",
-        0
-      ],
-      "latent": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "参考Latent"
-    }
-  },
-  "8": {
-    "inputs": {
-      "image": "Ideogram_4.0_00001_.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "加载图像"
-    }
-  },
-  "10": {
-    "inputs": {
-      "image": [
-        "33",
-        0
-      ]
-    },
-    "class_type": "GetImageSize",
-    "_meta": {
-      "title": "获取图像尺寸"
-    }
-  },
-  "11": {
-    "inputs": {
-      "width": [
-        "10",
-        0
-      ],
-      "height": [
-        "10",
-        1
-      ],
-      "batch_size": 1
-    },
-    "class_type": "EmptyFlux2LatentImage",
-    "_meta": {
-      "title": "Flux2代 空Latent"
-    }
-  },
-  "12": {
-    "inputs": {
-      "steps": 6,
-      "width": [
-        "10",
-        0
-      ],
-      "height": [
-        "10",
-        1
-      ]
-    },
-    "class_type": "Flux2Scheduler",
-    "_meta": {
-      "title": "Flux2代 调度器"
-    }
-  },
-  "13": {
-    "inputs": {
-      "cfg": 1,
-      "model": [
-        "14",
-        0
-      ],
-      "positive": [
-        "7",
-        0
-      ],
-      "negative": [
-        "5",
-        0
-      ]
-    },
-    "class_type": "CFGGuider",
-    "_meta": {
-      "title": "CFG引导"
-    }
-  },
-  "14": {
-    "inputs": {
-      "unet_name": "Klein\\flux-2-klein-9b_int8_convrot.safetensors",
+      "unet_name": "Krea2\\sinoxeditKrea2Uncen_v10Int8Convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -175,10 +9,10 @@
       "title": "UNET加载器"
     }
   },
-  "15": {
+  "5": {
     "inputs": {
-      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
-      "type": "flux2",
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
       "device": "default"
     },
     "class_type": "CLIPLoader",
@@ -186,99 +20,53 @@
       "title": "加载CLIP"
     }
   },
-  "16": {
+  "6": {
     "inputs": {
-      "text": "猫变成一只猪"
+      "vae_name": "qwen_image_vae.safetensors"
     },
-    "class_type": "CR Text",
+    "class_type": "VAELoader",
     "_meta": {
-      "title": "🔤 文本"
+      "title": "加载VAE"
     }
   },
-  "17": {
+  "8": {
     "inputs": {
-      "conditioning": [
-        "24",
+      "seed": 491064562324693,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "er_sde",
+      "scheduler": "beta",
+      "denoise": 1,
+      "model": [
+        "30",
         0
       ],
-      "latent": [
-        "19",
+      "positive": [
+        "28",
+        0
+      ],
+      "negative": [
+        "29",
+        0
+      ],
+      "latent_image": [
+        "32",
         0
       ]
     },
-    "class_type": "ReferenceLatent",
+    "class_type": "KSampler",
     "_meta": {
-      "title": "参考Latent"
-    }
-  },
-  "18": {
-    "inputs": {
-      "conditioning": [
-        "25",
-        0
-      ],
-      "latent": [
-        "19",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "参考Latent"
+      "title": "K采样器"
     }
   },
   "19": {
     "inputs": {
-      "pixels": [
-        "33",
-        0
-      ],
-      "vae": [
-        "2",
-        0
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE编码"
-    }
-  },
-  "20": {
-    "inputs": {
-      "noise": [
-        "23",
-        0
-      ],
-      "guider": [
-        "13",
-        0
-      ],
-      "sampler": [
-        "1",
-        0
-      ],
-      "sigmas": [
-        "12",
-        0
-      ],
-      "latent_image": [
-        "11",
-        0
-      ]
-    },
-    "class_type": "SamplerCustomAdvanced",
-    "_meta": {
-      "title": "自定义采样器(高级)"
-    }
-  },
-  "21": {
-    "inputs": {
       "samples": [
-        "20",
+        "8",
         0
       ],
       "vae": [
-        "2",
+        "6",
         0
       ]
     },
@@ -289,43 +77,14 @@
   },
   "23": {
     "inputs": {
-      "noise_seed": 960897286294512
+      "image": "interrogate (3).png"
     },
-    "class_type": "RandomNoise",
+    "class_type": "LoadImage",
     "_meta": {
-      "title": "随机噪波"
+      "title": "加载图像"
     }
   },
   "24": {
-    "inputs": {
-      "text": "",
-      "clip": [
-        "15",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode ( Negative Prompt)"
-    }
-  },
-  "25": {
-    "inputs": {
-      "text": [
-        "16",
-        0
-      ],
-      "clip": [
-        "15",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Positive Prompt)"
-    }
-  },
-  "33": {
     "inputs": {
       "aspect_ratio": "original",
       "proportional_width": 1,
@@ -334,10 +93,10 @@
       "method": "lanczos",
       "round_to_multiple": "8",
       "scale_to_side": "longest",
-      "scale_to_length": 1024,
+      "scale_to_length": 1280,
       "background_color": "#000000",
       "image": [
-        "8",
+        "23",
         0
       ]
     },
@@ -346,30 +105,131 @@
       "title": "图层工具：按宽高比缩放_V2"
     }
   },
-  "36": {
+  "27": {
     "inputs": {
-      "images": [
-        "21",
+      "lora_name": "Krea 2\\tool\\krea2_identity_edit_v1_2.safetensors",
+      "strength_model": 1,
+      "model": [
+        "4",
         0
       ]
     },
-    "class_type": "PreviewImage",
+    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "预览图像"
+      "title": "LoRA加载器(仅模型)"
     }
   },
-  "37": {
+  "28": {
     "inputs": {
-      "清理显存": true,
-      "清理内存": true,
-      "任意数据": [
-        "36",
+      "prompt": [
+        "34",
+        0
+      ],
+      "grounding_px": 1024,
+      "system_prompt": "",
+      "clip": [
+        "5",
+        0
+      ],
+      "image": [
+        "24",
         0
       ]
     },
-    "class_type": "ZML_MemoryCleaner",
+    "class_type": "Krea2EditGroundedEncode",
     "_meta": {
-      "title": "ZML_清理内存显存"
+      "title": "Krea2 Edit (grounded encode)"
+    }
+  },
+  "29": {
+    "inputs": {
+      "prompt": "",
+      "grounding_px": 1024,
+      "system_prompt": "",
+      "clip": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "Krea2EditGroundedEncode",
+    "_meta": {
+      "title": "Krea2 Edit (grounded encode)"
+    }
+  },
+  "30": {
+    "inputs": {
+      "ref_boost": 3,
+      "ref_boost_a": 1,
+      "fit_mode": "fit",
+      "model": [
+        "27",
+        0
+      ],
+      "source_latent": [
+        "31",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ],
+      "source_image": [
+        "24",
+        0
+      ]
+    },
+    "class_type": "Krea2EditModelPatch",
+    "_meta": {
+      "title": "Krea2 Edit (source patch)"
+    }
+  },
+  "31": {
+    "inputs": {
+      "pixels": [
+        "24",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "32": {
+    "inputs": {
+      "width": 1280,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent"
+    }
+  },
+  "33": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "34": {
+    "inputs": {
+      "prompt": "使用参考图的人物，生成她在哈利波特的魔法图书馆里站着认真的看书，穿着魔法师服装，全身照，带着无框眼镜"
+    },
+    "class_type": "CR Prompt Text",
+    "_meta": {
+      "title": "⚙️ 提示词文本"
     }
   }
 }

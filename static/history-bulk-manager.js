@@ -455,8 +455,50 @@
             syncTimer = setTimeout(sync, 30);
         });
         observer.observe(masonry, {childList:true});
-        const manager = {sync, setSelecting, isSelecting:() => selecting};
+        const manager = {sync, setSelecting, isSelecting:() => selecting, toggleCard: (card) => toggleCard(card)};
         masonry._historyBulkManager = manager;
+
+        // === 长按画廊图片 → 进入批量管理模式并预选该图（opt-in，默认关闭，不影响其它页面）===
+        // 仅当调用方传入 longPressToSelect:true 时启用。桌面鼠标长按 / 移动端长按均可触发。
+        if (options.longPressToSelect) {
+            let _lp = null;            // 当前长按会话 {x,y,card,timer}
+            let _suppress = false;     // 长按触发后，吞掉紧随的 click，避免误开灯箱 / 重复切换
+            const LONG_PRESS_MS = 480;
+            const MOVE_TOL = 12;       // 超过此位移视为滚动/拖动，取消长按
+            const clearLp = () => { if (_lp && _lp.timer) clearTimeout(_lp.timer); _lp = null; };
+            masonry.addEventListener('pointerdown', (e) => {
+                if (e.button !== undefined && e.button !== 0) return; // 仅左键/触摸
+                const card = e.target.closest('.masonry-item[data-history-ts]');
+                if (!card || !masonry.contains(card)) return;
+                if (shouldIgnorePointer(e)) return;
+                _lp = { x: e.clientX, y: e.clientY, card, timer: setTimeout(() => {
+                    _lp = null;
+                    manager.setSelecting(true);   // 进入批量管理模式
+                    manager.toggleCard(card);      // 预选被长按的这张图
+                    _suppress = true;
+                    setTimeout(() => { _suppress = false; }, 400);
+                }, LONG_PRESS_MS) };
+            }, true);
+            masonry.addEventListener('pointermove', (e) => {
+                if (!_lp) return;
+                if (Math.hypot(e.clientX - _lp.x, e.clientY - _lp.y) > MOVE_TOL) clearLp();
+            }, true);
+            masonry.addEventListener('pointerup', clearLp, true);
+            masonry.addEventListener('pointercancel', clearLp, true);
+            // 移动端长按会触发 contextmenu（原生菜单），在刚触发过长按时吞掉它
+            masonry.addEventListener('contextmenu', (e) => {
+                if (_suppress) e.preventDefault();
+            });
+            // 捕获阶段拦截长按后的 click：阻止灯箱（inline onclick）与 masonry 自身选择处理重复切换
+            document.addEventListener('click', (e) => {
+                if (_suppress) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    _suppress = false;
+                }
+            }, true);
+        }
+
         sync();
         return manager;
     }

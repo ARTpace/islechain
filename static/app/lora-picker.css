@@ -151,6 +151,65 @@
     color: oklch(72% 0.18 350);
 }
 
+/* ============ 树形分类:一级 / 二级 / 根 ============ */
+.lora-cat-emoji {
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1;
+}
+.lora-cat-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lora-cat-root {
+    font-size: 12.5px;
+}
+.lora-cat-model {
+    font-size: 12px;
+    font-weight: 700;
+}
+.lora-cat-model .lora-cat-label {
+    color: oklch(82% 0.01 280);
+}
+.lora-cat-sub {
+    font-size: 11.5px;
+    font-weight: 500;
+    padding-left: 22px;
+    color: oklch(70% 0.01 280);
+    background: transparent;
+}
+.lora-cat-sub .lora-cat-sub-indent {
+    flex-shrink: 0;
+    width: 14px;
+    color: oklch(40% 0.015 280);
+    font-size: 10px;
+    line-height: 1;
+}
+.lora-cat-sub:hover {
+    background: oklch(100% 0 0 / 0.04);
+    color: oklch(92% 0.005 280);
+}
+.lora-cat-sub.active {
+    background: oklch(72% 0.18 350 / 0.10);
+    color: oklch(72% 0.18 350);
+    font-weight: 600;
+}
+.lora-cat-sub-reset {
+    font-size: 11px;
+    font-weight: 500;
+    padding-left: 22px;
+    color: oklch(50% 0.015 280);
+    font-style: italic;
+    cursor: pointer;
+}
+.lora-cat-sub-reset:hover {
+    color: oklch(75% 0.015 280);
+}
+
 /* ============ 侧边栏分隔线 & tag 项 ============ */
 .lora-sidebar-divider {
     height: 1px;
@@ -502,6 +561,57 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-trigger-toggle.off {
 .lora-card-item.selected {
     border-color: oklch(72% 0.18 350 / 0.45);
     box-shadow: 0 0 0 1px oklch(72% 0.18 350 / 0.2), 0 8px 24px oklch(0% 0 0 / 0.3);
+}
+
+/* ── NSFW 遮罩 ── */
+.lora-card-item.is-nsfw .lora-card-img,
+.lora-card-item.is-nsfw video.lora-card-img {
+    filter: blur(24px) brightness(0.35) saturate(0.6);
+    transform: scale(1.08);  /* 模糊边缘不会露出原图 */
+}
+.lora-card-nsfw-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%);
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+}
+.lora-card-nsfw-badge {
+    padding: 6px 14px;
+    background: oklch(40% 0.18 25 / 0.92);
+    color: oklch(98% 0.01 25);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    border: 1px solid oklch(60% 0.18 25 / 0.5);
+}
+.lora-card-nsfw-reveal {
+    padding: 7px 22px;
+    background: oklch(72% 0.16 240);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    transition: background 0.15s, transform 0.15s;
+}
+.lora-card-nsfw-reveal:hover {
+    background: oklch(78% 0.16 240);
+    transform: translateY(-1px);
+}
+.lora-card-nsfw-reveal:active {
+    transform: translateY(0);
 }
 
 .lora-card-img {
