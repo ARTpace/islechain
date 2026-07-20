@@ -475,6 +475,10 @@
         let historyActiveIdx = -1;
         let continuousRecord = null; // 当前连续编辑的 gallery record 引用
 
+        // 启动时从 localStorage 恢复 historyImages（重载不丢）
+        historyImages = loadHistoryImages();
+        if (historyImages.length > 0) historyActiveIdx = historyImages.length - 1;
+
         const slots = [document.getElementById('slot0'), document.getElementById('slot1')];
 
         // 槽位标签:Krea2 双图模式显示 图1/图2 (方便在 prompt 里指代),其它情况显示 主图/参考图
@@ -571,6 +575,26 @@
             historyImages.push({ url: url, comfy_name: comfyName || '' });
             historyActiveIdx = historyImages.length - 1;
             renderHistory();
+            persistHistoryImages();
+        }
+
+        // ── 持久化 historyImages 到 localStorage（重启后保留小图历史） ──
+        const KLEIN_HISTORY_STORAGE_KEY = 'klein_history_images';
+        function persistHistoryImages() {
+            try {
+                localStorage.setItem(KLEIN_HISTORY_STORAGE_KEY, JSON.stringify(historyImages));
+            } catch (_) { /* quota 满则静默 */ }
+        }
+        function loadHistoryImages() {
+            try {
+                var raw = localStorage.getItem(KLEIN_HISTORY_STORAGE_KEY);
+                if (!raw) return [];
+                var arr = JSON.parse(raw);
+                if (!Array.isArray(arr)) return [];
+                // 过滤: 保留合法项（url 字符串）
+                return arr.filter(function (it) { return it && typeof it.url === 'string' && it.url; })
+                    .map(function (it) { return { url: it.url, comfy_name: it.comfy_name || '' }; });
+            } catch (_) { return []; }
         }
 
         function renderHistory() {
@@ -613,6 +637,7 @@
                 importToSlot0(historyImages[historyActiveIdx].url, historyImages[historyActiveIdx].comfy_name || '');
             }
             renderHistory();
+            persistHistoryImages();
         }
 
         function restoreFromHistory(idx) {
@@ -627,6 +652,7 @@
             historyActiveIdx = -1;
             continuousRecord = null;
             renderHistory();
+            persistHistoryImages();
         }
 
         function updateButtonState() {
@@ -1075,6 +1101,7 @@
             historyImages.push({ url: imgUrl, comfy_name: '' });
             historyActiveIdx = historyImages.length - 1;
             renderHistory();
+            persistHistoryImages();
         }
 
         // renderCard / openLightbox / closeLightbox / handleOutsideClick / downloadImage
@@ -1193,6 +1220,8 @@
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);
+            // 恢复 historyImages 后重画小图历史 strip
+            try { renderHistory(); } catch (e) { console.warn('renderHistory init error:', e); }
             // 统一由 gallery-display.js 初始化
             GalleryDisplay.init({
                 historyType: '图片编辑',

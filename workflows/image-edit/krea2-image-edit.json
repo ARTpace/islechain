@@ -31,10 +31,10 @@
   },
   "8": {
     "inputs": {
-      "seed": 767363502904256,
+      "seed": 114942716445393,
       "steps": 8,
       "cfg": 1,
-      "sampler_name": "euler",
+      "sampler_name": "er_sde",
       "scheduler": "beta",
       "denoise": 1,
       "model": [
@@ -77,7 +77,7 @@
   },
   "23": {
     "inputs": {
-      "image": ""
+      "image": "krea2_1784541909_ff30e1d43e.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -107,7 +107,7 @@
   },
   "27": {
     "inputs": {
-      "lora_name": "Krea 2\\tool\\krea2_identity_edit_v1_1.safetensors",
+      "lora_name": "Krea 2\\tool\\krea2_identity_edit_v1_2.safetensors",
       "strength_model": 1,
       "model": [
         "4",
@@ -125,7 +125,7 @@
         "34",
         0
       ],
-      "grounding_px": 768,
+      "grounding_px": 1024,
       "system_prompt": "",
       "clip": [
         "5",
@@ -144,7 +144,7 @@
   "29": {
     "inputs": {
       "prompt": "",
-      "grounding_px": 768,
+      "grounding_px": 1024,
       "system_prompt": "",
       "clip": [
         "5",
@@ -158,7 +158,7 @@
   },
   "30": {
     "inputs": {
-      "ref_boost": 1,
+      "ref_boost": 3,
       "ref_boost_a": 1,
       "fit_mode": "fit",
       "model": [
@@ -167,6 +167,14 @@
       ],
       "source_latent": [
         "31",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ],
+      "source_image": [
+        "24",
         0
       ]
     },
@@ -223,7 +231,7 @@
   },
   "34": {
     "inputs": {
-      "prompt": "使用参考图的人物，生成她在欧洲图书馆里站着认真的看书，全身照。衣服换成古典女仆服，带着无框眼镜"
+      "prompt": "图片的女生的衣服换成睡衣"
     },
     "class_type": "CR Prompt Text",
     "_meta": {

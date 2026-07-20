@@ -621,6 +621,69 @@
       };
       promptEl.addEventListener('click', promptEl._refChipHandler);
     }
+
+    // 3.5) 绑定键盘事件:Backspace / Delete 在 ref-chip 旁边/上面时,交给我们处理
+    //      （避免浏览器原生删除 chip DOM 但 _images 不同步,导致左侧 ref-stack 还在）
+    if (!promptEl._refChipKeydownHandler) {
+      promptEl._refChipKeydownHandler = function (e) {
+        if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+        var sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        var node = sel.anchorNode;
+        if (!node) return;
+        var offset = sel.anchorOffset;
+        var targetChip = null;
+
+        // === Backspace:删前一个兄弟(光标在文本节点最前/头部,前兄弟是 chip) ===
+        if (e.key === 'Backspace') {
+          // a) 光标直接在 chip 内(防御)
+          if (node.nodeType === 1 && node.classList && node.classList.contains('ref-chip')) {
+            targetChip = node;
+          } else if (node.nodeType === 3) {
+            // 文本节点:offset=0 时,前一个字符是 prevSibling
+            if (offset === 0) {
+              var prev = node.previousSibling;
+              if (prev && prev.nodeType === 1 && prev.classList && prev.classList.contains('ref-chip')) {
+                targetChip = prev;
+              }
+            }
+          }
+        }
+        // === Delete:删后一个兄弟(光标在文本节点最末/尾部,后兄弟是 chip) ===
+        else if (e.key === 'Delete') {
+          if (node.nodeType === 1 && node.classList && node.classList.contains('ref-chip')) {
+            targetChip = node;
+          } else if (node.nodeType === 3) {
+            // 文本节点:offset === length 时,后一个字符是 nextSibling
+            var len = node.textContent ? node.textContent.length : 0;
+            if (offset >= len) {
+              var next = node.nextSibling;
+              if (next && next.nodeType === 1 && next.classList && next.classList.contains('ref-chip')) {
+                targetChip = next;
+              }
+            }
+          }
+        }
+
+        if (!targetChip) return;
+        var id = targetChip.getAttribute('data-id');
+        if (!id) return;
+        // 阻止浏览器原生删除
+        e.preventDefault();
+        e.stopPropagation();
+        var idx = -1;
+        for (var i = 0; i < self._images.length; i++) {
+          if (self._images[i].id === id) { idx = i; break; }
+        }
+        if (idx >= 0) {
+          self._remove(idx);
+        } else {
+          // _images 已被外部清掉(例如按了清理提示词),仅清 DOM
+          targetChip.remove();
+        }
+      };
+      promptEl.addEventListener('keydown', promptEl._refChipKeydownHandler);
+    }
   };
 
   // 兼容旧版：textarea 上方独立 chip bar（当 prompt 不是 contenteditable 时）

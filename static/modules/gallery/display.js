@@ -802,7 +802,8 @@ body.studio-theme-dark .lightbox-thumb.active {
 
         window.HistoryBulkManager.attach({
             masonry: config.masonrySelector,
-            extraButtons
+            extraButtons,
+            longPressToSelect: config.longPressToSelect
         });
 
         // NSFW 按钮长按绑定（HistoryBulkManager 不支持 onMount，手动绑）
@@ -1026,7 +1027,7 @@ body.studio-theme-dark .lightbox-thumb.active {
 
         // 11. 挂载 HistoryBulkManager
         if (window.HistoryBulkManager) {
-            window.HistoryBulkManager.attach({ masonry: config.masonrySelector });
+            window.HistoryBulkManager.attach({ masonry: config.masonrySelector, longPressToSelect: config.longPressToSelect });
         }
 
         // 11. 刷新图标

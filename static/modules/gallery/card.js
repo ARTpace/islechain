@@ -259,20 +259,6 @@
         card.dataset.nsfw = nsfwFlag ? '1' : '0';
         const nsfwBadge = nsfwFlag ? '<div class="nsfw-badge" title="检测到 NSFW 提示词">NSFW</div>' : '';
 
-        // 时间角标(HH:MM)— 帮助用户在多列瀑布流中确认排序
-        let timeBadge = '';
-        try {
-            const tsNum = Number(record.timestamp);
-            if (tsNum) {
-                const d = new Date(tsNum < 1e12 ? tsNum * 1000 : tsNum);
-                if (!isNaN(d.getTime())) {
-                    const hh = String(d.getHours()).padStart(2, '0');
-                    const mm = String(d.getMinutes()).padStart(2, '0');
-                    timeBadge = `<div class="time-badge" title="生成时间 ${escapeHTML(d.toLocaleString('zh-CN'))}">${hh}:${mm}</div>`;
-                }
-            }
-        } catch (_) {}
-
         // 图片加载失败兜底
         const fallbackHTML = features.imageFallback ? `
             <div class="img-fallback absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600" style="display:none">
@@ -294,7 +280,6 @@
             ${favHTML}
             ${batchHTML}
             ${nsfwBadge}
-            ${timeBadge}
             `;
 
         // 右键菜单

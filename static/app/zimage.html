@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
     <script src="/static/theme.js"></script>
-    <script src="/static/history-bulk-manager.js"></script>
+    <script src="/static/history-bulk-manager.js?v=20260720-4"></script>
     <script src="/static/modules/interrogator.js"></script>
     <script src="/static/modules/ref-image-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
@@ -95,25 +95,6 @@
         .lightbox-thumb.active { opacity:1; border-color:#00b4d8; box-shadow:0 0 12px rgba(0,180,216,0.5); }
         .lightbox-thumb img { width:100%; height:100%; object-fit:cover; }
         .masonry-item .model-badge { opacity:1 !important; position:absolute; bottom:12px; right:12px; z-index:10; }
-        /* 时间角标：左上角,让多列瀑布流用户一眼能确认排序 */
-        .masonry-item .time-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 10;
-            padding: 2px 6px;
-            background: rgba(0,0,0,0.45);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.85);
-            font-family: 'SF Mono', 'Menlo', monospace;
-            letter-spacing: 0.02em;
-            pointer-events: none;
-            line-height: 1.2;
-        }
         #lightboxThumbnails { gap:8px; padding:8px 12px; overflow-x:auto; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; cursor:grab; display:flex; flex-wrap:nowrap; }
         #lightboxThumbnails:active { cursor:grabbing; }
         #lightboxThumbnails::-webkit-scrollbar { display:none; }
@@ -1816,6 +1797,10 @@
             promptInput.value = '';
             promptInput.dispatchEvent(new Event('input', { bubbles: true }));
             if (typeof updatePromptTags === 'function') updatePromptTags();
+            // 同步清空参考图(左铡堆叠 + 提示词框里残留的 ref-chip)
+            if (typeof _refImgMgr !== 'undefined' && _refImgMgr && typeof _refImgMgr.clear === 'function') {
+                _refImgMgr.clear();
+            }
             promptInput.focus();
         }
 
@@ -2206,10 +2191,14 @@
                             workflow["14"].inputs.image = refNames[1];
                             workflow["16"].inputs.prompt = cleanPrompt;
                             workflow["6"].inputs.seed = seed;
+                            // 双图工作流：EmptyLatentImage 在节点2，注入生成数量
+                            if (workflow["2"]?.inputs) workflow["2"].inputs.batch_size = _gc.batchCount;
                         } else {
                             workflow["23"].inputs.image = refNames[0];
                             workflow["34"].inputs.prompt = cleanPrompt;
                             workflow["8"].inputs.seed = seed;
+                            // 单图工作流：EmptyLatentImage 在节点32，注入生成数量
+                            if (workflow["32"]?.inputs) workflow["32"].inputs.batch_size = _gc.batchCount;
                         }
                         // 注入目标比例 + 尺寸(1K/2K)到缩放节点 → 输出不再受参考图比例限制
                         // 图片编辑页(klein.html)不注入此项,故保持 aspect_ratio='original' 原图比例
@@ -2570,6 +2559,7 @@
             favoritesStorageKey: 'zimage_favorites',
             nsfwEnabled: true,
             galleryFeatures: { modelBadge: 'auto' },
+            longPressToSelect: true,
             onPromptDisplay: (prompt) => {
                 if (typeof loadPresetI18n === 'function' && typeof translatePromptToEn === 'function') {
                     return { en: loadPresetI18n().then(() => translatePromptToEn(prompt)) };
@@ -2655,14 +2645,8 @@
                 try { document.querySelector('main')?.scrollTo({top:0, behavior:'smooth'}); } catch(_){}
             },
         });
-        // 接入批量管理：画廊图片「长按」进入批量模式（并预选该图），工具条含搜索/全选/删除
-        window.HistoryBulkManager?.attach({ masonry: '#masonry', longPressToSelect: true });
-        // 移动工具栏到固定位置
-        setTimeout(() => {
-            const toolbar = document.querySelector('.history-bulk-toolbar');
-            const placeholder = document.getElementById('toolbarPlaceholder');
-            if (toolbar && placeholder) placeholder.appendChild(toolbar);
-        }, 100);
+        // 长按批量管理已通过上方 GalleryDisplay.init({ longPressToSelect: true }) 接入，
+        // 由 gallery-display.js 内真正的 HistoryBulkManager.attach 生效（避免重复 attach 被 return）。
         // 旧文件名 → 新相对路径(迁移 localStorage 中保存的工作流选择)
         const LEGACY_WF_MAP = {
             'Z-Image.json': 'text2image/z-image.json',

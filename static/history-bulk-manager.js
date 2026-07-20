@@ -98,6 +98,17 @@
             /* fav-mode 下的占位提示 */
             body.fav-mode .masonry:empty::before,
             body.fav-mode #masonry:empty::before{content:"暂无收藏的图";display:block;padding:60px 0;text-align:center;color:#94a3b8;font-size:13px;letter-spacing:.05em}
+            /* 长按进入批量模式：进度环 + 卡片反馈 */
+            .lp-ring{position:fixed;width:56px;height:56px;margin:-28px 0 0 -28px;pointer-events:none;z-index:10000;transform:scale(.5);opacity:0;transition:transform .16s ease,opacity .16s ease}
+            .lp-ring.is-on{transform:scale(1);opacity:1}
+            .lp-ring svg{width:56px;height:56px;transform:rotate(-90deg);display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,.22))}
+            .lp-ring .lp-track{fill:none;stroke:rgba(148,163,184,.45);stroke-width:4}
+            .lp-ring .lp-progress{fill:none;stroke:#111827;stroke-width:4;stroke-linecap:round}
+            html.studio-theme-dark .lp-ring .lp-progress,body.studio-theme-dark .lp-ring .lp-progress{stroke:#e5e7eb}
+            .history-longpressing,body.history-longpressing *{user-select:none!important;-webkit-user-select:none!important}
+            .masonry-item.lp-active{transform:scale(1.05);transition:transform .18s ease;z-index:13;box-shadow:0 14px 34px rgba(15,23,42,.20)}
+            html.studio-theme-dark .masonry-item.lp-active,body.studio-theme-dark .masonry-item.lp-active{box-shadow:0 14px 34px rgba(0,0,0,.5)}
+            .masonry-item.lp-active::after{content:"";position:absolute;inset:0;border-radius:inherit;background:rgba(99,102,241,.16);pointer-events:none;z-index:9}
         `;
         document.head.appendChild(style);
     }
@@ -459,24 +470,60 @@
         masonry._historyBulkManager = manager;
 
         // === 长按画廊图片 → 进入批量管理模式并预选该图（opt-in，默认关闭，不影响其它页面）===
-        // 仅当调用方传入 longPressToSelect:true 时启用。桌面鼠标长按 / 移动端长按均可触发。
+        // 仅当调用方传入 longPressToSelect:true 时启用。桌面鼠标长按 / 移动端触摸长按均可触发。
         if (options.longPressToSelect) {
-            let _lp = null;            // 当前长按会话 {x,y,card,timer}
+            let _lp = null;            // 当前长按会话 {x,y,card,ring,timer}
             let _suppress = false;     // 长按触发后，吞掉紧随的 click，避免误开灯箱 / 重复切换
-            const LONG_PRESS_MS = 480;
-            const MOVE_TOL = 12;       // 超过此位移视为滚动/拖动，取消长按
-            const clearLp = () => { if (_lp && _lp.timer) clearTimeout(_lp.timer); _lp = null; };
+            const LONG_PRESS_MS = 2000;  // 长按阈值：2 秒
+            const MOVE_TOL = 14;       // 超过此位移视为滚动/拖动，取消长按
+            const clearLp = () => {
+                if (_lp) {
+                    if (_lp.timer) clearTimeout(_lp.timer);
+                    if (_lp.ring) _lp.ring.remove();
+                    if (_lp.card) _lp.card.classList.remove('lp-active');
+                }
+                document.body.classList.remove('history-longpressing');
+                _lp = null;
+            };
+            // 长按进行中或刚触发时，阻止触屏原生菜单 / 文本选择（此时不应弹出系统菜单）
+            const _blockNative = () => _lp !== null || _suppress;
+            function makeRing(x, y) {
+                const ring = document.createElement('div');
+                ring.className = 'lp-ring';
+                ring.style.left = x + 'px';
+                ring.style.top = y + 'px';
+                ring.innerHTML = '<svg viewBox="0 0 56 56"><circle class="lp-track" cx="28" cy="28" r="24"/><circle class="lp-progress" cx="28" cy="28" r="24"/></svg>';
+                document.body.appendChild(ring);
+                const prog = ring.querySelector('.lp-progress');
+                const C = 2 * Math.PI * 24;
+                prog.style.strokeDasharray = C;
+                prog.style.strokeDashoffset = C;
+                // 强制两帧后开始过渡，保证 transition 生效
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    ring.classList.add('is-on');
+                    prog.style.transition = 'stroke-dashoffset ' + LONG_PRESS_MS + 'ms linear';
+                    prog.style.strokeDashoffset = '0';
+                }));
+                return ring;
+            }
             masonry.addEventListener('pointerdown', (e) => {
                 if (e.button !== undefined && e.button !== 0) return; // 仅左键/触摸
                 const card = e.target.closest('.masonry-item[data-history-ts]');
                 if (!card || !masonry.contains(card)) return;
                 if (shouldIgnorePointer(e)) return;
-                _lp = { x: e.clientX, y: e.clientY, card, timer: setTimeout(() => {
+                _suppress = false;   // 新一次按下：解除上一轮的 click 抑制
+                clearLp();
+                const ring = makeRing(e.clientX, e.clientY);
+                document.body.classList.add('history-longpressing');
+                card.classList.add('lp-active');
+                _lp = { x: e.clientX, y: e.clientY, card, ring, timer: setTimeout(() => {
                     _lp = null;
+                    document.body.classList.remove('history-longpressing');
+                    card.classList.remove('lp-active');
+                    ring.remove();
                     manager.setSelecting(true);   // 进入批量管理模式
                     manager.toggleCard(card);      // 预选被长按的这张图
-                    _suppress = true;
-                    setTimeout(() => { _suppress = false; }, 400);
+                    _suppress = true;              // 抑制紧随的 click（直到下次 pointerdown 才解除）
                 }, LONG_PRESS_MS) };
             }, true);
             masonry.addEventListener('pointermove', (e) => {
@@ -484,11 +531,17 @@
                 if (Math.hypot(e.clientX - _lp.x, e.clientY - _lp.y) > MOVE_TOL) clearLp();
             }, true);
             masonry.addEventListener('pointerup', clearLp, true);
-            masonry.addEventListener('pointercancel', clearLp, true);
-            // 移动端长按会触发 contextmenu（原生菜单），在刚触发过长按时吞掉它
+            // 修复：在画廊图片上「拖动」会触发浏览器原生图片拖拽（dragstart）；该过程抢占 pointer 事件流，
+            // 导致 pointermove 不再派发、clearLp 不被移动事件触发，2 秒后长按 timer 误触发批量模式。
+            // 因此 dragstart 时若长按会话仍在进行，仅取消计时（clearLp），不 preventDefault——
+            // 这样图片原生拖拽能力照常保留，只是不再误进批量模式。
+            masonry.addEventListener('dragstart', (e) => {
+                if (_lp) { clearLp(); }
+            }, true);
+            // 注意：不监听 pointercancel→clearLp，避免触屏长按（浏览器先派发 pointercancel 再弹系统菜单）被误取消
             masonry.addEventListener('contextmenu', (e) => {
-                if (_suppress) e.preventDefault();
-            });
+                if (_blockNative()) { e.preventDefault(); e.stopPropagation(); }
+            }, true);
             // 捕获阶段拦截长按后的 click：阻止灯箱（inline onclick）与 masonry 自身选择处理重复切换
             document.addEventListener('click', (e) => {
                 if (_suppress) {
