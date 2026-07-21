@@ -67,7 +67,9 @@
          */
         updateCounts(container) {
             if (!container) return;
-            const isNsfwBlock = document.body.classList.contains('nsfw-mode');
+            // [Bugfix] 早脚本场景 document.body 未就绪（自检在 <head> 加载时触发）
+            const bodyCls = (document.body && document.body.classList) || { contains: () => false };
+            const isNsfwBlock = bodyCls.contains('nsfw-mode');
             const seps = container.querySelectorAll('.date-separator');
             seps.forEach(sep => {
                 let count = 0;
@@ -95,10 +97,12 @@
          */
         pruneEmpty(container, opts = {}) {
             if (!container) return;
+            // [Bugfix] 早脚本场景 document.body 未就绪
+            const bodyCls = (document.body && document.body.classList) || { contains: () => false };
             const skipFilterMode = opts.skipFilterMode !== false;
             if (skipFilterMode &&
-                (document.body.classList.contains('fav-mode') ||
-                 document.body.classList.contains('nsfw-only-mode'))) {
+                (bodyCls.contains('fav-mode') ||
+                 bodyCls.contains('nsfw-only-mode'))) {
                 return;
             }
             const seps = container.querySelectorAll('.date-separator');
