@@ -153,37 +153,7 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 
 /* === NSFW 相关样式已迁移到 nsfw-filter.js === */
 
-/* === Scroll to Top === */
-#galleryScrollToTop {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    z-index: 40;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transition: all 0.3s ease;
-    opacity: 0;
-    pointer-events: none;
-    border: none;
-    cursor: pointer;
-}
-#galleryScrollToTop.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-#galleryScrollToTop:hover {
-    background: rgba(0,0,0,0.8);
-    transform: scale(1.1);
-}
+/* === Scroll to Top 样式已迁移到 scroll-top.js === */
 
 /* === 隐藏操作栏中右键菜单已有的按钮 === */
 .gallery-actions .gallery-action-btn[onclick*="toggleFavorite"] { display: none !important; }
@@ -273,14 +243,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             document.body.insertAdjacentHTML('beforeend', lightboxHTML);
         }
 
-        // --- Scroll to Top ---
-        if (config.scrollToTop && !document.getElementById('galleryScrollToTop')) {
-            const sttHTML = `
-<button id="galleryScrollToTop" onclick="GalleryDisplay.scrollToTop()">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-</button>`;
-            document.body.insertAdjacentHTML('beforeend', sttHTML);
-        }
+        // --- Scroll to Top：已迁移到 scroll-top.js（自动 init，无需此处处理）---
 
         // --- Load More Trigger ---
         if (config.loadMore && !document.getElementById('loadMoreTrigger')) {
@@ -331,33 +294,8 @@ body.studio-theme-dark .lightbox-thumb.active {
     }
 
     /* ============================================================
-     *  Scroll to Top
+     *  Scroll to Top：已迁移到 scroll-top.js
      * ============================================================ */
-    function initScrollToTop() {
-        const btn = document.getElementById('galleryScrollToTop');
-        if (!btn) return;
-        const mainEl = document.querySelector(config.mainSelector);
-        if (!mainEl) return;
-        let ticking = false;
-        mainEl.addEventListener('scroll', function () {
-            if (!ticking) {
-                window.requestAnimationFrame(function () {
-                    if (mainEl.scrollTop > 400) {
-                        btn.classList.add('visible');
-                    } else {
-                        btn.classList.remove('visible');
-                    }
-                    ticking = false;
-                });
-                ticking = true;
-            }
-        });
-    }
-
-    function scrollToTop() {
-        const mainEl = document.querySelector(config.mainSelector);
-        if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
-    }
 
     /* ============================================================
      *  Favorites 初始化
@@ -873,8 +811,10 @@ body.studio-theme-dark .lightbox-thumb.active {
         // 7. 初始化工具栏
         initToolbarExtras();
 
-        // 8. 初始化回到顶部
-        initScrollToTop();
+        // 8. 初始化回到顶部（[Task 2 迁移]）
+        if (config.scrollToTop && window.GalleryDisplay?.ScrollTop) {
+            window.GalleryDisplay.ScrollTop.init({ mainSelector: config.mainSelector });
+        }
 
         // 9. 加载历史
         if (window.GalleryList) GalleryList.load(0);
@@ -921,7 +861,6 @@ body.studio-theme-dark .lightbox-thumb.active {
         togglePromptPanel,
         refreshFavBtn,
         refreshThumbnails,
-        scrollToTop,
         switchImage,
         scanNewImages,
     });
