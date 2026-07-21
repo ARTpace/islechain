@@ -92,9 +92,15 @@
                     const filename = (currentRecord.timestamp || Date.now()) + '.png';
                     global.GalleryActions.downloadImage(imgUrl, filename, e);
                 } else if (action === 'toggleFavorite') {
-                    // 收藏：需要传 (record, event, imgUrl)
+                    // 收藏：统一入口 GalleryDisplay.Favorites.toggle(url)
+                    // UI 同步由 fav:changed 事件驱动
                     const imgUrl = (currentRecord.images && currentRecord.images[0]) || '';
-                    global.GalleryActions.toggleFavorite(currentRecord, e, imgUrl);
+                    if (global.GalleryDisplay && global.GalleryDisplay.Favorites) {
+                        global.GalleryDisplay.Favorites.toggle(imgUrl);
+                    } else if (typeof global.GalleryActions[action] === 'function') {
+                        // 兜底：模块未加载
+                        global.GalleryActions[action](currentRecord, e, imgUrl);
+                    }
                 } else if (action && typeof global.GalleryActions[action] === 'function') {
                     global.GalleryActions[action](currentRecord, e);
                 }

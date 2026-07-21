@@ -109,6 +109,10 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 .gallery-actions .gallery-action-btn[onclick*="openImageFolder"] { display: none !important; }
 .gallery-actions .gallery-action-btn[onclick*="copyPrompt"] { display: none !important; }
 
+/* === 收藏星标：通过 .is-fav class 切换填充状态（统一入口 Favorites.toggle） === */
+.gallery-fav svg polygon { fill: none; }
+.gallery-fav.is-fav svg polygon { fill: currentColor; }
+
 /* === 图片收藏星标：确保白色背景上可见 === */
 .img-fav-btn {
     background: rgba(0,0,0,0.5) !important;

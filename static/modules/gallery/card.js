@@ -34,26 +34,25 @@
     var escAttr = function(v) { return String(v).replace(/"/g, '&quot;'); };
 
     // 收藏按钮 22x22 星星 SVG
-    var FAV_FULL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    // 注意：无论是否已收藏，统一使用空心 SVG；CSS 通过 .is-fav 切换填充
     var FAV_OUT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 
-    /** 收藏切换（22x22 图标，与统一样式一致） */
+    /**
+     * 收藏切换（统一入口 GalleryDisplay.Favorites.toggle）
+     * 保留 window.toggleFav 是为了与历史 inline onclick 兼容，
+     * 实际逻辑已迁移到 Favorites 模块，UI 同步由 fav:changed 事件驱动。
+     */
     function toggleFav(record, event, imgUrl) {
         if (event) event.stopPropagation();
-        var url = imgUrl || (record && record.images && record.images[0]) || '';
+        const url = imgUrl || (record && record.images && record.images[0]) || '';
         if (!url) return;
-        var set = (global.__galleryFavorites = global.__galleryFavorites || new Set());
-        var added = !set.has(url);
-        if (added) set.add(url); else set.delete(url);
-        try { localStorage.setItem('zimage_favorites', JSON.stringify(Array.from(set))); } catch (_) {}
-        var btn = event && event.currentTarget;
-        if (btn) {
-            btn.classList.toggle('is-fav', added);
-            btn.innerHTML = added ? FAV_FULL_SVG : FAV_OUT_SVG;
-        }
-        var card = btn ? btn.closest('.masonry-item') : document.getElementById('history-' + record.timestamp);
-        if (card) {
-            card.dataset.fav = added ? '1' : '0';
+        if (window.GalleryDisplay && GalleryDisplay.Favorites) {
+            GalleryDisplay.Favorites.toggle(url);
+        } else {
+            // 兜底：模块未加载时使用旧逻辑（理论上不会发生）
+            const set = (global.__galleryFavorites = global.__galleryFavorites || new Set());
+            const added = !set.has(url);
+            if (added) set.add(url); else set.delete(url);
         }
     }
     if (!global.toggleFav) global.toggleFav = toggleFav;
@@ -194,6 +193,8 @@
         const images = (record.images || []).filter(Boolean);
         const anyFav = images.some(u => favSet.has(u));
         card.dataset.fav = anyFav ? '1' : '0';
+        // 标记首图 url，便于全局 fav:changed 事件同步
+        card.dataset.favUrl = images[0] || '';
         // 每张子图的收藏状态
         card.dataset.favImages = JSON.stringify(images.map(u => favSet.has(u) ? 1 : 0));
 
@@ -211,9 +212,9 @@
         // ② 右上角 — 收藏（统一透明+drop-shadow 样式，hover 显示）
         const favImgUrl = (record.images && record.images[0]) || '';
         const favHandler = `toggleFav(${escAttr(JSON.stringify(record))}, event, ${escAttr(JSON.stringify(favImgUrl))})`;
-        const favIconSvg = anyFav ? FAV_FULL_SVG : FAV_OUT_SVG;
+        // SVG 统一使用空心，CSS 通过 .is-fav 切换填充
         const favHTML = features.favorite
-            ? `<button onclick="${favHandler}" class="gallery-fav${anyFav ? ' is-fav' : ''}" title="收藏" aria-label="收藏" style="right:12px;top:12px;${BTN_INLINE}">${favIconSvg}</button>`
+            ? `<button onclick="${favHandler}" data-fav-url="${escAttr(favImgUrl)}" class="gallery-fav${anyFav ? ' is-fav' : ''}" title="收藏" aria-label="收藏" style="right:12px;top:12px;${BTN_INLINE}">${FAV_OUT_SVG}</button>`
             : '';
 
         // ③ 左下角 — 查看提示词（感叹号）

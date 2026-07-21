@@ -23,6 +23,7 @@
 
             this._loadFromStorage();
             this._restoreFilterMode();
+            this._bindGlobalUISync();
             this._initialized = true;
 
             if (!this._config.skipSelfTest) this._runSelfTests();
@@ -36,6 +37,16 @@
         /** 读取 localStorage 到 window.__galleryFavorites（兼容 actions.js 写入路径） */
         _loadFromStorage() {
             try {
+                // 迁移旧 key 'zimage_favorites' → 新 key 'gallery_favorites'
+                const legacy = Base.storage.get('zimage_favorites');
+                if (legacy) {
+                    const cur = Base.storage.get(this._config.storageKey, '[]');
+                    if (cur === '[]' || !cur) {
+                        Base.storage.set(this._config.storageKey, legacy);
+                        console.log('[Favorites] 已迁移 zimage_favorites → ' + this._config.storageKey);
+                    }
+                    Base.storage.remove('zimage_favorites');
+                }
                 const raw = Base.storage.get(this._config.storageKey, '[]');
                 const arr = JSON.parse(raw) || [];
                 // 迁移旧格式：纯数字 timestamp
@@ -70,6 +81,64 @@
         },
 
         getFilterMode() { return this._filterOn; },
+
+        // === 变更 API（单一入口，所有 UI 监听 fav:changed 事件同步） ===
+
+        /** 切换某张图的收藏状态。返回新的 boolean 状态。 */
+        toggle(url) {
+            if (!url) return false;
+            const set = (window.__galleryFavorites = window.__galleryFavorites || new Set());
+            const added = !set.has(url);
+            if (added) set.add(url); else set.delete(url);
+            this._persist();
+            Base.bus.emit('fav:changed', { url: String(url), added });
+            return added;
+        },
+
+        add(url) {
+            if (!url || this.isFav(url)) return false;
+            const set = (window.__galleryFavorites = window.__galleryFavorites || new Set());
+            set.add(url);
+            this._persist();
+            Base.bus.emit('fav:changed', { url: String(url), added: true });
+            return true;
+        },
+
+        remove(url) {
+            if (!url || !this.isFav(url)) return false;
+            const set = (window.__galleryFavorites = window.__galleryFavorites || new Set());
+            set.delete(url);
+            this._persist();
+            Base.bus.emit('fav:changed', { url: String(url), added: false });
+            return true;
+        },
+
+        _persist() {
+            try {
+                Base.storage.set(this._config.storageKey, JSON.stringify(Array.from(window.__galleryFavorites || [])));
+            } catch (_) { /* 忽略 quota 错误 */ }
+        },
+
+        /**
+         * 全局 UI 同步：监听 fav:changed 事件，刷新页面上所有相关按钮的 .is-fav 状态。
+         * CSS 负责从 .is-fav 渲染出实心/空心星标，JS 只需要切 class。
+         */
+        _bindGlobalUISync() {
+            Base.bus.on('fav:changed', ({ url, added }) => {
+                if (!url) return;
+                // 1. 所有显式标记 data-fav-url 的按钮
+                const escaped = (window.CSS && CSS.escape) ? CSS.escape(url) : url.replace(/"/g, '\\"');
+                document.querySelectorAll('[data-fav-url="' + escaped + '"]').forEach(btn => {
+                    btn.classList.toggle('is-fav', added);
+                });
+                // 2. 同步卡片整体 data-fav 属性（CSS 隐藏/显示依据）
+                document.querySelectorAll('.masonry-item').forEach(card => {
+                    if (card.dataset.favUrl && card.dataset.favUrl === url) {
+                        card.dataset.fav = added ? '1' : '0';
+                    }
+                });
+            });
+        },
 
         // === 过滤模式 ===
 
@@ -168,6 +237,49 @@
                     off();
                     this.setFilterMode(false, { silent: true });
                     return received && received.on === true;
+                }],
+                ['toggle(url) 切换后 isFav 返回新状态', () => {
+                    const url = 'http://test/toggle-' + Date.now();
+                    this.add(url);
+                    const wasTrue = this.isFav(url);
+                    this.toggle(url);
+                    const wasFalse = !this.isFav(url);
+                    this.toggle(url);
+                    const wasTrueAgain = this.isFav(url);
+                    this.remove(url);
+                    return wasTrue && wasFalse && wasTrueAgain;
+                }],
+                ['toggle(url) 发出 fav:changed 事件', () => {
+                    const url = 'http://test/emit-' + Date.now();
+                    const events = [];
+                    const off = Base.bus.on('fav:changed', p => events.push(p));
+                    this.toggle(url);
+                    this.toggle(url);
+                    off();
+                    this.remove(url);
+                    return events.length === 2 && events[0].added === true && events[1].added === false;
+                }],
+                ['add 重复添加幂等', () => {
+                    const url = 'http://test/dup-' + Date.now();
+                    this.add(url);
+                    this.add(url);
+                    const size = this.getAll().filter(u => u === url).length;
+                    this.remove(url);
+                    return size === 1;
+                }],
+                ['remove 不存在的 url 不报错', () => {
+                    let threw = false;
+                    try { this.remove('http://never/exists'); } catch (_) { threw = true; }
+                    return !threw;
+                }],
+                ['_persist 写入 storageKey', () => {
+                    const origKey = this._config.storageKey;
+                    this._config.storageKey = '__test_fav_key__';
+                    this._persist();
+                    const written = Base.storage.get('__test_fav_key__');
+                    Base.storage.remove('__test_fav_key__');
+                    this._config.storageKey = origKey;
+                    return !!written;
                 }],
             ]);
 

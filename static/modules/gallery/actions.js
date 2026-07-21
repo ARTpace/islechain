@@ -208,78 +208,24 @@
     }
 
     /**
-     * 收藏 / 取消收藏（单张图片级别）
-     * - key 使用图片 URL（而非 timestamp），支持多图组中只收藏某几张
-     * - 维护 global.__galleryFavorites (Set) + localStorage('zimage_favorites')
-     * - 同步更新按钮图标与高亮
-     * - 同步更新卡片的 data-fav（任意子图被收藏 → 卡片 = 1）
+     * 收藏 / 取消收藏 — 已迁移到 GalleryDisplay.Favorites.toggle(url)
+     * 保留 window.toggleFavorite 兜底（与 card.js inline onclick 兼容）
+     * 真实逻辑见 favorites.js
      */
-    const STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
-    const STAR_OUTLINE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
-
     function toggleFavorite(record, event, imgUrl) {
         if (event) event.stopPropagation();
-        // 兼容旧调用：如果没有 imgUrl，用第一张图
         const url = imgUrl || (record && record.images && record.images[0]) || '';
         if (!url) return;
-        const set = (global.__galleryFavorites = global.__galleryFavorites || new Set());
-        const added = !set.has(url);
-        if (added) set.add(url); else set.delete(url);
-        try { localStorage.setItem('zimage_favorites', JSON.stringify(Array.from(set))); } catch (_) {}
-
-        // 更新被点击的按钮
-        const btn = event && event.target && event.target.closest && event.target.closest('button');
-        if (btn) {
-            btn.classList.toggle('is-fav', added);
-            btn.innerHTML = added ? STAR_SVG : STAR_OUTLINE_SVG;
-        }
-
-        // 找到所属卡片并更新状态
-        // 兼容右键菜单（btn 为 null）和按钮点击：btn 存在则从其找 card，否则通过 record.timestamp 查找
-        const card = btn ? btn.closest('.masonry-item') : (record && document.getElementById('history-' + record.timestamp));
-        if (card) {
-            // 更新卡片内所有图片的收藏按钮状态
-            card.querySelectorAll('.img-fav-btn').forEach(favBtn => {
-                const favUrl = favBtn.getAttribute('data-fav-url');
-                if (!favUrl) return;
-                const isFav = set.has(favUrl);
-                favBtn.classList.toggle('is-fav', isFav);
-                favBtn.innerHTML = isFav ? STAR_SVG : STAR_OUTLINE_SVG;
-            });
-            // 重新计算卡片整体收藏状态
-            const imgs = card.querySelectorAll('img[data-original-src]');
-            let anyFav = false;
-            imgs.forEach(img => { if (set.has(img.getAttribute('data-original-src'))) anyFav = true; });
-            card.dataset.fav = anyFav ? '1' : '0';
-            // 更新 action bar 中的收藏按钮
-            const actionBarBtns = card.querySelectorAll('.gallery-action-btn');
-            actionBarBtns.forEach(ab => {
-                const onclick = ab.getAttribute('onclick') || '';
-                if (onclick.includes('toggleFavorite')) {
-                    ab.classList.toggle('is-fav', anyFav);
-                    ab.innerHTML = anyFav ? STAR_SVG : STAR_OUTLINE_SVG;
-                }
-            });
+        if (global.GalleryDisplay && global.GalleryDisplay.Favorites) {
+            global.GalleryDisplay.Favorites.toggle(url);
+        } else {
+            // 兜底：模块未加载时使用本地 Set
+            const set = (global.__galleryFavorites = global.__galleryFavorites || new Set());
+            const added = !set.has(url);
+            if (added) set.add(url); else set.delete(url);
         }
     }
-
-    /** 判断某张图片是否被收藏 */
-    function isImageFavorited(url) {
-        const set = global.__galleryFavorites || new Set();
-        return set.has(String(url || ''));
-    }
-
-    /** 旧接口兼容：按 timestamp 收藏（lightbox 等仍然用） */
-    function toggleFavoriteByTs(record, event) {
-        if (event) event.stopPropagation();
-        const ts = record && record.timestamp;
-        if (ts == null) return;
-        // lightbox 里操作的是当前显示的那张图
-        const imgUrl = (record && record.images && record._currentImageIndex != null)
-            ? record.images[record._currentImageIndex]
-            : (record.images && record.images[0]) || '';
-        return toggleFavorite(record, event, imgUrl);
-    }
+    if (!global.toggleFavorite) global.toggleFavorite = toggleFavorite;
 
     /**
      * 复制到画布节点
@@ -523,9 +469,7 @@
         deleteSingleImage,
         deleteSelected,
         downloadImage,
-        toggleFavorite,
-        toggleFavoriteByTs,
-        isImageFavorited,
+        // toggleFavorite 兼容入口已废弃 — 真实逻辑在 GalleryDisplay.Favorites.toggle()
         copyPrompt,
         usePrompt,
         viewPrompt,

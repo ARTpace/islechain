@@ -106,9 +106,13 @@
         const btn = document.getElementById('lightboxFavBtn');
         if (!btn || !state.currentRecord) return;
         const imgUrl = (state.currentRecord.images && state.currentRecord.images[state.currentIndex]) || '';
-        const favSet = global.__galleryFavorites || new Set();
-        const isFav = favSet.has(imgUrl);
+        // data-fav-url 让全局 fav:changed 事件也能找到这个按钮
+        btn.setAttribute('data-fav-url', imgUrl);
+        const isFav = (window.GalleryDisplay && GalleryDisplay.Favorites)
+            ? GalleryDisplay.Favorites.isFav(imgUrl)
+            : (global.__galleryFavorites || new Set()).has(imgUrl);
         btn.innerHTML = isFav ? LB_ACTION_SVGS.favoriteActive : LB_ACTION_SVGS.favorite;
+        btn.classList.toggle('is-fav', !!isFav);
     }
 
     function refreshThumbnails() {
@@ -312,7 +316,14 @@
                 }
                 break;
             case 'favorite':
-                if (global.GalleryActions && GalleryActions.toggleFavorite) {
+                // 统一入口 GalleryDisplay.Favorites.toggle(url)
+                // 卡片上 .gallery-fav 按钮由 fav:changed 事件自动同步；
+                // 灯箱自己的按钮单独刷新（事件也通过 data-fav-url 选择器匹配）
+                if (global.GalleryDisplay && global.GalleryDisplay.Favorites) {
+                    global.GalleryDisplay.Favorites.toggle(imgUrl);
+                    refreshFavBtn();
+                } else if (global.GalleryActions && GalleryActions.toggleFavorite) {
+                    // 兜底
                     GalleryActions.toggleFavorite(record, null, imgUrl);
                     refreshFavBtn();
                 }
