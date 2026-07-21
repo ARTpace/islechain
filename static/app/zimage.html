@@ -28,7 +28,7 @@
     <script src="/static/modules/gallery/nsfw-filter.js?v=20260721"></script>
     <script src="/static/modules/gallery/scroll-top.js?v=20260721"></script>
     <script src="/static/modules/gallery/favorites.js?v=20260721"></script>
-    <script src="/static/modules/gallery/auto-scan.js?v=20260721"></script>
+    <script src="/static/modules/gallery/auto-scan.js?v=20260721-fix1"></script>
     <script src="/static/modules/gallery/toolbar-extras.js?v=20260721"></script>
     <script src="/static/modules/gallery/lightbox.js?v=20260721"></script>
     <script src="/static/modules/gallery/gallery-core.js?v=20260721"></script>
@@ -92,7 +92,8 @@
         .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
         .masonry-grid.thumb-medium{ /* 默认 */ }
         .masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
-        .masonry-grid.thumb-small .model-badge{ display:none!important; }
+        /* [Bugfix] thumb-small 模式也显示徽标，但用更小样式 */
+        .masonry-grid.thumb-small .model-badge{ display:block !important; font-size:8px !important; padding:2px 5px !important; border-radius:5px !important; opacity:0.85; }
         @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
         @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
@@ -537,7 +538,195 @@
     body.studio-theme-dark .extra-neg-textarea { background:rgba(255,255,255,0.02); border-color:rgba(255,255,255,0.06); color:#a0b8c8; }
     body.studio-theme-dark .extra-neg-textarea:focus { border-color:rgba(255,255,255,0.15); background:rgba(255,255,255,0.03); }
     body.studio-theme-dark .extra-neg-textarea::placeholder { color:#4a5a6a; }
-    </style>
+
+    /* ── 反推设置面板（替换原 dropdown） ── */
+    .reverse-settings-btn { width:36px; height:32px; padding:0; justify-content:center; }
+    .reverse-settings-btn.is-in-use { background: linear-gradient(135deg, #00b4d8, #0077b6); color:#fff; box-shadow: 0 0 0 1px rgba(0,180,216,0.4), 0 2px 8px rgba(0,180,216,0.25); }
+
+    /* 浮层：玻璃感(轻) + 浅/深色双适配；PC 居中浮层 / 手机贴底上滑 */
+    .reverse-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.35); display:none; align-items:center; justify-content:center; z-index:9999;
+        -webkit-backdrop-filter:blur(10px) saturate(140%); backdrop-filter:blur(10px) saturate(140%); }
+    .reverse-modal-overlay.show { display:flex; animation: reverseFadeIn .18s ease; }
+    @keyframes reverseFadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes reverseSlideIn { from { opacity:0; transform:translateY(20px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes reverseViewIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* 浅色：白磨砂玻璃;深色：深蓝磨砂；统一最小高度，三视图尺寸一致；上限 560px */
+    .reverse-modal { width:min(560px,94vw); min-height:480px; max-height:88vh; overflow:hidden;
+        background:rgba(255,255,255,.92); color:#1e293b;
+        border:1px solid rgba(255,255,255,.6); border-radius:18px; padding:20px 22px 18px;
+        box-shadow:0 24px 70px rgba(15,23,42,.2), 0 0 0 1px rgba(15,23,42,.04);
+        -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
+        animation: reverseSlideIn .22s cubic-bezier(.2,.7,.3,1);
+        display:flex; flex-direction:column; box-sizing:border-box; position:relative; }
+    /* 底部抽屉拖动提示器(仅手机显示) */
+    .reverse-modal::before { content:""; position:absolute; top:8px; left:50%; transform:translateX(-50%); width:48px; height:5px; border-radius:3px; background:rgba(0,0,0,.32); display:none; }
+    body.studio-theme-dark .reverse-modal::before { background:rgba(255,255,255,.42); }
+    body.studio-theme-dark .reverse-modal { background:rgba(22,32,48,.78); color:#e0e7ef;
+        border:1px solid rgba(240,255,255,.08); box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(0,240,255,.05); }
+    /* 拖入态：整张 modal 染色 + 虚线边框 */
+    .reverse-modal.is-dragover { border-color:rgba(0,180,216,.6); box-shadow:0 20px 60px rgba(0,180,216,.2), 0 0 0 2px rgba(0,180,216,.3); }
+    body.studio-theme-dark .reverse-modal.is-dragover { border-color:rgba(0,240,255,.6); box-shadow:0 20px 60px rgba(0,240,255,.25), 0 0 0 2px rgba(0,240,255,.35); }
+
+    .reverse-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-shrink:0; }
+    .reverse-modal-title { font-size:15px; font-weight:800; letter-spacing:.02em; }
+    .reverse-modal-header-right { display:flex; align-items:center; gap:4px; }
+    .reverse-modal-header-btn,
+    .reverse-modal-close { width:36px; height:36px; border:none; border-radius:10px; background:transparent; color:#6a7a8a; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s; }
+    .reverse-modal-header-btn:hover,
+    .reverse-modal-close:hover { background:rgba(0,0,0,.06); color:#000; }
+    .reverse-modal-header-btn:active,
+    .reverse-modal-close:active { background:rgba(0,0,0,.12); }
+    body.studio-theme-dark .reverse-modal-header-btn,
+    body.studio-theme-dark .reverse-modal-close { color:#9aa8b8; }
+    body.studio-theme-dark .reverse-modal-header-btn:hover,
+    body.studio-theme-dark .reverse-modal-close:hover { background:rgba(255,255,255,.08); color:#fff; }
+
+    /* 共享：缩略图条(三视图都显示) — 整体加高，按钮加大 */
+    .reverse-modal-preview { display:flex; align-items:center; gap:12px; padding:10px 12px;
+        border:1px solid rgba(0,0,0,.08); border-radius:12px; background:rgba(255,255,255,.4);
+        margin-bottom:16px; min-height:72px; flex-shrink:0; transition:border-color .15s, background .15s; }
+    body.studio-theme-dark .reverse-modal-preview { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.1); }
+    .reverse-modal-preview.is-drop-here { border-color:rgba(0,180,216,.5); background:rgba(0,180,216,.06); }
+    .reverse-modal-preview-thumb { width:80px; height:60px; border-radius:8px; background:rgba(0,0,0,.06) center/contain no-repeat #e5ecf3; flex-shrink:0; border:1px solid rgba(0,0,0,.08); position:relative; overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s; }
+    .reverse-modal-preview-thumb:hover { border-color:rgba(0,180,216,.4); }
+    .reverse-modal-preview-thumb:active { transform:scale(.96); }
+    body.studio-theme-dark .reverse-modal-preview-thumb { background-color:#1a2436; border-color:rgba(255,255,255,.12); }
+    .reverse-modal-preview-thumb.empty::after { content:""; position:absolute; inset:0; background:
+        linear-gradient(45deg, transparent 48%, rgba(0,0,0,.12) 48%, rgba(0,0,0,.12) 52%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, rgba(0,0,0,.12) 48%, rgba(0,0,0,.12) 52%, transparent 52%);
+        background-size:12px 12px; }
+    body.studio-theme-dark .reverse-modal-preview-thumb.empty::after { background:
+        linear-gradient(45deg, transparent 48%, rgba(255,255,255,.1) 48%, rgba(255,255,255,.1) 52%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, rgba(255,255,255,.1) 48%, rgba(255,255,255,.1) 52%, transparent 52%);
+        background-size:12px 12px; }
+    .reverse-modal-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+    .reverse-modal-preview.is-empty { cursor:pointer; }
+    .reverse-modal-preview.is-empty .reverse-modal-preview-name { color:#0077b6; font-weight:700; font-style:normal; }
+    body.studio-theme-dark .reverse-modal-preview.is-empty .reverse-modal-preview-name { color:#00f0ff; }
+    .reverse-modal-preview-name { font-size:14px; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    body.studio-theme-dark .reverse-modal-preview-name { color:#e0e7ef; }
+    .reverse-modal-preview-name.empty { color:#6a7a8a; font-weight:500; font-style:italic; }
+    body.studio-theme-dark .reverse-modal-preview-name.empty { color:#8a9bb0; }
+    .reverse-modal-preview-meta { font-size:11px; color:#6a7a8a; display:flex; align-items:center; gap:8px; }
+    body.studio-theme-dark .reverse-modal-preview-meta { color:#8a9bb0; }
+    .reverse-modal-preview-change { font-size:12px; font-weight:700; color:#0077b6; cursor:pointer; background:none; border:none; padding:6px 8px; margin:-6px -8px; border-radius:6px; text-decoration:none; }
+    .reverse-modal-preview-change:hover { color:#005f8a; background:rgba(0,180,216,.08); }
+    .reverse-modal-preview-change:active { background:rgba(0,180,216,.16); }
+    body.studio-theme-dark .reverse-modal-preview-change { color:#00f0ff; }
+    body.studio-theme-dark .reverse-modal-preview-change:hover { color:#5cf5ff; background:rgba(0,240,255,.1); }
+
+    /* 视图容器：flex 1 撑满剩余空间，切换时淡入 */
+    .reverse-view { flex:1; min-height:0; display:flex; flex-direction:column; animation: reverseViewIn .22s ease; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .reverse-view[hidden] { display:none !important; }
+
+    /* 结果视图：隐藏缩略图条,空间留给 textarea */
+    #reverseModal.on-result .reverse-modal-preview { display:none; }
+    #reverseModal.on-result { min-height:0; }
+    /* header 在结果视图 显示「重新反推」动作 */
+    .reverse-modal-header-btn.rerun-btn { color:#0077b6; }
+    .reverse-modal-header-btn.rerun-btn:hover { background:rgba(0,180,216,.1); color:#005f8a; }
+    body.studio-theme-dark .reverse-modal-header-btn.rerun-btn { color:#00f0ff; }
+    body.studio-theme-dark .reverse-modal-header-btn.rerun-btn:hover { background:rgba(0,240,255,.12); color:#5cf5ff; }
+
+    .reverse-modal-section { margin-bottom:16px; }
+    .reverse-modal-section:last-of-type { margin-bottom:0; }
+    .reverse-modal-label { display:block; font-size:11px; font-weight:800; color:#6a7a8a; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    body.studio-theme-dark .reverse-modal-label { color:#8a9bb0; }
+
+    /* 选项卡：高度统一 56px,大字号 */
+    .reverse-modal-options { display:flex; gap:8px; }
+    .reverse-modal-opt { flex:1; min-height:56px; padding:10px 8px; border:1.5px solid rgba(0,0,0,.08); border-radius:10px; background:rgba(255,255,255,.4); color:#4a5a6a; font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+    .reverse-modal-opt:hover { background:rgba(255,255,255,.7); color:#000; }
+    .reverse-modal-opt:active { transform:scale(.97); }
+    .reverse-modal-opt.active { background:rgba(0,180,216,.14); color:#0077b6; border-color:rgba(0,180,216,.5); }
+    .reverse-modal-opt-desc { display:block; font-size:10px; font-weight:600; color:#8a9bb0; line-height:1.3; }
+    .reverse-modal-opt.active .reverse-modal-opt-desc { color:rgba(0,180,216,.75); }
+    body.studio-theme-dark .reverse-modal-opt { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08); color:#9aa8b8; }
+    body.studio-theme-dark .reverse-modal-opt:hover { background:rgba(255,255,255,.06); color:#fff; }
+    body.studio-theme-dark .reverse-modal-opt.active { background:rgba(74,222,128,.14); color:#4ade80; border-color:rgba(74,222,128,.5); }
+    body.studio-theme-dark .reverse-modal-opt.active .reverse-modal-opt-desc { color:rgba(74,222,128,.75); }
+
+    /* select：高度 48px,字号 14px,大点选 */
+    .reverse-modal-select { width:100%; min-height:48px; background:rgba(255,255,255,.5); border:1.5px solid rgba(0,0,0,.1); border-radius:10px; padding:10px 14px; font-size:14px; color:#1e293b; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236a7a8a' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px; padding-right:36px; }
+    .reverse-modal-select:focus { border-color:rgba(0,180,216,.5); }
+    body.studio-theme-dark .reverse-modal-select { background-color:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); color:#c8d0dc; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%239aa8b8' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>"); }
+
+    /* ── 统一按钮风格(主/次/幽灵),所有按钮 48px 高 ── */
+    .reverse-modal-actions { display:flex; gap:10px; margin-top:auto; padding-top:16px; flex-shrink:0; }
+    .reverse-modal-actions .btn-primary,
+    .reverse-modal-actions .btn-secondary,
+    .reverse-modal-actions .btn-ghost { min-height:48px; padding:12px 16px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; transition:all .12s; display:inline-flex; align-items:center; justify-content:center; gap:4px; }
+    .reverse-modal-actions .btn-primary { flex:1; border:none; background:linear-gradient(135deg,#00b4d8,#0077b6); color:#fff; box-shadow:0 2px 8px rgba(0,180,216,.25); }
+    .reverse-modal-actions .btn-primary:hover { background:linear-gradient(135deg,#00c8ed,#0088c8); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,180,216,.3); }
+    .reverse-modal-actions .btn-primary:active { transform:translateY(0); box-shadow:0 1px 4px rgba(0,180,216,.2); }
+    .reverse-modal-actions .btn-primary:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+    .reverse-modal-actions .btn-secondary { flex:1; border:1.5px solid rgba(0,0,0,.1); background:rgba(255,255,255,.55); color:#4a5a6a; }
+    .reverse-modal-actions .btn-secondary:hover { background:rgba(255,255,255,.85); color:#000; }
+    .reverse-modal-actions .btn-secondary:active { transform:scale(.97); }
+    body.studio-theme-dark .reverse-modal-actions .btn-secondary { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.14); color:#c8d0dc; }
+    body.studio-theme-dark .reverse-modal-actions .btn-secondary:hover { background:rgba(255,255,255,.08); color:#fff; }
+    .reverse-modal-actions .btn-ghost { flex:0 0 auto; padding:12px 14px; border:none; background:transparent; color:#6a7a8a; }
+    .reverse-modal-actions .btn-ghost:hover { background:rgba(0,0,0,.05); color:#1e293b; }
+    .reverse-modal-actions .btn-ghost:active { background:rgba(0,0,0,.1); }
+    body.studio-theme-dark .reverse-modal-actions .btn-ghost { color:#9aa8b8; }
+    body.studio-theme-dark .reverse-modal-actions .btn-ghost:hover { background:rgba(255,255,255,.06); color:#fff; }
+    .reverse-modal-hint { font-size:11px; color:#8a9bb0; margin-top:12px; line-height:1.55; }
+
+    /* ── 进度视图 ── */
+    .reverse-progress { text-align:center; padding:24px 4px 6px; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .reverse-progress-spinner { width:44px; height:44px; margin:0 auto 16px; border:3px solid rgba(0,180,216,.15); border-top-color:#00b4d8; border-radius:50%; animation: reverseSpin .8s linear infinite; }
+    @keyframes reverseSpin { to { transform:rotate(360deg); } }
+    .reverse-progress-stage { font-size:15px; font-weight:700; color:#1e293b; margin-bottom:8px; }
+    .reverse-progress-file { font-size:12px; color:#8a9bb0; margin-bottom:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+    .reverse-progress-bar { width:100%; height:6px; background:rgba(0,0,0,.06); border-radius:3px; overflow:hidden; margin-bottom:10px; }
+    .reverse-progress-bar > div { height:100%; background:linear-gradient(90deg,#00b4d8,#0077b6); border-radius:3px; transition:width .3s ease; }
+    .reverse-progress-percent { font-size:12px; color:#6a7a8a; font-variant-numeric:tabular-nums; font-weight:600; }
+    body.studio-theme-dark .reverse-progress-stage { color:#e0e7ef; }
+    body.studio-theme-dark .reverse-progress-bar { background:rgba(255,255,255,.06); }
+    body.studio-theme-dark .reverse-progress-spinner { border-color:rgba(0,180,216,.2); border-top-color:#00f0ff; }
+    body.studio-theme-dark .reverse-progress-bar > div { background:linear-gradient(90deg,#00f0ff,#00b4d8); }
+
+    /* ── 结果视图 ── */
+    .reverse-result-meta { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:11px; color:#8a9bb0; }
+    .reverse-result-meta-tag { padding:3px 10px; border-radius:10px; background:rgba(0,180,216,.1); color:#0077b6; font-weight:700; font-size:11px; }
+    body.studio-theme-dark .reverse-result-meta-tag { background:rgba(0,240,255,.12); color:#00f0ff; }
+    .reverse-result-text { width:100%; flex:1; min-height:280px; resize:none; border:1.5px solid rgba(0,0,0,.08); border-radius:10px; padding:14px 16px; font-size:14px; line-height:1.75; color:#1e293b; box-sizing:border-box; background:rgba(255,255,255,.6); outline:none; font-family:inherit; }
+    .reverse-result-text:focus { border-color:rgba(0,180,216,.4); }
+    body.studio-theme-dark .reverse-result-text { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.08); color:#e0e7ef; }
+    /* 统一 action 行(覆盖 .reverse-modal-actions 默认) */
+    .reverse-result-actions { margin-top:10px; }
+    .reverse-result-actions .btn-primary { flex:1.4; }
+    .reverse-result-actions .btn-secondary { flex:1; }
+    .reverse-result-actions .btn-ghost { flex:0 0 auto; padding:12px 14px; }
+    .reverse-result-actions .btn-ghost.copied { color:#10b981; }
+    body.studio-theme-dark .reverse-result-actions .btn-ghost.copied { color:#34d399; }
+
+    /* ── 移动端适配(< 540px)：贴底上滑、按钮加高 ── */
+    @media (max-width: 540px) {
+        .reverse-modal-overlay { align-items:flex-end; padding:0; }
+        .reverse-modal { width:100%; max-width:100%; max-height:92vh; min-height:0; border-radius:18px 18px 0 0; padding:24px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+        .reverse-modal::before { display:block; }
+        .reverse-modal-title { font-size:16px; }
+        .reverse-modal-header-btn,
+        .reverse-modal-close { width:40px; height:40px; }
+        .reverse-modal-preview { min-height:64px; padding:8px 10px; }
+        .reverse-modal-preview-thumb { width:68px; height:52px; }
+        .reverse-modal-preview-name { font-size:13px; }
+        .reverse-modal-preview-meta { font-size:10px; }
+        .reverse-modal-section { margin-bottom:18px; }
+        .reverse-modal-label { font-size:11px; }
+        .reverse-modal-opt { min-height:60px; font-size:14px; }
+        .reverse-modal-opt-desc { font-size:10px; }
+        .reverse-modal-select { min-height:50px; font-size:15px; }
+        .reverse-modal-actions { padding-top:12px; }
+        .reverse-modal-actions .btn-primary,
+        .reverse-modal-actions .btn-secondary,
+        .reverse-modal-actions .btn-ghost { min-height:52px; font-size:15px; }
+        .reverse-result-text { font-size:14px; padding:12px 14px; }
+        .reverse-progress-spinner { width:48px; height:48px; }
+        .reverse-progress-stage { font-size:16px; }
+    }    </style>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
 </head>
@@ -595,25 +784,11 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                             </button>
                         </div>
-                        <!-- 反推 Provider 切换 -->
+                        <!-- 反推设置（点击弹出面板） -->
                         <span class="flex items-center gap-1" style="font-size:10px;color:rgba(0,0,0,0.3);white-space:nowrap;margin-left:2px;">反推</span>
-                        <div class="anima-ctrl-wrap anima-ctrl-wrap-reverse" style="position:relative;">
-                            <button class="anima-ctrl" id="reverseProviderBtn" onclick="toggleReverseProviderMenu()" style="min-width:52px;justify-content:center;font-size:10px;" title="反推方式">
-                                <span id="reverseProviderLabel">自动</span>
-                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                            <div class="anima-ctrl-menu" id="reverseProviderMenu" style="left:auto;right:0;">
-                                <div class="anima-ctrl-menu-item" data-provider="auto" onclick="selectReverseProvider('auto')"><span>自动</span><span class="chk" id="rpChkAuto" style="display:none;">✓</span></div>
-                                <div class="anima-ctrl-menu-item" data-provider="comfyui" onclick="selectReverseProvider('comfyui')"><span>本地 ComfyUI 工作流</span><span class="chk" id="rpChkComfyui" style="display:none;">✓</span></div>
-                                <div class="anima-ctrl-menu-item" data-provider="vision" onclick="selectReverseProvider('vision')"><span>AI API 多模态</span><span class="chk" id="rpChkVision" style="display:none;">✓</span></div>
-                                <div style="border-top:1px solid rgba(255,255,255,0.1);margin:4px 0;padding:4px 12px 0;display:flex;flex-direction:column;gap:4px;">
-                                    <span style="font-size:9px;color:#666;">AI 平台</span>
-                                    <select id="reverseVisionProvider" onchange="onReverseVisionProviderChange(this.value)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 6px;font-size:10px;color:#999;outline:none;cursor:pointer;">
-                                        <option value="">自动选择</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <button class="anima-ctrl reverse-settings-btn" id="reverseSettingsBtn" onclick="openReverseSettingsModal()" title="反推设置" aria-label="反推设置">
+                            <i data-lucide="settings-2" class="w-3 h-3"></i>
+                        </button>
                     </div>
                         </div>
                     </div>
@@ -1823,25 +1998,7 @@
             _refImgMgr = new RefImageManager(container, {
                 inputId: 'refImageInput',
                 getReverseOptions: function () {
-                    var wf = (window.currentWorkflow || '').toLowerCase();
-                    var mode = wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
-                    var ts = '';
-                    if (window.BUILTIN_WF_META) {
-                        for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
-                            if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
-                                ts = window.BUILTIN_WF_META[i].model_folder || '';
-                                break;
-                            }
-                        }
-                    }
-                    var rp = document.getElementById('reverseProviderLabel');
-                    var rpv = document.getElementById('reverseVisionProvider');
-                    return {
-                        mode: mode,
-                        targetStyle: ts,
-                        provider: rp ? rp.textContent === '自动' ? 'auto' : rp.textContent.trim() : 'auto',
-                        visionProviderId: rpv ? rpv.value || '' : ''
-                    };
+                    return (typeof _buildReverseOpts === 'function') ? _buildReverseOpts() : { mode: 'caption', targetStyle: '', provider: 'auto', visionProviderId: '' };
                 },
                 onReverseApply: function (text, applyMode) {
                     var ta = document.getElementById('prompt');
@@ -1967,14 +2124,117 @@
             }
         })();
 
-        // ── 反推 Provider 管理 ──
+        // ── 反推设置（模态面板：共享缩略图条 + 三视图无缝切换） ──
         var _reverseProvider = 'auto';
+        var _reverseMode = 'auto';  // 'auto' | 'caption' | 'tags'
+        var _reverseVisionProvider = '';
+        var _reverseFile = null;
+        var _reverseFileUrl = null;  // 缩略图 objectURL
         var _reverseProvidersLoaded = false;
-        function toggleReverseProviderMenu() {
-            var m = document.getElementById('reverseProviderMenu');
-            if (!m) return;
-            m.style.display = m.style.display === 'block' ? 'none' : 'block';
-            if (m.style.display === 'block' && !_reverseProvidersLoaded) {
+        var _reverseAbort = null;    // 当前反推请求的 AbortController
+        var _reverseTimer = null;    // 进度动画 timer
+        var _reverseDragDepth = 0;   // 拖入状态嵌套计数（防 dragenter 抖动）
+
+        function _revView(name) {
+            var ids = { settings: 'revViewSettings', progress: 'revViewProgress', result: 'revViewResult' };
+            // 先把隐藏的视图移除再显示,让 fade-in 动画每次都触发（重置 animation）
+            Object.keys(ids).forEach(function (k) {
+                var el = document.getElementById(ids[k]);
+                if (!el) return;
+                if (k === name) {
+                    if (el.hidden) {
+                        el.hidden = false;
+                        // 强制 reflow 重启动画
+                        void el.offsetWidth;
+                        el.style.animation = 'none';
+                        void el.offsetWidth;
+                        el.style.animation = '';
+                    }
+                } else {
+                    el.hidden = true;
+                }
+            });
+            var title = document.getElementById('revViewTitle');
+            if (title) title.textContent = name === 'settings' ? '反推设置' : (name === 'progress' ? '反推中' : '反推结果');
+            var back = document.getElementById('revReRunBtn');
+            if (back) back.style.display = (name === 'result') ? 'flex' : 'none';
+            var modal = document.getElementById('reverseModal');
+            if (modal) modal.classList.toggle('on-result', name === 'result');
+        }
+
+        // ── 缩略图渲染 ──
+        function _setReverseFile(file) {
+            // 释放旧 objectURL
+            if (_reverseFileUrl) { try { URL.revokeObjectURL(_reverseFileUrl); } catch (_) {} _reverseFileUrl = null; }
+            _reverseFile = file || null;
+            var thumb = document.getElementById('revPreviewThumb');
+            var name = document.getElementById('revPreviewName');
+            var size = document.getElementById('revPreviewSize');
+            var preview = document.getElementById('revPreview');
+            if (!file) {
+                if (thumb) { thumb.style.backgroundImage = ''; thumb.classList.add('empty'); }
+                if (name) { name.textContent = '点击或拖入图片'; name.classList.add('empty'); }
+                if (size) size.textContent = '未选择';
+                if (preview) preview.classList.add('is-empty');
+                var btn = document.getElementById('revStartBtn');
+                if (btn) btn.disabled = true;
+                return;
+            }
+            _reverseFileUrl = URL.createObjectURL(file);
+            if (thumb) { thumb.style.backgroundImage = 'url(' + _reverseFileUrl + ')'; thumb.classList.remove('empty'); }
+            if (name) { name.textContent = file.name; name.classList.remove('empty'); }
+            if (size) size.textContent = (file.size / 1024).toFixed(1) + ' KB';
+            if (preview) preview.classList.remove('is-empty');
+            var btn = document.getElementById('revStartBtn');
+            if (btn) btn.disabled = false;
+        }
+
+        // ── 拖入支持（整张 modal 都是 dropzone） ──
+        function _bindReverseDragDrop() {
+            var overlay = document.getElementById('reverseModalOverlay');
+            if (!overlay || overlay._dragBound) return;
+            overlay._dragBound = true;
+            var onEnter = function (e) {
+                e.preventDefault();
+                if (!_reverseDragDepth) overlay.classList.add('is-dragover');
+                _reverseDragDepth++;
+            };
+            var onLeave = function (e) {
+                e.preventDefault();
+                _reverseDragDepth = Math.max(0, _reverseDragDepth - 1);
+                if (!_reverseDragDepth) overlay.classList.remove('is-dragover');
+            };
+            var onOver = function (e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; };
+            var onDrop = function (e) {
+                e.preventDefault();
+                _reverseDragDepth = 0;
+                overlay.classList.remove('is-dragover');
+                var files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || !files.length) return;
+                var f = files[0];
+                if (!/^image\//.test(f.type)) {
+                    alert('请拖入图片文件');
+                    return;
+                }
+                // 若正在反推中,拖入新图无效（避免混乱）
+                var prog = document.getElementById('revViewProgress');
+                if (prog && !prog.hidden) return;
+                _setReverseFile(f);
+                _revView('settings');
+            };
+            overlay.addEventListener('dragenter', onEnter);
+            overlay.addEventListener('dragleave', onLeave);
+            overlay.addEventListener('dragover', onOver);
+            overlay.addEventListener('drop', onDrop);
+        }
+
+        function openReverseSettingsModal() {
+            var ov = document.getElementById('reverseModalOverlay');
+            if (!ov) return;
+            ov.classList.add('show');
+            _bindReverseDragDrop();
+            // 首次打开时拉取 provider 列表
+            if (!_reverseProvidersLoaded) {
                 _reverseProvidersLoaded = true;
                 fetch('/api/providers').then(function(r){return r.json();}).then(function(d){
                     var sel = document.getElementById('reverseVisionProvider');
@@ -1988,30 +2248,244 @@
                         if (p.has_key) o.textContent += ' ✓';
                         sel.appendChild(o);
                     });
+                    if (_reverseVisionProvider) sel.value = _reverseVisionProvider;
                 }).catch(function(){});
+            } else {
+                var sel = document.getElementById('reverseVisionProvider');
+                if (sel) sel.value = _reverseVisionProvider || '';
             }
-        }
-        function selectReverseProvider(val) {
-            _reverseProvider = val;
-            ['rpChkAuto','rpChkComfyui','rpChkVision'].forEach(function(id){
-                var el = document.getElementById(id);
-                if (el) el.style.display = 'none';
-            });
-            var chk = document.getElementById('rpChk' + val.charAt(0).toUpperCase() + val.slice(1));
-            if (chk) chk.style.display = 'inline';
-            var lbl = document.getElementById('reverseProviderLabel');
-            if (lbl) {
-                var names = {auto:'自动',comfyui:'本地',vision:'AI API'};
-                lbl.textContent = names[val] || '自动';
+            _revView('settings');
+            syncReverseSettingsUI();
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                try { window.lucide.createIcons({ attrs: { class: 'w-3 h-3' } }); } catch (_) {}
             }
-            var m = document.getElementById('reverseProviderMenu');
-            if (m) m.style.display = 'none';
-        }
-        function onReverseVisionProviderChange(val) {
-            // 存着给 getReverseOptions 用
         }
 
-        function refImageHandleUpload(input) {
+        function closeReverseSettingsModal() {
+            // 关闭时若正在反推,提示用户
+            var prog = document.getElementById('revViewProgress');
+            if (prog && !prog.hidden) {
+                if (!confirm('反推正在进行中,确定关闭？')) return;
+                cancelReverseFromModal();
+            }
+            var ov = document.getElementById('reverseModalOverlay');
+            if (ov) {
+                ov.classList.remove('show');
+                ov.classList.remove('is-dragover');
+                _reverseDragDepth = 0;
+            }
+        }
+
+        function syncReverseSettingsUI() {
+            var opts = document.querySelectorAll('#revProviderOptions .reverse-modal-opt');
+            opts.forEach(function(el){
+                if (el.getAttribute('data-value') === _reverseProvider) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+            var mopts = document.querySelectorAll('#revModeOptions .reverse-modal-opt');
+            mopts.forEach(function(el){
+                if (el.getAttribute('data-value') === _reverseMode) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+            var vps = document.getElementById('revVisionProviderSection');
+            if (vps) vps.style.display = (_reverseProvider === 'comfyui') ? 'none' : 'block';
+            var btn = document.getElementById('reverseSettingsBtn');
+            if (btn) {
+                if (_reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider) btn.classList.add('is-in-use');
+                else btn.classList.remove('is-in-use');
+            }
+        }
+
+        function setReverseProvider(val) { _reverseProvider = val; syncReverseSettingsUI(); }
+        function setReverseMode(val) { _reverseMode = val; syncReverseSettingsUI(); }
+        function onReverseVisionProviderChange(val) { _reverseVisionProvider = val || ''; syncReverseSettingsUI(); }
+
+        function onReverseFileChange(input) {
+            var f = input.files && input.files[0];
+            _setReverseFile(f);
+        }
+
+        function resetReverseSettings() {
+            // 二次确认：仅在有文件/非默认设置时才询问,避免误点
+            var hasFile = !!_reverseFile;
+            var hasCustom = _reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider;
+            if (hasFile || hasCustom) {
+                if (!confirm('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。')) return;
+            }
+            _reverseProvider = 'auto';
+            _reverseMode = 'auto';
+            _reverseVisionProvider = '';
+            _setReverseFile(null);
+            var sel = document.getElementById('reverseVisionProvider');
+            if (sel) sel.value = '';
+            var fi = document.getElementById('revFileInput');
+            if (fi) fi.value = '';
+            syncReverseSettingsUI();
+        }
+
+        function _resolveReverseMode() {
+            if (_reverseMode === 'caption' || _reverseMode === 'tags') return _reverseMode;
+            var wf = (window.currentWorkflow || '').toLowerCase();
+            return wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
+        }
+
+        function _buildReverseOpts() {
+            var ts = '';
+            if (window.BUILTIN_WF_META) {
+                for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
+                    if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
+                        ts = window.BUILTIN_WF_META[i].model_folder || '';
+                        break;
+                    }
+                }
+            }
+            return {
+                mode: _resolveReverseMode(),
+                targetStyle: ts,
+                provider: _reverseProvider,
+                visionProviderId: _reverseVisionProvider
+            };
+        }
+
+        // 进度视图：阶段 + 0-100% 伪进度
+        var _REV_STAGES = [
+            { p: 8,  t: '正在上传图片…' },
+            { p: 30, t: '正在分析图片…' },
+            { p: 60, t: '正在生成提示词…' },
+            { p: 85, t: '正在润色输出…' }
+        ];
+        function _startReverseProgress(file) {
+            var stage = document.getElementById('revProgressStage');
+            var ftext = document.getElementById('revProgressFile');
+            var bar = document.getElementById('revProgressBar');
+            var pct = document.getElementById('revProgressPercent');
+            if (ftext) ftext.textContent = file.name + '  ·  ' + (file.size / 1024).toFixed(1) + ' KB';
+            if (bar) bar.style.width = '0%';
+            if (pct) pct.textContent = '0%';
+            var i = 0, cur = 0;
+            if (_reverseTimer) clearInterval(_reverseTimer);
+            _reverseTimer = setInterval(function () {
+                if (i >= _REV_STAGES.length) {
+                    cur = Math.min(95, cur + 0.4);
+                } else {
+                    var target = _REV_STAGES[i].p;
+                    cur = Math.min(target, cur + (target - cur) * 0.18);
+                    if (stage) stage.textContent = _REV_STAGES[i].t;
+                    if (cur >= target - 0.5) i++;
+                }
+                var rounded = Math.round(cur);
+                if (bar) bar.style.width = rounded + '%';
+                if (pct) pct.textContent = rounded + '%';
+            }, 180);
+        }
+        function _stopReverseProgress(success) {
+            if (_reverseTimer) { clearInterval(_reverseTimer); _reverseTimer = null; }
+            var bar = document.getElementById('revProgressBar');
+            var pct = document.getElementById('revProgressPercent');
+            var stage = document.getElementById('revProgressStage');
+            if (bar) bar.style.width = '100%';
+            if (pct) pct.textContent = '100%';
+            if (stage) stage.textContent = success ? '完成' : '已取消';
+        }
+
+        function startReverseFromModal() {
+            if (!_reverseFile) return;
+            var file = _reverseFile;
+            var opts = _buildReverseOpts();
+            _revView('progress');
+            _startReverseProgress(file);
+            _reverseAbort = new AbortController();
+            var fd = new FormData();
+            fd.append('file', file);
+            if (opts.mode) fd.append('mode', opts.mode);
+            if (opts.targetStyle) fd.append('target_style', opts.targetStyle);
+            if (opts.provider) fd.append('provider', opts.provider);
+            if (opts.visionProviderId) fd.append('vision_provider_id', opts.visionProviderId);
+            fetch('/api/interrogate', { method: 'POST', body: fd, signal: _reverseAbort.signal })
+                .then(function (res) {
+                    if (!res.ok) return res.json().then(function (j) { throw new Error(j.detail || ('HTTP ' + res.status)); },
+                        function () { throw new Error('HTTP ' + res.status); });
+                    return res.json();
+                })
+                .then(function (result) {
+                    _stopReverseProgress(true);
+                    _showReverseResult(result);
+                })
+                .catch(function (e) {
+                    _stopReverseProgress(false);
+                    if (e.name === 'AbortError') return;
+                    _revView('settings');
+                    alert('反推失败: ' + e.message);
+                });
+        }
+
+        function cancelReverseFromModal() {
+            if (_reverseAbort) { try { _reverseAbort.abort(); } catch (_) {} _reverseAbort = null; }
+            _stopReverseProgress(false);
+            _revView('settings');
+        }
+
+        function _showReverseResult(result) {
+            var text = (result && result.text) || '';
+            var fmt = (result && result.format) || 'caption';
+            var provider = (result && result.provider) || _reverseProvider;
+            var fmtEl = document.getElementById('revResultFormat');
+            var provEl = document.getElementById('revResultProvider');
+            var txtEl = document.getElementById('revResultText');
+            var copyWrap = document.getElementById('revCopyWrap');
+            if (fmtEl) fmtEl.textContent = fmt;
+            if (provEl) provEl.textContent = provider;
+            if (txtEl) { txtEl.value = text; txtEl.readOnly = true; }
+            if (copyWrap) copyWrap.classList.remove('copied');
+            _revView('result');
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                try { window.lucide.createIcons({ attrs: { class: 'w-3 h-3' } }); } catch (_) {}
+            }
+        }
+
+        function applyReverseResult(applyMode) {
+            var txtEl = document.getElementById('revResultText');
+            var text = txtEl ? txtEl.value : '';
+            var ta = document.getElementById('prompt');
+            if (!ta || !text) return;
+            if (applyMode === 'append' && ta.value.trim()) {
+                ta.value = ta.value.trim() + ', ' + text;
+            } else {
+                ta.value = text;
+            }
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            if (window.updatePromptTags) window.updatePromptTags();
+            closeReverseSettingsModal();
+        }
+
+        function copyReverseResult() {
+            var txtEl = document.getElementById('revResultText');
+            if (!txtEl) return;
+            var text = txtEl.value;
+            var wrap = document.getElementById('revCopyWrap');
+            var done = function () { if (wrap) { wrap.classList.add('copied'); setTimeout(function(){ wrap.classList.remove('copied'); }, 1200); } };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, done);
+            } else {
+                txtEl.removeAttribute('readonly');
+                txtEl.select();
+                try { document.execCommand('copy'); } catch (_) {}
+                txtEl.setAttribute('readonly', 'readonly');
+                done();
+            }
+        }
+
+        function backToReverseSettings() {
+            _revView('settings');
+        }
+
+        // ESC 关闭模态
+        document.addEventListener('keydown', function(e){
+            if (e.key === 'Escape') {
+                var ov = document.getElementById('reverseModalOverlay');
+                if (ov && ov.classList.contains('show')) closeReverseSettingsModal();
+            }
+        });        function refImageHandleUpload(input) {
             initRefImageManager();
             if (_refImgMgr) _refImgMgr.upload();
         }
@@ -3149,5 +3623,127 @@
             })();
         };
     </script>
-</body>
+<!-- ── 反推设置面板（悬浮模态：缩略图条 + 三视图无缝切换） ── -->
+<div class="reverse-modal-overlay" id="reverseModalOverlay" onclick="if(event.target===this)closeReverseSettingsModal()">
+    <div class="reverse-modal" id="reverseModal" role="dialog" aria-modal="true" aria-label="反推设置">
+        <div class="reverse-modal-header">
+            <div class="reverse-modal-title" id="revViewTitle">反推设置</div>
+            <div class="reverse-modal-header-right">
+                <button class="reverse-modal-header-btn rerun-btn" id="revReRunBtn" onclick="backToReverseSettings()" aria-label="重新反推" title="返回设置/重新反推" style="display:none;">
+                    <i data-lucide="rotate-ccw" style="width:18px;height:18px;"></i>
+                </button>
+                <button class="reverse-modal-close" onclick="closeReverseSettingsModal()" aria-label="关闭">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 共享：缩略图条(三视图都显示,作为视觉锚点) -->
+        <div class="reverse-modal-preview is-empty" id="revPreview">
+            <input type="file" accept="image/*" id="revFileInput" style="display:none;" onchange="onReverseFileChange(this)">
+            <div class="reverse-modal-preview-thumb empty" id="revPreviewThumb" onclick="document.getElementById('revFileInput').click()" title="选择图片"></div>
+            <div class="reverse-modal-preview-info">
+                <div class="reverse-modal-preview-name empty" id="revPreviewName" onclick="document.getElementById('revFileInput').click()" style="cursor:pointer;">点击或拖入图片</div>
+                <div class="reverse-modal-preview-meta" id="revPreviewMeta">
+                    <span id="revPreviewSize">未选择</span>
+                    <span style="opacity:.5;">·</span>
+                    <button class="reverse-modal-preview-change" onclick="document.getElementById('revFileInput').click()">选择文件</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 视图 A: 设置 -->
+        <div class="reverse-view" id="revViewSettings">
+            <div class="reverse-modal-section">
+                <label class="reverse-modal-label">反推提供商</label>
+                <div class="reverse-modal-options" id="revProviderOptions">
+                    <button class="reverse-modal-opt active" data-value="auto" onclick="setReverseProvider('auto')">
+                        自动
+                        <span class="reverse-modal-opt-desc">按场景自动选</span>
+                    </button>
+                    <button class="reverse-modal-opt" data-value="comfyui" onclick="setReverseProvider('comfyui')">
+                        本地 ComfyUI
+                        <span class="reverse-modal-opt-desc">本地工作流</span>
+                    </button>
+                    <button class="reverse-modal-opt" data-value="vision" onclick="setReverseProvider('vision')">
+                        AI API 多模态
+                        <span class="reverse-modal-opt-desc">调用云端模型</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="reverse-modal-section" id="revVisionProviderSection">
+                <label class="reverse-modal-label">AI 平台 / 模型</label>
+                <select class="reverse-modal-select" id="reverseVisionProvider" onchange="onReverseVisionProviderChange(this.value)">
+                    <option value="">自动选择</option>
+                </select>
+            </div>
+
+            <div class="reverse-modal-section">
+                <label class="reverse-modal-label">反推模式</label>
+                <div class="reverse-modal-options" id="revModeOptions">
+                    <button class="reverse-modal-opt active" data-value="auto" onclick="setReverseMode('auto')">
+                        自动
+                        <span class="reverse-modal-opt-desc">随工作流走</span>
+                    </button>
+                    <button class="reverse-modal-opt" data-value="caption" onclick="setReverseMode('caption')">
+                        描述
+                        <span class="reverse-modal-opt-desc">自然语言句子</span>
+                    </button>
+                    <button class="reverse-modal-opt" data-value="tags" onclick="setReverseMode('tags')">
+                        标签
+                        <span class="reverse-modal-opt-desc">逗号分隔的词</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="reverse-modal-hint">调整即时生效；可直接拖入图片到本面板。</div>
+
+            <div class="reverse-modal-actions">
+                <button class="btn-ghost" onclick="resetReverseSettings()" title="恢复所有设置为默认">
+                    <i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i>重置
+                </button>
+                <button class="btn-primary" id="revStartBtn" onclick="startReverseFromModal()" disabled>
+                    <i data-lucide="sparkles" style="width:16px;height:16px;"></i>开始反推
+                </button>
+            </div>
+        </div>
+
+        <!-- 视图 B: 进度 -->
+        <div class="reverse-view" id="revViewProgress" hidden>
+            <div class="reverse-progress">
+                <div class="reverse-progress-spinner"></div>
+                <div class="reverse-progress-stage" id="revProgressStage">正在分析图片…</div>
+                <div class="reverse-progress-file" id="revProgressFile">文件名</div>
+                <div class="reverse-progress-bar"><div id="revProgressBar" style="width:0%;"></div></div>
+                <div class="reverse-progress-percent" id="revProgressPercent">0%</div>
+            </div>
+            <div class="reverse-modal-actions">
+                <button class="btn-secondary" onclick="cancelReverseFromModal()">
+                    <i data-lucide="x" style="width:16px;height:16px;"></i>取消
+                </button>
+            </div>
+        </div>
+
+        <!-- 视图 C: 结果 -->
+        <div class="reverse-view" id="revViewResult" hidden>
+            <div class="reverse-result-meta">
+                <span class="reverse-result-meta-tag" id="revResultFormat">caption</span>
+                <span id="revResultProvider">auto</span>
+            </div>
+            <textarea class="reverse-result-text" id="revResultText" readonly></textarea>
+            <div class="reverse-modal-actions reverse-result-actions">
+                <button class="btn-primary" onclick="applyReverseResult('replace')" title="用反推结果替换当前提示词">
+                    <i data-lucide="replace" style="width:16px;height:16px;"></i>替换
+                </button>
+                <button class="btn-secondary" onclick="applyReverseResult('append')" title="把反推结果追加到当前提示词末尾">
+                    <i data-lucide="plus" style="width:16px;height:16px;"></i>追加
+                </button>
+                <button class="btn-ghost" id="revCopyWrap" onclick="copyReverseResult()" title="复制到剪贴板">
+                    <i data-lucide="copy" style="width:16px;height:16px;"></i>复制
+                </button>
+            </div>
+        </div>
+    </div>
+</div></body>
 </html>

@@ -32,8 +32,15 @@
     }
 
     // 生成类接口(命中后若返回 401 则跳转登录)
+    // 严格匹配: 顶层 /generate 路径(含 query/hash),以及 /api/prompt-module/generate
+    // 不能用 indexOf,会把 "/api/something/regenerate" 之类的也误判
     function isGenerateUrl(url) {
-        return typeof url === 'string' && url.indexOf('/generate') > -1;
+        if (typeof url !== 'string') return false;
+        // 剥离 query 和 hash 后判断路径
+        var path = url.split('?')[0].split('#')[0];
+        if (path === '/generate') return true;
+        if (path === '/api/prompt-module/generate') return true;
+        return false;
     }
 
     function redirectToLogin() {

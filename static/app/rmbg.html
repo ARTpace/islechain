@@ -183,7 +183,8 @@
         .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
         .masonry-grid.thumb-medium{ /* 默认 */ }
         .masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
-        .masonry-grid.thumb-small .model-badge{ display:none!important; }
+        /* [Bugfix] thumb-small 模式也显示徽标，但用更小样式 */
+        .masonry-grid.thumb-small .model-badge{ display:block !important; font-size:8px !important; padding:2px 5px !important; border-radius:5px !important; opacity:0.85; }
         @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
         @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }

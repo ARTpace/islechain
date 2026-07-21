@@ -28,7 +28,31 @@
         style.textContent = `
             .history-bulk-surface{position:relative}
             .history-bulk-surface.is-selecting{cursor:crosshair}
-            .history-bulk-toolbar{display:flex;align-items:center;gap:10px;margin:-4px 0 18px;min-height:34px}
+            /* [Fix] 工具栏吸顶 — 把 toolbar 移到 <main> 外部的 DOM 中（attach() 中处理），
+               用 position:sticky 贴住视口顶部。body 是 flex column + overflow:hidden，
+               所以 main 的滚动不会推它，绝对不抖动。 */
+            .history-bulk-toolbar{
+                display:flex;align-items:center;gap:10px;
+                margin:0 auto 12px;
+                padding:8px 40px;
+                min-height:34px;
+                position:sticky;top:0;z-index:25;
+                max-width:1280px;width:100%;
+                box-sizing:border-box;
+                background:var(--bg-base,#f8f8f8);
+                box-shadow:0 6px 12px -8px rgba(15,23,42,.18);
+            }
+            body.studio-theme-dark .history-bulk-toolbar,
+            html.studio-theme-dark .history-bulk-toolbar{
+                background:#0a0e17;
+                box-shadow:0 6px 14px -8px rgba(0,0,0,.55);
+            }
+            @media (max-width:768px){
+                .history-bulk-toolbar{padding:8px 16px;}
+            }
+            @media (max-width:640px){
+                .history-bulk-toolbar{padding:8px 12px;}
+            }
             .history-bulk-toolbar .bulk-spacer{flex:1}
             .history-bulk-btn{height:32px;border-radius:999px;border:1px solid rgba(148,163,184,.28);background:rgba(255,255,255,.9);color:#475569;padding:0 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;display:inline-flex;align-items:center;gap:7px;transition:all .18s ease}
             .history-bulk-btn:hover{background:#111827;color:#fff;border-color:#111827}
@@ -234,6 +258,15 @@
             <button class="history-bulk-btn" type="button" data-bulk-toggle><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="btn-text"> ${L.manage}</span></button>
         `;
         masonry.parentNode.insertBefore(toolbar, masonry);
+        // === [Fix] 工具栏吸顶：把 toolbar 移到 <main> 外部，作为 main 的兄弟节点
+        // body 是 flex column + overflow:hidden，toolbar 脱离 main 的滚动流后，
+        // position:sticky 把它固定在视口顶部，零抖动。
+        (function moveToolbarAboveScroll() {
+            const sc = masonry.closest('main');
+            if (sc && sc.parentNode && toolbar.parentNode !== sc.parentNode) {
+                sc.parentNode.insertBefore(toolbar, sc);
+            }
+        })();
         const toggleBtn = toolbar.querySelector('[data-bulk-toggle]');
         const searchBtn = toolbar.querySelector('[data-bulk-search]');
         const searchWrap = toolbar.querySelector('[data-search-wrap]');
@@ -522,7 +555,8 @@
                     card.classList.remove('lp-active');
                     ring.remove();
                     manager.setSelecting(true);   // 进入批量管理模式
-                    manager.toggleCard(card);      // 预选被长按的这张图
+                    // [Bugfix] 用户反馈：长按触发批量管理即可，不需要预选这张图
+                    // 原逻辑: manager.toggleCard(card);  // 预选被长按的这张图
                     _suppress = true;              // 抑制紧随的 click（直到下次 pointerdown 才解除）
                 }, LONG_PRESS_MS) };
             }, true);
@@ -552,6 +586,8 @@
             }, true);
         }
 
+        // === [Fix v2] toolbar 已移出 <main>，用 position:sticky 贴视口顶部 ===
+        // 不再需要 JS scroll 监听 + transform 补偿。
         sync();
         return manager;
     }

@@ -16,7 +16,10 @@
             '.gallery-vpfab.show{opacity:1;pointer-events:auto;}',
             '.gallery-vpfab:hover{transform:scale(1.12)}',
             '.gallery-vpfab:active{transform:scale(0.9)}',
-            '.gallery-magnify{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:pointer;}',
+            // [Bugfix] 恢复原行为：hover 卡片才显示（opacity:0 → .show 时 1）
+            // cursor-zoom-in 放在按钮自身上，鼠标移到按钮上才变放大镜 cursor，
+            // 之前 card 整体 cursor-zoom-in 会让鼠标在卡片任意位置都变放大镜
+            '.gallery-magnify{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:zoom-in;}',
             '.gallery-magnify.show{opacity:1;pointer-events:auto;}',
             '.gallery-magnify:hover{transform:scale(1.12)}',
             '.gallery-magnify:active{transform:scale(0.9)}',
@@ -24,7 +27,9 @@
             '.gallery-fav.show{opacity:1;pointer-events:auto;}',
             '.gallery-fav:hover{transform:scale(1.12)}',
             '.gallery-fav:active{transform:scale(0.9)}',
-            '.gallery-fav.is-fav{opacity:1!important;pointer-events:auto!important;color:#d97706;filter:drop-shadow(0 0 6px rgba(217,119,6,.4)) drop-shadow(0 3px 10px rgba(217,119,6,.25))!important;}',
+            // [Bugfix] 整个星形金黄：fill 金黄 + 当前色继承保持原细描边（不另加粗轮廓）
+            '.gallery-fav.is-fav{opacity:1!important;pointer-events:auto!important;color:#fbbf24;fill:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.55))!important;}',
+            '.gallery-fav.is-fav svg{fill:#fbbf24!important;stroke:#fbbf24!important;}',
             '.masonry-item.gallery-selected{outline:3px solid #38bdf8;outline-offset:-3px;border-radius:8px;}'
         ].join('\n');
         (document.head || document.documentElement).appendChild(style);
@@ -130,7 +135,7 @@
         card.id = `history-${record.timestamp}`;
         card.dataset.historyTs = record.timestamp;
         card.dataset.historyType = historyType;
-        card.className = 'masonry-item group cursor-zoom-in animate-in fade-in duration-700';
+        card.className = 'masonry-item group animate-in fade-in duration-700';
 
         // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用
         function openLightboxForRecord(r) {
@@ -244,7 +249,10 @@
                 }
             }
             if (badgeText) {
-                badgeHTML = `<div class="model-badge absolute bottom-3 right-3 z-10 px-2 py-1 bg-black/60 backdrop-blur rounded-lg text-[9px] font-bold text-white">${escapeHTML(badgeText)}</div>`;
+                // [Bugfix] 改用内联 style + .model-badge 已有 CSS，不再依赖 Tailwind 预编译类
+                // 旧的 `bg-black/60 backdrop-blur text-[9px]` 是 Tailwind v3 类，
+                // 预编译的 tailwind.min.css 不一定包含，导致徽标透明看不见。
+                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fff;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
             }
         } else if (typeof features.modelBadge === 'string' && features.modelBadge) {
             badgeHTML = `<div class="model-badge absolute bottom-3 right-3 z-10"><img src="${features.modelBadge}" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>`;

@@ -1,10 +1,11 @@
 /* ──────────────────────────────────────────────────────────────
  * 提示词翻译共享模块
  *
- * 三级策略：
+ * 四级策略（v2）：
  *   ① 节点 / 文本缓存命中（0 API）
  *   ② 字典逐条查询（用户字典 → 系统字典）（0 API）
- *   ③ API 兜底 + 自动学习
+ *   ③ Token 级增量缓存（0 API，命中变化的 token 后只翻译未命中部分）
+ *   ④ API 兜底 + 自动学习（经 TranslateQueue 限速 + 去重）
  *
  * 使用：
  *   const result = await PromptTranslate.translate(text, dir, { cacheSource: node });
@@ -23,6 +24,24 @@
     let _sysDict = null;       // { forward, reverse }
     let _sysDictLoading = false;
     let _dir = localStorage.getItem('translate_dir') || 'zh2en';
+
+    /* ── 增量翻译实例 ─────────────────────────────────────── */
+    let _incrTranslator = null;
+    function getIncrementalTranslator() {
+        if (!_incrTranslator) {
+            _incrTranslator = new IncrementalTranslator();
+        }
+        return _incrTranslator;
+    }
+
+    /* ── 翻译队列实例 ─────────────────────────────────────── */
+    let _queue = null;
+    function getTranslateQueue() {
+        if (!_queue) {
+            _queue = new TranslateQueue({ maxConcurrent: 2, minInterval: 300 });
+        }
+        return _queue;
+    }
 
     /* ── 方向 ─────────────────────────────────────────────── */
     function getDirection() { return _dir; }
@@ -192,6 +211,60 @@
         source[cacheKey] = translatedText;
     }
 
+    /* ── 第 3 级：增量翻译（token 级部分缓存）───────────────── */
+    async function translateWithIncremental(text, dir, options) {
+        const setState = (options?.onState) || (() => {});
+        const incr = getIncrementalTranslator();
+
+        /* 先看节点级缓存是否完整命中 */
+        if (options?.cacheSource) {
+            const cached = cacheRead(options.cacheSource, dir);
+            if (cached) {
+                setState('缓存命中');
+                return { text: cached, fromCache: true, fromDict: false, fromApi: false };
+            }
+        }
+
+        /* 先走字典，全命中就直接返回 */
+        setState('查字典…');
+        const dictResult = await translateByDict(text, dir);
+        if (dictResult.allHit) {
+            setState('字典命中');
+            if (options?.cacheSource) {
+                cacheWrite(options.cacheSource, dir, text, dictResult.text);
+            }
+            return { text: dictResult.text, fromCache: false, fromDict: true, fromApi: false };
+        }
+
+        /* 字典部分命中 → 进入增量翻译 */
+        setState('增量翻译…');
+        const result = await incr.translate(text, dir, {
+            apiFallback: true,
+            onProgress: (idx, total, token, status) => {
+                if (status === 'miss') {
+                    setState(`翻译中 ${idx}/${total}`);
+                }
+            }
+        });
+
+        /* 写节点级缓存（如果有） */
+        if (options?.cacheSource) {
+            cacheWrite(options.cacheSource, dir, text, result.text);
+        }
+
+        /* 自动学习未命中的 token */
+        if (result.fromApi.length > 0) {
+            autoLearnDict(text, result.text, dir);
+        }
+
+        return {
+            text: result.text,
+            fromCache: false,
+            fromDict: dictResult.allHit,
+            fromApi: result.fromApi.length > 0
+        };
+    }
+
     /* ── 主入口 ───────────────────────────────────────────── */
     /**
      * @param {string} text
@@ -210,48 +283,23 @@
 
         const setState = onState || (() => {});
 
-        if (!forceApi) {
-            /* 第 2 级：缓存 */
-            const cached = cacheRead(cacheSource, dir);
-            if (cached) {
-                setState('缓存命中');
-                return { text: cached, fromCache: true, fromDict: false, fromApi: false };
-            }
-
-            /* 第 1 级：字典 */
-            setState('查字典…');
-            const dictResult = await translateByDict(text, dir);
-            if (dictResult.allHit) {
-                setState('字典命中');
-                cacheWrite(cacheSource, dir, text, dictResult.text);
-                return { text: dictResult.text, fromCache: false, fromDict: true, fromApi: false };
-            }
-        }
-
-        /* 第 3 级：API */
-        setState('翻译中…');
-        try {
-            const res = await fetch('/api/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, direction: dir })
-            });
-            const data = await res.json();
-            if (data.success && data.result) {
+        if (forceApi) {
+            /* 强制 API 模式：走队列限速 */
+            setState('翻译中…');
+            const queue = getTranslateQueue();
+            try {
+                const result = await queue.submit({ text, direction: dir });
                 setState('完成');
-                cacheWrite(cacheSource, dir, text, data.result);
-                // 自动学习（异步，不阻塞返回）
-                autoLearnDict(text, data.result, dir);
-                return { text: data.result, fromCache: false, fromDict: false, fromApi: true };
-            } else {
+                return result;
+            } catch (e) {
                 setState('失败');
+                console.error('[PromptTranslate] API 错误:', e);
                 return null;
             }
-        } catch (e) {
-            setState('失败');
-            console.error('[PromptTranslate] API 错误:', e);
-            return null;
         }
+
+        /* 正常模式：三级策略 + 增量翻译 */
+        return translateWithIncremental(text, dir, { ...opts, onState: setState });
     }
 
     /* ── 暴露 ─────────────────────────────────────────────── */
@@ -264,6 +312,12 @@
         directionIcon,
         resetUserDictCache,
         cacheRead,
-        cacheWrite
+        cacheWrite,
+        // 新增：增量翻译控制
+        getIncrementalTranslator,
+        getTranslateQueue,
+        clearTokenCache: () => getIncrementalTranslator().clear(),
+        invalidateToken: (token) => getIncrementalTranslator().invalidate(token),
+        tokenCacheStats: () => getIncrementalTranslator().stats(),
     };
 })();

@@ -86,9 +86,15 @@
                 ['初始定时器已设置', () => !!this._initialTimer],
                 ['周期定时器已设置', () => !!this._intervalTimer],
                 ['getToken 默认从 xy_auth_token 读', () => {
+                    // 单元测试必须保留生产环境真实 token,否则会把用户的登录态清掉
+                    const orig = Base.storage.get('xy_auth_token');
                     Base.storage.set('xy_auth_token', 'test-token-xyz');
                     const t = this._config.getToken();
-                    Base.storage.remove('xy_auth_token');
+                    if (orig == null) {
+                        Base.storage.remove('xy_auth_token');
+                    } else {
+                        Base.storage.set('xy_auth_token', orig);
+                    }
                     return t === 'test-token-xyz';
                 }],
                 ['destroy 清理定时器', () => {

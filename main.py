@@ -1455,6 +1455,10 @@ class NoCacheStaticFiles(StarletteStaticFiles):
 
 app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
+# prompt 模块静态文件
+PROMPT_STATIC_DIR = os.path.join(BASE_DIR, "prompt", "static")
+app.mount("/prompt/static", NoCacheStaticFiles(directory=PROMPT_STATIC_DIR), name="prompt_static")
+
 # 自定义 output 静态文件服务,支持子文件夹访问
 from starlette.responses import FileResponse as StarletteFileResponse
 
@@ -6289,10 +6293,18 @@ async def api_get_thumbnail(filename: str):
     })
 
 # --- 智能提示词生成 ---
+# Feature flag: 设为 True 使用新模块，False 回退旧版
+USE_NEW_PROMPT_MODULE = True
 
-from smart_prompt import generate_smart_prompt, load_config
+if USE_NEW_PROMPT_MODULE:
+    from prompt import generate as generate_smart_prompt
+    from prompt import load_config
+    from prompt.core import call_llm as _sp_call_llm
+else:
+    from smart_prompt import generate_smart_prompt, load_config
+    from smart_prompt import call_llm as _sp_call_llm
+
 import smart_tts as smart_tts_module
-from smart_prompt import call_llm as _sp_call_llm
 
 class SmartPromptRequest(BaseModel):
     prompt: str
@@ -6423,37 +6435,94 @@ async def set_selected_preset(payload: dict):
 async def smart_prompt(req: SmartPromptRequest):
     """智能提示词生成:中文描述 → Anima 标签"""
     try:
-        # 加载当前选中的预设
-        preset_id = 'default'
-        try:
-            if os.path.exists(SMART_PRESET_SELECT_FILE):
-                with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    preset_id = data.get('preset_id', 'default')
-        except Exception:
-            pass
-        # 查找预设
-        preset = None
-        for p in load_presets():
-            if p.get('id') == preset_id:
-                preset = p
-                break
-        # 加载 AI 配置
-        config = load_config()
-        if req.config:
-            config.update(req.config)
-        # 用预设覆盖参数
-        if preset:
-            if preset.get('provider_id'):
-                config['_preset_provider'] = preset['provider_id']
-            if preset.get('temperature') is not None:
-                config['temperature'] = preset['temperature']
-            if preset.get('max_tokens') is not None:
-                config['max_tokens'] = preset['max_tokens']
-        result = generate_smart_prompt(req.prompt, config, preset)
+        if USE_NEW_PROMPT_MODULE:
+            # 新模块：内部处理预设加载 + 配置解析 + 知识库检索
+            result = generate_smart_prompt(
+                req.prompt,
+                preset_id=None,
+                config_override=req.config,
+            )
+        else:
+            # 旧版兼容路径
+            preset_id = 'default'
+            try:
+                if os.path.exists(SMART_PRESET_SELECT_FILE):
+                    with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        preset_id = data.get('preset_id', 'default')
+            except Exception:
+                pass
+            preset = None
+            for p in load_presets():
+                if p.get('id') == preset_id:
+                    preset = p
+                    break
+            config = load_config()
+            if req.config:
+                config.update(req.config)
+            if preset:
+                if preset.get('provider_id'):
+                    config['_preset_provider'] = preset['provider_id']
+                if preset.get('temperature') is not None:
+                    config['temperature'] = preset['temperature']
+                if preset.get('max_tokens') is not None:
+                    config['max_tokens'] = preset['max_tokens']
+            result = generate_smart_prompt(req.prompt, config, preset)
         return result
     except Exception as e:
         return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+
+# ══════════════════════════════════════════════════════════════════════
+#  prompt 模块新路由 (/api/prompt-module/*)
+#  与旧路由双轨并行，前端切 PromptModule.config({apiPrefix: '/api/prompt-module'}) 即可使用
+# ══════════════════════════════════════════════════════════════════════
+if USE_NEW_PROMPT_MODULE:
+    from prompt import (
+        generate as pm_generate,
+        load_config as pm_load_config,
+        list_presets as pm_list_presets,
+        get_preset as pm_get_preset,
+        create_preset as pm_create_preset,
+        update_preset as pm_update_preset,
+        delete_preset as pm_delete_preset,
+        get_selected_preset_id as pm_get_selected_preset_id,
+        set_selected_preset_id as pm_set_selected_preset_id,
+    )
+
+    @app.post("/api/prompt-module/generate")
+    async def pm_generate_route(req: SmartPromptRequest):
+        try:
+            result = pm_generate(
+                req.prompt,
+                preset_id=None,
+                config_override=req.config,
+            )
+            return result
+        except Exception as e:
+            return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+
+    @app.get("/api/prompt-module/presets")
+    async def pm_list_presets_route():
+        return {"presets": pm_list_presets()}
+
+    @app.put("/api/prompt-module/presets/{preset_id}")
+    async def pm_update_preset_route(preset_id: str, payload: dict):
+        saved = pm_update_preset(preset_id, payload)
+        return {"success": True, "preset": saved}
+
+    @app.delete("/api/prompt-module/presets/{preset_id}")
+    async def pm_delete_preset_route(preset_id: str):
+        pm_delete_preset(preset_id)
+        return {"success": True}
+
+    @app.get("/api/prompt-module/selected-preset")
+    async def pm_get_selected_route():
+        return {"preset_id": pm_get_selected_preset_id()}
+
+    @app.post("/api/prompt-module/selected-preset")
+    async def pm_set_selected_route(payload: dict):
+        pm_set_selected_preset_id(payload.get("preset_id", "default"))
+        return {"success": True}
 
 # --- AI 生成提示词方案 ---
 class AIGenPlanRequest(BaseModel):

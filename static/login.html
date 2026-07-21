@@ -580,6 +580,8 @@ async function doLogin() {
             return;
         }
         var data = await resp.json();
+        // 调试日志:登录成功后,后端返回的 JSON 完整打到 console,方便核对字段名
+        console.log('[login] /api/auth/login resp data =', data);
         localStorage.setItem('xy_auth_token', data.token);
         localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
         window.location.href = '/static/index.html';
@@ -608,6 +610,8 @@ async function doRegister() {
             return;
         }
         var data = await resp.json();
+        // 调试日志:注册成功后,后端返回的 JSON 完整打到 console
+        console.log('[register] /api/auth/register resp data =', data);
         localStorage.setItem('xy_auth_token', data.token);
         localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
         window.location.href = '/static/index.html';

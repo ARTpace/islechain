@@ -70,7 +70,12 @@ class AuthManager {
         try {
             const resp = await fetch('/api/auth/me?token=' + encodeURIComponent(token));
             if (resp.status === 401) {
+                // token 无效/过期:清掉 localStorage 并跳登录,避免 UI 卡在'未登录'但脏数据残留
+                console.warn('[AuthManager] verify 401, token 已失效,清理并跳转登录');
                 this.clear();
+                if (!window.location.pathname.endsWith('login.html')) {
+                    window.location.replace('/static/login.html');
+                }
                 return false;
             }
             if (!resp.ok) {

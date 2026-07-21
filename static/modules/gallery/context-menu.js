@@ -43,13 +43,34 @@
             return `<div class="gallery-context-item" data-action="${it.action}">${it.icon || ''}<span>${it.label}</span></div>`;
         }).join('');
         el.style.display = 'block';
-        // 防止超出视口
+        // 防止超出视口：
+        // [Bugfix] 必须先 force reflow 再 rect，否则 rect 可能为 0×0
+        // → 导致 rect.bottom 判断为 0，不触发 bottom clamp
+        // → 菜单定位在 (x, y) 但 y 已超出屏幕底部，被遮挡看不到。
+        // 解决：先把位置设到 (x, y)，再读 offsetHeight 强制 reflow，最后调整位置。
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        // 强制 reflow，让浏览器计算布局
+        // eslint-disable-next-line no-unused-expressions
+        el.offsetHeight;
         requestAnimationFrame(() => {
             const rect = el.getBoundingClientRect();
-            if (rect.right > window.innerWidth) el.style.left = (window.innerWidth - rect.width - 8) + 'px';
-            else el.style.left = x + 'px';
-            if (rect.bottom > window.innerHeight) el.style.top = (window.innerHeight - rect.height - 8) + 'px';
-            else el.style.top = y + 'px';
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            // 水平：超出右边界则贴右；超出左边界则贴左
+            if (rect.right > winW) {
+                el.style.left = Math.max(4, winW - rect.width - 4) + 'px';
+            } else if (rect.left < 0) {
+                el.style.left = '4px';
+            }
+            // 垂直：超出下边界则上移；超出上边界则贴顶
+            if (rect.bottom > winH) {
+                // 优先上移到「鼠标上方」显示，仍不够就贴顶
+                const upY = y - rect.height - 4;
+                el.style.top = (upY >= 4 ? upY : 4) + 'px';
+            } else if (rect.top < 0) {
+                el.style.top = '4px';
+            }
         });
         // 绑定点击
         el.querySelectorAll('.gallery-context-item').forEach(node => {

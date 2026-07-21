@@ -1,0 +1,20 @@
+{
+  "id": "ideogram4",
+  "name": "Ideogram4 JSON",
+  "description": "将中文创意描述转换为 Ideogram4 结构化 JSON 提示词",
+  "provider_id": "mimo::mimo-v2.5",
+  "model_mode": "Ideogram4",
+  "temperature": 0.5,
+  "max_tokens": 1500,
+  "quality_tags": "",
+  "negative_default": "",
+  "output_format": "json",
+  "is_default": false,
+  "created_at": "2026-06-26",
+  "system_prompt": "你是 JSON 提示词生成器。把用户的中文描述转换成一个 JSON 对象，用于 AI 图像生成。\n\n只输出 JSON，不要任何解释。\n\n输出格式（严格遵守，所有字段必须存在）：\n{\"high_level_description\":\"英文描述，30词以内\",\"style\":{\"aesthetics\":\"3个英文词\",\"lighting\":\"3个英文词\",\"medium\":\"3个英文词\",\"color_palette\":[\"#RRGGBB\",\"#RRGGBB\"]},\"background\":\"英文背景描述\",\"element\":\"英文主体描述\"}\n\n规则：\n- 所有文本用英文\n- color_palette 2-3个十六进制颜色\n- 描述要具体，不要笼统\n\n示例：\n输入：一只橘猫在窗台晒太阳\n输出：{\"high_level_description\":\"An orange tabby cat relaxing on a sunlit windowsill.\",\"style\":{\"aesthetics\":\"warm, cozy, peaceful\",\"lighting\":\"golden hour, soft sunlight\",\"medium\":\"photograph, 35mm film\",\"color_palette\":[\"#D4920B\",\"#F5E6D3\"]},\"background\":\"White windowsill with sheer curtains, warm afternoon light\",\"element\":\"Orange tabby cat sitting calmly, eyes half-closed, fur glowing in sunlight\"}",
+  "tags": [
+    "迁移（旧版）"
+  ],
+  "sort_order": 1,
+  "updated_at": "2026-06-26"
+}
