@@ -33,6 +33,14 @@
                 return;
             }
 
+            // NSFW 模块随工具栏一起初始化（[Task 3 收敛] 从 display.js 移过来）
+            if (config.nsfwEnabled && window.GalleryDisplay?.NsfwFilter) {
+                const NsfwFilter = window.GalleryDisplay.NsfwFilter;
+                NsfwFilter.init({ autoRestore: true });
+                // 把 attach 延迟到 _bindExternalButtonHandlers（按钮 DOM 已挂）
+                this._pendingNsfwBind = NsfwFilter;
+            }
+
             const extraButtons = this._buildButtons();
             window.HistoryBulkManager.attach({
                 masonry: config.masonrySelector,
@@ -40,13 +48,16 @@
                 longPressToSelect: config.longPressToSelect
             });
 
+            // 工具栏 DOM 挂载后，绑定 NSFW 按钮（按钮是 _nsfwPlaceholderButton 占位）
+            this._bindExternalButtonHandlers();
+
             this._restoreThumbSize();
             this._initialized = true;
 
             if (!this._config.skipSelfTest) this._runSelfTests();
         },
 
-        destroy() { this._initialized = false; },
+        destroy() { this._initialized = false; this._pendingNsfwBind = null; },
 
         _buildButtons() {
             const extraButtons = [];
@@ -122,6 +133,23 @@
             }, 0);
         },
 
+        /**
+         * 把"占位按钮 + 业务模块"配对：NSFW 按钮 → NsfwFilter
+         * 之所以在 attach() 之后做：HistoryBulkManager.attach() 才会把按钮挂到 DOM。
+         */
+        _bindExternalButtonHandlers() {
+            if (this._pendingNsfwBind) {
+                const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
+                if (nsfwBtn) {
+                    this._pendingNsfwBind.attachButton(nsfwBtn);
+                    // 初始高亮：与当前 mode 对齐
+                    nsfwBtn.classList.toggle('is-on', this._pendingNsfwBind.getMode() === 'block');
+                    nsfwBtn.classList.toggle('is-only-on', this._pendingNsfwBind.getMode() === 'only');
+                }
+                this._pendingNsfwBind = null;
+            }
+        },
+
         _runSelfTests() {
             // 在 headless 环境里 HistoryBulkManager 不一定存在，跳过涉及 DOM 的部分
             const hasHBM = !!window.HistoryBulkManager;
@@ -168,6 +196,28 @@
                     grid.remove();
                     Base.storage.remove(STORAGE_KEY);
                     return saved === '1';
+                }],
+                ['_bindExternalButtonHandlers 在无按钮时安全', () => {
+                    // 临时挂一个不存在的 nsfw-toggle 按钮，验证不会抛错
+                    this._pendingNsfwBind = { attachButton: () => {}, getMode: () => 'off' };
+                    let threw = false;
+                    try { this._bindExternalButtonHandlers(); } catch (_) { threw = true; }
+                    // pending 应被清空
+                    const cleared = this._pendingNsfwBind === null;
+                    return !threw && cleared;
+                }],
+                ['_bindExternalButtonHandlers 找到按钮时调用 attach', () => {
+                    const calls = [];
+                    const fakeBtn = document.createElement('button');
+                    fakeBtn.setAttribute('data-extra-btn', 'nsfw-toggle');
+                    document.body.appendChild(fakeBtn);
+                    this._pendingNsfwBind = {
+                        attachButton: (b) => calls.push(b.id || b.getAttribute('data-extra-btn')),
+                        getMode: () => 'block'
+                    };
+                    this._bindExternalButtonHandlers();
+                    fakeBtn.remove();
+                    return calls.length === 1 && fakeBtn.classList.contains('is-on');
                 }],
             ]);
         }

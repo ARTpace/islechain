@@ -162,20 +162,6 @@
         if (window.lucide && typeof lucide.createIcons === 'function') {
             lucide.createIcons();
         }
-
-        // 11.5 [Task 1 迁移] 初始化 NSFW Filter 模块
-        if (config.nsfwEnabled && window.GalleryDisplay?.NsfwFilter) {
-            const NsfwFilter = window.GalleryDisplay.NsfwFilter;
-            NsfwFilter.init({ autoRestore: true });
-            // 绑定到工具栏按钮（DOM 由 HistoryBulkManager 在上一行已渲染）
-            const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
-            if (nsfwBtn) {
-                NsfwFilter.attachButton(nsfwBtn);
-                // 初始高亮状态：与 body class 对齐
-                nsfwBtn.classList.toggle('is-on', NsfwFilter.getMode() === 'block');
-                nsfwBtn.classList.toggle('is-only-on', NsfwFilter.getMode() === 'only');
-            }
-        }
     }
 
     /* ============================================================
