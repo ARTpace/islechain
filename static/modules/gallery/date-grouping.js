@@ -117,17 +117,11 @@
                 }
                 if (visibleCount === 0) sep.remove();
             });
-            // 清理顶部连续的空分隔线
-            let firstItem = container.querySelector('.masonry-item');
-            while (firstItem) {
-                const prev = firstItem.previousElementSibling;
-                if (prev && prev.classList.contains('date-separator')) {
-                    prev.remove();
-                    firstItem = container.querySelector('.masonry-item');
-                } else {
-                    break;
-                }
-            }
+            // [删除] 旧的"清理顶部连续空分隔线"逻辑有 bug：
+            // 它会无脑删掉第一个 masonry-item 之前的所有 date-separator，不管这些 sep 还有没有卡片。
+            // forEach 阶段已经正确处理了"sep 下方无可见卡片"的删除（visibleCount === 0），
+            // 这里再删一遍会把合法的组标题（紧跟首个卡片的那种）误删。
+            // 顶部真正"无卡片"的 sep，forEach 也已经处理了，无需二次清理。
         }
     };
 
