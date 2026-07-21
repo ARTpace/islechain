@@ -13,6 +13,12 @@ history.json
 # 缩略图预览缓存
 data/media_previews/
 
+# 临时测试脚本与输出（[Task 5] 单元测试运行器，仅本地使用）
+static/modules/gallery/__selftest.js
+__selftest.json
+__debug.json
+test-output.*
+
 # 工具缓存
 tools/*/cache/
 

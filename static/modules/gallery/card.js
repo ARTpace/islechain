@@ -118,7 +118,8 @@
         if (!record || !record.timestamp || !record.images || !record.images[0]) return null;
         if (document.getElementById(`history-${record.timestamp}`)) return null; // 防重
 
-        const cfg = global.GALLERY_CONFIG || {};
+        // [Task 5 收敛] 优先 NS.Config
+        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || global.GALLERY_CONFIG || {};
         const features = Object.assign({}, DEFAULT_FEATURES, cfg.features || {}, opts.features || {});
         const historyType = opts.historyType || cfg.type || record.type || 'unknown';
 

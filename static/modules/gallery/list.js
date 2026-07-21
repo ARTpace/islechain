@@ -23,7 +23,8 @@
                 if (dateKey === yKey) return '昨天';
                 const [yy, mm, dd] = dateKey.split('-');
                 const dt = new Date(+yy, +mm - 1, +dd);
-                return `${mm}月${dd}日 ${weekdays[dt.getDay()]}`;
+                // [Bugfix] 去掉前导零
+                return `${+mm}月${+dd}日 ${weekdays[dt.getDay()]}`;
             },
             createSeparator(dateKey) {
                 const el = document.createElement('div');
@@ -97,7 +98,8 @@
      *   - selectedCount: '#selectedCount'
      */
     function init(opts = {}) {
-        const cfg = global.GALLERY_CONFIG || {};
+        // [Task 5 收敛] 优先从 NS.Config 读；老的 window.GALLERY_CONFIG 仍可作兜底
+        const cfg = (NS.Config && NS.Config._data) || global.GALLERY_CONFIG || {};
         state.type = opts.type || cfg.type || 'unknown';
         state.pageSize = opts.pageSize || cfg.pageSize || 15;
         state.container = typeof (opts.container || cfg.container) === 'string'

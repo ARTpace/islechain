@@ -116,12 +116,61 @@
     };
 })(window);
 
+// === Config 集中点（[Task 5 收敛]） ===
+// 原：display.js 的 setupGalleryConfig() 把配置写到 window.GALLERY_CONFIG，
+//     其他模块每个地方都 `global.GALLERY_CONFIG && global.GALLERY_CONFIG.type` 重复读。
+// 新：display.js 写入 NS.Config，子模块读 NS.Config；
+//     window.GALLERY_CONFIG 保留为只读镜像（HTML 旧代码用），不再被任何子模块直接读。
+// 这样：(1) 单一来源；(2) 子模块不再依赖全局；(3) 未来可演进为 init() 参数。
+(function () {
+    if (!window.GalleryDisplay) return;
+    const NS = window.GalleryDisplay;
+    const Config = {
+        _data: {},
+        /** 整体替换（display.js 用） */
+        set(data) { this._data = data || {}; this._mirror(); },
+        /** 单字段更新 */
+        patch(partial) { Object.assign(this._data, partial || {}); this._mirror(); },
+        get type() { return this._data.type; },
+        get features() { return this._data.features || {}; },
+        get onUsePrompt() { return this._data.onUsePrompt; },
+        get onCopyPrompt() { return this._data.onCopyPrompt; },
+        get onRegenerate() { return this._data.onRegenerate; },
+        get onOpenFolder() { return this._data.onOpenFolder; },
+        get onCopyToCanvas() { return this._data.onCopyToCanvas; },
+        get container() { return this._data.container; },
+        get trigger() { return this._data.trigger; },
+        get pageSize() { return this._data.pageSize; },
+        /** 同步镜像到 window.GALLERY_CONFIG（向后兼容） */
+        _mirror() {
+            if (typeof window !== 'undefined') window.GALLERY_CONFIG = this._data;
+        }
+    };
+    NS.Config = Config;
+})();
+
 // === 自检（模块加载时立即跑） ===
 (function () {
     if (!window.GalleryDisplay || !window.GalleryDisplay.Base) return;
     const Base = window.GalleryDisplay.Base;
+    // [Task 5] Config 集中点
+    const Config = window.GalleryDisplay.Config;
     Base.Test.suite('GalleryBase', [
         ['Base 已挂载到 NS', () => !!Base],
+        ['Config 已挂载到 NS', () => !!Config],
+        ['Config.set 写入后可读', () => {
+            Config.set({ type: 'unit_test', features: { x: 1 } });
+            return Config.type === 'unit_test' && Config.features.x === 1;
+        }],
+        ['Config.patch 单字段更新', () => {
+            Config.set({ type: 'a', features: { x: 1, y: 2 } });
+            Config.patch({ type: 'b' });
+            return Config.type === 'b' && Config.features.x === 1;
+        }],
+        ['Config.set 自动镜像到 window.GALLERY_CONFIG', () => {
+            Config.set({ type: 'mirror_test' });
+            return window.GALLERY_CONFIG && window.GALLERY_CONFIG.type === 'mirror_test';
+        }],
         ['storage.get 缺失键返回 null', () => Base.storage.get('__never_exists__') === null],
         ['storage.set + get 往返', () => {
             Base.storage.set('__base_test__', '1');

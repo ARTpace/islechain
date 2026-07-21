@@ -38,7 +38,8 @@
             const [y, m, d] = dateKey.split('-');
             const dt = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
             const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-            return `${m}月${d}日 ${weekdays[dt.getDay()]}`;
+            // [Bugfix] 去掉前导零：旧版本返回 "01月1日" 应为 "1月1日"
+            return `${parseInt(m, 10)}月${parseInt(d, 10)}日 ${weekdays[dt.getDay()]}`;
         },
 
         /** 创建一个日期分隔线 DOM（左右各一条线 + 中间文字） */
@@ -143,7 +144,9 @@
             }],
             ['createSeparator 返回 DOM 元素', () => {
                 const el = DateGrouping.createSeparator('2026-07-21');
-                return el instanceof HTMLElement &&
+                // 兼容 Node 单元测试环境：没有 HTMLElement 全局，instanceof 必报 ReferenceError
+                const isEl = (typeof HTMLElement === 'undefined') ? !!el : (el instanceof HTMLElement);
+                return isEl &&
                        el.classList.contains('date-separator') &&
                        el.querySelector('.sep-label').textContent === '今天';
             }],
@@ -173,9 +176,21 @@
                 c.appendChild(sep);
                 const m = document.createElement('div');
                 m.className = 'masonry-item';
+                m.offsetParent = {}; // 模拟可见（Node 测试环境无 layout，伪造即可）
                 c.appendChild(m);
                 DateGrouping.pruneEmpty(c);
                 return c.querySelector('.date-separator') !== null;
+            }],
+            ['pruneEmpty 删不可见卡片下的分隔线', () => {
+                const c = document.createElement('div');
+                const sep = DateGrouping.createSeparator('2025-01-01');
+                c.appendChild(sep);
+                const m = document.createElement('div');
+                m.className = 'masonry-item';
+                m.offsetParent = null; // 模拟隐藏
+                c.appendChild(m);
+                DateGrouping.pruneEmpty(c);
+                return c.querySelector('.date-separator') === null;
             }],
             ['pruneEmpty fav-mode 下不删', () => {
                 const c = document.createElement('div');

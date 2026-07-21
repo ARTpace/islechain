@@ -56,15 +56,19 @@
      * ============================================================ */
 
     /* ============================================================
-     *  GALLERY_CONFIG 设置
+     *  Config 设置（[Task 5 收敛] 写入 NS.Config，自动镜像到 window.GALLERY_CONFIG）
      * ============================================================ */
     function setupGalleryConfig() {
-        window.GALLERY_CONFIG = {
+        const data = {
             type: config.historyType,
             container: config.masonrySelector,
             trigger: config.loadMoreSelector,
             pageSize: config.pageSize,
             onUsePrompt: config.onUsePrompt || null,
+            onCopyPrompt: config.onCopyPrompt || null,
+            onRegenerate: config.onRegenerate || null,
+            onOpenFolder: config.onOpenFolder || null,
+            onCopyToCanvas: config.onCopyToCanvas || null,
             features: Object.assign({
                 delete: true,
                 openFolder: true,
@@ -80,6 +84,12 @@
                 usePrompt: true,
             }, config.galleryFeatures || {}),
         };
+        if (global.GalleryDisplay?.Config) {
+            global.GalleryDisplay.Config.set(data);
+        } else {
+            // 兜底：Config 还未挂载（开发早期）
+            global.GALLERY_CONFIG = data;
+        }
     }
 
     /* ============================================================
@@ -119,12 +129,13 @@
 
         // 6. 初始化 GalleryList
         if (window.GalleryList) {
+            const batchSelect = !!(global.GalleryDisplay?.Config?.features?.batchSelect);
             GalleryList.init({
                 type: config.historyType,
                 container: config.masonrySelector,
                 trigger: config.loadMoreSelector,
                 pageSize: config.pageSize,
-                batchSelect: (window.GALLERY_CONFIG.features && window.GALLERY_CONFIG.features.batchSelect) || false,
+                batchSelect,
             });
         }
 
