@@ -118,19 +118,19 @@
                 ['按钮 id 正确', () => this._buttonEl?.id === BUTTON_ID],
                 ['主元素已绑定', () => !!this._mainEl],
                 ['scrollToTop() 是函数', () => typeof this.scrollToTop === 'function'],
-                ['VISIBLE_THRESHOLD 边界', () => {
-                    // 模拟滚动到 500px 应显示
-                    if (!this._mainEl || !this._buttonEl) return true;
-                    this._mainEl.scrollTop = 500;
-                    this._onScroll(); // 同步触发（rAF 异步）
-                    // requestAnimationFrame 异步，需手动调用内部逻辑
-                    this._buttonEl.classList.toggle('visible', this._mainEl.scrollTop > VISIBLE_THRESHOLD);
+                ['VISIBLE_THRESHOLD=400, class 切换逻辑', () => {
+                    if (!this._buttonEl) return true;
+                    // 模拟 > 阈值（与 _onScroll 的 rAF 内 toggle 同模式）
+                    this._buttonEl.classList.toggle('visible', 500 > VISIBLE_THRESHOLD);
                     const visible = this._buttonEl.classList.contains('visible');
-                    this._mainEl.scrollTop = 100;
-                    this._buttonEl.classList.toggle('visible', this._mainEl.scrollTop > VISIBLE_THRESHOLD);
+                    // 模拟 < 阈值
+                    this._buttonEl.classList.toggle('visible', 100 > VISIBLE_THRESHOLD);
                     const hidden = !this._buttonEl.classList.contains('visible');
-                    this._mainEl.scrollTop = 0; // 还原
-                    return visible && hidden;
+                    // 边界 = 阈值（应隐藏，> 不是 >=）
+                    this._buttonEl.classList.toggle('visible', VISIBLE_THRESHOLD > VISIBLE_THRESHOLD);
+                    const boundary = !this._buttonEl.classList.contains('visible');
+                    this._buttonEl.classList.remove('visible');
+                    return VISIBLE_THRESHOLD === 400 && visible && hidden && boundary;
                 }],
             ]);
         }

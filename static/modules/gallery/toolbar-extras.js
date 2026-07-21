@@ -135,25 +135,22 @@
                     return hasHBM ? true : true;
                 }],
                 ['缩略图 cycle 逻辑（mocked）', () => {
-                    // 临时加 class 再触发
-                    const grid = document.querySelector(this._config.masonrySelector) || (() => {
-                        const g = document.createElement('div');
-                        g.classList.add('test-thumb-grid');
-                        g.classList.add(THUMB_MODES[0]);
-                        document.body.appendChild(g);
-                        return g;
-                    })();
+                    // 总是用隔离的 test 元素，避免污染真实 masonry grid
+                    const g = document.createElement('div');
+                    g.classList.add('test-thumb-grid');
+                    g.classList.add(THUMB_MODES[0]);
+                    document.body.appendChild(g);
                     const origSelector = this._config.masonrySelector;
                     this._config.masonrySelector = '.test-thumb-grid';
                     const fakeBtn = { innerHTML: '', title: '' };
                     this._cycleThumbSize(fakeBtn);
-                    const after1 = grid.classList.contains(THUMB_MODES[1]);
+                    const after1 = g.classList.contains(THUMB_MODES[1]);
                     this._cycleThumbSize(fakeBtn);
-                    const after2 = grid.classList.contains(THUMB_MODES[2]);
+                    const after2 = g.classList.contains(THUMB_MODES[2]);
                     this._cycleThumbSize(fakeBtn);
-                    const after3 = grid.classList.contains(THUMB_MODES[0]);
+                    const after3 = g.classList.contains(THUMB_MODES[0]);
                     this._config.masonrySelector = origSelector;
-                    if (!hasGrid) grid.remove();
+                    g.remove();
                     Base.storage.remove(STORAGE_KEY);
                     return after1 && after2 && after3;
                 }],

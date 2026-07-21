@@ -360,7 +360,7 @@
         if (_initialized) return;
         _config = config || {};
         _initialized = true;
-        if (!this._config || !this._config.skipSelfTest) this._runSelfTests();
+        if (!_config || !_config.skipSelfTest) _runSelfTests();
     }
 
     function destroy() { _initialized = false; _config = {}; }
@@ -369,7 +369,7 @@
         Base.Test.suite('Lightbox', [
             ['模块已挂载到 GalleryDisplay', () => NS.Lightbox && typeof NS.Lightbox.openLightbox === 'function'],
             ['state 已初始化', () => Array.isArray(state.images) && state.currentIndex === 0 && state.currentRecord === null],
-            ['LB_ACTION_SVGS 包含 8 个图标', () => Object.keys(LB_ACTION_SVGS).length === 8],
+            ['LB_ACTION_SVGS 至少 8 个图标（含 favorite/favoriteActive）', () => Object.keys(LB_ACTION_SVGS).length >= 8],
             ['findRecord 在空历史下返回 null', () => {
                 const orig = global.GalleryList;
                 global.GalleryList = { allHistory: [] };
