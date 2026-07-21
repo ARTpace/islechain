@@ -101,6 +101,22 @@
         // [Task 5 收敛] 配置中心：NS.Config 是单一来源（display.js 在本模块之前 setupGalleryConfig）
         // 老的 window.GALLERY_CONFIG 镜像保留给非模块化旧代码用
         const cfg = (NS.Config && NS.Config._data) || {};
+        // === 订阅过滤模式事件：进入 fav-mode / nsfw-mode / nsfw-only-mode 时自动连加载匹配项 ===
+        if (NS.Base && NS.Base.bus) {
+            NS.Base.bus.on('fav:filter', () => {
+                // 切到 fav-mode (on=true) 时：若已加载的页没匹配项，自动加载下一页
+                if (document.body.classList.contains('fav-mode')) {
+                    setTimeout(() => ensureMatchingItemsLoaded(), 0);
+                }
+            });
+            NS.Base.bus.on('nsfw:change', () => {
+                // 切到 nsfw-mode (block) / nsfw-only-mode 时同理
+                if (document.body.classList.contains('nsfw-mode') ||
+                    document.body.classList.contains('nsfw-only-mode')) {
+                    setTimeout(() => ensureMatchingItemsLoaded(), 0);
+                }
+            });
+        }
         state.type = opts.type || cfg.type || 'unknown';
         state.pageSize = opts.pageSize || cfg.pageSize || 15;
         state.container = typeof (opts.container || cfg.container) === 'string'
@@ -114,6 +130,35 @@
             bindBatchSelect();
         }
         bindObserver();
+    }
+
+    // === 自动加载匹配项（fav-mode / nsfw-mode / nsfw-only-mode 进入时） ===
+    // 进入过滤模式后，若当前已加载的所有页里没有匹配项（CSS 隐藏后用户看到空画廊），
+    // 连续加载下一页直到找到至少 1 个匹配项，或 hasMore 耗尽。
+    // 解决"切到收藏 / NSFW 后要手动点很多次 Load More 才能看到旧日期图片"的体验问题。
+    function ensureMatchingItemsLoaded() {
+        if (state.isLoading) return;
+        const c = state.container;
+        if (!c) return;
+        // 防御：仅在过滤模式生效时跑
+        const fav = document.body.classList.contains('fav-mode');
+        const nsfwBlock = document.body.classList.contains('nsfw-mode');
+        const nsfwOnly = document.body.classList.contains('nsfw-only-mode');
+        if (!fav && !nsfwBlock && !nsfwOnly) return;
+        // 统计当前"匹配过滤条件且实际可见"的卡片数
+        const items = c.querySelectorAll('.masonry-item');
+        let visibleMatch = 0;
+        items.forEach(item => {
+            if (item.offsetParent === null) return; // 已被 CSS 隐藏
+            if (fav && item.dataset.fav !== '1') return;
+            if (nsfwBlock && item.dataset.nsfw === '1') return; // nsfw-mode 隐藏 nsfw 项
+            if (nsfwOnly && item.dataset.nsfw !== '1') return; // nsfw-only-mode 只显示 nsfw
+            visibleMatch++;
+        });
+        // 已有匹配项，停止（避免无限加载）
+        if (visibleMatch > 0) return;
+        // 还没匹配项且还有下一页 → 加载
+        if (state.hasMore) load(1);
     }
 
     // === 日期分组：已迁移到 GalleryDisplay.DateGrouping（[Task 4 抽出]） ===
@@ -319,6 +364,10 @@
             if (trigger) trigger.innerText = 'Error Loading History';
         } finally {
             state.isLoading = false;
+            // [过滤模式自动加载] 进入 fav-mode / nsfw-only-mode 后，若当前已加载页
+            // 没有匹配项（CSS 隐藏后用户看到空画廊），自动连加载下一页直到找到。
+            // ensureMatchingItemsLoaded 内部会检查 isLoading 锁、过滤模式、可见匹配数、hasMore。
+            setTimeout(() => ensureMatchingItemsLoaded(), 0);
         }
     }
 

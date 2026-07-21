@@ -18,6 +18,8 @@
     const THUMB_MODES = ['thumb-large', 'thumb-medium', 'thumb-small'];
     const THUMB_LABELS = ['大图', '默认', '小图'];
     const STORAGE_KEY = 'gallery_thumb_size';
+    // 自检用隔离的 key，避免清掉真实用户的缩略图尺寸设置
+    const TEST_STORAGE_KEY = '__gallery_thumb_size_selftest__';
 
     const ToolbarExtras = {
         _config: null,
@@ -91,12 +93,21 @@
                 label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="btn-text"> 收藏</span>',
                 title: '仅显示已收藏的图',
                 onClick: (btn) => {
-                    // HistoryBulkManager 每次 click 调一次 onClick；仅首次绑定
+                    // HistoryBulkManager 每次 click 调一次 onClick；仅首次执行 toggle 并绑定，
+                    // 后续 click 由 bindFilterButton 内部的 addEventListener 接管。
+                    // [Bugfix] 首次点击必须立即 toggle，不能只 bindFilterButton：
+                    //   bindFilterButton 内部只 addEventListener('click', ...)，按 DOM 规范，
+                    //   在 dispatch 期间 addEventListener 的新 listener 不会对当前事件触发。
+                    //   → 首次 click 走这里手动 toggleFilter 让其立即生效。
                     if (btn._favBound) return;
                     btn._favBound = true;
-                    if (window.GalleryDisplay?.Favorites) {
-                        window.GalleryDisplay.Favorites.bindFilterButton(btn);
-                    }
+                    const Fav = window.GalleryDisplay?.Favorites;
+                    if (!Fav) return;
+                    // 首次点击立即 toggle（一次）
+                    Fav.toggleFilter();
+                    btn.classList.toggle('is-on', Fav.getFilterMode());
+                    // 再绑后续 click 监听器接管
+                    Fav.bindFilterButton(btn);
                 }
             };
         },
@@ -110,7 +121,7 @@
             };
         },
 
-        _cycleThumbSize(btn) {
+        _cycleThumbSize(btn, storageKey = STORAGE_KEY) {
             const grid = document.querySelector(this._config.masonrySelector);
             if (!grid) return;
             const cur = THUMB_MODES.findIndex(m => grid.classList.contains(m));
@@ -119,11 +130,11 @@
             grid.classList.add(THUMB_MODES[next]);
             btn.innerHTML = THUMB_SVGS[next];
             btn.title = THUMB_LABELS[next];
-            Base.storage.set(STORAGE_KEY, String(next));
+            Base.storage.set(storageKey, String(next));
         },
 
-        _restoreThumbSize() {
-            const saved = parseInt(Base.storage.get(STORAGE_KEY, '0'));
+        _restoreThumbSize(storageKey = STORAGE_KEY) {
+            const saved = parseInt(Base.storage.get(storageKey, '0'));
             if (!(saved >= 0 && saved <= 2)) return;
             setTimeout(() => {
                 const grid = document.querySelector(this._config.masonrySelector);
@@ -169,7 +180,7 @@
                     return hasHBM ? true : true;
                 }],
                 ['缩略图 cycle 逻辑（mocked）', () => {
-                    // 总是用隔离的 test 元素，避免污染真实 masonry grid
+                    // 总是用隔离的 test 元素 + 隔离 storage key，避免污染真实 masonry grid 和用户设置
                     const g = document.createElement('div');
                     g.classList.add('test-thumb-grid');
                     g.classList.add(THUMB_MODES[0]);
@@ -177,30 +188,31 @@
                     const origSelector = this._config.masonrySelector;
                     this._config.masonrySelector = '.test-thumb-grid';
                     const fakeBtn = { innerHTML: '', title: '' };
-                    this._cycleThumbSize(fakeBtn);
+                    this._cycleThumbSize(fakeBtn, TEST_STORAGE_KEY);
                     const after1 = g.classList.contains(THUMB_MODES[1]);
-                    this._cycleThumbSize(fakeBtn);
+                    this._cycleThumbSize(fakeBtn, TEST_STORAGE_KEY);
                     const after2 = g.classList.contains(THUMB_MODES[2]);
-                    this._cycleThumbSize(fakeBtn);
+                    this._cycleThumbSize(fakeBtn, TEST_STORAGE_KEY);
                     const after3 = g.classList.contains(THUMB_MODES[0]);
                     this._config.masonrySelector = origSelector;
                     g.remove();
-                    Base.storage.remove(STORAGE_KEY);
+                    Base.storage.remove(TEST_STORAGE_KEY);
                     return after1 && after2 && after3;
                 }],
                 ['localStorage 持久化', () => {
-                    Base.storage.remove(STORAGE_KEY);
+                    // 用隔离 storage key，不动真实用户的设置
+                    Base.storage.remove(TEST_STORAGE_KEY);
                     const grid = document.createElement('div');
                     grid.classList.add('test-thumb-grid');
                     grid.classList.add(THUMB_MODES[0]);
                     document.body.appendChild(grid);
                     const origSelector = this._config.masonrySelector;
                     this._config.masonrySelector = '.test-thumb-grid';
-                    this._cycleThumbSize({ innerHTML: '', title: '' });
-                    const saved = Base.storage.get(STORAGE_KEY);
+                    this._cycleThumbSize({ innerHTML: '', title: '' }, TEST_STORAGE_KEY);
+                    const saved = Base.storage.get(TEST_STORAGE_KEY);
                     this._config.masonrySelector = origSelector;
                     grid.remove();
-                    Base.storage.remove(STORAGE_KEY);
+                    Base.storage.remove(TEST_STORAGE_KEY);
                     return saved === '1';
                 }],
                 ['_bindExternalButtonHandlers 在无按钮时安全', () => {
