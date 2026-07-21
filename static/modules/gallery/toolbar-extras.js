@@ -151,6 +151,12 @@
         },
 
         _runSelfTests() {
+            // [跳过条件] 脚本在 <head> 提前跑、document.body 还没就绪时，自检不该阻塞业务
+            const domReady = document.body && typeof document.body.appendChild === 'function';
+            if (!domReady) {
+                console.log('[ToolbarExtras] 自检跳过：DOM 未就绪');
+                return;
+            }
             // 在 headless 环境里 HistoryBulkManager 不一定存在，跳过涉及 DOM 的部分
             const hasHBM = !!window.HistoryBulkManager;
             const hasGrid = !!document.querySelector(this._config.masonrySelector);
@@ -208,16 +214,24 @@
                 }],
                 ['_bindExternalButtonHandlers 找到按钮时调用 attach', () => {
                     const calls = [];
+                    // [Bugfix] 用唯一属性选择器，避免与真实 nsfw 按钮冲突
                     const fakeBtn = document.createElement('button');
                     fakeBtn.setAttribute('data-extra-btn', 'nsfw-toggle');
+                    fakeBtn.setAttribute('data-test-marker', '1');
                     document.body.appendChild(fakeBtn);
                     this._pendingNsfwBind = {
-                        attachButton: (b) => calls.push(b.id || b.getAttribute('data-extra-btn')),
+                        attachButton: (b) => calls.push(b.getAttribute('data-test-marker')),
                         getMode: () => 'block'
                     };
-                    this._bindExternalButtonHandlers();
-                    fakeBtn.remove();
-                    return calls.length === 1 && fakeBtn.classList.contains('is-on');
+                    // 临时把内部选择器改成带标记的，避免查到真实按钮
+                    const origQuery = document.querySelector.bind(document);
+                    document.querySelector = (sel) => {
+                        if (sel === '[data-extra-btn="nsfw-toggle"]') return fakeBtn;
+                        return origQuery(sel);
+                    };
+                    try { this._bindExternalButtonHandlers(); }
+                    finally { document.querySelector = origQuery; fakeBtn.remove(); }
+                    return calls.length === 1 && calls[0] === '1' && fakeBtn.classList.contains('is-on');
                 }],
             ]);
         }

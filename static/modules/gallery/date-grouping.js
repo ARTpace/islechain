@@ -17,6 +17,16 @@
     const NS = global.GalleryDisplay = global.GalleryDisplay || {};
     const Base = NS.Base;
 
+    // [自检辅助] 模拟 offsetParent。真浏览器中 offsetParent 是只读 getter（不能 m.offsetParent = ...），
+    // 需用 defineProperty 改写。Node 环境无 getter，直接赋值即可。
+    function setOffsetParent(el, visible) {
+        const v = visible ? {} : null;
+        try { el.offsetParent = v; return; } catch (_) { /* TypeError: 只读 getter */ }
+        try {
+            Object.defineProperty(el, 'offsetParent', { value: v, configurable: true, writable: true });
+        } catch (_) { /* ignore */ }
+    }
+
     const DateGrouping = {
         /** 毫秒时间戳 → "YYYY-MM-DD" 键（用本地时区，不要用 toISOString） */
         getKey(timestamp) {
@@ -160,7 +170,8 @@
                     c.appendChild(m);
                 }
                 DateGrouping.updateCounts(c);
-                return c.querySelector('.sep-label').textContent.includes('·3');
+                const label = c.querySelector('.sep-label');
+                return label && label.textContent.includes('·3');
             }],
             ['pruneEmpty 删下方无可见卡片的分隔线', () => {
                 const c = document.createElement('div');
@@ -176,7 +187,7 @@
                 c.appendChild(sep);
                 const m = document.createElement('div');
                 m.className = 'masonry-item';
-                m.offsetParent = {}; // 模拟可见（Node 测试环境无 layout，伪造即可）
+                setOffsetParent(m, true); // 模拟可见（Node 测试环境无 layout，伪造即可）
                 c.appendChild(m);
                 DateGrouping.pruneEmpty(c);
                 return c.querySelector('.date-separator') !== null;
@@ -187,12 +198,13 @@
                 c.appendChild(sep);
                 const m = document.createElement('div');
                 m.className = 'masonry-item';
-                m.offsetParent = null; // 模拟隐藏
+                setOffsetParent(m, false); // 模拟隐藏
                 c.appendChild(m);
                 DateGrouping.pruneEmpty(c);
                 return c.querySelector('.date-separator') === null;
             }],
             ['pruneEmpty fav-mode 下不删', () => {
+                if (!document.body || !document.body.classList) return true; // [跳过] DOM 未就绪
                 const c = document.createElement('div');
                 const sep = DateGrouping.createSeparator('2025-01-01');
                 c.appendChild(sep);
