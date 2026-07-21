@@ -587,102 +587,8 @@ body.studio-theme-dark .lightbox-thumb.active {
     }
 
     /* ============================================================
-     *  Toolbar Extras（缩略图尺寸 / 收藏过滤 / NSFW）
+     *  Toolbar Extras：已迁移到 toolbar-extras.js
      * ============================================================ */
-    function initToolbarExtras() {
-        if (!config.toolbarExtras) return;
-        if (!window.HistoryBulkManager) return;
-
-        const extraButtons = [];
-
-        // 缩略图尺寸切换
-        extraButtons.push({
-            id: 'thumb-size',
-            label: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-            title: '切换缩略图尺寸',
-            onClick: (btn) => {
-                const modes = ['thumb-large', 'thumb-medium', 'thumb-small'];
-                const icons = [
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1" opacity="0.6"/><rect x="1" y="7" width="5" height="5" rx="1" opacity="0.6"/><rect x="7" y="7" width="5" height="5" rx="1" opacity="0.4"/></svg>'
-                ];
-                const grid = document.querySelector(config.masonrySelector);
-                if (!grid) return;
-                const cur = modes.findIndex(m => grid.classList.contains(m));
-                const next = (cur + 1) % modes.length;
-                modes.forEach(m => grid.classList.remove(m));
-                grid.classList.add(modes[next]);
-                btn.innerHTML = icons[next];
-                btn.title = ['大图', '默认', '小图'][next];
-                try { localStorage.setItem('gallery_thumb_size', String(next)); } catch (_) {}
-            }
-        });
-
-        // 收藏过滤（[Task 3 迁移] 事件由 Favorites.bindFilterButton 绑定）
-        if (config.favoritesEnabled) {
-            extraButtons.push({
-                id: 'fav-toggle',
-                label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="btn-text"> 收藏</span>',
-                title: '仅显示已收藏的图',
-                onClick: (btn) => {
-                    // HistoryBulkManager 在每个 click 时调一次 onClick，这里仅在第一次绑定监听
-                    if (btn._favBound) return;
-                    btn._favBound = true;
-                    if (window.GalleryDisplay?.Favorites) {
-                        window.GalleryDisplay.Favorites.bindFilterButton(btn);
-                    }
-                }
-            });
-        }
-
-        // NSFW 按钮（已迁移到 nsfw-filter.js - 仅注册占位按钮，事件由模块绑定）
-        if (config.nsfwEnabled) {
-            extraButtons.push({
-                id: 'nsfw-toggle',
-                label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> NSFW</span>',
-                title: '不显示 NSFW 相关图片（长按 5 秒切换 NSFW Only 模式）',
-                onClick: () => { /* 事件由 NsfwFilter.attachButton() 绑定 */ }
-            });
-        }
-
-        // 业务页自定义按钮
-        if (typeof config.onExtraToolbarButtons === 'function') {
-            const extra = config.onExtraToolbarButtons();
-            if (Array.isArray(extra)) extraButtons.push(...extra);
-        }
-
-        window.HistoryBulkManager.attach({
-            masonry: config.masonrySelector,
-            extraButtons,
-            longPressToSelect: config.longPressToSelect
-        });
-
-        // NSFW 按钮事件已迁移到 nsfw-filter.js.attachButton()（在下方 init 阶段调用）
-
-        // 恢复收藏过滤偏好：已迁移到 favorites.js._restoreFilterMode()
-
-        // 恢复 NSFW 偏好：已迁移到 nsfw-filter.js._restorePreferences()
-
-        // 恢复缩略图尺寸偏好
-        try {
-            const saved = parseInt(localStorage.getItem('gallery_thumb_size')) || 0;
-            if (saved >= 0 && saved <= 2) {
-                const modes = ['thumb-large', 'thumb-medium', 'thumb-small'];
-                const icons = [
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
-                    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1" opacity="0.6"/><rect x="1" y="7" width="5" height="5" rx="1" opacity="0.6"/><rect x="7" y="7" width="5" height="5" rx="1" opacity="0.4"/></svg>'
-                ];
-                setTimeout(() => {
-                    const grid = document.querySelector(config.masonrySelector);
-                    const btn = document.querySelector('[data-extra-btn="thumb-size"]');
-                    if (grid) grid.classList.add(modes[saved]);
-                    if (btn) { btn.innerHTML = icons[saved]; btn.title = ['大图', '默认', '小图'][saved]; }
-                }, 0);
-            }
-        } catch (_) {}
-    }
 
     /* ============================================================
      *  GALLERY_CONFIG 设置
@@ -747,8 +653,17 @@ body.studio-theme-dark .lightbox-thumb.active {
             });
         }
 
-        // 7. 初始化工具栏
-        initToolbarExtras();
+        // 7. 初始化工具栏（[Task 5 迁移]）
+        if (config.toolbarExtras && window.GalleryDisplay?.ToolbarExtras) {
+            window.GalleryDisplay.ToolbarExtras.init({
+                toolbarExtras: config.toolbarExtras,
+                masonrySelector: config.masonrySelector,
+                favoritesEnabled: config.favoritesEnabled,
+                nsfwEnabled: config.nsfwEnabled,
+                longPressToSelect: config.longPressToSelect,
+                onExtraToolbarButtons: config.onExtraToolbarButtons,
+            });
+        }
 
         // 8. 初始化回到顶部（[Task 2 迁移]）
         if (config.scrollToTop && window.GalleryDisplay?.ScrollTop) {
