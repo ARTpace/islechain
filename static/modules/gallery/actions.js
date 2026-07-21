@@ -73,7 +73,7 @@
         }
 
         // [Task 5 收敛] 优先 NS.Config
-        const historyType = (record && record.type) || (window.GalleryDisplay?.Config?.type) || (global.GALLERY_CONFIG && global.GALLERY_CONFIG.type) || 'unknown';
+        const historyType = (record && record.type) || (window.GalleryDisplay?.Config?.type) || 'unknown';
 
         // 调后端删除历史记录（后端会负责删除该 record 下所有图片文件）
         try {
@@ -117,7 +117,7 @@
             return;
         }
         // [Task 5 收敛] 优先 NS.Config
-        const historyType = (window.GalleryDisplay?.Config?.type) || (global.GALLERY_CONFIG && global.GALLERY_CONFIG.type) || 'unknown';
+        const historyType = (window.GalleryDisplay?.Config?.type) || 'unknown';
         try {
             const res = await fetch('/api/history/delete-image', {
                 method: 'POST',
@@ -164,7 +164,7 @@
         if (!timestamps || timestamps.size === 0) return;
         if (!confirm(`确定删除选中的 ${timestamps.size} 条记录吗？`)) return;
         // [Task 5 收敛] 优先 NS.Config
-        const historyType = (window.GalleryDisplay?.Config?.type) || (global.GALLERY_CONFIG && global.GALLERY_CONFIG.type) || 'unknown';
+        const historyType = (window.GalleryDisplay?.Config?.type) || 'unknown';
         const items = Array.from(timestamps);
         // 逐条删除（并行），前端先乐观移除
         items.forEach(ts => {
@@ -241,7 +241,7 @@
     function copyToCanvas(record, event) {
         if (event) event.stopPropagation();
         // [Task 5 收敛] 优先 NS.Config
-        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || global.GALLERY_CONFIG || {};
+        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
         if (typeof cfg.onCopyToCanvas === 'function') {
             cfg.onCopyToCanvas(record);
             return;
@@ -279,7 +279,7 @@
     function regenerate(record, event) {
         if (event) event.stopPropagation();
         // [Task 5 收敛] 优先 NS.Config
-        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || global.GALLERY_CONFIG || {};
+        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
         if (typeof cfg.onRegenerate === 'function') {
             cfg.onRegenerate(record);
             return;
@@ -362,7 +362,7 @@
         if (event) event.stopPropagation();
         const text = (record && record.prompt) || '';
         // [Task 5 收敛] 优先 NS.Config
-        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || global.GALLERY_CONFIG || {};
+        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
         const translate = (typeof cfg.onPromptDisplay === 'function') ? cfg.onPromptDisplay : null;
         const anchor = (event && event.currentTarget) ? event.currentTarget : null;
         if (global.PromptPanel) {
@@ -393,7 +393,7 @@
     function usePrompt(record, event) {
         if (event) event.stopPropagation();
         // [Task 5 收敛] 优先 NS.Config
-        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || global.GALLERY_CONFIG || {};
+        const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
         if (typeof cfg.onUsePrompt === 'function') { cfg.onUsePrompt(record); return; }
 
         const text = (record && record.prompt) || '';

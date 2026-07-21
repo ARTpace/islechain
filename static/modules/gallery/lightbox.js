@@ -341,7 +341,7 @@
                     if (confirm('确认删除这张图片？')) {
                         const ts2 = record.timestamp;
                         // [Task 5 收敛] 优先 NS.Config
-                        const historyType = record.type || (window.GalleryDisplay?.Config?.type) || (global.GALLERY_CONFIG && GALLERY_CONFIG.type) || 'unknown';
+                        const historyType = record.type || (window.GalleryDisplay?.Config?.type) || 'unknown';
                         fetch('/api/history/delete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },

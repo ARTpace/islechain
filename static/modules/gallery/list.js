@@ -98,8 +98,9 @@
      *   - selectedCount: '#selectedCount'
      */
     function init(opts = {}) {
-        // [Task 5 收敛] 优先从 NS.Config 读；老的 window.GALLERY_CONFIG 仍可作兜底
-        const cfg = (NS.Config && NS.Config._data) || global.GALLERY_CONFIG || {};
+        // [Task 5 收敛] 配置中心：NS.Config 是单一来源（display.js 在本模块之前 setupGalleryConfig）
+        // 老的 window.GALLERY_CONFIG 镜像保留给非模块化旧代码用
+        const cfg = (NS.Config && NS.Config._data) || {};
         state.type = opts.type || cfg.type || 'unknown';
         state.pageSize = opts.pageSize || cfg.pageSize || 15;
         state.container = typeof (opts.container || cfg.container) === 'string'
@@ -354,7 +355,7 @@
      * 批量选择
      */
     function bindBatchSelect() {
-        const cfg = global.GALLERY_CONFIG || {};
+        const cfg = NS.Config._data || {};
         const batchBtn = typeof cfg.batchSelectBtn === 'string' ? document.querySelector(cfg.batchSelectBtn) : cfg.batchSelectBtn;
         const delBtn = typeof cfg.deleteSelectedBtn === 'string' ? document.querySelector(cfg.deleteSelectedBtn) : cfg.deleteSelectedBtn;
         const countEl = typeof cfg.selectedCount === 'string' ? document.querySelector(cfg.selectedCount) : cfg.selectedCount;
@@ -367,7 +368,7 @@
 
     function toggleBatchSelect() {
         state.isBatchMode = !state.isBatchMode;
-        const cfg = global.GALLERY_CONFIG || {};
+        const cfg = NS.Config._data || {};
         const batchBtn = typeof cfg.batchSelectBtn === 'string' ? document.querySelector(cfg.batchSelectBtn) : cfg.batchSelectBtn;
         const delBtn = typeof cfg.deleteSelectedBtn === 'string' ? document.querySelector(cfg.deleteSelectedBtn) : cfg.deleteSelectedBtn;
         if (batchBtn) batchBtn.textContent = state.isBatchMode ? '取消选择' : '批量选择';
@@ -379,7 +380,7 @@
 
     function toggleItemSelection(timestamp, event) {
         if (event) event.stopPropagation();
-        const cfg = global.GALLERY_CONFIG || {};
+        const cfg = NS.Config._data || {};
         const delBtn = typeof cfg.deleteSelectedBtn === 'string' ? document.querySelector(cfg.deleteSelectedBtn) : cfg.deleteSelectedBtn;
         const countEl = typeof cfg.selectedCount === 'string' ? document.querySelector(cfg.selectedCount) : cfg.selectedCount;
         const cb = event && event.currentTarget;
@@ -399,7 +400,7 @@
 
     function clearSelection() {
         state.selectedItems.clear();
-        const cfg = global.GALLERY_CONFIG || {};
+        const cfg = NS.Config._data || {};
         const countEl = typeof cfg.selectedCount === 'string' ? document.querySelector(cfg.selectedCount) : cfg.selectedCount;
         const delBtn = typeof cfg.deleteSelectedBtn === 'string' ? document.querySelector(cfg.deleteSelectedBtn) : cfg.deleteSelectedBtn;
         document.querySelectorAll('.batch-checkbox').forEach(cb => {

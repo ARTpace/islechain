@@ -112,8 +112,8 @@
     function doDelete(record) {
         const ts = record && record.timestamp;
         if (!ts) return;
-        // [Task 5 收敛] 优先 NS.Config，兜底全局
-        const historyType = record.type || (window.GalleryDisplay?.Config?.type) || (global.GALLERY_CONFIG && global.GALLERY_CONFIG.type) || 'unknown';
+        // [Task 5 收敛] 优先 NS.Config
+        const historyType = record.type || (window.GalleryDisplay?.Config?.type) || 'unknown';
         fetch('/api/history/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
