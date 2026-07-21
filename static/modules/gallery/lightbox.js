@@ -359,6 +359,8 @@
     function init(config = {}) {
         if (_initialized) return;
         _config = config || {};
+        // 注入 lightbox DOM（[Task 6 漏修] 此处必须调用，否则 openLightbox 时 #lightbox 不存在）
+        injectHTML();
         _initialized = true;
         if (!_config || !_config.skipSelfTest) _runSelfTests();
     }
@@ -369,6 +371,8 @@
         Base.Test.suite('Lightbox', [
             ['模块已挂载到 GalleryDisplay', () => NS.Lightbox && typeof NS.Lightbox.openLightbox === 'function'],
             ['state 已初始化', () => Array.isArray(state.images) && state.currentIndex === 0 && state.currentRecord === null],
+            ['init() 后 #lightbox DOM 已注入', () => !!document.getElementById('lightbox')],
+            ['init() 后 #lightboxActions 已渲染', () => !!document.getElementById('lightboxActions')],
             ['LB_ACTION_SVGS 至少 8 个图标（含 favorite/favoriteActive）', () => Object.keys(LB_ACTION_SVGS).length >= 8],
             ['findRecord 在空历史下返回 null', () => {
                 const orig = global.GalleryList;
