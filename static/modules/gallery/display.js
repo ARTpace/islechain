@@ -36,9 +36,6 @@
         favoritesEnabled: true,
         favoritesStorageKey: 'gallery_favorites',
 
-        // NSFW
-        nsfwEnabled: false,      // 默认关闭，zimage 可开启
-
         // 业务回调（页面可覆盖）
         onPromptDisplay: null,   // (promptText) => { en, cn }  用于 lightbox prompt 翻译
         onCopyPrompt: null,      // (record) => void
@@ -154,43 +151,7 @@ body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80;
 body.studio-theme-dark .masonry-item { background:#0d1520; border-color:rgba(0,240,255,0.1); }
 body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,255,0.06); }
 
-/* === NSFW 屏蔽：彻底隐藏卡片，避免空白分隔线 === */
-body.nsfw-mode .masonry-item[data-nsfw="1"] { display: none !important; }
-
-/* === NSFW Only：仅显示 NSFW 图片 === */
-body.nsfw-only-mode .masonry-item:not([data-nsfw="1"]) { display: none !important; }
-body.nsfw-only-mode .date-separator { display: none !important; }
-
-/* === NSFW 按钮长按进度指示器 === */
-.nsfw-longpress-progress {
-    position: absolute;
-    inset: -3px;
-    border-radius: 999px;
-    pointer-events: none;
-    border: 2px solid transparent;
-    transition: none;
-    z-index: 1;
-    box-sizing: border-box;
-}
-.nsfw-longpress-progress.active {
-    animation: nsfwLongPressFill 5s linear forwards;
-}
-@keyframes nsfwLongPressFill {
-    0%   { border-color: rgba(220,38,38,0); border-top-color: rgba(220,38,38,0.9); }
-    25%  { border-color: rgba(220,38,38,0.15); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); }
-    50%  { border-color: rgba(220,38,38,0.25); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); border-bottom-color: rgba(220,38,38,0.9); }
-    75%  { border-color: rgba(220,38,38,0.35); border-left-color: rgba(220,38,38,0); border-top-color: rgba(220,38,38,0.9); border-right-color: rgba(220,38,38,0.9); border-bottom-color: rgba(220,38,38,0.9); }
-    100% { border-color: rgba(220,38,38,0.7); border-left-color: rgba(220,38,38,0.7); }
-}
-/* 长按时按钮底色的淡入效果 */
-.nsfw-pulsing {
-    animation: nsfwPulseBg 1s ease-in-out infinite alternate !important;
-    position: relative;
-}
-@keyframes nsfwPulseBg {
-    from { background: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
-    to   { background: rgba(220,38,38,0.7) !important; box-shadow: 0 0 0 6px rgba(220,38,38,0.2); }
-}
+/* === NSFW 相关样式已迁移到 nsfw-filter.js === */
 
 /* === Scroll to Top === */
 #galleryScrollToTop {
@@ -764,33 +725,13 @@ body.studio-theme-dark .lightbox-thumb.active {
             });
         }
 
-        // NSFW 按钮（默认开启屏蔽）
+        // NSFW 按钮（已迁移到 nsfw-filter.js - 仅注册占位按钮，事件由模块绑定）
         if (config.nsfwEnabled) {
             extraButtons.push({
                 id: 'nsfw-toggle',
                 label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="btn-text"> NSFW</span>',
                 title: '不显示 NSFW 相关图片（长按 5 秒切换 NSFW Only 模式）',
-                onClick: (btn) => {
-                    // 长按触发的 NSFW Only 切换已在 attach 后的 setTimeout 中完成，阻止 click 重复执行
-                    if (window.__nsfwLongPressTriggered) {
-                        window.__nsfwLongPressTriggered = false;
-                        return;
-                    }
-                    const isOnly = document.body.classList.contains('nsfw-only-mode');
-                    if (isOnly) {
-                        document.body.classList.remove('nsfw-only-mode');
-                        btn.classList.remove('is-only-on');
-                        try { localStorage.removeItem('gallery_nsfw_only'); } catch (_) {}
-                    }
-                    const on = !document.body.classList.contains('nsfw-mode');
-                    document.body.classList.toggle('nsfw-mode', on);
-                    btn.classList.toggle('is-on', on);
-                    try { localStorage.setItem('gallery_nsfw_block', on ? '1' : '0'); } catch (_) {}
-                    setTimeout(() => {
-                        if (window.GalleryList) { GalleryList.pruneEmptySeparators(); GalleryList.ensureLoadMore(); }
-                    }, 50);
-                },
-
+                onClick: () => { /* 事件由 NsfwFilter.attachButton() 绑定 */ }
             });
         }
 
@@ -806,66 +747,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             longPressToSelect: config.longPressToSelect
         });
 
-        // NSFW 按钮长按绑定（HistoryBulkManager 不支持 onMount，手动绑）
-        setTimeout(() => {
-            const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
-            if (!nsfwBtn) return;
-            let pressTimer = null;
-            let progressEl = null;
-            let triggered = false;
-            const startPress = () => {
-                if (triggered) return;
-                triggered = false;
-                if (!progressEl) {
-                    progressEl = document.createElement('span');
-                    progressEl.className = 'nsfw-longpress-progress';
-                    nsfwBtn.style.position = 'relative';
-                    nsfwBtn.appendChild(progressEl);
-                }
-                progressEl.classList.add('active');
-                nsfwBtn.classList.add('nsfw-pulsing');
-                pressTimer = setTimeout(() => {
-                    triggered = true;
-                    const isOnly = !document.body.classList.contains('nsfw-only-mode');
-                    document.body.classList.toggle('nsfw-only-mode', isOnly);
-                    nsfwBtn.classList.remove('is-on');
-                    if (isOnly) {
-                        nsfwBtn.classList.add('is-only-on');
-                        document.body.classList.remove('nsfw-mode');
-                        try { localStorage.setItem('gallery_nsfw_only', '1'); localStorage.setItem('gallery_nsfw_block', '0'); } catch (_) {}
-                    } else {
-                        nsfwBtn.classList.remove('is-only-on');
-                        try { localStorage.removeItem('gallery_nsfw_only'); } catch (_) {}
-                    }
-                    if (progressEl) progressEl.classList.remove('active');
-                    nsfwBtn.classList.remove('nsfw-pulsing');
-                    pressTimer = null;
-                    // 标记长按已触发，防止紧随的 click 重复执行
-                    window.__nsfwLongPressTriggered = true;
-                }, 5000);
-            };
-            const cancelPress = () => {
-                if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-                if (triggered) {
-                    triggered = false;
-                    // 重新标记确保 mouseup 后的 click 事件能捕获到，500ms 足够覆盖
-                    window.__nsfwLongPressTriggered = true;
-                    setTimeout(() => {
-                        window.__nsfwLongPressTriggered = false;
-                        if (window.GalleryList) { GalleryList.pruneEmptySeparators(); GalleryList.ensureLoadMore(); }
-                    }, 500);
-                    return;
-                }
-                if (progressEl) progressEl.classList.remove('active');
-                nsfwBtn.classList.remove('nsfw-pulsing');
-            };
-            nsfwBtn.addEventListener('mousedown', startPress);
-            nsfwBtn.addEventListener('mouseup', cancelPress);
-            nsfwBtn.addEventListener('mouseleave', cancelPress);
-            nsfwBtn.addEventListener('touchstart', startPress, { passive: true });
-            nsfwBtn.addEventListener('touchend', cancelPress);
-            nsfwBtn.addEventListener('touchcancel', cancelPress);
-        }, 100);
+        // NSFW 按钮事件已迁移到 nsfw-filter.js.attachButton()（在下方 init 阶段调用）
 
         // 恢复收藏过滤偏好
         try {
@@ -881,30 +763,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             }
         } catch (_) {}
 
-        // 恢复 NSFW 偏好：首次使用无记录时默认开启屏蔽
-        try {
-            const nsfwVal = localStorage.getItem('gallery_nsfw_block');
-            if (nsfwVal === null || nsfwVal === '1') {
-                // 无记录或值为 1 → 开启 nsfw-mode
-                document.body.classList.add('nsfw-mode');
-                setTimeout(() => {
-                    const btn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
-                    if (btn) btn.classList.add('is-on');
-                }, 0);
-            }
-            // 恢复 NSFW Only 模式
-            if (localStorage.getItem('gallery_nsfw_only') === '1') {
-                document.body.classList.add('nsfw-only-mode');
-                document.body.classList.remove('nsfw-mode');
-                setTimeout(() => {
-                    const btn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
-                    if (btn) { btn.classList.add('is-only-on'); btn.classList.remove('is-on'); }
-                }, 0);
-            }
-        } catch (_) {}
-
-        // 清除长按触发标记
-        window.__nsfwLongPressTriggered = false;
+        // 恢复 NSFW 偏好：已迁移到 nsfw-filter.js._restorePreferences()
 
         // 恢复缩略图尺寸偏好
         try {
@@ -1035,9 +894,21 @@ body.studio-theme-dark .lightbox-thumb.active {
             lucide.createIcons();
         }
 
-        // 11.5 [Task 1 迁移] 初始化 NSFW Filter 模块（并存期：原代码仍生效）
+        // 11.5 [Task 1 迁移] 初始化 NSFW Filter 模块
         if (config.nsfwEnabled && window.GalleryDisplay?.NsfwFilter) {
-            window.GalleryDisplay.NsfwFilter.init({ autoRestore: true });
+            const NsfwFilter = window.GalleryDisplay.NsfwFilter;
+            NsfwFilter.init({ autoRestore: true });
+            // 绑定到工具栏按钮（DOM 由 HistoryBulkManager 在上一行已渲染）
+            const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
+            if (nsfwBtn) {
+                NsfwFilter.attachButton(nsfwBtn);
+                // 同步按钮高亮状态（_restorePreferences 已加 body class）
+                setTimeout(() => {
+                    const mode = NsfwFilter.getMode();
+                    nsfwBtn.classList.toggle('is-on', mode === 'block');
+                    nsfwBtn.classList.toggle('is-only-on', mode === 'only');
+                }, 0);
+            }
         }
     }
 
