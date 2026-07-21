@@ -1,6 +1,6 @@
 /*!
  * GalleryBase - Gallery 子模块的公共工具
- * 提供：CSS 注入、localStorage 安全访问、命名空间、事件总线
+ * 提供：CSS 注入、localStorage 安全访问、命名空间、事件总线、自检框架
  */
 (function (global) {
     'use strict';
@@ -42,6 +42,47 @@
                     listeners.get(event)?.forEach(fn => {
                         try { fn(payload); } catch (e) { console.error(`[GalleryBase.bus] ${event}`, e); }
                     });
+                }
+            };
+        })(),
+
+        /**
+         * 自检框架：每个模块调用 suite(name, tests) 运行断言
+         * - 通过：打印一行 ✅ summary；失败：打印 ❌ + 详细原因
+         * - 全部 silent on pass, loud on fail
+         */
+        Test: (() => {
+            const results = [];
+            return {
+                suite(moduleName, tests) {
+                    let pass = 0;
+                    const fails = [];
+                    for (const [name, fn] of tests) {
+                        try {
+                            const ok = !!fn();
+                            if (ok) { pass++; }
+                            else { fails.push(name); }
+                            results.push({ module: moduleName, name, pass: ok });
+                        } catch (e) {
+                            fails.push(`${name} (${e.message})`);
+                            results.push({ module: moduleName, name, pass: false, err: e });
+                        }
+                    }
+                    const total = tests.length;
+                    if (pass === total) {
+                        console.log(`%c✅ ${moduleName}: ${pass}/${total}`, 'color:#10b981');
+                    } else {
+                        console.group(`%c❌ ${moduleName}: ${pass}/${total} 失败`, 'color:#ef4444;font-weight:bold');
+                        fails.forEach(f => console.error('  -', f));
+                        console.groupEnd();
+                    }
+                    return pass === total;
+                },
+                /** 全部已注册测试的统计（暴露给控制台诊断用） */
+                summary() {
+                    const total = results.length;
+                    const passed = results.filter(r => r.pass).length;
+                    return { total, passed, failed: total - passed, results };
                 }
             };
         })()

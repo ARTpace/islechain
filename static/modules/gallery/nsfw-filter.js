@@ -51,6 +51,9 @@ body.nsfw-only-mode .date-separator { display: none !important; }
             Base.injectCSS(CSS_ID, CSS);
             if (this._config.autoRestore) this._restorePreferences();
             this._initialized = true;
+
+            // 自检（仅在非显式 skip 时跑）
+            if (!this._config.skipSelfTest) this._runSelfTests();
         },
 
         destroy() {
@@ -178,6 +181,97 @@ body.nsfw-only-mode .date-separator { display: none !important; }
             if (document.body.classList.contains('nsfw-only-mode')) return 'only';
             if (document.body.classList.contains('nsfw-mode')) return 'block';
             return 'off';
+        },
+
+        /**
+         * 自检：使用快照/恢复模式，不污染用户状态
+         * 测试项：toggle 切换、_syncButtonState 同步、localStorage 持久化
+         */
+        _runSelfTests() {
+            const snapshot = {
+                bodyClass: document.body.className,
+                storageBlock: Base.storage.get(STORAGE_KEY_BLOCK),
+                storageOnly: Base.storage.get(STORAGE_KEY_ONLY),
+            };
+            const restore = () => {
+                document.body.className = snapshot.bodyClass;
+                if (snapshot.storageBlock === null) Base.storage.remove(STORAGE_KEY_BLOCK);
+                else Base.storage.set(STORAGE_KEY_BLOCK, snapshot.storageBlock);
+                if (snapshot.storageOnly === null) Base.storage.remove(STORAGE_KEY_ONLY);
+                else Base.storage.set(STORAGE_KEY_ONLY, snapshot.storageOnly);
+                if (this._buttonEl) this._syncButtonState();
+            };
+
+            Base.Test.suite('NsfwFilter', [
+                ['模块已挂载到 GalleryDisplay', () => NS.NsfwFilter === this],
+
+                ['CSS 已注入', () => !!document.getElementById(CSS_ID)],
+
+                ['toggle() 切换 body class', () => {
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    this.toggle();
+                    const m1 = this.getMode();
+                    this.toggle();
+                    const m2 = this.getMode();
+                    return m1 === 'block' && m2 === 'off';
+                }],
+
+                ['_toggleOnlyMode() 切换 Only', () => {
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    this._toggleOnlyMode();
+                    const m1 = this.getMode();
+                    this._toggleOnlyMode();
+                    const m2 = this.getMode();
+                    return m1 === 'only' && m2 === 'off';
+                }],
+
+                ['_syncButtonState 同步按钮 class', () => {
+                    if (!this._buttonEl) return true; // 无按钮时跳过
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    this._syncButtonState();
+                    const offState = !this._buttonEl.classList.contains('is-on')
+                                  && !this._buttonEl.classList.contains('is-only-on');
+                    document.body.classList.add('nsfw-mode');
+                    this._syncButtonState();
+                    const blockState = this._buttonEl.classList.contains('is-on');
+                    document.body.classList.remove('nsfw-mode');
+                    document.body.classList.add('nsfw-only-mode');
+                    this._syncButtonState();
+                    const onlyState = this._buttonEl.classList.contains('is-only-on');
+                    return offState && blockState && onlyState;
+                }],
+
+                ['getMode() 三态返回', () => {
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    const off = this.getMode() === 'off';
+                    document.body.classList.add('nsfw-mode');
+                    const block = this.getMode() === 'block';
+                    document.body.classList.add('nsfw-only-mode');
+                    document.body.classList.remove('nsfw-mode');
+                    const only = this.getMode() === 'only';
+                    return off && block && only;
+                }],
+
+                ['localStorage 持久化写入', () => {
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    this.toggle(); // off -> block
+                    const wrote = Base.storage.get(STORAGE_KEY_BLOCK) === '1';
+                    this.toggle(); // block -> off
+                    const cleared = Base.storage.get(STORAGE_KEY_BLOCK) === '0';
+                    return wrote && cleared;
+                }],
+
+                ['事件总线 emit "nsfw:change"', () => {
+                    let received = null;
+                    const off = Base.bus.on('nsfw:change', p => { received = p; });
+                    document.body.classList.remove('nsfw-mode', 'nsfw-only-mode');
+                    this.toggle();
+                    off();
+                    return received && (received.mode === 'block' || received.mode === 'off');
+                }],
+            ]);
+
+            restore();
         }
     };
 
