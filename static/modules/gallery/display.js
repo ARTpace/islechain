@@ -685,32 +685,6 @@ body.studio-theme-dark .lightbox-thumb.active {
     }
 
     /* ============================================================
-     *  自动扫描新图片（已禁用：pushNewImage 已实时推送，重复 load(0) 导致 UI 卡顿）
-     * ============================================================ */
-    let _scanTimer = null;
-
-    function startAutoScan() {
-        // 页面加载后延迟扫描一次，补上之前未入库的图片（跨 session 的图片）
-        setTimeout(() => { scanNewImages(); }, 3000);
-        // 之后每 60 秒自动检测一次
-        _scanTimer = setInterval(() => { scanNewImages(); }, 60000);
-    }
-
-    async function scanNewImages() {
-        try {
-            const token = localStorage.getItem('xy_auth_token') || '';
-            const res = await fetch('/api/gallery/scan-new?type=' + encodeURIComponent(config.historyType || '') + '&token=' + encodeURIComponent(token));
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data.imported > 0) {
-                console.log('[GalleryDisplay] 自动导入 ' + data.imported + ' 张新图片');
-                // 重新加载历史列表
-                if (window.GalleryList) GalleryList.load(0);
-            }
-        } catch (e) {}
-    }
-
-    /* ============================================================
      *  GALLERY_CONFIG 设置
      * ============================================================ */
     function setupGalleryConfig() {
@@ -784,9 +758,9 @@ body.studio-theme-dark .lightbox-thumb.active {
         // 9. 加载历史
         if (window.GalleryList) GalleryList.load(0);
 
-        // 10. 自动扫描新图片（每 30 秒检测一次）
-        if (config.autoScan !== false) {
-            startAutoScan();
+        // 10. 自动扫描新图片（[Task 4 迁移] 默认 60s/次，首次 3s 延迟）
+        if (config.autoScan !== false && window.GalleryDisplay?.AutoScan) {
+            window.GalleryDisplay.AutoScan.init({ historyType: config.historyType });
         }
 
         // 11. 挂载 HistoryBulkManager
@@ -827,7 +801,6 @@ body.studio-theme-dark .lightbox-thumb.active {
         refreshFavBtn,
         refreshThumbnails,
         switchImage,
-        scanNewImages,
     });
 
     // 兼容旧代码：window.openLightbox = GalleryDisplay.openLightbox
