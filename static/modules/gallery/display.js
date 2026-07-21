@@ -913,9 +913,9 @@ body.studio-theme-dark .lightbox-thumb.active {
     }
 
     /* ============================================================
-     *  暴露全局
+     *  暴露全局（合并到已有 GalleryDisplay 命名空间，避免覆盖子模块）
      * ============================================================ */
-    global.GalleryDisplay = {
+    global.GalleryDisplay = Object.assign(global.GalleryDisplay || {}, {
         init,
         openLightbox,
         closeLightbox,
@@ -927,7 +927,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         scrollToTop,
         switchImage,
         scanNewImages,
-    };
+    });
 
     // 兼容旧代码：window.openLightbox = GalleryDisplay.openLightbox
     Object.defineProperty(global, 'openLightbox', {
