@@ -101,10 +101,17 @@
         });
     }
 
-    /** 清理下方无可见图片的空白日期分隔线 */
+    /** 清理下方无可见图片的空白日期分隔线
+     *  注意：fav-mode / nsfw-only-mode 下 CSS 会隐藏大部分图片和分隔线，
+     *  此时若按 offsetParent 判断会误删用户后续可能还要用的分隔线，
+     *  导致"今天"和"昨天"视觉合并。CSS 已处理隐藏，JS 不应再删 DOM。 */
     function pruneEmptySeparators() {
         const c = state.container;
         if (!c) return;
+        if (document.body.classList.contains('fav-mode') ||
+            document.body.classList.contains('nsfw-only-mode')) {
+            return; // 过滤模式激活：CSS 已隐藏，不删 DOM
+        }
         const seps = c.querySelectorAll('.date-separator');
         seps.forEach(sep => {
             let visibleCount = 0;
