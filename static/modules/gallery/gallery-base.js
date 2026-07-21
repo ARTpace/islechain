@@ -85,6 +85,82 @@
                     return { total, passed, failed: total - passed, results };
                 }
             };
-        })()
+        })(),
+
+        /**
+         * 通用 Toast 提示（顶部居中浮层，2.2s 自动消失）
+         * type: 'success' | 'info' | 'warn' | 'error'
+         */
+        toast(msg, type = 'info') {
+            let el = document.getElementById('galleryToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'galleryToast';
+                el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.18);transition:opacity .25s;opacity:0;pointer-events:none;';
+                document.body.appendChild(el);
+            }
+            const colors = {
+                success: { bg: '#10b981', fg: '#fff' },
+                info:    { bg: '#111827', fg: '#fff' },
+                warn:    { bg: '#f59e0b', fg: '#fff' },
+                error:   { bg: '#ef4444', fg: '#fff' }
+            };
+            const c = colors[type] || colors.info;
+            el.style.background = c.bg;
+            el.style.color = c.fg;
+            el.textContent = String(msg);
+            el.style.opacity = '1';
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+        }
     };
 })(window);
+
+// === 自检（模块加载时立即跑） ===
+(function () {
+    if (!window.GalleryDisplay || !window.GalleryDisplay.Base) return;
+    const Base = window.GalleryDisplay.Base;
+    Base.Test.suite('GalleryBase', [
+        ['Base 已挂载到 NS', () => !!Base],
+        ['storage.get 缺失键返回 null', () => Base.storage.get('__never_exists__') === null],
+        ['storage.set + get 往返', () => {
+            Base.storage.set('__base_test__', '1');
+            const v = Base.storage.get('__base_test__');
+            Base.storage.remove('__base_test__');
+            return v === '1';
+        }],
+        ['bus.on/emit 收到事件', () => {
+            let got = null;
+            const off = Base.bus.on('__base_test_evt__', p => { got = p; });
+            Base.bus.emit('__base_test_evt__', { x: 1 });
+            off();
+            return got && got.x === 1;
+        }],
+        ['bus.on 返回的 off 取消订阅', () => {
+            let count = 0;
+            const off = Base.bus.on('__base_test_off__', () => count++);
+            Base.bus.emit('__base_test_off__');
+            off();
+            Base.bus.emit('__base_test_off__');
+            return count === 1;
+        }],
+        ['toast 写入 #galleryToast 元素', () => {
+            const before = document.getElementById('galleryToast');
+            Base.toast('hello', 'info');
+            const el = document.getElementById('galleryToast');
+            const ok = el && el.textContent === 'hello';
+            if (el) el.remove(); // 清理
+            return ok;
+        }],
+        ['toast 颜色按 type 切换', () => {
+            Base.toast('x', 'success');
+            const c1 = document.getElementById('galleryToast').style.background;
+            Base.toast('x', 'error');
+            const c2 = document.getElementById('galleryToast').style.background;
+            const ok = c1 && c2 && c1 !== c2;
+            const el = document.getElementById('galleryToast');
+            if (el) el.remove();
+            return ok;
+        }],
+    ]);
+})();

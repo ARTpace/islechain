@@ -5,6 +5,8 @@
  */
 (function (global) {
     'use strict';
+    const NS = global.GalleryDisplay = global.GalleryDisplay || {};
+    const Base = NS.Base;
 
     /**
      * 在资源管理器中打开图片所在文件夹
@@ -148,7 +150,7 @@
             }
         } catch (e) {
             console.error('[deleteSingleImage]', e);
-            showToast('删除失败: ' + e.message, 'error');
+            Base.toast('删除失败: ' + e.message, 'error');
         }
     }
 
@@ -257,7 +259,7 @@
             });
             ch.close();
             // 视觉反馈
-            showToast('已发送到画布（请确保画布页面已打开）', 'success');
+            Base.toast('已发送到画布（请确保画布页面已打开）', 'success');
         } catch (e) {
             console.error('[copyToCanvas] failed:', e);
             alert('发送到画布失败：' + (e.message || e));
@@ -296,38 +298,12 @@
             }
         });
         if (filled) {
-            showToast('已回填提示词，请点击生成', 'info');
+            Base.toast('已回填提示词，请点击生成', 'info');
             // 滚到顶部
             try { document.querySelector('main, .container, body')?.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
         } else {
             alert('当前页面未实现「重新生成」');
         }
-    }
-
-    /**
-     * 轻量 toast 提示
-     */
-    function showToast(msg, type = 'info') {
-        let el = document.getElementById('galleryToast');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'galleryToast';
-            el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.18);transition:opacity .25s;opacity:0;pointer-events:none;';
-            document.body.appendChild(el);
-        }
-        const colors = {
-            success: { bg: '#10b981', fg: '#fff' },
-            info:    { bg: '#111827', fg: '#fff' },
-            warn:    { bg: '#f59e0b', fg: '#fff' },
-            error:   { bg: '#ef4444', fg: '#fff' }
-        };
-        const c = colors[type] || colors.info;
-        el.style.background = c.bg;
-        el.style.color = c.fg;
-        el.textContent = msg;
-        el.style.opacity = '1';
-        clearTimeout(el._timer);
-        el._timer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
     }
 
     /**
@@ -339,7 +315,7 @@
     async function copyPrompt(record, event) {
         if (event) event.stopPropagation();
         const text = (record && record.prompt) || '';
-        if (!text) { showToast('该图没有提示词', 'warn'); return; }
+        if (!text) { Base.toast('该图没有提示词', 'warn'); return; }
         let ok = false;
         try {
             if (navigator.clipboard && window.isSecureContext) {
@@ -370,7 +346,7 @@
                 btn.style.color = '';
             }, 1200);
         }
-        showToast(ok ? '已复制提示词到剪贴板' : '复制失败,请手动复制', ok ? 'success' : 'error');
+        Base.toast(ok ? '已复制提示词到剪贴板' : '复制失败,请手动复制', ok ? 'success' : 'error');
     }
 
     /**
@@ -397,8 +373,8 @@
                 anchor: anchor
             });
         } else {
-            if (!text) showToast('该图没有提示词', 'warn');
-            else showToast(text, 'info', 5000);
+            if (!text) Base.toast('该图没有提示词', 'warn');
+            else Base.toast(text, 'info', 5000);
         }
     }
 
@@ -414,7 +390,7 @@
         if (typeof cfg.onUsePrompt === 'function') { cfg.onUsePrompt(record); return; }
 
         const text = (record && record.prompt) || '';
-        if (!text) { showToast('该图没有提示词', 'warn'); return; }
+        if (!text) { Base.toast('该图没有提示词', 'warn'); return; }
 
         // 兜底查找:优先 #prompt,再按 id/name/placeholder 模糊匹配
         let target = document.getElementById('prompt');
@@ -426,7 +402,7 @@
                 if (/(prompt|描述|提示|keyword|关键词)/i.test(meta)) { target = el; break; }
             }
         }
-        if (!target) { showToast('未找到提示词输入框', 'error'); return; }
+        if (!target) { Base.toast('未找到提示词输入框', 'error'); return; }
 
         target.value = text;
         target.dispatchEvent(new Event('input',  { bubbles: true }));
@@ -460,7 +436,7 @@
                 btn.style.color = '';
             }, 1200);
         }
-        showToast('已载入到提示词输入框', 'success');
+        Base.toast('已载入到提示词输入框', 'success');
     }
 
     global.GalleryActions = {
