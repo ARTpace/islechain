@@ -1034,6 +1034,11 @@ body.studio-theme-dark .lightbox-thumb.active {
         if (window.lucide && typeof lucide.createIcons === 'function') {
             lucide.createIcons();
         }
+
+        // 11.5 [Task 1 迁移] 初始化 NSFW Filter 模块（并存期：原代码仍生效）
+        if (config.nsfwEnabled && window.GalleryDisplay?.NsfwFilter) {
+            window.GalleryDisplay.NsfwFilter.init({ autoRestore: true });
+        }
     }
 
     /* ============================================================
