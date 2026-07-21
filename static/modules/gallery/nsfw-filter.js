@@ -118,6 +118,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
             document.body.classList.remove('nsfw-only-mode');
             Base.storage.set(STORAGE_KEY_BLOCK, on ? '1' : '0');
             Base.storage.remove(STORAGE_KEY_ONLY);
+            this._syncButtonState();
             Base.bus.emit('nsfw:change', { mode: on ? 'block' : 'off' });
         },
 
@@ -133,7 +134,16 @@ body.nsfw-only-mode .date-separator { display: none !important; }
                 Base.storage.remove(STORAGE_KEY_ONLY);
             }
             this._hideProgress(this._buttonEl);
+            this._syncButtonState();
             Base.bus.emit('nsfw:change', { mode: isOnly ? 'only' : 'off' });
+        },
+
+        /** 同步按钮高亮状态（与 body class 保持一致） */
+        _syncButtonState() {
+            if (!this._buttonEl) return;
+            const mode = this.getMode();
+            this._buttonEl.classList.toggle('is-on', mode === 'block');
+            this._buttonEl.classList.toggle('is-only-on', mode === 'only');
         },
 
         _showProgress(btn) {

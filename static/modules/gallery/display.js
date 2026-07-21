@@ -902,12 +902,9 @@ body.studio-theme-dark .lightbox-thumb.active {
             const nsfwBtn = document.querySelector('[data-extra-btn="nsfw-toggle"]');
             if (nsfwBtn) {
                 NsfwFilter.attachButton(nsfwBtn);
-                // 同步按钮高亮状态（_restorePreferences 已加 body class）
-                setTimeout(() => {
-                    const mode = NsfwFilter.getMode();
-                    nsfwBtn.classList.toggle('is-on', mode === 'block');
-                    nsfwBtn.classList.toggle('is-only-on', mode === 'only');
-                }, 0);
+                // 初始高亮状态：与 body class 对齐
+                nsfwBtn.classList.toggle('is-on', NsfwFilter.getMode() === 'block');
+                nsfwBtn.classList.toggle('is-only-on', NsfwFilter.getMode() === 'only');
             }
         }
     }
