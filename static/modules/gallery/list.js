@@ -3,6 +3,71 @@
  */
 (function (global) {
     'use strict';
+    const NS = global.GalleryDisplay = global.GalleryDisplay || {};
+    // date-grouping.js 推荐在本文件之前加载；若未加载，使用内联 fallback。
+    // 真实生产中 zimage.html 已显式 <script> 引入，HTML 改起来很重。
+    if (!NS.DateGrouping) {
+        const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+        const getKey = (ts) => {
+            const d = new Date(ts);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        };
+        NS.DateGrouping = {
+            getKey,
+            formatLabel(dateKey) {
+                const today = new Date();
+                const todayKey = getKey(today.getTime());
+                const y = new Date(today); y.setDate(y.getDate() - 1);
+                const yKey = getKey(y.getTime());
+                if (dateKey === todayKey) return '今天';
+                if (dateKey === yKey) return '昨天';
+                const [yy, mm, dd] = dateKey.split('-');
+                const dt = new Date(+yy, +mm - 1, +dd);
+                return `${mm}月${dd}日 ${weekdays[dt.getDay()]}`;
+            },
+            createSeparator(dateKey) {
+                const el = document.createElement('div');
+                el.className = 'date-separator';
+                el.innerHTML = `<div class="sep-line"></div><span class="sep-label">${this.formatLabel(dateKey)}</span><div class="sep-line"></div>`;
+                return el;
+            },
+            updateCounts(container) {
+                if (!container) return;
+                const isNsfwBlock = document.body.classList.contains('nsfw-mode');
+                container.querySelectorAll('.date-separator').forEach(sep => {
+                    let count = 0, n = sep.nextElementSibling;
+                    while (n && !n.classList.contains('date-separator')) {
+                        if (n.classList.contains('masonry-item') && !(isNsfwBlock && n.dataset.nsfw === '1')) count++;
+                        n = n.nextElementSibling;
+                    }
+                    const label = sep.querySelector('.sep-label');
+                    if (!label) return;
+                    const base = label.dataset.baseText || label.textContent.replace(/\s*·\d+\s*$/, '').trim();
+                    if (!label.dataset.baseText) label.dataset.baseText = base;
+                    label.textContent = count > 0 ? base + '  ·' + count : base;
+                });
+            },
+            pruneEmpty(container) {
+                if (!container) return;
+                if (document.body.classList.contains('fav-mode') || document.body.classList.contains('nsfw-only-mode')) return;
+                container.querySelectorAll('.date-separator').forEach(sep => {
+                    let v = 0, n = sep.nextElementSibling;
+                    while (n && !n.classList.contains('date-separator')) {
+                        if (n.classList.contains('masonry-item') && n.offsetParent !== null) v++;
+                        n = n.nextElementSibling;
+                    }
+                    if (v === 0) sep.remove();
+                });
+                let first = container.querySelector('.masonry-item');
+                while (first) {
+                    const prev = first.previousElementSibling;
+                    if (prev && prev.classList.contains('date-separator')) { prev.remove(); first = container.querySelector('.masonry-item'); }
+                    else break;
+                }
+            }
+        };
+    }
+    const DG = NS.DateGrouping;
 
     const state = {
         allHistory: [],
@@ -48,95 +113,14 @@
         bindObserver();
     }
 
-    // === 日期分组 ===
-    function getDateKey(timestamp) {
-        const d = new Date(timestamp);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-
-    function formatDateLabel(dateKey) {
-        const today = new Date();
-        const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
-
-        if (dateKey === todayKey) return '今天';
-        if (dateKey === yesterdayKey) return '昨天';
-
-        const [y, m, d] = dateKey.split('-');
-        const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
-        const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
-        return `${m}月${d}日 ${weekdays[dt.getDay()]}`;
-    }
-
-    function createDateSeparator(dateKey) {
-        const el = document.createElement('div');
-        el.className = 'date-separator';
-        el.innerHTML = `<div class="sep-line"></div><span class="sep-label">${formatDateLabel(dateKey)}</span><div class="sep-line"></div>`;
-        return el;
-    }
-
-    /** 更新所有日期分隔线的图片数量 */
-    function updateDateCounts() {
-        const c = state.container;
-        if (!c) return;
-        const seps = c.querySelectorAll('.date-separator');
-        seps.forEach(sep => {
-            let count = 0, n = sep.nextElementSibling;
-            while (n && !n.classList.contains('date-separator')) {
-                if (n.classList.contains('masonry-item')) {
-                    // 排除 NSFW 屏蔽隐藏的卡片
-                    if (!(document.body.classList.contains('nsfw-mode') && n.dataset.nsfw === '1')) {
-                        count++;
-                    }
-                }
-                n = n.nextElementSibling;
-            }
-            const label = sep.querySelector('.sep-label');
-            if (!label) return;
-            const base = label.dataset.baseText || label.textContent.replace(/\s*·\d+\s*$/, '').trim();
-            if (!label.dataset.baseText) label.dataset.baseText = base;
-            label.textContent = count > 0 ? base + '  ·' + count : base;
-        });
-    }
-
-    /** 清理下方无可见图片的空白日期分隔线
-     *  注意：fav-mode / nsfw-only-mode 下 CSS 会隐藏大部分图片和分隔线，
-     *  此时若按 offsetParent 判断会误删用户后续可能还要用的分隔线，
-     *  导致"今天"和"昨天"视觉合并。CSS 已处理隐藏，JS 不应再删 DOM。 */
-    function pruneEmptySeparators() {
-        const c = state.container;
-        if (!c) return;
-        if (document.body.classList.contains('fav-mode') ||
-            document.body.classList.contains('nsfw-only-mode')) {
-            return; // 过滤模式激活：CSS 已隐藏，不删 DOM
-        }
-        const seps = c.querySelectorAll('.date-separator');
-        seps.forEach(sep => {
-            let visibleCount = 0;
-            let n = sep.nextElementSibling;
-            while (n && !n.classList.contains('date-separator')) {
-                if (n.classList.contains('masonry-item')) {
-                    // 排除被 CSS display:none 隐藏的 NSFW 卡片
-                    if (n.offsetParent !== null) visibleCount++;
-                }
-                n = n.nextElementSibling;
-            }
-            if (visibleCount === 0) sep.remove();
-        });
-        // 也清理顶部连续的空分隔线
-        let firstItem = c.querySelector('.masonry-item');
-        while (firstItem) {
-            const prev = firstItem.previousElementSibling;
-            if (prev && prev.classList.contains('date-separator')) {
-                prev.remove();
-                firstItem = c.querySelector('.masonry-item');
-            } else {
-                break;
-            }
-        }
-    }
+    // === 日期分组：已迁移到 GalleryDisplay.DateGrouping（[Task 4 抽出]） ===
+    // 旧函数（getDateKey / formatDateLabel / createDateSeparator / updateDateCounts / pruneEmptySeparators）
+    // 全部转调 DateGrouping，list.js 内部仍以同名的 const arrow 形式包装，
+    // 任何已存在的调用点（readDateKeyFromCard / renderItems / insertSingleRecord）都无需修改。
+    const getDateKey = (ts) => DG.getKey(ts);
+    const createDateSeparator = (key) => DG.createSeparator(key);
+    const updateDateCounts = () => DG.updateCounts(state.container);
+    const pruneEmptySeparators = () => DG.pruneEmpty(state.container);
 
     /** 确保有足够可见图片填充视口，不够则自动加载下一页 */
     function ensureLoadMore() {
