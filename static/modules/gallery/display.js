@@ -298,29 +298,7 @@ body.studio-theme-dark .lightbox-thumb.active {
      * ============================================================ */
 
     /* ============================================================
-     *  Favorites 初始化
-     * ============================================================ */
-    function initFavorites() {
-        if (!config.favoritesEnabled) return;
-        try {
-            const key = config.favoritesStorageKey;
-            const arr = JSON.parse(localStorage.getItem(key) || '[]');
-            const items = (arr || []).map(String);
-            // 迁移旧格式（纯数字 timestamp → URL）
-            if (items.length > 0 && items.every(s => /^\d+$/.test(s))) {
-                console.log('[GalleryDisplay] 迁移旧收藏格式, 已清空');
-                localStorage.removeItem(key);
-                window.__galleryFavorites = new Set();
-            } else {
-                window.__galleryFavorites = new Set(items);
-            }
-        } catch (_) {
-            window.__galleryFavorites = new Set();
-        }
-    }
-
-    /* ============================================================
-     *  Lightbox 核心逻辑
+     *  Favorites 初始化已迁移到 favorites.js
      * ============================================================ */
     function findRecord(imgUrl) {
         try {
@@ -641,23 +619,18 @@ body.studio-theme-dark .lightbox-thumb.active {
             }
         });
 
-        // 收藏过滤
+        // 收藏过滤（[Task 3 迁移] 事件由 Favorites.bindFilterButton 绑定）
         if (config.favoritesEnabled) {
             extraButtons.push({
                 id: 'fav-toggle',
                 label: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="btn-text"> 收藏</span>',
                 title: '仅显示已收藏的图',
                 onClick: (btn) => {
-                    const on = !document.body.classList.contains('fav-mode');
-                    document.body.classList.toggle('fav-mode', on);
-                    btn.classList.toggle('is-on', on);
-                    try { localStorage.setItem('gallery_fav_mode', on ? '1' : '0'); } catch (_) {}
-                    if (on) {
-                        setTimeout(() => {
-                            document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
-                                if (!img.complete) { const src = img.src; img.src = ''; img.src = src; }
-                            });
-                        }, 50);
+                    // HistoryBulkManager 在每个 click 时调一次 onClick，这里仅在第一次绑定监听
+                    if (btn._favBound) return;
+                    btn._favBound = true;
+                    if (window.GalleryDisplay?.Favorites) {
+                        window.GalleryDisplay.Favorites.bindFilterButton(btn);
                     }
                 }
             });
@@ -687,19 +660,7 @@ body.studio-theme-dark .lightbox-thumb.active {
 
         // NSFW 按钮事件已迁移到 nsfw-filter.js.attachButton()（在下方 init 阶段调用）
 
-        // 恢复收藏过滤偏好
-        try {
-            if (localStorage.getItem('gallery_fav_mode') === '1') {
-                document.body.classList.add('fav-mode');
-                setTimeout(() => {
-                    const btn = document.querySelector('[data-extra-btn="fav-toggle"]');
-                    if (btn) btn.classList.add('is-on');
-                    document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
-                        if (!img.complete) { const src = img.src; img.src = ''; img.src = src; }
-                    });
-                }, 100);
-            }
-        } catch (_) {}
+        // 恢复收藏过滤偏好：已迁移到 favorites.js._restoreFilterMode()
 
         // 恢复 NSFW 偏好：已迁移到 nsfw-filter.js._restorePreferences()
 
@@ -791,8 +752,12 @@ body.studio-theme-dark .lightbox-thumb.active {
         // 3. 渲染 lightbox action 按钮
         if (config.lightbox) renderLightboxActions();
 
-        // 4. 初始化收藏
-        initFavorites();
+        // 4. 初始化收藏（[Task 3 迁移]）
+        if (config.favoritesEnabled && window.GalleryDisplay?.Favorites) {
+            window.GalleryDisplay.Favorites.init({
+                storageKey: config.favoritesStorageKey,
+            });
+        }
 
         // 5. 设置 GALLERY_CONFIG
         setupGalleryConfig();
