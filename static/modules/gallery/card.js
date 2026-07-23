@@ -135,7 +135,7 @@
         card.id = `history-${record.timestamp}`;
         card.dataset.historyTs = record.timestamp;
         card.dataset.historyType = historyType;
-        card.className = 'masonry-item group animate-in fade-in duration-700';
+        card.className = 'masonry-item group animate-in fade-in duration-300';
 
         // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用
         function openLightboxForRecord(r) {
@@ -483,4 +483,20 @@
     }
 
     global.GalleryCard = { render, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };
+
+    // 点击卡片外空白区域：取消所有选中描边（蓝色高亮）
+    // 仅绑定一次；批量选择模式与预设选择浮层内不干涉
+    if (!global.__galleryBlankDeselectBound) {
+        global.__galleryBlankDeselectBound = true;
+        document.addEventListener('click', function (e) {
+            if (document.body.classList.contains('history-bulk-selecting')) return;
+            // 点在卡片（或其内部元素）上 → 交给卡片自身 onclick 处理，这里不动
+            if (e.target.closest && e.target.closest('.masonry-item')) return;
+            // 点在预设选择浮层内 → 不干涉
+            if (e.target.closest && (e.target.closest('.sp-picker-shell') || e.target.closest('.sp-picker-window'))) return;
+            // 其余视为点击空白区域 → 清除所有选中描边
+            var sel = document.querySelectorAll('.masonry-item.gallery-selected');
+            for (var i = 0; i < sel.length; i++) sel[i].classList.remove('gallery-selected');
+        });
+    }
 })(window);

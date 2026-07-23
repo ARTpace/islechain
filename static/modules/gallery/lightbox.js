@@ -124,7 +124,7 @@
         container.style.display = 'flex';
         container.innerHTML = state.images.map((url, i) =>
             `<div class="lightbox-thumb${i === state.currentIndex ? ' active' : ''}" data-index="${i}">
-                <img src="/api/media-preview?w=96&url=${encodeURIComponent(url)}" alt="缩略图 ${i + 1}" draggable="false">
+                <img src="/api/media-preview?w=64&url=${encodeURIComponent(url)}" alt="缩略图 ${i + 1}" draggable="false">
             </div>`
         ).join('');
         const activeThumb = container.querySelector('.active');

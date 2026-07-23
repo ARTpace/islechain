@@ -1,10 +1,57 @@
 {
-  "groups": [],
+  "groups": [
+    {
+      "id": "group-photo",
+      "name": "摄影"
+    },
+    {
+      "id": "group-anime",
+      "name": "动漫"
+    },
+    {
+      "id": "group-realistic",
+      "name": "写实"
+    },
+    {
+      "id": "group-portrait",
+      "name": "人像"
+    },
+    {
+      "id": "group-landscape",
+      "name": "风景"
+    },
+    {
+      "id": "group-fantasy",
+      "name": "奇幻"
+    },
+    {
+      "id": "group-concept",
+      "name": "概念设计"
+    },
+    {
+      "id": "group-game",
+      "name": "游戏"
+    }
+  ],
   "preset_order": [
     "default",
     "ideogram4",
     "preset-mqgfmr6l",
-    "preset-mqw2nd1o"
+    "preset-mqw2nd1o",
+    "preset-mrvh65nb",
+    "preset-anime01",
+    "preset-real01",
+    "preset-port01",
+    "preset-land01",
+    "preset-fant01",
+    "preset-conc01",
+    "preset-game01",
+    "preset-mrvnr1y1",
+    "preset-mrvnz8dy",
+    "preset-mrvoc415",
+    "preset-mrvrzcf3",
+    "preset-mrvsrqrw",
+    "preset-mrxmeaga"
   ],
-  "selected_preset_id": "preset-mrtz7adr"
+  "selected_preset_id": "preset-mrxmeaga"
 }

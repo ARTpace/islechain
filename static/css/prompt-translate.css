@@ -132,3 +132,175 @@ body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang
     color:#fff;
     border-color:var(--strong, #fff);
 }
+
+/* ── 翻译结果预览 Toast ─────────────────────────────────── */
+.translate-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10000;
+    transition: all 0.25s ease;
+}
+.translate-toast.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+.translate-toast-content {
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    min-width: 360px;
+    max-width: 560px;
+    overflow: hidden;
+}
+.translate-toast-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-subtle, #f8fafc);
+}
+.translate-toast-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #1e293b);
+}
+.translate-toast-close {
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--muted, #64748b);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.translate-toast-close:hover {
+    background: var(--bg-hover, #f1f5f9);
+    color: var(--text, #1e293b);
+}
+.translate-toast-body {
+    padding: 14px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.translate-toast-original,
+.translate-toast-translated {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text, #1e293b);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.translate-toast-original {
+    color: var(--muted, #64748b);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border, #e2e8f0);
+}
+.translate-arrow {
+    text-align: center;
+    color: var(--accent, #6366f1);
+    font-size: 14px;
+    margin: 6px 0;
+}
+.translate-toast-translated {
+    font-weight: 500;
+}
+.translate-toast-footer {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-subtle, #f8fafc);
+}
+.translate-toast-footer button {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.translate-toast-accept {
+    background: var(--accent, #6366f1);
+    color: #fff;
+    border-color: var(--accent, #6366f1);
+}
+.translate-toast-accept:enabled:hover {
+    background: #4f46e5;
+}
+.translate-toast-accept:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.translate-toast-reject {
+    background: transparent;
+    color: var(--muted, #64748b);
+}
+.translate-toast-reject:hover {
+    background: var(--bg-hover, #f1f5f9);
+    color: var(--text, #1e293b);
+}
+
+/* 深色主题 */
+body.studio-theme-dark .translate-toast-content,
+.theme-dark .translate-toast-content {
+    background: var(--bg-card, #1e293b);
+    border-color: var(--border, #334155);
+}
+body.studio-theme-dark .translate-toast-header,
+.theme-dark .translate-toast-header {
+    border-color: var(--border, #334155);
+    background: var(--bg-subtle, #0f172a);
+}
+body.studio-theme-dark .translate-toast-title,
+.theme-dark .translate-toast-title {
+    color: var(--text, #e2e8f0);
+}
+body.studio-theme-dark .translate-toast-close,
+.theme-dark .translate-toast-close {
+    color: #94a3b8;
+}
+body.studio-theme-dark .translate-toast-close:hover,
+.theme-dark .translate-toast-close:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+body.studio-theme-dark .translate-toast-original,
+body.studio-theme-dark .translate-toast-translated,
+.theme-dark .translate-toast-original,
+.theme-dark .translate-toast-translated {
+    color: var(--text, #e2e8f0);
+}
+body.studio-theme-dark .translate-toast-original,
+.theme-dark .translate-toast-original {
+    color: #94a3b8;
+}
+body.studio-theme-dark .translate-toast-footer,
+.theme-dark .translate-toast-footer {
+    border-color: var(--border, #334155);
+    background: var(--bg-subtle, #0f172a);
+}
+body.studio-theme-dark .translate-toast-reject,
+.theme-dark .translate-toast-reject {
+    border-color: var(--border, #334155);
+    color: #94a3b8;
+}
+body.studio-theme-dark .translate-toast-reject:hover,
+.theme-dark .translate-toast-reject:hover {
+    background: #334155;
+    color: #e2e8f0;
+}

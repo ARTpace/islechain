@@ -132,8 +132,10 @@
         Base.Test.suite('DateGrouping', [
             ['模块已挂载到 GalleryDisplay', () => NS.DateGrouping === DateGrouping],
             ['getKey 格式 YYYY-MM-DD', () => {
-                const k = DateGrouping.getKey(new Date('2026-07-21T10:00:00').getTime());
-                return k === '2026-07-21';
+                // [Bugfix] 用本地时区的当前时间 -> 动态比较，避免写死 '2026-07-21' 跨天失败
+                const now = new Date();
+                const expected = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+                return DateGrouping.getKey(now.getTime()) === expected;
             }],
             ['getKey 用本地时区（不是 UTC）', () => {
                 // 2026-01-01 00:30 本地时间
@@ -151,7 +153,10 @@
                 return lbl.includes('1月1日') && lbl.includes('周三');
             }],
             ['createSeparator 返回 DOM 元素', () => {
-                const el = DateGrouping.createSeparator('2026-07-21');
+                // [Bugfix] 用动态今天 key 而不是写死 '2026-07-21'：
+                // 写死的 key 只在 2026-07-21 当天跑出'今天'，跨天就会变成'昨天'而误报失败
+                const todayKey = DateGrouping.getKey(Date.now());
+                const el = DateGrouping.createSeparator(todayKey);
                 // 兼容 Node 单元测试环境：没有 HTMLElement 全局，instanceof 必报 ReferenceError
                 const isEl = (typeof HTMLElement === 'undefined') ? !!el : (el instanceof HTMLElement);
                 return isEl &&

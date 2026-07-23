@@ -143,7 +143,7 @@ const SmartPrompt = (function() {
                 clearTimeout(pressTimer);
                 pressTimer = null;
             }
-            isLongPress = false;
+            // [Bugfix] 不重置 isLongPress——让紧随的 click 能判断是否由长按触发
         }
         function cancelPress() {
             btn.classList.remove('sp-long-press-active');
@@ -168,6 +168,8 @@ const SmartPrompt = (function() {
     // ─────────────────────────────────────────────
     async function handleGenerate() {
         if (!btn || btn.disabled) return;
+        // [Bugfix] 跳过长按后的误触 click
+        if (isLongPress) { isLongPress = false; return; }
 
         const getText = options.getText;
         const setText = options.setText;

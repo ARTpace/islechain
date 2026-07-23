@@ -271,8 +271,43 @@ def generate(
             custom_rules=custom_rules,
         )
 
-        # ── 步骤 5：调用 LLM ──────────────────────────────────────
+        # ── 步骤 5：调用 LLM（带 provider 降级 fallback）───────────
         raw_output = call_llm(user_input, system_prompt, config)
+        # 记录第一次（用户真正选中的预设）错误，避免被 fallback 错误覆盖
+        first_error = raw_output if raw_output.startswith("ERROR:") else ""
+
+        # 如果预设指定了 provider 但调用失败，降级到全局兜底模型重试一次
+        if raw_output.startswith("ERROR:") and preset_provider:
+            # 不指定 provider_id → config.resolve() 自动选择第一个可用的 provider
+            fallback_config = cfg.resolve()
+            if config_override:
+                fallback_config.update(config_override)
+            # 保留预设的温度、max_tokens 等参数
+            if preset:
+                if preset.get("temperature") is not None:
+                    fallback_config["temperature"] = preset["temperature"]
+                if preset.get("max_tokens") is not None:
+                    fallback_config["max_tokens"] = preset["max_tokens"]
+
+            # 仅在 fallback 配置与原始配置确实不同时才重试，避免重复请求同一家
+            if (
+                fallback_config.get("base_url") != config.get("base_url")
+                or fallback_config.get("api_key") != config.get("api_key")
+                or fallback_config.get("model") != config.get("model")
+            ):
+                fb_raw = call_llm(user_input, system_prompt, fallback_config)
+                if not fb_raw.startswith("ERROR:"):
+                    # 兜底成功，使用兜底结果
+                    raw_output = fb_raw
+                elif first_error:
+                    # 两次都失败：优先展示用户选中的预设模型错误，并附上兜底失败信息
+                    raw_output = (
+                        first_error
+                        + " ｜ 已尝试全局兜底模型("
+                        + str(fallback_config.get("model", ""))
+                        + ")仍失败："
+                        + fb_raw
+                    )
 
         # ── 步骤 6：解析输出 ──────────────────────────────────────
         if raw_output.startswith("ERROR:"):

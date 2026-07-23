@@ -20,6 +20,7 @@ from .preset import (
     list_presets, get_preset, create_preset, update_preset,
     delete_preset, duplicate_preset, export_presets, import_presets,
     reorder_presets, get_selected_preset_id, set_selected_preset_id,
+    create_group, delete_group, update_group, reorder_groups,
 )
 from .knowledge import search as search_knowledge, add_entry as add_knowledge_entry, remove_entry as remove_knowledge_entry, list_entries as list_knowledge_entries
 
@@ -30,6 +31,7 @@ __all__ = [
     "list_presets", "get_preset", "create_preset", "update_preset",
     "delete_preset", "duplicate_preset", "export_presets", "import_presets",
     "reorder_presets", "get_selected_preset_id", "set_selected_preset_id",
+    "create_group", "delete_group", "update_group", "reorder_groups",
     # 知识库
     "search_knowledge", "add_knowledge_entry", "remove_knowledge_entry", "list_knowledge_entries",
 ]

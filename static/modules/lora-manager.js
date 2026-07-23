@@ -103,7 +103,10 @@ const LoraManager = (function() {
 
     function _buildEntry(name, fileName, previews, opts) {
         const { stripExt = false, splitPreview = false, addedTime = 0 } = opts || {};
-        const pv = previews[name] || previews[fileName] || '';
+        // 兼容正反斜杠:previews 的 key 用反斜杠(后端 lora 相对路径),而前端 name 可能为
+        // ComfyUI 返回的正斜杠或纯文件名,需双向归一化查找,避免预览图永远匹配不上
+        const _tryKey = (k) => k ? (previews[k] || previews[k.replace(/\\/g, '/')] || previews[k.replace(/\//g, '\\')]) : '';
+        const pv = _tryKey(name) || _tryKey(fileName) || '';
         const { preview, videoUrl } = splitPreview ? _splitPreview(pv, pv) : { preview: pv, videoUrl: '' };
         return {
             name,
@@ -111,7 +114,11 @@ const LoraManager = (function() {
             preview, videoUrl,
             triggerWords: [], baseModel: '', folder: _extractFolder(name),
             // 文件修改时间(秒),用于 "按添加时间" 排序;无则 0
-            addedTime: addedTime || 0
+            addedTime: addedTime || 0,
+            civitai: null,    // 后续由 _enrichFromManager 补充
+            nsfwLevel: 0,     // 0=未知 1=安全 2=轻微 3=敏感 4=NSFW
+            // 文件元数据(从 .metadata.json / LoRA Manager 补充)
+            size: 0, modified: 0, sha256: '', fileName: ''
         };
     }
 
@@ -149,12 +156,22 @@ const LoraManager = (function() {
         return {
             name: loraName, displayName: _cleanDisplayName(m.model_name || fileName),
             preview: split.preview, videoUrl, triggerWords,
-            baseModel: m.base_model || '', tags: m.tags || '', folder
+            baseModel: m.base_model || '', tags: m.tags || '', folder,
+            civitai: civitai || null,
+            nsfwLevel: m.preview_nsfw_level != null ? m.preview_nsfw_level : (civitai ? civitai.nsfwLevel || 0 : 0),
+            size: m.size || 0, modified: m.modified || 0,
+            sha256: m.sha256 || '', fileName: m.file_name || '',
+            translatedDescription: m.translated_description || ''
         };
     }
 
     function _enrichFromManager(metaItems) {
-        if (!Array.isArray(metaItems)) return;
+        if (!Array.isArray(metaItems)) {
+            console.warn('[Lora] _enrichFromManager: metaItems 不是数组', typeof metaItems);
+            return;
+        }
+        console.log('[Lora] _enrichFromManager: 收到', metaItems.length, '条元数据');
+        var _matchCount = 0, _failCount = 0;
         for (const m of metaItems) {
             const folder = m.folder || '';
             const fileName = m.file_name || '';
@@ -163,9 +180,20 @@ const LoraManager = (function() {
                 ? filePath.split(/\\/).pop().split('/').pop()
                 : (fileName.endsWith('.safetensors') ? fileName : fileName + '.safetensors');
             const key = folder ? `${folder}\\${fullFileName}` : fullFileName;
-            const matchedKey = state.loraMap[key] ? key
+            // 匹配策略: ① 精确 key ② 仅文件名 ③ 在 loraMap 中找以 \fullFileName 结尾的 key(支持多级子文件夹)
+            var matchedKey = state.loraMap[key] ? key
                 : (state.loraMap[fullFileName] ? fullFileName : null);
-            if (!matchedKey) continue;
+            if (!matchedKey) {
+                // 遍历 loraMap keys 找尾匹配
+                for (var _lk in state.loraMap) {
+                    if (state.loraMap.hasOwnProperty(_lk) && _lk.endsWith('\\' + fullFileName)) {
+                        matchedKey = _lk;
+                        break;
+                    }
+                }
+            }
+            if (!matchedKey) { _failCount++; continue; }
+            _matchCount++;
             const entry = state.loraMap[matchedKey];
             const previewRaw = m.preview_url || '';
             const previewProxy = previewRaw
@@ -181,6 +209,39 @@ const LoraManager = (function() {
             if (m.base_model) entry.baseModel = m.base_model;
             if (m.tags) entry.tags = m.tags;
             if (m.model_name) entry.displayName = _cleanDisplayName(m.model_name);
+            if (m.civitai) entry.civitai = m.civitai;
+            if (m.preview_nsfw_level != null) entry.nsfwLevel = m.preview_nsfw_level;
+            else if (m.civitai && m.civitai.nsfwLevel != null) entry.nsfwLevel = m.civitai.nsfwLevel;
+            if (m.size) entry.size = m.size;
+            if (m.modified) entry.modified = m.modified;
+            if (m.sha256) entry.sha256 = m.sha256;
+            if (m.file_name) entry.fileName = m.file_name;
+            if (m.translated_description) entry.translatedDescription = m.translated_description;
+            // 调试:前 3 条打日志
+            if (entry.civitai && entry.civitai.modelId && _matchCount <= 3) {
+                console.log('[Lora] _enrichFromManager 匹配成功 #' + _matchCount + ' key=' + matchedKey + ' civitai.modelId=' + entry.civitai.modelId + ' nsfwLevel=' + entry.nsfwLevel + ' triggerWords=' + (entry.triggerWords || []).length);
+            }
+        }
+        console.log('[Lora] _enrichFromManager 完成: 匹配=' + _matchCount + ' 未匹配=' + _failCount);
+        // 若匹配率低于 50%,打印前 5 条未匹配用 key 和 loraMap 样本供比对
+        if (_failCount > _matchCount && metaItems.length > 0) {
+            var badKeys = [];
+            for (var _bi = 0; _bi < metaItems.length && badKeys.length < 5; _bi++) {
+                var _m = metaItems[_bi];
+                var _f = _m.folder || '';
+                var _fn = _m.file_path ? _m.file_path.split('\\').pop().split('/').pop() : (_m.file_name || '?');
+                var _mk = (_f ? _f + '\\' : '') + _fn;
+                // 如果这个 key 也没匹配到(用新逻辑再检查)
+                var _hasExact = !!state.loraMap[_mk];
+                var _hasSuffix = false;
+                for (var _lk2 in state.loraMap) {
+                    if (state.loraMap.hasOwnProperty(_lk2) && _lk2.endsWith('\\' + _fn)) { _hasSuffix = true; break; }
+                }
+                if (!_hasExact && !_hasSuffix) {
+                    badKeys.push(_mk);
+                }
+            }
+            console.warn('[Lora] _enrichFromManager 匹配率低! loraMap 样本 key:', Object.keys(state.loraMap).slice(0, 5), 'meta 未匹配样本:', badKeys);
         }
     }
 
@@ -322,6 +383,10 @@ const LoraManager = (function() {
                             const metaData = await metaRes.json();
                             _enrichFromManager(metaData.items || metaData.models || []);
                             rebuildTriggerWordMap();
+                            // 若 LoRA 选择器已打开,刷新卡片数据(元数据补充后才有 civitai/nsfwLevel)
+                            if (typeof window.loraPickerRefreshData === 'function') {
+                                window.loraPickerRefreshData(false);
+                            }
                         }
                     } catch (e) { console.warn('[Lora] Manager 元数据补充失败:', e); }
                     return;
@@ -397,7 +462,7 @@ const LoraManager = (function() {
             const modelSet = new Set();
             for (const name of raw) {
                 const folder = _extractFolder(name);
-                state.loraMap[name] = { name, displayName: _cleanDisplayName(name), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder };
+                state.loraMap[name] = { name, displayName: _cleanDisplayName(name), preview: '', videoUrl: '', triggerWords: [], baseModel: '', folder, civitai: null, nsfwLevel: 0 };
                 modelSet.add(folder || '通用');
             }
             state.models = [...modelSet].sort();

@@ -14,11 +14,8 @@
     let currentScale = 1;
     let originalWidth = 0;
     let originalHeight = 0;
-    // 预取的 fullImage 缓存：key = originalUrl, value = Image 实例
-    // 用于切图时复用已下载的原图，避免重复 IO
-    const _fullImageCache = new Map();
-    // 当前正在等待的原图 URL（用于切图时丢弃过期加载）
-    let _pendingFullUrl = null;
+    // 当前正在加载的图片 URL（用于切图时丢弃过期加载）
+    let _pendingPhaseUrl = null;
 
     function init(images, startIndex = 0, options = {}) {
         imageList = images;
@@ -158,62 +155,64 @@
         img.style.transform = 'scale(1)';
         img.style.transformOrigin = 'center center';
 
-        // 双层加载：先用 media-preview 1280 缩略图占位（秒出，受 max-height:70vh 限制画质已够），
-        // 后台异步预取原图，到位后无缝替换。切图时若原图已在缓存中则直接显示原图。
+        // === 三层加载：768px(秒出) → 1536px(高清) → 原图(仅取尺寸) ===
         const originalUrl = imageList[currentIndex];
-        _pendingFullUrl = originalUrl;
+        _pendingPhaseUrl = originalUrl;
 
-        // 如果原图已预取完成（来自 hover 预取或上一次切换），直接显示
-        const cachedFull = _fullImageCache.get(originalUrl);
-        if (cachedFull && cachedFull.complete && cachedFull.naturalWidth > 0) {
-            img.src = originalUrl;
-            originalWidth = cachedFull.naturalWidth;
-            originalHeight = cachedFull.naturalHeight;
-            if (res) {
-                res.style.display = '';
-                res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-            }
-            applyZoom();
-        } else {
-            // 先用 1280px 缩略图占位（走 media-preview 缓存，几乎秒出）
-            img.src = '/api/media-preview?w=1280&url=' + encodeURIComponent(originalUrl);
-            // 缩略图到达时记录尺寸，让缩放在缩略图阶段也能用；原图到达后会再覆写一次
-            img.onload = () => {
-                if (originalWidth === 0 && _pendingFullUrl === originalUrl) {
-                    originalWidth = img.naturalWidth;
-                    originalHeight = img.naturalHeight;
-                    if (res) {
-                        res.style.display = '';
-                        res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-                    }
+        // Phase 1: 768px WebP 缩略图（预生成缓存命中，<1s 显示）
+        img.src = '/api/media-preview?w=768&url=' + encodeURIComponent(originalUrl);
+        img.onload = () => {
+            if (originalWidth === 0 && _pendingPhaseUrl === originalUrl) {
+                originalWidth = img.naturalWidth;
+                originalHeight = img.naturalHeight;
+                if (res) {
+                    res.style.display = '';
+                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
                 }
+            }
+        };
+
+        // Phase 2: 1536px WebP 高清图后台预取，加载完成后替换 img.src
+        // 1536px 在 2x 屏幕 ≈ 768 物理像素，70vh 显示绰绰有余
+        (function phase2() {
+            const midImg = new Image();
+            const midUrl = '/api/media-preview?w=1536&url=' + encodeURIComponent(originalUrl);
+            midImg.onload = () => {
+                if (_pendingPhaseUrl !== originalUrl) return;
+                const liveImg = document.getElementById('lightboxImg');
+                if (!liveImg) return;
+                liveImg.src = midUrl;
+                originalWidth = midImg.naturalWidth;
+                originalHeight = midImg.naturalHeight;
+                if (res) {
+                    res.style.display = '';
+                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
+                }
+                applyZoom();
             };
-            // 后台预取原图
+            midImg.onerror = () => {}; // 静默失败，Phase1 缩略图保留
+            midImg.src = midUrl;
+        })();
+
+        // Phase 3: 后台加载原图仅获取尺寸信息（不替换 img.src），供缩放计算使用
+        // 用户看到的始终是 1536px WebP（足够清晰，且 WebP 体积比 PNG 小 5-10 倍）
+        (function phase3() {
             const fullImg = new Image();
             fullImg.onload = () => {
-                _fullImageCache.set(originalUrl, fullImg);
-                // 仅当用户还停留在这张图时才替换（避免快速切图时闪烁）
-                if (_pendingFullUrl === originalUrl) {
-                    const liveImg = document.getElementById('lightboxImg');
-                    if (liveImg) {
-                        liveImg.src = originalUrl;
-                        originalWidth = fullImg.naturalWidth;
-                        originalHeight = fullImg.naturalHeight;
-                        if (res) {
-                            res.style.display = '';
-                            res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-                        }
-                        applyZoom();
-                    }
+                if (_pendingPhaseUrl !== originalUrl) return;
+                // 原图尺寸（可能有更高分辨率）覆写，让 zoom 精度更准
+                originalWidth = fullImg.naturalWidth;
+                originalHeight = fullImg.naturalHeight;
+                if (res) {
+                    res.style.display = '';
+                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
                 }
             };
-            fullImg.onerror = () => {
-                // 原图加载失败，缩略图保留显示，不报错打扰用户
-            };
+            fullImg.onerror = () => {};
             fullImg.src = originalUrl;
-        }
+        })();
 
-        // 切图后回调：把当前 index / url / prompt 通知上层
+        // 切图后回调
         if (onShowCallback) {
             try {
                 onShowCallback(currentIndex, imageList[currentIndex], promptList[currentIndex] || '');
@@ -303,9 +302,7 @@
         currentScale = 1;
         originalWidth = 0;
         originalHeight = 0;
-        _pendingFullUrl = null;
-        // 关闭时清空预取缓存，避免长会话内存累积（原图可能数 MB × 数十张）
-        _fullImageCache.clear();
+        _pendingPhaseUrl = null;
     }
 
     function goTo(index) {

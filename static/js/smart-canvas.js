@@ -3845,7 +3845,8 @@ function syncComposerTemplateButton(){
     composerTemplateBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
 }
 async function openPromptTemplatePanel(nodeId='', templateId='', options={}){
-    if(!promptTemplatePanel) return;
+    console.log('[模板库] openPromptTemplatePanel 调用:', { nodeId, templateId });
+    if(!promptTemplatePanel) { console.warn('[模板库] promptTemplatePanel 为 null'); return; }
     const target = options.target === 'composer' ? 'composer' : 'node';
     promptTemplatePanel.dataset.target = target;
     promptTemplatePanel.dataset.nodeId = nodeId || '';
@@ -4089,6 +4090,7 @@ async function deletePromptTemplateGroup(groupId){
     renderPromptTemplatePanel({preserveScroll:false});
 }
 function editPromptPresetForNode(node){
+    console.log('[模板库] editPromptPresetForNode called, node:', node?.id, 'presetId:', node?.promptPresetId);
     openPromptTemplatePanel(node?.id || '', node?.promptPresetId ? `mine:${node.promptPresetId}` : '');
 }
 function assetCategories(type='image'){
@@ -6686,6 +6688,7 @@ function bindPromptNodeControls(el, node){
     if(presetEdit) presetEdit.onclick = e => {
         e.preventDefault();
         e.stopPropagation();
+        console.log('[模板库] 按钮点击, nodeId:', node.id, 'presetId:', node.promptPresetId);
         editPromptPresetForNode(node);
     };
     const toggle = el.querySelector('.prompt-llm-toggle');
@@ -6759,38 +6762,126 @@ function bindPromptNodeControls(el, node){
 async function doTranslate(el, node, btn) {
     const text = node.text || '';
     if(!text.trim()) return;
-    console.log('[翻译] 用户触发翻译:', text.substring(0, 50));
     const span = btn.querySelector('span');
     const orig = span?.textContent || '';
     if(span) span.textContent = '…';
     btn.style.opacity = '0.5';
     btn.style.pointerEvents = 'none';
+
+    let toastEl = document.getElementById('translate-toast');
+    let toastTitle, toastOriginal, toastTranslated, acceptBtn, rejectBtn, closeBtn;
+
+    if(!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.id = 'translate-toast';
+        toastEl.className = 'translate-toast';
+        toastEl.innerHTML = `
+            <div class="translate-toast-content">
+                <div class="translate-toast-header">
+                    <span class="translate-toast-title">翻译结果</span>
+                    <button class="translate-toast-close" title="关闭">×</button>
+                </div>
+                <div class="translate-toast-body">
+                    <div class="translate-toast-original"></div>
+                    <div class="translate-arrow">↓</div>
+                    <div class="translate-toast-translated"></div>
+                </div>
+                <div class="translate-toast-footer">
+                    <button class="translate-toast-accept" disabled>确认</button>
+                    <button class="translate-toast-reject">放弃</button>
+                </div>
+            </div>`;
+        document.body.appendChild(toastEl);
+        toastTitle = toastEl.querySelector('.translate-toast-title');
+        toastOriginal = toastEl.querySelector('.translate-toast-original');
+        toastTranslated = toastEl.querySelector('.translate-toast-translated');
+        acceptBtn = toastEl.querySelector('.translate-toast-accept');
+        rejectBtn = toastEl.querySelector('.translate-toast-reject');
+        closeBtn = toastEl.querySelector('.translate-toast-close');
+    } else {
+        toastTitle = toastEl.querySelector('.translate-toast-title');
+        toastOriginal = toastEl.querySelector('.translate-toast-original');
+        toastTranslated = toastEl.querySelector('.translate-toast-translated');
+        acceptBtn = toastEl.querySelector('.translate-toast-accept');
+        rejectBtn = toastEl.querySelector('.translate-toast-reject');
+        closeBtn = toastEl.querySelector('.translate-toast-close');
+    }
+
+    let result = null;
+    let sourceType = '';
+
     try {
-        const result = await window.PromptTranslate.translate(text, null, {
-            cacheSource: node
+        result = await window.PromptTranslate.translate(text, null, {
+            cacheSource: node,
+            onState: (label) => {
+                if(label === '翻译中…' || label.includes('翻译中') || label.includes('查字典')) {
+                    if(span) span.textContent = '…';
+                }
+            }
         });
         if(result) {
-            node.text = result.text;
-            const textArea = el.querySelector('.prompt-node-text');
-            if(textArea) textArea.value = result.text;
-            // 翻译结果已写入节点的 textOriginal/textTranslated 缓存字段，触发画布保存
-            if (typeof scheduleSave === 'function') scheduleSave();
-            console.log('[翻译] 翻译完成:', result.text.substring(0, 50),
-                result.fromCache ? '(缓存)' :
-                result.fromDict ? '(字典)' : '(API)');
+            sourceType = result.fromCache ? '缓存' : result.fromDict ? '字典' : 'API';
+            // 暂存结果，不立即写入
+            node._translatePending = result.text;
+            node._translateSource = sourceType;
+
+            // 显示预览
+            toastTitle.textContent = `翻译完成 (${sourceType})`;
+            toastOriginal.textContent = text.substring(0, 200) + (text.length > 200 ? '…' : '');
+            toastTranslated.textContent = result.text.substring(0, 200) + (result.text.length > 200 ? '…' : '');
+            acceptBtn.disabled = false;
+
+            toastEl.classList.add('show');
             if(span) span.textContent = '✓';
+
+            // 确认按钮
+            acceptBtn.onclick = () => {
+                node.text = result.text;
+                const textArea = el.querySelector('.prompt-node-text');
+                if(textArea) textArea.value = result.text;
+                if (typeof scheduleSave === 'function') scheduleSave();
+                toastEl.classList.remove('show');
+                console.log('[翻译] 用户确认翻译:', result.text.substring(0, 50));
+            };
+
+            // 放弃按钮
+            rejectBtn.onclick = () => {
+                delete node._translatePending;
+                toastEl.classList.remove('show');
+                console.log('[翻译] 用户放弃翻译');
+            };
+
+            // 关闭按钮
+            closeBtn.onclick = () => {
+                delete node._translatePending;
+                toastEl.classList.remove('show');
+            };
         } else {
-            if(span) span.textContent = '✗';
+            span.textContent = '✗';
+            toastTitle.textContent = '翻译失败';
+            toastOriginal.textContent = '';
+            toastTranslated.textContent = '未获取到翻译结果';
+            acceptBtn.disabled = true;
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2000);
         }
     } catch(e) {
         console.error('[翻译] 翻译错误:', e);
-        if(span) span.textContent = '✗';
+        span.textContent = '✗';
+        toastTitle.textContent = '翻译出错';
+        toastOriginal.textContent = '';
+        toastTranslated.textContent = e.message || '未知错误';
+        acceptBtn.disabled = true;
+        toastEl.classList.add('show');
+        setTimeout(() => toastEl.classList.remove('show'), 3000);
     }
+
+    // 按钮状态恢复时间：成功 3 秒，失败 2 秒
     setTimeout(() => {
         if(span) span.textContent = orig;
         btn.style.opacity = '';
         btn.style.pointerEvents = '';
-    }, 1200);
+    }, result ? 3000 : 2000);
 }
 function bindLoopNodeControls(el, node){
     el.querySelectorAll('.loop-smart-control').forEach(control => {

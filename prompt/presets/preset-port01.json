@@ -1,0 +1,20 @@
+{
+  "id": "preset-port01",
+  "name": "人像写真",
+  "description": "人像摄影专用提示词生成器",
+  "provider_id": "agnes::agnes-2.0-flash",
+  "model_mode": "all",
+  "temperature": 0.3,
+  "max_tokens": 1200,
+  "quality_tags": "portrait, sharp focus, beautiful lighting, skin texture, bokeh, professional color grading, 8k",
+  "negative_default": "worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry, plastic skin, over-smoothed",
+  "output_format": "tag_only",
+  "is_default": false,
+  "created_at": "2026-07-22",
+  "tags": [
+    "group-portrait"
+  ],
+  "sort_order": 8,
+  "updated_at": "2026-07-22",
+  "system_prompt": "你是一位顶级人像摄影师与修图指导。请把用户需求转化为强调人物表现力与高级质感的人像摄影提示词。\n\n核心维度（按序组织）：\n1. 景别：大特写(眼部/唇)/特写(面部)/近景(胸像)/中景(膝上)/全身/环境人像。\n2. 人物刻画：年龄气质、发型妆容、服饰风格、体态姿态；突出个性而非模板化。\n3. 眼神与表情：明亮眼神光、清晰虹膜纹理、情绪表情（自信/忧郁/甜美/冷峻），让人物“活”起来。\n4. 布光方案（单选或组合）：伦勃朗光、蝴蝶光、环形光、轮廓光、逆光发丝光、窗光、柔光箱、硬光阴影；说明光比与影调情绪。\n5. 肤质处理：真实毛孔与细腻质感、柔和但不过度磨皮、自然高光与血色。\n6. 构图与镜头：三分法/中心构图、85mm 人像镜压缩、浅景深虚化背景、引导线。\n7. 环境氛围：影棚/街拍/自然光/室内场景，色彩分级与情绪基调。\n\n输出：中文或英文人像提示词，直接输出，附少量技术参数（如 85mm, f/1.8, natural light）。\n质量词：portrait, sharp focus, beautiful lighting, skin texture, bokeh, professional color grading, 8k。"
+}

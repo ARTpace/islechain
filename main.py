@@ -17,6 +17,7 @@ import asyncio
 import shlex
 import tempfile
 import threading
+import concurrent.futures
 import zipfile
 from io import BytesIO
 import requests
@@ -1908,6 +1909,11 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
             subfolder_parts.append(feature)
         subfolder_parts.append(date_folder)
         subfolder = "/".join(subfolder_parts)
+        # 同步预生成画廊缩略图缓存(600/768),确保首刷命中、避免现场缩放
+        try:
+            _prewarm_thumbnails(local_path)
+        except Exception:
+            pass
         return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载图片失败: {e}")
@@ -2949,6 +2955,38 @@ def media_preview_cache_paths(path: str, width: int):
         os.path.join(MEDIA_PREVIEW_DIR, f"{key}.webp"),
         os.path.join(MEDIA_PREVIEW_DIR, f"{key}.png"),
     )
+
+def _prewarm_thumbnails(local_path: str, widths=(600, 768)):
+    """为本地图片同步预生成 WebP 缩略图缓存(与 /api/media-preview 共用缓存键)。
+
+    关键: 同步执行,可在 worker 线程(asyncio.to_thread)里安全调用,无需事件循环。
+    生成流程(_run_comfy_generate_sync → download_image)走的就是 worker 线程,
+    之前用 asyncio.create_task 触发的预生成因"无运行中的事件循环"而静默失败,
+    导致画廊首刷永远缓存未命中、每次都现场读原图+缩放。这里改为同步预生成,
+    保证 /api/generate 返回前 768/600 的 WebP 已落盘,前端首刷直接命中、秒出。
+    """
+    try:
+        from PIL import Image, ImageOps
+        if not local_path or not os.path.isfile(local_path):
+            return
+        ext = os.path.splitext(local_path)[1].lower()
+        if ext in ('.mp4', '.webm', '.mov', '.mkv', '.avi'):
+            return
+        os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
+        for w_target in widths:
+            webp_path, _ = media_preview_cache_paths(local_path, w_target)
+            if os.path.exists(webp_path):
+                continue
+            with Image.open(local_path) as src:
+                src = ImageOps.exif_transpose(src)
+                has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
+                if src.width > w_target:
+                    src.thumbnail((w_target, w_target), Image.BILINEAR)
+                out = src.convert("RGBA" if has_alpha else "RGB")
+                out.save(webp_path, format="WEBP", quality=88)
+    except Exception as e:
+        print(f"[prewarm-thumb] failed {os.path.basename(local_path or '')}: {e}")
+
 
 def _etag_for(path: str, stat=None) -> str:
     """基于文件路径+mtime+size 生成弱 ETag"""
@@ -6487,6 +6525,10 @@ if USE_NEW_PROMPT_MODULE:
         delete_preset as pm_delete_preset,
         get_selected_preset_id as pm_get_selected_preset_id,
         set_selected_preset_id as pm_set_selected_preset_id,
+        create_group as pm_create_group,
+        delete_group as pm_delete_group,
+        update_group as pm_update_group,
+        reorder_groups as pm_reorder_groups,
     )
 
     @app.post("/api/prompt-module/generate")
@@ -6503,7 +6545,14 @@ if USE_NEW_PROMPT_MODULE:
 
     @app.get("/api/prompt-module/presets")
     async def pm_list_presets_route():
-        return {"presets": pm_list_presets()}
+        from prompt.preset import _read_index
+        index = _read_index()
+        return {"presets": pm_list_presets(), "groups": index.get("groups", [])}
+
+    @app.post("/api/prompt-module/presets")
+    async def pm_create_preset_route(payload: dict):
+        saved = pm_create_preset(payload)
+        return {"success": True, "preset": saved}
 
     @app.put("/api/prompt-module/presets/{preset_id}")
     async def pm_update_preset_route(preset_id: str, payload: dict):
@@ -6522,6 +6571,25 @@ if USE_NEW_PROMPT_MODULE:
     @app.post("/api/prompt-module/selected-preset")
     async def pm_set_selected_route(payload: dict):
         pm_set_selected_preset_id(payload.get("preset_id", "default"))
+
+    @app.post("/api/prompt-module/groups")
+    async def pm_create_group_route(payload: dict):
+        pm_create_group(payload.get("id", ""), payload.get("name", ""))
+        return {"success": True}
+
+    @app.delete("/api/prompt-module/groups/{group_id}")
+    async def pm_delete_group_route(group_id: str):
+        pm_delete_group(group_id)
+        return {"success": True}
+
+    @app.put("/api/prompt-module/groups/{group_id}")
+    async def pm_update_group_route(group_id: str, payload: dict):
+        pm_update_group(group_id, payload)
+        return {"success": True}
+
+    @app.post("/api/prompt-module/groups/reorder")
+    async def pm_reorder_groups_route(payload: dict):
+        pm_reorder_groups(payload.get("ids", []))
         return {"success": True}
 
 # --- AI 生成提示词方案 ---
@@ -6609,6 +6677,29 @@ async def smart_tts_enhance(req: SmartTTSRequest):
 
 # --- 翻译模型 ---
 TRANSLATE_CONFIG_FILE = os.path.join(BASE_DIR, "data", "translate-config.json")
+
+# 翻译结果缓存: key="text||direction" → {result, ts}
+_TRANSLATE_CACHE = {}
+_TRANSLATE_CACHE_MAX = 500
+_TRANSLATE_CACHE_TTL = 3600  # 1 小时
+
+def _translate_cache_key(text: str, direction: str) -> str:
+    return f"{text}||{direction}"
+
+def _translate_cache_get(text: str, direction: str):
+    key = _translate_cache_key(text, direction)
+    entry = _TRANSLATE_CACHE.get(key)
+    if entry and (time.time() - entry["ts"]) < _TRANSLATE_CACHE_TTL:
+        return entry["result"]
+    return None
+
+def _translate_cache_set(text: str, direction: str, result: str):
+    key = _translate_cache_key(text, direction)
+    # 满了就淘汰最老的
+    if len(_TRANSLATE_CACHE) >= _TRANSLATE_CACHE_MAX:
+        oldest_key = min(_TRANSLATE_CACHE, key=lambda k: _TRANSLATE_CACHE[k]["ts"])
+        del _TRANSLATE_CACHE[oldest_key]
+    _TRANSLATE_CACHE[key] = {"result": result, "ts": time.time()}
 
 def load_translate_config():
     default = {
@@ -6755,6 +6846,11 @@ async def translate_text(payload: dict):
         from_lang, to_lang = 'zh', 'en'
     provider_type = cfg.get("provider_type", "ai")
     try:
+        # 先查缓存
+        cached = _translate_cache_get(text, direction)
+        if cached is not None:
+            return {"success": True, "result": cached, "_cached": True}
+
         if provider_type == "baidu":
             app_id = cfg.get("baidu_app_id", "")
             secret_key = cfg.get("baidu_secret_key", "")
@@ -6770,9 +6866,18 @@ async def translate_text(payload: dict):
                 cfg.get("ai_model", ""),
                 cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言,只输出翻译结果:\n\n{text}")
             )
-        return {"success": True, "result": result}
+            # 写入缓存
+            _translate_cache_set(text, direction, result)
+        return _clean_translate_response({"success": True, "result": result})
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# 缓存返回时清理内部字段
+def _clean_translate_response(resp: dict) -> dict:
+    """去掉 _cached 等内部字段，只暴露给前端"""
+    if not isinstance(resp, dict):
+        return resp
+    return {k: v for k, v in resp.items() if not k.startswith('_')}
 
 @app.post("/api/translate/test")
 async def test_translate():
@@ -7521,13 +7626,22 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                     if req.workflow_json == 'ps.json' and node_id == '5':
                         continue
 
-                    for img in node_output['images']:
-                        comfy_url_path = f"/view?filename={img['filename']}&subfolder={img['subfolder']}&type={img['type']}"
-                        prefix = f"{req.type}_{int(current_timestamp)}_"
-                        local_path = download_image(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, feature=req.feature)
+                    images_list = node_output['images']
+                    # 并行下载多张图+缩略图预生成,后续处理无依赖
+                    def _dl_img(img_dict):
+                        _path = f"/view?filename={img_dict['filename']}&subfolder={img_dict['subfolder']}&type={img_dict['type']}"
+                        _pre = f"{req.type}_{int(current_timestamp)}_"
+                        _lp = download_image(target_backend, _path, prefix=_pre, canvas=canvas, username=username, feature=req.feature)
                         if req.convert_to_jpg:
-                            local_path = convert_output_to_jpg(local_path)
-                        local_urls.append(local_path)
+                            _lp = convert_output_to_jpg(_lp)
+                        return _lp
+                    if len(images_list) > 1:
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(images_list), 4)) as _exe:
+                            _results = list(_exe.map(_dl_img, images_list))
+                        local_urls.extend(_results)
+                    else:
+                        for img in images_list:
+                            local_urls.append(_dl_img(img))
 
                 # Extract audio outputs (TTS)
                 if 'audio' in node_output:
@@ -8794,10 +8908,55 @@ async def get_lora_preview(path: str, request: Request):
 
 @app.get("/api/lora-manager/loras")
 async def proxy_lora_manager_list():
-    """代理 LoRA Manager 的 LoRA 列表,自动遍历所有分页返回完整数据(含 tags、civitai 元数据)"""
+    """代理 LoRA Manager 的 LoRA 列表,自动遍历所有分页返回完整数据。
+    增强:对每条 LoRA 读取其 file_path 旁边的 .metadata.json 文件,
+    把 civitai / preview_nsfw_level / trainedWords / model_name / tags
+    合并到 item(这些是 ComfyUI 拖入 LoRA 时自动写入的本地元数据,权威性更高)"""
     target = COMFYUI_ADDRESS
     if not target:
         raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    def _enrich_with_metadata_json(items):
+        """对每条 item,若 file_path 旁边有 .metadata.json,合并本地元数据"""
+        for it in items:
+            try:
+                fp = it.get("file_path")
+                if not fp or not os.path.isfile(fp):
+                    continue
+                meta_path = os.path.splitext(fp)[0] + ".metadata.json"
+                if not os.path.isfile(meta_path):
+                    continue
+                with open(meta_path, 'r', encoding='utf-8') as f:
+                    md = json.load(f)
+                if md.get("civitai"):
+                    it["civitai"] = md["civitai"]
+                if md.get("preview_nsfw_level") is not None:
+                    it["preview_nsfw_level"] = md["preview_nsfw_level"]
+                if md.get("trainedWords") and not it.get("trainedWords"):
+                    it["trainedWords"] = md["trainedWords"]
+                if md.get("tags") and not it.get("tags"):
+                    it["tags"] = md["tags"]
+                # 后端已翻译的中文描述
+                if md.get("translated_description"):
+                    it["translated_description"] = md["translated_description"]
+                # 文件元数据(用于弹出详情面板)
+                if md.get("size") and not it.get("size"):
+                    it["size"] = md["size"]
+                if md.get("modified") and not it.get("modified"):
+                    it["modified"] = md["modified"]
+                if md.get("sha256") and not it.get("sha256"):
+                    it["sha256"] = md["sha256"]
+                if md.get("file_name") and not it.get("file_name"):
+                    it["file_name"] = md["file_name"]
+                if not it.get("model_name"):
+                    if md.get("model_name"):
+                        it["model_name"] = md["model_name"]
+                    elif md.get("civitai") and md["civitai"].get("model") and md["civitai"]["model"].get("name"):
+                        it["model_name"] = md["civitai"]["model"]["name"]
+                if not it.get("base_model") and md.get("base_model"):
+                    it["base_model"] = md["base_model"]
+            except Exception:
+                continue
+        return items
     try:
         all_items = []
         page = 1
@@ -8807,6 +8966,7 @@ async def proxy_lora_manager_list():
                 url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
                 resp = await client.get(url)
                 if resp.status_code != 200:
+                    _enrich_with_metadata_json(all_items)
                     return {"items": all_items, "total": len(all_items), "error": f"LoRA Manager 返回 {resp.status_code}"}
                 data = resp.json()
                 items = data.get("items", [])
@@ -8815,6 +8975,7 @@ async def proxy_lora_manager_list():
                 if not items:
                     break
                 page += 1
+        _enrich_with_metadata_json(all_items)
         return {"items": all_items, "total": len(all_items), "page": 1, "page_size": len(all_items), "total_pages": 1}
     except Exception as e:
         return {"items": [], "error": str(e)}
@@ -9208,31 +9369,8 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
 
 
         # === 预生成 WebP 缩略图(与 /api/media-preview 共用缓存,刷新秒出) ===
-        async def _prewarm_thumb():
-            # 视频文件不预生成 PIL 缩图(可用 ffmpeg 取首帧,这里先跳过)
-            if ext.lower() in ('.mp4', '.webm', '.mov', '.mkv'):
-                return
-            try:
-                from PIL import Image, ImageOps
-                def _gen():
-                    # 用 media_preview_cache_paths 生成与画廊一致的缓存
-                    os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
-                    for w_target in (512, 768):
-                        webp_path, _ = media_preview_cache_paths(local_path, w_target)
-                        if os.path.exists(webp_path):
-                            continue
-                        with Image.open(local_path) as src:
-                            src = ImageOps.exif_transpose(src)
-                            has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
-                            if src.width > w_target:
-                                src.thumbnail((w_target, w_target), Image.BILINEAR)
-                            out = src.convert("RGBA" if has_alpha else "RGB")
-                            out.save(webp_path, format="WEBP", quality=88)
-                    print(f"[comfyui-thumb-prewarm] ok {filename[:40]}")
-                await asyncio.to_thread(_gen)
-            except Exception as e:
-                print(f"[comfyui-thumb-prewarm] failed {filename[:40]}: {e}")
-        asyncio.create_task(_prewarm_thumb())
+        # 复用统一 helper(同步版,可在事件循环内通过 to_thread 安全调用)
+        asyncio.create_task(asyncio.to_thread(_prewarm_thumbnails, local_path, (600, 768, 1536)))
 
         return {"url": f"/output/{date_path}/{local_name}", "path": local_path}
     except HTTPException:

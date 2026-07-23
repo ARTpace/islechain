@@ -36,7 +36,7 @@
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/date-grouping.js?v=20260721"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
-    <script src="/static/modules/gallery/card.js?v=20260628"></script>
+    <script src="/static/modules/gallery/card.js?v=20260722-1"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260614"></script>
     <script src="/static/modules/image-viewer.js?v=20260521006"></script>
     <script src="/static/modules/gallery/display.js?v=20260628"></script>
@@ -45,15 +45,15 @@
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
-    <script src="/prompt/static/prompt-module.js?v=20260721-2"></script>
-    <script src="/static/modules/card-progress.js?v=20260629001"></script>
-    <script src="/static/modules/lora-manager.js?v=20260719001"></script>
+    <script src="/prompt/static/prompt-module.js?v=20260722-4"></script>
+    <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
+    <script src="/static/modules/lora-manager.js?v=20260723-meta9"></script>
     <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
     <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260629002"></script>
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260719003">
-    <script src="/static/app/lora-picker.js?v=20260719003"></script>
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260723-v2">
+    <script src="/static/app/lora-picker.js?v=20260723-v2"></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js"></script>
     <!-- smart-prompt-picker.js / smart-prompt-manager.js 已合并到 prompt-module.js -->
@@ -234,6 +234,8 @@
         body.studio-theme-dark .preset-dropdown-menu input { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); color:#e0e7ef; }
         body.studio-theme-dark .preset-dropdown-menu input::placeholder { color:#6a8fa8; }
         .seed-toggle-btn { height:30px; min-width:36px; border:none; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; background:#f1f1f1; color:#666; }
+        /* 提示词框下方操作按钮行 */
+        .prompt-actions { display:flex; justify-content:flex-end; align-items:center; gap:4px; padding:4px 0 0 0; line-height:0; }
         /* 提示词框右下角统一按钮样式 */
         .prompt-corner-btn {
             width: 28px !important;
@@ -406,12 +408,17 @@
             .gen-row #mainGenBtn > svg, .gen-row #mainGenBtn > i { flex-shrink:0; width:14px!important; min-width:14px!important; height:14px!important; }
             .gen-row #mainGenBtn .btn-text { flex-shrink:0; white-space:nowrap!important; }
             .history-bulk-btn { padding:0 10px!important; min-width:32px; justify-content:center; }
-            /* 小屏：LoRA 卡片缩小 */
-            .lac-card { width:72px!important; padding:3px!important; }
-            .lac-cover { width:60px!important; height:60px!important; }
-            .lac-name { max-width:66px!important; font-size:9px!important; }
-            .lac-slider { height:2px!important; }
-            .lac-val { font-size:8px!important; min-width:18px!important; }
+            /* 小屏：LoRA 卡片竖长方形 + 滑条在内部 */
+            .lac-card { width:84px!important; padding:6px!important; }
+            .lac-cover { width:70px!important; height:94px!important; }
+            .lac-actions-top { top:3px!important; left:3px!important; right:3px!important; }
+            .lac-action-btn { width:28px!important; height:28px!important; font-size:14px!important; }
+            .lac-slider-inner { padding:3px 4px 4px!important; }
+            .lac-slider-inner .lac-slider { height:5px!important; }
+            .lac-slider-inner .lac-slider::-webkit-slider-runnable-track { height:5px!important; }
+            .lac-slider-inner .lac-slider::-moz-range-track { height:5px!important; }
+            .lac-slider-inner .lac-slider::-webkit-slider-thumb { width:14px!important; height:14px!important; margin-top:-4.5px!important; }
+            .lac-slider-inner .lac-slider::-moz-range-thumb { width:14px!important; height:14px!important; }
         }
         /* LoRA 悬浮面板 */
         .lora-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.2); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
@@ -471,31 +478,55 @@
         body.studio-theme-dark .lora-trigger-tag:hover { background:rgba(255,255,255,0.12); color:#fff; }
         .lora-trigger-label { font-size:9px; font-weight:700; color:#999; flex-shrink:0; }
         body.studio-theme-dark .lora-trigger-label { color:#4a5a6e; }
-        /* LoRA 激活栏 —— 72×72 封面卡片 + 下方滑条 */
-        .lac-card { display:inline-flex; flex-direction:column; align-items:center; width:86px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.06); margin-bottom:4px; text-align:center; position:relative; }
+        /* LoRA 激活栏 —— 100px 封面卡片 + 下方滑条 */
+        .lac-card { display:inline-flex; flex-direction:column; align-items:center; width:96px; padding:6px; border-radius:10px; background:rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.06); margin-bottom:4px; text-align:center; position:relative; }
         .lac-card:hover { background:rgba(255,255,255,0.9); border-color:rgba(0,0,0,0.12); }
         body.studio-theme-dark .lac-card { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.06); }
         body.studio-theme-dark .lac-card:hover { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.12); }
         .lac-card.lac-disabled { opacity:0.45; filter:grayscale(0.6); }
-        .lac-cover { width:72px; height:72px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(0,0,0,0.04); }
+        .lac-cover { width:82px; height:110px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(0,0,0,0.04); position:relative; }
         .lac-cover img { width:100%; height:100%; object-fit:cover; }
         body.studio-theme-dark .lac-cover { background:rgba(255,255,255,0.04); }
-        .lac-name { font-size:10px; font-weight:700; color:#333; max-width:78px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; margin-top:2px; }
-        body.studio-theme-dark .lac-name { color:#e0e7ef; }
-        .lac-slider-wrap { width:100%; display:flex; align-items:center; gap:2px; padding:0 2px; box-sizing:border-box; }
-        .lac-slider { flex:1; height:3px; accent-color:#000; cursor:pointer; min-width:0; }
-        body.studio-theme-dark .lac-slider { accent-color:#00f0ff; }
-        .lac-val { font-size:9px; font-weight:800; color:#666; min-width:22px; text-align:right; flex-shrink:0; }
-        body.studio-theme-dark .lac-val { color:#8aa0b8; }
-        /* 封面上的按钮层 */
-        .lac-actions { position:absolute; top:4px; right:4px; display:flex; gap:2px; opacity:0; transition:opacity 0.15s; pointer-events:none; }
-        .lac-card:hover .lac-actions { opacity:1; pointer-events:auto; }
-        .lac-action-btn { width:22px; height:22px; border:none; border-radius:5px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; flex-shrink:0; padding:0; transition:all 0.15s; background:rgba(0,0,0,0.45); color:#fff; }
-        .lac-action-btn:hover { background:#ff4444; color:#fff; }
-        body.studio-theme-dark .lac-action-btn { background:rgba(0,0,0,0.55); }
+        /* 无预览图时的占位(显示首字母),避免空白/被 onerror 隐藏 */
+        .lac-cover.lac-cover-empty { display:flex; align-items:center; justify-content:center; }
+        .lac-cover-ph { font-size:26px; font-weight:800; color:#aaa; line-height:1; }
+        body.studio-theme-dark .lac-cover-ph { color:#5a6a7e; }
+        /* 名称默认不显示,仅鼠标悬停缩略图时浮出(去掉 loras/ 路径前缀);上移到按钮上方避免重叠 */
+        .lac-hover-name { display:none; position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:6px; background:rgba(0,0,0,0.82); color:#fff; font-size:10px; font-weight:700; white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; pointer-events:none; z-index:6; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+        .lac-card:hover .lac-hover-name { display:block; }
+        body.studio-theme-dark .lac-hover-name { background:rgba(20,30,45,0.92); color:#e0e7ef; }
+        /* 滑条放在缩略图内部底部 */
+        .lac-slider-inner { position:absolute; bottom:0; left:0; right:0; padding:4px 5px 5px; z-index:5; pointer-events:auto; display:flex; align-items:flex-end; background:linear-gradient(transparent 15%, rgba(0,0,0,0.50) 80%); border-radius:0 0 8px 8px; }
+        .lac-slider-inner .lac-slider { -webkit-appearance:none; appearance:none; flex:1; height:6px; border-radius:3px; cursor:pointer; min-width:0; background:rgba(255,255,255,0.30); accent-color:#000; }
+        .lac-slider-inner .lac-slider::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:rgba(255,255,255,0.30); }
+        .lac-slider-inner .lac-slider::-moz-range-track { height:6px; border-radius:3px; background:rgba(255,255,255,0.30); }
+        .lac-slider-inner .lac-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:#fff; margin-top:-5px; cursor:pointer; border:1px solid rgba(0,0,0,0.2); box-shadow:0 1px 3px rgba(0,0,0,0.35); }
+        .lac-slider-inner .lac-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.2); cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.35); }
+        body.studio-theme-dark .lac-slider-inner { background:linear-gradient(transparent 15%, rgba(0,0,0,0.65) 80%); }
+        body.studio-theme-dark .lac-slider-inner .lac-slider { background:rgba(255,255,255,0.20); accent-color:#00f0ff; }
+        body.studio-theme-dark .lac-slider-inner .lac-slider::-webkit-slider-runnable-track { background:rgba(255,255,255,0.20); }
+        body.studio-theme-dark .lac-slider-inner .lac-slider::-moz-range-track { background:rgba(255,255,255,0.20); }
+        body.studio-theme-dark .lac-slider-inner .lac-slider::-webkit-slider-thumb { background:#00f0ff; border-color:transparent; }
+        body.studio-theme-dark .lac-slider-inner .lac-slider::-moz-range-thumb { background:#00f0ff; border-color:transparent; }
+        /* 拖动滑条时在缩略图中央浮出的强度数值,松手后延时消失 */
+        .lac-strength-badge { display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:3px 9px; border-radius:8px; background:rgba(0,0,0,0.72); color:#fff; font-size:15px; font-weight:800; line-height:1; pointer-events:none; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+        .lac-strength-badge.show { display:block; animation:lacBadgePop .15s ease; }
+        @keyframes lacBadgePop { from { opacity:0; transform:translate(-50%,-50%) scale(0.7); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+        /* 封面内部上方两角的按钮层(覆盖图片上沿,与中央强度数字垂直分离不重叠) */
+        .lac-actions-top { position:absolute; top:4px; left:4px; right:4px; display:flex; justify-content:space-between; opacity:0; transition:opacity 0.16s ease; pointer-events:none; z-index:7; }
+        .lac-card:hover .lac-actions-top { opacity:1; pointer-events:auto; }
+        /* 拖动调节强度时,隐藏按钮,避免遮挡中央浮出的强度数值 */
+        .lac-card.lac-dragging .lac-actions-top { opacity:0 !important; pointer-events:none !important; }
+        /* 触屏设备无 hover,按钮常驻显示,保证可点 */
+        @media (hover:none) { .lac-actions-top { opacity:1; pointer-events:auto; } }
+        .lac-action-btn { width:30px; height:30px; border:none; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; padding:0; transition:background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease; background:rgba(0,0,0,0.5); color:#fff; touch-action:manipulation; -webkit-tap-highlight-color:transparent; pointer-events:auto; }
+        /* 鼠标悬停按键:放大+变色+阴影 的交互反馈 */
+        .lac-action-btn:hover { transform:scale(1.15); background:#ff4444; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.35); }
+        .lac-action-btn:active { transform:scale(0.92); }
+        body.studio-theme-dark .lac-action-btn { background:rgba(0,0,0,0.6); }
         body.studio-theme-dark .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.5); color:#fff; }
-        .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.8); color:#fff; }
-        .lac-action-btn.lac-toggle-on:hover { background:rgba(74,222,128,0.9); }
+        .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.85); color:#fff; }
+        .lac-action-btn.lac-toggle-on:hover { background:rgba(74,222,128,0.95); box-shadow:0 4px 12px rgba(74,222,128,0.4); }
     /* === 模型选择面板 === */
     .model-picker-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
     .model-picker-overlay.open { display:flex; align-items:center; justify-content:center; }
@@ -584,37 +615,53 @@
 
     /* 共享：缩略图条(三视图都显示) — 整体加高，按钮加大 */
     .reverse-modal-preview { display:flex; align-items:center; gap:12px; padding:10px 12px;
-        border:1px solid rgba(0,0,0,.08); border-radius:12px; background:rgba(255,255,255,.4);
+        border:1.5px dashed rgba(0,0,0,.18); border-radius:12px; background:rgba(255,255,255,.4);
         margin-bottom:16px; min-height:72px; flex-shrink:0; transition:border-color .15s, background .15s; }
-    body.studio-theme-dark .reverse-modal-preview { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.1); }
+    body.studio-theme-dark .reverse-modal-preview { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.16); }
+    .reverse-modal-preview:hover { border-color:rgba(0,180,216,.4); }
     .reverse-modal-preview.is-drop-here { border-color:rgba(0,180,216,.5); background:rgba(0,180,216,.06); }
-    .reverse-modal-preview-thumb { width:80px; height:60px; border-radius:8px; background:rgba(0,0,0,.06) center/contain no-repeat #e5ecf3; flex-shrink:0; border:1px solid rgba(0,0,0,.08); position:relative; overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s; }
+    /* 占位缩略图: 72x72 偏正方, 居中放 image-plus 大图标 */
+    .reverse-modal-preview-thumb { width:72px; height:72px; border-radius:10px; background-color:#e5ecf3; background-size:contain; background-repeat:no-repeat; background-position:center; flex-shrink:0; border:1px solid rgba(0,0,0,.08); position:relative; overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s; }
     .reverse-modal-preview-thumb:hover { border-color:rgba(0,180,216,.4); }
     .reverse-modal-preview-thumb:active { transform:scale(.96); }
     body.studio-theme-dark .reverse-modal-preview-thumb { background-color:#1a2436; border-color:rgba(255,255,255,.12); }
+    /* 空态: 浅色十字格底纹 + image-plus 居中图标 */
     .reverse-modal-preview-thumb.empty::after { content:""; position:absolute; inset:0; background:
-        linear-gradient(45deg, transparent 48%, rgba(0,0,0,.12) 48%, rgba(0,0,0,.12) 52%, transparent 52%),
-        linear-gradient(-45deg, transparent 48%, rgba(0,0,0,.12) 48%, rgba(0,0,0,.12) 52%, transparent 52%);
-        background-size:12px 12px; }
+        linear-gradient(45deg, transparent 48%, rgba(0,0,0,.08) 48%, rgba(0,0,0,.08) 52%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, rgba(0,0,0,.08) 48%, rgba(0,0,0,.08) 52%, transparent 52%);
+        background-size:14px 14px; pointer-events:none; }
     body.studio-theme-dark .reverse-modal-preview-thumb.empty::after { background:
-        linear-gradient(45deg, transparent 48%, rgba(255,255,255,.1) 48%, rgba(255,255,255,.1) 52%, transparent 52%),
-        linear-gradient(-45deg, transparent 48%, rgba(255,255,255,.1) 48%, rgba(255,255,255,.1) 52%, transparent 52%);
-        background-size:12px 12px; }
-    .reverse-modal-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+        linear-gradient(45deg, transparent 48%, rgba(255,255,255,.06) 48%, rgba(255,255,255,.06) 52%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, rgba(255,255,255,.06) 48%, rgba(255,255,255,.06) 52%, transparent 52%);
+        background-size:14px 14px; }
+    .reverse-modal-preview-thumb-icon { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#0077b6; pointer-events:none; transition:transform .18s, color .18s; }
+    .reverse-modal-preview-thumb-icon svg { width:34px; height:34px; stroke-width:1.8; }
+    .reverse-modal-preview:hover .reverse-modal-preview-thumb-icon { transform:scale(1.12); color:#005f8a; }
+    body.studio-theme-dark .reverse-modal-preview-thumb-icon { color:#00f0ff; }
+    body.studio-theme-dark .reverse-modal-preview:hover .reverse-modal-preview-thumb-icon { color:#5cf5ff; }
+    /* 有文件时隐藏 image-plus, 显示 refresh-cw replace icon */
+    .reverse-modal-preview:not(.is-empty) .reverse-modal-preview-thumb-icon { display:none; }
+    /* 有文件时: hover 缩略图出现「重选」遮罩 */
+    .reverse-modal-preview-replace { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); color:#fff; opacity:0; transition:opacity .15s; pointer-events:none; }
+    .reverse-modal-preview-replace svg { width:20px; height:20px; stroke-width:2.4; }
+    .reverse-modal-preview-thumb:hover .reverse-modal-preview-replace { opacity:1; }
+    .reverse-modal-preview.is-empty .reverse-modal-preview-replace { display:none; }
+    .reverse-modal-preview-clear-side { display:none; align-items:center; gap:4px; padding:6px 10px; height:30px; border-radius:8px; background:transparent; color:#6a7a8a; border:1px solid rgba(0,0,0,.12); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; margin-left:auto; }
+    .reverse-modal-preview-clear-side:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.3); }
+    .reverse-modal-preview-clear-side:active { transform:scale(.95); }
+    .reverse-modal-preview-clear-side svg { width:13px; height:13px; stroke-width:2.4; }
+    body.studio-theme-dark .reverse-modal-preview-clear-side { color:#8a9bb0; border-color:rgba(255,255,255,.16); }
+    body.studio-theme-dark .reverse-modal-preview-clear-side:hover { background:rgba(220,38,38,.15); color:#ff6b6b; border-color:rgba(220,38,38,.4); }
+    .reverse-modal-preview:not(.is-empty) .reverse-modal-preview-clear-side { display:flex; }
+    .reverse-modal-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
     .reverse-modal-preview.is-empty { cursor:pointer; }
-    .reverse-modal-preview.is-empty .reverse-modal-preview-name { color:#0077b6; font-weight:700; font-style:normal; }
-    body.studio-theme-dark .reverse-modal-preview.is-empty .reverse-modal-preview-name { color:#00f0ff; }
+    /* 有文件: 文件名 + 尺寸, 空态下隐藏所有文字 */
     .reverse-modal-preview-name { font-size:14px; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     body.studio-theme-dark .reverse-modal-preview-name { color:#e0e7ef; }
-    .reverse-modal-preview-name.empty { color:#6a7a8a; font-weight:500; font-style:italic; }
-    body.studio-theme-dark .reverse-modal-preview-name.empty { color:#8a9bb0; }
+    .reverse-modal-preview.is-empty .reverse-modal-preview-name { display:none; }
     .reverse-modal-preview-meta { font-size:11px; color:#6a7a8a; display:flex; align-items:center; gap:8px; }
+    .reverse-modal-preview.is-empty .reverse-modal-preview-meta { display:none; }
     body.studio-theme-dark .reverse-modal-preview-meta { color:#8a9bb0; }
-    .reverse-modal-preview-change { font-size:12px; font-weight:700; color:#0077b6; cursor:pointer; background:none; border:none; padding:6px 8px; margin:-6px -8px; border-radius:6px; text-decoration:none; }
-    .reverse-modal-preview-change:hover { color:#005f8a; background:rgba(0,180,216,.08); }
-    .reverse-modal-preview-change:active { background:rgba(0,180,216,.16); }
-    body.studio-theme-dark .reverse-modal-preview-change { color:#00f0ff; }
-    body.studio-theme-dark .reverse-modal-preview-change:hover { color:#5cf5ff; background:rgba(0,240,255,.1); }
 
     /* 视图容器：flex 1 撑满剩余空间，切换时淡入 */
     .reverse-view { flex:1; min-height:0; display:flex; flex-direction:column; animation: reverseViewIn .22s ease; overflow-y:auto; -webkit-overflow-scrolling:touch; }
@@ -711,7 +758,7 @@
         .reverse-modal-header-btn,
         .reverse-modal-close { width:40px; height:40px; }
         .reverse-modal-preview { min-height:64px; padding:8px 10px; }
-        .reverse-modal-preview-thumb { width:68px; height:52px; }
+        .reverse-modal-preview-thumb { width:64px; height:64px; }
         .reverse-modal-preview-name { font-size:13px; }
         .reverse-modal-preview-meta { font-size:10px; }
         .reverse-modal-section { margin-bottom:18px; }
@@ -771,8 +818,8 @@
                         <div id="refImagePreview" class="ref-img-sidebar" style="display:none;"></div>
                         <div class="flex-1 min-w-0">
                             <div class="prompt-wrapper" style="position:relative;">
-                        <div id="prompt" contenteditable="true" data-placeholder="描述你想生成的画面..." class="prompt-editable bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 leading-relaxed" style="font-size:15px;min-height:80px;max-height:96px;line-height:1.6;padding:8px 0;color:inherit;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(128,128,128,0.4) transparent;"></div>
-                        <div style="position:absolute;bottom:6px;right:6px;display:flex;align-items:center;align-content:center;gap:4px;z-index:5;line-height:0;">
+                        <div id="prompt" contenteditable="true" data-placeholder="描述你想生成的画面..." class="prompt-editable bg-transparent text-lg font-medium outline-none placeholder:text-gray-200 leading-relaxed" style="font-size:15px;min-height:80px;max-height:96px;line-height:1.6;padding:8px 0 4px 0;color:inherit;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(128,128,128,0.4) transparent;"></div>
+                        <div class="prompt-actions" style="display:flex;justify-content:flex-end;align-items:center;gap:4px;padding:4px 0 0 0;line-height:0;">
                             <!-- 清除提示词 -->
                             <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" class="prompt-corner-btn" style="display:none;box-sizing:border-box;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -784,11 +831,6 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                             </button>
                         </div>
-                        <!-- 反推设置（点击弹出面板） -->
-                        <span class="flex items-center gap-1" style="font-size:10px;color:rgba(0,0,0,0.3);white-space:nowrap;margin-left:2px;">反推</span>
-                        <button class="anima-ctrl reverse-settings-btn" id="reverseSettingsBtn" onclick="openReverseSettingsModal()" title="反推设置" aria-label="反推设置">
-                            <i data-lucide="settings-2" class="w-3 h-3"></i>
-                        </button>
                     </div>
                         </div>
                     </div>
@@ -870,6 +912,10 @@
                             <span id="btnText" class="btn-text">生成</span>
                             <span id="btnAutoBadge" class="btn-render-autogen-text" style="display:none;"></span>
                         </button>
+                        <!-- 反推设置（点击弹出面板） -->
+                        <button class="anima-ctrl reverse-settings-btn" id="reverseSettingsBtn" onclick="openReverseSettingsModal()" title="反推设置" aria-label="反推设置">
+                            <i data-lucide="settings-2" class="w-3 h-3"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -947,39 +993,65 @@
                 var base = (typeof currentWorkflow !== 'undefined' && currentWorkflow) ? currentWorkflow : '';
                 var htmls = [];
                 active.forEach(function(item, idx) {
-                    var name = item.name || '';
-                    var strength = (item.strength || 0.8).toFixed(2);
-                    var previewUrl = '';
-                    if (item.preview) previewUrl = item.preview;
-                    else if (name) previewUrl = '/loras/preview/' + encodeURIComponent(name) + '?workflow=' + encodeURIComponent(base);
-                    var isOn = item.disabled !== true;
-                    var cls = isOn ? '' : ' lac-disabled';
-                    var displayVal = parseFloat(strength);
-                    var displayText = displayVal === 1 ? '1' : strength.replace(/0+$/, '').replace(/\.$/, '');
-                    htmls.push('<span class="lac-card' + cls + '">');
-                    htmls.push('<span class="lac-cover"><img src="' + previewUrl + '" alt="" onerror="this.style.display=\'none\'" loading="lazy"></span>');
-                    htmls.push('<span class="lac-name" title="' + name.replace(/"/g,'&quot;') + '">' + name.split('/').pop() + '</span>');
-                    htmls.push('<span class="lac-slider-wrap">');
-                    htmls.push('<input type="range" min="0" max="2" step="0.01" value="' + strength + '" class="lac-slider" oninput="loraManagerSetStrength(' + idx + ',this.value)" onpointerup="loraManagerUpdateVal(' + idx + ',this.value)" ontouchend="loraManagerUpdateVal(' + idx + ',this.value)">');
-                    htmls.push('<span class="lac-val" id="lacVal' + idx + '">' + displayText + '</span>');
-                    htmls.push('</span>');
-                    htmls.push('<span class="lac-actions">');
-                    htmls.push('<button class="lac-action-btn' + (isOn ? ' lac-toggle-on' : '') + '" onclick="loraManagerToggle(' + idx + ')" title="' + (isOn ? '已启用，点击禁用' : '已禁用，点击启用') + '">' + (isOn ? '✓' : '○') + '</button>');
-                    htmls.push('<button class="lac-action-btn" onclick="loraManagerRemove(' + idx + ')" title="移除">×</button>');
-                    htmls.push('</span>');
+                var name = item.name || '';
+                var strength = (item.strength || 0.8).toFixed(2);
+                // 优先用 item.preview；其次从 loraMap 取(selected 可能未带 preview)；
+                // 都没有则显示占位图,绝不请求后端不存在的 /loras/preview 路由(404 会隐藏缩略图)
+                var previewUrl = item.preview || '';
+                if (!previewUrl && name && loraState && loraState.loraMap && loraState.loraMap[name] && loraState.loraMap[name].preview) {
+                    previewUrl = loraState.loraMap[name].preview;
+                }
+                var isOn = item.disabled !== true;
+                var cls = isOn ? '' : ' lac-disabled';
+                // 显示名去掉 loras/ 路径前缀
+                var baseName = name.split(/[/\\]/).pop();
+                htmls.push('<span class="lac-card' + cls + '" data-name="' + baseName.replace(/"/g,'&quot;') + '">');
+                // 操作按钮放在缩略图内部上方(覆盖图片上沿,与中央强度数字垂直分离不重叠)
+                var actionsHtml = '<span class="lac-actions-top">'
+                    + '<button class="lac-action-btn lac-action-toggle' + (isOn ? ' lac-toggle-on' : '') + '" onclick="loraManagerToggle(' + idx + ')" title="' + (isOn ? '已启用，点击禁用' : '已禁用，点击启用') + '">' + (isOn ? '✓' : '○') + '</button>'
+                    + '<button class="lac-action-btn lac-action-remove" onclick="loraManagerRemove(' + idx + ')" title="移除">×</button>'
+                    + '</span>';
+                if (previewUrl) {
+                    htmls.push('<span class="lac-cover"><img src="' + previewUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'lac-cover-empty\')"><span class="lac-strength-badge" id="lacStrengthBadge' + idx + '"></span>' + actionsHtml + '<span class="lac-slider-inner"><input type="range" min="0" max="2" step="0.05" value="' + strength + '" class="lac-slider" oninput="loraManagerSetStrength(' + idx + ',this.value)" onpointerup="loraManagerHideStrength(' + idx + ')" ontouchend="loraManagerHideStrength(' + idx + ')" onchange="loraManagerHideStrength(' + idx + ')"></span></span>');
+                } else {
+                    var _initial = ((baseName[0]) || 'L').toUpperCase();
+                    htmls.push('<span class="lac-cover lac-cover-empty"><span class="lac-cover-ph">' + _initial + '</span><span class="lac-strength-badge" id="lacStrengthBadge' + idx + '"></span>' + actionsHtml + '<span class="lac-slider-inner"><input type="range" min="0" max="2" step="0.05" value="' + strength + '" class="lac-slider" oninput="loraManagerSetStrength(' + idx + ',this.value)" onpointerup="loraManagerHideStrength(' + idx + ')" ontouchend="loraManagerHideStrength(' + idx + ')" onchange="loraManagerHideStrength(' + idx + ')"></span></span>');
+                }
+                    // 名称仅在悬停时显示(见 .lac-hover-name),默认不展示
+                    htmls.push('<span class="lac-hover-name">' + baseName.replace(/</g,'&lt;') + '</span>');
+                    // 滑条已移到缩略图内部,此处不再需要
                     htmls.push('</span>');
                 });
                 bar.innerHTML = htmls.join('');
             };
+            window._lacStrengthTimers = {};
             window.loraManagerSetStrength = function(idx, val) {
                 if (loraState && loraState.active && loraState.active[idx]) {
                     loraState.active[idx].strength = parseFloat(val);
                     saveLoraConfig();
                 }
+                // 拖动时在缩略图上浮层显示强度数值
+                var badge = document.getElementById('lacStrengthBadge' + idx);
+                if (badge) {
+                    badge.textContent = parseFloat(val).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+                    badge.classList.add('show');
+                    // 拖动期间隐藏左右按钮,避免遮挡中央数字
+                    var _card = badge.closest('.lac-card');
+                    if (_card) _card.classList.add('lac-dragging');
+                }
+                if (window._lacStrengthTimers[idx]) clearTimeout(window._lacStrengthTimers[idx]);
             };
-            window.loraManagerUpdateVal = function(idx, val) {
-                var el = document.getElementById('lacVal' + idx);
-                if (el) el.textContent = parseFloat(val).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+            // 调节结束(松手)后短暂延时隐藏强度浮层
+            window.loraManagerHideStrength = function(idx) {
+                if (window._lacStrengthTimers[idx]) clearTimeout(window._lacStrengthTimers[idx]);
+                window._lacStrengthTimers[idx] = setTimeout(function() {
+                    var badge = document.getElementById('lacStrengthBadge' + idx);
+                    if (badge) {
+                        badge.classList.remove('show');
+                        var _card = badge.closest('.lac-card');
+                        if (_card) _card.classList.remove('lac-dragging');
+                    }
+                }, 700);
             };
             window.loraManagerRemove = function(idx) {
                 if (loraState && loraState.active && loraState.active.length > idx) {
@@ -2173,8 +2245,8 @@
             var preview = document.getElementById('revPreview');
             if (!file) {
                 if (thumb) { thumb.style.backgroundImage = ''; thumb.classList.add('empty'); }
-                if (name) { name.textContent = '点击或拖入图片'; name.classList.add('empty'); }
-                if (size) size.textContent = '未选择';
+                if (name) { name.textContent = ''; }
+                if (size) size.textContent = '';
                 if (preview) preview.classList.add('is-empty');
                 var btn = document.getElementById('revStartBtn');
                 if (btn) btn.disabled = true;
@@ -2182,7 +2254,7 @@
             }
             _reverseFileUrl = URL.createObjectURL(file);
             if (thumb) { thumb.style.backgroundImage = 'url(' + _reverseFileUrl + ')'; thumb.classList.remove('empty'); }
-            if (name) { name.textContent = file.name; name.classList.remove('empty'); }
+            if (name) { name.textContent = file.name; }
             if (size) size.textContent = (file.size / 1024).toFixed(1) + ' KB';
             if (preview) preview.classList.remove('is-empty');
             var btn = document.getElementById('revStartBtn');
@@ -2303,6 +2375,13 @@
         function onReverseFileChange(input) {
             var f = input.files && input.files[0];
             _setReverseFile(f);
+        }
+
+        // 清除已选图片（仅清除 _reverseFile, 不动 _reverseFileInput.value, 保留其他设置）
+        function clearReverseFile() {
+            var input = document.getElementById('revFileInput');
+            if (input) input.value = '';  // 清空 file input 允许下次选同一张图
+            _setReverseFile(null);
         }
 
         function resetReverseSettings() {
@@ -2862,13 +2941,7 @@
                         engine: currentEngine,
                     }
                 };
-                try {
-                    await fetch('/api/history/save', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(record)
-                    });
-                } catch(e) {}
+                // 先把卡片渲染到展示区(不阻塞在历史保存之后)
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
                 CardProgress.update(placeholder, { status: 'complete' });
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
@@ -2887,11 +2960,11 @@
                             _parent.insertBefore(tempCard, _sibling);
                             placeholder.remove();
                             if (_fullImg.naturalWidth === 0) {
-                                _fullImg.style.opacity = '0.3';
-                                _fullImg.style.transition = 'opacity 0.4s ease';
+                                _fullImg.style.opacity = '0.4';
+                                _fullImg.style.transition = 'opacity 0.15s ease';
                                 _fullImg.addEventListener('load', function _onLoad() {
                                     _fullImg.style.opacity = '1';
-                                    setTimeout(() => { _fullImg.style.transition = ''; }, 450);
+                                    setTimeout(() => { _fullImg.style.transition = ''; }, 200);
                                     _fullImg.removeEventListener('load', _onLoad);
                                 }, { once: true });
                             }
@@ -2906,6 +2979,14 @@
                 } else {
                     placeholder.remove();
                 }
+                // 历史保存放到后台,不再阻塞缩略图展示
+                try {
+                    fetch('/api/history/save', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(record)
+                    });
+                } catch(e) {}
                 hideProgress();
                 // 自动生成完成回调
                 window.__autoGenNotifyDone?.();
@@ -2918,7 +2999,7 @@
                     alert(e.message || "生成失败");
                 }
             } finally {
-                setTimeout(() => hideProgress(), 2000);
+                setTimeout(() => hideProgress(), 600);
                 window.__autoGenNotifyFinally?.();
             }
         }
@@ -3119,6 +3200,30 @@
                         }
                     } catch(_) {
                         loraState.active = p.loras;
+                    }
+                    // 补齐 active 中每个 LoRA 的 preview 字段(如有 loraMap)
+                    if (loraState.loraMap) {
+                        loraState.active.forEach(function(a) {
+                            if (!a.preview && loraState.loraMap[a.name] && loraState.loraMap[a.name].preview) {
+                                a.preview = loraState.loraMap[a.name].preview;
+                            }
+                        });
+                    }
+                    // 刷新 LoRA 激活栏（若 loraMap 尚在加载中,重试到可用为止）
+                    if (typeof renderLoraActiveBar === 'function') renderLoraActiveBar();
+                    if (!loraState.loraMap || Object.keys(loraState.loraMap).length === 0) {
+                        var _loraRetry = setInterval(function() {
+                            if (loraState.loraMap && Object.keys(loraState.loraMap).length > 0) {
+                                clearInterval(_loraRetry);
+                                loraState.active.forEach(function(a) {
+                                    if (!a.preview && loraState.loraMap[a.name] && loraState.loraMap[a.name].preview) {
+                                        a.preview = loraState.loraMap[a.name].preview;
+                                    }
+                                });
+                                if (typeof renderLoraActiveBar === 'function') renderLoraActiveBar();
+                            }
+                        }, 200);
+                        setTimeout(function() { clearInterval(_loraRetry); }, 5000);
                     }
 
                 }
@@ -3639,15 +3744,24 @@
         </div>
 
         <!-- 共享：缩略图条(三视图都显示,作为视觉锚点) -->
-        <div class="reverse-modal-preview is-empty" id="revPreview">
+        <div class="reverse-modal-preview is-empty" id="revPreview" onclick="document.getElementById('revFileInput').click()">
             <input type="file" accept="image/*" id="revFileInput" style="display:none;" onchange="onReverseFileChange(this)">
-            <div class="reverse-modal-preview-thumb empty" id="revPreviewThumb" onclick="document.getElementById('revFileInput').click()" title="选择图片"></div>
+            <div class="reverse-modal-preview-thumb empty" id="revPreviewThumb" title="选择图片">
+                <span class="reverse-modal-preview-thumb-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+                </span>
+                <span class="reverse-modal-preview-replace">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                </span>
+            </div>
             <div class="reverse-modal-preview-info">
-                <div class="reverse-modal-preview-name empty" id="revPreviewName" onclick="document.getElementById('revFileInput').click()" style="cursor:pointer;">点击或拖入图片</div>
+                <div class="reverse-modal-preview-name empty" id="revPreviewName"></div>
                 <div class="reverse-modal-preview-meta" id="revPreviewMeta">
-                    <span id="revPreviewSize">未选择</span>
-                    <span style="opacity:.5;">·</span>
-                    <button class="reverse-modal-preview-change" onclick="document.getElementById('revFileInput').click()">选择文件</button>
+                    <span id="revPreviewSize"></span>
+                    <button type="button" class="reverse-modal-preview-clear-side" id="revPreviewClear" onclick="event.stopPropagation();clearReverseFile()" title="清除图片" aria-label="清除图片">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        <span>清除</span>
+                    </button>
                 </div>
             </div>
         </div>

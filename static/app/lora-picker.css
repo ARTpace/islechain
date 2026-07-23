@@ -548,10 +548,10 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-picker-trigger-toggle.off {
     transition: all 0.2s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1));
     display: flex;
     flex-direction: column;
-    height: 280px;
+    height: 240px;
     /* off-screen cards skip layout & paint — massive perf win for grids */
     content-visibility: auto;
-    contain-intrinsic-size: auto 280px;
+    contain-intrinsic-size: auto 240px;
 }
 .lora-card-item:hover {
     border-color: oklch(40% 0.03 280 / 0.6);
@@ -634,24 +634,31 @@ video.lora-card-img {
     color: oklch(30% 0.015 280);
 }
 
-.lora-card-info {
-    padding: 8px 10px;
-    padding-right: 42px;
-}
-.lora-card-name {
-    font-size: 11px;
-    font-weight: 700;
-    color: oklch(95% 0.005 280);
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.lora-card-meta {
+/* ── 封面底部名称浮层(替代底部独立信息区) ── */
+.lora-card-name-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-top: 3px;
+    padding: 5px 8px;
+    padding-top: 20px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    pointer-events: none;
+    z-index: 4;
+}
+.lora-card-name-text {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .lora-card-base {
     font-size: 9px;
@@ -668,6 +675,394 @@ video.lora-card-img {
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+}
+/* ── NSFW 等级徽章 ── */
+.lora-card-nsfw-lvl {
+    display: inline-flex;
+    align-items: center;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 5px;
+    vertical-align: middle;
+    line-height: 1.3;
+}
+.lora-card-nsfw-lvl--1 { background: rgba(34,197,94,0.15); color: #22c55e; }
+.lora-card-nsfw-lvl--2 { background: rgba(234,179,8,0.15); color: #eab308; }
+.lora-card-nsfw-lvl--3 { background: rgba(249,115,22,0.15); color: #f97316; }
+.lora-card-nsfw-lvl--4 { background: rgba(239,68,68,0.18); color: #ef4444; }
+body.studio-theme-dark .lora-card-nsfw-lvl--1 { background: rgba(34,197,94,0.12); color: #4ade80; }
+body.studio-theme-dark .lora-card-nsfw-lvl--2 { background: rgba(234,179,8,0.12); color: #facc15; }
+body.studio-theme-dark .lora-card-nsfw-lvl--3 { background: rgba(249,115,22,0.12); color: #fb923c; }
+body.studio-theme-dark .lora-card-nsfw-lvl--4 { background: rgba(239,68,68,0.15); color: #f87171; }
+/* ── 信息浮层按钮(预览图左上角) ── */
+.lora-card-info-btn {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 8;
+    padding: 0;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s, transform 0.15s;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    pointer-events: auto;
+}
+.lora-card-item:hover .lora-card-info-btn {
+    opacity: 1;
+    transform: scale(1.1);
+    background: rgba(99,102,241,0.7);
+}
+.lora-card-info-btn:hover {
+    background: rgba(99,102,241,0.85);
+}
+/* ── 全局信息浮层(fixed 定位,卡片式富信息面板) ── */
+#loraPickerPopup {
+    display: none;
+    position: fixed;
+    width: 380px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    background: oklch(15% 0.025 270 / 0.97);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid oklch(32% 0.025 270 / 0.5);
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 10000;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    pointer-events: auto;
+    line-height: 1.4;
+    color: oklch(90% 0.01 270);
+}
+.lora-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: -4px -4px 10px -4px;
+    padding: 4px 8px 8px 8px;
+    border-bottom: 1px solid oklch(28% 0.02 270 / 0.4);
+}
+.lora-popup-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: oklch(95% 0.01 270);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.lora-popup-close {
+    background: transparent;
+    border: none;
+    color: oklch(60% 0.02 270);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+.lora-popup-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: oklch(90% 0.01 270);
+}
+.lora-popup-grid {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.lora-popup-grid-2 {
+    grid-template-columns: 1fr 1fr;
+}
+/* ── 全局 hover tooltip ── */
+#loraPickerTooltip {
+    display: none;
+    position: fixed;
+    padding: 6px 10px;
+    background: oklch(12% 0.025 270 / 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid oklch(28% 0.025 270 / 0.4);
+    border-radius: 8px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: oklch(82% 0.01 270);
+    white-space: normal;
+    word-break: break-word;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    pointer-events: none;
+    z-index: 9999;
+}
+.lora-popup-desc {
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: oklch(75% 0.015 270);
+    padding: 8px 0;
+    border-bottom: 1px solid oklch(28% 0.02 270 / 0.4);
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+.lora-popup-desc-text {
+    margin-bottom: 4px;
+}
+.lora-popup-desc-lang {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    color: oklch(45% 0.02 270);
+    background: oklch(25% 0.02 270 / 0.5);
+    padding: 0 5px;
+    border-radius: 3px;
+    line-height: 1.5;
+}
+.lora-popup-card {
+    background: oklch(22% 0.02 270 / 0.5);
+    border: 1px solid oklch(28% 0.02 270 / 0.4);
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-width: 0;
+}
+.lora-popup-card-wide {
+    grid-column: 1 / -1;
+}
+.lora-popup-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: oklch(55% 0.015 270);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.lora-popup-card-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: oklch(92% 0.01 270);
+    word-break: break-word;
+}
+.lora-popup-card-value-path {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: oklch(80% 0.015 270);
+}
+.lora-popup-section {
+    margin-top: 8px;
+}
+.lora-popup-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: oklch(55% 0.015 270);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.lora-popup-copy-btn {
+    font-size: 9px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid oklch(35% 0.02 270 / 0.4);
+    color: oklch(70% 0.02 270);
+    padding: 1px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.12s;
+    line-height: 1.4;
+}
+.lora-popup-copy-btn:hover {
+    background: rgba(99,102,241,0.15);
+    border-color: rgba(99,102,241,0.3);
+    color: #a5b4fc;
+}
+.lora-popup-empty {
+    font-size: 10px;
+    color: oklch(40% 0.015 270);
+    font-style: italic;
+}
+.lora-popup-triggers, .lora-popup-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.lora-popup-meta-row {
+    margin-top: 8px;
+    align-items: center;
+}
+.lora-popup-chip {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    white-space: nowrap;
+}
+.lora-popup-tag-chip {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: oklch(85% 0.01 270);
+    border: 1px solid oklch(32% 0.02 270 / 0.3);
+    white-space: nowrap;
+}
+.lora-popup-meta-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid currentColor;
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.lora-popup-divider {
+    height: 1px;
+    background: oklch(28% 0.02 270 / 0.4);
+    margin: 10px 0;
+}
+.lora-popup-civitai-btn {
+    display: block;
+    text-align: center;
+    background: rgba(99,102,241,0.18);
+    color: #a5b4fc;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12px;
+    transition: background 0.15s;
+}
+.lora-popup-civitai-btn:hover {
+    background: rgba(99,102,241,0.30);
+    color: #c7d2fe;
+}
+.lora-popup-row {
+    font-size: 11px;
+    color: oklch(82% 0.01 270);
+}
+.lora-popup-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.lora-popup-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: oklch(50% 0.02 270);
+    min-width: 36px;
+    flex-shrink: 0;
+    padding-top: 1px;
+}
+.lora-popup-value {
+    font-weight: 500;
+    color: oklch(92% 0.01 270);
+    word-break: break-word;
+}
+.lora-popup-triggers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.lora-popup-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    white-space: nowrap;
+    line-height: 1.5;
+}
+.lora-popup-divider {
+    height: 1px;
+    background: oklch(30% 0.02 270 / 0.3);
+    margin: 5px 0;
+}
+.lora-popup-civitai a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #818cf8;
+    text-decoration: none;
+    padding: 2px 0;
+}
+.lora-popup-civitai a:hover {
+    color: #a5b4fc;
+    text-decoration: underline;
+}
+/* ── Civitai 链接 + 版本名 ── */
+.lora-card-civitai {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+.lora-card-ver {
+    font-size: 9px;
+    font-weight: 600;
+    color: oklch(50% 0.015 280);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+}
+.lora-card-civitai-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    color: oklch(50% 0.03 280);
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.lora-card-civitai-link:hover {
+    background: rgba(99,102,241,0.15);
+    color: #6366f1;
+}
+/* ── 触发词 chips ── */
+.lora-card-triggers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 4px;
+}
+.lora-card-trigger-chip {
+    font-size: 8px;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(99,102,241,0.10);
+    color: oklch(55% 0.03 280);
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+body.studio-theme-dark .lora-card-trigger-chip {
+    background: rgba(129,140,248,0.10);
+    color: #a5b4fc;
 }
 
 /* 选中标记 */
@@ -987,24 +1382,16 @@ video.lora-card-img {
     gap: 8px;
 }
 .lora-picker-grid--sm .lora-card-item {
-    height: 220px;
-    contain-intrinsic-size: auto 220px;
+    height: 180px;
+    contain-intrinsic-size: auto 180px;
 }
 .lora-picker-grid--sm .lora-card-img,
 .lora-picker-grid--sm .lora-card-img-placeholder,
 .lora-picker-grid--sm .lora-card-strength {
     height: 160px;
 }
-.lora-picker-grid--sm .lora-card-info {
-    padding: 6px 8px;
-    padding-right: 36px;
-}
-.lora-picker-grid--sm .lora-card-name {
+.lora-picker-grid--sm .lora-card-name-text {
     font-size: 10px;
-}
-.lora-picker-grid--sm .lora-card-base,
-.lora-picker-grid--sm .lora-card-tags {
-    font-size: 8px;
 }
 
 /* 中卡片（默认） */
@@ -1013,8 +1400,8 @@ video.lora-card-img {
     gap: 10px;
 }
 .lora-picker-grid--md .lora-card-item {
-    height: 280px;
-    contain-intrinsic-size: auto 280px;
+    height: 240px;
+    contain-intrinsic-size: auto 240px;
 }
 .lora-picker-grid--md .lora-card-img,
 .lora-picker-grid--md .lora-card-img-placeholder,
@@ -1028,8 +1415,8 @@ video.lora-card-img {
     gap: 12px;
 }
 .lora-picker-grid--lg .lora-card-item {
-    height: 340px;
-    contain-intrinsic-size: auto 340px;
+    height: 300px;
+    contain-intrinsic-size: auto 300px;
 }
 .lora-picker-grid--lg .lora-card-img,
 .lora-picker-grid--lg .lora-card-img-placeholder,

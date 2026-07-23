@@ -56,47 +56,33 @@ function loraPickerIsNsfwTags(tags) {
 }
 function loraPickerCheckCivitaiNsfw(civitai) {
     if (!civitai) return false;
-    if (civitai.nsfw === true) return true;
-    if (civitai.nsfwLevel != null && Number(civitai.nsfwLevel) >= 4) return true;
-    if (civitai.nsfwLevel != null && Number(civitai.nsfwLevel) >= 1) return false; // 1-3 = 软,不算
-    return false;
+    // 仅当 civitai 显式标记 nsfw=true(已在 console 通过,不可被 preview_nsfw_level 覆盖)
+    return civitai.nsfw === true;
 }
-/**
- * 检查 LoraManager 返回的扁平条目中是否含 NSFW 标记。
- * LoraManager 会返回 preview_nsfw_level(预览图的 NSFW 等级) 和 civitai 原始对象。
- */
 function loraPickerCheckMetaNsfwFlat(meta) {
     if (!meta) return false;
-    // LoraManager 扁平字段:preview_nsfw_level(预览图 NSFW 等级)
-    if (meta.preview_nsfw_level != null && Number(meta.preview_nsfw_level) >= 4) return true;
-    // 也可能顶层 nsfw
+    // 只用合并后的 nsfwLevel(已由 _enrichFromManager 合并 preview_nsfw_level 和 civitai.nsfwLevel)
+    // 确保徽章显示和屏蔽状态一致。
+    if (meta.nsfwLevel != null && Number(meta.nsfwLevel) >= 4) return true;
     if (meta.nsfw === true) return true;
+    // 兼容旧字段(未被 enrichment 覆盖的老数据)
+    if (meta.preview_nsfw_level != null && Number(meta.preview_nsfw_level) >= 4) return true;
     return false;
 }
 /**
- * 综合判断某 LoRA 是否 NSFW(各路数据 OR,任一为真即 NSFW)
- *  - localStorage 强制标记 / 强制取消标记
- *  - civitai 官方 nsfw 字段
- *  - tags / displayName 启发式
- * @param {string} key - 卡片唯一 key(单 LoRA 用 name,组用 modelRoot)
- * @param {object} meta - loraState.loraMap 对应条目(可空)
- * @param {string} displayName
- * @param {string[]} tags
+ * 综合判断某 LoRA 是否 NSFW
+ * 规则:只依赖元数据 nsfwLevel(L4 才触发),不再用 tags/displayName 启发式(避免误判)
  */
 function loraPickerDetectNsfw(key, meta, displayName, tags) {
     // 1. 强制 override 优先
     if (Object.prototype.hasOwnProperty.call(loraPickerNsfwOverrides, key)) {
         return !!loraPickerNsfwOverrides[key];
     }
-    // 2. civitai 官方 / LoraManager 扁平字段
+    // 2. 仅 metadata 判断,不再用 tags/name 启发式
     if (meta) {
         if (loraPickerCheckCivitaiNsfw(meta.civitai)) return true;
         if (loraPickerCheckMetaNsfwFlat(meta)) return true;
     }
-    // 3. tags 启发式
-    if (loraPickerIsNsfwTags(tags)) return true;
-    // 4. displayName 启发式
-    if (loraPickerIsNsfwName(displayName)) return true;
     return false;
 }
 function loraPickerToggleNsfwReveal(key) {
@@ -297,10 +283,22 @@ function loraPickerClearBlobCache() {
 // 注意：图片 URL 用原始 URL 作为 key，blob 缓存独立于 HTML 缓存。
 // 当 HTML 缓存因版本切换等原因被删时，blob 缓存仍然保留。
 const loraPickerCardHtmlCache = new Map();
+const loraPickerPopupDataStore = new Map(); // cardKey → 详情数据(用于全局浮层)
 function loraPickerGetItemKey(item) {
     return item.isGroup ? ('g::' + (item.modelRoot || '')) : ('s::' + (item.name || ''));
 }
-function loraPickerClearCardCache() { loraPickerCardHtmlCache.clear(); }
+function loraPickerClearCardCache() {
+    loraPickerCardHtmlCache.clear();
+    loraPickerPopupDataStore.clear();
+}
+// 字节大小格式化
+function loraPickerFormatBytes(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    if (bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MB';
+    return (bytes/1024/1024/1024).toFixed(2) + ' GB';
+}
 
 // ── 预览预热（前端 Blob 缓存） ────────────────────────────────
 // fetch 存入 loraPickerBlobCache，关闭时图片已在前端内存中。
@@ -485,6 +483,33 @@ function loraPickerInit() {
     `;
     document.body.appendChild(shell);
 
+    // 全局信息浮层(固定定位,不限定在卡片内)
+    var _popup = document.createElement('div');
+    _popup.id = 'loraPickerPopup';
+    _popup.style.cssText = 'display:none;position:fixed;z-index:10000;';
+    document.body.appendChild(_popup);
+
+    // 全局 hover tooltip
+    var _tooltip = document.createElement('div');
+    _tooltip.id = 'loraPickerTooltip';
+    _tooltip.style.cssText = 'display:none;position:fixed;z-index:9999;pointer-events:none;';
+    document.body.appendChild(_tooltip);
+
+    // 点击页面其他位置关闭浮层
+    document.addEventListener('click', function(e) {
+        var p = document.getElementById('loraPickerPopup');
+        if (p && p.style.display !== 'none') {
+            var btn = e.target.closest('.lora-card-info-btn');
+            if (!btn) p.style.display = 'none';
+        }
+    });
+
+    // 点击浮层内部不关闭
+    shell.addEventListener('click', function(e) {
+        var p = document.getElementById('loraPickerPopup');
+        if (p && p.contains(e.target)) return;
+    });
+
     // 点击遮罩关闭
     shell.addEventListener('click', (e) => {
         if (e.target === shell) loraPickerClose();
@@ -658,6 +683,8 @@ function loraPickerRefreshData(resetPage) {
         : (loraState.modelFilterFolder ? [loraState.modelFilterFolder] : []);
     loraPickerModelFilter = _folders.length > 0 ? _folders : null;  // 数组或 null
     loraPickerModelLabel = loraState.modelFilterLabel || null;
+    // 清空 HTML 缓存,确保元数据更新后卡片重新生成(避免缓存返回旧的无元数据版本)
+    loraPickerClearCardCache();
     // 重新构建全量数据
     const groupedNames = new Set();
     const groups = loraState.groups || {};
@@ -692,6 +719,13 @@ function loraPickerRefreshData(resetPage) {
                 preview: meta.preview || '',
                 videoUrl: meta.videoUrl || '',
                 tags: tags,
+                triggerWords: meta.triggerWords || [],
+                civitai: meta.civitai || null,
+                nsfwLevel: meta.nsfwLevel || 0,
+                size: meta.size || 0,
+                modified: meta.modified || 0,
+                fileName: meta.fileName || '',
+                translatedDescription: meta.translatedDescription || '',
                 // 分类已改为按路径层级，不再需要 tagCategory 字段
                 isGroup: false,
                 isNsfw: loraPickerDetectNsfw(_key, meta, _displayName, _tags)
@@ -741,6 +775,12 @@ function loraPickerRefreshData(resetPage) {
             preview: cur.preview || '',
             videoUrl: cur.videoUrl || '',
             tags: allTags,
+            triggerWords: cur.triggerWords || [],
+            civitai: cur.civitai || null,
+            nsfwLevel: cur.nsfwLevel || 0,
+            size: cur.size || 0,
+            modified: cur.modified || 0,
+            fileName: cur.fileName || '',
             // 分类已改为按路径层级，不再需要 tagCategory 字段
             isGroup: true,
             isNsfw: _gIsNsfw,
@@ -1091,31 +1131,276 @@ function loraPickerBuildCardHtml(item) {
         '</div>';
     }
 
-    // 卡片基础结构（不含 selected class、不含强度条）
-    // 通过在根 div 上加 data-key 标识，方便后续局部更新选中状态
-    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + (item.isNsfw && !loraPickerNsfwRevealed.has(loraPickerCardKey(item)) ? ' is-nsfw' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')" title="' + item.displayName + '\n' + (item.baseModel || '') + '\n' + (item.tags || '') + '">' +
-        mediaHtml +
-        versionBadgeHtml +
-        usageBadgeHtml +
-        nsfwOverlayHtml +
-        '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
-            '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
-        '</div>' +
-        '<div class="lora-card-check" style="display:none">✓</div>' +
-        versionsBarHtml +
-        '<div class="lora-card-info">' +
-            '<div class="lora-card-name">' + item.displayName + '</div>' +
-            '<div class="lora-card-meta">' +
-                (item.baseModel ? '<span class="lora-card-base">' + item.baseModel + '</span>' : '') +
-                (item.tags ? '<span class="lora-card-tags">' + item.tags + '</span>' : '') +
+    // ── 信息浮层按钮(预览图右上角,点击弹出全局富信息面板) ──
+    let infoBtnHtml = '';
+    if (item.civitai && item.civitai.modelId) {
+        const _verName = item.civitai.name || '';
+        const _modelId = item.civitai.modelId;
+        const _verId = item.civitai.id;
+        const _url = _verId
+            ? 'https://civitai.com/models/' + _modelId + '?modelVersionId=' + _verId
+            : 'https://civitai.com/models/' + _modelId;
+        // 存储详情数据到全局 Map,key 与卡片 data-key 一致
+        if (key) {
+            var _desc = '';
+            var _transDesc = '';
+            if (item.civitai && item.civitai.model && item.civitai.model.description) {
+                _desc = String(item.civitai.model.description);
+            }
+            if (item.translatedDescription) {
+                _transDesc = String(item.translatedDescription);
+            }
+            loraPickerPopupDataStore.set(key, {
+                version: _verName,
+                url: _url,
+                nsfw: item.nsfwLevel || 0,
+                filename: item.fileName || item.displayName || '',
+                size: item.size || 0,
+                path: item.name || '',
+                baseModel: item.baseModel || '',
+                folder: item.folder || '',
+                tags: Array.isArray(item.tags) ? item.tags : [],
+                triggers: Array.isArray(item.triggerWords) ? item.triggerWords : [],
+                modelId: _modelId,
+                description: _desc,
+                translatedDescription: _transDesc
+            });
+        }
+        infoBtnHtml = '<button type="button" class="lora-card-info-btn" onclick="event.stopPropagation();loraPickerTogglePopup(this)" title="LoRA 详情">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' +
+        '</button>';
+        if (!window._loraDebugLogged) { window._loraDebugLogged = true;
+            console.log('[LoraDebug] 首张有元数据的卡:', item.displayName, 'civitai:', JSON.stringify(item.civitai).slice(0,200), 'nsfwLevel:', item.nsfwLevel, 'triggerWords:', item.triggerWords);
+        }
+    }
+
+    // NSFW 等级徽章(仅显示在名称旁,小尺寸)
+    let nsfwBadgeHtml = '';
+    if (item.nsfwLevel > 0) {
+        const _label = item.nsfwLevel >= 4 ? 'NSFW(L' + item.nsfwLevel + ')' : (['', '安全', '轻微', '敏感'][item.nsfwLevel] || 'L' + item.nsfwLevel);
+        nsfwBadgeHtml = '<span class="lora-card-nsfw-lvl lora-card-nsfw-lvl--' + Math.min(item.nsfwLevel, 4) + '">' + _label + '</span>';
+    }
+
+    // 调试标记(有元数据时显示绿点)
+    var debugDot = '';
+    if (item.civitai || item.nsfwLevel > 0) {
+        debugDot = '<div style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;z-index:10;box-shadow:0 0 4px rgba(34,197,94,0.6);" title="有元数据"></div>';
+    }
+
+    // 封面上的名称浮层(半透明渐变底,代替底部独立信息区)
+    var nameOverlayHtml = '<div class="lora-card-name-overlay"><span class="lora-card-name-text">' + item.displayName.replace(/</g,'&lt;') + '</span>' + nsfwBadgeHtml + '</div>';
+
+    // hover 提示:用 data-desc 存储简介,由 tooltip 事件处理
+    var hoverTitle = item.displayName;
+    var dataDesc = '';
+    if (item.civitai && item.civitai.model && item.civitai.model.description) {
+        hoverTitle = item.displayName;
+        dataDesc = loraPickerEscapeHtml(String(item.civitai.model.description).replace(/<[^>]+>/g, '').trim().substring(0, 300));
+    }
+
+    // 卡片基础结构:名称浮在封面底部,不占用额外空间
+    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + (item.isNsfw && !loraPickerNsfwRevealed.has(loraPickerCardKey(item)) ? ' is-nsfw' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')"' +
+        (dataDesc ? ' data-desc="' + dataDesc.replace(/"/g,'&quot;') + '" onmouseenter="loraPickerShowTooltip(event,this)" onmouseleave="loraPickerHideTooltip()"' : ' title="' + hoverTitle.replace(/"/g,'&quot;') + '"') + '>' +
+        '<div class="lora-card-img-wrap" style="position:relative;overflow:hidden;">' +
+            mediaHtml +
+            versionBadgeHtml +
+            usageBadgeHtml +
+            infoBtnHtml +
+            debugDot +
+            nsfwOverlayHtml +
+            '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
+                '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
             '</div>' +
+            '<div class="lora-card-check" style="display:none">✓</div>' +
+            nameOverlayHtml +
         '</div>' +
+        versionsBarHtml +
         '<div class="lora-card-strength-wrap"></div>' +
     '</div>';
 
     loraPickerCardHtmlCache.set(key, html);
     return html;
 }
+
+// ── 全局剪贴板复制(用于触发词/路径等) ────────────────────────────
+var LORA_PICKER_COPY_ICON = ''; // 在 loraPickerIcon 之后定义
+window.loraPickerCopyText = function(text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(function() {
+        var orig = btn._origHtml || btn.innerHTML;
+        btn._origHtml = orig;
+        btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;"><polyline points="20 6 9 17 4 12"/></svg> 已复制';
+        setTimeout(function() { btn.innerHTML = orig; }, 1800);
+    }).catch(function() {
+        var orig = btn._origHtml || btn.innerHTML;
+        btn._origHtml = orig;
+        btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 失败';
+        setTimeout(function() { btn.innerHTML = orig; }, 1500);
+    });
+};
+
+// ── 全局 hover tooltip ────────────────────────────────────────────
+window.loraPickerShowTooltip = function(event, card) {
+    var tip = document.getElementById('loraPickerTooltip');
+    if (!tip) return;
+    var desc = card.getAttribute('data-desc');
+    if (!desc) return;
+    tip.textContent = desc;
+    // 先移到屏幕外避免闪烁,测量后再定位
+    tip.style.left = '-9999px';
+    tip.style.top = '-9999px';
+    tip.style.display = 'block';
+    requestAnimationFrame(function() {
+        var rect = card.getBoundingClientRect();
+        var tipW = Math.min(280, window.innerWidth - 16);
+        var tipH = tip.offsetHeight || 60;
+        tip.style.maxWidth = tipW + 'px';
+        var left = rect.left + rect.width / 2 - tipW / 2;
+        if (left < 8) left = 8;
+        if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+        var top = rect.top - tipH - 6;
+        if (top < 8) top = rect.bottom + 6;
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+    });
+};
+window.loraPickerHideTooltip = function() {
+    var tip = document.getElementById('loraPickerTooltip');
+    if (tip) tip.style.display = 'none';
+};
+
+// ── 全局信息浮层(固定定位,卡片式富信息面板) ──────────────────────
+function loraPickerEscapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// 内联 SVG 图标库(stroke 风格,统一宽度 12px)
+function loraPickerIcon(name) {
+    var icons = {
+        box: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+        tag: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+        file: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+        folder: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+        model: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/></svg>',
+        disk: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+        copy: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+        trigger: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
+        warn: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        translate: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+    };
+    return icons[name] || '';
+}
+function loraPickerBuildPopupHtml(d) {
+    var html = [];
+    // 顶部:卡片标题 + 关闭按钮
+    html.push('<div class="lora-popup-header">' +
+        '<div class="lora-popup-title">' + loraPickerIcon('box') + ' ' + loraPickerEscapeHtml(d.filename || '') + '</div>' +
+        '<button type="button" class="lora-popup-close" onclick="document.getElementById(\'loraPickerPopup\').style.display=\'none\'" title="关闭">' + loraPickerIcon('warn') + '</button>' +
+    '</div>');
+    // 简介(如果有,优先显示后端已翻译的中文)
+    if (d.description) {
+        var _descRaw = d.description.replace(/<[^>]+>/g, '').trim().substring(0, 500);
+        var _showDesc = loraPickerEscapeHtml(_descRaw);
+        var _label = 'EN';
+        if (d.translatedDescription) {
+            _showDesc = loraPickerEscapeHtml(d.translatedDescription.replace(/<[^>]+>/g, '').trim().substring(0, 500));
+            _label = '中文';
+        }
+        if (_showDesc) html.push('<div class="lora-popup-desc">' +
+            '<div class="lora-popup-desc-text">' + _showDesc + '</div>' +
+            '<span class="lora-popup-desc-lang">' + _label + '</span>' +
+        '</div>');
+    }
+    // 第一行:版本 | 文件名
+    html.push('<div class="lora-popup-grid lora-popup-grid-2">');
+    html.push(buildPopupCard('版本', d.version || '-', 'tag'));
+    html.push(buildPopupCard('文件名', d.filename ? (d.filename + '.safetensors') : '-', 'file'));
+    html.push('</div>');
+    // 第二行:位置 (占满)
+    if (d.path) {
+        html.push(buildPopupCardWide('位置', d.path, 'folder'));
+    }
+    // 第三行:基础模型 | 大小
+    html.push('<div class="lora-popup-grid lora-popup-grid-2">');
+    html.push(buildPopupCard('基础模型', d.baseModel || '-', 'model'));
+    html.push(buildPopupCard('大小', d.size ? loraPickerFormatBytes(d.size) : '-', 'disk'));
+    html.push('</div>');
+    // 第四行:触发词(始终显示,含复制按钮)
+    var triggerText = (d.triggers && d.triggers.length > 0) ? d.triggers.join(', ') : '';
+    var tChips = (d.triggers && d.triggers.length > 0) ? d.triggers.slice(0, 8).map(function(w) {
+        return '<span class="lora-popup-chip">' + loraPickerEscapeHtml(w) + '</span>';
+    }).join('') : '';
+    html.push('<div class="lora-popup-section">' +
+        '<div class="lora-popup-section-label">' + loraPickerIcon('trigger') + ' 触发词' +
+            (triggerText ? '<button type="button" class="lora-popup-copy-btn" onclick="event.stopPropagation();window.loraPickerCopyText(\'' + loraPickerEscapeHtml(triggerText) + '\',this)" title="复制所有触发词">' + loraPickerIcon('copy') + ' 复制</button>' : '') +
+        '</div>' +
+        '<div class="lora-popup-triggers">' + (tChips || '<span class="lora-popup-empty">暂无触发词</span>') + '</div>' +
+    '</div>');
+    // 第五行:NSFW + 标签
+    var nsfwColors = ['','#22c55e','#eab308','#f97316','#ef4444'];
+    var nsfwLabels = ['','安全','轻微','敏感','NSFW'];
+    var nsfwLabel = d.nsfw >= 4 ? 'NSFW(L' + d.nsfw + ')' : (nsfwLabels[d.nsfw] || ('L' + d.nsfw));
+    var nsfwColor = d.nsfw >= 4 ? '#ef4444' : nsfwColors[d.nsfw] || '';
+    var tagChips = (d.tags || []).slice(0, 8).map(function(t) {
+        return '<span class="lora-popup-tag-chip">' + loraPickerEscapeHtml(t) + '</span>';
+    }).join('');
+    if (d.nsfw || tagChips) {
+        html.push('<div class="lora-popup-section lora-popup-meta-row">' +
+            (d.nsfw ? '<span class="lora-popup-meta-pill" style="color:' + nsfwColor + ';border-color:' + nsfwColor + ';">NSFW: ' + nsfwLabel + '</span>' : '') +
+            tagChips +
+        '</div>');
+    }
+    // 底部分割线 + Civitai 按钮
+    html.push('<div class="lora-popup-divider"></div>');
+    html.push('<a href="' + loraPickerEscapeHtml(d.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation();" class="lora-popup-civitai-btn">在 Civitai 查看 ↗</a>');
+    return html.join('');
+}
+function buildPopupCard(label, value, iconName) {
+    var icon = iconName ? loraPickerIcon(iconName) : '';
+    return '<div class="lora-popup-card">' +
+        '<div class="lora-popup-card-label">' + icon + ' ' + label + '</div>' +
+        '<div class="lora-popup-card-value">' + loraPickerEscapeHtml(value) + '</div>' +
+    '</div>';
+}
+function buildPopupCardWide(label, value, iconName) {
+    var icon = iconName ? loraPickerIcon(iconName) : '';
+    return '<div class="lora-popup-card lora-popup-card-wide">' +
+        '<div class="lora-popup-card-label">' + icon + ' ' + label + '</div>' +
+        '<div class="lora-popup-card-value lora-popup-card-value-path">' + loraPickerEscapeHtml(value) + '</div>' +
+    '</div>';
+}
+window.loraPickerTogglePopup = function(btn) {
+    var popup = document.getElementById('loraPickerPopup');
+    if (!popup) return;
+    // 同按钮已打开则关闭
+    if (popup._activeBtn === btn && popup.style.display !== 'none') {
+        popup.style.display = 'none';
+        popup._activeBtn = null;
+        return;
+    }
+    // 找卡片的 data-key
+    var card = btn.closest('.lora-card-item');
+    var cardKey = card ? card.getAttribute('data-key') : null;
+    var data = cardKey ? loraPickerPopupDataStore.get(cardKey) : null;
+    if (!data) {
+        // 兜底:即使没数据也尝试从按钮 + 卡片元素读
+        data = { version: '', filename: '', size: 0, path: '', baseModel: '', tags: [], triggers: [], nsfw: 0, url: '#' };
+    }
+    popup.innerHTML = loraPickerBuildPopupHtml(data);
+    // 定位:按钮下方,但避免超出右/下边界
+    var rect = btn.getBoundingClientRect();
+    var pw = popup.offsetWidth || 380;
+    var ph = popup.offsetHeight || 360;
+    var left = rect.left;
+    var top = rect.bottom + 4;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    if (top + ph > window.innerHeight - 8) top = rect.top - ph - 4;
+    if (left < 8) left = 8;
+    if (top < 8) top = 8;
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+    popup.style.display = 'block';
+    popup._activeBtn = btn;
+};
 
 // 强度条（仅在选中时插入）
 function loraPickerBuildStrengthHtml(selIdx, strength) {
@@ -1274,7 +1559,13 @@ function loraPickerToggleItem(itemKey) {
         // 组卡片 data-key 是 itemKey（已有 g:: 前缀），单卡片是 s::entryName
         loraPickerPatchCard(isGroup ? itemKey : ('s::' + entryName), false, 0, -1);
     } else {
-        loraPickerSelected.push({ name: entryName, strength: 0.8 });
+        const _lk = (loraState.loraMap && loraState.loraMap[entryName]) || null;
+        loraPickerSelected.push({
+            name: entryName,
+            strength: 0.8,
+            preview: _lk ? _lk.preview : '',
+            videoUrl: _lk ? _lk.videoUrl : ''
+        });
         const newSelIdx = loraPickerSelected.length - 1;
         loraPickerPatchCard(isGroup ? itemKey : ('s::' + entryName), true, 0.8, newSelIdx);
     }

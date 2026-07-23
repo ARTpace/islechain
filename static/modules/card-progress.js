@@ -1,5 +1,6 @@
 /**
  * 卡片进度管理组件（环形进度条 + 计时器）
+ * 简约高级风 · 单色光影 · 触屏友好
  * 
  * 使用方法：
  * 
@@ -21,6 +22,11 @@ const CardProgress = (function() {
     const _timers = new Map();
 
     // ─────────────────────────────────────────────
+    //  单色主题常数（全组件共用）
+    // ─────────────────────────────────────────────
+    const C = { base: '#6366f1', light: 'rgba(99,102,241,0.30)', glow: 'rgba(99,102,241,0.45)' };
+
+    // ─────────────────────────────────────────────
     //  注入全局 CSS keyframes（仅一次）
     // ─────────────────────────────────────────────
     function injectStyles() {
@@ -29,11 +35,23 @@ const CardProgress = (function() {
         style.id = 'card-progress-style';
         style.textContent = `
             @keyframes cp-spin { to { transform: rotate(360deg); } }
-            @keyframes cp-pulse { 0%,100% { transform:scale(1);opacity:1; } 50% { transform:scale(1.4);opacity:0.7; } }
-            @keyframes cp-breath-spin {
-                0% { transform:rotate(0deg) scale(0.9); opacity:0.4; }
-                50% { transform:rotate(180deg) scale(1.05); opacity:1; }
-                100% { transform:rotate(360deg) scale(0.9); opacity:0.4; }
+            @keyframes cp-glow-spin {
+                0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 4px ${C.glow}); }
+                50%  { transform: rotate(180deg); filter: drop-shadow(0 0 8px ${C.base}); }
+                100% { transform: rotate(360deg); filter: drop-shadow(0 0 4px ${C.glow}); }
+            }
+            @keyframes cp-fade-up {
+                0%   { opacity:0; transform:translateY(6px); }
+                100% { opacity:1; transform:translateY(0); }
+            }
+            @keyframes cp-scale-pulse {
+                0%,100% { transform:scale(1); }
+                50%     { transform:scale(1.08); }
+            }
+            @keyframes cp-ring-complete {
+                0%   { transform: rotate(0deg); filter: drop-shadow(0 0 2px ${C.glow}); }
+                30%  { transform: rotate(180deg); filter: drop-shadow(0 0 12px ${C.base}); }
+                100% { transform: rotate(720deg); filter: drop-shadow(0 0 6px ${C.glow}); }
             }
         `;
         document.head.appendChild(style);
@@ -78,7 +96,7 @@ const CardProgress = (function() {
         const start = Date.now();
         const state = { timer: null, start };
         const els = getEls(card);
-        if (els.pct) { els.pct.style.visibility = 'visible'; els.pct.textContent = '0%'; }
+        if (els.pct) els.pct.style.visibility = 'visible';
         if (els.label) els.label.textContent = prefix + ' ' + formatElapsed(0);
         state.timer = setInterval(() => {
             const elapsed = Date.now() - start;
@@ -98,6 +116,8 @@ const CardProgress = (function() {
 
         if (status.status === 'started' || status.status === 'executing') {
             if (els.pct) els.pct.style.visibility = 'visible';
+            // 首次(started)才把百分比置为 0%；后续 executing 不覆盖采样进度
+            if (status.status === 'started' && els.pct) els.pct.textContent = '0%';
             const prefix = status.status === 'started' ? '排队中' : '执行中';
             startTimer(card, prefix);
         } else if (status.status === 'sampling') {
@@ -111,21 +131,35 @@ const CardProgress = (function() {
             els.label.textContent = '采样 ' + v + '/' + m;
         } else if (status.status === 'done') {
             clearTimer(card);
-            if (els.pct) { els.pct.style.visibility = 'visible'; els.pct.textContent = '95%'; }
+            if (els.pct) { els.pct.style.visibility = 'visible'; els.pct.textContent = '100%'; }
             els.label.textContent = '解码中...';
         } else if (status.status === 'complete') {
             clearTimer(card);
             if (els.outer) {
-                els.outer.style.animation = 'cp-breath-spin 3s ease-in-out infinite';
-                els.outer.style.borderColor = '#8b5cf6';
+                els.outer.style.animation = 'cp-ring-complete 1.2s ease-out forwards';
+                els.outer.style.borderTopColor = C.base;
+                els.outer.style.borderRightColor = C.base;
+                els.outer.style.borderBottomColor = C.base;
+                els.outer.style.borderLeftColor = C.base;
+                els.outer.style.borderWidth = '4px';
+                els.outer.style.boxShadow = '0 0 12px ' + C.glow;
             }
             if (els.inner) {
-                els.inner.style.animation = 'cp-breath-spin 3s ease-in-out infinite reverse';
-                els.inner.style.borderColor = '#06b6d4';
+                els.inner.style.animation = 'cp-fade-up 0.4s ease-out forwards';
+                els.inner.style.opacity = '0';
             }
-            if (els.pct) { els.pct.style.visibility = 'visible'; els.pct.textContent = '100%'; }
-            els.label.textContent = '完成!';
-            els.label.style.color = '#8b5cf6';
+            if (els.pct) {
+                els.pct.style.visibility = 'visible';
+                els.pct.textContent = '✓';
+                els.pct.style.fontSize = '24px';
+                els.pct.style.color = C.base;
+                els.pct.style.animation = 'cp-scale-pulse 1.6s ease-in-out infinite';
+            }
+            els.label.textContent = '完成';
+            els.label.style.color = C.base;
+            els.label.style.animation = 'cp-fade-up 0.35s ease-out';
+            els.label.style.animationFillMode = 'backwards';
+            els.label.style.animationDelay = '0.15s';
         }
     }
 
@@ -133,13 +167,13 @@ const CardProgress = (function() {
     //  生成进度卡片 HTML（替换 placeholder.innerHTML 用）
     // ─────────────────────────────────────────────
     const HTML = `
-        <div class="card-progress" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-            <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
-                <div class="pg-ring-outer" style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#8b5cf6;border-radius:50%;animation:cp-spin 1s linear infinite;"></div>
-                <div class="pg-ring-inner" style="position:absolute;inset:7px;border:2px solid transparent;border-top-color:#06b6d4;border-radius:50%;animation:cp-spin 0.6s linear infinite reverse;"></div>
-                <span class="card-progress-pct" style="position:absolute;font-size:9px;font-weight:700;color:#6b7280;">0%</span>
+        <div class="card-progress" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+            <div style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
+                <div class="pg-ring-outer" style="position:absolute;inset:0;border:4px solid transparent;border-top-color:#6366f1;border-right-color:rgba(99,102,241,0.30);border-bottom-color:rgba(99,102,241,0.15);border-left-color:rgba(99,102,241,0.30);border-radius:50%;animation:cp-glow-spin 1s linear infinite;"></div>
+                <div class="pg-ring-inner" style="position:absolute;inset:8px;border:2px solid transparent;border-top-color:rgba(99,102,241,0.35);border-right-color:rgba(99,102,241,0.12);border-radius:50%;animation:cp-glow-spin 0.7s linear infinite reverse;"></div>
+                <span class="card-progress-pct" style="position:absolute;font-size:15px;font-weight:800;color:#4b5563;letter-spacing:-0.01em;">0%</span>
             </div>
-            <span class="card-progress-label" style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">排队中...</span>
+            <span class="card-progress-label" style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.02em;">排队中...</span>
         </div>
     `;
 
@@ -168,6 +202,8 @@ const CardProgress = (function() {
         };
     }
 
+    // 模块加载时立即注入 keyframes，确保 HTML 模板使用前动画已就绪
+    injectStyles();
     // ─────────────────────────────────────────────
     //  公开 API
     // ─────────────────────────────────────────────

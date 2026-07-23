@@ -1,0 +1,20 @@
+{
+  "id": "preset-conc01",
+  "name": "概念设计",
+  "description": "游戏/影视概念设计提示词生成器",
+  "provider_id": "agnes::agnes-2.0-flash",
+  "model_mode": "all",
+  "temperature": 0.5,
+  "max_tokens": 1200,
+  "quality_tags": "concept art, character design, environment design, clean silhouette, production ready, matte painting, key visual, art direction",
+  "negative_default": "worst quality, low quality, blurry, lowres, messy, cluttered, photo, realistic, anime",
+  "output_format": "tag_only",
+  "is_default": false,
+  "created_at": "2026-07-22",
+  "tags": [
+    "group-concept"
+  ],
+  "sort_order": 11,
+  "updated_at": "2026-07-22",
+  "system_prompt": "你是一位资深概念设计师（Concept Artist），为游戏与影视项目产出可用于生产的设计稿提示词。请把用户需求转化为专业概念设计提示词，强调设计逻辑、可读性与美术方向。\n\n覆盖方向（按用户需求选择其一或组合）：\n1. 角色设计：种族/职业/体型、服装与装备结构、配色方案、材质（金属/皮革/布料/能量）、辨识度与剪影。\n2. 场景/环境设计：地貌、建筑风格、文明痕迹、气候、光线氛围、空间功能。\n3. 道具/武器/载具设计：功能结构、机械逻辑、材质工艺、使用痕迹。\n4. 生物/怪物设计：生态定位、解剖结构、体表材质、习性暗示。\n5. 世界观/氛围板：整体美术方向、色彩脚本、情绪基调、参考风格。\n\n设计原则：\n• 强调剪影辨识度与可读性，避免杂乱。\n• 说明美术风格（写实厚涂/半写实/ stylized / 低多边形 / UE5 实时渲染）。\n• 可要求“三视图”“多角度”“设计稿带标注”“灰模”“线稿”等生产向输出。\n• 注明光影与色彩脚本，体现项目统一调性。\n\n输出：中文或英文提示词，直接输出。\n质量词：concept art, character design, environment design, clean silhouette, production ready, matte painting, key visual, art direction。"
+}

@@ -235,6 +235,7 @@ def create_preset(data: dict) -> dict:
 def update_preset(preset_id: str, data: dict) -> Optional[dict]:
     """
     更新预设。
+    支持 _sync_groups 和 _sync_groups_order 字段，用于从预设 API 同步分组数据。
 
     Args:
         preset_id: 预设 ID
@@ -246,6 +247,13 @@ def update_preset(preset_id: str, data: dict) -> Optional[dict]:
     preset = _read_preset(preset_id)
     if not preset:
         return None
+
+    # 分组同步（通过预设 API 的副作用保存分组数据）
+    if "_sync_groups" in data:
+        index = _read_index()
+        index["groups"] = data["_sync_groups"]
+        _write_index(index)
+        data.pop("_sync_groups", None)
 
     # 只更新提供的字段
     for key in ("name", "description", "tags", "sort_order", "provider_id",
@@ -417,4 +425,56 @@ def set_selected_preset_id(preset_id: str):
     """设置当前选中的预设 ID"""
     index = _read_index()
     index["selected_preset_id"] = preset_id
+    _write_index(index)
+
+
+def create_group(group_id: str, group_name: str):
+    """创建分组"""
+    _ensure_index()
+    index = _read_index()
+    groups = index.get("groups", [])
+    if not isinstance(groups, list):
+        groups = []
+    if not any(g.get("id") == group_id for g in groups):
+        groups.append({"id": group_id, "name": group_name})
+    index["groups"] = groups
+    _write_index(index)
+
+
+def delete_group(group_id: str):
+    """删除分组"""
+    _ensure_index()
+    index = _read_index()
+    index["groups"] = [g for g in index.get("groups", []) if g.get("id") != group_id]
+    _write_index(index)
+
+
+def update_group(group_id: str, data: dict):
+    """更新分组名称"""
+    _ensure_index()
+    index = _read_index()
+    groups = index.get("groups", [])
+    for g in groups:
+        if g.get("id") == group_id:
+            if "name" in data:
+                g["name"] = data["name"]
+            break
+    index["groups"] = groups
+    _write_index(index)
+
+
+def reorder_groups(ids: list):
+    """重新排序分组"""
+    _ensure_index()
+    index = _read_index()
+    old = {g["id"]: g for g in index.get("groups", [])}
+    ordered = []
+    for gid in ids:
+        if gid in old:
+            ordered.append(old[gid])
+    # 保持未在 ids 中的分组
+    for g in index.get("groups", []):
+        if g["id"] not in ids:
+            ordered.append(g)
+    index["groups"] = ordered
     _write_index(index)
