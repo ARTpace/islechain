@@ -2445,98 +2445,285 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
         print(f"保存上游图片失败: {e}")
         return value
 
-async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai"):
-    refs = [ref for ref in (reference_images or []) if ref.get("url")]
+# ==================== 多提供商在线生图分发器 ====================
 
-    quality_map = {
-        "auto": "medium",
-        "low": "low",
-        "medium": "medium",
-        "high": "high",
-        "standard": "low",
-        "hd": "high"
+PROTOCOL_OPENAI = "openai"
+PROTOCOL_GEMINI = "gemini"
+PROTOCOL_APIMART = "apimart"
+PROTOCOL_ROS = "openai-responses"
+PROTOCOL_GROK = "grok"
+PROTOCOL_VOLCENGINE = "volcengine"
+PROTOCOL_RUNNINGHUB = "runninghub"
+
+
+def _resolve_image_provider(provider_id, protocol_hint=None):
+    """Resolve provider config and credentials for online image generation."""
+    providers = load_api_providers()
+    
+    if provider_id == "comfly":
+        return {"id":"comfly","name":"COMFLY","protocol":PROTOCOL_OPENAI,"base_url":AI_BASE_URL,"api_key":AI_API_KEY,"image_models":IMAGE_MODELS}
+    
+    if provider_id == "modelscope":
+        return {"id":"modelscope","name":"ModelScope","protocol":PROTOCOL_OPENAI,"base_url":MODELSCOPE_CHAT_BASE_URL,"api_key":MODELSCOPE_API_KEY,"image_models":[m for m in IMAGE_MODELS if not m.lower().startswith(("gpt-image","nano"))]}
+    
+    prov = get_api_provider(provider_id)
+    if not prov:
+        raise HTTPException(status_code=400, detail=f"未找到提供商: {provider_id}")
+    
+    proto = provider_protocol(prov)
+    key_env = provider_key_env(prov["id"])
+    api_key = read_api_env_value(key_env) or os.getenv(key_env, "")
+    base_url = (prov.get("base_url") or "").rstrip("/")
+    
+    if proto not in ("jimeng", "codex", "gemini-cli", "runninghub"):
+        if not base_url:
+            raise HTTPException(status_code=400, detail=f"提供商 {prov.get('name', provider_id)} 未配置请求地址")
+        if not api_key and proto != PROTOCOL_VOLCENGINE:
+            raise HTTPException(status_code=400, detail=f"提供商 {prov.get('name', provider_id)} 未配置 API Key")
+        base_url = base_url + "/v1" if not base_url.endswith("/v1") else base_url
+    
+    return {
+        "id": prov["id"],
+        "name": prov.get("name", provider_id),
+        "protocol": proto,
+        "base_url": base_url,
+        "api_key": api_key,
+        "image_models": prov.get("image_models") or [],
+        "video_models": prov.get("video_models") or [],
+        "chat_models": prov.get("chat_models") or [],
     }
 
-    is_gemini_model = protocol == "gemini"
 
+def _openai_headers(base_url, api_key, multipart=False):
+    h = {"Accept": "application/json", "Authorization": f"Bearer {sanitize_api_key(api_key)}"}
+    if not multipart:
+        h["Content-Type"] = "application/json"
+    return h
+
+
+async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quality, refs, is_grok=False):
+    """OpenAI /v1/images/generations or /edits, also Grok via /v1/messages."""
+    hdrs = _openai_headers(base_url, api_key)
+    base = base_url.rstrip("/")
+    
+    if is_grok:
+        content = [{"type": "text", "text": prompt}]
+        for ref in (refs or [])[:4]:
+            path = output_file_from_url(ref.get("url", ""))
+            if path:
+                b64 = base64.b64encode(open(path, "rb").read()).decode()
+                ct = content_type_for_path(path)
+                content.append({"type": "image_url", "image_url": {"url": f"data:{ct};base64,{b64}"}})
+            elif ref.get("url"):
+                content.append({"type": "image_url", "image_url": {"url": ref["url"]}})
+        body = json.dumps({"model": model, "messages": [{"role": "user", "content": content}]}, ensure_ascii=False)
+        resp = await client.post(f"{base}/v1/messages", headers={**hdrs, "Content-Type": "application/json"}, content=body)
+        resp.raise_for_status()
+        raw = resp.json()
+        text = ""
+        choices = raw.get("choices") or []
+        if choices:
+            msg = choices[0].get("message") or {}
+            c = msg.get("content", "")
+            if isinstance(c, str): text = c
+            elif isinstance(c, list):
+                for part in c:
+                    if isinstance(part, dict): text += part.get("text", "") or part.get("content", "") or ""
+        m = re.search(r'data:image/[^;]+;base64,([A-Za-z0-9+/=]+)', text)
+        if m: return {"type":"b64","value":m.group(1)}, raw
+        m = re.search(r'https?://\S+', text)
+        if m: return {"type":"url","value":m.group(0)}, raw
+        task_id = extract_task_id(raw)
+        if task_id:
+            result = await wait_for_image_task_v2(client, task_id, tasks_base=base.replace("/v1",""), key=api_key)
+            return extract_image(result), result
+        raise HTTPException(status_code=502, detail="Grok 接口未返回图片结果")
+    
+    # Standard OpenAI
+    if refs:
+        files, opened = [], []
+        try:
+            for ref in refs[:4]:
+                path = output_file_from_url(ref.get("url", ""))
+                if not path: continue
+                fh = open(path, "rb"); opened.append(fh)
+                ct = content_type_for_path(path)
+                files.append(("image", (os.path.basename(path), fh, ct)))
+            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":"1"}
+            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files)
+        finally:
+            for fh in opened: fh.close()
+    else:
+        resp = await client.post(f"{base}/v1/images/generations", headers=_openai_headers(base_url, api_key), json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1})
+    
+    resp.raise_for_status()
+    try: raw = resp.json()
+    except: raise HTTPException(status_code=502, detail=f"API 返回无效响应: {resp.text[:200]}")
+    try: return extract_image(raw), raw
+    except HTTPException:
+        task_id = extract_task_id(raw)
+        if not task_id: raise
+    result = await wait_for_image_task_v2(client, task_id, tasks_base=base.replace("/v1",""), key=api_key)
+    return extract_image(result), result
+
+
+async def _gen_gemini(client, base_url, api_key, model, prompt, size, quality, refs):
+    """Gemini: chat/completions with multimodal input."""
+    system_prompt = f"Generate an image with requirements. Size: {size}, Quality: {quality}."
+    if refs:
+        gemini_content = [{"type":"text","text":prompt}]
+        for ref in refs[:4]:
+            url = reference_to_data_url(ref)
+            if url.startswith("data:"):
+                gemini_content.append({"type":"image_url","image_url":{"url":url}})
+        messages = [{"role":"system","content":system_prompt},{"role":"user","content":gemini_content}]
+    else:
+        messages = [{"role":"system","content":system_prompt},{"role":"user","content":prompt}]
+    hdrs = _openai_headers(base_url, api_key)
+    resp = await client.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=hdrs, json={"model":model,"messages":messages})
+    resp.raise_for_status()
+    raw = resp.json()
+    return extract_image_from_chat(raw), raw
+
+
+async def _gen_apimart(client, base_url, api_key, model, prompt, size, quality, refs):
+    """APIMart async: POST -> poll GET /v1/images/tasks/{task_id}."""
+    hdrs = _openai_headers(base_url, api_key)
+    base = base_url.rstrip("/")
+    if refs:
+        files, opened = [], []
+        try:
+            for ref in refs[:4]:
+                path = output_file_from_url(ref.get("url",""))
+                if not path: continue
+                fh = open(path,"rb"); opened.append(fh)
+                files.append(("image",(os.path.basename(path),fh,content_type_for_path(path))))
+            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":"1"}
+            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files)
+        finally:
+            for fh in opened: fh.close()
+    else:
+        resp = await client.post(f"{base}/v1/images/generations", headers=hdrs, json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1})
+    resp.raise_for_status()
+    try: raw = resp.json()
+    except: raise HTTPException(status_code=502, detail=f"APIMart 返回无效响应: {resp.text[:200]}")
+    task_id = extract_task_id(raw)
+    if not task_id:
+        try: return extract_image(raw), raw
+        except: pass
+        raise HTTPException(status_code=502, detail="APIMart 未返回任务ID或图片结果")
+    result = await wait_for_image_task_v2(client, task_id, tasks_base=base.replace("/v1",""), key=api_key)
+    return extract_image(result), result
+
+
+async def _gen_volcengine(client, ak, sk, model, prompt, size, quality, refs):
+    """VolcEngine Ark image/vision: uses /api/v3/text-to-image."""
+    pass  # placeholder for volcengine auth; use token env variable instead
+    ak = ak or jimeng_env_value("VOLCENGINE_AK") or os.getenv("VOLCENGINE_ACCESS_KEY", "")
+    sk = sk or jimeng_env_value("VOLCENGINE_SK") or os.getenv("VOLCENGINE_SECRET_KEY", "")
+    if not ak or not sk:
+        raise HTTPException(status_code=400, detail="火山引擎 AK/SK 未配置")
+    # VolcEngine requires signature auth; simplest approach: use ark.cn-beijing.volces.com with token
+    token = jimeng_env_value("VOLCENGINE_TOKEN") or os.getenv("VOLCENGINE_TOKEN", ak)
+    hdrs = {"Content-Type":"application/json","Authorization":f"Bearer {token}"}
+    body = {"model":model,"prompt":prompt,"size":size,"quality":quality,"n":1}
+    resp = await client.post(f"{VOLCENGINE_DEFAULT_BASE_URL}/api/v3/images/generations", headers=hdrs, json=body)
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=resp.status_code, detail=f"火山引擎接口错误: {resp.text[:300]}")
+    raw = resp.json()
+    return extract_image(raw), raw
+
+
+async def _gen_runninghub(client, provider_cfg, model, prompt, size, quality, refs):
+    """RunningHub workflow/app image generation."""
+    wf_store = load_runninghub_workflow_store()
+    cfg = None
+    for wid, c in wf_store.items():
+        if c.get("workflowJson"):
+            cfg = c; break
+    if not cfg:
+        raise HTTPException(status_code=400, detail="RunningHub 未配置工作流")
+    wj = cfg.get("workflowJson", {})
+    for nid, node in wj.items():
+        inp = node.get("inputs", {})
+        for k in ("text","prompt","positive_prompt","negative_prompt"):
+            if k in inp and isinstance(inp[k], str) and "{PROMPT}" in inp[k]:
+                inp[k] = inp[k].replace("{PROMPT}", prompt)
+        if "width" in inp:
+            try: inp["width"] = int(size.split("x")[0]) if "x" in size else 1024
+            except: pass
+        if "height" in inp:
+            try: inp["height"] = int(size.split("x")[1]) if "x" in size else 1024
+            except: pass
+    api_key = runninghub_api_key(provider_cfg)
+    hdrs = runninghub_app_headers(provider_cfg)
+    submit_body = {"workflowId": cfg.get("workflowId",""),"nodeInfoList":[],"useWallet":True}
+    resp = await client.post(f"{RH_DEFAULT_BASE_URL}/enterprise-api/consumerApi/run", headers=hdrs, json=submit_body)
+    resp.raise_for_status()
+    raw = resp.json()
+    task_id = raw.get("data",{}).get("taskId") or raw.get("data",{}).get("task_id")
+    if task_id:
+        deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+        while time.monotonic() < deadline:
+            qresp = await client.get(f"{RH_DEFAULT_BASE_URL}/enterprise-api/consumerApi/query", headers=hdrs, params={"taskId":task_id})
+            qresp.raise_for_status()
+            qraw = qresp.json()
+            st = str(qraw.get("data",{}).get("status","")).upper()
+            if st in ("SUCCESS","DONE","COMPLETED"):
+                return extract_image(qraw), qraw
+            if st in ("FAIL","FAILED","ERROR"):
+                raise HTTPException(status_code=502, detail=f"RunningHub 任务失败: {qraw.get('data',{}).get('error','unknown')}")
+            await asyncio.sleep(IMAGE_POLL_INTERVAL)
+        raise HTTPException(status_code=504, detail=f"RunningHub 任务超时: {task_id}")
+    return extract_image(raw), raw
+
+
+async def wait_for_image_task_v2(client, task_id, tasks_base=None, key=None):
+    """Poll async image generation task for any OpenAI-compatible protocol."""
+    base = (tasks_base or AI_BASE_URL).rstrip("/")
+    key = key or AI_API_KEY
+    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    last_payload = {}
+    while time.monotonic() < deadline:
+        resp = await client.get(f"{base}/v1/images/tasks/{task_id}", headers={"Accept":"application/json","Authorization":f"Bearer {sanitize_api_key(key)}"})
+        resp.raise_for_status()
+        last_payload = resp.json()
+        td = last_payload.get("data") if isinstance(last_payload.get("data"), dict) else last_payload
+        status = str(td.get("status","")).upper()
+        if status == "SUCCESS": return last_payload
+        if status == "FAILURE":
+            reason = td.get("fail_reason") or last_payload.get("message") or "生图任务失败"
+            raise HTTPException(status_code=502, detail=f"生图任务失败:{reason}")
+        await asyncio.sleep(IMAGE_POLL_INTERVAL)
+    raise HTTPException(status_code=504, detail=f"生图任务超时,task_id={task_id}")
+
+
+async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai", provider_id="", provider=None):
+    """Multi-protocol online image generation dispatcher.
+    
+    Supported: openai, gemini, apimart, grok, volcengine, runninghub
+    Falls back to default comfly/MODELSCOPE when no provider specified.
+    """
+    refs = [ref for ref in (reference_images or []) if ref.get("url")]
+    q = {"auto":"medium","low":"low","medium":"medium","high":"high","standard":"low","hd":"high"}.get(quality, "medium")
+    
+    prov = provider or _resolve_image_provider(provider_id, protocol)
+    actual_proto = provider_protocol(prov) if isinstance(prov, dict) else (protocol or PROTOCOL_OPENAI)
+    
     async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
-        if is_gemini_model:
-            system_prompt = f"Generate an image with the following requirements. Size: {size}, Quality: {quality_map.get(quality, 'medium')}."
-            if refs:
-                gemini_content = [{"type": "text", "text": prompt}]
-                for ref in refs[:4]:
-                    data_url = reference_to_data_url(ref)
-                    if data_url.startswith("data:"):
-                        gemini_content.append({"type": "image_url", "image_url": {"url": data_url}})
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": gemini_content}
-                ]
-            else:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
-            response = await client.post(
-                f"{AI_BASE_URL}/v1/chat/completions",
-                headers=api_headers(),
-                json={
-                    "model": model,
-                    "messages": messages,
-                },
-            )
-        elif refs:
-            files = []
-            opened = []
-            try:
-                for ref in refs[:4]:
-                    path = output_file_from_url(ref.get("url", ""))
-                    if not path:
-                        continue
-                    fh = open(path, "rb")
-                    opened.append(fh)
-                    files.append(("image", (os.path.basename(path), fh, content_type_for_path(path))))
-                data = {
-                    "model": model,
-                    "prompt": prompt,
-                    "size": size,
-                    "quality": quality_map.get(quality, "medium"),
-                    "output_format": "png",
-                    "n": "1"
-                }
-                response = await client.post(f"{AI_BASE_URL}/v1/images/edits", headers=api_headers(json_body=False), data=data, files=files)
-            finally:
-                for fh in opened:
-                    fh.close()
+        if actual_proto == PROTOCOL_GEMINI:
+            return await _gen_gemini(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+        elif actual_proto == PROTOCOL_APIMART:
+            return await _gen_apimart(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+        elif actual_proto == PROTOCOL_GROK:
+            return await _gen_openai_sync(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs, is_grok=True)
+        elif actual_proto == PROTOCOL_VOLCENGINE:
+            return await _gen_volcengine(client, prov.get("ak",""), prov.get("sk",""), model, prompt, size, q, refs)
+        elif actual_proto == PROTOCOL_RUNNINGHUB:
+            return await _gen_runninghub(client, prov, model, prompt, size, q, refs)
         else:
-            response = await client.post(
-                f"{AI_BASE_URL}/v1/images/generations",
-                headers=api_headers(),
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "size": size,
-                    "quality": quality_map.get(quality, "medium"),
-                    "output_format": "png",
-                    "n": 1
-                },
-            )
-        response.raise_for_status()
-        try:
-            raw = response.json()
-        except Exception:
-            raise HTTPException(status_code=502, detail=f"API 服务器返回无效响应: {response.text[:200]}")
+            return await _gen_openai_sync(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
 
-        try:
-            if is_gemini_model:
-                return extract_image_from_chat(raw), raw
-            return extract_image(raw), raw
-        except HTTPException:
-            task_id = extract_task_id(raw)
-            if not task_id:
-                raise
-        task_result = await wait_for_image_task(client, task_id)
-        return extract_image(task_result), task_result
 
 def upstream_message_from_record(item):
     role = item.get("role")
@@ -4875,7 +5062,22 @@ async def ai_config():
 async def ai_models():
     return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
 
-# --- ModelScope Token (从 env 读取,不再支持通过 UI 修改) ---
+@app.get("/api/providers/models")
+async def provider_models(provider_id: str = ""):
+    """Fetch available models for a specific provider."""
+    if provider_id and provider_id != "comfly" and provider_id != "modelscope" and provider_id != "jimeng":
+        prov = get_api_provider(provider_id)
+        if prov:
+            pk = get_provider_api_key(prov["id"])
+            if pk and prov.get("base_url"):
+                try:
+                    result = await fetch_models_from_upstream(prov["base_url"], pk)
+                    return {"provider_id": provider_id, **result}
+                except Exception as e:
+                    return {"provider_id": provider_id, "error": str(e)[:300], "image_models": prov.get("image_models",[]), "video_models": prov.get("video_models",[]), "chat_models": prov.get("chat_models",[])}
+            return {"provider_id": provider_id, "image_models": prov.get("image_models",[]), "video_models": prov.get("video_models",[]), "chat_models": prov.get("chat_models",[])}
+    return {"provider_id": provider_id, "image_models": IMAGE_MODELS, "chat_models": CHAT_MODELS, "video_models": []}
+
 
 @app.get("/api/config/token")
 async def get_global_token():
@@ -4921,10 +5123,12 @@ async def update_config(payload: ConfigUpdateRequest):
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest, token: str = ""):
     username = require_valid_token(token)
-    model = selected_model(payload.model, IMAGE_MODEL)
+    provider_id = payload.provider_id or "comfly"
+    prov = _resolve_image_provider(provider_id)
+    model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, payload.protocol)
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov)
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误:{exc.response.text}") from exc
@@ -4938,25 +5142,22 @@ async def online_image(payload: OnlineImageRequest, token: str = ""):
         "type": "online",
         "user": username,
         "model": model,
-        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs},
+        "provider_id": provider_id,
+        "protocol": prov["protocol"],
+        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
         "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
     }
     save_to_history(result)
     if GLOBAL_LOOP:
         asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(result), GLOBAL_LOOP)
     return result
-
 async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
     provider_id = payload.provider_id or "comfly"
-    provider = get_api_provider(provider_id)
-    if provider:
-        default_model = (provider.get("image_models") or [IMAGE_MODEL])[0]
-        model = selected_model(payload.model, default_model)
-    else:
-        model = selected_model(payload.model, IMAGE_MODEL)
+    prov = _resolve_image_provider(provider_id)
+    model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, payload.protocol)
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov)
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
@@ -4983,10 +5184,11 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         "timestamp": time.time(),
         "type": "online",
         "model": model,
-        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs},
+        "provider_id": provider_id,
+        "protocol": prov["protocol"],
+        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
         "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
     }
-
 async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, username: str = None):
     with CANVAS_TASK_LOCK:
         if task_id in CANVAS_TASKS:

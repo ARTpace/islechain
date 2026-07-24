@@ -368,17 +368,35 @@ function updateProtocolFromInput(){
     const item = provider();
     if(!item || !protocolInput || item.id === 'modelscope' || item.id === 'runninghub') return;
     const value = String(protocolInput.value || 'openai').toLowerCase();
-    item.protocol = ['openai', 'apimart', 'gemini', 'volcengine'].includes(value) ? value : 'openai';
+    item.protocol = ['openai', 'apimart', 'gemini', 'gemini-cli', 'codex', 'grok', 'volcengine'].includes(value) ? value : 'openai';
     if(value === 'volcengine' && baseInput){
         baseInput.value = VOLCENGINE_DEFAULT_BASE_URL;
         item.base_url = VOLCENGINE_DEFAULT_BASE_URL;
     }
+    if(value === 'grok' && baseInput){
+        baseInput.value = 'https://api.x.ai/v1';
+        item.base_url = 'https://api.x.ai/v1';
+    }
+    if((value === 'gemini-cli' || value === 'codex') && baseInput){
+        baseInput.value = '';
+        item.base_url = '';
+    }
     updateProviderProtocolHint(item);
     clearVerifyResult();
+    // Protocol-specific base URL defaults
+    if(value === 'openai-responses' && baseInput){
+        item.image_request_mode = 'openai-responses';
+    }
+    if(value === 'apimart' && !item.base_url){
+        item.base_url = 'https://api.apimart.ai';
+    }
+
 }
 function isVolcengineProvider(item){
+
     return String(item?.protocol || '').toLowerCase() === 'volcengine';
 }
+
 function updateProviderProtocolHint(item = provider()){
     if(!volcengineHint) return;
     const visible = !!item && item.id !== 'modelscope' && item.id !== 'runninghub' && isVolcengineProvider(item);

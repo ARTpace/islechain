@@ -135,6 +135,43 @@
         .preset-apply-btn:hover { box-shadow:0 0 30px rgba(0,240,255,.4); transform:translateY(-2px); }
         .preset-clear-btn { padding:12px 20px; border-radius:12px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; background:rgba(255,255,255,.05); color:#94a3b8; border:1px solid rgba(0,240,255,.15); cursor:pointer; transition:all .25s; }
         .preset-clear-btn:hover { background:rgba(255,255,255,.1); color:#22d3ee; border-color:rgba(0,240,255,.3); }
+
+        /* Provider/Model Selectors - Dark Theme */
+        .theme-dark #providerSelect,
+        .theme-dark #modelSelect {
+            background-color: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e2e8f0;
+        }
+        .theme-dark #providerSelect option,
+        .theme-dark #modelSelect option {
+            background-color: #1e293b;
+            color: #e2e8f0;
+        }
+        .theme-dark #protocolBadge {
+            background: rgba(0,180,216,0.15);
+            color: #00b4d8;
+            border: 1px solid rgba(0,180,216,0.3);
+        }
+        .theme-dark .nano-input:focus {
+            border-color: #00b4d8;
+            box-shadow: 0 0 0 1px #00b4d8;
+        }
+        .theme-dark #refreshModelsBtn {
+            background: rgba(0,180,216,0.1);
+            border: 1px solid rgba(0,180,216,0.3);
+            color: #00b4d8;
+        }
+        #providerSelect, #modelSelect {
+            min-height: 44px;
+        }
+        select:-webkit-autofill,
+        select:-webkit-autofill:hover,
+        select:-webkit-autofill:focus {
+            -webkit-text-fill-color: #e2e8f0;
+            -webkit-box-shadow: 0 0 0px 1000px rgba(30,41,59,1) inset;
+            transition: background-color 5000s ease-in-out 0s;
+        }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
 </head>
@@ -210,12 +247,36 @@
                 <div class="tool-panel">
                     <div class="control-label">
                         <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
-                        <span>Model</span>
                     </div>
-                    <div class="model-pill">
-                        <button id="gptOpt" class="model-option" onclick="setProvider('gpt')"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i>GPT</button>
-                        <button id="nano1Opt" class="model-option" onclick="setProvider('nano1')"><i data-lucide="bot" class="w-3.5 h-3.5"></i>Nano 1</button>
-                        <button id="nano2Opt" class="model-option active" onclick="setProvider('nano2')"><i data-lucide="bot" class="w-3.5 h-3.5"></i>Nano 2</button>
+                    <div class="control-label mt-1">
+                        <i data-lucide="plug" class="w-3.5 h-3.5"></i>
+                        <span>Provider</span>
+                        <button id="refreshModelsBtn" onclick="refreshProviderModels()" class="ml-auto w-7 h-7 bg-white/80 backdrop-blur rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-[0_0_12px_rgba(34,211,238,0.35)] group" title="刷新模型列表" style="font-size:16px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M21 21v-5h-5"/></svg>
+                        </button>
+                    </div>
+                    <div class="relative" style="min-width:160px">
+                        <button id="providerBtn" onclick="toggleDropdown('providerDropdown')" class="nano-input w-full p-3 rounded-2xl text-sm outline-none cursor-pointer flex items-center justify-between gap-2">
+                            <span id="providerLabel">COMFLY</span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400"></i>
+                        </button>
+                        <div id="providerDropdown" class="hidden absolute z-40 top-full left-0 right-0 mt-1 bg-[#1e293b] border border-slate-700 rounded-2xl shadow-xl max-h-60 overflow-y-auto">
+                            <div class="p-1"></div>
+                        </div>
+                    </div>
+                    <div class="control-label mt-1">
+                        <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                        <span>Model</span>
+                        <span id="protocolBadge" class="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-1 rounded-full">OPENAI</span>
+                    </div>
+                    <div class="relative flex-1 min-w-0">
+                        <button id="modelBtn" onclick="toggleDropdown('modelDropdown')" class="nano-input w-full p-3 rounded-2xl text-sm outline-none cursor-pointer flex items-center justify-between gap-2 truncate">
+                            <span id="modelLabel" class="truncate">请选择提供商</span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
+                        </button>
+                        <div id="modelDropdown" class="hidden absolute z-40 top-full left-0 right-0 mt-1 bg-[#1e293b] border border-slate-700 rounded-2xl shadow-xl max-h-60 overflow-y-auto">
+                            <div class="p-1"></div>
+                        </div>
                     </div>
                     <div class="control-label mt-1">
                         <i data-lucide="ruler" class="w-3.5 h-3.5"></i>
@@ -356,17 +417,185 @@
         }
 
         lucide.createIcons();
-        let refs = {1:null,2:null,3:null};
-        let provider = 'nano2';
-        let ratio = 'square';
-        let resolution = '1k';
-        let models = {gpt:'gpt-image-2-c', nano1:'gemini-3-pro-image-preview', nano2:'gemini-3.1-flash-image-preview'};
+        let selectedProviderId = 'comfly';
+        let selectedModel = '';
+        let currentProtocol = 'openai';
+        let providerModels = {comfly:[], modelscope:[], jimeng:[], runninghub:[], apimart:[], volcengine:[], grok:[]};
+        let allProviders = [];
+        
+        const PROVIDER_LABELS = {
+            comfly: 'COMFLY',
+            modelscope: 'ModelScope',
+            jimeng: '即梦 CLI',
+            runninghub: 'RunningHub',
+            apimart: 'APIMart',
+            volcengine: '火山引擎',
+            grok: 'Grok',
+            gemini: 'Gemini CLI',
+            codex: 'GPT CLI',
+            openai: 'OpenAI'
+        };
+        
         function getProtocol(model){
-            return model.toLowerCase().includes('gemini') ? 'gemini' : 'openai';
+            if (!model) return currentProtocol;
+            const m = model.toLowerCase();
+            if (m.includes('gemini')) return 'gemini';
+            if (m.includes('nano-banana') || m.includes('gpt-image')) return 'openai';
+            return currentProtocol || 'openai';
         }
-        let allHistory = [], currentIndex = 0, currentResult = null, currentLightboxData = null, isLoading = false;
-        let batchCount = 1;
-        const PAGE_SIZE = 24;
+        
+async function loadProviders(){
+    try {
+        const res = await fetch('/api/providers');
+        if (!res.ok) return;
+        const data = await res.json();
+        allProviders = data.providers || [];
+        const imageProviders = allProviders.filter(p => 
+            p.enabled && (p.image_models?.length > 0 || ['comfly','modelscope','jimeng'].includes(p.id))
+        );
+        
+        // Build provider dropdown items
+        const dropdown = document.getElementById('providerDropdown');
+        dropdown.innerHTML = '<div class="p-2"></div>';
+        for (const p of imageProviders) {
+            const item = document.createElement('button');
+            item.className = 'w-full text-left px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2';
+            item.innerHTML = '<span class="' + (p.primary ? 'text-cyan-400 font-bold' : 'font-medium') + '">' + (p.name || p.id) + '</span><span class="ml-auto text-[10px] text-slate-500 uppercase">' + (p.protocol || 'openai') + '</span>';
+            item.onclick = (e) => { e.stopPropagation(); selectedProviderId = p.id; onProviderChange(); renderProviderDropdown(); };
+            dropdown.appendChild(item);
+        }
+        // Ensure comfly is available as fallback
+        if (!imageProviders.find(p => p.id === 'comfly')) {
+            const item = document.createElement('button');
+            item.className = 'w-full text-left px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2';
+            item.innerHTML = '<span class="font-medium">COMFLY</span><span class="ml-auto text-[10px] text-slate-500 uppercase">openai</span>';
+            item.onclick = (e) => { e.stopPropagation(); selectedProviderId = "comfly"; onProviderChange(); renderProviderDropdown(); };
+            dropdown.appendChild(item);
+        }
+        renderProviderDropdown();
+    } catch(e) {
+        console.error('加载提供商失败:', e);
+    }
+}
+
+function renderProviderDropdown(){
+    const label = document.getElementById('providerLabel');
+    if(label){
+        const prov = allProviders.find(p => p.id === selectedProviderId);
+        label.textContent = prov ? (prov.name || prov.id) : selectedProviderId;
+    }
+}
+
+function toggleDropdown(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    const isOpen = !el.classList.contains('hidden');
+    closeAllDropdowns();
+    if(!isOpen) el.classList.remove('hidden');
+}
+
+function closeAllDropdowns(){
+    document.querySelectorAll('[id$="Dropdown"]').forEach(el => el.classList.add('hidden'));
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if(!e.target.closest('[id$="Dropdown"]') && !e.target.closest('[id$="Btn"]')){
+        closeAllDropdowns();
+    }
+});
+        
+        async function refreshProviderModels(){
+            if (!selectedProviderId) return;
+            const btn = document.getElementById('refreshModelsBtn');
+            btn.classList.add('spin');
+            try {
+                const res = await fetch(`/api/providers/models?provider_id=${encodeURIComponent(selectedProviderId)}`);
+                const data = await res.json();
+                if (data.image_models && data.image_models.length > 0) {
+                    providerModels[selectedProviderId] = data.image_models;
+                } else if (!providerModels[selectedProviderId]?.length) {
+                    // Fallback to default models based on protocol
+                    const prov = allProviders.find(p => p.id === selectedProviderId);
+                    if (prov) providerModels[selectedProviderId] = prov.image_models || DEFAULT_IMAGE_MODELS;
+                }
+                updateModelList();
+            } catch(e) {
+                console.error('刷新模型列表失败:', e);
+            } finally {
+                btn.classList.remove('spin');
+            }
+        }
+        
+        function onProviderChange(){
+            currentProtocol = getProviderProtocol(selectedProviderId);
+            updateModelList();
+            refreshProviderModels();
+        }
+        
+        function getProviderProtocol(id){
+            const prov = allProviders.find(p => p.id === id);
+            if (prov) return prov.protocol || 'openai';
+            if (id === 'modelscope') return 'openai';
+            if (id === 'jimeng') return 'jimeng';
+            if (id === 'runninghub') return 'runninghub';
+            if (id === 'apimart') return 'apimart';
+            return 'openai';
+        }
+        
+        function updateModelList(){
+            const badge = document.getElementById('protocolBadge');
+            badge.textContent = (currentProtocol || 'OPENAI').toUpperCase();
+
+            let models = providerModels[selectedProviderId] || [];
+            // For providers without pre-configured models, use runtime defaults
+            if (models.length === 0) {
+                if (selectedProviderId === 'comfly') models = (window.IMAGE_MODELS && window.IMAGE_MODELS.length > 0) ? window.IMAGE_MODELS : DEFAULT_IMAGE_MODELS;
+                else if (selectedProviderId === 'modelscope') models = (window.IMAGE_MODELS || DEFAULT_IMAGE_MODELS).filter(m => !m.toLowerCase().includes('gpt') && !m.toLowerCase().includes('nano'));
+                else if (selectedProviderId === 'jimeng') models = JIMENG_DEFAULT_IMAGE_MODELS;
+                else if (selectedProviderId === 'gemini-cli') models = ['auto'];
+                else if (selectedProviderId === 'codex') models = ['gpt-image-2'];
+                else models = (window.IMAGE_MODELS && window.IMAGE_MODELS.length > 0) ? window.IMAGE_MODELS : DEFAULT_IMAGE_MODELS;
+            }
+
+            // Render model dropdown items into modelDropdown (custom button-based dropdown)
+            const dropdown = document.getElementById('modelDropdown');
+            if (dropdown) {
+                dropdown.innerHTML = '<div class="p-1"></div>';
+                for (const m of models) {
+                    const item = document.createElement('button');
+                    item.className = 'w-full text-left px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all';
+                    item.textContent = m;
+                    item.onclick = (e) => { e.stopPropagation(); selectedModel = m; document.getElementById('modelLabel').textContent = m; closeAllDropdowns(); };
+                    dropdown.appendChild(item);
+                }
+            }
+
+            // Auto-select current model or first
+            if (selectedModel && models.includes(selectedModel)) {
+                // keep existing selection
+            } else if (models.length > 0) {
+                selectedModel = models[0];
+            }
+            const modelLabel = document.getElementById('modelLabel');
+            if (modelLabel) {
+                modelLabel.textContent = selectedModel || '请选择提供商';
+            }
+        }
+        
+        async function initModels(){
+            try {
+                const cfg = await fetch('/api/config').then(r=>r.json());
+                window.IMAGE_MODELS = cfg.image_models || [];
+            } catch(e) {}
+            try {
+                await loadProviders();
+                updateModelList();
+            } catch(e) {}
+        }
+        
+        // Runtime defaults for built-in providers
+        const JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro","5.0","4.7","4.6","4.5","4.1","4.0","3.1","3.0"];
         const SIZE_OPTIONS = {
             square: [
                 ['1024x1024', '1k'],
@@ -389,22 +618,15 @@
                 ['1920x1080', '2k']
             ]
         };
+        
+        let ratio = 'square';
+        let resolution = '1k';
+        let batchCount = 1;
 
-        async function initModels(){
-            try {
-                const cfg = await fetch('/api/config').then(r=>r.json());
-                const imageModels = cfg.image_models || [];
-                models.nano2 = imageModels.find(m => m.toLowerCase().includes('flash')) || imageModels.find(m => m.toLowerCase().includes('gemini')) || 'gemini-3.1-flash-image-preview';
-                models.nano1 = imageModels.find(m => m.toLowerCase().includes('pro')) || imageModels.find(m => m.toLowerCase().includes('gemini')) || 'gemini-3-pro-image-preview';
-            } catch(e) {}
-        }
 
-        function setProvider(next){
-            provider = next;
-            document.getElementById('gptOpt').classList.toggle('active', next === 'gpt');
-            document.getElementById('nano1Opt').classList.toggle('active', next === 'nano1');
-            document.getElementById('nano2Opt').classList.toggle('active', next === 'nano2');
-        }
+const DEFAULT_IMAGE_MODELS = ["gpt-image-2-all","nano-banana","gpt-image-1"];
+
+
 
         function setBatchCount(next){
             batchCount = next;
@@ -552,7 +774,7 @@
             createPendingCards(batchId, count, masonry);
             startProgressAnimation();
             const refImages = Object.values(refs).filter(Boolean).map(r => ({ url: r.url || '', name: r.name || '' }));
-            const body = { prompt, model:models[provider], size:currentSize(), protocol:getProtocol(models[provider]), reference_images: refImages };
+            const body = { prompt, model:selectedModel||'', size:currentSize(), protocol:getProtocol(selectedModel), provider_id:selectedProviderId, reference_images: refImages };
             console.log('发送请求体:', JSON.stringify(body, null, 2));
             const requests = Array.from({length:count}, () =>
                 fetch('/api/online-image', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
@@ -732,6 +954,8 @@
             isNew ? document.getElementById('masonry').prepend(card) : document.getElementById('masonry').appendChild(card);
             lucide.createIcons();
         }
+        const PAGE_SIZE = 24;
+        let allHistory = [], currentIndex = 0, isLoading = false, currentResult = null, currentLightboxData = null;
         async function loadHistory(page=0){
             if(isLoading) return; isLoading = true;
             const loader = document.getElementById('loadMoreTrigger');
@@ -910,8 +1134,15 @@
             };
             confirm.querySelector('.confirm-no').onclick = e => { e.stopPropagation(); confirm.remove(); };
         }
-        const observer = new IntersectionObserver(entries => { if(entries[0].isIntersecting && currentIndex < allHistory.length) loadHistory(1); }, {threshold:.1});
-        window.onload = async () => { setRatio('square'); setResolution('1k'); await initModels(); await loadHistory(0); observer.observe(document.getElementById('loadMoreTrigger')); document.getElementById('loadMoreTrigger').onclick = () => loadHistory(1); };
+        window.onload = async () => {
+            await initModels();
+            setRatio('square');
+            setResolution('1k');
+            await loadHistory(0);
+            const observer = new IntersectionObserver(entries => { if(entries[0].isIntersecting && currentIndex < allHistory.length) loadHistory(1); }, {threshold:.1});
+            observer.observe(document.getElementById('loadMoreTrigger'));
+            document.getElementById('loadMoreTrigger').onclick = () => loadHistory(1);
+        };
 
         // 预设数据结构：label为中文标签，value为英文提示词
         const PRESET_CATEGORIES = {

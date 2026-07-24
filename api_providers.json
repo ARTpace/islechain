@@ -1,19 +1,5 @@
 [
   {
-    "id": "uki",
-    "name": "uki",
-    "base_url": "https://api.ukiyostudio.co",
-    "protocol": "openai",
-    "image_models": [
-      "gpt-image-2",
-      "gemini-3.5-flash"
-    ],
-    "chat_models": [],
-    "video_models": [],
-    "primary": false,
-    "enabled": true
-  },
-  {
     "id": "mimo",
     "name": "MiMo",
     "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
