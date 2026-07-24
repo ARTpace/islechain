@@ -27,6 +27,26 @@ let loraPickerModelFilter = null;  // 当前模型过滤（文件夹名），nul
 let loraPickerModelLabel = null;   // 当前模型过滤显示名（如 "Z-Image"）
 let loraPickerShowAll = false;     // 用户是否点了"显示全部"
 
+// ── 描述语言偏好 ────────────────────────────────────────────
+// 'zh' = 优先显示中文翻译, 'en' = 始终显示原始英文
+let loraPickerDescLang = 'zh';
+try { loraPickerDescLang = localStorage.getItem('loraPickerDescLang') || 'zh'; } catch (e) {}
+function _loraPickerSaveDescLang(lang) {
+    loraPickerDescLang = lang;
+    try { localStorage.setItem('loraPickerDescLang', lang); } catch (e) {}
+}
+/** 根据当前语言偏好获取描述文本 */
+function _loraPickerGetDesc(description, translatedDescription) {
+    if (loraPickerDescLang === 'zh' && translatedDescription) {
+        return String(translatedDescription);
+    }
+    return description ? String(description) : '';
+}
+/** 判断是否有中文翻译可用 */
+function _loraPickerHasTrans(description, translatedDescription) {
+    return !!(description && translatedDescription);
+}
+
 // ── NSFW 状态 ──────────────────────────────────────────────────────────
 // loraPickerNsfwRevealed: 本次会话内已被用户点击"显示"的 LoRA key 集合
 let loraPickerNsfwRevealed = new Set();
@@ -1190,12 +1210,14 @@ function loraPickerBuildCardHtml(item) {
     // 封面上的名称浮层(半透明渐变底,代替底部独立信息区)
     var nameOverlayHtml = '<div class="lora-card-name-overlay"><span class="lora-card-name-text">' + item.displayName.replace(/</g,'&lt;') + '</span>' + nsfwBadgeHtml + '</div>';
 
-    // hover 提示:用 data-desc 存储简介,由 tooltip 事件处理
+    // hover 提示:用 data-desc 存储简介,由 tooltip 事件处理(跟随语言偏好)
     var hoverTitle = item.displayName;
     var dataDesc = '';
-    if (item.civitai && item.civitai.model && item.civitai.model.description) {
+    var _hasTrans = _loraPickerHasTrans(item.civitai && item.civitai.model && item.civitai.model.description, item.translatedDescription);
+    var _prefDesc = _loraPickerGetDesc(item.civitai && item.civitai.model && item.civitai.model.description, item.translatedDescription);
+    if (_prefDesc) {
         hoverTitle = item.displayName;
-        dataDesc = loraPickerEscapeHtml(String(item.civitai.model.description).replace(/<[^>]+>/g, '').trim().substring(0, 300));
+        dataDesc = loraPickerEscapeHtml(_prefDesc.replace(/<[^>]+>/g, '').trim().substring(0, 300));
     }
 
     // 卡片基础结构:名称浮在封面底部,不占用额外空间
@@ -1289,6 +1311,46 @@ function loraPickerIcon(name) {
     };
     return icons[name] || '';
 }
+
+// ── 描述语言切换 ────────────────────────────────────────────
+window.loraPickerToggleDescLang = function() {
+    var newLang = (loraPickerDescLang === 'zh') ? 'en' : 'zh';
+    _loraPickerSaveDescLang(newLang);
+    var popup = document.getElementById('loraPickerPopup');
+    if (!popup) return;
+    var activeBtn = popup._activeBtn;
+    if (!activeBtn) return;
+    var card = activeBtn.closest('.lora-card-item');
+    if (!card) return;
+    var cardKey = card.getAttribute('data-key');
+    if (!cardKey) return;
+    var data = loraPickerPopupDataStore.get(cardKey);
+    if (!data || !data.description) return;
+    // 更新描述文本
+    var descTextEl = popup.querySelector('.lora-popup-desc-text');
+    var langLabelEl = popup.querySelector('.lora-popup-desc-lang');
+    var toggleBtn = popup.querySelector('.lora-popup-desc-toggle');
+    if (!descTextEl || !langLabelEl) return;
+    var showZh = (newLang === 'zh' && data.translatedDescription);
+    var desc = showZh ? data.translatedDescription : data.description;
+    desc = String(desc).replace(/<[^>]+>/g, '').trim().substring(0, 500);
+    descTextEl.textContent = desc;
+    langLabelEl.textContent = showZh ? '中文' : 'EN';
+    if (toggleBtn) {
+        toggleBtn.innerHTML = loraPickerIcon('translate') + ' ' + (showZh ? 'EN' : '中文');
+    }
+    // 同步更新所有卡片的 data-desc tooltip
+    document.querySelectorAll('.lora-card-item[data-key]').forEach(function(c) {
+        var k = c.getAttribute('data-key');
+        var d = loraPickerPopupDataStore.get(k);
+        if (!d || !d.description) return;
+        var szh = (newLang === 'zh' && d.translatedDescription);
+        var txt = szh ? d.translatedDescription : d.description;
+        txt = String(txt).replace(/<[^>]+>/g, '').trim().substring(0, 300);
+        c.setAttribute('data-desc', txt);
+    });
+};
+
 function loraPickerBuildPopupHtml(d) {
     var html = [];
     // 顶部:卡片标题 + 关闭按钮
@@ -1296,18 +1358,26 @@ function loraPickerBuildPopupHtml(d) {
         '<div class="lora-popup-title">' + loraPickerIcon('box') + ' ' + loraPickerEscapeHtml(d.filename || '') + '</div>' +
         '<button type="button" class="lora-popup-close" onclick="document.getElementById(\'loraPickerPopup\').style.display=\'none\'" title="关闭">' + loraPickerIcon('warn') + '</button>' +
     '</div>');
-    // 简介(如果有,优先显示后端已翻译的中文)
+    // 简介(支持中/英文切换,优先显示当前语言偏好的描述)
     if (d.description) {
-        var _descRaw = d.description.replace(/<[^>]+>/g, '').trim().substring(0, 500);
-        var _showDesc = loraPickerEscapeHtml(_descRaw);
-        var _label = 'EN';
-        if (d.translatedDescription) {
-            _showDesc = loraPickerEscapeHtml(d.translatedDescription.replace(/<[^>]+>/g, '').trim().substring(0, 500));
-            _label = '中文';
-        }
+        var _descRawEn = d.description.replace(/<[^>]+>/g, '').trim().substring(0, 500);
+        var _hasTrans = !!(d.translatedDescription);
+        var _descRawZh = _hasTrans ? d.translatedDescription.replace(/<[^>]+>/g, '').trim().substring(0, 500) : '';
+        // 按当前偏好选择显示的描述
+        var _showZh = (loraPickerDescLang === 'zh' && _descRawZh);
+        var _showDesc = loraPickerEscapeHtml(_showZh ? _descRawZh : _descRawEn);
+        var _label = _showZh ? '中文' : 'EN';
+        // 只有当中英文都可用时才显示切换按钮
+        var _toggleBtn = (_hasTrans && _descRawEn && _descRawZh)
+            ? '<button type="button" class="lora-popup-desc-toggle" onclick="loraPickerToggleDescLang()" title="切换描述语言">' +
+                loraPickerIcon('translate') + ' ' + (_showZh ? 'EN' : '中文') + '</button>'
+            : '';
         if (_showDesc) html.push('<div class="lora-popup-desc">' +
             '<div class="lora-popup-desc-text">' + _showDesc + '</div>' +
-            '<span class="lora-popup-desc-lang">' + _label + '</span>' +
+            '<div class="lora-popup-desc-bar">' +
+                _toggleBtn +
+                '<span class="lora-popup-desc-lang">' + _label + '</span>' +
+            '</div>' +
         '</div>');
     }
     // 第一行:版本 | 文件名

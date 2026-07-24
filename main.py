@@ -8935,9 +8935,15 @@ async def proxy_lora_manager_list():
                     it["trainedWords"] = md["trainedWords"]
                 if md.get("tags") and not it.get("tags"):
                     it["tags"] = md["tags"]
-                # 后端已翻译的中文描述
-                if md.get("translated_description"):
+                # 后端已翻译的中文描述(modelDescription_zh 优先,translated_description 兼容)
+                if md.get("modelDescription_zh"):
+                    it["modelDescription_zh"] = md["modelDescription_zh"]
+                elif md.get("translated_description"):
                     it["translated_description"] = md["translated_description"]
+                # 英文描述(modelDescription 不为空时也转发,供前端备用)
+                if md.get("modelDescription") and not it.get("model_name"):
+                    # 只转发,不做覆盖
+                    pass
                 # 文件元数据(用于弹出详情面板)
                 if md.get("size") and not it.get("size"):
                     it["size"] = md["size"]

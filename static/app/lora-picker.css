@@ -819,6 +819,31 @@ body.studio-theme-dark .lora-card-nsfw-lvl--4 { background: rgba(239,68,68,0.15)
 .lora-popup-desc-text {
     margin-bottom: 4px;
 }
+.lora-popup-desc-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.lora-popup-desc-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    color: oklch(65% 0.06 250);
+    background: oklch(22% 0.04 250 / 0.4);
+    border: 1px solid oklch(35% 0.05 250 / 0.4);
+    border-radius: 4px;
+    padding: 1px 6px;
+    cursor: pointer;
+    line-height: 1.5;
+    transition: all 0.15s;
+}
+.lora-popup-desc-toggle:hover {
+    color: oklch(80% 0.06 250);
+    background: oklch(28% 0.04 250 / 0.5);
+    border-color: oklch(45% 0.06 250 / 0.5);
+}
 .lora-popup-desc-lang {
     display: inline-block;
     font-size: 9px;

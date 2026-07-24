@@ -161,7 +161,7 @@ const LoraManager = (function() {
             nsfwLevel: m.preview_nsfw_level != null ? m.preview_nsfw_level : (civitai ? civitai.nsfwLevel || 0 : 0),
             size: m.size || 0, modified: m.modified || 0,
             sha256: m.sha256 || '', fileName: m.file_name || '',
-            translatedDescription: m.translated_description || ''
+            translatedDescription: m.modelDescription_zh || m.translated_description || ''
         };
     }
 
@@ -216,7 +216,8 @@ const LoraManager = (function() {
             if (m.modified) entry.modified = m.modified;
             if (m.sha256) entry.sha256 = m.sha256;
             if (m.file_name) entry.fileName = m.file_name;
-            if (m.translated_description) entry.translatedDescription = m.translated_description;
+            if (m.modelDescription_zh) entry.translatedDescription = m.modelDescription_zh;
+            else if (m.translated_description) entry.translatedDescription = m.translated_description;
             // 调试:前 3 条打日志
             if (entry.civitai && entry.civitai.modelId && _matchCount <= 3) {
                 console.log('[Lora] _enrichFromManager 匹配成功 #' + _matchCount + ' key=' + matchedKey + ' civitai.modelId=' + entry.civitai.modelId + ' nsfwLevel=' + entry.nsfwLevel + ' triggerWords=' + (entry.triggerWords || []).length);
