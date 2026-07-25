@@ -1,29 +1,18 @@
 [
   {
-    "id": "mimo",
-    "name": "MiMo",
-    "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
-    "protocol": "openai",
-    "image_models": [],
-    "chat_models": [
-      "mimo-v2.5"
-    ],
-    "video_models": [],
-    "primary": false,
-    "enabled": true
-  },
-  {
     "id": "agnes",
     "name": "Agnes",
-    "base_url": "https://apihub.agnes-ai.com/v1",
+    "base_url": "https://apihub.agnes-ai.com",
     "protocol": "openai",
+    "image_request_mode": "openai",
     "image_models": [
       "agnes-image-2.0-flash",
       "agnes-image-2.1-flash"
     ],
     "chat_models": [
-      "agnes-1.5-flash",
-      "agnes-2.0-flash"
+      "agnes-2.0-flash",
+      "agnes-2.5-pro-alpha",
+      "agnes-1.5-flash"
     ],
     "video_models": [
       "agnes-video-v2.0"
@@ -36,6 +25,7 @@
     "name": "商汤AI",
     "base_url": "https://token.sensenova.cn/v1",
     "protocol": "openai",
+    "image_request_mode": "openai",
     "image_models": [
       "gpt-image-2",
       "gemini-3.1-flash-image-preview",
@@ -57,10 +47,55 @@
     "name": "Deepseek",
     "base_url": "https://api.deepseek.com",
     "protocol": "openai",
+    "image_request_mode": "openai",
     "image_models": [],
     "chat_models": [
       "deepseek-v4-flash"
     ],
+    "video_models": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "modelscope",
+    "name": "ModelScope",
+    "base_url": "https://api-inference.modelscope.cn/v1",
+    "protocol": "openai",
+    "image_request_mode": "openai",
+    "image_models": [
+      "Tongyi-MAI/Z-Image-Turbo",
+      "Qwen/Qwen-Image-2512",
+      "Qwen/Qwen-Image-Edit-2511",
+      "black-forest-labs/FLUX.2-klein-9B"
+    ],
+    "chat_models": [
+      "Qwen/Qwen3-235B-A22B-Instruct-2507",
+      "Qwen/Qwen3-Coder-480B-A35B-Instruct"
+    ],
+    "video_models": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "runninghub",
+    "name": "RunningHub",
+    "base_url": "https://www.runninghub.ai",
+    "protocol": "openai",
+    "image_request_mode": "openai",
+    "image_models": [],
+    "chat_models": [],
+    "video_models": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "volcengine",
+    "name": "火山引擎",
+    "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+    "protocol": "openai",
+    "image_request_mode": "openai",
+    "image_models": [],
+    "chat_models": [],
     "video_models": [],
     "primary": false,
     "enabled": true

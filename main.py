@@ -135,6 +135,13 @@ manager = ConnectionManager()
 GLOBAL_LOOP = None
 CANVAS_TASKS: Dict[str, Dict[str, Any]] = {}
 CANVAS_TASK_LOCK = Lock()
+AI_IMAGE_TASKS = {}  # {task_id: {status, result, updated_at, ...}}
+AI_IMAGE_TASK_LOCK = Lock()
+IMAGE_REQUEST_MODES = {"openai", "openai-json", "openai-video-proxy", "openai-responses", "openai-async-image"}
+OPENAI_ASYNC_IMAGE_DEFAULT_MODELS = ["gpt-image-2-all"]
+OPENAI_ASYNC_IMAGE_TASK_TIMEOUT = 1800
+OPENAI_ASYNC_IMAGE_POLL_INTERVAL = 5
+OPENAI_ASYNC_IMAGE_INITIAL_POLL_DELAY = 10
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -1232,16 +1239,82 @@ def get_user_input_dir(username):
 
 # --- API 提供商管理辅助函数 ---
 
+BUILTIN_PROVIDERS = [
+    {
+        "id": "modelscope",
+        "name": "ModelScope",
+        "base_url": "https://api-inference.modelscope.cn/v1",
+        "protocol": "openai",
+        "image_models": [
+            "Tongyi-MAI/Z-Image-Turbo",
+            "Qwen/Qwen-Image-2512",
+            "Qwen/Qwen-Image-Edit-2511",
+            "black-forest-labs/FLUX.2-klein-9B"
+        ],
+        "chat_models": ["Qwen/Qwen3-235B-A22B-Instruct-2507", "Qwen/Qwen3-Coder-480B-A35B-Instruct"],
+        "video_models": [],
+        "primary": False,
+        "enabled": True,
+    },
+    {
+        "id": "runninghub",
+        "name": "RunningHub",
+        "base_url": "https://www.runninghub.ai",
+        "protocol": "runninghub",
+        "image_models": [],
+        "chat_models": [],
+        "video_models": [],
+        "primary": False,
+        "enabled": True,
+    },
+    {
+        "id": "volcengine",
+        "name": "火山引擎",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "protocol": "volcengine",
+        "image_models": [],
+        "chat_models": [],
+        "video_models": [],
+        "primary": False,
+        "enabled": True,
+    },
+]
+
+def ensure_builtin_providers(providers):
+    """确保内置平台（ModelScope/RunningHub/火山引擎）始终存在"""
+    existing_ids = {p.get("id") for p in providers}
+    changed = False
+    for bp in BUILTIN_PROVIDERS:
+        if bp["id"] not in existing_ids:
+            providers.append(dict(bp))
+            existing_ids.add(bp["id"])
+            changed = True
+    return providers, changed
+
 def load_api_providers():
-    """从文件加载 API 提供商列表"""
+    """从文件加载 API 提供商列表（内置平台自动补全）"""
     if not os.path.exists(API_PROVIDERS_FILE):
-        return []
+        try:
+            with open(API_PROVIDERS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(list(BUILTIN_PROVIDERS), f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return list(BUILTIN_PROVIDERS)
     try:
         with open(API_PROVIDERS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return data if isinstance(data, list) else []
+            if not isinstance(data, list):
+                data = []
     except Exception:
-        return []
+        data = []
+    data, changed = ensure_builtin_providers(data)
+    if changed:
+        try:
+            with open(API_PROVIDERS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+    return data
 
 def save_api_providers(providers):
     """保存 API 提供商列表到文件"""
@@ -1262,6 +1335,7 @@ def normalize_provider(data):
         "name": data.get("name", "").strip(),
         "base_url": data.get("base_url", "").strip(),
         "protocol": data.get("protocol", "openai"),
+        "image_request_mode": normalize_image_request_mode(data.get("image_request_mode", "")),
         "image_models": data.get("image_models") or [],
         "chat_models": data.get("chat_models") or [],
         "video_models": data.get("video_models") or [],
@@ -1282,6 +1356,7 @@ def public_provider(provider):
         "name": provider["name"],
         "base_url": provider["base_url"],
         "protocol": provider["protocol"],
+        "image_request_mode": normalize_image_request_mode(provider.get("image_request_mode", "")),
         "image_models": provider["image_models"],
         "chat_models": provider["chat_models"],
         "video_models": provider.get("video_models") or [],
@@ -1405,7 +1480,7 @@ CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-1")
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
 MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
-AI_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "120"))
+AI_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "300"))
 IMAGE_POLL_INTERVAL = float(os.getenv("IMAGE_POLL_INTERVAL", "2"))
 
 def model_list(env_name, primary, defaults):
@@ -1625,6 +1700,17 @@ class OnlineImageRequest(BaseModel):
     quality: str = "medium"
     protocol: str = "openai"
     provider_id: str = ""
+    image_request_mode: str = ""
+    reference_images: List[AIReference] = []
+
+class OnlineVideoRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    model: str = ""
+    size: str = "1024x1024"
+    duration: int = 5
+    protocol: str = "jimeng"
+    provider_id: str = ""
+    image_request_mode: str = ""
     reference_images: List[AIReference] = []
 
 class ChatRequest(BaseModel):
@@ -2457,31 +2543,24 @@ PROTOCOL_RUNNINGHUB = "runninghub"
 
 
 def _resolve_image_provider(provider_id, protocol_hint=None):
-    """Resolve provider config and credentials for online image generation."""
-    providers = load_api_providers()
-    
-    if provider_id == "comfly":
-        return {"id":"comfly","name":"COMFLY","protocol":PROTOCOL_OPENAI,"base_url":AI_BASE_URL,"api_key":AI_API_KEY,"image_models":IMAGE_MODELS}
-    
-    if provider_id == "modelscope":
-        return {"id":"modelscope","name":"ModelScope","protocol":PROTOCOL_OPENAI,"base_url":MODELSCOPE_CHAT_BASE_URL,"api_key":MODELSCOPE_API_KEY,"image_models":[m for m in IMAGE_MODELS if not m.lower().startswith(("gpt-image","nano"))]}
-    
+    """Resolve provider config and credentials (Infinite-Canvas unified style)."""
     prov = get_api_provider(provider_id)
     if not prov:
         raise HTTPException(status_code=400, detail=f"未找到提供商: {provider_id}")
-    
     proto = provider_protocol(prov)
     key_env = provider_key_env(prov["id"])
     api_key = read_api_env_value(key_env) or os.getenv(key_env, "")
     base_url = (prov.get("base_url") or "").rstrip("/")
-    
+    # ModelScope already includes /v1; other OpenAI providers may not
+    base_has_v1 = base_url.endswith("/v1")
     if proto not in ("jimeng", "codex", "gemini-cli", "runninghub"):
         if not base_url:
             raise HTTPException(status_code=400, detail=f"提供商 {prov.get('name', provider_id)} 未配置请求地址")
         if not api_key and proto != PROTOCOL_VOLCENGINE:
             raise HTTPException(status_code=400, detail=f"提供商 {prov.get('name', provider_id)} 未配置 API Key")
-        base_url = base_url + "/v1" if not base_url.endswith("/v1") else base_url
-    
+    # Normalize: strip /v1 suffix here; _gen_openai_sync appends its own /v1/images/...
+    if base_has_v1:
+        base_url = base_url[:-3].rstrip("/")
     return {
         "id": prov["id"],
         "name": prov.get("name", provider_id),
@@ -2494,11 +2573,167 @@ def _resolve_image_provider(provider_id, protocol_hint=None):
     }
 
 
+def normalize_image_request_mode(mode):
+    """统一 image_request_mode 值"""
+    m = str(mode or "").strip().lower()
+    return m if m in IMAGE_REQUEST_MODES else "openai"
+
+def normalize_image_request_mode_display(mode):
+    m = normalize_image_request_mode(mode)
+    display = {
+        "openai": "OpenAI 标准",
+        "openai-json": "OpenAI JSON",
+        "openai-video-proxy": "OpenAI 中转",
+        "openai-responses": "OpenAI RS",
+        "openai-async-image": "OpenAI 异步图片",
+    }
+    return display.get(m, m)
+
 def _openai_headers(base_url, api_key, multipart=False):
     h = {"Accept": "application/json", "Authorization": f"Bearer {sanitize_api_key(api_key)}"}
     if not multipart:
         h["Content-Type"] = "application/json"
     return h
+
+
+async def _gen_openai_responses(client, base_url, api_key, model, prompt, size, quality, refs):
+    """OpenAI Responses API: POST /v1/responses"""
+    body = {
+        "model": model,
+        "input": prompt,
+        "tools": [],
+    }
+    # size 映射
+    sz = size
+    resp = await client.post(
+        f"{base_url.rstrip('/')}/v1/responses",
+        headers=_openai_headers(base_url, api_key),
+        json=body,
+        timeout=httpx.Timeout(connect=20.0, read=300.0, write=120.0),
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    urls = []
+    return await _download_data_urls(client, data)
+
+
+async def _gen_openai_async_submit(client, base_url, api_key, model, prompt, size, quality, refs):
+    """OpenAI 异步生图: POST /v1/images/generations/async → 返回 task_id"""
+    body = {"model": model, "prompt": prompt, "size": size, "n": 1}
+    endpoint = f"{base_url.rstrip('/')}/v1/images/generations/async"
+    resp = await client.post(
+        endpoint,
+        headers=_openai_headers(base_url, api_key),
+        json=body,
+        timeout=httpx.Timeout(connect=20.0, read=60.0, write=60.0),
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    task_id = data.get("id") or data.get("task_id") or data.get("data", {}).get("task_id", "")
+    if not task_id:
+        raise HTTPException(status_code=502, detail=f"异步提交成功但未返回 task_id: {data}")
+    # 轮询结果
+    poll_url = f"{base_url.rstrip('/')}/v1/images/generations/{task_id}"
+    await asyncio.sleep(OPENAI_ASYNC_IMAGE_INITIAL_POLL_DELAY)
+    deadline = time.time() + OPENAI_ASYNC_IMAGE_TASK_TIMEOUT
+    while time.time() < deadline:
+        try:
+            poll_resp = await client.get(poll_url, headers=_openai_headers(base_url, api_key), timeout=20)
+            poll_resp.raise_for_status()
+            poll_data = poll_resp.json()
+            status = (poll_data.get("status") or poll_data.get("state", "")).lower()
+            if status in ("succeeded", "completed", "done", "success"):
+                urls = poll_data.get("data", {}).get("urls") or poll_data.get("urls") or [poll_data.get("url")] or [poll_data.get("output", {}).get("url")]
+                return await _download_data_urls(client, {"images": [{"url": u} for u in urls if u]})
+            elif status in ("failed", "error"):
+                raise HTTPException(status_code=502, detail=f"异步任务失败: {poll_data.get('error') or poll_data.get('message', '')}")
+        except httpx.TimeoutException:
+            pass
+        await asyncio.sleep(OPENAI_ASYNC_IMAGE_POLL_INTERVAL)
+    raise HTTPException(status_code=504, detail="异步生图超时")
+
+
+async def _gen_modelscope(client, base_url, api_key, model, prompt, size, quality, refs):
+    """ModelScope 专用生图：异步提交 + 轮询（API 路径与 OpenAI 不同）"""
+    clean_token = sanitize_api_key(api_key)
+    if not clean_token:
+        raise HTTPException(status_code=400, detail="未配置 ModelScope API Key，请在 API 设置中填写。")
+    width, height = parse_size_pair(size) if size else (1024, 1024)
+    payload = {"model": model, "prompt": prompt.strip()}
+    if width and height:
+        payload["width"] = width
+        payload["height"] = height
+        payload["size"] = f"{width}x{height}"
+    ref_urls = [ref.get("url", "") for ref in (refs or [])[:4] if isinstance(ref, dict) and ref.get("url")]
+    if ref_urls:
+        payload["image_url"] = ref_urls
+    headers = {
+        "Authorization": f"Bearer {clean_token}",
+        "Content-Type": "application/json",
+        "X-ModelScope-Async-Mode": "true",
+    }
+    api_root = base_url.rstrip("/") + "/v1"  # ModelScope 需要 /v1 前缀（base_url 已被 _resolve_image_provider 去掉/v1）
+    submit_res = await client.post(f"{api_root}/images/generations", headers=headers, json=payload)
+    submit_res.raise_for_status()
+    raw = submit_res.json()
+    task_id = raw.get("task_id")
+    if not task_id:
+        try:
+            extracted = extract_image(raw)
+            if extracted and extracted.get("value"):
+                return extracted, raw
+        except Exception:
+            pass
+        raise HTTPException(status_code=502, detail=f"ModelScope 未返回 task_id：{raw}")
+    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    last_payload = raw
+    while time.monotonic() < deadline:
+        await asyncio.sleep(IMAGE_POLL_INTERVAL)
+        poll_resp = await client.get(
+            f"{api_root}/tasks/{task_id}",
+            headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
+        )
+        poll_resp.raise_for_status()
+        data = poll_resp.json()
+        last_payload = data
+        status = str(data.get("task_status") or data.get("status", "")).upper()
+        if status in ("SUCCEED", "SUCCEEDED", "SUCCESS", "DONE", "COMPLETED"):
+            images = data.get("output_images") or data.get("images", []) or data.get("data", {}).get("urls", [])
+            if images:
+                return {"type": "url", "value": (images[0] if isinstance(images, list) else images)}, data
+            raise HTTPException(status_code=502, detail=f"ModelScope 成功但没有返回图片：{data}")
+        if status in ("FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT", "REVOKED"):
+            detail = data.get("error_info") or data.get("message") or data.get("detail") or str(data)
+            raise HTTPException(status_code=502, detail=f"ModelScope 任务失败：{detail}")
+    raise HTTPException(status_code=504, detail=f"ModelScope 生图任务超时：{last_payload}")
+
+
+async def _download_data_urls(client, data):
+    """从 API 返回中提取图片 URL 并下载成 bytes"""
+    raw = data
+    images_info = []
+    if isinstance(data, dict):
+        images_info = data.get("images") or data.get("data") or []
+    if not images_info:
+        urls = data.get("urls") or [data.get("url")] if data.get("url") else []
+        images_info = [{"url": u} for u in urls]
+    image_data_list = []
+    for img in images_info:
+        url = img.get("url") or img.get("b64_json") or ""
+        if not url:
+            continue
+        if url.startswith("data:"):
+            import base64
+            _, b64 = url.split(",", 1)
+            image_data_list.append(base64.b64decode(b64))
+        elif url.startswith("http"):
+            try:
+                resp = await client.get(url, timeout=30)
+                resp.raise_for_status()
+                image_data_list.append(resp.content)
+            except Exception:
+                pass
+    return image_data_list, raw
 
 
 async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quality, refs, is_grok=False):
@@ -2550,11 +2785,11 @@ async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quali
                 ct = content_type_for_path(path)
                 files.append(("image", (os.path.basename(path), fh, ct)))
             data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":"1"}
-            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files)
+            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files, timeout=httpx.Timeout(connect=30.0, read=180.0, write=60.0, pool=30.0))
         finally:
             for fh in opened: fh.close()
     else:
-        resp = await client.post(f"{base}/v1/images/generations", headers=_openai_headers(base_url, api_key), json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1})
+        resp = await client.post(f"{base}/v1/images/generations", headers=_openai_headers(base_url, api_key), json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, timeout=httpx.Timeout(connect=30.0, read=120.0, write=60.0, pool=30.0))
     
     resp.raise_for_status()
     try: raw = resp.json()
@@ -2698,19 +2933,24 @@ async def wait_for_image_task_v2(client, task_id, tasks_base=None, key=None):
     raise HTTPException(status_code=504, detail=f"生图任务超时,task_id={task_id}")
 
 
-async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai", provider_id="", provider=None):
+async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai", provider_id="", provider=None, image_request_mode="openai"):
     """Multi-protocol online image generation dispatcher.
     
-    Supported: openai, gemini, apimart, grok, volcengine, runninghub
+    Supported: openai (with modes: openai-json, openai-responses, openai-async-image), 
+               gemini, apimart, grok, volcengine, runninghub
     Falls back to default comfly/MODELSCOPE when no provider specified.
     """
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
     q = {"auto":"medium","low":"low","medium":"medium","high":"high","standard":"low","hd":"high"}.get(quality, "medium")
+    mode = normalize_image_request_mode(image_request_mode)
     
     prov = provider or _resolve_image_provider(provider_id, protocol)
     actual_proto = provider_protocol(prov) if isinstance(prov, dict) else (protocol or PROTOCOL_OPENAI)
     
     async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+        # ModelScope 专用（使用 async task API，与 OpenAI 标准不同）
+        if str(provider_id).lower() == "modelscope" or str(prov.get("id", "")).lower() == "modelscope":
+            return await _gen_modelscope(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
         if actual_proto == PROTOCOL_GEMINI:
             return await _gen_gemini(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
         elif actual_proto == PROTOCOL_APIMART:
@@ -2722,7 +2962,13 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
         elif actual_proto == PROTOCOL_RUNNINGHUB:
             return await _gen_runninghub(client, prov, model, prompt, size, q, refs)
         else:
-            return await _gen_openai_sync(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+            # OpenAI 协议下按 image_request_mode 分发
+            if mode == "openai-responses":
+                return await _gen_openai_responses(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+            elif mode == "openai-async-image":
+                return await _gen_openai_async_submit(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+            else:
+                return await _gen_openai_sync(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
 
 
 def upstream_message_from_record(item):
@@ -5062,20 +5308,82 @@ async def ai_config():
 async def ai_models():
     return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
 
+# 内置平台默认模型（按 provider_id 区分）
+MODELSCOPE_DEFAULT_IMAGE_MODELS = [
+    "Tongyi-MAI/Z-Image-Turbo",
+    "Qwen/Qwen-Image-2512",
+    "Qwen/Qwen-Image-Edit-2511",
+    "black-forest-labs/FLUX.2-klein-9B",
+]
+JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro", "5.0", "4.7", "4.6", "4.5", "4.1", "4.0", "3.1", "3.0"]
+JIMENG_DEFAULT_VIDEO_MODELS = ["VideoGen-720p", "VideoGen-1080p", "VideoGen-4K"]
+CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "$imagegen"]
+GEMINI_CLI_DEFAULT_IMAGE_MODELS = ["imagen-3", "imagen-3-2k", "Nano-Banana", "$imagegen"]
+RUNNINGHUB_DEFAULT_IMAGE_MODELS = [
+    "Tongyi-MAI/Z-Image-Turbo",
+    "Qwen/Qwen-Image-2512",
+    "Qwen/Qwen-Image-Edit-2511",
+    "black-forest-labs/FLUX.2-klein-9B",
+]
+
+def builtin_default_models(provider_id: str):
+    """返回内置平台的默认 image_models（当 provider 自定义为空时使用）"""
+    pid = (provider_id or "").lower()
+    if pid == "modelscope":
+        return list(MODELSCOPE_DEFAULT_IMAGE_MODELS), [], []
+    if pid == "jimeng":
+        return list(JIMENG_DEFAULT_IMAGE_MODELS), [], list(JIMENG_DEFAULT_VIDEO_MODELS)
+    if pid == "codex":
+        return list(CODEX_DEFAULT_IMAGE_MODELS), [], []
+    if pid == "gemini-cli":
+        return list(GEMINI_CLI_DEFAULT_IMAGE_MODELS), [], []
+    if pid == "runninghub":
+        return list(RUNNINGHUB_DEFAULT_IMAGE_MODELS), [], []
+    return [], [], []
+
 @app.get("/api/providers/models")
 async def provider_models(provider_id: str = ""):
     """Fetch available models for a specific provider."""
-    if provider_id and provider_id != "comfly" and provider_id != "modelscope" and provider_id != "jimeng":
-        prov = get_api_provider(provider_id)
-        if prov:
-            pk = get_provider_api_key(prov["id"])
-            if pk and prov.get("base_url"):
-                try:
-                    result = await fetch_models_from_upstream(prov["base_url"], pk)
-                    return {"provider_id": provider_id, **result}
-                except Exception as e:
-                    return {"provider_id": provider_id, "error": str(e)[:300], "image_models": prov.get("image_models",[]), "video_models": prov.get("video_models",[]), "chat_models": prov.get("chat_models",[])}
-            return {"provider_id": provider_id, "image_models": prov.get("image_models",[]), "video_models": prov.get("video_models",[]), "chat_models": prov.get("chat_models",[])}
+    if not provider_id:
+        return {"provider_id": provider_id, "image_models": IMAGE_MODELS, "chat_models": CHAT_MODELS, "video_models": []}
+
+    prov = get_api_provider(provider_id)
+    builtin_img, builtin_chat, builtin_video = builtin_default_models(provider_id)
+
+    if prov:
+        # 1) 优先使用 provider 自身的 image_models（用户保存的）
+        img = list(prov.get("image_models") or [])
+        chat = list(prov.get("chat_models") or [])
+        vid = list(prov.get("video_models") or [])
+        # 2) 对内置平台用专属 defaults 兜底（避免空列表导致的 OpenAI 通用模型泄漏）
+        if not img and builtin_img:
+            img = builtin_img
+        if not chat and builtin_chat:
+            chat = builtin_chat
+        if not vid and builtin_video:
+            vid = builtin_video
+        # 3) 仍有 api key + base_url 时尝试从上游拉取，会覆盖内置 defaults
+        pk = get_provider_api_key(prov["id"])
+        if pk and prov.get("base_url") and provider_id not in ("comfly", "modelscope", "jimeng", "codex", "gemini-cli"):
+            try:
+                result = await fetch_models_from_upstream(prov["base_url"], pk)
+                upstream_img = result.get("image_models") or []
+                upstream_chat = result.get("chat_models") or []
+                upstream_video = result.get("video_models") or []
+                return {
+                    "provider_id": provider_id,
+                    "image_models": upstream_img or img,
+                    "chat_models": upstream_chat or chat,
+                    "video_models": upstream_video or vid,
+                }
+            except Exception as e:
+                return {"provider_id": provider_id, "error": str(e)[:300],
+                        "image_models": img, "video_models": vid, "chat_models": chat}
+        return {"provider_id": provider_id, "image_models": img, "chat_models": chat, "video_models": vid}
+
+    # Provider 不存在 → 内置平台返回专属 defaults，其它回退到全局变量
+    if builtin_img or builtin_chat or builtin_video:
+        return {"provider_id": provider_id, "image_models": builtin_img, "chat_models": builtin_chat, "video_models": builtin_video}
     return {"provider_id": provider_id, "image_models": IMAGE_MODELS, "chat_models": CHAT_MODELS, "video_models": []}
 
 
@@ -5118,46 +5426,20 @@ async def update_config(payload: ConfigUpdateRequest):
 
     return {"status": "ok"}
 
-# --- 在线生图 (COMFLY) ---
+# --- 在线生图 (Infinite-Canvas unified style) ---
 
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest, token: str = ""):
-    username = require_valid_token(token)
-    provider_id = payload.provider_id or "comfly"
-    prov = _resolve_image_provider(provider_id)
-    model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
-    try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov)
-        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误:{exc.response.text}") from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
+    return await build_online_image_result(payload)
 
-    result = {
-        "prompt": payload.prompt,
-        "images": [local_url],
-        "timestamp": time.time(),
-        "type": "online",
-        "user": username,
-        "model": model,
-        "provider_id": provider_id,
-        "protocol": prov["protocol"],
-        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
-        "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
-    }
-    save_to_history(result)
-    if GLOBAL_LOOP:
-        asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(result), GLOBAL_LOOP)
-    return result
 async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
     provider_id = payload.provider_id or "comfly"
     prov = _resolve_image_provider(provider_id)
     model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    mode = normalize_image_request_mode(payload.image_request_mode or prov.get("image_request_mode", "openai"))
     try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov)
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
@@ -5172,7 +5454,12 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
             friendly = "请求过于频繁,已被上游限流,请稍后再试。"
         elif "Unauthorized" in text or "401" in text:
             friendly = "API Key 无效或已过期,请到「API 设置」检查 Key。"
-        raise HTTPException(status_code=exc.response.status_code, detail=friendly or text) from exc
+        # ModelScope 任务查询 404 → 更友好的提示
+        if exc.response.status_code == 404 and payload.provider_id in ("modelscope", "ms"):
+            friendly = friendly or "ModelScope 模型接口未返回预期结果。请确认 API Key 有效，或尝试更换模型（部分模型可能不通过在线生图接口提供）。"
+        raise HTTPException(status_code=502 if exc.response.status_code in (404, 502) else exc.response.status_code, detail=friendly or text) from exc
+    except (httpx.RemoteProtocolError, httpx.ReadTimeout) as exc:
+        raise HTTPException(status_code=502, detail=f"上游服务器连接异常或响应超时：模型生成耗时过长，请稍后重试或更换模型。") from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
     except Exception as exc:
@@ -5189,6 +5476,133 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
         "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
     }
+
+@app.post("/api/online-video")
+async def online_video(payload: OnlineVideoRequest, token: str = ""):
+    return await build_online_video_result(payload, username=token)
+
+async def build_online_video_result(payload: OnlineVideoRequest, username: str = None):
+    provider_id = payload.provider_id or "jimeng"
+    prov = _resolve_image_provider(provider_id)
+    model = payload.model or (prov.get("video_models") or [""])[0] or payload.model
+    refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    try:
+        result = await generate_video(payload.prompt, payload.size, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, duration=payload.duration)
+        local_url = await save_remote_video_to_output(result.get("value", ""), prefix="video_")
+    except httpx.HTTPStatusError as exc:
+        text = exc.response.text or ''
+        friendly = "视频生成接口返回错误"
+        if "rate limit" in text.lower():
+            friendly = "请求过于频繁，已被上游限流，请稍后重试。"
+        elif "Unauthorized" in text or "401" in text:
+            friendly = "API Key 无效或已过期，请到「API 设置」检查 Key。"
+        raise HTTPException(status_code=exc.response.status_code, detail=friendly) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"上游视频接口异常:{exc}") from exc
+    except Exception as exc:
+        detail = getattr(exc, "detail", None) or str(exc)
+        raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
+    return {
+        "prompt": payload.prompt,
+        "videos": [local_url],
+        "timestamp": time.time(),
+        "type": "video",
+        "model": model,
+        "provider_id": provider_id,
+        "protocol": prov["protocol"],
+        "params": {"model": model, "size": payload.size, "duration": payload.duration, "reference_images": refs, "provider_id": provider_id},
+    }
+
+async def generate_video(prompt, size, model, refs, protocol="jimeng", provider_id="", provider=None, duration=5):
+    """视频生成分发器"""
+    actual_proto = provider_protocol(provider) if isinstance(provider, dict) else (protocol or PROTOCOL_JIMENG)
+    
+    if actual_proto == PROTOCOL_JIMENG or str(provider_id).lower() == "jimeng":
+        return await generate_jimeng_video({"prompt": prompt, "model": model, "resolution": size, "duration_seconds": duration}, provider)
+    elif actual_proto == PROTOCOL_RUNNINGHUB or str(provider_id).lower() == "runninghub":
+        return await _gen_runninghub_video(provider, model, prompt, size, refs)
+    elif actual_proto == PROTOCOL_VOLCENGINE or str(provider_id).lower() == "volcengine":
+        return await _gen_volcengine_video(provider, model, prompt, size, refs)
+    else:
+        raise HTTPException(status_code=400, detail=f"协议 {actual_proto} 暂不支持视频生成")
+
+PROTOCOL_JIMENG = "jimeng"
+
+async def _gen_runninghub_video(provider_cfg, model, prompt, size, refs):
+    """RunningHub 视频生成"""
+    base = str((provider_cfg or {}).get("base_url") or "").rstrip("/")
+    api_key = str((provider_cfg or {}).get("api_key") or "")
+    if not base or not api_key:
+        raise HTTPException(status_code=400, detail="RunningHub 未配置请求地址或 API Key")
+    import uuid
+    workflow_id = str(uuid.uuid4())
+    body = {
+        "workflow_id": workflow_id,
+        "model": model,
+        "prompt": prompt,
+        "size": size,
+        "output_type": "video",
+        "params": {},
+    }
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(f"{base}/api/v1/workflows/submit", headers={"Authorization": f"Bearer {api_key}"}, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+        task_id = data.get("task_id") or data.get("id", "")
+        deadline = time.monotonic() + 600
+        while time.monotonic() < deadline:
+            await asyncio.sleep(5)
+            poll = await client.get(f"{base}/api/v1/workflows/{task_id}", headers={"Authorization": f"Bearer {api_key}"})
+            poll.raise_for_status()
+            status = poll.json()
+            s = str(status.get("status") or "").lower()
+            if s in ("succeeded", "completed", "success", "done"):
+                video_url = status.get("output") or status.get("video_url") or status.get("result", {}).get("video", "")
+                if video_url:
+                    return {"type": "url", "value": video_url}
+                raise HTTPException(status_code=502, detail=f"RunningHub 视频结果无 URL: {status}")
+            if s in ("failed", "error", "cancelled", "timeout"):
+                raise HTTPException(status_code=502, detail=f"RunningHub 视频任务失败: {status.get('error', '')}")
+        raise HTTPException(status_code=504, detail="RunningHub 视频任务超时")
+    return {"type": "url", "value": ""}
+
+async def _gen_volcengine_video(provider_cfg, model, prompt, size, refs):
+    """火山引擎方舟视频生成（Seedance/豆包视频模型）"""
+    base = str((provider_cfg or {}).get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api/v3", "")
+    api_key = str((provider_cfg or {}).get("api_key") or "")
+    if not base or not api_key:
+        raise HTTPException(status_code=400, detail="火山引擎未配置请求地址或 API Key")
+    body = {"model": model, "prompt": prompt, "size": size}
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(f"{base}/api/v3/video/generations", headers={"Authorization": f"Bearer {api_key}"}, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+        result = data.get("result", {})
+        video_url = result.get("video_url") or result.get("url") or ""
+        if video_url:
+            return {"type": "url", "value": video_url}
+        task_id = result.get("id") or result.get("task_id") or data.get("id", "")
+        if task_id:
+            deadline = time.monotonic() + 600
+            while time.monotonic() < deadline:
+                await asyncio.sleep(5)
+                poll = await client.get(f"{base}/api/v3/video/tasks/{task_id}", headers={"Authorization": f"Bearer {api_key}"})
+                if poll.status_code != 200:
+                    await asyncio.sleep(5)
+                    continue
+                ps = poll.json()
+                s = str(ps.get("status") or "").lower()
+                if s in ("succeeded", "completed", "success"):
+                    vid_url = ps.get("result", {}).get("video_url") or ps.get("video_url") or ""
+                    if vid_url:
+                        return {"type": "url", "value": vid_url}
+                    raise HTTPException(status_code=502, detail=f"火山视频成功但无URL: {ps}")
+                if s in ("failed", "error"):
+                    raise HTTPException(status_code=502, detail=f"火山视频失败: {ps.get('error', '')}")
+            raise HTTPException(status_code=504, detail="火山视频生成超时")
+        raise HTTPException(status_code=502, detail=f"火山视频未返回 task_id: {data}")
+    return {"type": "url", "value": ""}
+
 async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, username: str = None):
     with CANVAS_TASK_LOCK:
         if task_id in CANVAS_TASKS:
@@ -8118,6 +8532,12 @@ class JimengQueryMediaRequest(BaseModel):
     submit_id: str = ""
     kind: str = "image"
 
+class CodexHelpRequest(BaseModel):
+    command: str = ""
+
+class GeminiCliHelpRequest(BaseModel):
+    command: str = ""
+
 class ApiProviderPayload(BaseModel):
     id: str = ""
     name: str = ""
@@ -8535,6 +8955,84 @@ async def jimeng_help(payload: JimengHelpRequest):
     if raw.get("_stderr"):
         text = f"{text}\n{raw.get('_stderr')}".strip()
     return {"success": True, "command": command, "text": text, "raw": raw}
+
+# --- OpenAI Codex CLI ---
+@app.get("/api/codex/status")
+async def codex_status():
+    import shutil
+    exe = shutil.which("codex")
+    if not exe:
+        return {"installed": False, "logged_in": False, "message": "未找到 OpenAI Codex CLI，请先安装。"}
+    try:
+        proc = await asyncio.create_subprocess_exec(exe, "whoami", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+        logged_in = proc.returncode == 0 and bool(stdout.strip())
+        return {"installed": True, "logged_in": logged_in, "message": stdout.decode("utf-8", errors="replace").strip() or "已安装"}
+    except Exception as e:
+        return {"installed": True, "logged_in": False, "message": f"检测失败: {e}"}
+
+@app.post("/api/codex/help")
+async def codex_help(payload: CodexHelpRequest):
+    import shutil
+    exe = shutil.which("codex")
+    if not exe:
+        raise HTTPException(status_code=400, detail="未找到 OpenAI Codex CLI。")
+    allowed = {"", "exec", "login", "logout", "doctor", "mcp", "app", "update"}
+    command = str(payload.command or "").strip()
+    if command not in allowed:
+        raise HTTPException(status_code=400, detail="不允许的 Codex CLI 命令")
+    args = [exe]
+    if command:
+        args += [command, "--help"]
+    else:
+        args.append("--help")
+    try:
+        proc = await asyncio.create_subprocess_exec(*args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        text = stdout.decode("utf-8", errors="replace").strip()
+        err_text = stderr.decode("utf-8", errors="replace").strip()
+        if err_text:
+            text = f"{text}\n{err_text}" if text else err_text
+        return {"success": True, "output": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Antigravity CLI ---
+@app.get("/api/gemini-cli/status")
+async def gemini_cli_status():
+    import shutil
+    exe = shutil.which("gemini")
+    if not exe:
+        return {"installed": False, "logged_in": False, "message": "未找到 Gemini CLI，请先安装。"}
+    try:
+        proc = await asyncio.create_subprocess_exec(exe, "auth", "status", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+        logged_in = proc.returncode == 0
+        return {"installed": True, "logged_in": logged_in, "message": stdout.decode("utf-8", errors="replace").strip() or "已安装"}
+    except Exception as e:
+        return {"installed": True, "logged_in": False, "message": f"检测失败: {e}"}
+
+@app.post("/api/gemini-cli/help")
+async def gemini_cli_help(payload: GeminiCliHelpRequest):
+    import shutil
+    exe = shutil.which("gemini")
+    if not exe:
+        raise HTTPException(status_code=400, detail="未找到 Gemini CLI。")
+    allowed = {"", "help", "mcp", "extensions"}
+    command = str(payload.command or "").strip()
+    if command not in allowed:
+        raise HTTPException(status_code=400, detail="不允许的 Gemini CLI 命令")
+    args = [exe, "help", command] if command else [exe, "help"]
+    try:
+        proc = await asyncio.create_subprocess_exec(*args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        text = stdout.decode("utf-8", errors="replace").strip()
+        err_text = stderr.decode("utf-8", errors="replace").strip()
+        if err_text:
+            text = f"{text}\n{err_text}" if text else err_text
+        return {"success": True, "output": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/jimeng/query-media")
 async def jimeng_query_media(payload: JimengQueryMediaRequest):

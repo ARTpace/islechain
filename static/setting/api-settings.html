@@ -16,7 +16,7 @@
             } catch(e) {}
         })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/tailwindcss-cdn.js?v=20260725"></script>
     <script src="/static/lucide.min.js?v=20260520001"></script>
     <script src="/static/theme.js?v=20260516-theme-sync"></script>
     <script src="/static/i18n.js?v=20260515-image-editor-i18n"></script>
@@ -53,13 +53,38 @@
         .provider-card.active .provider-meta { color:var(--muted); }
         .provider-mark { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--soft); color:var(--muted); }
         .provider-card.active .provider-mark { background:var(--panel); color:var(--text); }
-        .provider-card.provider-card-banner { padding:8px 10px; justify-content:center; min-height:44px; }
-        .provider-card-banner img { height:22px; width:auto; max-width:100%; object-fit:contain; display:block; }
+        /* RunningHub 蓝色 RH 标识 */
+        .provider-mark-rh { background:linear-gradient(135deg,#1d4ed8,#3b82f6) !important; color:#fff !important; font-weight:900; box-shadow:0 1px 3px rgba(59,130,246,.4); }
+        .provider-mark-rh .provider-mark-text { font-size:11px; letter-spacing:.04em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        /* 火山引擎: 橙色火山图标 */
+        .provider-mark-volc { background:linear-gradient(135deg,#f97316,#f43f5e) !important; color:#fff !important; box-shadow:0 1px 3px rgba(249,115,22,.4); }
+        /* 即梦 CLI: 紫色 */
+        .provider-mark-jimeng { background:linear-gradient(135deg,#7c3aed,#a855f7) !important; color:#fff !important; }
+        /* Codex / Gemini CLI: 绿色 */
+        .provider-mark-cli { background:linear-gradient(135deg,#059669,#10b981) !important; color:#fff !important; }
+        /* CLI 标识标签 */
+        .provider-cli-tag { padding:2px 6px; border-radius:5px; background:rgba(124,58,237,.16); color:#7c3aed; font-size:9.5px; font-weight:900; letter-spacing:.04em; flex:0 0 auto; }
+        body.studio-theme-dark .provider-cli-tag { background:rgba(167,139,250,.2); color:#c4b5fd; }
+        .provider-card.provider-card-banner { padding:8px 10px; justify-content:center; min-height:48px; }
+        .provider-card-banner img { height:24px; width:auto; max-width:100%; object-fit:contain; display:block; }
         .provider-card-banner .ms-icon-dark { display:none; }
         body.studio-theme-dark .provider-card-banner .ms-icon-light,
         html.studio-theme-dark body .provider-card-banner .ms-icon-light { display:none; }
         body.studio-theme-dark .provider-card-banner .ms-icon-dark,
         html.studio-theme-dark body .provider-card-banner .ms-icon-dark { display:block; }
+        /* Banner 卡片内部布局（logo + 协议药丸） */
+        .provider-banner-inner { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
+        .provider-logo-wrap { display:flex; align-items:center; justify-content:center; flex:1; min-width:0; }
+        .provider-logo-wrap img { display:block; }
+        .provider-logo-fallback { display:none; font-weight:900; color:var(--text); }
+        .provider-protocol-pill { padding:3px 8px; border-radius:6px; font-size:9.5px; font-weight:900; letter-spacing:.04em; background:rgba(15,23,42,.08); color:var(--muted); flex:0 0 auto; }
+        body.studio-theme-dark .provider-protocol-pill,
+        html.studio-theme-dark body .provider-protocol-pill { background:rgba(255,255,255,.16); color:#e2e8f0; }
+        /* 选中态加深药丸背景 */
+        .provider-card.active .provider-protocol-pill { background:rgba(59,130,246,.2); color:#3b82f6; }
+        body.studio-theme-dark .provider-card.active .provider-protocol-pill,
+        html.studio-theme-dark body .provider-card.active .provider-protocol-pill { background:rgba(59,130,246,.4); color:#fff; }
+        .provider-card-banner.active { background:linear-gradient(135deg, var(--soft), var(--panel)); }
         .provider-name { min-width:0; font-size:12.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .provider-meta { margin-top:1px; color:var(--faint); font-size:10px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .add-btn { width:100%; height:40px; border:1px dashed var(--line-strong); border-radius:12px; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:12px; font-weight:800; transition:all .15s ease; }
@@ -70,6 +95,14 @@
         html.studio-theme-dark body .api-link-btn { background:#f5f6f8; border-color:#f5f6f8; color:#0e1014; box-shadow:0 8px 18px rgba(0,0,0,.24); }
         body.studio-theme-dark .api-link-btn:hover,
         html.studio-theme-dark body .api-link-btn:hover { background:#ffffff; border-color:#ffffff; color:#05070b; }
+        /* CLI 快捷入口 */
+        .cli-quick-group { display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
+        .cli-quick-list { display:flex; flex-direction:column; gap:4px; }
+        .cli-quick-btn { width:100%; text-align:left; padding:8px 10px; border:1px solid transparent; border-radius:10px; background:transparent; display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:11.5px; font-weight:750; transition:all .15s ease; }
+        .cli-quick-btn:hover { border-color:var(--line-strong); color:var(--text); background:var(--soft); }
+        .cli-quick-btn.active { background:var(--soft); color:var(--text); border-color:transparent; }
+        .cli-quick-btn.active:hover { border-color:var(--text); }
+        .cli-quick-note { color:var(--faint); font-size:9.5px; font-weight:700; line-height:1.5; padding:2px 4px; }
         /* Content */
         .content { display:flex; flex-direction:column; gap:20px; min-width:0; }
         .content-head { display:flex; align-items:end; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:20px 24px; background:var(--panel); border:1px solid var(--line); border-radius:16px; }
@@ -266,9 +299,214 @@
         body.show-jimeng #probeAsyncBtn,
         body.show-jimeng .image-request-mode-wrap { display:none !important; }
         @media (max-width:860px) { .page{padding:24px 16px 60px}.layout{grid-template-columns:1fr;gap:28px}.sidebar{position:static}.form,.model-grid{grid-template-columns:1fr}.models-toolbar{align-items:flex-start;flex-direction:column}.models-toolbar-actions{width:100%;justify-content:flex-end}.lora-row{grid-template-columns:1fr}.lora-row .icon-btn{width:100%;} }
+        /* 新手引导卡（INF 风格：标题 + 步骤面板 + 来源按钮 + 箭头 + Key 输入） */
+        .provider-onboarding-card { display:flex; flex-direction:column; gap:14px; padding:20px 24px; border:1px solid var(--line-strong); border-radius:16px; background:linear-gradient(135deg, var(--panel), var(--soft)); }
+        body.show-ms .provider-onboarding-card[hidden],
+        body.show-runninghub .provider-onboarding-card[hidden],
+        body.show-volcengine .provider-onboarding-card[hidden] { display:none !important; }
+        body.show-ms .provider-onboarding-card:not([hidden]),
+        body.show-runninghub .provider-onboarding-card:not([hidden]),
+        body.show-volcengine .provider-onboarding-card:not([hidden]) { display:flex; }
+        .onboarding-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .onboarding-head > div:first-child { min-width:0; flex:1; }
+        .onboarding-title { font-size:16px; font-weight:900; color:var(--text); line-height:1.25; letter-spacing:-.01em; }
+        .onboarding-desc { margin-top:5px; color:var(--muted); font-size:11.5px; font-weight:600; line-height:1.55; }
+        .onboarding-badge { height:22px; padding:0 9px; border-radius:999px; display:inline-flex; align-items:center; font-size:9.5px; font-weight:900; letter-spacing:.04em; background:rgba(96,165,250,.16); color:#2563eb; border:1px solid rgba(96,165,250,.18); flex:0 0 auto; margin-top:4px; }
+        body.studio-theme-dark .onboarding-badge { background:rgba(96,165,250,.16); color:#93c5fd; border-color:rgba(148,197,255,.2); }
+        .onboarding-step-panel { display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+        .onboarding-step-title { font-size:13px; font-weight:900; color:var(--text); line-height:1.2; letter-spacing:-.005em; }
+        /* Step panel 头部 */
+        .onboarding-step-panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .onboarding-step-panel-head > div:first-child { min-width:0; flex:1; }
+        .onboarding-step-icon { color:var(--faint); flex:0 0 auto; margin-top:2px; }
+        /* 线性行：来源 → 箭头 → Key */
+        .onboarding-linear-rows { display:flex; flex-direction:column; gap:14px; }
+        .onboarding-linear-row { display:grid; grid-template-columns:minmax(190px, .95fr) 34px minmax(220px, 1.05fr); gap:12px; align-items:stretch; }
+        .onboarding-source-group { display:flex; flex-direction:column; gap:8px; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:var(--soft); justify-content:center; }
+        .onboarding-source-label { font-size:10px; font-weight:900; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+        .onboarding-key-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .onboarding-key-btn { min-width:0; height:34px; padding:0 11px; border:1px solid var(--line-strong); border-radius:10px; background:var(--panel); color:var(--text); font-size:11px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; gap:5px; transition:all .15s ease; text-decoration:none; }
+        .onboarding-key-btn:hover { border-color:var(--text); background:var(--soft); }
+        body.studio-theme-dark .onboarding-source-group { background:var(--panel); }
+        body.studio-theme-dark .onboarding-source-group { background:rgba(15,23,42,.18); border-color:rgba(148,197,255,.12); }
+        /* 虚线箭头 */
+        .onboarding-flow-arrow { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; align-self:end; padding-bottom:6px; color:var(--muted); }
+        .onboarding-flow-arrow span { width:30px; height:0; border-top:2px dashed currentColor; }
+        .onboarding-flow-arrow b { display:block; width:0; height:0; border:6px solid transparent; border-left-color:currentColor; margin-left:-2px; }
+        /* Key 输入字段 */
+        .onboarding-row-field { display:flex; flex-direction:column; gap:6px; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:var(--soft); justify-content:center; min-width:0; }
+        .onboarding-row-field span { font-size:10px; font-weight:900; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+        .onboarding-row-field input { width:100%; height:32px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font-size:12px; font-weight:700; outline:none; }
+        .onboarding-row-field input:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.08); }
+        body.studio-theme-dark .onboarding-row-field { background:rgba(15,23,42,.18); }
+        /* 保存行 */
+        .onboarding-save-line { display:flex; justify-content:flex-end; }
+        .onboarding-save-btn { height:38px; padding:0 18px; border:0; border-radius:10px; background:var(--accent); color:var(--bg); font-size:12px; font-weight:900; display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition:all .15s ease; }
+        .onboarding-save-btn:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,255,255,.2); }
+        body.studio-theme-dark .onboarding-save-btn { background:#f5f6f8; color:#0e1014; box-shadow:0 6px 16px rgba(0,0,0,.3); }
+        /* 推荐 API 浮层（INF 风格：分组 + 双栏卡片 + 步骤设置流程） */
+        .recommend-api-body { flex:1; overflow:auto; padding:14px 18px 8px; display:flex; flex-direction:column; gap:18px; align-content:start; }
+        /* 旧版小卡片不再使用，预留兼容 */
+        .recommend-card { display:none; }
+        /* 分组标题 */
+        .recommend-group-head { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11.5px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; padding:4px 2px; }
+        .recommend-group-head i { color:#60a5fa; }
+        /* 大卡片布局：左侧 info + 右侧 setup */
+        .recommend-platform-card { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(280px, .95fr); gap:18px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--panel); align-items:stretch; transition:border-color .15s ease; }
+        .recommend-platform-card:hover { border-color:var(--line-strong); }
+        .recommend-platform-info { min-width:0; display:flex; flex-direction:column; gap:12px; }
+        .recommend-platform-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+        .recommend-platform-head > div:first-child { min-width:0; flex:1; }
+        .recommend-name { font-size:14px; font-weight:900; color:var(--text); line-height:1.2; letter-spacing:-.005em; }
+        .recommend-badge { height:22px; padding:0 9px; border-radius:999px; background:rgba(96,165,250,.16); color:#2563eb; border:1px solid rgba(96,165,250,.18); font-size:9.5px; font-weight:900; display:inline-flex; align-items:center; letter-spacing:.04em; flex:0 0 auto; }
+        body.studio-theme-dark .recommend-badge { background:rgba(96,165,250,.2); color:#93c5fd; border-color:rgba(148,197,255,.2); }
+        .recommend-platform-summary { margin:0; color:var(--muted); font-size:11.5px; line-height:1.6; font-weight:600; }
+        /* 标签行 */
+        .recommend-tags { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:2px; }
+        .recommend-tag { min-width:34px; height:22px; padding:0 8px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; gap:4px; background:rgba(15,23,42,.06); color:var(--muted); font-size:9.5px; font-weight:900; border:1px solid var(--line); }
+        body.studio-theme-dark .recommend-tag { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:#94a3b8; }
+        .recommend-tag.recommend-seedance-tag { background:rgba(249,115,22,.16); color:#c2410c; border-color:rgba(249,115,22,.24); }
+        body.studio-theme-dark .recommend-tag.recommend-seedance-tag { background:rgba(251,146,60,.24); color:#fdba74; border-color:rgba(251,146,60,.3); }
+        .recommend-tag.recommend-free-tag { background:rgba(34,197,94,.16); color:#15803d; border-color:rgba(34,197,94,.24); }
+        body.studio-theme-dark .recommend-tag.recommend-free-tag { background:rgba(34,197,94,.24); color:#86efac; border-color:rgba(34,197,94,.3); }
+        .recommend-tag i { width:10px; height:10px; }
+        /* 设置区 */
+        .recommend-platform-setup { min-width:0; display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid var(--line); border-radius:14px; background:rgba(15,23,42,.02); }
+        body.studio-theme-dark .recommend-platform-setup { background:rgba(255,255,255,.03); border-color:rgba(148,197,255,.12); }
+        .recommend-setup-title { color:var(--text); font-size:12px; font-weight:900; letter-spacing:.02em; }
+        /* 步骤行：来源 → 箭头 → Key 输入 */
+        .recommend-setup-flow { display:grid; grid-template-columns:minmax(160px, .95fr) 30px minmax(200px, 1.05fr); gap:10px; align-items:stretch; }
+        .recommend-source-group { padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--soft); display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:0; }
+        .recommend-source-label { font-size:9.5px; font-weight:900; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+        .recommend-source-actions { display:flex; flex-direction:column; gap:6px; }
+        .recommend-source-actions a { height:30px; padding:0 10px; border:1px solid var(--line-strong); border-radius:9px; background:var(--panel); color:var(--text); font-size:11px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; gap:5px; text-decoration:none; transition:all .15s ease; }
+        .recommend-source-actions a:hover { border-color:var(--text); background:var(--soft); }
+        .recommend-source-actions a i { width:13px; height:13px; }
+        /* 箭头 */
+        .recommend-flow-arrow { display:flex; align-items:center; justify-content:center; flex-direction:column; padding-top:6px; color:var(--muted); }
+        .recommend-flow-arrow span { width:30px; height:0; border-top:2px dashed currentColor; }
+        .recommend-flow-arrow b { display:block; width:0; height:0; border:6px solid transparent; border-left-color:currentColor; margin-left:-2px; }
+        /* API Key 输入 + 保存 */
+        .recommend-key-save { display:flex; flex-direction:column; gap:8px; }
+        .recommend-key-save .field-frame { padding:3px; }
+        .recommend-key-save input { height:34px; padding:0 10px; border:0; background:transparent; color:var(--text); outline:none; font-size:12px; font-weight:700; width:100%; }
+        .recommend-key-save button { width:100%; height:36px; border:0; border-radius:9px; background:var(--accent); color:var(--bg); font-size:11.5px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; transition:all .15s ease; }
+        .recommend-key-save button:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,255,255,.18); }
+        body.studio-theme-dark .recommend-key-save button,
+        html.studio-theme-dark body .recommend-key-save button { background:#f5f6f8; color:#0e1014; }
+        .recommend-note { padding:10px 20px; color:var(--faint); font-size:10.5px; font-weight:700; border-top:1px solid var(--line); }
+        /* 自适应：窄屏幕双栏改为单栏 */
+        @media (max-width:720px) {
+            .recommend-platform-card { grid-template-columns:1fr; }
+            .recommend-setup-flow { grid-template-columns:1fr; }
+            .recommend-flow-arrow { display:none; }
+        }
+        /* 推荐 API 浮层加宽 */
+        .recommend-picker-modal { max-width:1100px !important; width:100%; }
+        /* 即梦 CLI 帮助浮层 */
+        .jimeng-help-modal { max-width:860px; }
+        .jimeng-help-toolbar { display:flex; gap:10px; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line); }
+        .jimeng-help-toolbar select { height:38px; min-width:180px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); padding:0 10px; font-weight:800; outline:none; }
+        .jimeng-help-output { margin:0; padding:18px 20px; min-height:420px; max-height:62vh; overflow:auto; background:var(--soft); color:var(--text); font:12px/1.55 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
+        body.show-jimeng #probeAsyncBtn,
+        body.show-jimeng .image-request-mode-wrap { display:none !important; }
+        /* RunningHub 配置 */
+        .runninghub-config-block { display:none; }
+        body.show-runninghub .runninghub-config-block { display:flex; }
+        .rh-paste-row { display:flex; gap:8px; align-items:center; }
+        .rh-paste-input { flex:1; height:38px; padding:0 12px; border:1px solid var(--line); border-radius:11px; background:var(--soft); color:var(--text); outline:none; font-size:13px; font-weight:650; }
+        .rh-paste-input:focus { border-color:var(--text); }
+        .rh-card-columns { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .rh-card-group { display:flex; flex-direction:column; gap:8px; }
+        .rh-group-head { display:flex; align-items:center; gap:8px; }
+        .rh-group-title { font-size:11px; font-weight:900; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+        .rh-group-count { font-size:10px; font-weight:800; color:var(--faint); background:var(--soft); padding:1px 7px; border-radius:5px; }
+        .rh-card-list { display:flex; flex-direction:column; gap:4px; }
+        .rh-card-item { display:flex; align-items:center; gap:8px; padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:var(--panel); cursor:pointer; transition:all .12s ease; }
+        .rh-card-item:hover { border-color:var(--text); background:var(--soft); }
+        .rh-card-item-name { flex:1; font-size:12px; font-weight:750; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .rh-card-item-icon { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; background:var(--soft); color:var(--muted); flex:0 0 auto; }
+        .rh-key-stack { display:none; margin-top:8px; }
+        body.show-runninghub .rh-key-stack { display:flex; flex-direction:column; gap:10px; }
+        .rh-key-item { display:flex; flex-direction:column; gap:6px; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--soft); }
+        .rh-key-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+        .rh-key-title { font-size:12px; font-weight:900; color:var(--text); }
+        .rh-key-desc { font-size:10px; font-weight:600; color:var(--muted); margin-top:2px; }
+        .rh-key-links { display:flex; gap:8px; align-items:center; }
+        .rh-key-links a { font-size:10.5px; font-weight:800; color:var(--text); text-decoration:underline; text-underline-offset:2px; display:inline-flex; align-items:center; gap:3px; }
+        .rh-key-links span { font-size:10px; color:var(--faint); font-weight:700; }
+        .key-input-line { display:flex; gap:6px; align-items:center; }
+        .key-input-line .field-frame { flex:1; }
+        .rh-key-stack .key-btn { width:38px; height:38px; }
+        /* 火山引擎 key stack */
+        .volcengine-key-stack { display:none; margin-top:8px; }
+        body.show-volcengine .volcengine-key-stack { display:flex; flex-direction:column; gap:10px; }
+        .volcengine-project-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .rh-card-title-field { display:flex; flex-direction:column; gap:4px; }
+        .rh-card-title-field span { font-size:9.5px; font-weight:800; color:var(--faint); text-transform:uppercase; letter-spacing:.05em; }
+        .rh-card-title-field input { height:34px; padding:0 10px; border:1px solid var(--line); border-radius:9px; background:var(--soft); color:var(--text); font-size:12px; font-weight:700; outline:none; }
+        .volcengine-project-card { display:flex; flex-direction:column; gap:8px; }
+        /* RunningHub 工作流编辑器浮层 */
+        .rh-workflow-editor-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:99; align-items:center; justify-content:center; padding:24px; }
+        body.studio-theme-dark .rh-workflow-editor-overlay { background:rgba(0,0,0,.65); }
+        .rh-workflow-editor-modal { width:100%; max-width:1060px; max-height:92vh; background:var(--panel); border:1px solid var(--line-strong); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 28px 64px rgba(0,0,0,.3); }
+        .rh-workflow-editor-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 20px; border-bottom:1px solid var(--line); }
+        .rh-workflow-editor-title-wrap { min-width:0; flex:1; }
+        .rh-workflow-editor-title { font-size:15px; font-weight:900; }
+        .rh-workflow-editor-sub { font-size:11px; color:var(--muted); font-weight:700; margin-top:2px; }
+        .rh-workflow-editor-actions { display:flex; gap:8px; align-items:center; }
+        .rh-workflow-editor-close { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer; transition:all .15s ease; }
+        .rh-workflow-editor-close:hover { background:var(--soft); color:var(--text); }
+        .rh-workflow-editor-body { flex:1; display:grid; grid-template-columns:260px 1fr; overflow:hidden; min-height:400px; }
+        .rh-workflow-editor-side { padding:16px; overflow:auto; border-right:1px solid var(--line); display:flex; flex-direction:column; gap:12px; }
+        .rh-editor-field { display:flex; flex-direction:column; gap:5px; }
+        .rh-editor-field span { font-size:10px; font-weight:800; color:var(--faint); text-transform:uppercase; letter-spacing:.05em; }
+        .rh-editor-field input,.rh-editor-field textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:var(--soft); color:var(--text); font-size:12px; font-weight:650; outline:none; resize:vertical; }
+        .rh-editor-field textarea { min-height:48px; }
+        .rh-editor-summary { padding:8px; border:1px solid var(--line); border-radius:9px; color:var(--muted); font-size:11px; font-weight:700; min-height:24px; }
+        .rh-editor-node-list { display:flex; flex-direction:column; gap:4px; }
+        .rh-editor-node-item { padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--soft); display:flex; align-items:center; gap:8px; cursor:pointer; transition:all .12s ease; }
+        .rh-editor-node-item:hover { border-color:var(--text); }
+        .rh-editor-node-item.active { border-color:var(--text); background:var(--panel); }
+        .rh-editor-node-name { flex:1; font-size:11px; font-weight:750; color:var(--text); }
+        .rh-editor-node-tag { font-size:9px; font-weight:800; padding:1px 6px; border-radius:4px; background:var(--line); color:var(--muted); }
+        .rh-workflow-editor-canvas { overflow:hidden; display:flex; position:relative; }
+        .rh-editor-graph-wrap { flex:1; position:relative; overflow:hidden; background:var(--soft); }
+        .rh-editor-graph-svg { width:100%; height:100%; }
+        .rh-editor-graph-controls { position:absolute; bottom:14px; left:14px; display:flex; gap:4px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:5px; }
+        .rh-editor-graph-controls button { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; color:var(--muted); transition:all .12s ease; }
+        .rh-editor-graph-controls button:hover { background:var(--soft); color:var(--text); }
+        .rh-editor-graph-controls span { font-size:11px; font-weight:800; color:var(--muted); min-width:40px; text-align:center; }
+        /* Codex CLI / Gemini CLI 面板 */
+        body.show-codex .api-base-url-field,
+        body.show-codex .api-key-field { display:none !important; }
+        body.show-gemini-cli .api-base-url-field,
+        body.show-gemini-cli .api-key-field { display:none !important; }
+        #codexCliPanel { grid-column:1/-1; display:none; flex-direction:column; gap:12px; margin-top:2px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+        body.show-codex #codexCliPanel:not([hidden]) { display:flex; }
+        #geminiCliPanel { grid-column:1/-1; display:none; flex-direction:column; gap:12px; margin-top:2px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+        body.show-gemini-cli #geminiCliPanel:not([hidden]) { display:flex; }
+        .jimeng-cli-panel { grid-column:1/-1; display:none; flex-direction:column; gap:12px; margin-top:2px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+        body.show-jimeng .jimeng-cli-panel:not([hidden]) { display:flex; }
+        /* 图片请求模式选择器 - 对所有 openai 协议平台默认显示（与 INF 一致） */
+        .image-request-mode-wrap { display:none; }
+        body.show-image-mode .image-request-mode-wrap,
+        body.show-apimart .image-request-mode-wrap,
+        body.show-openai .image-request-mode-wrap { display:flex; }
+        body.show-volcengine .image-request-mode-wrap,
+        body.show-runninghub .image-request-mode-wrap { display:none !important; }
+        /* 推荐内容面板 */
+        .recommend-content { display:none; }
+        .recommend-inline-card { display:flex !important; border:0; background:none; padding:0; }
+        /* 翻译内容面板 - hidden 优先级高于 .content 的 display:flex */
+        #translateContent[hidden] { display:none !important; }
+        #translateContent:not([hidden]) { display:flex; }
+        /* 空占位以避免重复定义 */
+        
     </style>
 </head>
 <body>
+    <form id="apiForm" style="display:contents" onsubmit="return false">
     <div class="page">
         <div class="wrap">
             <header class="page-head">
@@ -284,7 +522,20 @@
                     <div class="side-section-title" data-i18n="api.providersTitle">平台列表</div>
                     <div id="providerList" class="provider-list"></div>
                     <button class="add-btn" type="button" onclick="addProvider()"><i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="api.addProvider">新增平台</span></button>
-                    <a class="api-link-btn" href="https://apimart.ai/register?aff=1uyAbb" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-4 h-4"></i><span data-i18n="api.getApi">获取API</span></a>
+                    <button class="api-link-btn" type="button" onclick="openRecommendApi()"><i data-lucide="sparkles" class="w-4 h-4"></i><span data-i18n="api.recommendApi">推荐API</span></button>
+                    <div class="cli-quick-group">
+                        <div class="side-section-title" data-i18n="api.cliSettings">CLI 设置</div>
+                        <div class="cli-quick-list">
+                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('jimeng')"><i data-lucide="image" class="w-3.5 h-3.5"></i><span>即梦 CLI</span></button>
+                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('codex')"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>GPT CLI</span></button>
+                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('gemini-cli')"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>Antigravity CLI</span></button>
+                            <div class="cli-quick-note">需要先安装 CLI 文件夹中的依赖。</div>
+                        </div>
+                    </div>
+                    <div class="cli-quick-group" style="margin-top:4px;">
+                        <div class="side-section-title">翻译设置</div>
+                        <button class="cli-quick-btn" type="button" onclick="selectTranslate()" id="translateSideBtn"><i data-lucide="languages" class="w-3.5 h-3.5"></i><span>翻译配置</span></button>
+                    </div>
                 </aside>
 
                 <main class="content">
@@ -298,6 +549,10 @@
                             <button class="action-btn save-btn api-page-save-btn" type="button" onclick="saveProviders()"><i data-lucide="save" class="w-3.5 h-3.5"></i><span data-i18n="api.save">保存</span></button>
                         </div>
                     </div>
+
+                    <section id="providerOnboardingCard" class="provider-onboarding-card" hidden>
+                        <!-- 内容由 renderProviderOnboarding() 动态注入 -->
+                    </section>
 
                     <section class="block">
                         <div class="block-head">
@@ -324,7 +579,7 @@
                             <label class="field full">
                                 <span class="label">API Key</span>
                                 <div class="key-row" style="margin:0">
-                                    <div class="field-frame" style="flex:1"><input id="keyInput" type="password"></div>
+                                    <div class="field-frame" style="flex:1"><input id="keyInput" type="password" form="apiForm"></div>
                                     <button class="key-btn" type="button" onclick="saveKeyOnly()" title="保存 Key"><i data-lucide="check" class="w-4 h-4"></i></button>
                                     <button class="key-btn key-clear" type="button" onclick="clearKeyOnly()" title="清除 Key"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                                 </div>
@@ -332,6 +587,98 @@
                                 <div class="ms-hint">
                                     <span class="ms-line"><span data-i18n="api.msTokenCn">获取 Token · 国内：</span><a href="https://www.modelscope.cn/my/access/token" target="_blank">https://www.modelscope.cn/my/access/token</a></span>
                                     <span class="ms-line"><span data-i18n="api.msTokenGlobal">获取 Token · 国外：</span><a href="https://www.modelscope.ai/my/access/token" target="_blank">https://www.modelscope.ai/my/access/token</a></span>
+                                </div>
+                                <div class="rh-key-stack">
+                                    <div class="rh-key-item">
+                                        <div class="rh-key-head">
+                                            <div>
+                                                <div class="rh-key-title" data-i18n="api.rhCoinApiKeyRequired">RH币 API Key · 必填</div>
+                                                <div class="rh-key-desc" data-i18n="api.rhCoinKeyDesc">使用 RH币 接口时填写</div>
+                                            </div>
+                                            <div class="rh-key-links">
+                                                <span data-i18n="api.get">获取</span>
+                                                <a href="https://www.runninghub.cn/enterprise-api/consumerApi?inviteCode=rh-v1331" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-3 h-3"></i><span data-i18n="api.cnKey">国内 Key</span></a>
+                                                <a href="https://www.runninghub.ai/enterprise-api/consumerApi?inviteCode=rh-v1331" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-3 h-3"></i><span data-i18n="api.globalKey">国外 Key</span></a>
+                                            </div>
+                                        </div>
+                                        <div class="key-input-line">
+                                            <div class="field-frame"><input id="rhFreeKeyInput" type="password" form="apiForm"></div>
+                                            <div class="key-actions">
+                                                <button class="key-btn" type="button" onclick="saveRhKeyOnly('free')" title="保存 RH币 Key"><i data-lucide="check" class="w-4 h-4"></i></button>
+                                                <button class="key-btn key-clear" type="button" onclick="clearRhKeyOnly('free')" title="清除 RH币 Key"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </div>
+                                        </div>
+                                        <span id="rhFreeKeyHint" class="hint"></span>
+                                    </div>
+                                    <div class="rh-key-item">
+                                        <div class="rh-key-head">
+                                            <div>
+                                                <div class="rh-key-title" data-i18n="api.rhWalletApiKeyOptional">账户余额 API Key · 可选</div>
+                                                <div class="rh-key-desc" data-i18n="api.rhWalletKeyDesc">使用账户余额接口时填写</div>
+                                            </div>
+                                            <div class="rh-key-links">
+                                                <span data-i18n="api.get">获取</span>
+                                                <a href="https://www.runninghub.cn/enterprise-api/sharedApi?inviteCode=rh-v1331" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-3 h-3"></i><span data-i18n="api.cnKey">国内 Key</span></a>
+                                                <a href="https://www.runninghub.ai/enterprise-api/sharedApi?inviteCode=rh-v1331" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-3 h-3"></i><span data-i18n="api.globalKey">国外 Key</span></a>
+                                            </div>
+                                        </div>
+                                        <div class="key-input-line">
+                                            <div class="field-frame"><input id="rhWalletKeyInput" type="password" form="apiForm"></div>
+                                            <div class="key-actions">
+                                                <button class="key-btn" type="button" onclick="saveRhKeyOnly('wallet')" title="保存账户余额 Key"><i data-lucide="check" class="w-4 h-4"></i></button>
+                                                <button class="key-btn key-clear" type="button" onclick="clearRhKeyOnly('wallet')" title="清除账户余额 Key"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </div>
+                                        </div>
+                                        <span id="rhWalletKeyHint" class="hint"></span>
+                                    </div>
+                                </div>
+                                <div class="volcengine-key-stack" hidden>
+                                    <div class="rh-key-item">
+                                        <div class="rh-key-head">
+                                            <div>
+                                                <div class="rh-key-title" data-i18n="api.volcengineArkKey">方舟 API Key · 生成视频</div>
+                                                <div class="rh-key-desc" data-i18n="api.volcengineArkKeyDesc">用于 Seedance 2.0 生成接口，Authorization: Bearer。</div>
+                                            </div>
+                                        </div>
+                                        <span id="volcArkKeyHint" class="hint"></span>
+                                    </div>
+                                    <div class="rh-key-item">
+                                        <div class="rh-key-head">
+                                            <div>
+                                                <div class="rh-key-title" data-i18n="api.volcengineAssetKeys">素材库 AK/SK · 上传素材</div>
+                                                <div class="rh-key-desc" data-i18n="api.volcengineAssetKeysDesc">用于 CreateAssetGroup / CreateAsset / GetAsset 的 Access Key 鉴权。</div>
+                                            </div>
+                                        </div>
+                                        <div class="key-input-line">
+                                            <div class="field-frame"><input id="volcAkInput" type="password" form="apiForm" placeholder="Access Key ID"></div>
+                                        </div>
+                                        <div class="key-input-line">
+                                            <div class="field-frame"><input id="volcSkInput" type="password" form="apiForm" placeholder="Secret Access Key"></div>
+                                            <div class="key-actions">
+                                                <button class="key-btn" type="button" onclick="saveVolcengineAssetKeys()" title="保存火山素材库 AK/SK"><i data-lucide="check" class="w-4 h-4"></i></button>
+                                                <button class="key-btn key-clear" type="button" onclick="clearVolcengineAssetKeys()" title="清除火山素材库 AK/SK"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </div>
+                                        </div>
+                                        <span id="volcAssetKeyHint" class="hint"></span>
+                                    </div>
+                                    <div class="rh-key-item volcengine-project-card">
+                                        <div class="rh-key-head">
+                                            <div>
+                                                <div class="rh-key-title" data-i18n="api.volcengineProject">素材库项目</div>
+                                                <div class="rh-key-desc" data-i18n="api.volcengineProjectDesc">ProjectName 必须和视频生成 API Key 所属项目一致。</div>
+                                            </div>
+                                        </div>
+                                        <div class="volcengine-project-grid">
+                                            <div class="rh-card-title-field">
+                                                <span>ProjectName</span>
+                                                <input id="volcProjectInput" type="text" value="default">
+                                            </div>
+                                            <div class="rh-card-title-field">
+                                                <span>Region</span>
+                                                <input id="volcRegionInput" type="text" value="cn-beijing">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </label>
                             <div id="jimengCliPanel" class="jimeng-cli-panel" hidden>
@@ -350,6 +697,34 @@
                                 </div>
                                 <div id="jimengCredit" class="jimeng-credit"></div>
                                 <div id="jimengLoginBox" class="jimeng-output" hidden></div>
+                            </div>
+                            <div id="codexCliPanel" class="jimeng-cli-panel" hidden>
+                                <div class="jimeng-cli-head">
+                                    <div>
+                                        <div class="rh-key-title">OpenAI CLI 账户</div>
+                                        <div class="rh-key-desc">使用本机 codex 登录态，无需在本项目保存 API Key。</div>
+                                    </div>
+                                    <div id="codexCliStatus" class="jimeng-status-pill">未检测</div>
+                                </div>
+                                <div class="jimeng-actions">
+                                    <button class="action-btn primary-btn" type="button" onclick="refreshCodexStatus()"><i data-lucide="radar" class="w-3.5 h-3.5"></i><span>检测 CLI</span></button>
+                                    <button class="action-btn" type="button" onclick="openCodexHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
+                                </div>
+                                <div id="codexCliInfo" class="jimeng-credit"></div>
+                            </div>
+                            <div id="geminiCliPanel" class="jimeng-cli-panel" hidden>
+                                <div class="jimeng-cli-head">
+                                    <div>
+                                        <div class="rh-key-title">Antigravity CLI 账户</div>
+                                        <div class="rh-key-desc">使用本机 agy 登录态，无需在本项目保存 API Key。</div>
+                                    </div>
+                                    <div id="geminiCliStatus" class="jimeng-status-pill">未检测</div>
+                                </div>
+                                <div class="jimeng-actions">
+                                    <button class="action-btn primary-btn" type="button" onclick="refreshGeminiCliStatus()"><i data-lucide="radar" class="w-3.5 h-3.5"></i><span>检测 CLI</span></button>
+                                    <button class="action-btn" type="button" onclick="openGeminiCliHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
+                                </div>
+                                <div id="geminiCliInfo" class="jimeng-credit"></div>
                             </div>
                             <!-- 验证操作行 -->
                             <div class="verify-action-row">
@@ -372,8 +747,46 @@
 <option value="codex">GPT CLI (Codex)</option>
                                     </select>
                                 </div>
+                                <div class="field-frame image-request-mode-wrap">
+                                    <select id="imageRequestModeInput" title="图片接口" style="height:34px;padding:0 10px;border:0;background:transparent;color:var(--text);outline:none;font-size:13px;font-weight:650;white-space:nowrap">
+                                        <option value="openai">图片：OpenAI 标准</option>
+                                        <option value="openai-json">图片：OpenAI JSON</option>
+                                        <option value="openai-video-proxy">图片：OpenAI 中转</option>
+                                        <option value="openai-responses">图片：OpenAI RS</option>
+                                        <option value="openai-async-image">图片：OpenAI 异步图片</option>
+                                    </select>
+                                </div>
                             </div>
                             <div id="verifyResult" style="display:none;padding:2px 0;grid-column:1/-1"></div>
+                        </div>
+                    </section>
+
+                    <section id="runninghubConfigBlock" class="block runninghub-config-block" hidden>
+                        <div class="block-head">
+                            <div>
+                                <div class="block-title">应用与工作流</div>
+                                <div class="block-desc">粘贴运行路径后，点击右侧创建卡片。</div>
+                            </div>
+                        </div>
+                        <div class="rh-paste-row">
+                            <input id="rhPasteInput" class="rh-paste-input" type="text" placeholder="/run/ai-app/... 或 /run/workflow/...">
+                            <button class="action-btn" type="button" onclick="createRhEntryFromPaste()"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span>创建</span></button>
+                        </div>
+                        <div class="rh-card-columns">
+                            <div class="rh-card-group">
+                                <div class="rh-group-head">
+                                    <div class="rh-group-title">AI 应用</div>
+                                    <div id="rhAppsCount" class="rh-group-count">0</div>
+                                </div>
+                                <div id="rhAppsList" class="rh-card-list"></div>
+                            </div>
+                            <div class="rh-card-group">
+                                <div class="rh-group-head">
+                                    <div class="rh-group-title">工作流</div>
+                                    <div id="rhWorkflowsCount" class="rh-group-count">0</div>
+                                </div>
+                                <div id="rhWorkflowsList" class="rh-card-list"></div>
+                            </div>
                         </div>
                     </section>
 
@@ -442,70 +855,85 @@
                             </div>
                             <div id="msLoraList" class="lora-list"></div>
                         </section>
-
-                        <!-- 翻译模型 -->
-                        <section id="translateSection" class="block">
-                            <div class="block-head">
-                                <div>
-                                    <div class="block-title">翻译模型</div>
-                                    <div class="block-desc">提示词中英互译使用，支持百度翻译 API 和 AI 模型</div>
-                                </div>
-                            </div>
-                            <div class="form" style="grid-template-columns:1fr;gap:12px;">
-                                <div class="field">
-                                    <div class="label">翻译模式</div>
-                                    <div class="field-frame">
-                                        <select id="trProviderType" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrProviderTypeChange()">
-                                            <option value="ai">AI 模型翻译</option>
-                                            <option value="baidu">百度翻译 API</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <!-- 百度翻译配置 -->
-                                <div id="trBaiduFields" style="display:none;">
-                                    <div class="field">
-                                        <div class="label">App ID</div>
-                                        <div class="field-frame"><input id="trBaiduAppId" type="text" placeholder="百度翻译开放平台 App ID"></div>
-                                    </div>
-                                    <div class="field" style="margin-top:8px;">
-                                        <div class="label">Secret Key</div>
-                                        <div class="field-frame"><input id="trBaiduSecret" type="password" placeholder="百度翻译 Secret Key"></div>
-                                    </div>
-                                    <div class="hint" style="margin-top:6px;">免费额度 5万字符/月 · <a href="https://fanyi-api.baidu.com/" target="_blank" style="color:var(--neon-cyan);">去注册</a></div>
-                                </div>
-                                <!-- AI 模型翻译配置 -->
-                                <div id="trAiFields">
-                                    <div class="field">
-                                        <div class="label">Provider</div>
-                                        <div class="field-frame">
-                                            <select id="trAiProvider" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrAiProviderChange()">
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="field" style="margin-top:8px;">
-                                        <div class="label">模型</div>
-                                        <div class="field-frame">
-                                            <select id="trAiModel" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;">
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="field">
-                                    <div class="label">翻译提示词模板</div>
-                                    <div class="field-frame" style="height:auto;">
-                                        <textarea id="trTemplate" rows="3" style="width:100%;min-height:60px;padding:8px 10px;border:0;background:transparent;color:var(--text);font-size:11px;font-weight:600;outline:none;resize:vertical;line-height:1.5;" placeholder="{text} 会被替换为待翻译文本"></textarea>
-                                    </div>
-                                </div>
-                                <div class="hint">模板中用 <code style="background:var(--soft);padding:1px 4px;border-radius:4px;">{text}</code> 表示待翻译文本</div>
-                                <div class="verify-action-row" style="margin-top:4px;">
-                                    <button class="ghost-btn" type="button" onclick="testTranslate()" id="trTestBtn"><i data-lucide="play" class="w-3.5 h-3.5"></i><span>测试翻译</span></button>
-                                    <button class="ghost-btn" type="button" onclick="saveTranslateConfig()" id="trSaveBtn" style="background:var(--strong);color:var(--strong-text);border-color:var(--strong);"><i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存</span></button>
-                                    <div id="trTestResult" style="font-size:11px;color:var(--muted);font-weight:600;min-height:16px;"></div>
-                                </div>
-                            </div>
-                        </section>
                 </div>
 
+            </main>
+            <main id="translateContent" class="content" hidden>
+                <div class="content-head">
+                    <div>
+                        <div class="editor-title" data-i18n="api.translateTitle">翻译配置</div>
+                        <div class="editor-sub" data-i18n="api.translateSub">提示词中英互译，支持百度翻译 API 和 AI 模型翻译</div>
+                    </div>
+                </div>
+                <section class="block">
+                    <div class="block-head">
+                        <div>
+                            <div class="block-title" data-i18n="api.translateModel">翻译模型</div>
+                            <div class="block-desc" data-i18n="api.translateHint">提示词中英互译使用，支持百度翻译 API 和 AI 模型</div>
+                        </div>
+                    </div>
+                    <div class="form" style="grid-template-columns:1fr;gap:12px;">
+                        <div class="field full">
+                            <div class="label">翻译模式</div>
+                            <div class="field-frame">
+                                <select id="trProviderType" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrProviderTypeChange()">
+                                    <option value="ai">AI 模型翻译</option>
+                                    <option value="baidu">百度翻译 API</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- 百度翻译配置 -->
+                        <div id="trBaiduFields" style="display:none;">
+                            <div class="field full">
+                                <div class="label">App ID</div>
+                                <div class="field-frame"><input id="trBaiduAppId" type="text" placeholder="百度翻译开放平台 App ID"></div>
+                            </div>
+                            <div class="field full" style="margin-top:8px;">
+                                <div class="label">Secret Key</div>
+                                <div class="field-frame"><input id="trBaiduSecret" type="password" form="apiForm" placeholder="百度翻译 Secret Key"></div>
+                            </div>
+                            <div class="hint" style="margin-top:6px;">免费额度 5万字符/月 · <a href="https://fanyi-api.baidu.com/" target="_blank" style="color:var(--neon-cyan);">去注册</a></div>
+                        </div>
+                        <!-- AI 模型翻译配置 -->
+                        <div id="trAiFields">
+                            <div class="field full">
+                                <div class="label">Provider</div>
+                                <div class="field-frame">
+                                    <select id="trAiProvider" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;" onchange="onTrAiProviderChange()">
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field full" style="margin-top:8px;">
+                                <div class="label">模型</div>
+                                <div class="field-frame">
+                                    <select id="trAiModel" style="width:100%;height:36px;padding:0 10px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field full">
+                            <div class="label">翻译提示词模板</div>
+                            <div class="field-frame" style="height:auto;">
+                                <textarea id="trTemplate" rows="3" style="width:100%;min-height:60px;padding:8px 10px;border:0;background:transparent;color:var(--text);font-size:11px;font-weight:600;outline:none;resize:vertical;line-height:1.5;" placeholder="{text} 会被替换为待翻译文本"></textarea>
+                            </div>
+                        </div>
+                        <div class="hint full">模板中用 <code style="background:var(--soft);padding:1px 4px;border-radius:4px;">{text}</code> 表示待翻译文本</div>
+                        <div class="verify-action-row" style="margin-top:4px;">
+                            <button class="ghost-btn" type="button" onclick="testTranslate()" id="trTestBtn"><i data-lucide="play" class="w-3.5 h-3.5"></i><span>测试翻译</span></button>
+                            <button class="ghost-btn" type="button" onclick="saveTranslateConfig()" id="trSaveBtn" style="background:var(--strong);color:var(--strong-text);border-color:var(--strong);"><i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                            <div id="trTestResult" style="font-size:11px;color:var(--muted);font-weight:600;min-height:16px;"></div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <main id="recommendContent" class="content recommend-content" hidden>
+                <div class="content-head">
+                    <div>
+                        <div class="editor-title" data-i18n="api.recommendPanelTitle">推荐平台</div>
+                        <div class="editor-sub" data-i18n="api.recommendPanelSub">获取 Key 后保存，右侧会切换到刚保存的平台配置。</div>
+                    </div>
+                </div>
+                <section id="recommendPanel" class="provider-onboarding-card recommend-inline-card"></section>
             </main>
         </div>
         </div>
@@ -545,9 +973,150 @@
         </div>
     </div>
 
+    <!-- 推荐 API 浮层 -->
+    <div id="recommendApiOverlay" class="picker-overlay">
+        <div class="picker-modal recommend-picker-modal">
+            <div class="picker-head">
+                <div>
+                    <div class="picker-title" data-i18n="api.recommendApi">推荐 API</div>
+                    <div class="picker-count" data-i18n="api.recommendApiDesc">少量充值，即可即冲。配置后切换到对应平台。</div>
+                </div>
+                <div class="picker-close" onclick="closeRecommendApi()"><i data-lucide="x" class="w-4 h-4"></i></div>
+            </div>
+            <div id="recommendApiList" class="recommend-api-body"></div>
+            <div class="recommend-note" data-i18n="api.recommendApiNote">提示：账户内需要至少 0.05 元余额，才能验证地址并拉取模型。</div>
+        </div>
+    </div>
+
+    <!-- 即梦 CLI 帮助 -->
+    <div id="jimengHelpOverlay" class="picker-overlay">
+        <div class="picker-modal jimeng-help-modal">
+            <div class="picker-head">
+                <div>
+                    <div class="picker-title">即梦 CLI 帮助</div>
+                    <div class="picker-count">查看 dreamina 官方命令帮助输出</div>
+                </div>
+                <div class="picker-close" onclick="closeJimengHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
+            </div>
+            <div class="jimeng-help-toolbar">
+                <select id="jimengHelpCommand">
+                    <option value="">dreamina</option>
+                    <option value="login">login</option>
+                    <option value="logout">logout</option>
+                    <option value="user_credit">user_credit</option>
+                    <option value="text2image">text2image</option>
+                    <option value="image2image">image2image</option>
+                    <option value="image_upscale">image_upscale</option>
+                    <option value="text2video">text2video</option>
+                    <option value="image2video">image2video</option>
+                    <option value="multimodal2video">multimodal2video</option>
+                    <option value="frames2video">frames2video</option>
+                    <option value="multiframe2video">multiframe2video</option>
+                    <option value="list_task">list_task</option>
+                    <option value="query_result">query_result</option>
+                </select>
+                <button class="action-btn primary-btn" type="button" onclick="loadJimengHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
+            </div>
+            <pre id="jimengHelpOutput" class="jimeng-help-output"></pre>
+        </div>
+    </div>
+
+    <!-- Codex CLI 帮助 -->
+    <div id="codexHelpOverlay" class="picker-overlay">
+        <div class="picker-modal jimeng-help-modal">
+            <div class="picker-head">
+                <div>
+                    <div class="picker-title">OpenAI Codex CLI 帮助</div>
+                    <div class="picker-count">查看 codex 官方命令帮助输出</div>
+                </div>
+                <div class="picker-close" onclick="closeCodexHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
+            </div>
+            <div class="jimeng-help-toolbar">
+                <select id="codexHelpCommand">
+                    <option value="">codex</option>
+                    <option value="exec">exec</option>
+                    <option value="login">login</option>
+                    <option value="logout">logout</option>
+                    <option value="doctor">doctor</option>
+                    <option value="mcp">mcp</option>
+                    <option value="app">app</option>
+                    <option value="update">update</option>
+                </select>
+                <button class="action-btn primary-btn" type="button" onclick="loadCodexHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
+            </div>
+            <pre id="codexHelpOutput" class="jimeng-help-output"></pre>
+        </div>
+    </div>
+
+    <!-- Antigravity CLI 帮助 -->
+    <div id="geminiCliHelpOverlay" class="picker-overlay">
+        <div class="picker-modal jimeng-help-modal">
+            <div class="picker-head">
+                <div>
+                    <div class="picker-title">Antigravity CLI 帮助</div>
+                    <div class="picker-count">查看 gemini 官方命令帮助输出</div>
+                </div>
+                <div class="picker-close" onclick="closeGeminiCliHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
+            </div>
+            <div class="jimeng-help-toolbar">
+                <select id="geminiHelpCommand">
+                    <option value="">gemini</option>
+                    <option value="help">help</option>
+                    <option value="mcp">mcp</option>
+                    <option value="extensions">extensions</option>
+                </select>
+                <button class="action-btn primary-btn" type="button" onclick="loadGeminiCliHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
+            </div>
+            <pre id="geminiHelpOutput" class="jimeng-help-output"></pre>
+        </div>
+    </div>
+
+    <!-- RunningHub 工作流编辑器 -->
+    <div id="rhWorkflowEditorOverlay" class="rh-workflow-editor-overlay">
+        <div class="rh-workflow-editor-modal">
+            <div class="rh-workflow-editor-head">
+                <div class="rh-workflow-editor-title-wrap">
+                    <div id="rhWorkflowEditorTitle" class="rh-workflow-editor-title">RunningHub 工作流</div>
+                    <div id="rhWorkflowEditorSub" class="rh-workflow-editor-sub">选择要暴露到画布的输入参数</div>
+                </div>
+                <div class="rh-workflow-editor-actions">
+                    <button class="action-btn" type="button" onclick="fetchRhWorkflowEditor(true)"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>重新拉取</span></button>
+                    <button id="rhWorkflowSaveBtn" class="action-btn save-btn" type="button" onclick="saveRhWorkflowEditor()"><i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                    <button class="rh-workflow-editor-close" type="button" onclick="closeRhWorkflowEditor()"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+            <div class="rh-workflow-editor-body">
+                <aside class="rh-workflow-editor-side">
+                    <label class="rh-editor-field">
+                        <span>名称</span>
+                        <input id="rhWorkflowEditName" type="text" oninput="updateRhWorkflowEditorMeta('title', this.value)">
+                    </label>
+                    <label class="rh-editor-field">
+                        <span>备注</span>
+                        <textarea id="rhWorkflowEditNote" oninput="updateRhWorkflowEditorMeta('description', this.value)"></textarea>
+                    </label>
+                    <div id="rhWorkflowEditorSummary" class="rh-editor-summary"></div>
+                    <div id="rhWorkflowEditorNodeList" class="rh-editor-node-list"></div>
+                </aside>
+                <section class="rh-workflow-editor-canvas">
+                    <div id="rhWorkflowEditorGraphWrap" class="rh-editor-graph-wrap">
+                        <svg id="rhWorkflowEditorGraphSvg" class="rh-editor-graph-svg"></svg>
+                        <div class="rh-editor-graph-controls">
+                            <button type="button" onclick="rhEditorGraphZoom(-1)" title="缩小"><i data-lucide="zoom-out" class="w-4 h-4"></i></button>
+                            <span id="rhWorkflowEditorZoom">100%</span>
+                            <button type="button" onclick="rhEditorGraphZoom(1)" title="放大"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="rhEditorGraphFit()" title="适应窗口"><i data-lucide="maximize" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <script>
         let providers = [];
         let selectedId = '';
+        let selectedTranslate = false;
         const providerList = document.getElementById('providerList');
         const editorTitle = document.getElementById('editorTitle');
         const statusEl = document.getElementById('status');
@@ -614,21 +1183,47 @@
             const item = provider();
             if(!item) return;
             const oldId = item.id;
-            const isBuiltin = item.id === 'comfly' || item.id === 'modelscope';
+            const isBuiltin = ['comfly','modelscope','runninghub','volcengine'].includes(item.id);
             // 内置平台不允许改 ID；自定义平台的 ID 自动从名称派生
             const nextId = isBuiltin ? item.id : deriveIdFromName(nameInput.value, item.id);
             item.id = nextId;
             if(oldId !== item.id) selectedId = item.id;
             item.name = nameInput.value.trim() || item.id;
             item.base_url = baseInput.value.trim();
-            // MS 固定使用 OpenAI 协议，不从下拉读取
-            item.protocol = (item.id === 'modelscope') ? 'openai' : (item.id === 'jimeng') ? 'jimeng' : (protocolInput?.value || 'openai');
+            // MS 固定使用 OpenAI 协议；RH 固定 runninghub；Volcengine 固定 volcengine；即梦固定 jimeng
+            item.protocol = (item.id === 'modelscope') ? 'openai'
+                : (item.id === 'runninghub') ? 'runninghub'
+                : (item.id === 'volcengine') ? 'volcengine'
+                : (item.id === 'jimeng') ? 'jimeng'
+                : (protocolInput?.value || 'openai');
             if(item.protocol === 'jimeng') item.base_url = '';
             const key = keyInput.value.trim();
             if(key) item.api_key = key;
+            // RH Key：rhFreeKeyInput + rhWalletKeyInput 同步到 item
+            const rhFree = document.getElementById('rhFreeKeyInput')?.value.trim();
+            if(rhFree) item.rh_free_key = rhFree;
+            const rhWallet = document.getElementById('rhWalletKeyInput')?.value.trim();
+            if(rhWallet) item.rh_wallet_key = rhWallet;
+            // 火山引擎 AK/SK + Project + Region
+            const volcAk = document.getElementById('volcAkInput')?.value.trim();
+            if(volcAk) item.volc_ak = volcAk;
+            const volcSk = document.getElementById('volcSkInput')?.value.trim();
+            if(volcSk) item.volc_sk = volcSk;
+            const volcProject = document.getElementById('volcProjectInput')?.value.trim();
+            if(volcProject) item.volc_project_name = volcProject;
+            const volcRegion = document.getElementById('volcRegionInput')?.value.trim();
+            if(volcRegion) item.volc_region = volcRegion;
+            // image_request_mode 同步
+            const imgModeEl = document.getElementById('imageRequestModeInput');
+            if(imgModeEl && !['modelscope','runninghub','volcengine','jimeng','codex','gemini-cli'].includes(item.id)){
+                item.image_request_mode = imgModeEl.value;
+            } else {
+                // 内置平台强制 openai
+                item.image_request_mode = 'openai';
+            }
         }
         function sortedProviders(){
-            const order = ['modelscope', 'comfly'];
+            const order = ['modelscope', 'runninghub', 'volcengine', 'jimeng', 'codex', 'gemini-cli', 'comfly'];
             return [...providers].sort((a, b) => {
                 const ai = order.indexOf(a.id);
                 const bi = order.indexOf(b.id);
@@ -641,14 +1236,84 @@
         function renderProviderList(){
             providerList.innerHTML = sortedProviders().map(item => {
                 const active = item.id === selectedId ? 'active' : '';
+                // ModelScope: 用专属 banner 图（亮色 + 暗色双版）
                 if(item.id === 'modelscope'){
                     return `
                         <button class="provider-card provider-card-banner ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
-                            <img src="/static/modelscope.gif" alt="ModelScope" class="ms-icon-light">
-                            <img src="/static/modelscope-1.gif" alt="ModelScope" class="ms-icon-dark">
+                            <span class="provider-banner-inner">
+                                <span class="provider-logo-wrap">
+                                    <img src="/static/images/modelscope.gif" alt="ModelScope" class="ms-icon-light">
+                                    <img src="/static/images/modelscope-1.gif" alt="ModelScope" class="ms-icon-dark">
+                                    <span class="provider-logo-fallback">ModelScope</span>
+                                </span>
+                                <span class="provider-protocol-pill">OpenAI</span>
+                            </span>
                         </button>
                     `;
                 }
+                // RunningHub: 用专属 banner 图片
+                if(item.id === 'runninghub'){
+                    return `
+                        <button class="provider-card provider-card-banner ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
+                            <span class="provider-banner-inner">
+                                <span class="provider-logo-wrap">
+                                    <img src="/static/images/RunningHub-B.png" alt="RunningHub" class="runninghub-icon ms-icon-light">
+                                    <img src="/static/images/RunningHub-W.png" alt="RunningHub" class="runninghub-icon ms-icon-dark">
+                                    <span class="provider-logo-fallback">RunningHub</span>
+                                </span>
+                                <span class="provider-protocol-pill">RH</span>
+                            </span>
+                        </button>
+                    `;
+                }
+                // 火山引擎: 用 SVG banner 图
+                if(item.id === 'volcengine'){
+                    return `
+                        <button class="provider-card provider-card-banner ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
+                            <span class="provider-banner-inner">
+                                <span class="provider-logo-wrap">
+                                    <img src="/static/images/volcengine-theme-light.svg" alt="火山引擎" class="volcengine-icon ms-icon-light">
+                                    <img src="/static/images/volcengine-theme-dark.svg" alt="火山引擎" class="volcengine-icon ms-icon-dark">
+                                    <span class="provider-logo-fallback">火山引擎</span>
+                                </span>
+                                <span class="provider-protocol-pill">Ark</span>
+                            </span>
+                        </button>
+                    `;
+                }
+                // 即梦 CLI: 普通卡片 + CLI 标签
+                if(item.id === 'jimeng'){
+                    return `
+                        <button class="provider-card ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
+                            <span class="provider-mark provider-mark-jimeng">
+                                <i data-lucide="image" class="w-4 h-4"></i>
+                            </span>
+                            <span class="min-w-0">
+                                <div class="provider-name">${escapeHtml(item.name || item.id)}</div>
+                                <div class="provider-meta">${escapeHtml(item.base_url || '未配置地址')}</div>
+                            </span>
+                            <span class="provider-cli-tag">JIMENG</span>
+                        </button>
+                    `;
+                }
+                // Codex / Antigravity CLI
+                if(item.id === 'codex' || item.id === 'gemini-cli'){
+                    const cliName = item.id === 'codex' ? 'GPT CLI' : 'Antigravity CLI';
+                    const cliTag = item.id === 'codex' ? 'CODEX' : 'GEMINI-CLI';
+                    return `
+                        <button class="provider-card ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
+                            <span class="provider-mark provider-mark-cli">
+                                <i data-lucide="${item.id === 'codex' ? 'terminal' : 'sparkles'}" class="w-4 h-4"></i>
+                            </span>
+                            <span class="min-w-0">
+                                <div class="provider-name">${escapeHtml(cliName)}</div>
+                                <div class="provider-meta">未配置地址</div>
+                            </span>
+                            <span class="provider-cli-tag">${cliTag}</span>
+                        </button>
+                    `;
+                }
+                // 默认样式（自定义平台）
                 return `
                     <button class="provider-card ${active}" type="button" onclick="selectProvider('${escapeHtml(item.id)}')">
                         <span class="provider-mark"><i data-lucide="${item.has_key ? 'key-round' : 'key'}" class="w-4 h-4"></i></span>
@@ -1064,8 +1729,31 @@
         }
         function selectProvider(id){
             syncEditor();
+            selectedTranslate = false;
             selectedId = id;
             renderEditor();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+        }
+        function selectTranslate(){
+            selectedTranslate = true;
+            selectedId = '';
+            renderProviderList();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+            // 加载翻译配置
+            if(typeof loadTranslateConfig === 'function') loadTranslateConfig();
+        }
+        function toggleTranslateContent(){
+            const mains = document.querySelectorAll('.layout > main');
+            const content = mains[0];
+            const translateContent = document.getElementById('translateContent');
+            if(content) content.style.display = selectedTranslate ? 'none' : '';
+            if(translateContent) translateContent.hidden = !selectedTranslate;
+        }
+        function updateTranslateSideBtn(){
+            const btn = document.getElementById('translateSideBtn');
+            if(btn) btn.classList.toggle('active', !!selectedTranslate);
         }
         function addProvider(){
             syncEditor();
@@ -1073,17 +1761,60 @@
             let index = 2;
             while(providers.some(item => item.id === id)) id = `custom-api-${index++}`;
             providers.push({id, name:tr('api.newProvider'), base_url:'https://', protocol:'openai', enabled:true, primary:false, image_models:[], chat_models:[], video_models:[], has_key:false, key_preview:''});
+            selectedTranslate = false;
             selectedId = id;
             renderEditor();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+        }
+        function addCliProvider(cliType){
+            syncEditor();
+            const protoMap = { jimeng:'jimeng', codex:'codex', 'gemini-cli':'gemini-cli' };
+            const nameMap = { jimeng:'即梦 CLI', codex:'GPT CLI', 'gemini-cli':'Antigravity CLI' };
+            const proto = protoMap[cliType] || 'jimeng';
+            const existing = providers.find(p => p.protocol === proto);
+            if(existing){
+                selectedTranslate = false;
+                selectedId = existing.id;
+                renderEditor();
+                toggleTranslateContent();
+                updateTranslateSideBtn();
+                return;
+            }
+            let id = cliType;
+            let idx = 2;
+            while(providers.some(p => p.id === id)) id = `${cliType}-${idx++}`;
+            providers.push({
+                id, name: nameMap[cliType] || cliType,
+                base_url:'', protocol:proto, enabled:true, primary:false,
+                image_models:[], chat_models:[], video_models:[], has_key:false, key_preview:''
+            });
+            selectedTranslate = false;
+            selectedId = id;
+            renderEditor();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+        }
+        function openRecommendApi(){
+            if(typeof renderRecommendApi === 'function'){
+                renderRecommendApi();
+                document.getElementById('recommendApiOverlay').style.display = 'flex';
+            }
         }
         function deleteProvider(){
             const item = provider();
             if(!item) return;
-            if(item.id === 'modelscope'){ alert(tr('api.modelscopeOnlyDelete') || 'ModelScope 是默认平台，不可删除'); return; }
+            if(['modelscope','runninghub','volcengine'].includes(item.id)){
+                alert('内置平台不可删除（' + (item.name||item.id) + '）');
+                return;
+            }
             if(providers.length <= 1){ alert(tr('api.keepOne')); return; }
             providers = providers.filter(p => p.id !== item.id);
+            selectedTranslate = false;
             selectedId = providers[0]?.id || '';
             renderEditor();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
             saveProviders();
         }
         function addModel(kind){
@@ -1111,8 +1842,11 @@
             try {
                 const data = await fetch('/api/providers').then(r => r.json());
                 providers = data.providers || [];
+                selectedTranslate = false;
                 selectedId = sortedProviders()[0]?.id || '';
                 renderEditor();
+                toggleTranslateContent();
+                updateTranslateSideBtn();
                 setStatus('');
             } catch(err) {
                 setStatus(tr('api.loadFailed'));
@@ -1385,13 +2119,654 @@
             }
         }
 
+        // ====== 推荐 API：按分组渲染大卡片（INF 风格） ======
+        const RECOMMEND_PROVIDERS = [
+            // ===== 全量稳定 =====
+            {
+                name: 'RunningHub', id: 'runninghub', category: 'allround', priority: 1,
+                base_url: 'https://www.runninghub.ai', protocol: 'runninghub',
+                summary: '覆盖图像、LLM、视频和工作流能力，适合一套 Key 接入多类生成型任务。',
+                tags: ['图像模型', '视频模型', 'LLM 模型'],
+                perks: [{ text: 'Seedance', cls: 'seedance' }],
+                register_url: 'https://www.runninghub.ai/enterprise-api/consumerApi?inviteCode=rh-v1331',
+                register_url_cn: 'https://www.runninghub.cn/enterprise-api/consumerApi?inviteCode=rh-v1331',
+                placeholder: '粘贴 RunningHub API Key'
+            },
+            {
+                name: 'APIMART', id: '', category: 'allround', priority: 2,
+                base_url: 'https://api.apimart.ai', protocol: 'apimart',
+                summary: '聚合多种类型生成模型，适合希望用一套配置快速接入图像、视频和 LLM 的用户。',
+                tags: ['图像模型', '视频模型', 'LLM 模型'],
+                perks: [{ text: 'Seedance', cls: 'seedance' }],
+                register_url: 'https://apimart.ai/zh/register?aff=1uyAbb',
+                register_url_cn: 'https://apib.ai/register?aff=1uyAbb',
+                placeholder: '粘贴 APIMART API Key'
+            },
+            // ===== 性价比 =====
+            {
+                name: '土豆 API', id: 'tudou', category: 'value', priority: 3,
+                base_url: 'https://api.ai-tudou.net', protocol: 'openai',
+                summary: '提供图像、视频和音频模型的接入，使用专属注册链接可享六折优惠，适合成本敏感型接入多模型工作流。',
+                tags: ['图像模型', '视频模型', 'LLM 模型'],
+                register_url: 'https://api.ai-tudou.net/register?aff=GmBu',
+                placeholder: '粘贴土豆 API API Key'
+            },
+            {
+                name: 'EXELLOME', id: 'exellome', category: 'value', priority: 4,
+                base_url: 'https://new.exellome.online', protocol: 'apimart',
+                summary: '稳定输出 GPT-Image2 和 Nano Banana 的 2K/4K，异步协议适合长任务。',
+                tags: ['GPT-Image2', 'Nano-Banana'],
+                register_url: 'https://new.exellome.online/register?aff=r2dZ',
+                placeholder: '粘贴 EXELLOME API Key',
+                keyHint: '使用 VIP 分组'
+            },
+            {
+                name: 'FHL', id: 'fhl', category: 'value', priority: 5,
+                base_url: 'https://www.fhl.mom', protocol: 'openai',
+                summary: '稳定便宜接入 codex/Claude/GPT Image 2 出图。',
+                tags: ['Codex', 'Claude', 'GPT-Image2'],
+                register_url: 'https://www.fhl.mom/register?aff=86L574B4T2N9',
+                placeholder: '粘贴 FHL API Key'
+            },
+            {
+                name: 'VIP-GPT', id: 'vipgpt', category: 'value', priority: 6,
+                base_url: 'https://api.vip-gpt.com/v1', protocol: 'openai',
+                summary: '支持 AI 编程的模型和生图模型，还可以包月使用。',
+                tags: ['Claude', 'GPT-Image2', 'Nano-Banana'],
+                register_url: 'https://api.vip-gpt.com/register',
+                placeholder: '粘贴 VIP-GPT API Key'
+            },
+            {
+                name: '灵境 API', id: 'lingjing', category: 'value', priority: 7,
+                base_url: 'https://api.lingjingstudio.cn/v1', protocol: 'openai',
+                summary: '灵境 API 提供图像、视频和 LLM 模型接入，使用专属注册链接可享六折优惠，适合成本敏感型接入多模型工作流。',
+                tags: ['图像模型', '视频模型', 'LLM 模型'],
+                register_url: 'https://api.lingjingstudio.cn/register?aff=invite',
+                placeholder: '粘贴灵境 API Key'
+            },
+            // ===== 免费 =====
+            {
+                name: 'ModelScope', id: 'modelscope', category: 'free', priority: 8,
+                base_url: 'https://api-inference.modelscope.cn/v1', protocol: 'openai',
+                summary: '免费额度可用，适合基础图像与 LLM 测试。需要绑定阿里云账号。',
+                tags: ['图像模型', 'LLM 模型', '阿里云绑定'],
+                perks: [{ text: '免费额度', cls: 'free' }],
+                register_url: 'https://www.modelscope.ai/my/access/token',
+                register_url_cn: 'https://www.modelscope.cn/my/access/token',
+                placeholder: '粘贴 ModelScope Token'
+            },
+            {
+                name: 'Agnes AI', id: 'agnes', category: 'free', priority: 9,
+                base_url: 'https://apihub.agnes-ai.com', protocol: 'openai',
+                summary: '免费额度可用，支持 Agnes 图像与视频接口，OpenAI 兼容地址配置简单。',
+                tags: ['图像模型', '视频模型', 'LLM 模型'],
+                perks: [{ text: '免费额度', cls: 'free' }],
+                register_url: 'https://platform.agnes-ai.com/settings/apiKeys',
+                placeholder: '粘贴 Agnes API Key'
+            }
+        ];
+        const RECOMMEND_GROUPS = [
+            { key: 'allround', title: '全量稳定' },
+            { key: 'value', title: '性价比' },
+            { key: 'free', title: '免费' }
+        ];
+        function recommendBadge(api){
+            if(api.id === 'runninghub') return 'RH';
+            if(api.id === 'modelscope') return 'OpenAI';
+            if(api.protocol === 'apimart') return 'APIMart';
+            if(api.protocol === 'runninghub') return 'RunningHub';
+            if(api.protocol === 'volcengine') return 'Ark';
+            return 'OpenAI';
+        }
+        function renderRecommendApi(){
+            const list = document.getElementById('recommendApiList');
+            if(!list) return;
+            const cardHtml = (api) => {
+                const safeSummary = escapeHtml(api.summary || '');
+                const tagsHtml = (api.tags || []).map(t => {
+                    return `<span class="recommend-tag">${escapeHtml(t)}</span>`;
+                }).join('');
+                const perksHtml = (api.perks || []).map(p =>
+                    `<span class="recommend-tag recommend-${escapeAttr(p.cls)}-tag"><i data-lucide="gift" class="w-3 h-3"></i><span>${escapeHtml(p.text)}</span></span>`
+                ).join('');
+                const registerUrl = api.register_url || '#';
+                const registerUrlCn = api.register_url_cn || '';
+                const registerActions = registerUrlCn ? `
+                    <a class="recommend-key-link" href="${escapeAttr(registerUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="globe-2" class="w-3 h-3"></i><span>国外 Key</span></a>
+                    <a class="recommend-key-link" href="${escapeAttr(registerUrlCn)}" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-3 h-3"></i><span>国内 Key</span></a>
+                ` : `
+                    <a class="recommend-key-link" href="${escapeAttr(registerUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-3 h-3"></i><span>获取 Key</span></a>
+                `;
+                const placeholder = escapeAttr(api.placeholder || ('粘贴 ' + api.name + ' Key'));
+                const keyHint = api.keyHint ? `<em class="recommend-key-inline-hint">· ${escapeHtml(api.keyHint)}</em>` : '';
+                return `
+                    <section class="recommend-platform-card">
+                        <div class="recommend-platform-info">
+                            <div class="recommend-platform-head">
+                                <div>
+                                    <div class="recommend-name"><span>${escapeHtml(api.name)}</span></div>
+                                </div>
+                                <span class="recommend-badge">${escapeHtml(recommendBadge(api))}</span>
+                            </div>
+                            <p class="recommend-platform-summary">${safeSummary}</p>
+                            <div class="recommend-tags">
+                                ${perksHtml}
+                                ${tagsHtml}
+                            </div>
+                        </div>
+                        <div class="recommend-platform-setup">
+                            <div class="recommend-setup-title">点设置获取 Key → 黏贴 → 保存</div>
+                            <div class="recommend-setup-flow">
+                                <div class="recommend-source-group">
+                                    <div class="recommend-source-label">获取 Key</div>
+                                    <div class="recommend-source-actions">${registerActions}</div>
+                                </div>
+                                <div class="recommend-flow-arrow" aria-hidden="true"><span></span><b></b></div>
+                                <div class="recommend-key-save">
+                                    <div class="field-frame"><input type="password" data-recommend-id="${escapeAttr(api.id || api.name)}" placeholder="${placeholder}"></div>
+                                    <button type="button" onclick="saveRecommendedApi('${escapeAttr(api.id || api.name)}','${escapeAttr(api.name)}','${escapeAttr(api.base_url || '')}','${escapeAttr(api.protocol || 'openai')}','${escapeAttr(api.category || '')}')"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                                </div>
+                            </div>
+                            ${keyHint ? '' : ''}
+                        </div>
+                    </section>
+                `;
+            };
+            const html = RECOMMEND_GROUPS.map(group => {
+                const items = RECOMMEND_PROVIDERS.filter(p => p.category === group.key);
+                if(!items.length) return '';
+                return `
+                    <div class="recommend-group">
+                        <div class="recommend-group-head">
+                            <i data-lucide="${group.key === 'allround' ? 'blocks' : group.key === 'value' ? 'badge-percent' : 'gift'}" class="w-3.5 h-3.5"></i>
+                            <span>${escapeHtml(group.title)}</span>
+                        </div>
+                        <div class="recommend-group-cards">${items.map(cardHtml).join('')}</div>
+                    </div>
+                `;
+            }).join('');
+            list.innerHTML = html;
+            refreshIcons();
+        }
+        async function saveRecommendedApi(id, name, baseUrl, protocol, category){
+            const input = document.querySelector(`[data-recommend-id="${CSS.escape(id)}"]`);
+            const apiKey = (input?.value || '').trim();
+            if(!apiKey){ alert(`请先填写 ${name} 的 Key`); return; }
+            syncEditor();
+            // 找到或创建 provider
+            const normalizedId = id || normalizeId(name);
+            let item = providers.find(p => p.id === normalizedId || p.name === name);
+            if(!item){
+                let newId = normalizedId;
+                let i = 2;
+                while(providers.some(p => p.id === newId)) newId = `${newId || 'api'}-${i++}`;
+                item = {
+                    id: newId, name, base_url: baseUrl, protocol,
+                    enabled: true, primary: false,
+                    image_models: [], chat_models: [], video_models: [],
+                    has_key: false, key_preview: ''
+                };
+                providers.push(item);
+            } else {
+                if(baseUrl) item.base_url = baseUrl;
+                item.protocol = protocol || item.protocol;
+            }
+            selectedTranslate = false;
+            selectedId = item.id;
+            // 临时保存 key 让 syncEditor 拿到
+            item.api_key = apiKey;
+            if(keyInput) keyInput.value = apiKey;
+            await saveProviders();
+            setStatus(`已保存「${name}」配置`);
+            if(input) input.value = '';
+            closeRecommendApi();
+            renderEditor();
+            updateTranslateSideBtn();
+        }
+        function applyRecommendApi(id, name, url, proto){
+            // 兼容旧调用：切换/创建平台
+            if(!name){ closeRecommendApi(); return; }
+            syncEditor();
+            let item = providers.find(p => p.id === id || p.name === name);
+            if(!item){
+                let newId = id || normalizeId(name);
+                let idx = 2;
+                while(providers.some(p => p.id === newId)) newId = `${newId || 'api'}-${idx++}`;
+                providers.push({id:newId, name, base_url:url, protocol:proto, enabled:true, primary:false, image_models:[], chat_models:[], video_models:[], has_key:false, key_preview:''});
+                item = providers[providers.length-1];
+            }
+            selectedTranslate = false;
+            selectedId = item.id;
+            renderEditor();
+            closeRecommendApi();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+            setStatus(`已切换到「${name}」配置`);
+        }
+        function closeRecommendApi(){
+            const el = document.getElementById('recommendApiOverlay');
+            if(el) el.style.display = 'none';
+        }
+
+        // ====== MS 新手引导 ======
+        async function saveMsOnboardingToken(){
+            const input = document.getElementById('msOnboardingTokenInput');
+            if(!input || !input.value.trim()){ alert('请先粘贴 ModelScope Token'); return; }
+            const item = providers.find(p => p.id === 'modelscope');
+            if(!item){ alert('未找到 ModelScope 平台'); return; }
+            const key = input.value.trim();
+            item.api_key = key;
+            // 同步到编辑器的 keyInput
+            if(keyInput){
+                keyInput.value = key;
+                keyInput.type = 'password';
+            }
+            await saveProviders();
+            setStatus('ModelScope Token 已保存');
+            input.value = '';
+        }
+
+        // ====== 引导卡：动态渲染（ModelScope / RunningHub / 火山引擎） ======
+        const ONBOARDING_GUIDES = {
+            modelscope: {
+                title: 'ModelScope 新手引导',
+                desc: '先去 ModelScope 获取 Token，填入 API Key 并保存后，右侧完整设置会自动显示。',
+                keyName: 'API Key',
+                placeholder: '黏贴 ModelScope Token',
+                primaryLabel: '获取 Token · 国内',
+                primaryUrl: 'https://www.modelscope.cn/my/access/token',
+                secondaryLabel: '获取 Token · 国外',
+                secondaryUrl: 'https://www.modelscope.ai/my/access/token',
+                saveHandler: 'saveKeyOnly',
+                emptyKey: '请先填写 ModelScope Token'
+            },
+            runninghub: {
+                title: 'RunningHub 新手引导',
+                desc: '先在 RunningHub 获取 RH币 接口 API Key（如需账户余额查询可同时填写第二个 Key），保存后右侧完整设置会自动显示。',
+                keyName: 'RH币 API Key · 必填',
+                placeholder: '黏贴 RH币 API Key',
+                primaryLabel: '国内 · RH币 Key',
+                primaryUrl: 'https://www.runninghub.cn/enterprise-api/consumerApi?inviteCode=rh-v1331',
+                secondaryLabel: '国外 · RH币 Key',
+                secondaryUrl: 'https://www.runninghub.ai/enterprise-api/consumerApi?inviteCode=rh-v1331',
+                walletTitle: '账户余额 API Key · 可选',
+                walletPlaceholder: '黏账户余额 Key（可选）',
+                walletPrimaryLabel: '国内 · 余额 Key',
+                walletPrimaryUrl: 'https://www.runninghub.cn/enterprise-api/sharedApi?inviteCode=rh-v1331',
+                walletSecondaryLabel: '国外 · 余额 Key',
+                walletSecondaryUrl: 'https://www.runninghub.ai/enterprise-api/sharedApi?inviteCode=rh-v1331',
+                saveHandler: 'saveOnboardingRunningHubKey',
+                emptyKey: '请先填写 RH币 API Key'
+            },
+            volcengine: {
+                title: '火山引擎新手引导',
+                desc: '先去火山方舟控制台获取 API Key，填写后保存，右侧会出现 Seedance 视频生成和素材库 AK/SK 设置。',
+                keyName: '方舟 API Key',
+                placeholder: '黏贴方舟 API Key',
+                primaryLabel: '方舟控制台',
+                primaryUrl: 'https://console.volcengine.com/ark',
+                secondaryLabel: 'API 文档',
+                secondaryUrl: 'https://www.volcengine.com/docs/82379',
+                saveHandler: 'saveKeyOnly',
+                emptyKey: '请先填写方舟 API Key'
+            }
+        };
+        const providerOnboardingCard = document.getElementById('providerOnboardingCard');
+        function renderProviderOnboarding(item){
+            if(!providerOnboardingCard) return;
+            const guide = item ? ONBOARDING_GUIDES[item.id] : null;
+            const visible = Boolean(guide);
+            providerOnboardingCard.hidden = !visible;
+            if(!visible){ providerOnboardingCard.innerHTML = ''; return; }
+            if(item.id === 'runninghub'){
+                providerOnboardingCard.innerHTML = `
+                    <div class="onboarding-head">
+                        <div>
+                            <div class="onboarding-title">${escapeHtml(guide.title)}</div>
+                            <div class="onboarding-desc">${escapeHtml(guide.desc)}</div>
+                        </div>
+                        <span class="onboarding-badge">NEW</span>
+                    </div>
+                    <div class="onboarding-step-panel">
+                        <div class="onboarding-step-panel-head">
+                            <div>
+                                <div class="onboarding-step-title">获取 Key 后端并保存</div>
+                            </div>
+                            <i data-lucide="key-round" class="onboarding-step-icon w-4 h-4"></i>
+                        </div>
+                        <div class="onboarding-linear-rows">
+                            <div class="onboarding-linear-row">
+                                <div class="onboarding-source-group">
+                                    <div class="onboarding-source-label">${escapeHtml(guide.keyName)}</div>
+                                    <div class="onboarding-key-actions">
+                                        <a class="onboarding-key-btn" href="${escapeAttr(guide.primaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.primaryLabel)}</span></a>
+                                        <a class="onboarding-key-btn" href="${escapeAttr(guide.secondaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="globe-2" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.secondaryLabel)}</span></a>
+                                    </div>
+                                </div>
+                                <div class="onboarding-flow-arrow" aria-hidden="true"><span></span><b></b></div>
+                                <label class="onboarding-row-field">
+                                    <span>${escapeHtml(guide.keyName)}</span>
+                                    <input type="password" form="apiForm" value="${escapeAttr(document.getElementById('rhFreeKeyInput')?.value || '')}" placeholder="${escapeAttr(guide.placeholder)}" oninput="syncOnboardingKeyInput('free', this.value)">
+                                </label>
+                            </div>
+                            <div class="onboarding-linear-row">
+                                <div class="onboarding-source-group">
+                                    <div class="onboarding-source-label">${escapeHtml(guide.walletTitle)}</div>
+                                    <div class="onboarding-key-actions">
+                                        <a class="onboarding-key-btn" href="${escapeAttr(guide.walletPrimaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.walletPrimaryLabel)}</span></a>
+                                        <a class="onboarding-key-btn" href="${escapeAttr(guide.walletSecondaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="globe-2" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.walletSecondaryLabel)}</span></a>
+                                    </div>
+                                </div>
+                                <div class="onboarding-flow-arrow" aria-hidden="true"><span></span><b></b></div>
+                                <label class="onboarding-row-field">
+                                    <span>${escapeHtml(guide.walletTitle)}</span>
+                                    <input type="password" form="apiForm" value="${escapeAttr(document.getElementById('rhWalletKeyInput')?.value || '')}" placeholder="${escapeAttr(guide.walletPlaceholder)}" oninput="syncOnboardingKeyInput('wallet', this.value)">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="onboarding-save-line">
+                            <button class="onboarding-save-btn" type="button" onclick="${guide.saveHandler}()"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                        </div>
+                    </div>`;
+                refreshIcons();
+                return;
+            }
+            // modelscope / volcengine
+            providerOnboardingCard.innerHTML = `
+                <div class="onboarding-head">
+                    <div>
+                        <div class="onboarding-title">${escapeHtml(guide.title)}</div>
+                        <div class="onboarding-desc">${escapeHtml(guide.desc)}</div>
+                    </div>
+                    <span class="onboarding-badge">NEW</span>
+                </div>
+                <div class="onboarding-step-panel">
+                    <div class="onboarding-step-panel-head">
+                        <div>
+                            <div class="onboarding-step-title">获取 Token 后端并保存</div>
+                        </div>
+                        <i data-lucide="key-round" class="onboarding-step-icon w-4 h-4"></i>
+                    </div>
+                    <div class="onboarding-linear-rows">
+                        <div class="onboarding-linear-row">
+                            <div class="onboarding-source-group">
+                                <div class="onboarding-source-label">${escapeHtml(guide.keyName)}</div>
+                                <div class="onboarding-key-actions">
+                                    <a class="onboarding-key-btn" href="${escapeAttr(guide.primaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="key-round" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.primaryLabel)}</span></a>
+                                    <a class="onboarding-key-btn" href="${escapeAttr(guide.secondaryUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="globe-2" class="w-3.5 h-3.5"></i><span>${escapeHtml(guide.secondaryLabel)}</span></a>
+                                </div>
+                            </div>
+                            <div class="onboarding-flow-arrow" aria-hidden="true"><span></span><b></b></div>
+                            <label class="onboarding-row-field">
+                                <span>${escapeHtml(guide.keyName)}</span>
+                                <input type="password" form="apiForm" value="${escapeAttr(keyInput?.value || '')}" placeholder="${escapeAttr(guide.placeholder)}" oninput="syncOnboardingKeyInput('standard', this.value)">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="onboarding-save-line">
+                        <button class="onboarding-save-btn" type="button" onclick="${guide.saveHandler}()"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>保存</span></button>
+                    </div>
+                </div>`;
+            refreshIcons();
+        }
+        function syncOnboardingKeyInput(kind, value){
+            if(kind === 'free' && document.getElementById('rhFreeKeyInput')) document.getElementById('rhFreeKeyInput').value = value || '';
+            else if(kind === 'wallet' && document.getElementById('rhWalletKeyInput')) document.getElementById('rhWalletKeyInput').value = value || '';
+            else if(keyInput) keyInput.value = value || '';
+        }
+        async function saveOnboardingRunningHubKey(){
+            const freeKey = document.getElementById('rhFreeKeyInput')?.value.trim() || '';
+            if(!freeKey){ alert('请先填写 RH币 API Key'); return; }
+            const item = providers.find(p => p.id === 'runninghub');
+            if(!item) return;
+            syncEditor();
+            await saveProviders();
+            document.getElementById('rhFreeKeyInput').value = '';
+            document.getElementById('rhWalletKeyInput').value = '';
+        }
+
+        // ====== CLI 帮助 ======
+        function openJimengHelp(){
+            const el = document.getElementById('jimengHelpOverlay');
+            if(el) el.style.display = 'flex';
+            loadJimengHelp();
+        }
+        function closeJimengHelp(){
+            document.getElementById('jimengHelpOverlay').style.display = 'none';
+        }
+        async function loadJimengHelp(){
+            const cmd = document.getElementById('jimengHelpCommand')?.value || '';
+            const output = document.getElementById('jimengHelpOutput');
+            if(output) output.textContent = '正在加载...';
+            try {
+                const data = await fetch('/api/jimeng/help', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({command: cmd || undefined})
+                }).then(r => r.json());
+                if(output) output.textContent = data.output || data.text || data.message || '无输出';
+            } catch(e){
+                if(output) output.textContent = '加载失败: ' + (e.message || e);
+            }
+        }
+        function openCodexHelp(){
+            const el = document.getElementById('codexHelpOverlay');
+            if(el) el.style.display = 'flex';
+            loadCodexHelp();
+        }
+        function closeCodexHelp(){
+            document.getElementById('codexHelpOverlay').style.display = 'none';
+        }
+        async function loadCodexHelp(){
+            const cmd = document.getElementById('codexHelpCommand')?.value || '';
+            const output = document.getElementById('codexHelpOutput');
+            if(output) output.textContent = '正在加载...';
+            try {
+                const data = await fetch('/api/codex/help', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({command: cmd || undefined})
+                }).then(r => r.json());
+                if(output) output.textContent = data.output || data.text || data.message || '无输出';
+            } catch(e){
+                if(output) output.textContent = '加载失败: ' + (e.message || e);
+            }
+        }
+        function openGeminiCliHelp(){
+            const el = document.getElementById('geminiCliHelpOverlay');
+            if(el) el.style.display = 'flex';
+            loadGeminiCliHelp();
+        }
+        function closeGeminiCliHelp(){
+            document.getElementById('geminiCliHelpOverlay').style.display = 'none';
+        }
+        async function loadGeminiCliHelp(){
+            const cmd = document.getElementById('geminiHelpCommand')?.value || '';
+            const output = document.getElementById('geminiHelpOutput');
+            if(output) output.textContent = '正在加载...';
+            try {
+                const data = await fetch('/api/gemini-cli/help', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({command: cmd || undefined})
+                }).then(r => r.json());
+                if(output) output.textContent = data.output || data.text || data.message || '无输出';
+            } catch(e){
+                if(output) output.textContent = '加载失败: ' + (e.message || e);
+            }
+        }
+
+        // ====== Codex CLI ======
+        async function refreshCodexStatus(){
+            const statusEl = document.getElementById('codexCliStatus');
+            const infoEl = document.getElementById('codexCliInfo');
+            if(statusEl){ statusEl.textContent = '检测中...'; statusEl.classList.remove('ok','bad'); }
+            if(infoEl) infoEl.textContent = '';
+            try {
+                const data = await fetch('/api/codex/status').then(r => r.json());
+                if(statusEl){
+                    const ok = data.installed && data.logged_in;
+                    statusEl.textContent = data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装';
+                    statusEl.classList.toggle('ok', !!ok);
+                    statusEl.classList.toggle('bad', !ok);
+                }
+                if(infoEl && data.message) infoEl.textContent = data.message;
+            } catch(e){
+                if(statusEl){ statusEl.textContent = '检测失败'; statusEl.classList.add('bad'); }
+                if(infoEl) infoEl.textContent = e.message || String(e);
+            }
+        }
+
+        // ====== Gemini CLI ======
+        async function refreshGeminiCliStatus(){
+            const statusEl = document.getElementById('geminiCliStatus');
+            const infoEl = document.getElementById('geminiCliInfo');
+            if(statusEl){ statusEl.textContent = '检测中...'; statusEl.classList.remove('ok','bad'); }
+            if(infoEl) infoEl.textContent = '';
+            try {
+                const data = await fetch('/api/gemini-cli/status').then(r => r.json());
+                if(statusEl){
+                    const ok = data.installed && data.logged_in;
+                    statusEl.textContent = data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装';
+                    statusEl.classList.toggle('ok', !!ok);
+                    statusEl.classList.toggle('bad', !ok);
+                }
+                if(infoEl && data.message) infoEl.textContent = data.message;
+            } catch(e){
+                if(statusEl){ statusEl.textContent = '检测失败'; statusEl.classList.add('bad'); }
+                if(infoEl) infoEl.textContent = e.message || String(e);
+            }
+        }
+
+        // ====== RH Key 管理 ======
+        async function saveRhKeyOnly(kind){
+            const key = document.getElementById(kind === 'free' ? 'rhFreeKeyInput' : 'rhWalletKeyInput')?.value.trim();
+            if(!key){ alert('请输入 Key'); return; }
+            const item = provider();
+            if(!item) return;
+            item[`rh_${kind}_key`] = key;
+            await saveProviders();
+            setStatus('RH Key 已保存');
+        }
+        async function clearRhKeyOnly(kind){
+            if(!confirm('确认清除？')) return;
+            const item = provider();
+            if(!item) return;
+            item[`rh_${kind}_key`] = '';
+            item._clearKey = true;
+            await saveProviders();
+            document.getElementById(kind === 'free' ? 'rhFreeKeyInput' : 'rhWalletKeyInput').value = '';
+            setStatus('RH Key 已清除');
+        }
+
+        // ====== 火山引擎 AK/SK ======
+        async function saveVolcengineAssetKeys(){
+            const ak = document.getElementById('volcAkInput')?.value.trim();
+            const sk = document.getElementById('volcSkInput')?.value.trim();
+            const project = document.getElementById('volcProjectInput')?.value.trim() || 'default';
+            const region = document.getElementById('volcRegionInput')?.value.trim() || 'cn-beijing';
+            if(!ak || !sk){ alert('请填写 Access Key 和 Secret Key'); return; }
+            const item = provider();
+            if(!item) return;
+            item.volc_ak = ak;
+            item.volc_sk = sk;
+            item.volc_project = project;
+            item.volc_region = region;
+            await saveProviders();
+            setStatus('火山引擎素材库密钥已保存');
+        }
+        async function clearVolcengineAssetKeys(){
+            if(!confirm('确认清除火山引擎素材库密钥？')) return;
+            const item = provider();
+            if(!item) return;
+            item.volc_ak = '';
+            item.volc_sk = '';
+            await saveProviders();
+            document.getElementById('volcAkInput').value = '';
+            document.getElementById('volcSkInput').value = '';
+            setStatus('火山引擎素材库密钥已清除');
+        }
+
+        // ====== RunningHub 应用/工作流卡片 ======
+        function createRhEntryFromPaste(){
+            const input = document.getElementById('rhPasteInput');
+            if(!input || !input.value.trim()){ alert('请粘贴运行路径'); return; }
+            alert('已创建 RunningHub 条目（TS 实现待补全）');
+        }
+
+        // ====== RH 工作流编辑器 ======
+        let rhEditorState = { nodes:[], edges:[], zoom:1, pan:{x:0,y:0}, data:null };
+        function openRhWorkflowEditor(data){
+            rhEditorState.data = data || null;
+            const el = document.getElementById('rhWorkflowEditorOverlay');
+            if(el) el.style.display = 'flex';
+        }
+        function closeRhWorkflowEditor(){
+            document.getElementById('rhWorkflowEditorOverlay').style.display = 'none';
+        }
+        async function fetchRhWorkflowEditor(force){}
+        async function saveRhWorkflowEditor(){}
+        function updateRhWorkflowEditorMeta(field, val){
+            if(rhEditorState.data) rhEditorState.data[field] = val;
+        }
+        function rhEditorGraphZoom(delta){
+            rhEditorState.zoom = Math.max(0.2, Math.min(3, (rhEditorState.zoom||1) + delta * 0.15));
+            const el = document.getElementById('rhWorkflowEditorZoom');
+            if(el) el.textContent = Math.round(rhEditorState.zoom * 100) + '%';
+        }
+        function rhEditorGraphFit(){ rhEditorState.zoom = 1; rhEditorGraphZoom(0); }
+
+        // ====== 协议切换处理（扩展 renderEditor） ======
+        // 在 renderEditor 中自动处理 body class + 引导卡渲染
+        const _origRenderEditor = renderEditor;
+        renderEditor = function(){
+            if(_origRenderEditor) _origRenderEditor();
+            const item = provider();
+            if(!item) return;
+            const proto = String(item.protocol || 'openai').toLowerCase();
+            document.body.classList.toggle('show-runninghub', proto === 'runninghub');
+            document.body.classList.toggle('show-volcengine', proto === 'volcengine');
+            document.body.classList.toggle('show-codex', proto === 'codex');
+            document.body.classList.toggle('show-gemini-cli', proto === 'gemini-cli' || proto === 'gemini');
+            document.body.classList.toggle('show-image-mode', proto === 'openai');
+
+            // 渲染新手引导卡（MS/RH/Volcengine）
+            try { renderProviderOnboarding(item); } catch(e) { console.warn('renderProviderOnboarding:', e); }
+
+            // RH Key 回显
+            ['rhFreeKeyInput','rhWalletKeyInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el && item[`rh_${id === 'rhFreeKeyInput' ? 'free' : 'wallet'}_key`]){
+                    el.placeholder = '当前 Key 已保存';
+                }
+            });
+            // 火山引擎回显
+            ['volcAkInput','volcSkInput','volcProjectInput','volcRegionInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el && item[id.replace('volc','volc_').replace('Input','')]){
+                    el.placeholder = '已保存';
+                }
+            });
+            // image_request_mode 下拉同步
+            const imgModeEl = document.getElementById('imageRequestModeInput');
+            if(imgModeEl && item.image_request_mode){
+                imgModeEl.value = item.image_request_mode;
+            }
+        };
+
         window.onload = () => {
             if(window.StudioTheme) window.StudioTheme.apply();
             if(window.StudioI18n) window.StudioI18n.apply();
             loadProviders().then(() => loadTranslateConfig());
             // 平台名输入时实时预览生成的 ID
             if(nameInput) nameInput.addEventListener('input', updateIdPreview);
+            // 协议下拉切换时更新 body class
+            if(protocolInput) protocolInput.addEventListener('change', () => {
+                const item = provider();
+                if(!item) return;
+                item.protocol = protocolInput.value;
+                // 使用覆盖后的 renderEditor 更新 body class
+                renderEditor();
+            });
         };
     </script>
+    </form>
 </body>
 </html>

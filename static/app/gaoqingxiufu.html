@@ -27,13 +27,50 @@
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
         .theme-dark .text-gray-700 { color: #c8d6e5 !important; }
         .theme-dark .bg-gray-100 { background: #1a2a3a !important; }
-        .upload-zone { border: 2px dashed rgba(128, 128, 128, 0.3); border-radius: 24px; padding: 3rem 2rem; min-height: 200px; text-align: center; cursor: pointer; transition: 0.3s; background: transparent; }
+        .upload-zone { border: 2px dashed rgba(128, 128, 128, 0.3); border-radius: 16px; padding: 1rem; min-height: 96px; text-align: center; cursor: pointer; transition: 0.3s; background: transparent; display: flex; align-items: center; gap: 12px; }
         .upload-zone:hover { border-color: var(--accent); background: rgba(0, 180, 216, 0.05); }
         .upload-zone.dragover { border-color: var(--accent); background: rgba(0, 180, 216, 0.08); }
+        .upload-zone.has-file { padding: 0.5rem; }
         .theme-dark .upload-zone { border-color: rgba(255, 255, 255, 0.15); }
         .theme-dark .upload-zone:hover { border-color: var(--accent); background: rgba(0, 240, 255, 0.08); }
-        .preview-image { max-width: 100%; max-height: 300px; border-radius: 16px; display: none; margin-top: 15px; object-fit: contain; }
+        .preview-image { max-width: 80px; max-height: 80px; min-width: 80px; min-height: 80px; border-radius: 12px; display: none; margin: 0; object-fit: cover; flex-shrink: 0; }
         .preview-image.active { display: block; }
+        /* === 大图预览 / 两栏布局 (2026-07-25) === */
+        .preview-image-large { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; object-fit: contain !important; background: #f8fafc; border-radius: 12px; }
+        .preview-image-large.active { display: block; margin: auto !important; }
+        .upload-zone-large { overflow: hidden; } .upload-zone-large .upload-hint { flex: 0; }
+        .mode-badge-seedvr { background: #00b4d8 !important; color: #fff !important; }
+        @media (max-width: 1024px) { .control-row { flex-wrap: wrap !important; } .control-left, .control-right { flex: 1 1 100% !important; } .upload-zone-large { min-height: 320px !important; max-height: 380px !important; } }
+        .upload-hint { flex: 1; text-align: left; overflow: hidden; min-width: 0; }
+        .upload-hint .upload-icon { font-size: 1.25rem; display: block; line-height: 1.2; }
+        .upload-hint .upload-text { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        .upload-progress { font-size: 9px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: none; }
+        .upload-progress.active { display: block; }
+        /* === 高级参数折叠面板 === */
+        .adv-toggle { font-size: 9px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.6px; cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px; list-style: none; }
+        .adv-toggle::-webkit-details-marker { display: none; }
+        .adv-toggle::marker { content: ''; }
+        .adv-toggle::before { content: '▸'; font-size: 8px; transition: transform 0.2s; display: inline-block; }
+        details[open] > summary.adv-toggle::before { transform: rotate(90deg); }
+        .adv-panel { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        details[open] .adv-panel { max-height: 1200px; padding-bottom: 6px; }
+        /* === 控制面板按钮：主导按钮(全宽) === */
+        .mainGenBtn { width: 100%; padding: 14px 18px; font-size: 13px; }
+        /* === 小屏自适应 === */
+        @media (max-width: 768px) {
+            .control-row { flex-direction: column !important; }
+            .control-row > * { width: 100% !important; }
+            .upload-zone { min-height: 80px; }
+            .preview-image { max-width: 64px; max-height: 64px; min-width: 64px; min-height: 64px; }
+        }
+        /* === 4K 高清图在 masonry 中的 max-height 防护）
+        • thumb-small: 5 列, 320px 列宽 → 指标面高 < 600, 不需限制
+        • thumb-medium (默认 4 列):  设防里 720px 以免拉长
+        • thumb-large:  2 列, 单图会抬出实际尺寸, 限以 1100px 。点击 lightbox 看完整尺寸 === */
+        .masonry-grid.thumb-medium .masonry-item { max-height: 720px; overflow: hidden; border-radius: 8px; background: #f8fafc; }
+        .masonry-grid.thumb-medium .masonry-item img { max-height: 720px; width: 100%; height: auto; object-fit: contain; background: #f8fafc; }
+        .masonry-grid.thumb-large  .masonry-item { max-height: 1100px; overflow: hidden; border-radius: 8px; background: #f8fafc; }
+        .masonry-grid.thumb-large  .masonry-item img { max-height: 1100px; width: 100%; height: auto; object-fit: contain; background: #f8fafc; }
         .btn-render { background: #000; color: #fff; transition: all 0.3s ease; }
         .btn-render:hover { transform: translateY(-1px); background: #222; }
         .btn-render:disabled { background: #ccc; cursor: not-allowed; }
@@ -123,6 +160,10 @@
         .compare-stage .cmp-label.left { left: 10px; background: rgba(0,0,0,0.6); color: #fff; }
         .compare-stage .cmp-label.right { right: 10px; background: rgba(0,180,216,0.85); color: #fff; }
         .compare-hint { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 12px; letter-spacing: 0.05em; }
+        .gallery-compare-btn { opacity:0; pointer-events:none; transition:opacity .15s ease,transform .15s ease; cursor:pointer; }
+        .gallery-compare-btn.show { opacity:1; pointer-events:auto; }
+        .gallery-compare-btn:hover { transform:scale(1.12); }
+        .gallery-compare-btn:active { transform:scale(0.9); }
 
         .progress-inline {
             display: none;
@@ -194,6 +235,20 @@
             letter-spacing: 0.02em;
         }
         .theme-dark .progress-bar-status { color: #6b7280; }
+
+        /* 模式 Tab */
+        .mode-tab { color: #9ca3af; background: transparent; border: none; cursor: pointer; }
+        .mode-tab:hover { color: #4b5563; }
+        .mode-tab.active { color: #000; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .theme-dark .mode-tab { color: #6b7280; }
+        .theme-dark .mode-tab:hover { color: #d1d5db; }
+        .theme-dark .mode-tab.active { color: #fff; background: #1a2a3a; box-shadow: 0 0 0 1px rgba(0,240,255,0.2); }
+
+        /* 分辨率按钮 */
+        .res-btn { background: transparent; }
+        .res-btn.active { border-color: var(--accent) !important; background: rgba(0,180,216,0.08); }
+        .res-btn.active .text-base { color: var(--accent) !important; }
+        .theme-dark .res-btn.active { background: rgba(0,240,255,0.15); }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
 
@@ -205,7 +260,12 @@
     <script src="/static/modules/gallery/list.js?v=20260611"></script>
     <script src="/static/modules/gallery/card.js?v=20260611"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
+    <script src="/static/modules/gallery/gallery-base.js?v=20260721"></script>
+    <script src="/static/modules/gallery/nsfw-filter.js?v=20260721"></script>
+    <script src="/static/modules/gallery/favorites.js?v=20260721"></script>
     <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <script src="/static/modules/gallery/toolbar-extras.js?v=20260721"></script>
+    <script src="/static/modules/gallery/gallery-core.js?v=20260721"></script>
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -213,101 +273,177 @@
             <div class="console-card rounded-3xl p-1.5">
                 <div class="bg-gray-50/50 rounded-[22px] p-8">
                     <div class="flex justify-between items-center mb-6">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">F2K 高清修复</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" id="pageTitle">F2K 高清修复</span>
+                            <!-- 模式 Tab -->
+                            <div class="flex items-center bg-white/60 rounded-full p-1 border border-gray-200/60" id="modeTabs">
+                                <button onclick="switchMode('f2k',this)" data-mode="f2k" class="mode-tab active text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition">F2K 修复</button>
+                                <button onclick="switchMode('seedvr2',this)" data-mode="seedvr2" class="mode-tab text-[10px] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition">SeedVR2.5</button>
+                            </div>
+                        </div>
                         <div id="statusDot" class="flex items-center gap-2">
                             <span id="statusText" class="text-[9px] font-bold text-gray-500 uppercase">System Ready</span>
                             <div id="dotColor" class="w-1.5 h-1.5 bg-black rounded-full"></div>
                         </div>
                     </div>
-                    <textarea id="prompt" rows="2" class="w-full bg-transparent text-2xl font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed" placeholder="输入修复描述提示词...">高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。</textarea>
-                    <div class="flex gap-2 mt-3 flex-wrap" id="presetButtons">
-                        <button onclick="applyPreset('default',this)" class="preset-btn active text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">通用修复</button>
-                        <button onclick="applyPreset('portrait',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">人像美颜</button>
-                        <button onclick="applyPreset('text',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">文字清晰</button>
-                        <button onclick="applyPreset('landscape',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">风景增强</button>
-                        <button onclick="applyPreset('oldphoto',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">老照片修复</button>
-                        <button onclick="applyPreset('anime',this)" class="preset-btn text-[9px] px-3 py-1 rounded-full border border-gray-200 text-gray-400 font-bold uppercase">动漫增强</button>
-                    </div>
                 </div>
-                <div class="flex flex-col md:flex-row items-center justify-between p-4 px-6 gap-6">
-                    <div class="flex items-center gap-8 flex-wrap">
-                        <div class="flex flex-col">
-                            <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">上传图像</span>
-                            <div class="upload-zone" id="uploadZone">
-                                <div class="text-3xl mb-2">📷</div>
-                                <div class="text-[11px] font-bold text-gray-400 uppercase">点击、拖拽或 Ctrl+V 上传</div>
-                                <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                                <img class="preview-image" id="preview" alt="图像预览">
-                            </div>
+                <div class="control-row" style="display:flex; align-items:stretch; justify-content:space-between; gap:24px; padding:16px 24px; flex-wrap:nowrap;">
+                    <!-- 左: 上传区 / 预览 (50%) 高度 440-580px, object-fit:contain 保留原始比例 -->
+                    <div class="control-left" style="flex: 1 1 50%; min-width:0; display:flex; flex-direction:column;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase">上传图像</span>
+                            <span id="imgMeta" class="text-[9px] text-gray-300" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;text-align:right;"></span>
                         </div>
-                        <div class="h-8 w-px bg-gray-100"></div>
-                        <div class="flex flex-col gap-4">
-                            <div class="flex flex-col">
-                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                                    <input id="scaleEnabledToggle" type="checkbox" style="cursor:pointer">
-                                    <span class="text-[9px] font-bold text-gray-400 uppercase">缩放最长边</span>
-                                </div>
-                                <div id="scaleSizeRow" style="display:none">
-                                    <div class="flex items-center gap-2">
-                                        <input id="sizeInput" type="number" value="1536" min="512" max="8192" step="64" class="w-20 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
-                                        <span id="sizeHint" class="text-[9px] text-gray-300"></span>
-                                    </div>
-                                    <div class="flex gap-1 mt-1.5" id="scaleButtons">
-                                        <button onclick="setScale(1024)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1K</button>
-                                        <button onclick="setScale(1536)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1.5K</button>
-                                        <button onclick="setScale(2048)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">2K</button>
-                                        <button onclick="setScale(3072)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">3K</button>
-                                        <button onclick="setScale(4096)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">4K</button>
-                                        <span class="text-[9px] text-gray-300 mx-0.5">|</span>
-                                        <button onclick="setMultiplier(2)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×2">×2</button>
-                                        <button onclick="setMultiplier(3)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×3">×3</button>
-                                        <button onclick="setMultiplier(4)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×4">×4</button>
-                                </div>
+                        <div class="upload-zone upload-zone-large" id="uploadZone" style="flex:1; min-height:440px; max-height:580px;">
+                            <img class="preview-image preview-image-large" id="preview" alt="图像预览">
+                            <div class="upload-hint">
+                                <span class="upload-icon" id="uploadIcon">📷</span>
+                                <span class="upload-text" id="uploadText">点击 / 拖拽 / Ctrl+V</span>
+                                <span class="upload-progress" id="uploadProgress">上传中…</span>
                             </div>
-                            <div class="flex flex-col">
-                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">降噪强度</span>
-                                <div class="slider-container">
-                                    <input id="denoiseSlider" type="range" min="0" max="100" step="1" value="30" class="w-24">
-                                    <span class="slider-value" id="denoiseValue">0.30</span>
-                                </div>
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">输出格式</span>
-                                <select id="formatSelect" class="bg-transparent text-xs font-bold outline-none border-b border-transparent focus:border-black cursor-pointer">
-                                    <option value="png">PNG (无损)</option>
-                                    <option value="jpg">JPEG (小体积)</option>
-                                    <option value="webp">WebP (推荐)</option>
+                            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                    <!-- 右: 参数面板 (50%) 模式徽标·提示词·预设·高级参数·生成按钮 -->
+                    <div class="control-right" style="flex: 1 1 50%; min-width:0; display:flex; flex-direction:column; gap:10px;">
+                        <div id="modeSummary" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span id="modeSummaryBadge" class="mode-badge-f2k" style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#111;color:#fff">F2K 高清修复</span>
+                            <span id="modeSummaryTip" class="text-[10px] text-gray-400">扩散式重绘 · 提示词驱动</span>
+                        </div>
+
+                        <!-- F2K 特有：提示词 + 预设下拉（紧凑）-->
+                        <div id="f2kPresetRow">
+                            <textarea id="prompt" rows="2" class="w-full bg-transparent text-sm font-medium outline-none placeholder:text-gray-300 text-black resize-none leading-relaxed border-b border-transparent focus:border-gray-300" placeholder="输入修复描述提示词...">高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。</textarea>
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">预设</span>
+                                <select id="presetSelect" class="flex-1 bg-transparent text-xs font-medium outline-none border-b border-transparent focus:border-gray-300 cursor-pointer py-0.5" onchange="applyPresetFromSelect(this.value)">
+                                    <option value="default">通用修复</option>
+                                    <option value="portrait">人像美颜</option>
+                                    <option value="text">文字清晰</option>
+                                    <option value="landscape">风景增强</option>
+                                    <option value="oldphoto">老照片修复</option>
+                                    <option value="anime">动漫增强</option>
                                 </select>
                             </div>
-                            <div class="flex flex-col">
-                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">随机种子</span>
-                                <div class="flex items-center gap-2">
-                                    <input id="seedInput" type="number" value="53361663273666" min="0" max="999999999999999" class="w-24 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
-                                    <button onclick="randomizeSeed()" class="text-[10px] text-gray-400 hover:text-black">🎲</button>
+                        </div>
+
+                        <!-- SeedVR2 特有：2K/4K 紧凑切换 + vram 提示 -->
+                        <div id="seedvrResolutionRow" style="display:none">
+                            <div class="flex items-center gap-1.5" id="resolutionGroup">
+                                <button onclick="setResolution(2048,this)" data-res="2K" class="res-btn active text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-400 transition">2K</button>
+                                <button onclick="setResolution(4096,this)" data-res="4K" class="res-btn text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-400 transition">4K</button>
+                            </div>
+                            <div id="vramHint" class="text-[9px] text-gray-300 mt-0.5"></div>
+                        </div>
+
+                        <details id="advToggleWrap" class="adv-toggle-wrap" style="border-top:1px dashed rgba(0,0,0,0.06);padding-top:8px;">
+                            <summary id="advToggle" class="adv-toggle">高级参数</summary>
+                            <div class="adv-panel" id="advPanel">
+                                <div class="flex flex-col gap-4 mt-2">
+                                    <div id="f2kParams">
+                                        <div class="flex flex-col">
+                                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                                                <input id="scaleEnabledToggle" type="checkbox" style="cursor:pointer">
+                                                <span class="text-[9px] font-bold text-gray-400 uppercase">缩放最长边</span>
+                                            </div>
+                                            <div id="scaleSizeRow" style="display:none">
+                                                <div class="flex items-center gap-2">
+                                                    <input id="sizeInput" type="number" value="1536" min="512" max="8192" step="64" class="w-20 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                                    <span id="sizeHint" class="text-[9px] text-gray-300"></span>
+                                                </div>
+                                                <div class="flex gap-1 mt-1.5 flex-wrap" id="scaleButtons">
+                                                    <button onclick="setScale(1024)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1K</button>
+                                                    <button onclick="setScale(1536)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">1.5K</button>
+                                                    <button onclick="setScale(2048)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">2K</button>
+                                                    <button onclick="setScale(3072)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">3K</button>
+                                                    <button onclick="setScale(4096)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition">4K</button>
+                                                    <span class="text-[9px] text-gray-300 mx-0.5">|</span>
+                                                    <button onclick="setMultiplier(2)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×2">×2</button>
+                                                    <button onclick="setMultiplier(3)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×3">×3</button>
+                                                    <button onclick="setMultiplier(4)" class="scale-btn text-[9px] px-2 py-0.5 rounded border border-cyan-200 text-cyan-500 hover:bg-cyan-50 transition" title="原图×4">×4</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col mt-3">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">降噪强度</span>
+                                            <div class="slider-container">
+                                                <input id="denoiseSlider" type="range" min="0" max="100" step="1" value="30" class="w-24">
+                                                <span class="slider-value" id="denoiseValue">0.30</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="seedvrParams" style="display:none">
+                                        <div class="flex flex-col">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">4K 分块倍率 (W×H)</span>
+                                            <div class="flex gap-1.5 items-center">
+                                                <input id="tileFactorW" type="number" value="3" min="2" max="4" step="1" class="w-12 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                                <span class="text-gray-300">×</span>
+                                                <input id="tileFactorH" type="number" value="3" min="2" max="4" step="1" class="w-12 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                                <span class="text-[9px] text-gray-300 ml-1">(共 <span id="tileTotal">9</span> 块)</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col mt-3">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">分块重叠率</span>
+                                            <div class="slider-container">
+                                                <input id="overlapSlider" type="range" min="0" max="50" step="5" value="10" class="w-24">
+                                                <span class="slider-value" id="overlapValue">0.10</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col mt-3">
+                                            <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">2K 批处理张数 (Batch)</span>
+                                            <div class="slider-container">
+                                                <input id="batchSlider" type="range" min="1" max="10" step="1" value="5" class="w-24">
+                                                <span class="slider-value" id="batchValue">5</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">输出格式</span>
+                                        <select id="formatSelect" class="bg-transparent text-xs font-bold outline-none border-b border-transparent focus:border-black cursor-pointer">
+                                            <option value="png">PNG (无损)</option>
+                                            <option value="jpg">JPEG (小体积)</option>
+                                            <option value="webp">WebP (推荐)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase mb-1" id="seedLabel">随机种子</span>
+                                        <div class="flex items-center gap-2">
+                                            <input id="seedInput" type="number" value="53361663273666" min="0" max="999999999999999" class="w-24 bg-transparent outline-none border-b border-transparent focus:border-black text-xs font-bold">
+                                            <button onclick="randomizeSeed()" class="text-[10px] text-gray-400 hover:text-black">🎲</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <button id="mainGenBtn" onclick="handleRender()" class="btn w-full md:w-56" disabled>
-                        <span><i data-lucide="zap" id="btnIcon" class="w-4 h-4" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>F2K 高清修复</span>
-                        <span class="animation"></span>
-                    </button>
-                    <div id="progressInline" class="progress-inline">
-                        <div class="progress-bar-wrap">
-                            <div class="progress-bar-track">
-                                <div id="progressFill" class="progress-bar-fill"></div>
+                        </details>
+                        <div style="margin-top:auto;padding-top:8px;">
+                            <button id="mainGenBtn" onclick="handleRender()" class="btn mainGenBtn" disabled>
+                                <span id="btnLabel"><i data-lucide="zap" id="btnIcon" class="w-4 h-4" style="display:inline;vertical-align:middle;margin-right:8px;"></i>F2K 高清修复</span>
+                                <span class="animation"></span>
+                            </button>
+                            <div id="progressInline" class="progress-inline">
+                                <div class="progress-bar-wrap">
+                                    <div class="progress-bar-track">
+                                        <div id="progressFill" class="progress-bar-fill"></div>
+                                    </div>
+                                    <span id="progressPercent" class="progress-bar-percent">0%</span>
+                                </div>
+                                <div id="progressStatus" class="progress-bar-status">准备中...</div>
                             </div>
-                            <span id="progressPercent" class="progress-bar-percent">0%</span>
                         </div>
-                        <div id="progressStatus" class="progress-bar-status">准备中...</div>
                     </div>
                 </div>
-            </div>
+                </div>
         </div>
     </header>
+    <!-- 顶部固定 toolbar：缩略图大小切换 / NSFW / 收藏 / 批量管理（出 display.js + toolbar-extras.js 动态填入） -->
+    <div id="toolbarFixed" class="sticky top-0 z-30" style="flex-shrink:0;background:transparent;">
+        <div class="layout-container py-2">
+            <div id="toolbarPlaceholder"></div>
+        </div>
+    </div>
     <main class="pb-24">
         <div class="layout-container">
-            <div id="masonry" class="masonry-grid"></div>
+            <div id="masonry" class="masonry-grid thumb-small"></div>
             <div id="loadMoreTrigger" class="py-12 text-center text-gray-300 text-[10px] font-bold uppercase tracking-widest cursor-pointer hidden">Load More Archive</div>
         </div>
     </main>
@@ -334,10 +470,18 @@
         let COMFYUI_SERVER = 'http://127.0.0.1:8188';
         let IS_LOCAL_SERVER = _isLocalAccess;
 
-        const WORKFLOW_CONFIG = {
-            name: "F2K高清修复",
-            type: "gaoqingxiufu",
-            workflow: {
+        /* === 多模式工作流容器 ===
+           currentMode: 'f2k' | 'seedvr2'
+           切换 mode 会重新加载 WORKFLOW_CONFIG.workflow, 重新生成 nodeMappings
+        */
+        let currentMode = 'f2k';
+        let currentResolution = 2048;  // 仅 seedvr2 模式使用: 2048(2K) | 4096(4K)
+        const WORKFLOWS = {
+            f2k: {
+                name: 'F2K 高清修复',
+                type: 'gaoqingxiufu',
+                outputNodeIds: null,  // null = 取 outputs 中任何有 images 的节点
+                workflow: {
                 "29": {
                     "inputs": {
                         "pixels": ["428", 0],
@@ -506,9 +650,128 @@
                 "430": { param: "denoise", label: "降噪强度", type: "number" }
             },
             apiEndpoint: "/api/generate"
+        },
+
+        // === SeedVR2.5 初始为空,启动后从 /api/workflows/builtin 加载 ===
+        seedvr2: {
+            name: 'SeedVR2.5 超分',
+            type: 'gaoqingxiufu',
+            workflow: null,           // 懒加载
+            nodeMappings: null,       // 加载后生成
+            outputNodeIds: { 2: '65', 4: '60' },  // { resolution px: previewNodeId } - 2K 用 65, 4K 用 60
+            apiEndpoint: '/api/generate'
+        }
         };
 
-        
+        /**
+         * 获取当前 mode 的 WORKFLOW_CONFIG
+         */
+        function getCurrentWorkflow() {
+            return WORKFLOWS[currentMode];
+        }
+
+        /**
+         * 异步加载 SeedVR2.5 工作流和 config
+         */
+        async function loadSeedVR2Workflow() {
+            if (WORKFLOWS.seedvr2.workflow) return WORKFLOWS.seedvr2;
+            // 后端 /api/workflows/{name}.json 返回 { workflow, config, ... }, 一次拿到所有内容
+            const wfRes = await fetch('/api/workflows/SeedVR2.5-2K-4K.json');
+            if (!wfRes.ok) throw new Error('加载 SeedVR2.5 工作流失败: ' + wfRes.status);
+            const data = await wfRes.json();
+            const workflow = data.workflow || {};
+            const cfg = data.config || { fields: [] };
+            // 从 config fields 动态生成 nodeMappings
+            const nodeMappings = {};
+            (cfg.fields || []).forEach(f => {
+                nodeMappings[f.node] = { param: f.param, label: f.label, type: f.type, default: f.default, min: f.min, max: f.max, step: f.step };
+            });
+            // 必加: image (node 11) + 2K/4K seed 节点 (4 和 50)
+            nodeMappings['11'] = { param: 'image', label: '输入图像', type: 'upload' };
+            WORKFLOWS.seedvr2.workflow = workflow;
+            WORKFLOWS.seedvr2.nodeMappings = nodeMappings;
+            WORKFLOWS.seedvr2.config = cfg;
+            return WORKFLOWS.seedvr2;
+        }
+
+        /**
+         * 切换模式
+         */
+        async function switchMode(mode, btnEl) {
+            if (mode === currentMode) return;
+            currentMode = mode;
+            try { localStorage.setItem('hdrepair_mode', mode); } catch(e) {}
+            // Tab 样式
+            document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            else {
+                const t = document.querySelector(`.mode-tab[data-mode="${mode}"]`);
+                if (t) t.classList.add('active');
+            }
+            // 面板显隐
+            const isF2K = mode === 'f2k';
+            document.getElementById('f2kPresetRow').style.display = isF2K ? '' : 'none';
+            document.getElementById('seedvrResolutionRow').style.display = isF2K ? 'none' : '';
+            document.getElementById('f2kParams').style.display = isF2K ? '' : 'none';
+            document.getElementById('seedvrParams').style.display = isF2K ? 'none' : '';
+            // 模式徽标
+            document.getElementById('modeSummaryBadge').textContent = isF2K ? 'F2K 高清修复' : 'SeedVR2.5 超分';
+            document.getElementById('modeSummaryBadge').className = isF2K ? 'mode-badge-f2k' : 'mode-badge-seedvr';
+            document.getElementById('modeSummaryTip').textContent = isF2K ? '扩散式重绘 · 提示词驱动' : '纯超分 · 零风格化 · 保留原图';
+            // 页面标题 + 按钮文案
+            document.getElementById('pageTitle').textContent = isF2K ? 'F2K 高清修复' : 'SeedVR2.5 超分';
+            const btnLabel = document.getElementById('btnLabel');
+            btnLabel.innerHTML = `<i data-lucide="zap" class="w-4 h-4" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>${isF2K ? 'F2K 高清修复' : 'SeedVR2.5 超分'}`;
+            if (window.lucide) lucide.createIcons();
+            // SeedVR2 seed 默认值重置为 2K 那个
+            if (!isF2K) {
+                seedInput.value = 272327862;
+                updateVramHint();
+            }
+            // 懒加载 SeedVR2 工作流
+            if (!isF2K && !WORKFLOWS.seedvr2.workflow) {
+                setLoading(true);
+                try {
+                    await loadSeedVR2Workflow();
+                } catch (e) {
+                    alert(e.message);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        }
+        window.switchMode = switchMode;
+
+        /**
+         * 设置 SeedVR2 分辨率 (2K/4K)
+         */
+        function setResolution(px, btnEl) {
+            currentResolution = px;
+            try { localStorage.setItem('hdrepair_resolution', String(px)); } catch(e) {}
+            document.querySelectorAll('.res-btn').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            else {
+                const r = document.querySelector(`.res-btn[data-res="${px === 4096 ? '4K' : '2K'}"]`);
+                if (r) r.classList.add('active');
+            }
+            updateVramHint();
+        }
+        window.setResolution = setResolution;
+
+        /**
+         * 显存预估提示
+         */
+        function updateVramHint() {
+            const hint = document.getElementById('vramHint');
+            if (!hint) return;
+            if (currentResolution === 4096) {
+                hint.textContent = '⚠ 4K 模式: 2K 升 4K 双轮 + 分块,显存约 16-22GB,需 30s-2min';
+            } else {
+                hint.textContent = '2K 模式: 单轮超分,显存约 10-14GB,通常 10-30s';
+            }
+        }
+
+
         /** 保存到用户 output 文件夹 */
         async function saveToUserOutput(comfyUrl, featureName) {
             try {
@@ -553,7 +816,9 @@
         }
 
         async function apiFetch(url, options = {}) {
-            if (IS_LOCAL_SERVER) {
+            // IS_LOCAL_SERVER: 只有 ComfyUI 原生 endpoint (以 /system_stats 等) 才直连 8188
+            // 以 /api/ 开头的路径一律走 FastAPI 代理(避免 8188 CORS 拦截)
+            if (IS_LOCAL_SERVER && typeof url === 'string' && !url.startsWith('/api/')) {
                 const directUrl = COMFYUI_SERVER + url;
                 const response = await fetch(directUrl, options);
                 return response;
@@ -574,8 +839,8 @@
 
         async function checkServerConnection() {
             try {
-                const statsUrl = IS_LOCAL_SERVER ? '/system_stats' : '/api/comfyui/system_stats';
-                const response = await apiFetch(statsUrl);
+                // 始终走代理,避免 IS_LOCAL_SERVER 直连 ComfyUI 跨域被拦
+                const response = await apiFetch('/api/comfyui/system_stats');
                 if (response.ok) {
                     document.getElementById("statusText").innerText = "System Ready";
                     document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-green-500 rounded-full";
@@ -617,6 +882,32 @@
 
         let uploadedImageName = null;
 
+        // ── SeedVR2.5 专属控件事件 (需在上文 addEventListener 之后) ──
+        function _updateTileTotal() {
+            const w = parseInt(document.getElementById('tileFactorW').value) || 3;
+            const h = parseInt(document.getElementById('tileFactorH').value) || 3;
+            const el = document.getElementById('tileTotal');
+            if (el) el.textContent = w * h;
+        }
+        const overlapSlider = document.getElementById('overlapSlider');
+        if (overlapSlider) {
+            overlapSlider.addEventListener('input', (e) => {
+                document.getElementById('overlapValue').textContent = (parseInt(e.target.value) / 100).toFixed(2);
+            });
+        }
+        const batchSlider = document.getElementById('batchSlider');
+        if (batchSlider) {
+            batchSlider.addEventListener('input', (e) => {
+                document.getElementById('batchValue').textContent = e.target.value;
+            });
+        }
+        ['tileFactorW','tileFactorH'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', _updateTileTotal);
+        });
+        _updateTileTotal();
+
+
         const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/stats`);
         socket.onmessage = (e) => {
             try {
@@ -640,6 +931,9 @@
         });
         let originalLongSide = 0;
         let lastOriginalSrc = '';
+        // 存储「原图 ↔ 生成结果」对比对，keyed by result URL
+        const compareCache = new Map();
+        window.__compareCache = compareCache;
         const formatSelect = document.getElementById('formatSelect');
 
         // ── 预设模式 ──
@@ -663,10 +957,27 @@
         }
         window.applyPreset = applyPreset;
 
+        /** 从下拉菜单选择预设 */
+        function applyPresetFromSelect(name) {
+            const p = PRESETS[name];
+            if (!p) return;
+            promptInput.value = p.prompt;
+            denoiseSlider.value = p.denoise;
+            denoiseValue.textContent = (p.denoise / 100).toFixed(2);
+            // 同步高亮
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            const targetBtn = document.querySelector(`.preset-btn[onclick*="${name}"]`);
+            if (targetBtn) targetBtn.classList.add('active');
+            saveSettings();
+        }
+        window.applyPresetFromSelect = applyPresetFromSelect;
+
         // ── 参数记忆 ──
         function saveSettings() {
             try {
+                const prev = JSON.parse(localStorage.getItem('hdrepair_settings') || '{}');
                 localStorage.setItem('hdrepair_settings', JSON.stringify({
+                    ...prev,
                     denoise: denoiseSlider.value, size: sizeInput.value,
                     format: formatSelect.value, prompt: promptInput.value
                 }));
@@ -705,6 +1016,40 @@
             document.getElementById('compareOverlay').classList.remove('active');
         }
         window.closeCompare = closeCompare;
+
+        // 在缩略图卡片上注入「对比原图」按钮
+        function injectCompareBtn(cardEl, originalSrc, resultSrc) {
+            if (!cardEl || cardEl.querySelector('.gallery-compare-btn')) return;
+            const btn = document.createElement('button');
+            btn.className = 'gallery-compare-btn';
+            const BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>';
+            btn.title = '对比原图';
+            btn.setAttribute('aria-label', '对比原图');
+            btn.dataset.compareKey = resultSrc;
+            btn.style.cssText = 'left:54px;top:12px;' + BTN_INLINE;
+            // hover 显示/隐藏同步
+            btn.addEventListener('mouseenter', () => btn.classList.add('show'));
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                reopenCompare(resultSrc);
+            });
+            cardEl.querySelector('.gallery-magnify')?.after(btn);
+            // 同步 hover 显示
+            cardEl.addEventListener('mouseenter', () => {
+                btn.classList.add('show');
+            }, { passive: true });
+            cardEl.addEventListener('mouseleave', () => {
+                btn.classList.remove('show');
+            }, { passive: true });
+            // 默认不显示（跟其他悬浮按钮一致）
+        }
+
+        function reopenCompare(resultUrl) {
+            const pair = window.__compareCache?.get(resultUrl);
+            if (pair) showCompare(pair.original, pair.result);
+        }
+        window.reopenCompare = reopenCompare;
         function setDivider(ratio) {
             const pct = Math.max(0, Math.min(1, ratio)) * 100;
             document.getElementById('compareDivider').style.left = pct + '%';
@@ -791,30 +1136,84 @@
 
         async function handleFileUpload(file) {
             if (!file.type.startsWith('image/')) return alert('请上传图片文件');
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                preview.src = e.target.result;
-                preview.classList.add('active');
-                lastOriginalSrc = e.target.result;
-                const img = new Image();
-                img.onload = () => {
-                    originalLongSide = Math.max(img.naturalWidth, img.naturalHeight);
-                    updateSizeHint();
-                };
-                img.src = e.target.result;
+
+            // 显示预览 —— 用 URL.createObjectURL 零拷贝即时显示
+            const objUrl = URL.createObjectURL(file);
+            preview.src = objUrl;
+            preview.classList.add('active');
+            const metaEl = document.getElementById('imgMeta');
+            if (metaEl) metaEl.textContent = '加载中...';
+            uploadZone.classList.add('has-file');
+            document.getElementById('uploadIcon').textContent = '✓';
+            document.getElementById('uploadText').textContent = `${(file.size/1024/1024).toFixed(1)}MB · ${file.name.length > 20 ? file.name.slice(0,18)+'…' : file.name}`;
+
+            // 在后台读取原图尺寸，同时上传
+            const img = new Image();
+            let freed = false;
+            const free = () => { if (!freed) { freed = true; URL.revokeObjectURL(objUrl); } };
+            img.onload = () => {
+                originalLongSide = Math.max(img.naturalWidth, img.naturalHeight);
+                lastOriginalSrc = objUrl;
+                updateSizeHint();
+                // 不立即 revoke：预览图继续用，页面卸载或下次上传时由 GC 回收
             };
-            reader.readAsDataURL(file);
+            img.onerror = free;
+            img.src = objUrl;
+
+            // 客户端预压缩：大图预压缩降低上传体积
+            const uploadItem = await compressImageIfLarge(file).catch(() => file);
+
+            // 上传进度提示
+            const uploadProgress = document.getElementById('uploadProgress');
+            if (uploadProgress) { uploadProgress.textContent = '上传中…'; uploadProgress.classList.add('active'); }
+
             const formData = new FormData();
-            formData.append('files', file);
+            formData.append('image', uploadItem, file.name.replace(/\.[^.]+$/, '') + (uploadItem === file ? '' : '_c') + '.jpg');
             try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                // 使用单跳代理端点（避开 CORS + 后端不再 re-buffer）
+                const res = await fetch('/api/comfyui/upload/image', { method: 'POST', body: formData });
                 const data = await res.json();
-                if (data.files?.length > 0) {
-                    uploadedImageName = data.files[0].comfy_name;
+                if (data && data.name) {
+                    uploadedImageName = data.name;
                     updateGenButtonState();
                     setStatus('Image uploaded');
+                    if (uploadProgress) { uploadProgress.textContent = '✓ 上传完成'; }
+                } else {
+                    throw new Error('上传响应无 name');
                 }
-            } catch (e) { alert('上传失败'); }
+            } catch (e) {
+                console.error('上传失败', e);
+                alert('上传失败: ' + e.message);
+                if (uploadProgress) { uploadProgress.textContent = '上传失败'; }
+                preview.classList.remove('active');
+                uploadZone.classList.remove('has-file');
+                document.getElementById('uploadIcon').textContent = '📷';
+                document.getElementById('uploadText').textContent = '点击 / 拖拽 / Ctrl+V';
+                uploadedImageName = null;
+                updateGenButtonState();
+            }
+        }
+
+        /**
+         * 超大图预压缩：长边 > 2048 时缩到 2048，质量 0.85，format = image/jpeg
+         * 小图（≤ 2048 长边 或 < 1MB）直接返回原 file，不压缩
+         */
+        async function compressImageIfLarge(file) {
+            // 1MB 以下的图没必要压缩（浪费 CPU）
+            if (file.size < 1024 * 1024) return file;
+            const bitmap = await createImageBitmap(file);
+            const longSide = Math.max(bitmap.width, bitmap.height);
+            if (longSide <= 2048) return file; // 原图已小,不压缩
+            const scale = 2048 / longSide;
+            const w = Math.round(bitmap.width * scale);
+            const h = Math.round(bitmap.height * scale);
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bitmap, 0, 0, w, h);
+            const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+            return blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file;
         }
 
         function updateGenButtonState() { mainGenBtn.disabled = !uploadedImageName; }
@@ -826,13 +1225,14 @@
 
         function setLoading(loading) {
             const btn = document.getElementById('mainGenBtn');
-            const btnSpan = btn.querySelector('span:first-child');
+            const btnLabel = document.getElementById('btnLabel');
+            const baseLabel = currentMode === 'f2k' ? 'F2K 高清修复' : 'SeedVR2.5 超分';
             if (loading) {
                 btn.disabled = true;
-                btnSpan.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>处理中...`;
+                btnLabel.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>处理中...`;
             } else {
                 btn.disabled = !uploadedImageName;
-                btnSpan.innerHTML = `<i data-lucide="zap" class="w-4 h-4" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>F2K 高清修复`;
+                btnLabel.innerHTML = `<i data-lucide="zap" class="w-4 h-4" style="display: inline; vertical-align: middle; margin-right: 8px;"></i>${baseLabel}`;
             }
             lucide.createIcons();
         }
@@ -866,7 +1266,8 @@
         }
 
         function getNodeTitle(nodeId) {
-            const node = WORKFLOW_CONFIG.workflow[nodeId];
+            const wf = getCurrentWorkflow();
+            const node = wf?.workflow?.[nodeId];
             return node?._meta?.title || `节点 ${nodeId}`;
         }
 
@@ -886,27 +1287,63 @@
             isGenerating = true;
             startProgress();
             setLoading(true);
-            const placeholder = createPlaceholder("HD Repair");
+            const placeholder = createPlaceholder(currentMode === 'f2k' ? 'F2K 修复' : 'SeedVR2.5 超分');
             document.getElementById('masonry').prepend(placeholder);
             try {
-                const workflowData = JSON.parse(JSON.stringify(WORKFLOW_CONFIG.workflow));
-                const promptText = promptInput.value.trim() || "高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。";
-                const seed = parseInt(seedInput.value) || 53361663273666;
-                const size = parseInt(sizeInput.value) || 1536;
-                const denoise = parseInt(denoiseSlider.value) / 100;
+                const wf = getCurrentWorkflow();
+                if (!wf.workflow) throw new Error('工作流未加载,请重试或刷新页面');
+                const workflowData = JSON.parse(JSON.stringify(wf.workflow));
+                let promptText = '';
+                let recordMeta = {};
 
-                workflowData["46"]["inputs"]["image"] = uploadedImageName;
-                workflowData["41"]["inputs"]["text"] = promptText;
-                workflowData["367"]["inputs"]["noise_seed"] = seed;
-                const scaleEnabled = document.getElementById('scaleEnabledToggle').checked;
-                if (scaleEnabled) {
-                    workflowData["428"]["inputs"]["scale_to_length"] = size;
+                if (currentMode === 'f2k') {
+                    // F2K 原有逻辑
+                    promptText = promptInput.value.trim() || "高清修复，零人工智能伪影，没有水印。完全保留画面内容，维持原始光影色调、对比度、亮度和饱和度，降低噪点，杜绝颜色污染。";
+                    const seed = parseInt(seedInput.value) || 53361663273666;
+                    const size = parseInt(sizeInput.value) || 1536;
+                    const denoise = parseInt(denoiseSlider.value) / 100;
+                    workflowData["46"]["inputs"]["image"] = uploadedImageName;
+                    workflowData["41"]["inputs"]["text"] = promptText;
+                    workflowData["367"]["inputs"]["noise_seed"] = seed;
+                    const scaleEnabled = document.getElementById('scaleEnabledToggle').checked;
+                    if (scaleEnabled) {
+                        workflowData["428"]["inputs"]["scale_to_length"] = size;
+                    } else {
+                        delete workflowData["428"];
+                        workflowData["29"]["inputs"]["pixels"] = ["46", 0];
+                        workflowData["65"]["inputs"]["image_ref"] = ["46", 0];
+                    }
+                    workflowData["430"]["inputs"]["denoise"] = denoise;
                 } else {
-                    delete workflowData["428"];
-                    workflowData["29"]["inputs"]["pixels"] = ["46", 0];
-                    workflowData["65"]["inputs"]["image_ref"] = ["46", 0];
+                    // SeedVR2.5 逻辑
+                    promptText = `SeedVR2.5 超分 ${currentResolution === 4096 ? '4K' : '2K'}`;
+                    const seed = parseInt(seedInput.value) || 272327862;
+                    // 2K 节点 4 seed + 4K 节点 50 seed(同一值以保持可复现)
+                    workflowData["11"]["inputs"]["image"] = uploadedImageName;
+                    workflowData["4"]["inputs"]["seed"] = seed;
+                    workflowData["50"]["inputs"]["seed"] = seed;
+                    // 2K 目标长边 (节点 7)
+                    workflowData["7"]["inputs"]["value"] = 2048;
+                    // 2K 批处理
+                    workflowData["4"]["inputs"]["batch_size"] = parseInt(document.getElementById('batchSlider').value) || 5;
+                    // 4K 分块倍率
+                    const tfw = parseInt(document.getElementById('tileFactorW').value) || 3;
+                    const tfh = parseInt(document.getElementById('tileFactorH').value) || 3;
+                    workflowData["59"]["inputs"]["width_factor"] = tfw;
+                    workflowData["59"]["inputs"]["height_factor"] = tfh;
+                    workflowData["59"]["inputs"]["overlap_rate"] = parseInt(document.getElementById('overlapSlider').value) / 100;
+                    recordMeta = { resolution: currentResolution, tileCount: tfw * tfh };
+                    // 选中 2K 时 mute 4K 路径以省时间
+                    if (currentResolution === 2048) {
+                        // node 60(4K preview) 不取 → mute 整个 4K 后续
+                        // 4K 第二轮起点是 node 47, 4K preview 是 60. 47 不被 4K 路径外引用, 可 mute
+                        // 50 是 4K 升频, mute 后 52/60 也会被跳过
+                        ['47','50','52','60','61'].forEach(n => { if (workflowData[n]) workflowData[n].mode = 'mute'; });
+                    } else {
+                        // 4K: mute 2K preview (node 65) - 仍保留 2K 升频(节点 4 必须跑以供 4K 用)
+                        if (workflowData['65']) workflowData['65'].mode = 'mute';
+                    }
                 }
-                workflowData["430"]["inputs"]["denoise"] = denoise;
 
                 currentPromptId = generateUUID();
                 const wsUrl = buildWsUrl();
@@ -929,7 +1366,7 @@
                             } else if (message.type === 'executing') {
                                 if (message.data.node === null) {
                                     updateRealProgress({ type: 'comfyui_progress', status: 'done', value: 1, max: 1, node: '' });
-                                    setTimeout(() => { ws.close(); resolve(getResult(currentPromptId, promptText, placeholder)); }, 500);
+                                    setTimeout(() => { ws.close(); resolve(getResult(currentPromptId, promptText, placeholder, recordMeta)); }, 500);
                                 } else { updateRealProgress({ type: 'comfyui_progress', status: 'executing', value: 0, max: 1, node: message.data.node || '' }); }
                             } else if (message.type === 'execution_cached') { updateRealProgress({ type: 'comfyui_progress', status: 'cached', value: 0, max: 1, node: 'cached' });
                             } else if (message.type === 'execution_error') { ws.close(); reject(new Error(message.data.exception_message || '执行错误')); }
@@ -948,7 +1385,7 @@
                 });
             } catch (e) {
                 placeholder.remove();
-                alert(e.message || '高清修复失败');
+                alert(e.message || '生成失败');
             } finally {
                 isGenerating = false;
                 completeProgress();
@@ -957,7 +1394,7 @@
             }
         }
 
-        async function getResult(promptId, promptText, placeholder) {
+        async function getResult(promptId, promptText, placeholder, recordMeta = {}) {
             try {
                 const res = await fetch(`/api/comfyui/history/${promptId}`);
                 if (!res.ok) throw new Error('获取历史记录失败');
@@ -966,26 +1403,48 @@
                 if (!promptData) throw new Error('历史记录中未找到该任务');
                 if (promptData.status && promptData.status.status_str === 'error') throw new Error('任务执行错误');
                 const outputs = promptData.outputs || {};
+                const wf = getCurrentWorkflow();
                 let imageUrl = null;
-                for (const nodeId in outputs) {
-                    const nodeOutput = outputs[nodeId];
-                    if (nodeOutput.images && nodeOutput.images.length > 0) {
-                        const image = nodeOutput.images[0];
-                        imageUrl = `/api/comfyui/view?filename=${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`;
-                        break;
+                if (wf.outputNodeIds) {
+                    // 优先从指定节点取图(SeedVR2.5 模式)
+                    const targetIds = Object.values(wf.outputNodeIds);
+                    for (const nid of targetIds) {
+                        const nodeOutput = outputs[nid];
+                        if (nodeOutput && nodeOutput.images && nodeOutput.images.length > 0) {
+                            const image = nodeOutput.images[0];
+                            imageUrl = `/api/comfyui/view?filename=${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`;
+                            break;
+                        }
+                    }
+                }
+                if (!imageUrl) {
+                    // fallback: 任意节点
+                    for (const nodeId in outputs) {
+                        const nodeOutput = outputs[nodeId];
+                        if (nodeOutput.images && nodeOutput.images.length > 0) {
+                            const image = nodeOutput.images[0];
+                            imageUrl = `/api/comfyui/view?filename=${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`;
+                            break;
+                        }
                     }
                 }
                 if (imageUrl) {
-                    imageUrl = await saveToUserOutput(imageUrl, '高清修复');
+                    const featureName = currentMode === 'f2k' ? '高清修复' : `SeedVR2.5超分${currentResolution === 4096 ? '4K' : '2K'}`;
+                    imageUrl = await saveToUserOutput(imageUrl, featureName);
                     const timestamp = Date.now();
-                    const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'gaoqingxiufu' };
+                    const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'gaoqingxiufu', mode: currentMode, ...recordMeta };
                     GalleryList.pushNewImage(record);
                     await fetch('/api/history/save', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(record)
                     });
-                    if (lastOriginalSrc) showCompare(lastOriginalSrc, imageUrl);
+                    if (lastOriginalSrc) {
+                        compareCache.set(imageUrl, { original: lastOriginalSrc, result: imageUrl });
+                        const card = document.getElementById(`history-${timestamp}`);
+                        if (card) injectCompareBtn(card, lastOriginalSrc, imageUrl);
+                        showCompare(lastOriginalSrc, imageUrl);
+                    }
                     if (placeholder) placeholder.remove();
                 } else { throw new Error('未找到生成结果'); }
             } catch (e) {
@@ -1005,6 +1464,22 @@
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);
+            // ── 模式记忆 ──
+            try {
+                const savedMode = localStorage.getItem('hdrepair_mode');
+                const savedRes = localStorage.getItem('hdrepair_resolution');
+                if (savedRes) {
+                    currentResolution = parseInt(savedRes);
+                    const btn = document.querySelector(`.res-btn[data-res="${currentResolution === 4096 ? '4K' : '2K'}"]`);
+                    if (btn) setResolution(currentResolution, btn);
+                }
+                if (savedMode && savedMode !== currentMode) {
+                    const btn = document.querySelector(`.mode-tab[data-mode="${savedMode}"]`);
+                    if (btn) await switchMode(savedMode, btn);
+                }
+            } catch(e) {}
+            // 预加载 SeedVR2 工作流(不阻塞 UI)
+            loadSeedVR2Workflow().catch(e => console.warn('[SeedVR2] 预加载失败', e));
             GalleryList.load(0).then(() => {
                 const trigger = document.getElementById('loadMoreTrigger');
                 if (trigger) { trigger.onclick = () => GalleryList.load(1); }

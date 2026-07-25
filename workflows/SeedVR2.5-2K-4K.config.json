@@ -1,0 +1,80 @@
+{
+  "title": "SeedVR2.5 超分(2K/4K)",
+  "model_folders": ["seedvr2"],
+  "fields": [
+    {
+      "node": "11",
+      "param": "image",
+      "label": "输入图像",
+      "type": "upload",
+      "required": true
+    },
+    {
+      "node": "4",
+      "param": "seed",
+      "label": "随机种子(2K upscaler)",
+      "type": "number",
+      "default": 272327862,
+      "min": 0,
+      "max": 4294967295
+    },
+    {
+      "node": "50",
+      "param": "seed",
+      "label": "随机种子(4K 第二轮)",
+      "type": "number",
+      "default": 20,
+      "min": 0,
+      "max": 4294967295
+    },
+    {
+      "node": "4",
+      "param": "batch_size",
+      "label": "2K 批处理张数",
+      "type": "number",
+      "default": 5,
+      "min": 1,
+      "max": 10
+    },
+    {
+      "node": "7",
+      "param": "value",
+      "label": "2K 目标长边(px)",
+      "type": "number",
+      "default": 2048,
+      "min": 1024,
+      "max": 4096,
+      "step": 64
+    },
+    {
+      "node": "59",
+      "param": "width_factor",
+      "label": "4K 分块倍率(W)",
+      "type": "number",
+      "default": 3,
+      "min": 2,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "node": "59",
+      "param": "height_factor",
+      "label": "4K 分块倍率(H)",
+      "type": "number",
+      "default": 3,
+      "min": 2,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "node": "59",
+      "param": "overlap_rate",
+      "label": "分块重叠率",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.05
+    }
+  ]
+}
