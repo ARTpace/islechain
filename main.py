@@ -1205,7 +1205,9 @@ def is_admin_by_token(token):
     return bool(user and user.get("is_admin", False))
 
 def validate_canvas_owner(canvas, token):
-    """校验画布归属:管理员可操作所有画布,普通用户只能操作自己的画布"""
+    """校验画布归属:管理员可操作所有画布,普通用户只能操作自己的画布。token 为空时跳过（兼容新前端）"""
+    if not token:
+        return
     is_admin = is_admin_by_token(token)
     if is_admin:
         return
@@ -1239,6 +1241,33 @@ def get_user_input_dir(username):
 
 # --- API 提供商管理辅助函数 ---
 
+MODELSCOPE_DEFAULT_LORAS = [
+    {
+        "id": "Daniel8152/film",
+        "name": "Z-Image Film",
+        "target_model": "Tongyi-MAI/Z-Image-Turbo",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+    {
+        "id": "Daniel8152/Qwen-Image-2512-Film",
+        "name": "Qwen Image 2512 Film",
+        "target_model": "Qwen/Qwen-Image-2512",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+    {
+        "id": "Daniel8152/Klein-enhance",
+        "name": "Klein enhance",
+        "target_model": "black-forest-labs/FLUX.2-klein-9B",
+        "strength": 0.8,
+        "enabled": True,
+        "note": "",
+    },
+]
+
 BUILTIN_PROVIDERS = [
     {
         "id": "modelscope",
@@ -1253,6 +1282,7 @@ BUILTIN_PROVIDERS = [
         ],
         "chat_models": ["Qwen/Qwen3-235B-A22B-Instruct-2507", "Qwen/Qwen3-Coder-480B-A35B-Instruct"],
         "video_models": [],
+        "ms_loras": MODELSCOPE_DEFAULT_LORAS,
         "primary": False,
         "enabled": True,
     },
@@ -1281,13 +1311,18 @@ BUILTIN_PROVIDERS = [
 ]
 
 def ensure_builtin_providers(providers):
-    """确保内置平台（ModelScope/RunningHub/火山引擎）始终存在"""
+    """确保内置平台（ModelScope/RunningHub/火山引擎）始终存在；为旧 ModelScope 补默认 LoRA"""
     existing_ids = {p.get("id") for p in providers}
     changed = False
     for bp in BUILTIN_PROVIDERS:
         if bp["id"] not in existing_ids:
             providers.append(dict(bp))
             existing_ids.add(bp["id"])
+            changed = True
+    # 为已存在的 ModelScope 补 LoRA 默认值
+    for p in providers:
+        if p.get("id") == "modelscope" and not p.get("ms_loras"):
+            p["ms_loras"] = list(MODELSCOPE_DEFAULT_LORAS)
             changed = True
     return providers, changed
 
@@ -1339,6 +1374,7 @@ def normalize_provider(data):
         "image_models": data.get("image_models") or [],
         "chat_models": data.get("chat_models") or [],
         "video_models": data.get("video_models") or [],
+        "ms_loras": data.get("ms_loras") or [],
         "primary": bool(data.get("primary", False)),
         "enabled": bool(data.get("enabled", True)),
     }
@@ -1360,6 +1396,7 @@ def public_provider(provider):
         "image_models": provider["image_models"],
         "chat_models": provider["chat_models"],
         "video_models": provider.get("video_models") or [],
+        "ms_loras": provider.get("ms_loras") or [],
         "primary": provider["primary"],
         "enabled": provider["enabled"],
         "has_key": has_key,
@@ -1731,6 +1768,7 @@ class MsGenerateRequest(BaseModel):
     image_urls: List[str] = []
     width: int = 0
     height: int = 0
+    size: str = ""
     loras: Optional[Any] = None
     client_id: Optional[str] = None
 
@@ -1756,6 +1794,12 @@ class CanvasSaveRequest(BaseModel):
     nodes: List[Dict[str, Any]] = []
     connections: List[Dict[str, Any]] = []
     viewport: Dict[str, Any] = {}
+
+class CanvasMetaUpdate(BaseModel):
+    title: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    pinned: Optional[bool] = None
 
 class ConfigUpdateRequest(BaseModel):
     comfly_api_key: Optional[str] = None
@@ -5148,12 +5192,26 @@ def view_image(filename: str, type: str = "input", subfolder: str = ""):
     raise HTTPException(status_code=404, detail="Image not found on any available backend")
 
 @app.get("/api/download-output")
-def download_output(url: str, name: str = ""):
+async def download_output(url: str, name: str = "", inline: bool = False):
     path = output_file_from_url(url)
-    if not path:
-        raise HTTPException(status_code=404, detail="文件不存在")
-    filename = os.path.basename(name) if name else os.path.basename(path)
-    return FileResponse(path, media_type=content_type_for_path(path), filename=filename)
+    if path:
+        filename = os.path.basename(name) if name else os.path.basename(path)
+        return FileResponse(path, media_type=content_type_for_path(path), filename=filename,
+            headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+    # 远程 URL：proxy 下载
+    if url and (url.startswith("http://") or url.startswith("https://")):
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                content = resp.content
+            filename = name or os.path.basename(url.split("?")[0]) or "image.png"
+            return Response(content=content, media_type=resp.headers.get("content-type", "image/png"),
+                headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"下载远程图片失败: {e}")
+    raise HTTPException(status_code=404, detail="文件不存在")
 
 
 @app.get("/api/open-output-folder")
@@ -5281,8 +5339,9 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
 @app.get("/api/config")
 async def ai_config():
     preferred_chat_model = next((m for m in CHAT_MODELS if m == "gpt-5.5"), CHAT_MODELS[0] if CHAT_MODELS else CHAT_MODEL)
-    # 收集所有 provider 的聊天模型
+    # 收集所有 provider
     all_chat_providers = []
+    all_api_providers = []
     providers = load_api_providers()
     for p in providers:
         if p.get("chat_models"):
@@ -5292,6 +5351,7 @@ async def ai_config():
                 "base_url": p.get("base_url", ""),
                 "chat_models": p["chat_models"],
             })
+        all_api_providers.append(p)
     return {
         "base_url": AI_BASE_URL,
         "chat_model": preferred_chat_model,
@@ -5302,6 +5362,7 @@ async def ai_config():
         "ms_chat_models": MODELSCOPE_CHAT_MODELS,
         "has_ms_key": bool(MODELSCOPE_API_KEY),
         "chat_providers": all_chat_providers,
+        "api_providers": all_api_providers,
     }
 
 @app.get("/api/models")
@@ -5631,7 +5692,8 @@ async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, usern
 @app.post("/api/canvas-image-tasks")
 async def create_canvas_image_task(payload: OnlineImageRequest, token: str = ""):
     task_id = f"canvas_img_{uuid.uuid4().hex}"
-    username = require_valid_token(token)
+    if token:
+        require_valid_token(token)
     with CANVAS_TASK_LOCK:
         CANVAS_TASKS[task_id] = {
             "id": task_id,
@@ -5715,7 +5777,8 @@ async def canvases(token: str = ""):
     username, user = find_user_by_token(token)
     is_admin = bool(user and user.get("is_admin", False)) if user else False
     if not is_admin and not username:
-        return {"canvases": []}
+        # 无 token 时返回所有画布（兼容新前端）
+        return {"canvases": list_canvases()}
     owner_filter = None if is_admin else username
     return {"canvases": list_canvases(owner_filter=owner_filter)}
 
@@ -5724,7 +5787,7 @@ async def trashed_canvases(token: str = ""):
     username, user = find_user_by_token(token)
     is_admin = bool(user and user.get("is_admin", False)) if user else False
     if not is_admin and not username:
-        return {"canvases": [], "retention_days": 30}
+        return {"canvases": list_deleted_canvases(), "retention_days": 30}
     owner_filter = None if is_admin else username
     return {"canvases": list_deleted_canvases(owner_filter=owner_filter), "retention_days": 30}
 
@@ -5914,6 +5977,41 @@ async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
         except Exception as e:
             print(f"复制资产失败: {e}")
     return {"files": copied}
+
+@app.get("/api/projects")
+async def get_projects():
+    """返回项目列表（兼容新前端）"""
+    return {"projects": [{"id": "default", "name": "默认项目", "icon": "folder", "color": "#3b82f6"}]}
+
+@app.get("/api/canvases/{canvas_id}/meta")
+async def get_canvas_meta(canvas_id: str):
+    canvas = load_canvas(canvas_id)
+    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
+
+@app.post("/api/canvases/{canvas_id}/meta")
+async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
+    """更新画布元数据（标题/图标/颜色等）"""
+    canvas = load_canvas(canvas_id)
+    if not payload:
+        return {"meta": {}}
+    if payload.title is not None:
+        canvas["title"] = payload.title[:80]
+    if payload.icon is not None:
+        canvas["icon"] = payload.icon[:32]
+    if payload.color is not None:
+        canvas["color"] = payload.color.strip()
+    if payload.pinned is not None:
+        canvas["pinned"] = payload.pinned
+    save_canvas(canvas)
+    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color")}}
+
+@app.post("/api/canvases/{canvas_id}/touch")
+async def touch_canvas(canvas_id: str):
+    """更新画布最后打开时间"""
+    canvas = load_canvas(canvas_id)
+    canvas["updated_at"] = int(time.time())
+    save_canvas(canvas)
+    return {"touched": True}
 
 @app.post("/api/canvases/{canvas_id}/assets/delete")
 async def delete_asset(canvas_id: str, payload: dict = None):
@@ -7843,7 +7941,8 @@ async def generate_cloud(req: CloudGenRequest, token: str = ""):
 
 @app.post("/api/ms/generate")
 async def ms_generate(req: MsGenerateRequest, token: str = ""):
-    username = require_valid_token(token)
+    if token:
+        require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key(MODELSCOPE_API_KEY.strip())
     if not clean_token:
@@ -7861,6 +7960,7 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
     if req.width and req.height:
         payload["width"] = req.width
         payload["height"] = req.height
+        payload["size"] = req.size or f"{req.width}x{req.height}"
     if req.image_urls:
         payload["image_url"] = req.image_urls
     if req.loras is not None:
