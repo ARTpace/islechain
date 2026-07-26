@@ -1048,6 +1048,11 @@ def _load_history_cached():
             print(f"读取历史文件失败: {e}")
             data = []
     _HISTORY_CACHE = data
+    # 迁移旧版时间戳：秒→毫秒（兼容旧记录）
+    for item in _HISTORY_CACHE:
+        ts = item.get("timestamp", 0)
+        if isinstance(ts, (int, float)) and 1000000000 < ts < 2000000000:
+            item["timestamp"] = ts * 1000
     return _HISTORY_CACHE
 def _invalidate_history_cache():
     global _HISTORY_CACHE
@@ -2137,7 +2142,7 @@ def save_to_history(record):
                     history = json.load(f)
             except: pass
         if "timestamp" not in record:
-            record["timestamp"] = time.time()
+            record["timestamp"] = time.time() * 1000
         history.insert(0, record)
         with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
             json.dump(history[:5000], f, ensure_ascii=False, indent=4)
@@ -2545,13 +2550,17 @@ def reference_to_data_url(ref):
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{content_type_for_path(path)};base64,{encoded}"
 
-async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, username=None):
+async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, username=None, subfolder=None):
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
     elif username:
         canvas_output_dir, _ = get_user_output_dir(username)
+        if subfolder:
+            canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
     else:
         canvas_output_dir = OUTPUT_DIR
+        if subfolder:
+            canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
     os.makedirs(canvas_output_dir, exist_ok=True)
 
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
@@ -2559,10 +2568,23 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
     if image_data["type"] == "b64":
         with open(path, "wb") as f:
             f.write(base64.b64decode(image_data["value"]))
-        return build_output_url(canvas, filename, username)
+        return build_output_url(canvas, filename, username, subfolder=subfolder)
     value = image_data["value"]
     if value.startswith("/output/"):
-        return value
+        # 已有 output URL：提取文件名并重新构建带子文件夹的 URL
+        orig_filename = value.rsplit("/", 1)[-1]
+        if not orig_filename:
+            return value
+        # 复制到新子文件夹位置
+        orig_path = os.path.join(OUTPUT_DIR, *value.replace("/output/", "", 1).split("/"))
+        if os.path.exists(orig_path):
+            import shutil
+            os.makedirs(canvas_output_dir, exist_ok=True)
+            try:
+                shutil.copy2(orig_path, os.path.join(canvas_output_dir, orig_filename))
+            except Exception:
+                pass
+        return build_output_url(canvas, orig_filename, username, subfolder=subfolder)
     try:
         async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
             response = await client.get(value)
@@ -2576,7 +2598,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
                 path = os.path.join(canvas_output_dir, filename)
             with open(path, "wb") as f:
                 f.write(response.content)
-            return build_output_url(canvas, filename, username)
+            return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"保存上游图片失败: {e}")
         return value
@@ -2600,6 +2622,9 @@ def _resolve_image_provider(provider_id, protocol_hint=None):
     proto = provider_protocol(prov)
     key_env = provider_key_env(prov["id"])
     api_key = read_api_env_value(key_env) or os.getenv(key_env, "")
+    # 对 modelscope 回退到全局变量（兼容 API 设置页更新）
+    if not api_key and prov["id"] == "modelscope":
+        api_key = MODELSCOPE_API_KEY or ""
     base_url = (prov.get("base_url") or "").rstrip("/")
     # ModelScope already includes /v1; other OpenAI providers may not
     base_has_v1 = base_url.endswith("/v1")
@@ -2706,6 +2731,7 @@ async def _gen_openai_async_submit(client, base_url, api_key, model, prompt, siz
 async def _gen_modelscope(client, base_url, api_key, model, prompt, size, quality, refs):
     """ModelScope 专用生图：异步提交 + 轮询（API 路径与 OpenAI 不同）"""
     clean_token = sanitize_api_key(api_key)
+    print(f"[_gen_modelscope] model={model} has_key={bool(clean_token)} base_url={base_url}")
     if not clean_token:
         raise HTTPException(status_code=400, detail="未配置 ModelScope API Key，请在 API 设置中填写。")
     width, height = parse_size_pair(size) if size else (1024, 1024)
@@ -2713,16 +2739,29 @@ async def _gen_modelscope(client, base_url, api_key, model, prompt, size, qualit
     if width and height:
         payload["width"] = width
         payload["height"] = height
-        payload["size"] = f"{width}x{height}"
     ref_urls = [ref.get("url", "") for ref in (refs or [])[:4] if isinstance(ref, dict) and ref.get("url")]
     if ref_urls:
-        payload["image_url"] = ref_urls
+        # 本地路径转为 data URL（ModelScope 无法访问本地 /output/ 路径）
+        converted = []
+        for url in ref_urls:
+            if url.startswith("/output/") or url.startswith("/assets/"):
+                try:
+                    data_url = reference_to_data_url({"url": url})
+                    if data_url:
+                        converted.append(data_url)
+                        continue
+                except Exception:
+                    pass
+            converted.append(url)
+        payload["image_url"] = converted
     headers = {
         "Authorization": f"Bearer {clean_token}",
         "Content-Type": "application/json",
         "X-ModelScope-Async-Mode": "true",
     }
     api_root = base_url.rstrip("/") + "/v1"  # ModelScope 需要 /v1 前缀（base_url 已被 _resolve_image_provider 去掉/v1）
+    print(f"[_gen_modelscope] submitting to {api_root}/images/generations model={model} size={width}x{height} payload_keys={list(payload.keys())}")
+    print(f"[_gen_modelscope] payload={json.dumps(payload)[:500]}")
     submit_res = await client.post(f"{api_root}/images/generations", headers=headers, json=payload)
     submit_res.raise_for_status()
     raw = submit_res.json()
@@ -5497,7 +5536,8 @@ async def update_config(payload: ConfigUpdateRequest):
 
 @app.post("/api/online-image")
 async def online_image(payload: OnlineImageRequest, token: str = ""):
-    return await build_online_image_result(payload)
+    username = get_username_by_token(token)
+    return await build_online_image_result(payload, username=username)
 
 async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
     provider_id = payload.provider_id or "comfly"
@@ -5505,9 +5545,13 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
     model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     mode = normalize_image_request_mode(payload.image_request_mode or prov.get("image_request_mode", "openai"))
+    print(f"[online-image] provider={provider_id} model={model} key={prov.get('api_key','')[:16]}... size={payload.size} mode={mode}")
     try:
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
-        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username)
+        # 组织子文件夹: online/{日期}
+        date_str = time.strftime("%Y-%m-%d", time.localtime())
+        subfolder = f"online/{date_str}"
+        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
         friendly = None
@@ -5535,7 +5579,7 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
     return {
         "prompt": payload.prompt,
         "images": [local_url],
-        "timestamp": time.time(),
+        "timestamp": time.time() * 1000,
         "type": "online",
         "model": model,
         "provider_id": provider_id,
@@ -5572,7 +5616,7 @@ async def build_online_video_result(payload: OnlineVideoRequest, username: str =
     return {
         "prompt": payload.prompt,
         "videos": [local_url],
-        "timestamp": time.time(),
+        "timestamp": time.time() * 1000,
         "type": "video",
         "model": model,
         "provider_id": provider_id,
@@ -6167,6 +6211,21 @@ async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "
     elif "gif" in content_type:
         ext = ".gif"
 
+    import hashlib
+    content_hash = hashlib.md5(content).hexdigest()
+    # 检查是否已存在相同内容的文件（去重）
+    if os.path.isdir(asset_dir):
+        for existing in os.listdir(asset_dir):
+            existing_path = os.path.join(asset_dir, existing)
+            if os.path.isfile(existing_path):
+                try:
+                    with open(existing_path, "rb") as ef:
+                        existing_hash = hashlib.md5(ef.read()).hexdigest()
+                    if existing_hash == content_hash:
+                        url_path = f"/assets/{dirname}/{existing}"
+                        return {"url": url_path, "name": payload.name or existing, "dedup": True}
+                except Exception:
+                    pass
     filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
     filepath = os.path.join(asset_dir, filename)
     with open(filepath, "wb") as f:
@@ -6268,6 +6327,53 @@ async def download_output_zip(payload: DownloadZipRequest):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={payload.filename}"}
     )
+
+@app.post("/api/user/assets/dedup")
+async def dedup_user_assets(token: str = ""):
+    """删除资产库中的重复图片（基于 MD5 内容去重）"""
+    import hashlib
+    username = get_username_by_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="请先登录")
+    asset_dir, dirname = get_user_input_dir(username)
+    if not os.path.exists(asset_dir):
+        return {"removed": 0, "kept": 0}
+    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    hash_map = {}  # md5 → [(filepath, mtime)]
+    for filename in os.listdir(asset_dir):
+        filepath = os.path.join(asset_dir, filename)
+        if os.path.isfile(filepath) and os.path.splitext(filename)[1].lower() in image_exts:
+            try:
+                with open(filepath, "rb") as f:
+                    h = hashlib.md5(f.read()).hexdigest()
+                mtime = os.path.getmtime(filepath)
+                hash_map.setdefault(h, []).append((filepath, mtime))
+            except Exception:
+                pass
+    removed = 0
+    kept = 0
+    for h, files in hash_map.items():
+        if len(files) > 1:
+            # 保留最新的，删除旧的
+            files.sort(key=lambda x: x[1], reverse=True)
+            for path, _ in files[1:]:
+                try:
+                    os.remove(path)
+                    removed += 1
+                except Exception:
+                    pass
+            kept += 1
+        else:
+            kept += 1
+    import shutil
+    # 删除空目录
+    for root, dirs, files in os.walk(asset_dir, topdown=False):
+        for d in dirs:
+            try:
+                os.rmdir(os.path.join(root, d))
+            except Exception:
+                pass
+    return {"removed": removed, "kept": kept}
 
 # --- GPT 对话 ---
 
@@ -7811,7 +7917,7 @@ async def poll_angle_cloud(req: CloudPollRequest):
                         except Exception:
                             local_path = img_url
 
-                        record = {"timestamp": time.time(), "prompt": f"Resumed {task_id}", "images": [local_path], "type": "angle"}
+                        record = {"timestamp": time.time() * 1000, "prompt": f"Resumed {task_id}", "images": [local_path], "type": "angle"}
                         save_to_history(record)
                         if req.client_id:
                             await manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)
@@ -7905,7 +8011,7 @@ async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
                         except Exception:
                             local_path = img_url
 
-                        record = {"timestamp": time.time(), "prompt": req.prompt, "images": [local_path], "type": "angle"}
+                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "angle"}
                         save_to_history(record)
                         if req.client_id:
                             await manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)
@@ -8012,7 +8118,7 @@ async def generate_cloud(req: CloudGenRequest, token: str = ""):
                             print(f"Download error: {dl_e}")
                             local_path = img_url
 
-                        record = {"timestamp": time.time(), "prompt": req.prompt, "images": [local_path], "type": "cloud"}
+                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "cloud"}
                         save_to_history(record)
                         try:
                             await manager.broadcast_new_image(record)
@@ -8118,7 +8224,7 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
                             local_path = img_url
 
                         record = {
-                            "timestamp": time.time(),
+                            "timestamp": time.time() * 1000,
                             "prompt": req.prompt,
                             "images": [local_path],
                             "type": "klein",

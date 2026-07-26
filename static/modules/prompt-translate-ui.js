@@ -34,6 +34,10 @@ const PromptTranslateUI = (function() {
             .prompt-translate-corner[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
             .prompt-translate-corner[data-state="ok"] { color:#16a34a!important; }
             .prompt-translate-corner[data-state="fail"] { color:#dc2626!important; }
+            .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#2563eb!important; }
+            .prompt-translate-corner[data-lang="en"]:not([data-state]) { color:#ea580c!important; }
+            body.studio-theme-dark .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#60a5fa!important; }
+            body.studio-theme-dark .prompt-translate-corner[data-lang="en"]:not([data-state]) { color:#fb923c!important; }
             .prompt-translate-corner:hover { background:rgba(0,180,216,0.12) !important; color:#00b4d8 !important; }
             body.studio-theme-dark .prompt-translate-corner:hover { background:rgba(0,240,255,0.12) !important; color:#00f0ff !important; }
             @keyframes ptui-spin { to { transform: rotate(360deg); } }
@@ -50,23 +54,21 @@ const PromptTranslateUI = (function() {
         btn.className = 'prompt-corner-btn prompt-translate-corner';
         btn.title = '翻译提示词（自动同步标签语言）';
         btn.oncontextmenu = (e) => e.preventDefault();
-        // 图标: "译"字风格 (讠部 + 又部) - 直观表示翻译功能
-        // 左侧短竖线表示"讠"偏旁,右侧"A→中"风格组合
+        // 图标: 左侧"A"字母 + 右侧"文"汉字,表达中英互译
         btn.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;overflow:visible;">
-                <!-- 左: 讠偏旁 (短竖线) -->
-                <path d="M3 5h3"/>
-                <path d="M4.5 5v8"/>
-                <path d="M3 13h3"/>
-                <!-- 右: A→中 翻译标识 -->
-                <path d="M10 6h6"/>
-                <path d="M13 4v2"/>
-                <path d="M10 6l-2 6"/>
-                <path d="M10 6l2 6"/>
-                <path d="M16 6l2 6"/>
-                <path d="M18 12l2 6"/>
-                <path d="M18 12l-2 6"/>
-                <path d="M20 18h-4"/>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;overflow:visible;">
+                <!-- A 字母 -->
+                <path d="M3 20L7 4h2l4 16"/>
+                <path d="M4.5 14h7"/>
+                <!-- 文 汉字 -->
+                <path d="M16 4v4"/>
+                <path d="M14 8h4l-2 2"/>
+                <path d="M15 12l-3 8"/>
+                <path d="M15 12l3 8"/>
+                <path d="M12 17h6"/>
+                <!-- 双向箭头（互译） -->
+                <path d="M2 2l3 3M5 2l-3 3" stroke-width="1.2" opacity="0.5"/>
+                <path d="M22 22l-3-3M19 22l3-3" stroke-width="1.2" opacity="0.5"/>
             </svg>`;
         btn.addEventListener('click', handleTranslate);
         return btn;
