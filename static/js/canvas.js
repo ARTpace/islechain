@@ -10024,84 +10024,96 @@ async function runRhModelNode(node, opts={}){
     }
 }
 function renderComfySettings(container, node){
+    if(!container) return;
     const mode = node.mode || 'text';
-    if(mode === 'text'){
-        container.innerHTML = `
+    try {
+        // 工作流选择器（所有模式都显示在最顶部）
+        const validWorkflow = validComfyWorkflowName(node.comfyWorkflow || comfyWorkflows[0]?.name || '');
+        const selectedWorkflow = node.comfyWorkflow || validWorkflow;
+        const workflowSelectorHtml = `
             <div class="gen-settings-row">
-                <label class="field"><div class="setting-title">${tr('canvas.width')}</div><input class="setting-input" data-field="width" type="number" min="64" step="64" value="${Number(node.width || 1024)}"></label>
-                <label class="field"><div class="setting-title">${tr('canvas.height')}</div><input class="setting-input" data-field="height" type="number" min="64" step="64" value="${Number(node.height || 1024)}"></label>
+                <select class="select-lite comfy-workflow-select" data-field="comfyWorkflow" style="width:100%">${comfyWorkflowOptions(selectedWorkflow)}</select>
             </div>
         `;
-    } else if(mode === 'enhance'){
-        const strength = Number(node.enhanceStrength ?? 0.5);
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <label class="field" style="flex:1">
-                    <div class="setting-title" style="display:flex;justify-content:space-between">
-                        <span>${tr('studio.enhancementStrength')}</span><span class="enhance-strength-val">${strength.toFixed(2)}</span>
-                    </div>
-                    <input type="range" class="canvas-range enhance-strength-slider" data-field="enhanceStrength" min="0.1" max="1.0" step="0.05" value="${strength}">
-                </label>
-            </div>
-            <div class="gen-settings-row">
-                <button type="button" class="setting-check ${node.enhanceUpscale ? 'active' : ''}" data-toggle-field="enhanceUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                <select class="select-lite ${node.enhanceUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="enhanceUpscaleRes" ${node.enhanceUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
-            </div>
-        `;
-        container.querySelector('[data-field="enhanceUpscaleRes"]').value = String(node.enhanceUpscaleRes || 2048);
-    } else if(mode === 'edit'){
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <button type="button" class="setting-check ${node.editUpscale ? 'active' : ''}" data-toggle-field="editUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                <select class="select-lite ${node.editUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="editUpscaleRes" ${node.editUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
-            </div>
-        `;
-        container.querySelector('[data-field="editUpscaleRes"]').value = String(node.editUpscaleRes || 2048);
-    } else if(mode === 'custom'){
-        const selected = validComfyWorkflowName(node.comfyWorkflow || comfyWorkflows[0]?.name || '');
-        if(node.comfyWorkflow && node.comfyWorkflow !== selected) node.comfyWorkflow = selected;
-        const data = currentComfyWorkflow(node);
-        const fields = data?.config?.fields || [];
-        const settingFields = fields.filter(f => comfyFieldKind(f) === 'setting');
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <select class="select-lite comfy-workflow-select" data-field="comfyWorkflow" style="width:100%">${comfyWorkflowOptions(selected)}</select>
-            </div>
-            ${!selected ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoWorkflow')}</div>` : (!data ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyLoadingWorkflow')}</div>` : '')}
-            ${data ? settingFields.map(f => renderComfyCustomField(node, f)).join('') || `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoExtraParams')}</div>` : ''}
-        `;
-        if(selected && !data) ensureComfyWorkflow(selected).then(() => render());
-    } else {
-        container.innerHTML = '';
+        if(mode === 'text'){
+            container.innerHTML = workflowSelectorHtml + `
+                <div class="gen-settings-row">
+                    <label class="field"><div class="setting-title">${tr('canvas.width')}</div><input class="setting-input" data-field="width" type="number" min="64" step="64" value="${Number(node.width || 1024)}"></label>
+                    <label class="field"><div class="setting-title">${tr('canvas.height')}</div><input class="setting-input" data-field="height" type="number" min="64" step="64" value="${Number(node.height || 1024)}"></label>
+                </div>
+            `;
+        } else if(mode === 'enhance'){
+            const strength = Number(node.enhanceStrength ?? 0.5);
+            container.innerHTML = workflowSelectorHtml + `
+                <div class="gen-settings-row">
+                    <label class="field" style="flex:1">
+                        <div class="setting-title" style="display:flex;justify-content:space-between">
+                            <span>${tr('studio.enhancementStrength')}</span><span class="enhance-strength-val">${strength.toFixed(2)}</span>
+                        </div>
+                        <input type="range" class="canvas-range enhance-strength-slider" data-field="enhanceStrength" min="0.1" max="1.0" step="0.05" value="${strength}">
+                    </label>
+                </div>
+                <div class="gen-settings-row">
+                    <button type="button" class="setting-check ${node.enhanceUpscale ? 'active' : ''}" data-toggle-field="enhanceUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
+                    <select class="select-lite ${node.enhanceUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="enhanceUpscaleRes" ${node.enhanceUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
+                </div>
+            `;
+            const er = container.querySelector('[data-field="enhanceUpscaleRes"]');
+            if(er) er.value = String(node.enhanceUpscaleRes || 2048);
+        } else if(mode === 'edit'){
+            container.innerHTML = workflowSelectorHtml + `
+                <div class="gen-settings-row">
+                    <button type="button" class="setting-check ${node.editUpscale ? 'active' : ''}" data-toggle-field="editUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
+                    <select class="select-lite ${node.editUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="editUpscaleRes" ${node.editUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
+                </div>
+            `;
+            const er = container.querySelector('[data-field="editUpscaleRes"]');
+            if(er) er.value = String(node.editUpscaleRes || 2048);
+        } else if(mode === 'custom'){
+            const data = currentComfyWorkflow(node);
+            const fields = (data && data.config && data.config.fields) || [];
+            const settingFields = fields.filter(f => comfyFieldKind(f) === 'setting');
+            container.innerHTML = workflowSelectorHtml + (!selectedWorkflow ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoWorkflow')}</div>` : (!data ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyLoadingWorkflow')}</div>` : '') ) + (data ? (settingFields.map(f => renderComfyCustomField(node, f)).join('') || `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoExtraParams')}</div>`) : '');
+            if(selectedWorkflow && !data) ensureComfyWorkflow(selectedWorkflow).then(() => render());
+        } else {
+            container.innerHTML = workflowSelectorHtml;
+        }
+    } catch(e) {
+        console.error('[renderComfySettings]', e);
+        container.innerHTML = `<div class="text-[11px] text-red-500">Comfy 节点设置渲染出错: ${escapeHtml(String(e?.message || e))}</div>`;
     }
-    container.querySelectorAll('[data-toggle-field]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => {
-            e.stopPropagation();
-            const field = btn.dataset.toggleField;
-            node[field] = !node[field];
-            render();
-            scheduleSave();
-        };
-    });
-    container.querySelectorAll('button[data-comfy-param]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => updateComfyField(node, btn, e);
-    });
-    container.querySelectorAll('button[data-comfy-random]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => {
-            e.stopPropagation();
-            toggleComfyRandom(node.id, btn.dataset.comfyRandom);
-        };
-    });
-    container.querySelectorAll('input, select, textarea').forEach(input => {
-        input.onmousedown = e => e.stopPropagation();
-        input.onclick = e => e.stopPropagation();
-        if(input.classList.contains('model-select')) return;
-        input.onchange = e => updateComfyField(node, input, e);
-        input.oninput = e => updateComfyField(node, input, e);
-    });
+    try {
+        container.querySelectorAll('[data-toggle-field]').forEach(btn => {
+            btn.onmousedown = e => e.stopPropagation();
+            btn.onclick = e => {
+                e.stopPropagation();
+                const field = btn.dataset.toggleField;
+                node[field] = !node[field];
+                render();
+                scheduleSave();
+            };
+        });
+        container.querySelectorAll('button[data-comfy-param]').forEach(btn => {
+            btn.onmousedown = e => e.stopPropagation();
+            btn.onclick = e => updateComfyField(node, btn, e);
+        });
+        container.querySelectorAll('button[data-comfy-random]').forEach(btn => {
+            btn.onmousedown = e => e.stopPropagation();
+            btn.onclick = e => {
+                e.stopPropagation();
+                toggleComfyRandom(node.id, btn.dataset.comfyRandom);
+            };
+        });
+        container.querySelectorAll('input, select, textarea').forEach(input => {
+            input.onmousedown = e => e.stopPropagation();
+            input.onclick = e => e.stopPropagation();
+            if(input.classList.contains('model-select')) return;
+            input.onchange = e => updateComfyField(node, input, e);
+            input.oninput = e => updateComfyField(node, input, e);
+        });
+    } catch(e) {
+        console.error('[bind comfy handlers]', e);
+    }
 }
 function renderComfyCustomField(node, f){
     const value = comfyParamValue(node, f);

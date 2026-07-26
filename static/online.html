@@ -8,19 +8,36 @@
     <script>
         (function(){
             try {
-                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'light';
-                if(theme === 'dark') {
-                    document.documentElement.classList.add('studio-theme-dark');
-                    document.documentElement.classList.add('theme-dark');
-                }
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'dark';
+                var isDark = theme === 'dark';
+                document.documentElement.classList.toggle('studio-theme-dark', isDark);
+                document.documentElement.classList.toggle('theme-dark', isDark);
             } catch(e) {}
         }());
     </script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/modules/auth-token.js"></script>
+    <script src="/static/theme.js"></script>
     <script src="/static/vendor/js/lucide.js"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
     <script src="/static/app/preset-picker.js?v=20260629002"></script>
+    <!-- 角色选择器 -->
+    <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260628">
+    <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
+    <!-- 画师选择器 -->
+    <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
+    <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
+    <!-- AI 提示词预设模块 -->
+    <script src="/prompt/static/prompt-module.js?v=20260722-4"></script>
+    <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
+    <!-- 参考图管理器 + 反推提示词 -->
+    <script src="/static/modules/ref-image-manager.js?v=20260614001"></script>
+    <script src="/static/modules/interrogator.js?v=20260601001"></script>
+    <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
+    <script src="/static/js/prompt-translate.js?v=20260618001"></script>
+    <script src="/static/js/translate-queue.js?v=20260721001"></script>
+    <script src="/static/js/incremental-translator.js?v=20260721001"></script>
+    <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
     <!-- Gallery 模块 -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
     <script src="/static/history-bulk-manager.js?v=20260629002"></script>
@@ -46,6 +63,9 @@
         .container-box { max-width:1280px; margin:0 auto; padding:0 40px; margin-top:50px; }
         .nano-input { background:var(--card); border:1px solid #eef0f2; transition:all .3s var(--easing); }
         .nano-input:focus { border-color:#000; box-shadow:0 0 0 1px #000; }
+        .prompt-editable { color:inherit; }
+        .prompt-editable:empty::before { content:attr(data-placeholder); color:#9ca3af; pointer-events:none; }
+        .prompt-editable:focus { border-color:#000; box-shadow:0 0 0 1px #000; }
         .upload-item { background:var(--card); border:1px dashed #e2e8f0; transition:all .4s var(--easing); position:relative; overflow:hidden; }
         .upload-item:hover,.upload-item.drag-over { border-color:#000; transform:translateY(-2px); }
         .preview-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; animation:fadeIn .5s var(--easing); }
@@ -99,12 +119,17 @@
         .mode-toggle-btn.active { background:#111827 !important; color:#fff !important; }
         .studio-theme-dark .mode-toggle-btn.active { background:#3b82f6 !important; }
         /* 视频播放器暗色 */
-        .studio-theme-dark #outputVideo { background:#0a0e17; }
         .mode-badge { font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#0f172a; background:#eef2ff; border:1px solid #e0e7ff; padding:2px 8px; border-radius:999px; }
-        .masonry-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
-        @media (min-width:768px){ .masonry-grid{ grid-template-columns:repeat(4,1fr); } }
+        .masonry-grid { column-count:2; column-gap:12px; }
+        @media (min-width:640px){ .masonry-grid{ column-count:3; column-gap:16px; } }
+        @media (min-width:1024px){ .masonry-grid{ column-count:4; column-gap:20px; } }
+        .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
+        .masonry-grid.thumb-small{ column-count:5!important; column-gap:8px!important; }
+        @media (min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
+        @media (min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
+        @media (min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media (max-width:640px){ .size-row{ grid-template-columns:1fr; } }
-        .masonry-item { aspect-ratio:1/1; border-radius:24px; overflow:hidden; background:#fff; border:1px solid #f1f5f9; transition:all .5s var(--easing); position:relative; }
+        .masonry-item { border-radius:24px; overflow:hidden; background:#fff; border:1px solid #f1f5f9; transition:all .5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; display:inline-block; width:100%; }
         .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,.08); }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
@@ -121,6 +146,26 @@
         .preset-toggle-btn:hover { background:#000; transform:translateY(-1px); }
         .quick-prompt-btn { height:28px; padding:0 10px; background:rgba(255,255,255,.95); border:1px solid #e2e8f0; color:#475569; border-radius:999px; font-size:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all .2s; }
         .quick-prompt-btn:hover { background:#111827; color:#fff; border-color:#111827; }
+        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:#f1f1f1; color:#333; transition:all 0.15s; white-space:nowrap; }
+        .anima-ctrl:hover { background:#e5e5e5; }
+        .anima-ctrl.active { background:#000; color:#fff; }
+        .anima-ctrl.is-in-use { background:linear-gradient(135deg,#00b4d8,#0077b6); color:#fff; box-shadow:0 0 0 1px rgba(0,180,216,0.4),0 2px 8px rgba(0,180,216,0.25); }
+        .anima-ctrl.is-in-use:hover { background:linear-gradient(135deg,#00c8ed,#0088c8); }
+        .anima-ctrl-split-left { border-right:1px solid rgba(0,0,0,0.1) !important; }
+        body.studio-theme-dark .anima-ctrl { background:rgba(255,255,255,0.08); color:#c8d0dc; }
+        body.studio-theme-dark .anima-ctrl:hover { background:rgba(255,255,255,0.14); }
+        body.studio-theme-dark .anima-ctrl.active { background:#00f0ff; color:#0a0e17; }
+        body.studio-theme-dark .anima-ctrl.is-in-use { background:linear-gradient(135deg,#00b4d8,#0077b6); color:#fff; }
+        body.studio-theme-dark .anima-ctrl-split-left { border-right-color:rgba(255,255,255,0.1) !important; }
+        .btn-text { font-size:10px; font-weight:700; }
+        .prompt-corner-btn { width:28px; height:28px; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.08); color:#999; transition:all 0.15s; flex-shrink:0; padding:0; }
+        .prompt-corner-btn:hover { background:rgba(239,68,68,0.15) !important; color:#ef4444 !important; }
+        .prompt-tags-switch-btn:hover { background:rgba(0,180,216,0.12)!important; color:#00b4d8!important; }
+        .prompt-tags-switch-btn.active { color:#00b4d8!important; background:rgba(0,180,216,0.15)!important; }
+        body.studio-theme-dark .prompt-corner-btn { background:rgba(255,255,255,0.12); color:#6a8fa8; }
+        body.studio-theme-dark .prompt-corner-btn:hover { background:rgba(239,68,68,0.2) !important; color:#f87171 !important; }
+        body.studio-theme-dark .prompt-tags-switch-btn:hover { background:rgba(0,240,255,0.12)!important; color:#00f0ff!important; }
+        body.studio-theme-dark .prompt-tags-switch-btn.active { color:#00f0ff!important; background:rgba(0,240,255,0.15)!important; }
 
         /* 资产库按钮 - 右上角悬浮 */
         .asset-picker-trigger { position:absolute; top:10px; right:10px; height:28px; padding:0 10px; background:rgba(255,255,255,.95); border:1px solid #e2e8f0; color:#475569; border-radius:999px; font-size:10px; font-weight:700; cursor:pointer; display:none; align-items:center; gap:4px; z-index:5; transition:all .2s; }
@@ -134,6 +179,10 @@
         .studio-theme-dark .nano-input { background:#111827; border-color:#1e293b; color:#e0e7ef; }
         .studio-theme-dark .nano-input::placeholder { color:#475569; }
         .studio-theme-dark .nano-input:focus { border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; }
+        .studio-theme-dark .prompt-editable { color:#e0e7ef; }
+        .studio-theme-dark .prompt-editable:empty::before { color:#4a5a6e; }
+        .studio-theme-dark .prompt-editable:focus { border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; }
+        .studio-theme-dark .prompt-actions { background:#111827!important; border-color:#1e293b!important; }
         .studio-theme-dark .upload-item { background:#111827; border-color:#1e293b; }
         .studio-theme-dark .upload-item:hover,.studio-theme-dark .upload-item.drag-over { border-color:#3b82f6; }
         .studio-theme-dark .glass-btn { background:#1e293b; color:#e0e7ef; }
@@ -252,67 +301,51 @@
             </nav>
         </header>
 
-        <main class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            <div class="lg:col-span-5 space-y-8">
+        <main>
+            <div class="space-y-8">
                 <!-- Prompt 区 -->
                 <section class="space-y-4">
                     <div class="flex items-center gap-2 text-gray-400">
                         <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
                         <span class="text-[10px] font-black uppercase tracking-widest">提示词</span>
                         <span style="flex:1"></span>
-                        <button onclick="presetPickerOpen()" class="preset-toggle-btn" title="提示词预设">✦ 预设</button>
+                        <div id="smartPromptContainer" style="display:inline-flex;"></div>
+                        <div id="animaTagSwitcher" style="display:inline-flex;">
+                            <button onclick="pickerOpen()" id="charPickerBtn" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text" id="charPickerBtnText"> 角色</span></button>
+                            <button onclick="artistPickerOpen()" id="artistPickerBtn" class="anima-ctrl" style="border-radius:0 10px 10px 0;" title="画师选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg><span class="btn-text" id="artistPickerBtnText"> 画师</span></button>
+                        </div>
+                        <button onclick="presetPickerOpen()" id="presetPickerBtn" class="anima-ctrl" title="提示词预设"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="btn-text" id="presetPickerBtnText"> 预设</span></button>
                     </div>
-                    <div class="relative">
-                        <textarea id="promptInput" rows="5" class="nano-input w-full p-6 rounded-3xl text-sm outline-none resize-none placeholder-gray-300" placeholder="输入想生成或编辑的画面..." oninput="document.getElementById('prompt').value=this.value"></textarea>
-                        <textarea id="prompt" style="display:none"></textarea>
+                    <div class="flex gap-3 items-start">
+                        <div id="refImagePreview" class="ref-img-sidebar" style="display:none;flex-shrink:0;width:120px;"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="prompt-wrapper" style="position:relative;">
+                                <div id="prompt" contenteditable="true" data-placeholder="输入想生成或编辑的画面..." class="prompt-editable nano-input w-full p-6 rounded-3xl text-sm outline-none" style="min-height:120px;max-height:160px;line-height:1.6;overflow-y:auto;scrollbar-width:thin;border-bottom-left-radius:0!important;border-bottom-right-radius:0!important;border-bottom:0!important;"></div>
+                                <div class="prompt-actions" style="border:1px solid #eef0f2;border-top:0;border-radius:0 0 24px 24px;padding:6px 12px;display:flex;justify-content:flex-end;align-items:center;gap:4px;background:var(--card);">
+                                    <button onclick="clearPrompt()" id="clearPromptBtn" title="清空提示词" class="prompt-corner-btn" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                                    <div id="translateBtnContainer" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"></div>
+                                    <button onclick="togglePromptTagsVisibility()" id="promptTagsSwitch" title="提示词标签" class="prompt-corner-btn prompt-tags-switch-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
-                <!-- 参考图 3 槽 -->
-                <section class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2 text-gray-400">
-                            <i data-lucide="images" class="w-3.5 h-3.5"></i>
-                            <span class="text-[10px] font-black uppercase tracking-widest">参考图</span>
-                        </div>
+                <!-- 参考图工具栏 -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-gray-400">
+                        <i data-lucide="images" class="w-3.5 h-3.5"></i>
+                        <span class="text-[10px] font-black uppercase tracking-widest">参考图</span>
+                        <span id="refCount" class="text-[9px] font-bold text-gray-300 hidden"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
                         <button onclick="openAssetPickerForRefs()" class="text-[10px] font-bold text-gray-400 hover:text-black flex items-center gap-1 transition-colors">
                             <i data-lucide="folder-open" class="w-3 h-3"></i>
                             <span>从资产库选择</span>
                         </button>
+                        <input type="file" id="refImageInput" accept="image/*" multiple style="display:none">
                     </div>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div id="drop-zone-1" class="upload-zone upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer relative">
-                            <input type="file" id="file1" accept="image/*" class="hidden" onchange="handleFile(this.files[0],1)">
-                            <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i>
-                            <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">主图</span>
-                            <img id="prev1" class="preview-img hidden">
-                            <button onclick="clearSlot(1,event)" id="del1" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10">×</button>
-                            <button onclick="handleEdit(1,event)" id="edit1" class="ref-edit-btn" title="编辑图片">
-                                <i data-lucide="pencil" class="w-3 h-3"></i>
-                            </button>
-                        </div>
-                        <div id="drop-zone-2" class="upload-zone upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer relative">
-                            <input type="file" id="file2" accept="image/*" class="hidden" onchange="handleFile(this.files[0],2)">
-                            <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i>
-                            <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">辅助 A</span>
-                            <img id="prev2" class="preview-img hidden">
-                            <button onclick="clearSlot(2,event)" id="del2" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10">×</button>
-                            <button onclick="handleEdit(2,event)" id="edit2" class="ref-edit-btn" title="编辑图片">
-                                <i data-lucide="pencil" class="w-3 h-3"></i>
-                            </button>
-                        </div>
-                        <div id="drop-zone-3" class="upload-zone upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer relative">
-                            <input type="file" id="file3" accept="image/*" class="hidden" onchange="handleFile(this.files[0],3)">
-                            <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i>
-                            <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">辅助 B</span>
-                            <img id="prev3" class="preview-img hidden">
-                            <button onclick="clearSlot(3,event)" id="del3" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10">×</button>
-                            <button onclick="handleEdit(3,event)" id="edit3" class="ref-edit-btn" title="编辑图片">
-                                <i data-lucide="pencil" class="w-3 h-3"></i>
-                            </button>
-                        </div>
-                    </div>
-                </section>
+                </div>
 
                 <!-- Model / Provider / Quality / Count 工具面板 -->
                 <div class="tool-panel">
@@ -416,41 +449,6 @@
                     <span class="tracking-[0.3em] text-[11px] uppercase">生成</span>
                 </button>
             </div>
-
-            <!-- 结果画布 -->
-            <div class="lg:col-span-7">
-                <div id="resultBox" class="result-frame min-h-[500px] lg:h-full flex items-center justify-center relative overflow-hidden">
-                    <div id="placeholder" class="text-center space-y-4 opacity-20">
-                        <i data-lucide="layout" class="w-12 h-12 mx-auto stroke-[1px]"></i>
-                        <p class="text-[10px] font-black tracking-[0.5em] uppercase">画布就绪</p>
-                    </div>
-                    <!-- art-canvas 独有的金字塔 loader + 进度环 -->
-                    <div id="loader" class="hidden loader-overlay">
-                        <div class="pyramid-loader">
-                            <div class="pyramid-wrapper">
-                                <div class="side side1"></div>
-                                <div class="side side2"></div>
-                                <div class="side side3"></div>
-                                <div class="side side4"></div>
-                                <div class="shadow"></div>
-                            </div>
-                            <div class="pyramid-progress">
-                                <svg class="pyramid-progress-ring" viewBox="0 0 76 76">
-                                    <circle class="pyramid-progress-ring-bg" cx="38" cy="38" r="36"/>
-                                    <circle id="progressFill" class="pyramid-progress-ring-fill" cx="38" cy="38" r="36"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <span id="progressStatus" class="pyramid-progress-status">生成中...</span>
-                        <span id="progressText" class="pyramid-progress-text">0%</span>
-                    </div>
-                    <img id="outputImg" class="hidden w-full h-full object-contain p-8 cursor-zoom-in" onclick="zoomImage()">
-                    <video id="outputVideo" class="hidden w-full h-full object-contain p-8" controls preload="metadata" playsinline crossorigin="anonymous" style="max-height:80vh;"></video>
-                    <button id="downloadBtn" onclick="downloadVideo()" class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white">
-                        <i data-lucide="download" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
         </main>
 
             <!-- Archives 画廊 -->
@@ -530,8 +528,7 @@
     const PAGE_SIZE = 24;
     let allHistory = [], currentIndex = 0, isLoading = false, currentResult = null;
 
-    let refs = {1:null,2:null,3:null};
-    let refDims = {1:null,2:null,3:null};
+    let refs = [];
     let ratio = 'square';
     let resolution = '1k';
 
@@ -852,19 +849,20 @@
     }
     function fitCustomSizeToImage(ev){
         if (ev) ev.stopPropagation();
-        // 从 refs 中找一个有 dims 的，填入 custom size
-        for (let i = 1; i <= 3; i++) {
-            if (refDims[i]) {
-                const [w, h] = refDims[i];
-                const wInput = document.getElementById('sizeCustomWidth');
-                const hInput = document.getElementById('sizeCustomHeight');
-                if (wInput && hInput) {
-                    wInput.value = w; hInput.value = h;
-                    setCustomSize();
-                }
-                return;
+        // 从第一张参考图获取尺寸
+        const firstRef = refs.find(r => r && r.url);
+        if (!firstRef) return;
+        const img = new Image();
+        img.onload = function() {
+            const wInput = document.getElementById('sizeCustomWidth');
+            const hInput = document.getElementById('sizeCustomHeight');
+            if (wInput && hInput) {
+                wInput.value = this.naturalWidth;
+                hInput.value = this.naturalHeight;
+                setCustomSize();
             }
-        }
+        };
+        img.src = firstRef.url;
         alert('请先上传参考图');
     }
     function currentSize(){
@@ -890,93 +888,62 @@
         return match[0];
     }
 
-    /* ---------- 参考图上传 / 编辑 / 删除 ---------- */
-    [1,2,3].forEach(id => {
-        const zone = document.getElementById(`drop-zone-${id}`);
-        if (!zone) return;
-        zone.onclick = (e) => {
-            if (e.target.closest('button')) return;
-            document.getElementById(`file${id}`).click();
-        };
-        zone.ondragover = e => { e.preventDefault(); zone.classList.add('drag-over'); };
-        zone.ondragleave = () => zone.classList.remove('drag-over');
-        zone.ondrop = e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0], id); };
-        zone.addEventListener('paste', e => {
-            e.preventDefault();
-            const item = [...(e.clipboardData?.items || [])].find(x => x.kind === 'file' && x.type.startsWith('image/'));
-            if (item) handleFile(item.getAsFile(), id);
-        });
-    });
-    window.addEventListener('paste', e => {
-        const item = [...(e.clipboardData?.items || [])].find(x => x.kind === 'file' && x.type.startsWith('image/'));
-        if (item) handleFile(item.getAsFile(), firstEmptySlot());
-    });
-    function firstEmptySlot(){ return [1,2,3].find(id => !refs[id]) || 1; }
-
-    async function handleFile(file, index){
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const prev = document.getElementById(`prev${index}`);
-            if (!prev) return;
-            prev.src = e.target.result;
-            prev.classList.remove('hidden');
-            document.getElementById(`del${index}`)?.classList.remove('hidden');
-            document.getElementById(`edit${index}`)?.classList.remove('hidden');
-            const zone = document.getElementById(`drop-zone-${index}`);
-            if (zone) zone.classList.add('has-image');
-            // 记录原始尺寸
-            const img = new Image();
-            img.onload = () => { refDims[index] = [img.naturalWidth, img.naturalHeight]; };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-        try {
-            const form = new FormData();
-            form.append('files', file);
-            const data = await fetch('/api/ai/upload', {method:'POST', body:form}).then(r=>r.json());
-            refs[index] = data.files[0];
-        } catch(err) {
-            console.error('上传失败:', err);
-            // 退化为本地 URL（可与后端 /api/online-image 配合）
-            refs[index] = { url: reader.result, name: file.name };
-        }
-    }
-
-    function clearSlot(index, ev){
-        if(ev) ev.stopPropagation();
-        refs[index] = null;
-        refDims[index] = null;
-        const prev = document.getElementById(`prev${index}`);
-        if (prev) { prev.src = ''; prev.classList.add('hidden'); }
-        document.getElementById(`del${index}`)?.classList.add('hidden');
-        document.getElementById(`edit${index}`)?.classList.add('hidden');
-        const zone = document.getElementById(`drop-zone-${index}`);
-        if (zone) zone.classList.remove('has-image');
-    }
-
-    function handleEdit(index, ev){
-        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-        const ref = refs[index];
-        if (!ref || !ref.url) return;
-        if (typeof ImageEditor === 'undefined') { alert('图像编辑器未加载'); return; }
-        ImageEditor.open(ref.url, {
-            onSave: function(result) {
-                if (result.url) {
-                    refs[index].url = result.url;
-                    refs[index].name = result.name || refs[index].name;
-                    const prev = document.getElementById(`prev${index}`);
-                    if (prev) prev.src = result.url;
-                }
-                if (result.operation === 'outpaint') {
-                    document.getElementById('promptInput').value = '扩图';
+    /* ---------- 参考图（RefImageManager 管理） ---------- */
+    let _refImgMgr = null;
+    function initRefImageManager() {
+        if (_refImgMgr) return _refImgMgr;
+        const container = document.getElementById('refImagePreview');
+        if (!container || typeof RefImageManager === 'undefined') return null;
+        _refImgMgr = new RefImageManager(container, {
+            inputId: 'refImageInput',
+            onChange: function(count) {
+                const files = _refImgMgr.getFiles();
+                refs = files.map(f => ({ url: f.url, name: f.name }));
+                const countEl = document.getElementById('refCount');
+                if (countEl) {
+                    countEl.classList.toggle('hidden', !count);
+                    countEl.textContent = '(' + count + ')';
                 }
             },
-            onCancel: function() {}
+            onReverseApply: function(text, mode) {
+                const inp = document.getElementById('prompt');
+                if (!inp) return;
+                if (mode === 'replace') inp.value = text;
+                else inp.value = inp.value ? inp.value + ', ' + text : text;
+                inp.dispatchEvent(new Event('input', {bubbles:true}));
+            },
+            getReverseOptions: function() {
+                return { mode: 'auto', targetStyle: '', provider: 'auto', visionProviderId: '' };
+            }
         });
+        return _refImgMgr;
     }
 
-    /* ---------- 资产库选择面板 (art-canvas 独有) ---------- */
+    // 提示词框拖拽导入图片
+    (function(){
+        var pw = document.querySelector('.prompt-wrapper');
+        if (!pw) return;
+        var dc = 0;
+        pw.addEventListener('dragenter', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            dc++;
+            if (dc === 1) { pw.style.outline = '2px dashed rgba(0,180,216,0.8)'; pw.style.outlineOffset = '-2px'; pw.style.background = 'rgba(0,180,216,0.06)'; }
+        });
+        pw.addEventListener('dragleave', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            dc--;
+            if (dc <= 0) { dc = 0; pw.style.outline = ''; pw.style.background = ''; }
+        });
+        pw.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); });
+        pw.addEventListener('drop', function(e) {
+            e.preventDefault(); e.stopPropagation(); dc = 0;
+            pw.style.outline = ''; pw.style.background = '';
+            var files = e.dataTransfer.files;
+            if (files.length > 0 && _refImgMgr) _refImgMgr.addFiles(files);
+        });
+    })();
+
+    /* ---------- 资产库选择面板 ---------- */
     async function openAssetPickerForRefs(){
         const overlay = document.getElementById('assetPickerOverlay');
         const content = document.getElementById('assetPickerContent');
@@ -997,7 +964,7 @@
             content.innerHTML = '<div class="asset-picker-grid">' + images.map(img => {
                 const u = (img.url||'').replace(/\\/g,'\\\\').replace(/'/g,'\\');
                 const n = (img.name||'').replace(/[<"'&]/g,'');
-                return `'<div class="asset-picker-item" onclick="applyAssetToRef('${u}','${n}')"><img src="${u}" alt="${n}" loading="lazy"><div class="asset-picker-item-name">${n}</div></div>'`;
+                return '<div class="asset-picker-item" onclick="applyAssetToRef(\'' + u + '\',\'' + n + '\')"><img src="' + u + '" alt="' + n + '" loading="lazy"><div class="asset-picker-item-name">' + n + '</div></div>';
             }).join('') + '</div>';
         } catch(err) {
             content.innerHTML = '<div class="asset-picker-empty"><span>加载失败: ' + (err.message||'') + '</span></div>';
@@ -1008,46 +975,34 @@
         if (overlay) overlay.classList.remove('open');
     }
     function applyAssetToRef(url, name){
-        const index = firstEmptySlot();
-        const prev = document.getElementById('prev' + index);
-        if (prev) { prev.src = url; prev.classList.remove('hidden'); }
-        document.getElementById('del' + index)?.classList.remove('hidden');
-        document.getElementById('edit' + index)?.classList.remove('hidden');
-        const zone = document.getElementById(`drop-zone-${index}`);
-        if (zone) zone.classList.add('has-image');
-        refs[index] = { url: url, name: name };
-        // 尝试获取图片尺寸
-        const img = new Image();
-        img.onload = () => { refDims[index] = [img.naturalWidth, img.naturalHeight]; };
-        img.src = url;
         closeAssetPickerForRefs();
+        if (!_refImgMgr) return;
+        // 将资产库 URL 转为 File 添加到 RefImageManager
+        fetch(url).then(r => r.blob()).then(blob => {
+            const ext = (name || 'image').split('.').pop() || 'png';
+            const file = new File([blob], name || ('asset.' + ext), { type: blob.type || 'image/' + ext });
+            _refImgMgr.addFiles([file]);
+        }).catch(() => {
+            // 降级：直接添加 URL
+            if (_refImgMgr.getFiles) {
+                // RefImageManager 暂不支持直接 URL 添加，这里用一个简单的 fallback
+                alert('无法加载资产图片');
+            }
+        });
     }
 
     /* ---------- 生成提交 ---------- */
     async function submitImage(){
-        const prompt = document.getElementById('promptInput').value.trim();
+        const prompt = document.getElementById('prompt').value.trim();
         if (!prompt) { alert('请输入提示词'); return; }
         const btn = document.getElementById('genBtn');
-        const loader = document.getElementById('loader');
-        const placeholder = document.getElementById('placeholder');
-        const out = document.getElementById('outputImg');
-        const vid = document.getElementById('outputVideo');
-        const dl = document.getElementById('downloadBtn');
         btn.disabled = true;
-        placeholder?.classList.add('hidden');
-        out?.classList.add('hidden');
-        if(vid) { vid.pause(); vid.style.display = 'none'; }
-        dl?.classList.add('hidden');
-        if (loader) { loader.classList.remove('hidden'); loader.style.display = 'flex'; }
         const count = generateType === 'video' ? 1 : outputCount;
         const batchId = Date.now();
-        startProgressAnimation();
-        // 如果有多张，创建 pending cards
-        if (count > 1) {
-            const masonry = document.getElementById('masonry');
-            createPendingCards(batchId, count, masonry);
-        }
-        const refImages = Object.values(refs).filter(Boolean).map(r => ({ url: r.url || '', name: r.name || '' }));
+        // 创建 pending card（单图/多图都显示）
+        const masonry = document.getElementById('masonry');
+        createPendingCards(batchId, count, masonry);
+        const refImages = refs.filter(r => r && r.url).map(r => ({ url: r.url, name: r.name || '' }));
         let body, apiUrl;
         if(generateType === 'video'){
             apiUrl = '/api/online-video';
@@ -1084,16 +1039,8 @@
             results.forEach((res, i) => {
                 if (res.status === 'fulfilled') {
                     const data = res.value;
-                    if (count > 1) updatePendingCard(batchId, i, data);
-                    if (i === 0) {
-                        currentResult = data;
-                        if(generateType === 'video'){
-                            if(vid && data.videos?.[0]){ vid.src = data.videos[0]; vid.style.display = ''; vid.classList.remove('hidden'); vid.play().catch(()=>{}); }
-                        } else {
-                            if(out && data.images?.[0]){ out.src = data.images[0]; out.classList.remove('hidden'); }
-                        }
-                        if(dl) dl.classList.remove('hidden');
-                    }
+                    updatePendingCard(batchId, i, data);
+                    if (i === 0) currentResult = data;
                     // 始终渲染到历史
                     const imgArr = data.images || data.videos || [];
                     if(imgArr[0] && !document.getElementById(`history-${data.timestamp}`)){
@@ -1109,14 +1056,12 @@
                             if(d.timestamp) data.timestamp = d.timestamp;
                         }).catch(e => console.warn('[history save]', e));
                     }
-                } else if (count > 1) {
+                } else {
                     failPendingCard(batchId, i);
                 }
             });
         } catch(err) { console.error(err); }
         finally {
-            stopProgressAnimation();
-            if (loader) { loader.classList.add('hidden'); loader.style.display = ''; }
             btn.disabled = false;
         }
     }
@@ -1130,61 +1075,66 @@
     }
 
     /* ---------- Pending Card (生成中占位) ---------- */
-    const cardTimers = {};
     function createPendingCards(batchId, count, masonry){
-        if (!masonry) return;
+        if (!masonry || typeof CardProgress === 'undefined') return;
         for (let i = 0; i < count; i++) {
             const id = `pending-${batchId}-${i}`;
             if (document.getElementById(id)) continue;
             const card = document.createElement('div');
             card.id = id;
             card.className = 'masonry-item';
-            card.innerHTML = `'<div class="card-pending"><div class="mini-pyramid"><div class="pw"><div class="sd sd1"></div><div class="sd sd2"></div><div class="sd sd3"></div><div class="sd sd4"></div><div class="sdw"></div></div></div><span class="pct-text" id="pct-${id}">0%</span><span class="pct-label">生成中</span></div>'`;
+            card.style.minHeight = '120px';
+            card.style.position = 'relative';
             masonry.prepend(card);
-            startCardProgress(id);
+            // 使用 CardProgress 环形进度条
+            CardProgress.attach(card).update({ status: 'started' });
+            // 2 秒后切换到"执行中"
+            setTimeout(() => {
+                const c = document.getElementById(id);
+                if (c) CardProgress.update(c, { status: 'executing' });
+            }, 2000);
         }
     }
-    function startCardProgress(pendingId){
-        let pv = 0;
-        const el = document.getElementById(`pct-${pendingId}`);
-        if (!el) return;
-        cardTimers[pendingId] = setInterval(() => {
-            if (pv < 95) { pv = Math.min(95, pv + (95 - pv) / 20 + 0.3); el.textContent = Math.round(pv) + '%'; }
-        }, 350);
-    }
-    function stopCardProgress(id){ if(cardTimers[id]){ clearInterval(cardTimers[id]); delete cardTimers[id]; } }
     function updatePendingCard(batchId, index, data){
         const pid = `pending-${batchId}-${index}`;
         const card = document.getElementById(pid);
         if (!card || !data.images?.[0]) return;
-        stopCardProgress(pid);
-        if (document.getElementById(`history-${data.timestamp}`)) { card.remove(); return; }
-        card.id = `history-${data.timestamp}`;
-        card.className = 'masonry-item group relative cursor-zoom-in';
-        card.onclick = () => openLightbox(data.images[0], allHistory.map(h => h.images[0]), allHistory.indexOf(data));
-        card.innerHTML = buildCardInner(data);
+        // 先显示"完成"动画
+        CardProgress.update(card, { status: 'complete' });
+        // 延迟替换为真实卡片（让完成动画先播放一下）
+        setTimeout(() => {
+            if (!card.parentNode) return;
+            if (document.getElementById(`history-${data.timestamp}`)) { card.remove(); return; }
+            card.id = `history-${data.timestamp}`;
+            card.style.minHeight = '';
+            card.style.position = '';
+            card.className = 'masonry-item group relative';
+            card.onclick = () => openLightbox(data.images[0], allHistory.map(h => h.images[0]), allHistory.indexOf(data));
+            card.innerHTML = buildCardInner(data);
+        }, 600);
     }
     function failPendingCard(batchId, index){
         const pid = `pending-${batchId}-${index}`;
         const card = document.getElementById(pid);
         if (!card) return;
-        stopCardProgress(pid);
-        card.innerHTML = '<div class="card-pending"><span class="pct-text" style="color:#ef4444">失败</span></div>';
+        card.innerHTML = '<div class="flex items-center justify-center flex-col gap-3 p-10"><span style="font-size:15px;font-weight:800;color:#ef4444">✕</span><span style="font-size:10px;font-weight:700;color:#ef4444;">生成失败</span></div>';
         setTimeout(() => card.remove(), 3000);
     }
     function buildCardInner(data){
         const u = (data.images[0]||'').replace(/\\/g,'\\\\').replace(/'/g,'\\');
         const p = (data.prompt||'Online Image').replace(/\\/g,'\\\\').replace(/'/g,'\\').replace(/`/g,'\\`').replace(/</g,'&lt;');
         const ts = data.timestamp;
-        return `'<img src="${u}" class="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-1000" loading="lazy" onerror="this.closest(\'.masonry-item\')?.remove()">
-        <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 z-10">
-            <button onclick="backfillParams(\'${ts}\',event)" class="card-action-btn" title="参数回填"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i></button>
-            <button onclick="processRemoveBg(\'${u}\',\'${ts}\',event)" class="card-action-btn" title="去除背景"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
-            <button onclick="saveToAssetLibrary(\'${u}\',event)" class="card-action-btn" title="保存到资产库"><i data-lucide="folder-plus" class="w-3.5 h-3.5"></i></button>
-            <button onclick="downloadHistoryImage(\'${u}\',event)" class="card-action-btn"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>
-            <button onclick="deleteHistoryItem(\'${ts}\',event)" class="card-action-btn" title="删除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-        </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 p-6 flex flex-col justify-end transition-opacity"><p class="text-white text-[10px] font-medium line-clamp-2 uppercase tracking-wider">${p}</p></div>'`;
+        return '<div class="relative group">\
+<img src="' + u + '" class="w-full block" style="display:block;object-fit:contain;" loading="lazy" onerror="this.closest(\'.masonry-item\')?.remove()">\
+<div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 z-10 transition-opacity">\
+<button onclick="backfillParams(\'' + ts + '\',event)" class="card-action-btn" title="参数回填"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i></button>\
+<button onclick="processRemoveBg(\'' + u + '\',\'' + ts + '\',event)" class="card-action-btn" title="去除背景"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>\
+<button onclick="saveToAssetLibrary(\'' + u + '\',event)" class="card-action-btn" title="保存到资产库"><i data-lucide="folder-plus" class="w-3.5 h-3.5"></i></button>\
+<button onclick="downloadHistoryImage(\'' + u + '\',event)" class="card-action-btn"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>\
+<button onclick="deleteHistoryItem(\'' + ts + '\',event)" class="card-action-btn" title="删除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>\
+</div>\
+<div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 p-4 pt-8 flex flex-col justify-end transition-opacity pointer-events-none"><p class="text-white text-[10px] font-medium line-clamp-2 uppercase tracking-wider">' + p + '</p></div>\
+</div>';
     }
     function renderImageCard(data, isNew){
         if (!data.images?.[0] || document.getElementById(`history-${data.timestamp}`)) return;
@@ -1198,60 +1148,13 @@
         lucide.createIcons();
     }
 
-    /* ---------- 进度条动画 (金字塔 loader + 环) ---------- */
-    let progressTimer = null;
-    let progressValue = 0;
-    function startProgressAnimation(){
-        stopProgressAnimation();
-        progressValue = 0;
-        const fill = document.getElementById('progressFill');
-        const text = document.getElementById('progressText');
-        const status = document.getElementById('progressStatus');
-        const circumference = 226;
-        if (fill) fill.style.strokeDashoffset = circumference;
-        if (text) text.textContent = '0%';
-        if (status) status.textContent = '正在请求...';
-        progressTimer = setInterval(() => {
-            if (progressValue < 95) {
-                progressValue = Math.min(95, progressValue + (95 - progressValue) / 20 + 0.3);
-                const offset = circumference * (1 - progressValue / 100);
-                if (fill) fill.style.strokeDashoffset = offset;
-                if (text) text.textContent = Math.round(progressValue) + '%';
-            }
-        }, 350);
-    }
-    function stopProgressAnimation(){
-        if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
-        progressValue = 100;
-        const fill = document.getElementById('progressFill');
-        const text = document.getElementById('progressText');
-        const status = document.getElementById('progressStatus');
-        if (fill) fill.style.strokeDashoffset = 0;
-        if (text) text.textContent = '100%';
-        if (status) status.textContent = '完成';
+    function clearPrompt() {
+        const p = document.getElementById('prompt');
+        if (p) { p.value = ''; p.dispatchEvent(new Event('input', { bubbles: true })); p.focus(); }
+        if (_refImgMgr && typeof _refImgMgr.clear === 'function') _refImgMgr.clear();
     }
 
     /* ---------- 下载 ---------- */
-    async function downloadImage(){
-        const img = document.getElementById('outputImg');
-        if (!img?.src) return;
-        try {
-            const r = await fetch(img.src); const b = await r.blob();
-            const u = URL.createObjectURL(b); const a = document.createElement('a');
-            a.href = u; a.download = `online_${Date.now()}.png`; document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(u);
-        } catch(e) { window.open(img.src, '_blank'); }
-    }
-    async function downloadVideo(){
-        const vid = document.getElementById('outputVideo');
-        if (!vid?.src) return;
-        try {
-            const r = await fetch(vid.src); const b = await r.blob();
-            const u = URL.createObjectURL(b); const a = document.createElement('a');
-            a.href = u; a.download = `video_${Date.now()}.mp4`; document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(u);
-        } catch(e) { window.open(vid.src, '_blank'); }
-    }
     async function downloadHistoryImage(url, ev){
         ev.stopPropagation();
         try {
@@ -1298,15 +1201,18 @@
         ev.stopPropagation();
         const data = allHistory.find(h => String(h.timestamp) === String(ts));
         if (!data) return;
-        const pi = document.getElementById('promptInput');
-        if (pi && data.prompt) pi.value = data.prompt;
-        [1,2,3].forEach(id => clearSlot(id));
-        (data.params?.reference_images || []).slice(0,3).forEach((ref, i) => {
-            refs[i+1] = ref;
-            const prev = document.getElementById(`prev${i+1}`);
-            if (prev) { prev.src = ref.url; prev.classList.remove('hidden'); }
-            document.getElementById(`del${i+1}`)?.classList.remove('hidden');
-            document.getElementById(`edit${i+1}`)?.classList.remove('hidden');
+        const p = document.getElementById('prompt');
+        if (p && data.prompt) p.value = data.prompt;
+        // 清空并回填参考图
+        if (_refImgMgr) { _refImgMgr.clear(); }
+        (data.params?.reference_images || []).slice(0,5).forEach(function(ref) {
+            if (ref && ref.url) {
+                fetch(ref.url).then(function(r){ return r.blob(); }).then(function(blob){
+                    var name = ref.name || 'ref.png';
+                    var file = new File([blob], name, { type: blob.type || 'image/png' });
+                    if (_refImgMgr) _refImgMgr.addFiles([file]);
+                }).catch(function(){});
+            }
         });
         if (data.params?.size) {
             const sz = data.params.size;
@@ -1385,14 +1291,66 @@
     }
 
 
-    // 桥接：preset-picker.js → #prompt → 同步到 #promptInput
-    const _origPresetPickerApply = presetPickerApply;
-    presetPickerApply = function() {
-        _origPresetPickerApply.call(this);
-        const p = document.getElementById('prompt');
-        const pi = document.getElementById('promptInput');
-        if (p && pi) { pi.value = p.value; pi.dispatchEvent(new Event('input', {bubbles:true})); }
-    };
+    // ── prompt 兼容层：contenteditable div 注入 .value getter/setter ──
+    (function() {
+        var el = document.getElementById('prompt');
+        if (!el || el._compatReady) return;
+        el._compatReady = true;
+
+        function preserveChips() {
+            return Array.prototype.slice.call(el.querySelectorAll('.ref-chip'));
+        }
+        function restoreChips(chips) {
+            if (!chips || chips.length === 0) return;
+            var firstText = null;
+            for (var i = 0; i < el.childNodes.length; i++) {
+                if (el.childNodes[i].nodeType === 3) { firstText = el.childNodes[i]; break; }
+            }
+            chips.forEach(function(chip) { el.insertBefore(chip, firstText); });
+            chips.forEach(function(chip) {
+                if (chip.nextSibling && chip.nextSibling.nodeType === 3) return;
+                el.insertBefore(document.createTextNode(' '), chip.nextSibling);
+            });
+        }
+
+        Object.defineProperty(el, 'value', {
+            get: function() {
+                var out = '';
+                el.childNodes.forEach(function(n) {
+                    if (n.nodeType === 3) out += n.nodeValue;
+                });
+                return out;
+            },
+            set: function(v) {
+                var savedChips = preserveChips();
+                var vStr = v == null ? '' : String(v);
+                Array.prototype.slice.call(el.childNodes).forEach(function(n) {
+                    if (n.nodeType === 1 && n.classList && n.classList.contains('ref-chip')) return;
+                    el.removeChild(n);
+                });
+                if (vStr) el.appendChild(document.createTextNode(vStr));
+                restoreChips(savedChips);
+                el.dispatchEvent(new Event('input', {bubbles:true}));
+            }
+        });
+    })();
+
+    // 桥接：选择器写入 #prompt.value 后触发 input（兼容层已自动 dispatch）
+    // 但保留原有钩子以确保 updatePickerButtonsHighlight 被调用
+    if (typeof pickerApply !== 'undefined') {
+        var _origPickerApply = pickerApply;
+        pickerApply = function() {
+            _origPickerApply.apply(this, arguments);
+            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+        };
+    }
+    if (typeof artistPickerApply !== 'undefined') {
+        var _origArtistPickerApply = artistPickerApply;
+        artistPickerApply = function() {
+            _origArtistPickerApply.apply(this, arguments);
+            if (typeof updatePickerButtonsHighlight === 'function') updatePickerButtonsHighlight();
+        };
+    }
 
     /* ---------- 自定义下拉组件 ---------- */
     function initCustomSelect(id){
@@ -1465,9 +1423,20 @@
     /* ---------- 初始化 ---------- */
     document.addEventListener('DOMContentLoaded', async () => {
         await loadConfig();
+        initRefImageManager();
     });
 
     window.onload = async () => {
+        // ── PromptTags 可见性开关 ──
+        window.promptTagsVisible = localStorage.getItem('prompt_tags_visible') !== 'false';
+        window.togglePromptTagsVisibility = function() {
+            window.promptTagsVisible = !window.promptTagsVisible;
+            localStorage.setItem('prompt_tags_visible', window.promptTagsVisible ? 'true' : 'false');
+            var sw = document.getElementById('promptTagsSwitch');
+            if (sw) sw.classList.toggle('active', window.promptTagsVisible);
+            if (typeof updatePromptTags === 'function') updatePromptTags();
+        };
+    
         buildRatioMenu();
         selectRatio(ratio, false);
         const rs = document.getElementById('resolutionSelect');
@@ -1475,6 +1444,51 @@
         // 初始化自定义下拉
         ['providerSelect','modelSelect','qualitySelect','countSelect','resolutionSelect','videoModelSelect'].forEach(initCustomSelect);
         await initModels();
+        
+        // 初始化 AI 提示词预设选择器
+        if (typeof spPickerInit === 'function') spPickerInit();
+        if (typeof spmInit === 'function') spmInit();
+        
+        // 初始化 AI 生成按钮（smartPromptContainer 中：单击AI生成，长按打开预设）
+        if (typeof SmartPrompt !== 'undefined') {
+            SmartPrompt.init('smartPromptContainer', {
+                getText: function() { var el = document.getElementById('prompt'); return el ? el.value : ''; },
+                setText: function(text) {
+                    var el = document.getElementById('prompt');
+                    if (el) { el.value = text; el.dispatchEvent(new Event('input')); }
+                },
+                onLongPress: function() {
+                    if (typeof spPickerOpen === 'function') spPickerOpen();
+                }
+            });
+        }
+        
+        // 初始化翻译
+        var promptEl = document.getElementById('prompt');
+        if (typeof PromptTranslateUI !== 'undefined' && promptEl) {
+            PromptTranslateUI.init('translateBtnContainer', {
+                getText: function() { return promptEl.value || promptEl.innerText || ''; },
+                onApply: function(text) {
+                    if (promptEl) {
+                        promptEl.value = text;
+                        promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            });
+        }
+        
+        // 清除按钮显示/隐藏
+        if (promptEl) {
+            function updateClearBtn() {
+                var btn = document.getElementById('clearPromptBtn');
+                if (!btn) return;
+                var val = promptEl.value || promptEl.innerText || '';
+                btn.style.display = val.trim().length > 0 ? 'flex' : 'none';
+            }
+            promptEl.addEventListener('input', updateClearBtn);
+            // 初始检测（输入框可能已有内容）
+            setTimeout(updateClearBtn, 100);
+        }
         
         // 初始化 GalleryDisplay
         if (typeof GalleryDisplay !== 'undefined' && GalleryDisplay.init) {
@@ -1489,6 +1503,21 @@
                 toolbarExtras: true,
                 favoritesEnabled: true,
             });
+        }
+        // 初始检测
+        setTimeout(function() {
+            var btn = document.getElementById('clearPromptBtn');
+            if (btn) {
+                var el = document.getElementById('prompt');
+                var val = el ? (el.value || el.innerText || '') : '';
+                btn.style.display = val.trim().length > 0 ? 'flex' : 'none';
+            }
+        }, 100);
+        
+        // ── PromptTags 初始化 ──
+        if (typeof PromptTags !== 'undefined') {
+            PromptTags.init();
+            window.updatePromptTags = function() { PromptTags.update(); };
         }
         
         await loadHistory(0);

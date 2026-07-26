@@ -1801,6 +1801,12 @@ class CanvasMetaUpdate(BaseModel):
     color: Optional[str] = None
     pinned: Optional[bool] = None
 
+class CanvasMetaUpdate(BaseModel):
+    title: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    pinned: Optional[bool] = None
+
 class ConfigUpdateRequest(BaseModel):
     comfly_api_key: Optional[str] = None
     modelscope_api_key: Optional[str] = None
@@ -5664,6 +5670,69 @@ async def _gen_volcengine_video(provider_cfg, model, prompt, size, refs):
         raise HTTPException(status_code=502, detail=f"火山视频未返回 task_id: {data}")
     return {"type": "url", "value": ""}
 
+class CanvasVideoRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    provider_id: str = "jimeng"
+    model: str = "veo3-fast"
+    duration: int = 5
+    aspect_ratio: str = "16:9"
+    resolution: str = ""
+    size: str = ""
+    images: List[Dict[str, Any]] = []
+    videos: List[str] = []
+    audios: List[str] = []
+    enhance_prompt: bool = False
+    enable_upsample: bool = False
+    watermark: bool = False
+    seed: Optional[int] = None
+    camerafixed: bool = False
+
+class ImageTaskQueryRequest(BaseModel):
+    provider_id: str = ""
+    task_id: str = ""
+    model: str = ""
+
+PROTOCOL_JIMENG = "jimeng"
+PROTOCOL_RUNNINGHUB = "runninghub"
+PROTOCOL_VOLCENGINE = "volcengine"
+
+@app.post("/api/canvas-video")
+async def canvas_video_route(payload: CanvasVideoRequest):
+    provider_id = payload.provider_id or "jimeng"
+    size = payload.size or payload.resolution or "1920x1080"
+    refs = [r for r in payload.images if isinstance(r, dict)]
+    return await generate_video(
+        prompt=payload.prompt, size=size, model=payload.model or "veo3-fast",
+        refs=refs, protocol=PROTOCOL_JIMENG, provider_id=provider_id,
+        provider={"id": provider_id}, duration=payload.duration or 5,
+    )
+
+@app.post("/api/image-task-query")
+async def query_image_task(payload: ImageTaskQueryRequest):
+    provider_id = payload.provider_id or ""
+    if str(provider_id).lower() == "runninghub":
+        cfg = load_api_providers()
+        provider = next((p for p in cfg if p.get("id") == "runninghub"), None)
+        if not isinstance(provider, dict):
+            raise HTTPException(status_code=400, detail="RunningHub 未配置")
+        base = str(provider.get("base_url") or "https://www.runninghub.ai").rstrip("/")
+        api_key = str(provider.get("api_key") or "")
+        import httpx
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(f"{base}/task/openapi/outputs",
+                headers={"Content-Type": "application/json"},
+                json={"apiKey": api_key, "taskId": payload.task_id})
+            resp.raise_for_status()
+            data = resp.json()
+            code = data.get("code") if isinstance(data, dict) else None
+            if code in (0, "0"):
+                outputs = data.get("data", {}).get("outputs", data.get("data", []))
+                urls = [o.get("url", o) if isinstance(o, dict) else o for o in (outputs or [])]
+                return {"status": "succeeded", "images": urls, "task_id": payload.task_id}
+            raise HTTPException(status_code=502, detail=f"RunningHub 查询失败: {data}")
+    else:
+        raise HTTPException(status_code=400, detail=f"不支持的 provider: {provider_id}")
+
 async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, username: str = None):
     with CANVAS_TASK_LOCK:
         if task_id in CANVAS_TASKS:
@@ -6008,6 +6077,34 @@ async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
 @app.post("/api/canvases/{canvas_id}/touch")
 async def touch_canvas(canvas_id: str):
     """更新画布最后打开时间"""
+    canvas = load_canvas(canvas_id)
+    canvas["updated_at"] = int(time.time())
+    save_canvas(canvas)
+    return {"touched": True}
+
+@app.get("/api/canvases/{canvas_id}/meta")
+async def get_canvas_meta(canvas_id: str):
+    canvas = load_canvas(canvas_id)
+    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
+
+@app.post("/api/canvases/{canvas_id}/meta")
+async def update_canvas_meta(canvas_id: str, payload: dict = None):
+    canvas = load_canvas(canvas_id)
+    if not payload:
+        return {"meta": {}}
+    if payload.get("title") is not None:
+        canvas["title"] = str(payload["title"])[:80]
+    if payload.get("icon") is not None:
+        canvas["icon"] = str(payload["icon"])[:32]
+    if payload.get("color") is not None:
+        canvas["color"] = str(payload["color"]).strip()
+    if payload.get("pinned") is not None:
+        canvas["pinned"] = bool(payload["pinned"])
+    save_canvas(canvas)
+    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color")}}
+
+@app.post("/api/canvases/{canvas_id}/touch")
+async def touch_canvas(canvas_id: str):
     canvas = load_canvas(canvas_id)
     canvas["updated_at"] = int(time.time())
     save_canvas(canvas)
@@ -7745,7 +7842,8 @@ async def poll_angle_cloud(req: CloudPollRequest):
 
 @app.post("/api/angle/generate")
 async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
-    username = require_valid_token(token)
+    if token:
+        require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
     if not clean_token:
@@ -7960,6 +8058,7 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
     if req.width and req.height:
         payload["width"] = req.width
         payload["height"] = req.height
+        payload["size"] = req.size or f"{req.width}x{req.height}"
         payload["size"] = req.size or f"{req.width}x{req.height}"
     if req.image_urls:
         payload["image_url"] = req.image_urls

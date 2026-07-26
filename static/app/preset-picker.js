@@ -605,6 +605,95 @@ function presetPickerClose() {
     }
 }
 
+function presetPickerOpenWithCategory(categoryId, callback) {
+    presetPickerCallback = callback || null;
+    presetPickerSelected = [];
+    presetPickerShowSelected = false;
+    // 把 category 设置为预选项；不匹配的分类会被隐藏
+    presetPickerCategory = categoryId || 'all';
+    presetPickerSubcategory = 'all';
+    const openFn = arguments.callee._openFn || (arguments.callee._openFn = function(){
+        try {
+            const promptInput = document.getElementById('prompt');
+            if (promptInput && _flatById) {
+                const tokens = (promptInput.value || '').match(/\([^()]*\)/g) || [];
+                tokens.forEach(t => {
+                    const matched = _flatById.find(it => it && it.token === t);
+                    if (matched && !presetPickerSelected.some(s => s.id === matched.id)) {
+                        presetPickerSelected.push(matched);
+                    }
+                });
+            }
+        } catch(_) {}
+        showPresetPickerModal();
+        // 滚动到指定 category
+        setTimeout(() => {
+            const cat = presetPickerData.categories.find(c => c.id === categoryId);
+            if (cat) {
+                presetPickerCategory = categoryId;
+                presetPickerRenderSidebar();
+                presetPickerRenderGrid();
+            }
+        }, 50);
+    });
+    if (!presetPickerData || !presetPickerData.categories || presetPickerData.categories.length === 0) {
+        fetch('/api/prompt-libraries/categories')
+            .then(r => r.ok ? r.json() : { categories: [] })
+            .then(data => {
+                presetPickerData = { categories: data.categories || [] };
+                openFn();
+            })
+            .catch(() => { presetPickerData = { categories: [] }; openFn(); });
+    } else {
+        openFn();
+    }
+}
+
+function quickPresetPick(categoryId) {
+    const apply = (data) => {
+        const presets = data.categories || [];
+        const allItems = [];
+        presets.forEach(cat => {
+            if (cat.id === categoryId && Array.isArray(cat.items)) {
+                allItems.push(...cat.items);
+            }
+        });
+        if (!allItems.length) {
+            alert(`未找到「${categoryId}」分类的预设`);
+            return;
+        }
+        const pick = allItems[Math.floor(Math.random() * allItems.length)];
+        const textarea = document.getElementById('promptInput') || document.getElementById('prompt');
+        if (!textarea) return;
+        const current = textarea.value.trim();
+        const prompt = pick.prompt || pick.name || '';
+        if (current) {
+            textarea.value = current + ', ' + prompt;
+        } else {
+            textarea.value = prompt;
+        }
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    if (presetPickerData && presetPickerData.categories && presetPickerData.categories.length) {
+        apply(presetPickerData);
+    } else {
+        fetch('/api/prompt-libraries/categories')
+            .then(r => r.ok ? r.json() : { categories: [] })
+            .then(data => apply(data))
+            .catch(() => alert('加载预设数据失败'));
+    }
+}
+window.quickPresetPick = quickPresetPick;
+
+function showPresetPickerModal() {
+    const modal = document.getElementById('presetPickerModal');
+    if (modal) modal.style.display = 'flex';
+    document.getElementById('presetPickerSearch').value = '';
+    setTimeout(() => document.getElementById('presetPickerSearch')?.focus(), 100);
+}
+
+window.showPresetPickerModal = showPresetPickerModal;
+
 function presetPickerOpen(callback) {
     presetPickerCallback = callback || null;
     presetPickerSelected = [];
@@ -673,10 +762,7 @@ function presetPickerOpen(callback) {
     } else {
         openFn();
     }
-    const modal = document.getElementById('presetPickerModal');
-    if (modal) modal.style.display = 'flex';
-    document.getElementById('presetPickerSearch').value = '';
-    setTimeout(() => document.getElementById('presetPickerSearch')?.focus(), 100);
+    showPresetPickerModal();
 }
 
 /**
