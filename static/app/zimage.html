@@ -84,6 +84,7 @@
         body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80; }
         .gen-row { display:flex; align-items:center; gap:8px; }
         .gen-row #animaControls { display:flex; align-items:center; gap:8px; }
+        .gen-row #cloudGenControls { display:flex; align-items:center; gap:8px; }
         .gen-row #mainGenBtn { height:32px; }
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
         @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
@@ -363,6 +364,7 @@
         .control-bar #modelSwitcher { width:auto; min-width:0; flex:0 0 auto; }
         .gen-row { display:flex; width:auto; justify-content:flex-start; flex-wrap:nowrap; gap:8px; align-items:center; flex-shrink:0; }
         .gen-row #animaControls { flex-wrap:nowrap; flex-shrink:0; display:flex; align-items:center; }
+        .gen-row #cloudGenControls { flex-wrap:nowrap; flex-shrink:0; display:flex; align-items:center; }
         .gen-row #mainGenBtn { flex-shrink:0; min-width:110px; height:32px; }
         /* === Responsive === */
         @media(max-width:768px) {
@@ -379,6 +381,7 @@
             .control-bar #modelSwitcher { width:auto!important; min-width:0; flex:0 0 auto; }
             .gen-row { width:auto!important; justify-content:flex-start!important; flex-wrap:nowrap!important; gap:8px!important; align-items:center; flex-shrink:0; margin-left:8px; }
             .gen-row #animaControls { flex-wrap:nowrap!important; flex-shrink:0; display:flex; align-items:center; }
+            .gen-row #cloudGenControls { flex-wrap:nowrap!important; flex-shrink:0; display:flex; align-items:center; }
             .gen-row #mainGenBtn { flex-shrink:0; min-width:110px; height:32px; }
             .anima-ctrl { margin:0; }
         }
@@ -866,13 +869,13 @@
                                     </div>
                                     <div onclick="selectEngine('cloud')" data-engine-key="cloud" class="anima-ctrl-menu-item">
                                         <i data-lucide="cloud" class="w-3 h-3"></i>
-                                        <span class="ratio-label">ModelScope</span>
+                                        <span class="ratio-label">在线API</span>
                                         <span class="chk" style="opacity:0">✓</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="flex flex-col">
+                        <div class="flex flex-col" id="modelSection">
                             <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">模型</span>
                             <div class="flex items-end gap-1">
                             <div class="anima-ctrl-wrap" id="modelSwitcher">
@@ -884,15 +887,85 @@
                                     <!-- 动态渲染，由 renderModelMenu() 填充 -->
                                 </div>
                             </div>
-                            <button onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
+                            <button id="modelSettingsBtn" onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                             </button>
                             </div>
                         </div>
                         <div id="dynamicParams"></div>
+                        <!-- 在线API 引擎：平台 + 模型（放在左侧，替代 COMFYUI 的模型选择器） -->
+                        <div id="cloudModelWrap" style="display:none;" class="flex items-center gap-2">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">平台</span>
+                                <div class="anima-ctrl-wrap">
+                                    <button type="button" onclick="cloudToggleMenu('cloudProviderMenu');event.stopPropagation();" class="anima-ctrl">
+                                        <i id="cloudProviderIcon" data-lucide="cloud" class="w-3 h-3"></i>
+                                        <span id="cloudProviderText">平台</span>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div id="cloudProviderMenu" class="cloud-menu anima-ctrl-menu" style="min-width:180px;"></div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">模型</span>
+                                <div class="anima-ctrl-wrap">
+                                    <button type="button" onclick="cloudToggleMenu('cloudModelMenu');event.stopPropagation();" class="anima-ctrl">
+                                        <span id="cloudModelText">模型</span>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div id="cloudModelMenu" class="cloud-menu anima-ctrl-menu" style="min-width:200px;"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 gen-row">
                         <div id="animaControls" class="flex items-center gap-2"></div>
+                        <!-- 在线API 引擎：比例 + 质量 + 分辨率（质量紧邻分辨率左侧，与 COMFYUI 对齐） -->
+                        <div id="cloudGenControls" class="flex items-center gap-2" style="display:none;">
+                            <!-- 比例 -->
+                            <div class="anima-ctrl-wrap">
+                                <button type="button" onclick="cloudToggleMenu('cloudRatioMenu');event.stopPropagation();" id="cloudRatioBtn" class="anima-ctrl">
+                                    <svg class="ratio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+                                    <span id="cloudRatioText">9:16</span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div id="cloudRatioMenu" class="cloud-menu anima-ctrl-menu anima-ctrl-menu-grid">
+                                    <div type="button" onclick="cloudSelectRatio('1:1',1,1);event.stopPropagation();" data-ratio="1:1" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:14px;"></span><span class="ratio-label">1:1</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('4:3',4,3);event.stopPropagation();" data-ratio="4:3" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:10px;"></span><span class="ratio-label">4:3</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('3:4',3,4);event.stopPropagation();" data-ratio="3:4" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:10px;height:14px;"></span><span class="ratio-label">3:4</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('16:9',16,9);event.stopPropagation();" data-ratio="16:9" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="ratio-label">16:9</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('9:16',9,16);event.stopPropagation();" data-ratio="9:16" class="anima-ctrl-menu-item active"><span class="ratio-icon" style="width:8px;height:14px;"></span><span class="ratio-label">9:16</span><span class="chk">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('3:2',3,2);event.stopPropagation();" data-ratio="3:2" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:9px;"></span><span class="ratio-label">3:2</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('2:3',2,3);event.stopPropagation();" data-ratio="2:3" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:9px;height:14px;"></span><span class="ratio-label">2:3</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRatio('21:9',21,9);event.stopPropagation();" data-ratio="21:9" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:6px;"></span><span class="ratio-label">21:9</span><span class="chk" style="opacity:0">✓</span></div>
+                                </div>
+                            </div>
+                            <!-- 质量 -->
+                            <div class="anima-ctrl-wrap">
+                                <button type="button" onclick="cloudToggleMenu('cloudQualityMenu');event.stopPropagation();" id="cloudQualityBtn" class="anima-ctrl">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                    <span id="cloudQualityText">中</span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div id="cloudQualityMenu" class="cloud-menu anima-ctrl-menu">
+                                    <div type="button" onclick="cloudSetQuality('high');event.stopPropagation();" data-quality="high" class="anima-ctrl-menu-item"><span>高</span><span class="chk" style="opacity:0">✓</span></div>
+                                    <div type="button" onclick="cloudSetQuality('medium');event.stopPropagation();" data-quality="medium" class="anima-ctrl-menu-item active"><span>中</span><span class="chk">✓</span></div>
+                                    <div type="button" onclick="cloudSetQuality('low');event.stopPropagation();" data-quality="low" class="anima-ctrl-menu-item"><span>低</span><span class="chk" style="opacity:0">✓</span></div>
+                                </div>
+                            </div>
+                            <!-- 分辨率 -->
+                            <div class="anima-ctrl-wrap">
+                                <button type="button" onclick="cloudToggleMenu('cloudResMenu');event.stopPropagation();" id="cloudResBtn" class="anima-ctrl">
+                                    <svg class="res-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                    <span id="cloudResText">1K</span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div id="cloudResMenu" class="cloud-menu anima-ctrl-menu">
+                                    <div type="button" onclick="cloudSelectRes(1);event.stopPropagation();" data-res="1" class="anima-ctrl-menu-item active"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">1K</span><span class="chk">✓</span></div>
+                                    <div type="button" onclick="cloudSelectRes(2);event.stopPropagation();" data-res="2" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">2K</span><span class="chk" style="opacity:0">✓</span></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="anima-ctrl-wrap">
                             <button onclick="if(!compactBatchToggle())toggleMenu('batchCountMenu')" id="batchCountBtn" class="anima-ctrl" title="一次生成张数">
                                 <span id="batchCountText">×1</span>
@@ -1845,7 +1918,7 @@
             return true;
         }
         const _engineOptions = ['local', 'cloud'];
-        const _engineLabels = ['COMFYUI', 'ModelScope'];
+        const _engineLabels = ['COMFYUI', '在线API'];
         function compactEngineToggle() {
             if (!_isCompact()) return false;
             const idx = _engineOptions.indexOf(currentEngine);
@@ -1866,7 +1939,7 @@
             // 同步上拉菜单的按钮文本、图标
             const txt = document.getElementById('engineText');
             const icon = document.getElementById('engineIcon');
-            if (txt) txt.textContent = mode === 'cloud' ? 'ModelScope' : 'COMFYUI';
+            if (txt) txt.textContent = mode === 'cloud' ? '在线API' : 'COMFYUI';
             if (icon) {
                 icon.setAttribute('data-lucide', mode === 'cloud' ? 'cloud' : 'monitor');
                 if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -1875,12 +1948,80 @@
             }
             // 同步菜单选中态(交给通用函数)
             setActiveMenuItem('engineMenu', 'engine-key', mode);
+            // 本地/在线 控制面板切换
+            const isCloud = mode === 'cloud';
+            const _ms = document.getElementById('modelSwitcher');
+            const _msb = document.getElementById('modelSettingsBtn');
+            const _msec = document.getElementById('modelSection');
+            const _ac = document.getElementById('animaControls');
+            const _dp = document.getElementById('dynamicParams');
+            const _cmw = document.getElementById('cloudModelWrap');
+            const _cgc = document.getElementById('cloudGenControls');
+            if (_ms) _ms.style.display = isCloud ? 'none' : '';
+            if (_msb) _msb.style.display = isCloud ? 'none' : '';
+            if (_msec) _msec.style.display = isCloud ? 'none' : '';
+            if (_ac) _ac.style.display = isCloud ? 'none' : '';
+            if (_dp) _dp.style.display = isCloud ? 'none' : '';
+            if (_cmw) _cmw.style.display = isCloud ? '' : 'none';
+            if (_cgc) _cgc.style.display = isCloud ? '' : 'none';
+            if (isCloud) {
+                cloudInitPanel();
+                cloudSyncGenUI();
+            }
         }
 
         // === 引擎上拉菜单 ===
         function selectEngine(mode) {
             switchEngine(mode);
             closeAllMenus();
+        }
+
+        // === 统一质量下拉菜单组件 ===
+        const CLOUD_QUALITY_OPTIONS = [
+            { value: 'high', label: '高' },
+            { value: 'medium', label: '中' },
+            { value: 'low', label: '低' }
+        ];
+        const IDEOGRAM4_QUALITY_OPTIONS = [
+            { value: 'Quality', label: '高' },
+            { value: 'Default', label: '中' },
+            { value: 'Turbo', label: '低' }
+        ];
+        const BOOGU_QUALITY_OPTIONS = [
+            { value: 'Base', label: '高' },
+            { value: 'Turbo', label: '低' }
+        ];
+
+        function renderQualityDropdown({ btnId, textId, menuId, menuClass, value, options, onChange, toggleFn }) {
+            const selected = options.find(o => o.value === value) || options[0];
+            const iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`;
+            const chevron = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`;
+            return `
+                <div class="anima-ctrl-wrap">
+                    <button type="button" onclick="${toggleFn}('${menuId}');event.stopPropagation();" id="${btnId}" class="anima-ctrl">
+                        ${iconSvg}
+                        <span id="${textId}">${selected ? selected.label : ''}</span>
+                        ${chevron}
+                    </button>
+                    <div id="${menuId}" class="${menuClass ? menuClass + ' ' : ''}anima-ctrl-menu">
+                        ${options.map(o => {
+                            const isActive = o.value === value;
+                            return `<div type="button" onclick="${toggleFn}('${menuId}');${onChange}('${o.value}');event.stopPropagation();" data-quality="${o.value}" class="anima-ctrl-menu-item${isActive ? ' active' : ''}"><span>${o.label}</span><span class="chk" style="opacity:${isActive ? 1 : 0}">✓</span></div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function updateQualityDropdown({ menuId, textId, value, options }) {
+            const selected = options.find(o => o.value === value) || options[0];
+            const text = document.getElementById(textId);
+            if (text) text.textContent = selected ? selected.label : value;
+            document.querySelectorAll(`#${menuId} [data-quality]`).forEach(el => {
+                const isActive = el.getAttribute('data-quality') === value;
+                el.classList.toggle('active', isActive);
+                const chk = el.querySelector('.chk');
+                if (chk) chk.style.opacity = isActive ? 1 : 0;
+            });
         }
 
         // 存储 Ideogram4 JSON 提示词
@@ -1890,16 +2031,7 @@
         function setIdeogram4Quality(q) {
             ideogram4Quality = q;
             localStorage.setItem('ideogram4_quality', q);
-            // 更新按钮文本
-            const qualityText = document.getElementById('qualityText');
-            if (qualityText) qualityText.textContent = q;
-            // 更新菜单选中态
-            document.querySelectorAll('[data-quality-key]').forEach(el => {
-                const isActive = el.dataset.qualityKey === q;
-                el.classList.toggle('active', isActive);
-                const chk = el.querySelector('.chk');
-                if (chk) chk.style.opacity = isActive ? 1 : 0;
-            });
+            updateQualityDropdown({ menuId: 'qualityMenu', textId: 'qualityText', value: q, options: IDEOGRAM4_QUALITY_OPTIONS });
         }
 
         // Boogu 质量切换
@@ -1916,10 +2048,7 @@
             if (currentWorkflow.toLowerCase().includes('boogu')) {
                 selectModel('text2image/boogu-' + q.toLowerCase() + '.json');
             }
-            // 更新按钮状态
-            document.querySelectorAll('[data-boogu-quality]').forEach(el => {
-                el.classList.toggle('active', el.dataset.booguQuality === q);
-            });
+            updateQualityDropdown({ menuId: 'booguQualityMenu', textId: 'booguQualityText', value: q, options: BOOGU_QUALITY_OPTIONS });
         }
 
         function updateParamsUI() {
@@ -1952,14 +2081,7 @@
                 el.innerHTML = '';
             } else if (isBoogu) {
                 document.getElementById('animaTagSwitcher').style.display = 'none';
-                el.innerHTML = `
-                <div class="flex items-center gap-1">
-                    <span class="text-[9px] font-bold text-gray-400 uppercase">质量</span>
-                    <div class="flex gap-1">
-                        <button onclick="setBooguQuality('Turbo')" data-boogu-quality="Turbo" class="anima-ctrl ${booguQuality === 'Turbo' ? 'active' : ''}" style="padding:2px 8px;font-size:10px;">Turbo</button>
-                        <button onclick="setBooguQuality('Base')" data-boogu-quality="Base" class="anima-ctrl ${booguQuality === 'Base' ? 'active' : ''}" style="padding:2px 8px;font-size:10px;">Base</button>
-                    </div>
-                </div>`;
+                el.innerHTML = '';
             } else {
                 document.getElementById('animaTagSwitcher').style.display = 'none';
                 el.innerHTML = '';
@@ -1971,26 +2093,32 @@
                 if (isIdeogram4) {
                     qualityHtml = `
                         <!-- 质量控制 -->
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="toggleMenu('qualityMenu')" id="qualityBtn" class="anima-ctrl">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                                <span id="qualityText">${ideogram4Quality}</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div id="qualityMenu" class="anima-ctrl-menu">
-                                ${['Quality','Default','Turbo'].map(q => {
-                                    const isActive = ideogram4Quality === q;
-                                    return '<div onclick="setIdeogram4Quality(\'' + q + '\');toggleMenu(\'qualityMenu\')" data-quality-key="' + q + '" class="anima-ctrl-menu-item' + (isActive ? ' active' : '') + '">' +
-                                        '<span class="ratio-label">' + q + '</span>' +
-                                        '<span class="chk" style="opacity:' + (isActive ? 1 : 0) + '">✓</span>' +
-                                        '</div>';
-                                }).join('')}
-                            </div>
-                        </div>`;
+                        ${renderQualityDropdown({
+                            btnId: 'qualityBtn',
+                            textId: 'qualityText',
+                            menuId: 'qualityMenu',
+                            menuClass: '',
+                            value: ideogram4Quality,
+                            options: IDEOGRAM4_QUALITY_OPTIONS,
+                            onChange: 'setIdeogram4Quality',
+                            toggleFn: 'toggleMenu'
+                        })}`;
+                } else if (isBoogu) {
+                    qualityHtml = `
+                        <!-- Boogu 质量控制 -->
+                        ${renderQualityDropdown({
+                            btnId: 'booguQualityBtn',
+                            textId: 'booguQualityText',
+                            menuId: 'booguQualityMenu',
+                            menuClass: '',
+                            value: booguQuality,
+                            options: BOOGU_QUALITY_OPTIONS,
+                            onChange: 'setBooguQuality',
+                            toggleFn: 'toggleMenu'
+                        })}`;
                 }
                 const _gc = GenerationControls.getState();
                 ctrlEl.innerHTML = `
-                        ${qualityHtml}
                         <!-- 比例 -->
                         <div class="anima-ctrl-wrap">
                             <button onclick="if(!compactRatioToggle())toggleMenu('ratioMenu')" id="ratioBtn" class="anima-ctrl">
@@ -2013,6 +2141,7 @@
                                 }).join('')}
                             </div>
                         </div>
+                        ${qualityHtml}
                         <!-- 分辨率 -->
                         <div class="anima-ctrl-wrap">
                             <button onclick="if(!compactResToggle())toggleMenu('resMenu')" id="resBtn" class="anima-ctrl">
@@ -2699,7 +2828,8 @@
             
             const prompt = document.getElementById('prompt').value.trim();
             if (!prompt) return alert("请输入提示词");
-            if (currentEngine !== 'local') return alert("请切换到 COMFYUI 引擎");
+            // 在线API 引擎：走多协议在线分发器（/api/online-image）
+            if (currentEngine === 'cloud') return handleRenderCloud();
             // 生成时剔除 LoRA 触发词：触发词用于提示词框显示，但不应送到 ComfyUI 作为文字提示
             let cleanPrompt = prompt;
             if (typeof loraState !== 'undefined' && typeof _loraCollectTriggerWords === 'function') {
@@ -3046,6 +3176,334 @@
                 setTimeout(() => hideProgress(), 600);
                 window.__autoGenNotifyFinally?.();
             }
+        }
+
+        /* ==================== 在线API 引擎（cloud） ==================== */
+        let _cloudProviders = [];
+        let _cloudProviderId = '';
+        let _cloudModels = [];
+        let _cloudModel = '';
+        let _cloudQuality = localStorage.getItem('zimage_cloud_quality') || 'medium';
+
+        function cloudProtocol(id) {
+            const p = _cloudProviders.find(function (x) { return x.id === id; });
+            return (p && p.protocol) ? p.protocol : 'openai';
+        }
+
+        function cloudSize() {
+            const s = getAnimaSize();
+            return s.width + 'x' + s.height;
+        }
+
+        function cloudToggleMenu(menuId) {
+            document.querySelectorAll('.cloud-menu').forEach(function (m) {
+                if (m.id !== menuId) { m.classList.remove('open'); m.style.display = 'none'; }
+            });
+            const m = document.getElementById(menuId);
+            if (!m) return;
+            if (m.classList.contains('open')) { m.classList.remove('open'); m.style.display = 'none'; }
+            else { m.classList.add('open'); m.style.display = m.classList.contains('anima-ctrl-menu-grid') ? 'grid' : 'block'; }
+        }
+
+        async function cloudCollectRefs() {
+            const out = [];
+            const mgr = (typeof _refImgMgr !== 'undefined') ? _refImgMgr : null;
+            if (!mgr || !mgr.getFiles) return out;
+            const files = mgr.getFiles() || [];
+            for (const it of files) {
+                let url = it.url;
+                if (url && url.startsWith('blob:')) {
+                    try {
+                        url = await new Promise(function (resolve) {
+                            fetch(url).then(function (r) { return r.blob(); }).then(function (b) {
+                                const fr = new FileReader();
+                                fr.onloadend = function () { resolve(fr.result); };
+                                fr.readAsDataURL(b);
+                            }).catch(function () { resolve(url); });
+                        });
+                    } catch (e) {}
+                }
+                if (url) out.push({ url: url, name: it.name || '' });
+            }
+            return out;
+        }
+
+        function cloudBuildProviderMenu() {
+            const menu = document.getElementById('cloudProviderMenu');
+            if (!menu) return;
+            menu.innerHTML = _cloudProviders.map(function (p) {
+                return '<div onclick="cloudSetProvider(\'' + p.id + '\')" data-provider="' + p.id + '" class="anima-ctrl-menu-item ' + (p.id === _cloudProviderId ? 'active' : '') + '">' +
+                    '<i data-lucide="cloud" class="w-3 h-3"></i>' +
+                    '<span>' + (p.name || p.id) + (p.has_key ? ' ✓' : '') + '</span>' +
+                    '<span class="chk" style="opacity:' + (p.id === _cloudProviderId ? 1 : 0) + '">✓</span></div>';
+            }).join('');
+            if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+        }
+
+        function cloudBuildModelMenu() {
+            const menu = document.getElementById('cloudModelMenu');
+            if (!menu) return;
+            if (!_cloudModels.length) {
+                menu.innerHTML = '<div class="anima-ctrl-menu-item" style="opacity:0.5"><span>该平台无模型</span></div>';
+                return;
+            }
+            menu.innerHTML = _cloudModels.map(function (m) {
+                const safe = String(m).replace(/'/g, "\\'");
+                return '<div onclick="cloudSetModel(\'' + safe + '\')" data-model="' + m + '" class="anima-ctrl-menu-item ' + (m === _cloudModel ? 'active' : '') + '">' +
+                    '<i data-lucide="cpu" class="w-3 h-3"></i><span>' + m + '</span>' +
+                    '<span class="chk" style="opacity:' + (m === _cloudModel ? 1 : 0) + '">✓</span></div>';
+            }).join('');
+            if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+        }
+
+        function cloudSetProvider(id) {
+            _cloudProviderId = id;
+            const p = _cloudProviders.find(function (x) { return x.id === id; });
+            const t = document.getElementById('cloudProviderText');
+            if (t) t.textContent = (p && (p.name || p.id)) || id;
+            cloudBuildProviderMenu();
+            cloudRefreshModels();
+            const menu = document.getElementById('cloudProviderMenu');
+            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            try { localStorage.setItem('zimage_cloud_provider', id); } catch (e) {}
+        }
+
+        function cloudSetModel(m) {
+            _cloudModel = m;
+            const t = document.getElementById('cloudModelText');
+            if (t) t.textContent = m || '模型';
+            cloudBuildModelMenu();
+            const menu = document.getElementById('cloudModelMenu');
+            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            try { localStorage.setItem('zimage_cloud_model', m || ''); } catch (e) {}
+        }
+
+        function cloudSyncGenUI() {
+            // 比例 / 分辨率 与 GenerationControls 状态保持同步
+            const st = GenerationControls.getState();
+            const ratioLabel = st.ratioW + ':' + st.ratioH;
+            const ratioBtn = document.getElementById('cloudRatioText');
+            if (ratioBtn) ratioBtn.textContent = ratioLabel;
+            document.querySelectorAll('#cloudRatioMenu .anima-ctrl-menu-item').forEach(function (it) {
+                const on = it.getAttribute('data-ratio') === ratioLabel;
+                it.classList.toggle('active', on);
+                const c = it.querySelector('.chk');
+                if (c) c.style.opacity = on ? '1' : '0';
+            });
+            const resText = st.res === 2 ? '2K' : '1K';
+            const resBtn = document.getElementById('cloudResText');
+            if (resBtn) resBtn.textContent = resText;
+            document.querySelectorAll('#cloudResMenu .anima-ctrl-menu-item').forEach(function (it) {
+                const on = parseInt(it.getAttribute('data-res')) === st.res;
+                it.classList.toggle('active', on);
+                const c = it.querySelector('.chk');
+                if (c) c.style.opacity = on ? '1' : '0';
+            });
+            cloudSetQuality(_cloudQuality);
+        }
+
+        function cloudSelectRatio(label, w, h) {
+            GenerationControls.selectRatio(label, w, h);
+            cloudSyncGenUI();
+            const menu = document.getElementById('cloudRatioMenu');
+            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+        }
+
+        function cloudSelectRes(res) {
+            GenerationControls.selectRes(res);
+            cloudSyncGenUI();
+            const menu = document.getElementById('cloudResMenu');
+            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+        }
+
+        function cloudSetQuality(q) {
+            _cloudQuality = q;
+            try { localStorage.setItem('zimage_cloud_quality', q); } catch (e) {}
+            updateQualityDropdown({ menuId: 'cloudQualityMenu', textId: 'cloudQualityText', value: q, options: CLOUD_QUALITY_OPTIONS });
+            const menu = document.getElementById('cloudQualityMenu');
+            if (menu && menu.classList.contains('open')) { menu.classList.remove('open'); menu.style.display = 'none'; }
+        }
+
+        async function cloudRefreshModels() {
+            if (!_cloudProviderId) return;
+            let models = [];
+            try {
+                const res = await fetch('/api/providers/models?provider_id=' + encodeURIComponent(_cloudProviderId));
+                const d = await res.json();
+                if (d.image_models && d.image_models.length) models = d.image_models;
+            } catch (e) {}
+            if (!models.length) {
+                const p = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
+                if (p && p.image_models && p.image_models.length) models = p.image_models;
+            }
+            if (!models.length) {
+                if (_cloudProviderId === 'modelscope') models = ['默认模型'];
+                else if (_cloudProviderId === 'jimeng') models = ['jimeng-图片2.1', 'jimeng-图片3.0'];
+                else models = [];
+            }
+            _cloudModels = models;
+            if (_cloudModels.indexOf(_cloudModel) < 0 && models.length) _cloudModel = models[0];
+            const mt = document.getElementById('cloudModelText');
+            if (mt) mt.textContent = _cloudModel || '模型';
+            cloudBuildModelMenu();
+        }
+
+        async function cloudLoadProviders() {
+            try {
+                const res = await fetch('/api/providers');
+                if (!res.ok) return;
+                const data = await res.json();
+                const all = data.providers || [];
+                _cloudProviders = all.filter(function (p) {
+                    return p.enabled && ((p.image_models && p.image_models.length > 0) || ['modelscope', 'jimeng'].indexOf(p.id) >= 0);
+                });
+                if (!_cloudProviders.find(function (p) { return p.id === _cloudProviderId; }) && _cloudProviders.length) {
+                    _cloudProviderId = _cloudProviders[0].id;
+                }
+                cloudBuildProviderMenu();
+                await cloudRefreshModels();
+            } catch (e) {
+                console.error('[cloud] 加载平台失败:', e);
+            }
+        }
+
+        async function cloudInitPanel() {
+            try {
+                const sp = localStorage.getItem('zimage_cloud_provider');
+                if (sp) _cloudProviderId = sp;
+                const sm = localStorage.getItem('zimage_cloud_model');
+                if (sm) _cloudModel = sm;
+            } catch (e) {}
+            await cloudLoadProviders();
+            const p = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
+            const t = document.getElementById('cloudProviderText');
+            if (t && p) t.textContent = p.name || p.id;
+            cloudSyncGenUI();
+        }
+
+        // 点击外部关闭 cloud 菜单
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('.anima-ctrl-wrap')) return;
+            setTimeout(function () {
+                document.querySelectorAll('.cloud-menu.open').forEach(function (m) { m.classList.remove('open'); m.style.display = 'none'; });
+            }, 0);
+        }, true);
+
+        async function handleRenderCloud() {
+            const promptEl = document.getElementById('prompt');
+            const prompt = ((promptEl && promptEl.value) || '').trim();
+            if (!prompt) { alert('请输入提示词'); return; }
+            if (!_cloudProviderId) { alert('请先选择在线平台'); return; }
+            startProgress();
+            const btn = document.getElementById('mainGenBtn');
+            if (btn) setLoading(true);
+            const _aspectSize = getAnimaSize();
+            const _aspectRatio = _aspectSize.width + ' / ' + _aspectSize.height;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'masonry-item bg-gray-50 flex flex-col items-center justify-center border-dashed border-2 border-gray-200';
+            placeholder.style.minHeight = '180px';
+            placeholder.style.aspectRatio = _aspectRatio;
+            placeholder.style.transition = 'all 0.4s ease';
+            placeholder.innerHTML = (typeof CardProgress !== 'undefined' ? CardProgress.HTML : '');
+            const masonry = document.getElementById('masonry');
+            if (masonry) masonry.prepend(placeholder);
+            // 激活卡片进度（与 ComfyUI 模式一致：排队中 → 执行中 → 完成）
+            let _cloudSimTimer = null;
+            if (typeof CardProgress !== 'undefined') {
+                CardProgress.update(placeholder, { status: 'started' });
+                setTimeout(function () { CardProgress.update(placeholder, { status: 'executing' }); }, 300);
+                // 在线API 无真实采样进度，模拟百分比爬升以给出可见的进度反馈
+                const _pctEl = placeholder.querySelector('.card-progress-pct');
+                let _simPct = 0;
+                _cloudSimTimer = setInterval(function () {
+                    _simPct = Math.min(95, _simPct + Math.random() * 7 + 2);
+                    if (_pctEl) { _pctEl.style.visibility = 'visible'; _pctEl.textContent = Math.floor(_simPct) + '%'; }
+                }, 600);
+            }
+            try {
+                const refs = await cloudCollectRefs();
+                const size = cloudSize();
+                const body = {
+                    prompt: prompt,
+                    model: _cloudModel || '',
+                    size: size,
+                    protocol: cloudProtocol(_cloudProviderId),
+                    provider_id: _cloudProviderId,
+                    reference_images: refs,
+                    quality: _cloudQuality,
+                    image_request_mode: '',
+                    feature: 'zimage'
+                };
+                const res = await fetch('/api/online-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(function () { return { detail: '生成失败' }; });
+                    throw new Error(err.detail || err.message || '生成失败');
+                }
+                const data = await res.json();
+                if (_cloudSimTimer) { clearInterval(_cloudSimTimer); _cloudSimTimer = null; }
+                if (typeof CardProgress !== 'undefined') CardProgress.update(placeholder, { status: 'complete' });
+                const imgs = (data.images || []).filter(Boolean);
+                if (!imgs.length) throw new Error('未返回图片');
+                const record = {
+                    timestamp: data.timestamp || Date.now(),
+                    prompt: prompt,
+                    images: imgs,
+                    type: 'zimage',
+                    model: (_cloudProviderId || '') + (data.model ? ' · ' + data.model : ''),
+                    genParams: { engine: 'cloud', provider: _cloudProviderId, model: _cloudModel, size: size, quality: _cloudQuality }
+                };
+                if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
+                if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
+                    const tempContainer = document.createElement('div');
+                    window.GalleryCard.render(Object.assign({ container: tempContainer, record: record, isNew: true }, { eagerFirstImage: true }));
+                    const tempCard = tempContainer.querySelector('.masonry-item');
+                    if (tempCard) {
+                        tempCard.style.aspectRatio = _aspectRatio;
+                        const _fullImg = tempCard.querySelector('img');
+                        if (_fullImg && imgs[0]) {
+                            const progress = placeholder.querySelector('.card-progress');
+                            if (progress) progress.remove();
+                            placeholder.classList.remove('bg-gray-50', 'border-dashed', 'border-2', 'border-gray-200');
+                            const _parent = placeholder.parentNode;
+                            const _sibling = placeholder.nextSibling;
+                            _parent.insertBefore(tempCard, _sibling);
+                            placeholder.remove();
+                        } else {
+                            const _parent = placeholder.parentNode;
+                            const _sibling = placeholder.nextSibling;
+                            if (_parent) { _parent.insertBefore(tempCard, _sibling); placeholder.remove(); }
+                        }
+                    } else {
+                        placeholder.remove();
+                    }
+                } else {
+                    placeholder.remove();
+                }
+                try {
+                    fetch('/api/history/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(record)
+                    });
+                } catch (e) {}
+                if (btn) setLoading(false);
+                hideProgress();
+            } catch (e) {
+                if (_cloudSimTimer) { clearInterval(_cloudSimTimer); _cloudSimTimer = null; }
+                if (placeholder.parentNode) placeholder.remove();
+                if (btn) setLoading(false);
+                hideProgress();
+                alert(e.message || '生成失败');
+            }
+        }
+
+        // 初始化：若上次停留在线引擎，自动展开并加载平台
+        if (typeof currentEngine !== 'undefined' && currentEngine === 'cloud') {
+            switchEngine('cloud');
         }
 
         function setLoading(isLoading) {

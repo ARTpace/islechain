@@ -1744,6 +1744,7 @@ class OnlineImageRequest(BaseModel):
     provider_id: str = ""
     image_request_mode: str = ""
     reference_images: List[AIReference] = []
+    feature: str = ""  # 落盘子目录与画廊类型, 如 "zimage" 表示并入文生图画廊; 留空保持默认 online
 
 class OnlineVideoRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
@@ -5548,9 +5549,10 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
     print(f"[online-image] provider={provider_id} model={model} key={prov.get('api_key','')[:16]}... size={payload.size} mode={mode}")
     try:
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
-        # 组织子文件夹: online/{日期}
+        # 组织子文件夹: {feature}/{日期} (feature 留空时回退 online/{日期})
         date_str = time.strftime("%Y-%m-%d", time.localtime())
-        subfolder = f"online/{date_str}"
+        feature = (payload.feature or "").strip()
+        subfolder = f"{feature}/{date_str}" if feature else f"online/{date_str}"
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
@@ -5580,7 +5582,7 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         "prompt": payload.prompt,
         "images": [local_url],
         "timestamp": time.time() * 1000,
-        "type": "online",
+        "type": feature if feature else "online",
         "model": model,
         "provider_id": provider_id,
         "protocol": prov["protocol"],
@@ -9522,10 +9524,15 @@ async def start_comfyui_process():
 
     main_py = os.path.join(base_path, "main.py")
 
-    # 查找 Python 可执行文件
+    # 查找 Python 可执行文件（兼容 ComfyUI standalone 各种布局：python/ / python_embeded/ / venv/）
     parent = os.path.dirname(base_path)
     candidates = [
-        os.path.join(parent, "python", "python.exe"),
+        os.path.join(base_path, "python", "python.exe"),                      # ComfyUI/python/python.exe
+        os.path.join(base_path, "python_embeded", "python.exe"),              # ComfyUI/python_embeded/python.exe
+        os.path.join(parent, "python", "python.exe"),                         # <父目录>/python/python.exe
+        os.path.join(parent, "python_embeded", "python.exe"),                 # <父目录>/python_embeded/python.exe
+        os.path.join(base_path, "venv", "Scripts", "python.exe"),
+        os.path.join(parent, "venv", "Scripts", "python.exe"),
         os.path.join(base_path, "..", "..", "python", "python.exe"),
     ]
     python_exe = ""
@@ -9534,6 +9541,27 @@ async def start_comfyui_process():
         if os.path.isfile(resolved):
             python_exe = resolved
             break
+    # 轻量兜底：扫描 base_path 与 parent 自身及直接子目录，寻找 python.exe（不递归深层，避免扫大目录）
+    if not python_exe:
+        for root in (base_path, parent):
+            if not os.path.isdir(root):
+                continue
+            dirs_to_check = [root]
+            try:
+                dirs_to_check += [os.path.join(root, d) for d in os.listdir(root)
+                                  if os.path.isdir(os.path.join(root, d))]
+            except OSError:
+                pass
+            for d in dirs_to_check:
+                for sub in ("", "python", "Scripts"):
+                    cand = os.path.join(d, sub, "python.exe") if sub else os.path.join(d, "python.exe")
+                    if os.path.isfile(cand):
+                        python_exe = cand
+                        break
+                if python_exe:
+                    break
+            if python_exe:
+                break
     if not python_exe:
         # 系统 PATH 中的 python
         import shutil

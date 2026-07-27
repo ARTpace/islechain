@@ -57,7 +57,7 @@
     /* ============================================================
      *  菜单辅助（通用：所有 anima-ctrl-wrap 下拉菜单共享）
      * ============================================================ */
-    let _allMenuIds = ['batchCountMenu', 'modelMenu', 'engineMenu', 'ratioMenu', 'resMenu', 'qualityMenu'];
+    let _allMenuIds = ['batchCountMenu', 'modelMenu', 'engineMenu', 'ratioMenu', 'resMenu', 'qualityMenu', 'booguQualityMenu'];
 
     function setMenuIds(ids) {
         if (Array.isArray(ids)) _allMenuIds = ids;
@@ -66,9 +66,12 @@
     function toggleMenu(menuId) {
         const menu = document.getElementById(menuId);
         if (!menu) return;
-        const willOpen = menu.style.display !== 'block' && menu.style.display !== 'grid';
+        const isOpen = menu.style.display === 'block' || menu.style.display === 'grid';
         closeAllMenus();
-        if (willOpen) {
+        // 强制关闭自身：即使 menuId 不在 _allMenuIds 列表中也能收起，
+        // 避免某些菜单（如 booguQualityMenu）点选后无法关闭的问题
+        menu.style.display = 'none';
+        if (!isOpen) {
             menu.style.display = menu.classList.contains('anima-ctrl-menu-grid') ? 'grid' : 'block';
         }
     }
