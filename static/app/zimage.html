@@ -2151,19 +2151,31 @@
                 // .value getter/setter
                 Object.defineProperty(el, 'value', {
                     get: function () {
-                        // 只返回文本节点（剔除 ref-chip 内联图片）
+                        // 收集所有后代文本节点（剔除 .ref-chip 子树里的文本）
+                        // 修复：从网页/Notion 等富文本源粘贴时，浏览器会把文本包在 <div>/<span> 里，
+                        //       只看直接子节点会返回空字符串，触发"请输入提示词"
                         var out = '';
-                        el.childNodes.forEach(function (n) {
-                            if (n.nodeType === 3) out += n.nodeValue; // text
-                            // 不取 .ref-chip（它们不参与提示词）
-                        });
+                        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+                            acceptNode: function (n) {
+                                var p = n.parentNode;
+                                while (p && p !== el) {
+                                    if (p.nodeType === 1 && p.classList && p.classList.contains('ref-chip')) {
+                                        return NodeFilter.FILTER_REJECT;
+                                    }
+                                    p = p.parentNode;
+                                }
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                        }, false);
+                        var tn;
+                        while ((tn = walker.nextNode())) out += tn.nodeValue;
                         return out;
                     },
                     set: function (v) {
                         // 关键修复：保留 .ref-chip 节点，只清掉文字节点
                         var savedChips = preserveChips();
                         var vStr = v == null ? '' : String(v);
-                        // 清掉所有非 ref-chip 子节点
+                        // 清掉所有非 ref-chip 子节点（连包裹的 <div>/<span> 一起清）
                         Array.prototype.slice.call(el.childNodes).forEach(function (n) {
                             if (n.nodeType === 1 && n.classList && n.classList.contains('ref-chip')) return;
                             el.removeChild(n);
@@ -2185,6 +2197,38 @@
                         if (n.nodeValue.indexOf('`') >= 0) n.nodeValue = n.nodeValue.replace(/`/g, '');
                     }
                     if (typeof updatePromptTags === 'function') updatePromptTags();
+                });
+
+                // 强制粘贴为纯文本，避免富文本包在 <div>/<span> 里让 .value 读不到
+                el.addEventListener('paste', function (e) {
+                    if (!e.clipboardData && !window.clipboardData) return;
+                    e.preventDefault();
+                    var text = '';
+                    if (e.clipboardData) {
+                        text = e.clipboardData.getData('text/plain') || '';
+                    } else if (window.clipboardData) {
+                        text = window.clipboardData.getData('text') || '';
+                    }
+                    text = text.replace(/`/g, '');
+                    if (!text) return;
+                    // 在当前光标位置插入纯文本节点（保留光标位置）
+                    var sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) {
+                        var range = sel.getRangeAt(0);
+                        // 不删除 ref-chip，只把文字插到选区末尾
+                        range.collapse(false);
+                        var node = document.createTextNode(text);
+                        range.insertNode(node);
+                        range.setStartAfter(node);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    } else {
+                        // 退化：没有选区信息，追加到末尾（用 setter 保留 chips）
+                        el.value = (el.value || '') + text;
+                    }
+                    // 通知其他监听器（updatePromptTags / syncPickerStatesFromPrompt）
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
                 });
 
                 // placeholder 通过 :empty::before 显示（CSS 已加）

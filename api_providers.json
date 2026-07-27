@@ -17,6 +17,7 @@
     "video_models": [
       "agnes-video-v2.0"
     ],
+    "ms_loras": [],
     "primary": false,
     "enabled": true
   },
@@ -39,6 +40,7 @@
     "video_models": [
       "veo3.1-fast"
     ],
+    "ms_loras": [],
     "primary": false,
     "enabled": true
   },
@@ -53,6 +55,7 @@
       "deepseek-v4-flash"
     ],
     "video_models": [],
+    "ms_loras": [],
     "primary": false,
     "enabled": true
   },
@@ -73,8 +76,6 @@
       "Qwen/Qwen3-Coder-480B-A35B-Instruct"
     ],
     "video_models": [],
-    "primary": false,
-    "enabled": true,
     "ms_loras": [
       {
         "id": "Daniel8152/film",
@@ -100,7 +101,9 @@
         "enabled": true,
         "note": ""
       }
-    ]
+    ],
+    "primary": false,
+    "enabled": true
   },
   {
     "id": "runninghub",
@@ -111,6 +114,7 @@
     "image_models": [],
     "chat_models": [],
     "video_models": [],
+    "ms_loras": [],
     "primary": false,
     "enabled": true
   },
@@ -123,6 +127,7 @@
     "image_models": [],
     "chat_models": [],
     "video_models": [],
+    "ms_loras": [],
     "primary": false,
     "enabled": true
   }
