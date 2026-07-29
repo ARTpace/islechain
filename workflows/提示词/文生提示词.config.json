@@ -1,0 +1,69 @@
+{
+  "title": "文生提示词",
+  "description": "文生提示词 - 用本地 Qwen3.5-9B 模型扩写用户的简短文字到 SD 提示词（纯本地，纯文本路径，无需 mmproj）",
+  "fields": [
+    {
+      "id": "user_prompt",
+      "node": "3",
+      "input": "custom_prompt",
+      "type": "textarea",
+      "display_name": "用户输入文字",
+      "default": "",
+      "required": true,
+      "placeholder": "例如：一只橘色的小猫在花园里追蝴蝶"
+    },
+    {
+      "id": "system_prompt",
+      "node": "3",
+      "input": "system_prompt",
+      "type": "textarea",
+      "display_name": "系统提示词",
+      "default": "你是文生图大模型的 prompt 撰写大师，发挥你的想象力，基于用户简单的提示词，帮扩写和润色 prompt。\n严禁输出思考过程，只输出扩写后的英文 SD prompt。\n格式：masterpiece, best quality, highly detailed, sharp focus, <subject>, <action>, <scene>, <lighting>, <camera>, <art style>",
+      "required": false,
+      "advanced": true
+    },
+    {
+      "id": "preset",
+      "node": "3",
+      "input": "preset_prompt",
+      "type": "select",
+      "display_name": "扩写预设",
+      "default": "Prompt Style - Extreme Detailed",
+      "options": [
+        "Empty - Nothing",
+        "Normal - Describe",
+        "Prompt Style - Tags",
+        "Prompt Style - Simple",
+        "Prompt Style - Detailed",
+        "Prompt Style - Extreme Detailed",
+        "Prompt Style - Cinematic",
+        "Creative - Detailed"
+      ],
+      "advanced": true
+    },
+    {
+      "id": "temperature",
+      "node": "5",
+      "input": "temperature",
+      "type": "slider",
+      "display_name": "温度",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.05,
+      "advanced": true
+    },
+    {
+      "id": "max_tokens",
+      "node": "5",
+      "input": "max_tokens",
+      "type": "number",
+      "display_name": "最大生成长度",
+      "default": 1024,
+      "min": 64,
+      "max": 4096,
+      "step": 32,
+      "advanced": true
+    }
+  ]
+}

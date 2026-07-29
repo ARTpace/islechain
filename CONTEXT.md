@@ -6,7 +6,7 @@
 用户创作的无限大虚拟空间，支持节点编辑、连接管理、视口缩放/平移。数据以 JSON 格式存储在 `data/canvases/` 目录。
 
 ### 节点 (Node)
-画布上的基本组成单元，包含 13 种类型：`image`（图像节点）、`text`（文本节点）、`prompt`（提示词节点）、`llm`（LLM 节点）、`generator`（API 生成器节点）、`msgen`（ModelScope 生成器节点）、`comfy`（ComfyUI 工作流节点）、`output`（输出节点）、`loop`（循环节点）、`video`（视频节点）、`ps`（Photoshop 节点）、`group`（图像组节点）、`promptGroup`（提示词组节点）。
+画布上的基本组成单元，包含 14 种类型：`image`（图像节点）、`text`（文本节点）、`prompt`（提示词节点）、`llm`（LLM 节点）、`generator`（API 生成器节点）、`msgen`（ModelScope 生成器节点）、`comfy`（ComfyUI 工作流节点）、`output`（输出节点）、`loop`（循环节点）、`video`（视频节点）、`ltxDirector`（LTX Director 多段视频导演台节点，依赖工作流 `LTXDirectorv2-API.json`，需要 ComfyUI 装 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点）、`ps`（Photoshop 节点）、`group`（图像组节点）、`promptGroup`（提示词组节点）。LTX Director 集成细节见 `LTXDirector集成方案.md`。
 
 ### 输出文件夹 (Output Folder)
 每个画布在 `output/` 目录下拥有的专属子文件夹，命名规则为 `画布标题_画布ID前8位`。画布生成的所有文件存入该文件夹，实现多用户文件隔离。

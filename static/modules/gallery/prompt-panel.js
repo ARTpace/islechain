@@ -124,10 +124,15 @@
 .pp-tag.pp-tag-warm { background: rgba(251,146,60,0.18); color: #fdba74; border-color: rgba(251,146,60,0.3); }
 .pp-tag.pp-tag-green { background: rgba(34,197,94,0.18); color: #86efac; border-color: rgba(34,197,94,0.3); }
 
+/* ---- 内容区（整体滚动容器） ---- */
+.pp-content {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
 /* ---- 正文区 ---- */
 .pp-body {
     padding: 6px 14px 12px; overflow-y: auto;
     font-size: 13px; line-height: 1.75; word-break: break-word;
+    max-height: 42vh;
 }
 .pp-text { white-space: pre-wrap; opacity: 0.92; }
 .pp-text-dim { opacity: 0.55; font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
@@ -148,11 +153,17 @@
 .pp-meta-key { opacity: 0.65; font-weight: 500; }
 .pp-meta-val { opacity: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* ---- 滚动条 ---- */
-.pp-body::-webkit-scrollbar,
-.pp-box > div:last-child::-webkit-scrollbar { width: 5px; }
-.pp-body::-webkit-scrollbar-thumb,
-.pp-box > div:last-child::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 6px; }
+/* ---- 滚动条（深色主题） ---- */
+.pp-content,
+.pp-body { scrollbar-width: thin; scrollbar-color: rgba(71,85,105,0.6) transparent; }
+.pp-content::-webkit-scrollbar,
+.pp-body::-webkit-scrollbar { width: 6px; }
+.pp-content::-webkit-scrollbar-track,
+.pp-body::-webkit-scrollbar-track { background: transparent; }
+.pp-content::-webkit-scrollbar-thumb,
+.pp-body::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.6); border-radius: 6px; }
+.pp-content::-webkit-scrollbar-thumb:hover,
+.pp-body::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.85); border-radius: 6px; }
 `;
 
     /* ============================ 图标 ============================ */

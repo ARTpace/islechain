@@ -203,14 +203,15 @@ def generate(
     user_input: str,
     preset_id: Optional[str] = None,
     config_override: Optional[Dict[str, Any]] = None,
+    provider_id_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     智能提示词生成主函数 — prompt 模块的唯一外部入口。
 
     流程：
-        1. 加载预设 → 确定 provider、quality tags、temperature 等参数
-        2. 解析 provider 配置 → 获取 base_url、API key、model
-        3. 搜索知识库 → 匹配用户输入相关的片段（取代全量嵌入）
+        1. 加载预设 → 取 quality_tags / negative_default / temperature / max_tokens / system_prompt
+        2. 解析 provider 配置：provider_id_override > 旧 preset.provider_id（向后兼容） > 全局 > 第一个可用
+        3. 搜索知识库 → 匹配用户输入相关的片段
         4. 渲染 system prompt 模板 → 注入变量
         5. 调用 LLM
         6. 解析输出
@@ -219,6 +220,8 @@ def generate(
         user_input: 用户的中文/英文描述
         preset_id: 预设 ID。None 表示使用当前选中的预设。
         config_override: 可选配置覆盖
+        provider_id_override: [2026-07-28] 全局 provider 覆盖 (e.g. "agnes::agnes-2.0-flash").
+            优先级高于 preset 内旧字段。None/空 = 走全局。
 
     Returns:
         {
@@ -239,9 +242,10 @@ def generate(
             preset = pst.get_preset("default")
 
         # ── 步骤 2：解析配置 ──────────────────────────────────────
-        # 预设中指定的 provider 优先
-        preset_provider = preset.get("provider_id", "") if preset else ""
-        config = cfg.resolve(preset_provider)
+        # [2026-07-28] provider 优先级: provider_id_override (前端全局) > preset 内旧字段 (向后兼容) > 全局
+        legacy_preset_provider = preset.get("provider_id", "") if preset else ""
+        provider_id = provider_id_override or legacy_preset_provider
+        config = cfg.resolve(provider_id)
         if config_override:
             config.update(config_override)
         # 预设的参数覆盖
@@ -276,8 +280,8 @@ def generate(
         # 记录第一次（用户真正选中的预设）错误，避免被 fallback 错误覆盖
         first_error = raw_output if raw_output.startswith("ERROR:") else ""
 
-        # 如果预设指定了 provider 但调用失败，降级到全局兜底模型重试一次
-        if raw_output.startswith("ERROR:") and preset_provider:
+        # [2026-07-28] 如果 preset/provider 指定导致失败，降级到全局第一个可用 provider 重试
+        if raw_output.startswith("ERROR:") and provider_id:
             # 不指定 provider_id → config.resolve() 自动选择第一个可用的 provider
             fallback_config = cfg.resolve()
             if config_override:

@@ -128,7 +128,6 @@ def _create_default_preset() -> dict:
         "description": "默认的 Anima 标签生成预设",
         "tags": [],
         "sort_order": 0,
-        "provider_id": "",
         "output_format": "tag",
         "temperature": 0.3,
         "max_tokens": 1024,
@@ -210,7 +209,6 @@ def create_preset(data: dict) -> dict:
         "description": data.get("description", ""),
         "tags": data.get("tags", []),
         "sort_order": data.get("sort_order", len(index["preset_order"])),
-        "provider_id": data.get("provider_id", ""),
         "output_format": data.get("output_format", "tag"),
         "temperature": data.get("temperature", 0.3),
         "max_tokens": data.get("max_tokens", 1024),
@@ -256,11 +254,15 @@ def update_preset(preset_id: str, data: dict) -> Optional[dict]:
         data.pop("_sync_groups", None)
 
     # 只更新提供的字段
-    for key in ("name", "description", "tags", "sort_order", "provider_id",
+    # [2026-07-28] 移除 provider_id / model_mode - 改全局统一配置
+    for key in ("name", "description", "tags", "sort_order",
                  "output_format", "temperature", "max_tokens", "quality_tags",
                  "negative_default", "system_prompt", "is_default"):
         if key in data:
             preset[key] = data[key]
+
+    # [2026-07-28] 强制清理 preset 中的 provider_id，避免旧数据覆盖全局模型选择
+    preset.pop("provider_id", None)
 
     preset["updated_at"] = data.get("updated_at", preset.get("updated_at", ""))
 

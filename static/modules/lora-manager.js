@@ -551,8 +551,12 @@ const LoraManager = (function() {
     function updateVisibility() {
         const btn = document.getElementById('loraBtn');
         if (!btn) return;
+        // ComfyUI(local) 模式下所有工作流都显示 LoRA；无 currentEngine 的旧页面回退到工作流名判断
+        const hasEngine = typeof currentEngine !== 'undefined';
         const wf = (typeof currentWorkflow !== 'undefined') ? currentWorkflow.toLowerCase() : '';
-        const show = wf.includes('anima') || wf.includes('z-image') || wf.includes('z_image') || wf.includes('krea2') || wf.includes('ideogram4');
+        const show = hasEngine
+            ? currentEngine === 'local'
+            : (wf.includes('anima') || wf.includes('z-image') || wf.includes('z_image') || wf.includes('krea2') || wf.includes('ideogram4'));
         btn.style.display = show ? '' : 'none';
         const btnText = document.getElementById('loraBtnText');
         const count = state.active.length;

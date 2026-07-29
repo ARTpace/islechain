@@ -121,7 +121,12 @@
     function render(opts) {
         const { container, record, isNew = false } = opts;
         if (!record || !record.timestamp || !record.images || !record.images[0]) return null;
-        if (document.getElementById(`history-${record.timestamp}`)) return null; // 防重
+        const firstImg = record.images[0];
+        // 防重：同 timestamp 或同首图 URL 已渲染则跳过。
+        // 后端 save_to_history 用 time.time() 时间戳、前端用 Date.now()，两者不同，
+        // 仅按 timestamp 防重会漏掉「后端 WS 广播 + 前端就地渲染」造成的同一张图两张卡片。
+        if (document.getElementById(`history-${record.timestamp}`)) return null;
+        if (document.querySelector('.masonry-item[data-img0="' + String(firstImg).replace(/["\\]/g, '\\$&') + '"]')) return null;
 
         // [Task 5 收敛] 优先 NS.Config
         const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
@@ -135,6 +140,7 @@
         card.id = `history-${record.timestamp}`;
         card.dataset.historyTs = record.timestamp;
         card.dataset.historyType = historyType;
+        card.dataset.img0 = firstImg;
         card.className = 'masonry-item group animate-in fade-in duration-300';
 
         // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用

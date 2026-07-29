@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <!-- AI 提示词预设模块 -->
-    <script src="/prompt/static/prompt-module.js?v=20260722-4"></script>
+    <script src="/prompt/static/prompt-module.js?v=20260728-4"></script>
     <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
     <!-- 参考图管理器 + 反推提示词 -->
     <script src="/static/modules/ref-image-manager.js?v=20260614001"></script>
@@ -49,7 +49,7 @@
     <script src="/static/modules/gallery/toolbar-extras.js?v=20260721"></script>
     <script src="/static/modules/gallery/lightbox.js?v=20260721"></script>
     <script src="/static/modules/gallery/gallery-core.js?v=20260721"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260719"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/date-grouping.js?v=20260721"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
@@ -2203,14 +2203,30 @@
             // 收藏图片时自动保存到资产库（已收藏的不重复保存）
             var _favSavingToAsset = {};
             if (GalleryDisplay.Base && GalleryDisplay.Base.bus && typeof GalleryDisplay.Base.bus.on === 'function') {
+                function _findPromptByUrl(u) {
+                    try {
+                        var items = (window.GalleryList && GalleryList.allHistory) || [];
+                        for (var i = 0; i < items.length; i++) {
+                            var r = items[i];
+                            if (r && r.images && r.images.indexOf(u) !== -1) return r.prompt || '';
+                        }
+                    } catch (e) {}
+                    return '';
+                }
                 GalleryDisplay.Base.bus.on('fav:changed', function(ev) {
                     if (ev && ev.added && ev.url && !_favSavingToAsset[ev.url]) {
+                        var gPrompt = _findPromptByUrl(ev.url);
                         _favSavingToAsset[ev.url] = true;
                         fetch('/api/user/assets/save-from-url', {
                             method:'POST', headers:{'Content-Type':'application/json'},
-                            body: JSON.stringify({url: ev.url})
+                            body: JSON.stringify({url: ev.url, prompt: gPrompt})
                         }).then(function(r){
-                            if (r.ok) console.log('[收藏] 已保存到资产库:', ev.url);
+                            if (r.ok) {
+                                console.log('[收藏] 已保存到资产库:', ev.url);
+                                if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
+                                    try { AssetLibrary.invalidate(); } catch (_) {}
+                                }
+                            }
                             else console.warn('[收藏] 保存失败:', r.status, r.statusText);
                         }).catch(function(e){
                             console.warn('[收藏] 保存异常:', e);

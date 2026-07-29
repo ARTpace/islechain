@@ -249,13 +249,28 @@
         .res-btn.active { border-color: var(--accent) !important; background: rgba(0,180,216,0.08); }
         .res-btn.active .text-base { color: var(--accent) !important; }
         .theme-dark .res-btn.active { background: rgba(0,240,255,0.15); }
-    </style>
+
+        /* === 资产图按钮（从资产库快捷选图） === */
+        .asset-pick-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+            padding: 3px 8px; border-radius: 6px; cursor: pointer; user-select: none;
+            color: var(--accent); border: 1px solid rgba(0, 180, 216, .4);
+            background: rgba(0, 180, 216, .06); transition: all .15s ease;
+        }
+        .asset-pick-btn:hover { background: rgba(0, 180, 216, .15); border-color: var(--accent); }
+        .asset-pick-btn svg { width: 12px; height: 12px; }
+        .theme-dark .asset-pick-btn { color: #00b4d8; border-color: rgba(0, 240, 255, .4); background: rgba(0, 240, 255, .08); }
+        .theme-dark .asset-pick-btn:hover { background: rgba(0, 240, 255, .18); }
+
+
+        </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
     <script src="/static/history-bulk-manager.js"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260719"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
     <script src="/static/modules/gallery/actions.js?v=20260611"></script>
     <script src="/static/modules/gallery/list.js?v=20260611"></script>
     <script src="/static/modules/gallery/card.js?v=20260611"></script>
@@ -266,6 +281,7 @@
     <script src="/static/modules/gallery/display.js?v=20260619"></script>
     <script src="/static/modules/gallery/toolbar-extras.js?v=20260721"></script>
     <script src="/static/modules/gallery/gallery-core.js?v=20260721"></script>
+    <script src="/static/modules/gallery/timeline.js?v=20260729-5"></script>
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -292,7 +308,13 @@
                     <div class="control-left" style="flex: 1 1 50%; min-width:0; display:flex; flex-direction:column;">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                             <span class="text-[9px] font-bold text-gray-400 uppercase">上传图像</span>
-                            <span id="imgMeta" class="text-[9px] text-gray-300" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;text-align:right;"></span>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <button id="assetImgBtn" type="button" onclick="AssetLibrary.open()" class="asset-pick-btn" title="从资产库选择图片，快捷添加到导入图">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                                    <span>资产图</span>
+                                </button>
+                                <span id="imgMeta" class="text-[9px] text-gray-300" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;text-align:right;"></span>
+                            </div>
                         </div>
                         <div class="upload-zone upload-zone-large" id="uploadZone" style="flex:1; min-height:440px; max-height:580px;">
                             <img class="preview-image preview-image-large" id="preview" alt="图像预览">
@@ -1050,6 +1072,22 @@
             if (pair) showCompare(pair.original, pair.result);
         }
         window.reopenCompare = reopenCompare;
+
+        // 重启后从历史记录恢复对比按钮：原图 URL 已持久化到 record.original
+        function reinjectCompareButtons() {
+            const items = (window.GalleryList && GalleryList.allHistory) || [];
+            items.forEach(function (rec) {
+                if (!rec || !rec.original) return;
+                const resultUrl = (rec.images && rec.images[0]) || '';
+                if (!resultUrl) return;
+                compareCache.set(resultUrl, { original: rec.original, result: resultUrl });
+                const card = document.getElementById('history-' + rec.timestamp);
+                if (card) injectCompareBtn(card, rec.original, resultUrl);
+            });
+        }
+        window.reinjectCompareButtons = reinjectCompareButtons;
+
+
         function setDivider(ratio) {
             const pct = Math.max(0, Math.min(1, ratio)) * 100;
             document.getElementById('compareDivider').style.left = pct + '%';
@@ -1193,6 +1231,8 @@
                 updateGenButtonState();
             }
         }
+        // 暴露给资产库 onApply 回调（把资产图作为 File 走同一套预览/上传流程）
+        window.handleFileUpload = handleFileUpload;
 
         /**
          * 超大图预压缩：长边 > 2048 时缩到 2048，质量 0.85，format = image/jpeg
@@ -1431,8 +1471,15 @@
                 if (imageUrl) {
                     const featureName = currentMode === 'f2k' ? '高清修复' : `SeedVR2.5超分${currentResolution === 4096 ? '4K' : '2K'}`;
                     imageUrl = await saveToUserOutput(imageUrl, featureName);
+                    // 持久化原图 URL：优先存到用户 output（稳定,重启后仍可用），失败回退到 comfyui input 视图
+                    let originalUrl = '';
+                    if (uploadedImageName) {
+                        const originalView = `/api/comfyui/view?filename=${encodeURIComponent(uploadedImageName)}&type=input`;
+                        originalUrl = originalView;
+                        try { originalUrl = await saveToUserOutput(originalView, currentMode === 'f2k' ? '高清修复-原图' : 'SeedVR2超分-原图'); } catch (e) {}
+                    }
                     const timestamp = Date.now();
-                    const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'gaoqingxiufu', mode: currentMode, ...recordMeta };
+                    const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'gaoqingxiufu', mode: currentMode, ...recordMeta, original: originalUrl || undefined };
                     GalleryList.pushNewImage(record);
                     await fetch('/api/history/save', {
                         method: 'POST',
@@ -1440,9 +1487,10 @@
                         body: JSON.stringify(record)
                     });
                     if (lastOriginalSrc) {
-                        compareCache.set(imageUrl, { original: lastOriginalSrc, result: imageUrl });
+                        const cacheOriginal = originalUrl || lastOriginalSrc;
+                        compareCache.set(imageUrl, { original: cacheOriginal, result: imageUrl });
                         const card = document.getElementById(`history-${timestamp}`);
-                        if (card) injectCompareBtn(card, lastOriginalSrc, imageUrl);
+                        if (card) injectCompareBtn(card, cacheOriginal, imageUrl);
                         showCompare(lastOriginalSrc, imageUrl);
                     }
                     if (placeholder) placeholder.remove();
@@ -1482,9 +1530,14 @@
             loadSeedVR2Workflow().catch(e => console.warn('[SeedVR2] 预加载失败', e));
             GalleryList.load(0).then(() => {
                 const trigger = document.getElementById('loadMoreTrigger');
-                if (trigger) { trigger.onclick = () => GalleryList.load(1); }
+                if (trigger) { trigger.onclick = () => GalleryList.load(1).then(() => { reinjectCompareButtons(); window.GalleryTimeline && GalleryTimeline.rebuild(); }); }
+                reinjectCompareButtons();
                 window.HistoryBulkManager?.attach({masonry:'#masonry'});
+                // window.GalleryTimeline && GalleryTimeline.rebuild();
             });
+            // 时间轴：复用画廊模块（timeline.js）GalleryTimeline，挂载到 #masonry（自带 MutationObserver + 轮询兜底，覆盖翻页/自动扫描/新图）
+            // [已暂时停用] 时间轴功能暂不稳定，先不接入使用；保留模块与脚本，需要时取消下一行注释即可恢复。
+            // if (window.GalleryTimeline) GalleryTimeline.attach({ container: '#masonry' });
             setInterval(async () => {
                 try {
                     const res = await fetch("/api/queue_status?client_id=" + encodeURIComponent(CLIENT_ID));
@@ -1500,5 +1553,87 @@
             }, 3000);
         };
     </script>
+
+<!-- ── 资产库选择面板（复用 /static/modules/asset-library.js） ── -->
+<div id="assetLibraryMount"></div>
+<script src="/static/modules/asset-library.js"></script>
+<script>
+    // 把选中的资产图（URL → File）走 handleFileUpload，直接成为高清修复的导入图
+    function applyAssetToHdRepair(url, name) {
+        fetch(url).then(function (r) { return r.blob(); }).then(function (blob) {
+            var ext = (name || 'image').split('.').pop() || 'png';
+            var file = new File([blob], name || ('asset.' + ext), { type: blob.type || 'image/' + ext });
+            if (typeof window.handleFileUpload === 'function') window.handleFileUpload(file);
+            else alert('无法加载导入图，请刷新页面后重试');
+        }).catch(function () { alert('无法加载资产图片'); });
+    }
+    if (window.AssetLibrary && typeof AssetLibrary.init === 'function') {
+        AssetLibrary.init({
+            mountId: 'assetLibraryMount',
+            allowDelete: true,
+            onApply: function (url, name) { applyAssetToHdRepair(url, name); }
+        });
+    }
+
+    // 收藏图片时自动保存到资产库；取消收藏时同步从资产库删除（与 zimage 行为一致）
+    (function () {
+        var _favInFlight = {};   // galleryUrl -> true（请求进行中，防重复）
+        var _favSavedAsset = {}; // galleryUrl -> { assetUrl, dedup }
+        function _notifyAssetChanged() {
+            if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
+                try { AssetLibrary.invalidate(); } catch (_) {}
+            }
+        }
+        if (window.GalleryDisplay && GalleryDisplay.Base && GalleryDisplay.Base.bus &&
+            typeof GalleryDisplay.Base.bus.on === 'function') {
+            function _findPromptByUrl(u) {
+                try {
+                    var items = (window.GalleryList && GalleryList.allHistory) || [];
+                    for (var i = 0; i < items.length; i++) {
+                        var r = items[i];
+                        if (r && r.images && r.images.indexOf(u) !== -1) return r.prompt || '';
+                    }
+                } catch (e) {}
+                return '';
+            }
+            GalleryDisplay.Base.bus.on('fav:changed', function (ev) {
+                if (!ev || !ev.url) return;
+                var gUrl = ev.url;
+                var gPrompt = _findPromptByUrl(gUrl);
+                if (ev.added) {
+                    if (_favInFlight[gUrl] || _favSavedAsset[gUrl]) return;
+                    _favInFlight[gUrl] = true;
+                    fetch('/api/user/assets/save-from-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: gUrl, prompt: gPrompt })
+                    }).then(function (r) {
+                        if (r.ok) {
+                            return r.json().then(function (data) {
+                                _favSavedAsset[gUrl] = { assetUrl: data.url || gUrl, dedup: !!data.dedup };
+                                _notifyAssetChanged(); // 让资产图面板立即反映新收藏
+                            });
+                        }
+                    }).catch(function () {}).then(function () {
+                        delete _favInFlight[gUrl];
+                    });
+                } else {
+                    var rec = _favSavedAsset[gUrl];
+                    delete _favSavedAsset[gUrl];
+                    delete _favInFlight[gUrl];
+                    if (rec && !rec.dedup) {
+                        fetch('/api/user/assets/delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: rec.assetUrl })
+                        }).then(function (r) {
+                            if (r.ok) _notifyAssetChanged();
+                        }).catch(function () {});
+                    }
+                }
+            });
+        }
+    })();
+</script>
 </body>
 </html>

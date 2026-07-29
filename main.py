@@ -1800,6 +1800,13 @@ class CanvasSaveRequest(BaseModel):
     nodes: List[Dict[str, Any]] = []
     connections: List[Dict[str, Any]] = []
     viewport: Dict[str, Any] = {}
+    logs: List[Dict[str, Any]] = []
+
+class DeleteCanvasLogRequest(BaseModel):
+    log_id: str = ""
+    delete_unreferenced_media: bool = False
+    reset_referencing_nodes: bool = False
+    base_updated_at: int = 0
 
 class CanvasMetaUpdate(BaseModel):
     title: Optional[str] = None
@@ -2144,6 +2151,19 @@ def save_to_history(record):
             except: pass
         if "timestamp" not in record:
             record["timestamp"] = time.time() * 1000
+        # 幂等：同首图 URL + 同 type 视为同一条记录，更新而非重复插入。
+        # 杜绝「后端生成接口已 save_to_history + 前端又 /api/history/save」导致的
+        # 一张图两条历史记录（时间戳不同，前端去重按 imgs[0] 能合并，但会污染数据）。
+        first = (record.get("images") or [None])[0]
+        if first:
+            for i, item in enumerate(history):
+                exist_first = (item.get("images") or [None])[0]
+                if exist_first == first and item.get("type") == record.get("type"):
+                    history[i] = record
+                    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+                        json.dump(history[:5000], f, ensure_ascii=False, indent=4)
+                    _invalidate_history_cache()
+                    return
         history.insert(0, record)
         with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
             json.dump(history[:5000], f, ensure_ascii=False, indent=4)
@@ -5929,6 +5949,8 @@ async def update_canvas(canvas_id: str, payload: CanvasSaveRequest, token: str =
     canvas["nodes"] = payload.nodes
     canvas["connections"] = payload.connections
     canvas["viewport"] = payload.viewport
+    # 保存生成日志（最多 500 条；从 Infinite-Canvas 移植：画布层独立日志管理）
+    canvas["logs"] = list(payload.logs or [])[-500:]
     save_canvas(canvas)
     return {"canvas": canvas}
 
@@ -5940,6 +5962,343 @@ async def delete_canvas(canvas_id: str, token: str = ""):
         canvas["deleted_at"] = now_ms()
         save_canvas(canvas)
     return {"ok": True}
+
+# --- 画布生成日志辅助函数（移植自 Infinite-Canvas，用于 logs/delete 端点） ---
+
+def collect_local_media_urls(value: Any) -> List[str]:
+    """Collect local /assets and /output URLs from nested canvas log payloads."""
+    urls: List[str] = []
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith(("/assets/", "/output/", "/api/storage-files/")):
+            urls.append(text)
+    elif isinstance(value, dict):
+        for item in value.values():
+            urls.extend(collect_local_media_urls(item))
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            urls.extend(collect_local_media_urls(item))
+    return urls
+
+
+def local_media_path_from_url(url: str) -> Optional[str]:
+    """Resolve a local media URL using the same one-to-one mapping as app mounts."""
+    if not url:
+        return None
+    clean = urllib.parse.unquote(str(url).split("?", 1)[0]).replace("\\", "/")
+    if clean.startswith("/api/storage-files/"):
+        rest = clean[len("/api/storage-files/"):].lstrip("/")
+        kind, _, rel = rest.partition("/")
+        return storage_file_path(kind, rel) if kind and rel else None
+    if clean.startswith("/assets/"):
+        root = ASSETS_DIR
+        rel = clean[len("/assets/"):]
+    elif clean.startswith("/output/"):
+        root = OUTPUT_DIR
+        rel = clean[len("/output/"):]
+    else:
+        return None
+    rel = rel.lstrip("/")
+    if not rel:
+        return None
+    root_abs = os.path.abspath(root)
+    path = os.path.abspath(os.path.join(root_abs, rel))
+    try:
+        return path if os.path.commonpath([root_abs, path]) == root_abs and os.path.exists(path) else None
+    except ValueError:
+        return None
+
+
+def generated_media_path_from_url(url: str) -> Optional[str]:
+    """Resolve a URL only when it points inside a generated-output directory."""
+    try:
+        path = local_media_path_from_url(url)
+    except (HTTPException, OSError, ValueError):
+        return None
+    if not path or not os.path.isfile(path):
+        return None
+    path = os.path.realpath(path)
+    for root in (OUTPUT_OUTPUT_DIR, OUTPUT_DIR):
+        root_abs = os.path.realpath(root)
+        try:
+            if os.path.commonpath([root_abs, path]) == root_abs:
+                return path
+        except ValueError:
+            continue
+    return None
+
+
+def json_references_media_path(value: Any, target_path: str) -> bool:
+    """Return True when a JSON-compatible value references the local media file."""
+    target = os.path.normcase(os.path.realpath(target_path))
+    if isinstance(value, str):
+        try:
+            resolved = local_media_path_from_url(value.strip())
+        except (HTTPException, OSError, ValueError):
+            return False
+        return bool(resolved and os.path.normcase(os.path.realpath(resolved)) == target)
+    if isinstance(value, dict):
+        return any(json_references_media_path(item, target) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(json_references_media_path(item, target) for item in value)
+    return False
+
+
+def persisted_json_references_media_path(target_path: str) -> bool:
+    """Scan persisted user documents before deleting generated media."""
+    candidates = [ASSET_LIBRARY_PATH]
+    for root in (CANVAS_DIR, CONVERSATION_DIR):
+        if os.path.isdir(root):
+            for current, _, files in os.walk(root):
+                candidates.extend(os.path.join(current, name) for name in files if name.lower().endswith(".json"))
+    seen: set = set()
+    for path in candidates:
+        path = os.path.abspath(path)
+        if path in seen or not os.path.isfile(path):
+            continue
+        seen.add(path)
+        try:
+            with open(path, "r", encoding="utf-8-sig") as handle:
+                value = json.load(handle)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return True
+        if json_references_media_path(value, target_path):
+            return True
+    return False
+
+
+def prune_generation_history_for_media(paths: List[str]) -> int:
+    """Remove history cards that would otherwise point at deleted media."""
+    if not paths or not os.path.isfile(HISTORY_FILE):
+        return 0
+    try:
+        with HISTORY_LOCK:
+            with open(HISTORY_FILE, "r", encoding="utf-8-sig") as handle:
+                history = json.load(handle)
+            if not isinstance(history, list):
+                return 0
+            kept = [
+                record for record in history
+                if not any(json_references_media_path(record, path) for path in paths)
+            ]
+            removed = len(history) - len(kept)
+            if removed:
+                with open(HISTORY_FILE, "w", encoding="utf-8") as handle:
+                    json.dump(kept, handle, ensure_ascii=False, indent=4)
+            return removed
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return 0
+
+
+def smart_owned_result_items(images: List[Any], paths: List[str]) -> List[Any]:
+    """Return generated results, including legacy results without the marker."""
+    return [
+        item for item in images
+        if isinstance(item, dict)
+        and item.get("loopInputPreview") is not True
+        and (
+            item.get("generatedResult") is True
+            or any(json_references_media_path(item, path) for path in paths)
+        )
+    ]
+
+
+def expand_canvas_generated_media_paths(canvas: Dict[str, Any], paths: List[str]) -> List[str]:
+    """Include every generated result owned by a result node touched by the log."""
+    expanded = list(paths)
+    for node in list(canvas.get("nodes") or []):
+        node_type = str(node.get("type") or "").strip().lower()
+        images = list(node.get("images") or [])
+        if node_type == "output":
+            owned_items = images
+        elif node_type == "smart-image":
+            owned_items = smart_owned_result_items(images, paths)
+        else:
+            owned_items = []
+        if not any(json_references_media_path(item, path) for item in owned_items for path in paths):
+            continue
+        for item in owned_items:
+            for url in collect_local_media_urls(item):
+                candidate = generated_media_path_from_url(url)
+                if candidate and candidate not in expanded:
+                    expanded.append(candidate)
+    return expanded
+
+
+def reset_canvas_result_nodes_for_media(canvas: Dict[str, Any], paths: List[str]) -> List[str]:
+    """Clear generated media while preserving prompts, references, settings and links."""
+    reset_ids: List[str] = []
+    updated_nodes: List[Dict[str, Any]] = []
+    for node in list(canvas.get("nodes") or []):
+        node = dict(node)
+        node_type = str(node.get("type") or "").strip().lower()
+        changed = False
+        if isinstance(node.get("generatedOutputs"), list):
+            outputs = list(node.get("generatedOutputs") or [])
+            kept_outputs = [
+                item for item in outputs
+                if not any(json_references_media_path(item, path) for path in paths)
+            ]
+            if len(kept_outputs) != len(outputs):
+                node["generatedOutputs"] = kept_outputs
+                changed = True
+        if node_type in {"smart-image", "output"} and isinstance(node.get("images"), list):
+            images = list(node.get("images") or [])
+            if node_type == "smart-image":
+                owned_items = smart_owned_result_items(images, paths)
+            else:
+                owned_items = images
+            owns_target = any(
+                json_references_media_path(item, path) for item in owned_items for path in paths
+            )
+            kept_images = [
+                item for item in images
+                if not (
+                    owns_target
+                    and item in owned_items
+                    and any(json_references_media_path(item, path) for path in paths)
+                )
+            ]
+            if len(kept_images) != len(images):
+                node["images"] = kept_images
+                changed = True
+                if node_type == "output":
+                    node["_pending"] = []
+                    node["imageComparisons"] = {}
+                if node_type == "smart-image":
+                    node["pending"] = 0
+                    node["running"] = False
+                    node["queued"] = False
+                    for key in (
+                        "jimengPending", "pendingTasks", "runStartedAt", "runFinishedAt",
+                        "runElapsedMs", "runTimerHidden", "outputKind", "w", "h",
+                    ):
+                        node.pop(key, None)
+        elif node_type == "image" and any(json_references_media_path(node.get("url"), path) for path in paths):
+            node["url"] = ""
+            node["mediaKind"] = "image"
+            node["name"] = "空白图片"
+            changed = True
+        if changed and node.get("id"):
+            reset_ids.append(str(node["id"]))
+        updated_nodes.append(node)
+
+    if reset_ids:
+        canvas["nodes"] = updated_nodes
+    return reset_ids
+
+
+def delete_media_preview_cache(path: str) -> int:
+    """Delete derived previews for a source file before the source disappears."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return 0
+    source = os.path.realpath(path)
+    removed = 0
+    for width in range(0, 4097):
+        keys = [hashlib.sha1(f"{source}|{stat.st_mtime_ns}|{stat.st_size}|{width}|jpg".encode("utf-8", "ignore")).hexdigest() + ".jpg"]
+        if 64 <= width <= 2048:
+            preview_key = hashlib.sha1(f"{source}|{stat.st_mtime_ns}|{stat.st_size}|{width}".encode("utf-8", "ignore")).hexdigest()
+            keys.extend((preview_key + ".webp", preview_key + ".png"))
+        for name in keys:
+            cache_path = os.path.join(MEDIA_PREVIEW_DIR, name)
+            try:
+                if os.path.isfile(cache_path):
+                    os.remove(cache_path)
+                    removed += 1
+            except OSError:
+                pass
+    return removed
+
+
+@app.post("/api/canvases/{canvas_id}/logs/delete")
+async def delete_canvas_log(canvas_id: str, payload: DeleteCanvasLogRequest, token: str = ""):
+    """删除画布的一条生成日志（移植自 Infinite-Canvas）。
+
+    可选副作用：
+    - delete_unreferenced_media=True：删除该日志产出的本地媒体文件（其他画布/会话还在引用则跳过）
+    - reset_referencing_nodes=True：清空画布上引用这些媒体的节点的 generatedOutputs / images
+    """
+    log_id = str(payload.log_id or "").strip()
+    if not log_id:
+        raise HTTPException(status_code=400, detail="缺少日志 ID")
+
+    def remove_log_record():
+        with CANVAS_LOCK:
+            canvas = load_canvas(canvas_id)
+            validate_canvas_owner(canvas, token)
+            current_updated_at = int(canvas.get("updated_at") or 0)
+            if payload.base_updated_at and current_updated_at and int(payload.base_updated_at) < current_updated_at:
+                raise HTTPException(status_code=409, detail={
+                    "message": "画布已被其他页面更新，请刷新后重试。",
+                    "canvas": canvas,
+                    "updated_at": current_updated_at,
+                })
+            logs = list(canvas.get("logs") or [])
+            target = next((item for item in logs if str(item.get("id") or "") == log_id), None)
+            if not target:
+                raise HTTPException(status_code=404, detail="生成日志不存在")
+
+            candidate_paths: List[str] = []
+            if payload.delete_unreferenced_media:
+                for url in collect_local_media_urls(target.get("outputs") or []):
+                    path = generated_media_path_from_url(url)
+                    if path and path not in candidate_paths:
+                        candidate_paths.append(path)
+
+            reset_node_ids: List[str] = []
+            if payload.reset_referencing_nodes and candidate_paths:
+                candidate_paths = expand_canvas_generated_media_paths(canvas, candidate_paths)
+                reset_node_ids = reset_canvas_result_nodes_for_media(canvas, candidate_paths)
+
+            canvas["logs"] = [item for item in logs if str(item.get("id") or "") != log_id]
+            save_canvas(canvas)
+            return canvas, candidate_paths, reset_node_ids
+
+    canvas, candidate_paths, reset_node_ids = await asyncio.to_thread(remove_log_record)
+
+    removed_files: List[str] = []
+    skipped_referenced: List[str] = []
+    removed_previews = 0
+    if payload.delete_unreferenced_media:
+        def cleanup_unreferenced_media():
+            removed: List[str] = []
+            skipped: List[str] = []
+            previews = 0
+            deletable: List[str] = []
+            for path in candidate_paths:
+                if persisted_json_references_media_path(path):
+                    skipped.append(os.path.basename(path))
+                    continue
+                deletable.append(path)
+            prune_generation_history_for_media(deletable)
+            for path in deletable:
+                try:
+                    previews += delete_media_preview_cache(path)
+                    os.remove(path)
+                    removed.append(os.path.basename(path))
+                except OSError:
+                    skipped.append(os.path.basename(path))
+            return removed, skipped, previews
+
+        def locked_cleanup():
+            with CANVAS_LOCK:
+                return cleanup_unreferenced_media()
+
+        removed_files, skipped_referenced, removed_previews = await asyncio.to_thread(locked_cleanup)
+
+    return {
+        "ok": True,
+        "canvas": canvas,
+        "removed_files": removed_files,
+        "removed_previews": removed_previews,
+        "reset_node_ids": reset_node_ids,
+        "skipped_referenced": skipped_referenced,
+    }
+
+
+
 
 @app.post("/api/canvases/{canvas_id}/restore")
 async def restore_canvas(canvas_id: str, token: str = ""):
@@ -6176,6 +6535,7 @@ async def delete_asset(canvas_id: str, payload: dict = None):
 class UserAssetSaveRequest(BaseModel):
     url: str = ""
     name: str = ""
+    prompt: Optional[str] = None
 
 @app.post("/api/user/assets/save-from-url")
 async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "", request: Request = None):
@@ -6225,16 +6585,71 @@ async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "
                         existing_hash = hashlib.md5(ef.read()).hexdigest()
                     if existing_hash == content_hash:
                         url_path = f"/assets/{dirname}/{existing}"
-                        return {"url": url_path, "name": payload.name or existing, "dedup": True}
+                        # 读取已有提示词元数据（若有），去重命中时一并带出
+                        existing_txt = os.path.splitext(existing_path)[0] + ".txt"
+                        existing_prompt = ""
+                        if os.path.isfile(existing_txt):
+                            try:
+                                with open(existing_txt, "r", encoding="utf-8") as etf:
+                                    existing_prompt = etf.read()
+                            except Exception:
+                                pass
+                        return {"url": url_path, "name": payload.name or existing, "dedup": True, "prompt": existing_prompt}
                 except Exception:
                     pass
     filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
     filepath = os.path.join(asset_dir, filename)
     with open(filepath, "wb") as f:
         f.write(content)
+    # 保存提示词元数据（同名 .txt），供资产库按提示词搜索
+    if payload.prompt:
+        try:
+            with open(os.path.splitext(filepath)[0] + ".txt", "w", encoding="utf-8") as tf:
+                tf.write(payload.prompt)
+        except Exception:
+            pass
 
     url_path = f"/assets/{dirname}/{filename}"
-    return {"url": url_path, "name": payload.name or filename}
+    return {"url": url_path, "name": payload.name or filename, "prompt": payload.prompt or ""}
+
+@app.post("/api/user/assets/delete")
+async def delete_user_asset_from_url(payload: dict = None, token: str = ""):
+    """删除用户级资产文件夹 input/{username}/ 中的图片（与 save-from-url 配套，用于取消收藏时同步移除）"""
+    username = get_username_by_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="请先登录")
+    if not payload or not payload.get("url"):
+        raise HTTPException(status_code=400, detail="缺少 url")
+    asset_dir, dirname = get_user_input_dir(username)
+    raw = payload["url"].lstrip("/")
+    # 仅接受 /assets/... 形式
+    if not raw.startswith("assets/"):
+        raise HTTPException(status_code=400, detail="无效的资产地址")
+    # 去掉 assets/ 前缀，剩余为 {dirname}/{rest}
+    rel = raw[len("assets/"):]
+    parts = rel.split("/")
+    if not parts or parts[0] != dirname:
+        raise HTTPException(status_code=403, detail="无权删除该资产")
+    target = os.path.join(asset_dir, *parts[1:])
+    # 安全校验：target 必须位于 asset_dir 内，防止路径穿越
+    abs_asset = os.path.abspath(asset_dir)
+    abs_target = os.path.abspath(target)
+    if abs_target != abs_asset and not abs_target.startswith(abs_asset + os.sep):
+        raise HTTPException(status_code=403, detail="无权删除该资产")
+    if os.path.isfile(target):
+        try:
+            os.remove(target)
+            # 一并删除提示词元数据（同名 .txt）
+            txt = os.path.splitext(target)[0] + ".txt"
+            if os.path.isfile(txt):
+                try:
+                    os.remove(txt)
+                except Exception:
+                    pass
+            return {"ok": True, "deleted": True}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"删除失败: {e}")
+    return {"ok": True, "deleted": False}
 
 @app.get("/api/user/assets")
 async def list_user_assets(token: str = ""):
@@ -6256,12 +6671,22 @@ async def list_user_assets(token: str = ""):
                 ext = os.path.splitext(filename)[1].lower()
                 if ext in image_exts:
                     stat = os.stat(filepath)
+                    # 读取提示词元数据（同名 .txt）
+                    prompt = ""
+                    txt_path = os.path.splitext(filepath)[0] + ".txt"
+                    if os.path.isfile(txt_path):
+                        try:
+                            with open(txt_path, "r", encoding="utf-8") as tf:
+                                prompt = tf.read()
+                        except Exception:
+                            pass
                     files.append({
                         "name": filename,
                         "size": stat.st_size,
                         "modified": stat.st_mtime,
                         "url": f"/assets/{dirname}/{filename}",
-                        "type": "image"
+                        "type": "image",
+                        "prompt": prompt
                     })
         # 同时扫描画布资产子目录 input/{username}/{canvas_folder}/
         for item in sorted(os.listdir(asset_dir), reverse=True):
@@ -6274,12 +6699,22 @@ async def list_user_assets(token: str = ""):
                     ext = os.path.splitext(filename)[1].lower()
                     if ext in image_exts:
                         stat = os.stat(filepath)
+                        # 读取提示词元数据（同名 .txt）
+                        prompt = ""
+                        txt_path = os.path.splitext(filepath)[0] + ".txt"
+                        if os.path.isfile(txt_path):
+                            try:
+                                with open(txt_path, "r", encoding="utf-8") as tf:
+                                    prompt = tf.read()
+                            except Exception:
+                                pass
                         files.append({
                             "name": filename,
                             "size": stat.st_size,
                             "modified": stat.st_mtime,
                             "url": f"/assets/{dirname}/{item}/{filename}",
-                            "type": "image"
+                            "type": "image",
+                            "prompt": prompt
                         })
     except Exception as e:
         print(f"读取用户资产列表失败: {e}")
@@ -6559,6 +6994,7 @@ class SaveHistoryRequest(BaseModel):
     params: Optional[Dict[str, Any]] = None
     timestamp: Optional[float] = None
     genParams: Optional[Dict[str, Any]] = None  # 完整生成参数,用于载入提示词恢复
+    original: Optional[str] = None  # 高清修复原图 URL,用于重启后仍能前后对比
 
 @app.post("/api/history/save")
 async def save_history(req: SaveHistoryRequest, token: str = ""):
@@ -6610,6 +7046,8 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
     record["user"] = username
     if req.genParams:
         record["genParams"] = req.genParams
+    if req.original:
+        record["original"] = req.original
     save_to_history(record)
     return {"success": True, "timestamp": record["timestamp"]}
 
@@ -7266,6 +7704,13 @@ import smart_tts as smart_tts_module
 class SmartPromptRequest(BaseModel):
     prompt: str
     config: Optional[Dict[str, Any]] = None
+    # === Local ComfyUI workflow channel (added 2026-07-28) ===
+    channel: Optional[str] = None
+    comfyui_workflow: Optional[str] = None
+    comfyui_model: Optional[str] = None
+    fields: Optional[Dict[str, Any]] = None
+    # === [2026-07-28] 全局 provider/model 覆盖 - 替代 preset 内 provider_id ===
+    provider_id: Optional[str] = None
 
 @app.get("/api/smart-prompt/config")
 async def get_smart_prompt_config():
@@ -7275,10 +7720,16 @@ async def get_smart_prompt_config():
         if os.path.exists(config_file):
             with open(config_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return {"provider_id": data.get("provider_id", "")}
+                # [2026-07-28] 返回 channel + provider_id + comfyui 工作流/模型
+                return {
+                    "provider_id": data.get("provider_id", ""),
+                    "channel": data.get("channel", "api"),
+                    "comfyui_workflow": data.get("comfyui_workflow", "提示词/文生提示词.json"),
+                    "comfyui_model": data.get("comfyui_model", ""),
+                }
     except Exception:
         pass
-    return {"provider_id": ""}
+    return {"provider_id": "", "channel": "api", "comfyui_workflow": "提示词/文生提示词.json", "comfyui_model": ""}
 
 @app.post("/api/smart-prompt/config")
 async def save_smart_prompt_config(payload: dict):
@@ -7292,10 +7743,110 @@ async def save_smart_prompt_config(payload: dict):
                 data = json.load(f)
         except Exception:
             pass
+    # [2026-07-28] 存 channel + provider_id + comfyui 工作流/模型
     data["provider_id"] = payload.get("provider_id", "")
+    channel = payload.get("channel", "api")
+    if channel not in ("api", "comfyui"):
+        channel = "api"
+    data["channel"] = channel
+    data["comfyui_workflow"] = payload.get("comfyui_workflow", "提示词/文生提示词.json") or "提示词/文生提示词.json"
+    data["comfyui_model"] = payload.get("comfyui_model", "") or ""
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    return {"success": True}
+    return {"success": True, "channel": channel, "provider_id": data["provider_id"], "comfyui_workflow": data["comfyui_workflow"], "comfyui_model": data["comfyui_model"]}
+
+@app.get("/api/comfyui/llama-models")
+async def list_comfyui_llama_models():
+    """从本地 ComfyUI 获取 llama_cpp_model_loader 可用模型列表"""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"http://{COMFYUI_ADDRESS}/object_info/llama_cpp_model_loader")
+            resp.raise_for_status()
+            info = resp.json() or {}
+        node_info = info.get("llama_cpp_model_loader", {}) or {}
+        inputs = node_info.get("input", {}) or node_info.get("input_required", {}) or {}
+        required = inputs.get("required", {}) if isinstance(inputs, dict) else {}
+        model_input = required.get("model") or []
+        models = []
+        if isinstance(model_input, (list, tuple)) and len(model_input) > 0 and isinstance(model_input[0], list):
+            models = [str(m) for m in model_input[0]]
+        return {"models": models}
+    except Exception as e:
+        return {"models": [], "error": str(e)}
+
+@app.post("/api/smart-prompt/test")
+async def smart_prompt_test(req: SmartPromptRequest):
+    """测试当前选中的模型/工作流是否可用 (轻量探针，不跑完整生成)
+
+    - API 通道: 直接对选中 provider 发一次最小推理调用 (不走 provider 降级 fallback)，
+      能真实发现过期 key / 地址错误 / 模型不存在等问题。
+    - 本地 ComfyUI 通道: 校验 ComfyUI 连通性 + 工作流文件存在 + (若指定) llama 模型在可用列表。
+      不实际跑工作流 (本地 LLM 推理约 18s，过重)。
+    """
+    if (req.channel or "api") == "comfyui":
+        return await _smart_prompt_comfyui_test(req)
+
+    # === API 通道: 直接测试选中 provider (无 fallback) ===
+    provider_id = req.provider_id or ""
+    try:
+        from prompt.core import config as _sp_config
+    except Exception:
+        _sp_config = None
+    try:
+        if _sp_config is not None:
+            config = dict(_sp_config.resolve(provider_id))
+        else:
+            config = dict(load_config())
+        config["max_tokens"] = 24
+        config["temperature"] = 0.1
+        raw = _sp_call_llm("ping", "你是提示词扩写助手，请只回复 ok。", config)
+        if isinstance(raw, str) and raw.startswith("ERROR:"):
+            return {"success": False, "channel": "api", "provider_id": provider_id,
+                    "detail": raw[len("ERROR:"):].strip()}
+        return {"success": True, "channel": "api", "provider_id": provider_id, "detail": "模型可用"}
+    except Exception as e:
+        return {"success": False, "channel": "api", "provider_id": provider_id,
+                "detail": f"测试异常: {e}"}
+
+
+async def _smart_prompt_comfyui_test(req: SmartPromptRequest):
+    """本地 ComfyUI 通道可用性探针 (不实际跑工作流)"""
+    wf_rel = req.comfyui_workflow or "提示词/文生提示词.json"
+    # 1) 连通性
+    try:
+        urllib.request.urlopen(f"http://{COMFYUI_ADDRESS}/system_stats", timeout=8).read()
+    except Exception as e:
+        return {"success": False, "channel": "comfyui",
+                "detail": f"ComfyUI 不可达 ({COMFYUI_ADDRESS}): {e}"}
+    # 2) 工作流文件存在 + 名称合法
+    if not WORKFLOW_NAME_RE.match(wf_rel):
+        return {"success": False, "channel": "comfyui", "detail": f"工作流名称非法: {wf_rel}"}
+    wf_path = os.path.join(WORKFLOW_DIR, *wf_rel.split("/"))
+    if not os.path.exists(wf_path):
+        return {"success": False, "channel": "comfyui", "detail": f"工作流文件不存在: {wf_rel}"}
+    # 3) (可选) llama 模型在 ComfyUI 可用列表
+    if req.comfyui_model:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(f"http://{COMFYUI_ADDRESS}/object_info/llama_cpp_model_loader")
+                resp.raise_for_status()
+                info = resp.json() or {}
+            node_info = info.get("llama_cpp_model_loader", {}) or {}
+            inputs = node_info.get("input", {}) or node_info.get("input_required", {}) or {}
+            required = inputs.get("required", {}) if isinstance(inputs, dict) else {}
+            model_input = required.get("model") or []
+            avail = model_input[0] if (isinstance(model_input, (list, tuple)) and len(model_input) > 0 and isinstance(model_input[0], list)) else []
+            avail = [str(m) for m in avail]
+            if req.comfyui_model not in avail:
+                return {"success": False, "channel": "comfyui",
+                        "detail": f"模型不在 ComfyUI 可用列表: {req.comfyui_model}"}
+        except Exception as e:
+            return {"success": False, "channel": "comfyui", "detail": f"无法获取 ComfyUI 模型列表: {e}"}
+    suffix = f"，模型[{req.comfyui_model}]可用" if req.comfyui_model else ""
+    return {"success": True, "channel": "comfyui",
+            "detail": f"ComfyUI 可达，工作流[{wf_rel}]可用{suffix}"}
 
 # === 提示词预设 CRUD ===
 SMART_PRESETS_DIR = os.path.join(BASE_DIR, "data", "smart-prompt-presets")
@@ -7386,11 +7937,29 @@ async def set_selected_preset(payload: dict):
     data['preset_id'] = payload.get('preset_id', 'default')
     with open(SMART_PRESET_SELECT_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    # [FIX 2026-07-28] 同步到新模块 index.json。
+    # 否则 new-module 生成路径里 generate() -> get_selected_preset_id() 读的是
+    # prompt/presets/index.json 的 selected_preset_id，而本端点只写 data/smart-prompt-config.json，
+    # 导致用户在 UI 选中的带规则预设从未被加载，模型只按字面生成。
+    try:
+        from prompt.preset import set_selected_preset_id as _sp_set_selected
+        _sp_set_selected(data['preset_id'])
+    except Exception:
+        pass
     return {"success": True}
 
 @app.post("/api/smart-prompt")
 async def smart_prompt(req: SmartPromptRequest):
-    """智能提示词生成:中文描述 → Anima 标签"""
+    """智能提示词生成: 中文描述 → 扩写后 prompt (支持 LLM 平台或本地 ComfyUI 工作流)"""
+    # === Local ComfyUI workflow channel (added 2026-07-28) ===
+    if (req.channel or "api") == "comfyui":
+        try:
+            return await _smart_prompt_comfyui(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            import traceback
+            return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e), "traceback": traceback.format_exc()[-1500:]}
     try:
         if USE_NEW_PROMPT_MODULE:
             # 新模块：内部处理预设加载 + 配置解析 + 知识库检索
@@ -7398,6 +7967,7 @@ async def smart_prompt(req: SmartPromptRequest):
                 req.prompt,
                 preset_id=None,
                 config_override=req.config,
+                provider_id_override=req.provider_id,
             )
         else:
             # 旧版兼容路径
@@ -7427,7 +7997,217 @@ async def smart_prompt(req: SmartPromptRequest):
             result = generate_smart_prompt(req.prompt, config, preset)
         return result
     except Exception as e:
-        return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+        return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e), "traceback": traceback.format_exc()[-1500:]}
+
+
+async def _smart_prompt_comfyui(req: SmartPromptRequest):
+    """Local ComfyUI workflow channel (added 2026-07-28).
+
+    Flow:
+    1. Resolve req.comfyui_workflow (builtin path like "提示词/文生提示词.json")
+    2. Load workflow JSON + sidecar .config.json
+    3. Inject req.fields into node inputs based on config.json field mappings
+    4. If req.comfyui_model provided, override llama_cpp_model_loader.model (and reset mmproj/chat_handler to None)
+    5. POST to COMFYUI_ADDRESS/prompt; poll /history/{prompt_id}
+    6. Parse ShowText|pysssss output, split positive/negative, return {success, prompt, negative, raw}
+    """
+    wf_rel = req.comfyui_workflow or "提示词/文生提示词.json"
+
+    if not WORKFLOW_NAME_RE.match(wf_rel):
+        raise HTTPException(status_code=400, detail=f"workflow name invalid: {wf_rel}")
+
+    wf_path = os.path.join(WORKFLOW_DIR, *wf_rel.split("/"))
+    if not os.path.exists(wf_path):
+        raise HTTPException(status_code=404, detail=f"workflow not found: {wf_rel}")
+
+    cfg_path = wf_path.replace(".json", ".config.json")
+    cfg = {}
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f) or {}
+        except Exception:
+            cfg = {}
+
+    with open(wf_path, "r", encoding="utf-8") as f:
+        workflow = json.load(f)
+
+    # Inject req.fields into node inputs per .config.json mapping
+    user_fields = req.fields or {}
+    user_fields.setdefault("user_prompt", req.prompt)
+
+    # [FIX 2026-07-28] 本地 ComfyUI 通道也要应用 art-canvas 选中的预设规则。
+    # 之前 _smart_prompt_comfyui 完全不读预设，导致用户配置的 AI 规则（system_prompt / quality_tags /
+    # negative_default）被忽略，本地 LLM 只按工作流自带的默认 system prompt 跑。
+    # 这里把选中预设的规则注入到工作流的 system_prompt 输入，与 API 通道行为保持一致。
+    try:
+        from prompt import preset as _pst
+        _sel_id = _pst.get_selected_preset_id()
+        _preset = _pst.get_preset(_sel_id) if _sel_id else None
+        if _preset:
+            _rules = (_preset.get("system_prompt") or "").strip()
+            _qt = (_preset.get("quality_tags") or "").strip()
+            _neg = (_preset.get("negative_default") or "").strip()
+            # 取工作流该字段当前的默认 system prompt 作为基底（保留"只输出英文SD prompt"等指令）
+            _sp_field = next((f for f in cfg.get("fields", []) if f.get("id") == "system_prompt"), None)
+            _base = ""
+            if _sp_field:
+                _nid = str(_sp_field.get("node", ""))
+                _inp = _sp_field.get("input", "")
+                if _nid and _inp:
+                    _base = (workflow.get(_nid, {}).get("inputs", {}).get(_inp, "") or "")
+            _parts = []
+            if _base:
+                _parts.append(_base)
+            if _rules:
+                _parts.append("【用户预设规则】\n" + _rules)
+            if _qt:
+                _parts.append("质量标签必须包含以下词（逗号分隔）：" + _qt)
+            if _neg:
+                _parts.append("负向提示词默认值：" + _neg)
+            if _parts:
+                user_fields["system_prompt"] = "\n\n".join(_parts)
+    except Exception:
+        # 预设注入失败不影响主流程
+        pass
+
+    for field in cfg.get("fields", []):
+        fid = field.get("id")
+        nid = str(field.get("node", ""))
+        inp = field.get("input", "")
+        if not fid or not nid or not inp:
+            continue
+        if fid not in user_fields:
+            continue
+        value = user_fields[fid]
+        # type coercion
+        if field.get("type") in ("number", "slider"):
+            try:
+                step = field.get("step", 1)
+                if isinstance(step, str):
+                    step = float(step) if "." in step else int(float(step))
+                if isinstance(value, str):
+                    value = float(value) if (isinstance(step, float) and step < 1) else int(float(value))
+                elif isinstance(value, (int, float)) and isinstance(step, float) and step < 1:
+                    value = float(value)
+            except Exception:
+                pass
+        if nid not in workflow or not isinstance(workflow[nid], dict):
+            continue
+        workflow[nid].setdefault("inputs", {})[inp] = value
+
+    # Override model: find llama_cpp_model_loader, set model field, reset mmproj+chat_handler to None
+    if req.comfyui_model:
+        for nid, node in workflow.items():
+            if isinstance(node, dict) and node.get("class_type") == "llama_cpp_model_loader":
+                node.setdefault("inputs", {})["model"] = req.comfyui_model
+                # Reset mmproj+chat_handler to None to avoid stale VL config causing "Failed to load mtmd context"
+                node["inputs"]["mmproj"] = "None"
+                node["inputs"]["chat_handler"] = "None"
+                break
+
+    # Submit to ComfyUI
+    target_backend = COMFYUI_ADDRESS
+    p = {"prompt": workflow, "client_id": CLIENT_ID}
+    post_data = json.dumps(p).encode("utf-8")
+    try:
+        post_req = urllib.request.Request(
+            f"http://{target_backend}/prompt",
+            data=post_data,
+            headers={"Content-Type": "application/json"},
+        )
+        resp_body = urllib.request.urlopen(post_req, timeout=15).read()
+        submit_result = json.loads(resp_body)
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=502, detail=f"ComfyUI submit failed: HTTP {e.code}: {err_body[:500]}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ComfyUI connection failed: {e}")
+
+    # Catch node_errors at submit time (ComfyUI returns 200 + node_errors on bad params)
+    if isinstance(submit_result, dict) and submit_result.get("node_errors"):
+        err_lines = []
+        for nid, err in submit_result["node_errors"].items():
+            for e_item in (err.get("errors") or [err]):
+                msg = e_item.get("message") or e_item.get("exception_message") or str(e_item)
+                details = e_item.get("details") or ""
+                line = f"node {nid}: {msg}" + (f" ({details})" if details else "")
+                err_lines.append(line)
+        raise HTTPException(status_code=400, detail="ComfyUI node errors:\n" + "\n".join(err_lines))
+
+    prompt_id = submit_result.get("prompt_id", "")
+    if not prompt_id:
+        raise HTTPException(status_code=502, detail=f"ComfyUI returned no prompt_id: {submit_result}")
+
+    # Poll /history/{prompt_id}
+    start_ts = time.monotonic()
+    deadline = start_ts + 180  # 3 min timeout (local LLM inference)
+    last_status = None
+    while time.monotonic() < deadline:
+        try:
+            hist_resp = urllib.request.urlopen(
+                f"http://{target_backend}/history/{prompt_id}", timeout=10
+            )
+            hist = json.loads(hist_resp.read())
+            entry = hist.get(prompt_id) if isinstance(hist, dict) else None
+            if entry:
+                status_obj = entry.get("status", {})
+                if status_obj.get("completed"):
+                    outputs = entry.get("outputs", {})
+                    text_pieces = []
+                    for nid, out in outputs.items():
+                        if not isinstance(out, dict):
+                            continue
+                        if "text" in out and isinstance(out["text"], list):
+                            for t in out["text"]:
+                                if isinstance(t, str):
+                                    text_pieces.append(t)
+                    raw_text = "\n".join(text_pieces).strip()
+                    if not raw_text:
+                        raise HTTPException(status_code=502, detail=f"ComfyUI returned but ShowText empty: outputs={outputs}")
+                    positive, negative = _split_negative(raw_text)
+                    return {
+                        "success": True,
+                        "prompt": positive,
+                        "negative": negative,
+                        "raw": raw_text,
+                        "prompt_id": prompt_id,
+                        "elapsed": round(time.monotonic() - start_ts, 2),
+                    }
+                last_status = status_obj.get("status_str", "") or status_obj.get("str", "")
+                if status_obj.get("error") or last_status == "error":
+                    err_msg = status_obj.get("error", last_status)
+                    raise HTTPException(status_code=400, detail=f"ComfyUI execution error: {err_msg}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            last_status = f"poll_err: {e}"
+        time.sleep(1.0)
+
+    raise HTTPException(status_code=504, detail=f"ComfyUI timeout (180s), last_status={last_status}")
+
+
+def _split_negative(raw_text: str):
+    """Split model output into (positive, negative).
+
+    Supports:
+    - "Negative prompt: ..." section
+    - "[NEG] ... [END]" tags
+    - Falls back: positive=raw_text, negative=""
+    """
+    import re as _re
+    m = _re.search(r'(?im)^\s*negative\s*prompt\s*[:\uff1a]\s*(.+?)\s*$', raw_text, _re.DOTALL)
+    if m:
+        pos_part = raw_text[:m.start()].strip()
+        neg_part = m.group(1).strip()
+        pos_part = _re.sub(r'(?im)^\s*positive\s*prompt\s*[:\uff1a]?\s*', '', pos_part).strip()
+        return pos_part, neg_part
+    m = _re.search(r'\[NEG\](.*?)(?:\[END\]|$)', raw_text, _re.DOTALL)
+    if m:
+        pos_part = raw_text[:m.start()].strip()
+        neg_part = m.group(1).strip()
+        return pos_part, neg_part
+    return raw_text.strip(), ""
 
 # ══════════════════════════════════════════════════════════════════════
 #  prompt 模块新路由 (/api/prompt-module/*)
@@ -7457,6 +8237,7 @@ if USE_NEW_PROMPT_MODULE:
                 req.prompt,
                 preset_id=None,
                 config_override=req.config,
+                provider_id_override=req.provider_id,
             )
             return result
         except Exception as e:
@@ -9364,8 +10145,8 @@ async def jimeng_query_media(payload: JimengQueryMediaRequest):
 # 工作流名称校验正则
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
-# 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器)
-BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image")]
+# 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器 + 提示词/ 子目录下的本地扩写工作流)
+BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词")]
 BUILTIN_WORKFLOWS = set()
 for _wd in BUILTIN_WORKFLOW_DIRS:
     if not os.path.isdir(_wd):
@@ -14597,8 +15378,9 @@ def _ui_workflow_to_api_prompt(wf_ui):
     return out
 
 
-async def _interrogate_via_comfyui(abs_path, mode, target_style):
-    """ComfyUI 路线:上传图 -> 注入反推工作流 -> 轮询 history -> 取 ShowText 文本。"""
+async def _interrogate_via_comfyui(abs_path, mode, target_style, emit=None):
+    """ComfyUI 路线:上传图 -> 注入反推工作流 -> 轮询 history -> 取 ShowText 文本。
+    emit(pct, stage): 可选异步回调,用于实时上报真实进度(ComfyUI 采样进度来自 websocket)。"""
     if not COMFYUI_ADDRESS:
         raise RuntimeError("未配置 ComfyUI 地址")
     prompt_text = _interrogate_prompt_for(mode, target_style)
@@ -14624,6 +15406,8 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     filename = up_data.get('filename') or up_data.get('name')
     if not filename:
         raise RuntimeError("图片上传到 ComfyUI 失败")
+    if emit:
+        await emit(22, "图片已上传 ComfyUI,等待推理…")
     if INTERROGATE_LOAD_NODE in wf:
         wf[INTERROGATE_LOAD_NODE]["inputs"]["image"] = filename
     if INTERROGATE_PROMPT_NODE in wf:
@@ -14656,6 +15440,40 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     prompt_id = pr.json().get("prompt_id")
     if not prompt_id:
         raise RuntimeError("ComfyUI 未返回 prompt_id")
+    if emit:
+        await emit(35, "已提交推理队列,模型推理中…")
+    # 真实进度:监听 ComfyUI websocket 的 progress / executing 事件,映射到 35%~92%
+    ws_task = None
+    if emit:
+        async def _ws_listen():
+            try:
+                ws_url = f"ws://{COMFYUI_ADDRESS}/ws?clientId={CLIENT_ID}"
+                async with ws_client.connect(ws_url) as sock:
+                    async for raw in sock:
+                        try:
+                            if isinstance(raw, bytes):
+                                raw = raw.decode('utf-8', errors='replace')
+                            msg = json.loads(raw)
+                        except Exception:
+                            continue
+                        if msg.get('type') == 'status':
+                            continue
+                        data = msg.get('data') or {}
+                        pid = data.get('prompt_id')
+                        # 仅采纳本 prompt 的进度;无 prompt_id 的消息跳过,避免误用其他任务进度
+                        if pid != prompt_id:
+                            continue
+                        if msg.get('type') == 'progress':
+                            val = data.get('value', 0)
+                            mx = data.get('max', 100)
+                            pct = 35 + round((val / max(mx, 1)) * 57)
+                            await emit(min(92, pct), "模型推理中…")
+                        elif msg.get('type') == 'executing':
+                            if data.get('node') is None:
+                                await emit(92, "推理完成,读取结果…")
+            except Exception:
+                pass
+        ws_task = asyncio.create_task(_ws_listen())
     poll_start = time.monotonic()
     history_data = None
     while True:
@@ -14666,6 +15484,10 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
         if time.monotonic() - poll_start > 300:
             raise RuntimeError("ComfyUI 反推超时")
         await asyncio.sleep(0.5)
+    if ws_task:
+        ws_task.cancel()
+    if emit:
+        await emit(96, "正在读取结果…")
     output_text = ""
     if isinstance(history_data, dict) and 'outputs' in history_data:
         for _nid, node_out in history_data['outputs'].items():
@@ -14687,11 +15509,13 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style):
     return output_text.strip()
 
 
-async def _interrogate_via_vision(abs_path, mode, target_style, provider_id=None):
+async def _interrogate_via_vision(abs_path, mode, target_style, emit=None, provider_id=None):
     """多模态大模型 API 路线:复用已有的 caption_image_with_provider。
     provider_id 缺省时自动选一个已配 key 的可用 chat provider(与「AI 提示词」同一套 API)。"""
     prompt_text = _interrogate_prompt_for(mode, target_style)
     pid = provider_id or get_vision_provider_id()
+    if emit:
+        await emit(30, "正在调用多模态模型…")
     text, _model = await caption_image_with_provider(
         abs_path, prompt_text, pid, ""
     )
@@ -14699,59 +15523,90 @@ async def _interrogate_via_vision(abs_path, mode, target_style, provider_id=None
 
 
 @app.post("/api/interrogate")
-async def api_interrogate(
+async def api_interrogate_stream(
     file: UploadFile = File(...),
     mode: str = Form("caption"),
     target_style: str = Form(""),
     provider: str = Form("auto"),
     vision_provider_id: str = Form(""),
 ):
-    """通用反推提示词接口。
+    """通用反推提示词接口(真实进度,SSE 流式)。
     provider: auto | comfyui | vision
-    vision_provider_id: 可选,指定走 vision 路线时用哪个 chat provider(复用「AI 提示词」的 API);
-                        缺省时自动选一个已配 key 的可用平台(如 mimo/agnes)。"""
+    vision_provider_id: 可选,指定走 vision 路线时用哪个 chat provider(复用「AI 提示词」的 API)。
+    事件格式(SSE, 每行 `data: {json}`):
+      {"type":"progress","value":N,"stage":"..."}   实时进度(ComfyUI 走真实采样进度)
+      {"type":"result","text":...,"format":...,"tags":...,"raw":...,"provider":...}
+      {"type":"error","message":"..."}
+    """
     suffix = os.path.splitext(file.filename or "x.png")[1] or ".png"
     tmp_path = os.path.join(DATA_DIR, f".interrogate_{uuid.uuid4().hex}{suffix}")
     content = await file.read()
     with open(tmp_path, 'wb') as f:
         f.write(content)
-    try:
-        text = None
-        errs = []
-        if provider in ("auto", "comfyui"):
-            try:
-                text = await _interrogate_via_comfyui(tmp_path, mode, target_style)
-            except Exception as e:
-                errs.append(f"comfyui:{e}")
-        if not text and provider in ("auto", "vision"):
-            # auto 模式下,仅在存在可用多模态 provider(已配 key)时才尝试云端兜底,
-            # 避免 ComfyUI 偶发失败时错误信息被「未配置 key」污染,掩盖真实原因。
-            vision_enabled = (provider == "vision") or has_usable_vision_provider()
-            if vision_enabled:
-                try:
-                    text = await _interrogate_via_vision(
-                        tmp_path, mode, target_style,
-                        provider_id=(vision_provider_id or None),
-                    )
-                except Exception as e:
-                    errs.append(f"vision:{e}")
-        if not text:
-            raise HTTPException(status_code=502, detail="反推失败: " + "; ".join(errs))
-        tags = []
-        if mode == "tags":
-            tags = [t.strip() for t in text.split(',') if t.strip()]
-        return {
-            "text": text,
-            "format": mode,
-            "tags": tags,
-            "raw": text,
-            "provider": provider,
-        }
-    finally:
+
+    q: "asyncio.Queue" = asyncio.Queue()   # type: ignore
+    sentinel = object()
+
+    async def emit(pct, stage):
+        await q.put({"type": "progress", "value": int(pct), "stage": stage})
+
+    async def run():
         try:
-            os.remove(tmp_path)
-        except Exception:
-            pass
+            await emit(8, "图片已就绪,准备推理…")
+            text = None
+            errs = []
+            if provider in ("auto", "comfyui"):
+                try:
+                    text = await _interrogate_via_comfyui(tmp_path, mode, target_style, emit)
+                except Exception as e:
+                    errs.append(f"comfyui:{e}")
+            if not text and provider in ("auto", "vision"):
+                # auto 模式下,仅在存在可用多模态 provider(已配 key)时才尝试云端兜底,
+                # 避免 ComfyUI 偶发失败时错误信息被「未配置 key」污染,掩盖真实原因。
+                vision_enabled = (provider == "vision") or has_usable_vision_provider()
+                if vision_enabled:
+                    try:
+                        text = await _interrogate_via_vision(
+                            tmp_path, mode, target_style, emit,
+                            provider_id=(vision_provider_id or None),
+                        )
+                    except Exception as e:
+                        errs.append(f"vision:{e}")
+            if not text:
+                raise RuntimeError("反推失败: " + "; ".join(errs))
+            tags = []
+            if mode == "tags":
+                tags = [t.strip() for t in text.split(',') if t.strip()]
+            await q.put({
+                "type": "result",
+                "text": text,
+                "format": mode,
+                "tags": tags,
+                "raw": text,
+                "provider": provider,
+            })
+        except Exception as e:
+            await q.put({"type": "error", "message": str(e)})
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            await q.put(sentinel)
+
+    async def stream():
+        asyncio.create_task(run())
+        while True:
+            ev = await q.get()
+            if ev is sentinel:
+                break
+            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

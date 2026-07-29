@@ -192,11 +192,22 @@ const SmartPrompt = (function() {
         const textSpan = btn.querySelector('.btn-text');
         if (textSpan) textSpan.textContent = options.loadingText;
 
+        // [2026-07-28] 全局配置 - channel / provider_id / comfyui_* 来自 window 全局变量
+        // 默认 channel=api, picker/script 可调用 setChannel/setProviderId/setComfyui 覆盖
+        const channel = (typeof window.localPromptChannel === 'string' && window.localPromptChannel) || 'api';
+        const providerId = (typeof window.localPromptProvider === 'string') ? window.localPromptProvider : '';
+        const body = { prompt: userText, channel, provider_id: providerId };
+        if (channel === 'comfyui') {
+            // ComfyUI 通道需要附带 workflow + fields (前端保存的字段值)
+            body.comfyui_workflow = (typeof window.localComfyuiWorkflow === 'string') ? window.localComfyuiWorkflow : '文生提示词';
+            body.comfyui_model = (typeof window.localComfyuiModel === 'string') ? window.localComfyuiModel : '';
+            body.fields = (typeof window.localComfyuiFields === 'object' && window.localComfyuiFields) || {};
+        }
         try {
             const res = await fetch(options.apiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: userText })
+                body: JSON.stringify(body)
             });
             const data = await res.json();
 

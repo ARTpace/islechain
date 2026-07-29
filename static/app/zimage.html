@@ -32,7 +32,7 @@
     <script src="/static/modules/gallery/toolbar-extras.js?v=20260721"></script>
     <script src="/static/modules/gallery/lightbox.js?v=20260721"></script>
     <script src="/static/modules/gallery/gallery-core.js?v=20260721"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260719"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
     <script src="/static/modules/gallery/actions.js?v=20260614-1"></script>
     <script src="/static/modules/gallery/date-grouping.js?v=20260721"></script>
     <script src="/static/modules/gallery/list.js?v=20260628-1"></script>
@@ -40,12 +40,13 @@
     <script src="/static/modules/gallery/context-menu.js?v=20260614"></script>
     <script src="/static/modules/image-viewer.js?v=20260521006"></script>
     <script src="/static/modules/gallery/display.js?v=20260628"></script>
+    <script src="/static/modules/gallery/timeline.js?v=20260729-5"></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260628">
     <script src="/static/app/anima-character-picker.js?v=20260619023"></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
     <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
-    <script src="/prompt/static/prompt-module.js?v=20260722-4"></script>
+    <script src="/prompt/static/prompt-module.js?v=20260728-4"></script>
     <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
     <script src="/static/modules/lora-manager.js?v=20260723-meta9"></script>
     <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
@@ -577,206 +578,8 @@
     .reverse-settings-btn { width:36px; height:32px; padding:0; justify-content:center; }
     .reverse-settings-btn.is-in-use { background: linear-gradient(135deg, #00b4d8, #0077b6); color:#fff; box-shadow: 0 0 0 1px rgba(0,180,216,0.4), 0 2px 8px rgba(0,180,216,0.25); }
 
-    /* 浮层：玻璃感(轻) + 浅/深色双适配；PC 居中浮层 / 手机贴底上滑 */
-    .reverse-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.35); display:none; align-items:center; justify-content:center; z-index:9999;
-        -webkit-backdrop-filter:blur(10px) saturate(140%); backdrop-filter:blur(10px) saturate(140%); }
-    .reverse-modal-overlay.show { display:flex; animation: reverseFadeIn .18s ease; }
-    @keyframes reverseFadeIn { from { opacity:0; } to { opacity:1; } }
-    @keyframes reverseSlideIn { from { opacity:0; transform:translateY(20px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
-    @keyframes reverseViewIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 
-    /* 浅色：白磨砂玻璃;深色：深蓝磨砂；统一最小高度，三视图尺寸一致；上限 560px */
-    .reverse-modal { width:min(560px,94vw); min-height:480px; max-height:88vh; overflow:hidden;
-        background:rgba(255,255,255,.92); color:#1e293b;
-        border:1px solid rgba(255,255,255,.6); border-radius:18px; padding:20px 22px 18px;
-        box-shadow:0 24px 70px rgba(15,23,42,.2), 0 0 0 1px rgba(15,23,42,.04);
-        -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
-        animation: reverseSlideIn .22s cubic-bezier(.2,.7,.3,1);
-        display:flex; flex-direction:column; box-sizing:border-box; position:relative; }
-    /* 底部抽屉拖动提示器(仅手机显示) */
-    .reverse-modal::before { content:""; position:absolute; top:8px; left:50%; transform:translateX(-50%); width:48px; height:5px; border-radius:3px; background:rgba(0,0,0,.32); display:none; }
-    body.studio-theme-dark .reverse-modal::before { background:rgba(255,255,255,.42); }
-    body.studio-theme-dark .reverse-modal { background:rgba(22,32,48,.78); color:#e0e7ef;
-        border:1px solid rgba(240,255,255,.08); box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(0,240,255,.05); }
-    /* 拖入态：整张 modal 染色 + 虚线边框 */
-    .reverse-modal.is-dragover { border-color:rgba(0,180,216,.6); box-shadow:0 20px 60px rgba(0,180,216,.2), 0 0 0 2px rgba(0,180,216,.3); }
-    body.studio-theme-dark .reverse-modal.is-dragover { border-color:rgba(0,240,255,.6); box-shadow:0 20px 60px rgba(0,240,255,.25), 0 0 0 2px rgba(0,240,255,.35); }
-
-    .reverse-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-shrink:0; }
-    .reverse-modal-title { font-size:15px; font-weight:800; letter-spacing:.02em; }
-    .reverse-modal-header-right { display:flex; align-items:center; gap:4px; }
-    .reverse-modal-header-btn,
-    .reverse-modal-close { width:36px; height:36px; border:none; border-radius:10px; background:transparent; color:#6a7a8a; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s; }
-    .reverse-modal-header-btn:hover,
-    .reverse-modal-close:hover { background:rgba(0,0,0,.06); color:#000; }
-    .reverse-modal-header-btn:active,
-    .reverse-modal-close:active { background:rgba(0,0,0,.12); }
-    body.studio-theme-dark .reverse-modal-header-btn,
-    body.studio-theme-dark .reverse-modal-close { color:#9aa8b8; }
-    body.studio-theme-dark .reverse-modal-header-btn:hover,
-    body.studio-theme-dark .reverse-modal-close:hover { background:rgba(255,255,255,.08); color:#fff; }
-
-    /* 共享：缩略图条(三视图都显示) — 整体加高，按钮加大 */
-    .reverse-modal-preview { display:flex; align-items:center; gap:12px; padding:10px 12px;
-        border:1.5px dashed rgba(0,0,0,.18); border-radius:12px; background:rgba(255,255,255,.4);
-        margin-bottom:16px; min-height:72px; flex-shrink:0; transition:border-color .15s, background .15s; }
-    body.studio-theme-dark .reverse-modal-preview { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.16); }
-    .reverse-modal-preview:hover { border-color:rgba(0,180,216,.4); }
-    .reverse-modal-preview.is-drop-here { border-color:rgba(0,180,216,.5); background:rgba(0,180,216,.06); }
-    /* 占位缩略图: 72x72 偏正方, 居中放 image-plus 大图标 */
-    .reverse-modal-preview-thumb { width:72px; height:72px; border-radius:10px; background-color:#e5ecf3; background-size:contain; background-repeat:no-repeat; background-position:center; flex-shrink:0; border:1px solid rgba(0,0,0,.08); position:relative; overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s; }
-    .reverse-modal-preview-thumb:hover { border-color:rgba(0,180,216,.4); }
-    .reverse-modal-preview-thumb:active { transform:scale(.96); }
-    body.studio-theme-dark .reverse-modal-preview-thumb { background-color:#1a2436; border-color:rgba(255,255,255,.12); }
-    /* 空态: 浅色十字格底纹 + image-plus 居中图标 */
-    .reverse-modal-preview-thumb.empty::after { content:""; position:absolute; inset:0; background:
-        linear-gradient(45deg, transparent 48%, rgba(0,0,0,.08) 48%, rgba(0,0,0,.08) 52%, transparent 52%),
-        linear-gradient(-45deg, transparent 48%, rgba(0,0,0,.08) 48%, rgba(0,0,0,.08) 52%, transparent 52%);
-        background-size:14px 14px; pointer-events:none; }
-    body.studio-theme-dark .reverse-modal-preview-thumb.empty::after { background:
-        linear-gradient(45deg, transparent 48%, rgba(255,255,255,.06) 48%, rgba(255,255,255,.06) 52%, transparent 52%),
-        linear-gradient(-45deg, transparent 48%, rgba(255,255,255,.06) 48%, rgba(255,255,255,.06) 52%, transparent 52%);
-        background-size:14px 14px; }
-    .reverse-modal-preview-thumb-icon { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#0077b6; pointer-events:none; transition:transform .18s, color .18s; }
-    .reverse-modal-preview-thumb-icon svg { width:34px; height:34px; stroke-width:1.8; }
-    .reverse-modal-preview:hover .reverse-modal-preview-thumb-icon { transform:scale(1.12); color:#005f8a; }
-    body.studio-theme-dark .reverse-modal-preview-thumb-icon { color:#00f0ff; }
-    body.studio-theme-dark .reverse-modal-preview:hover .reverse-modal-preview-thumb-icon { color:#5cf5ff; }
-    /* 有文件时隐藏 image-plus, 显示 refresh-cw replace icon */
-    .reverse-modal-preview:not(.is-empty) .reverse-modal-preview-thumb-icon { display:none; }
-    /* 有文件时: hover 缩略图出现「重选」遮罩 */
-    .reverse-modal-preview-replace { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); color:#fff; opacity:0; transition:opacity .15s; pointer-events:none; }
-    .reverse-modal-preview-replace svg { width:20px; height:20px; stroke-width:2.4; }
-    .reverse-modal-preview-thumb:hover .reverse-modal-preview-replace { opacity:1; }
-    .reverse-modal-preview.is-empty .reverse-modal-preview-replace { display:none; }
-    .reverse-modal-preview-clear-side { display:none; align-items:center; gap:4px; padding:6px 10px; height:30px; border-radius:8px; background:transparent; color:#6a7a8a; border:1px solid rgba(0,0,0,.12); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; margin-left:auto; }
-    .reverse-modal-preview-clear-side:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.3); }
-    .reverse-modal-preview-clear-side:active { transform:scale(.95); }
-    .reverse-modal-preview-clear-side svg { width:13px; height:13px; stroke-width:2.4; }
-    body.studio-theme-dark .reverse-modal-preview-clear-side { color:#8a9bb0; border-color:rgba(255,255,255,.16); }
-    body.studio-theme-dark .reverse-modal-preview-clear-side:hover { background:rgba(220,38,38,.15); color:#ff6b6b; border-color:rgba(220,38,38,.4); }
-    .reverse-modal-preview:not(.is-empty) .reverse-modal-preview-clear-side { display:flex; }
-    .reverse-modal-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-    .reverse-modal-preview.is-empty { cursor:pointer; }
-    /* 有文件: 文件名 + 尺寸, 空态下隐藏所有文字 */
-    .reverse-modal-preview-name { font-size:14px; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    body.studio-theme-dark .reverse-modal-preview-name { color:#e0e7ef; }
-    .reverse-modal-preview.is-empty .reverse-modal-preview-name { display:none; }
-    .reverse-modal-preview-meta { font-size:11px; color:#6a7a8a; display:flex; align-items:center; gap:8px; }
-    .reverse-modal-preview.is-empty .reverse-modal-preview-meta { display:none; }
-    body.studio-theme-dark .reverse-modal-preview-meta { color:#8a9bb0; }
-
-    /* 视图容器：flex 1 撑满剩余空间，切换时淡入 */
-    .reverse-view { flex:1; min-height:0; display:flex; flex-direction:column; animation: reverseViewIn .22s ease; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-    .reverse-view[hidden] { display:none !important; }
-
-    /* 结果视图：隐藏缩略图条,空间留给 textarea */
-    #reverseModal.on-result .reverse-modal-preview { display:none; }
-    #reverseModal.on-result { min-height:0; }
-    /* header 在结果视图 显示「重新反推」动作 */
-    .reverse-modal-header-btn.rerun-btn { color:#0077b6; }
-    .reverse-modal-header-btn.rerun-btn:hover { background:rgba(0,180,216,.1); color:#005f8a; }
-    body.studio-theme-dark .reverse-modal-header-btn.rerun-btn { color:#00f0ff; }
-    body.studio-theme-dark .reverse-modal-header-btn.rerun-btn:hover { background:rgba(0,240,255,.12); color:#5cf5ff; }
-
-    .reverse-modal-section { margin-bottom:16px; }
-    .reverse-modal-section:last-of-type { margin-bottom:0; }
-    .reverse-modal-label { display:block; font-size:11px; font-weight:800; color:#6a7a8a; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
-    body.studio-theme-dark .reverse-modal-label { color:#8a9bb0; }
-
-    /* 选项卡：高度统一 56px,大字号 */
-    .reverse-modal-options { display:flex; gap:8px; }
-    .reverse-modal-opt { flex:1; min-height:56px; padding:10px 8px; border:1.5px solid rgba(0,0,0,.08); border-radius:10px; background:rgba(255,255,255,.4); color:#4a5a6a; font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
-    .reverse-modal-opt:hover { background:rgba(255,255,255,.7); color:#000; }
-    .reverse-modal-opt:active { transform:scale(.97); }
-    .reverse-modal-opt.active { background:rgba(0,180,216,.14); color:#0077b6; border-color:rgba(0,180,216,.5); }
-    .reverse-modal-opt-desc { display:block; font-size:10px; font-weight:600; color:#8a9bb0; line-height:1.3; }
-    .reverse-modal-opt.active .reverse-modal-opt-desc { color:rgba(0,180,216,.75); }
-    body.studio-theme-dark .reverse-modal-opt { background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08); color:#9aa8b8; }
-    body.studio-theme-dark .reverse-modal-opt:hover { background:rgba(255,255,255,.06); color:#fff; }
-    body.studio-theme-dark .reverse-modal-opt.active { background:rgba(74,222,128,.14); color:#4ade80; border-color:rgba(74,222,128,.5); }
-    body.studio-theme-dark .reverse-modal-opt.active .reverse-modal-opt-desc { color:rgba(74,222,128,.75); }
-
-    /* select：高度 48px,字号 14px,大点选 */
-    .reverse-modal-select { width:100%; min-height:48px; background:rgba(255,255,255,.5); border:1.5px solid rgba(0,0,0,.1); border-radius:10px; padding:10px 14px; font-size:14px; color:#1e293b; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236a7a8a' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px; padding-right:36px; }
-    .reverse-modal-select:focus { border-color:rgba(0,180,216,.5); }
-    body.studio-theme-dark .reverse-modal-select { background-color:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); color:#c8d0dc; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%239aa8b8' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>"); }
-
-    /* ── 统一按钮风格(主/次/幽灵),所有按钮 48px 高 ── */
-    .reverse-modal-actions { display:flex; gap:10px; margin-top:auto; padding-top:16px; flex-shrink:0; }
-    .reverse-modal-actions .btn-primary,
-    .reverse-modal-actions .btn-secondary,
-    .reverse-modal-actions .btn-ghost { min-height:48px; padding:12px 16px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; transition:all .12s; display:inline-flex; align-items:center; justify-content:center; gap:4px; }
-    .reverse-modal-actions .btn-primary { flex:1; border:none; background:linear-gradient(135deg,#00b4d8,#0077b6); color:#fff; box-shadow:0 2px 8px rgba(0,180,216,.25); }
-    .reverse-modal-actions .btn-primary:hover { background:linear-gradient(135deg,#00c8ed,#0088c8); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,180,216,.3); }
-    .reverse-modal-actions .btn-primary:active { transform:translateY(0); box-shadow:0 1px 4px rgba(0,180,216,.2); }
-    .reverse-modal-actions .btn-primary:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
-    .reverse-modal-actions .btn-secondary { flex:1; border:1.5px solid rgba(0,0,0,.1); background:rgba(255,255,255,.55); color:#4a5a6a; }
-    .reverse-modal-actions .btn-secondary:hover { background:rgba(255,255,255,.85); color:#000; }
-    .reverse-modal-actions .btn-secondary:active { transform:scale(.97); }
-    body.studio-theme-dark .reverse-modal-actions .btn-secondary { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.14); color:#c8d0dc; }
-    body.studio-theme-dark .reverse-modal-actions .btn-secondary:hover { background:rgba(255,255,255,.08); color:#fff; }
-    .reverse-modal-actions .btn-ghost { flex:0 0 auto; padding:12px 14px; border:none; background:transparent; color:#6a7a8a; }
-    .reverse-modal-actions .btn-ghost:hover { background:rgba(0,0,0,.05); color:#1e293b; }
-    .reverse-modal-actions .btn-ghost:active { background:rgba(0,0,0,.1); }
-    body.studio-theme-dark .reverse-modal-actions .btn-ghost { color:#9aa8b8; }
-    body.studio-theme-dark .reverse-modal-actions .btn-ghost:hover { background:rgba(255,255,255,.06); color:#fff; }
-    .reverse-modal-hint { font-size:11px; color:#8a9bb0; margin-top:12px; line-height:1.55; }
-
-    /* ── 进度视图 ── */
-    .reverse-progress { text-align:center; padding:24px 4px 6px; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-    .reverse-progress-spinner { width:44px; height:44px; margin:0 auto 16px; border:3px solid rgba(0,180,216,.15); border-top-color:#00b4d8; border-radius:50%; animation: reverseSpin .8s linear infinite; }
-    @keyframes reverseSpin { to { transform:rotate(360deg); } }
-    .reverse-progress-stage { font-size:15px; font-weight:700; color:#1e293b; margin-bottom:8px; }
-    .reverse-progress-file { font-size:12px; color:#8a9bb0; margin-bottom:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
-    .reverse-progress-bar { width:100%; height:6px; background:rgba(0,0,0,.06); border-radius:3px; overflow:hidden; margin-bottom:10px; }
-    .reverse-progress-bar > div { height:100%; background:linear-gradient(90deg,#00b4d8,#0077b6); border-radius:3px; transition:width .3s ease; }
-    .reverse-progress-percent { font-size:12px; color:#6a7a8a; font-variant-numeric:tabular-nums; font-weight:600; }
-    body.studio-theme-dark .reverse-progress-stage { color:#e0e7ef; }
-    body.studio-theme-dark .reverse-progress-bar { background:rgba(255,255,255,.06); }
-    body.studio-theme-dark .reverse-progress-spinner { border-color:rgba(0,180,216,.2); border-top-color:#00f0ff; }
-    body.studio-theme-dark .reverse-progress-bar > div { background:linear-gradient(90deg,#00f0ff,#00b4d8); }
-
-    /* ── 结果视图 ── */
-    .reverse-result-meta { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:11px; color:#8a9bb0; }
-    .reverse-result-meta-tag { padding:3px 10px; border-radius:10px; background:rgba(0,180,216,.1); color:#0077b6; font-weight:700; font-size:11px; }
-    body.studio-theme-dark .reverse-result-meta-tag { background:rgba(0,240,255,.12); color:#00f0ff; }
-    .reverse-result-text { width:100%; flex:1; min-height:280px; resize:none; border:1.5px solid rgba(0,0,0,.08); border-radius:10px; padding:14px 16px; font-size:14px; line-height:1.75; color:#1e293b; box-sizing:border-box; background:rgba(255,255,255,.6); outline:none; font-family:inherit; }
-    .reverse-result-text:focus { border-color:rgba(0,180,216,.4); }
-    body.studio-theme-dark .reverse-result-text { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.08); color:#e0e7ef; }
-    /* 统一 action 行(覆盖 .reverse-modal-actions 默认) */
-    .reverse-result-actions { margin-top:10px; }
-    .reverse-result-actions .btn-primary { flex:1.4; }
-    .reverse-result-actions .btn-secondary { flex:1; }
-    .reverse-result-actions .btn-ghost { flex:0 0 auto; padding:12px 14px; }
-    .reverse-result-actions .btn-ghost.copied { color:#10b981; }
-    body.studio-theme-dark .reverse-result-actions .btn-ghost.copied { color:#34d399; }
-
-    /* ── 移动端适配(< 540px)：贴底上滑、按钮加高 ── */
-    @media (max-width: 540px) {
-        .reverse-modal-overlay { align-items:flex-end; padding:0; }
-        .reverse-modal { width:100%; max-width:100%; max-height:92vh; min-height:0; border-radius:18px 18px 0 0; padding:24px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
-        .reverse-modal::before { display:block; }
-        .reverse-modal-title { font-size:16px; }
-        .reverse-modal-header-btn,
-        .reverse-modal-close { width:40px; height:40px; }
-        .reverse-modal-preview { min-height:64px; padding:8px 10px; }
-        .reverse-modal-preview-thumb { width:64px; height:64px; }
-        .reverse-modal-preview-name { font-size:13px; }
-        .reverse-modal-preview-meta { font-size:10px; }
-        .reverse-modal-section { margin-bottom:18px; }
-        .reverse-modal-label { font-size:11px; }
-        .reverse-modal-opt { min-height:60px; font-size:14px; }
-        .reverse-modal-opt-desc { font-size:10px; }
-        .reverse-modal-select { min-height:50px; font-size:15px; }
-        .reverse-modal-actions { padding-top:12px; }
-        .reverse-modal-actions .btn-primary,
-        .reverse-modal-actions .btn-secondary,
-        .reverse-modal-actions .btn-ghost { min-height:52px; font-size:15px; }
-        .reverse-result-text { font-size:14px; padding:12px 14px; }
-        .reverse-progress-spinner { width:48px; height:48px; }
-        .reverse-progress-stage { font-size:16px; }
-    }    </style>
+        </style>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
 </head>
@@ -803,6 +606,9 @@
                         </button>
                         <button onclick="initRefImageManager();_refImgMgr.upload()" id="refImageBtn" class="anima-ctrl" title="参考图管理">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="btn-text" id="refImageBtnText"> 参考图</span>
+                        </button>
+                        <button onclick="AssetLibrary.open()" id="refImageAssetBtn" class="anima-ctrl" title="从资产库选择参考图">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg><span class="btn-text"> 资产图</span>
                         </button>
                         <input id="refImageInput" type="file" accept="image/*" multiple style="display:none" >
                         <!-- LoRA 管理按钮 -->
@@ -898,7 +704,7 @@
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">平台</span>
                                 <div class="anima-ctrl-wrap">
-                                    <button type="button" onclick="cloudToggleMenu('cloudProviderMenu');event.stopPropagation();" class="anima-ctrl">
+                                    <button type="button" onclick="toggleMenu('cloudProviderMenu');event.stopPropagation();" class="anima-ctrl">
                                         <i id="cloudProviderIcon" data-lucide="cloud" class="w-3 h-3"></i>
                                         <span id="cloudProviderText">平台</span>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
@@ -909,7 +715,7 @@
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">模型</span>
                                 <div class="anima-ctrl-wrap">
-                                    <button type="button" onclick="cloudToggleMenu('cloudModelMenu');event.stopPropagation();" class="anima-ctrl">
+                                    <button type="button" onclick="toggleMenu('cloudModelMenu');event.stopPropagation();" class="anima-ctrl">
                                         <span id="cloudModelText">模型</span>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                                     </button>
@@ -922,49 +728,7 @@
                         <div id="animaControls" class="flex items-center gap-2"></div>
                         <!-- 在线API 引擎：比例 + 质量 + 分辨率（质量紧邻分辨率左侧，与 COMFYUI 对齐） -->
                         <div id="cloudGenControls" class="flex items-center gap-2" style="display:none;">
-                            <!-- 比例 -->
-                            <div class="anima-ctrl-wrap">
-                                <button type="button" onclick="cloudToggleMenu('cloudRatioMenu');event.stopPropagation();" id="cloudRatioBtn" class="anima-ctrl">
-                                    <svg class="ratio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
-                                    <span id="cloudRatioText">9:16</span>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                                <div id="cloudRatioMenu" class="cloud-menu anima-ctrl-menu anima-ctrl-menu-grid">
-                                    <div type="button" onclick="cloudSelectRatio('1:1',1,1);event.stopPropagation();" data-ratio="1:1" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:14px;"></span><span class="ratio-label">1:1</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('4:3',4,3);event.stopPropagation();" data-ratio="4:3" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:10px;"></span><span class="ratio-label">4:3</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('3:4',3,4);event.stopPropagation();" data-ratio="3:4" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:10px;height:14px;"></span><span class="ratio-label">3:4</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('16:9',16,9);event.stopPropagation();" data-ratio="16:9" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="ratio-label">16:9</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('9:16',9,16);event.stopPropagation();" data-ratio="9:16" class="anima-ctrl-menu-item active"><span class="ratio-icon" style="width:8px;height:14px;"></span><span class="ratio-label">9:16</span><span class="chk">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('3:2',3,2);event.stopPropagation();" data-ratio="3:2" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:9px;"></span><span class="ratio-label">3:2</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('2:3',2,3);event.stopPropagation();" data-ratio="2:3" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:9px;height:14px;"></span><span class="ratio-label">2:3</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRatio('21:9',21,9);event.stopPropagation();" data-ratio="21:9" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:6px;"></span><span class="ratio-label">21:9</span><span class="chk" style="opacity:0">✓</span></div>
-                                </div>
-                            </div>
-                            <!-- 质量 -->
-                            <div class="anima-ctrl-wrap">
-                                <button type="button" onclick="cloudToggleMenu('cloudQualityMenu');event.stopPropagation();" id="cloudQualityBtn" class="anima-ctrl">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                                    <span id="cloudQualityText">中</span>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                                <div id="cloudQualityMenu" class="cloud-menu anima-ctrl-menu">
-                                    <div type="button" onclick="cloudSetQuality('high');event.stopPropagation();" data-quality="high" class="anima-ctrl-menu-item"><span>高</span><span class="chk" style="opacity:0">✓</span></div>
-                                    <div type="button" onclick="cloudSetQuality('medium');event.stopPropagation();" data-quality="medium" class="anima-ctrl-menu-item active"><span>中</span><span class="chk">✓</span></div>
-                                    <div type="button" onclick="cloudSetQuality('low');event.stopPropagation();" data-quality="low" class="anima-ctrl-menu-item"><span>低</span><span class="chk" style="opacity:0">✓</span></div>
-                                </div>
-                            </div>
-                            <!-- 分辨率 -->
-                            <div class="anima-ctrl-wrap">
-                                <button type="button" onclick="cloudToggleMenu('cloudResMenu');event.stopPropagation();" id="cloudResBtn" class="anima-ctrl">
-                                    <svg class="res-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                    <span id="cloudResText">1K</span>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                                <div id="cloudResMenu" class="cloud-menu anima-ctrl-menu">
-                                    <div type="button" onclick="cloudSelectRes(1);event.stopPropagation();" data-res="1" class="anima-ctrl-menu-item active"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">1K</span><span class="chk">✓</span></div>
-                                    <div type="button" onclick="cloudSelectRes(2);event.stopPropagation();" data-res="2" class="anima-ctrl-menu-item"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">2K</span><span class="chk" style="opacity:0">✓</span></div>
-                                </div>
-                            </div>
+                            <!-- 比例/质量/分辨率 由 cloudGenControlsHtml() 在 cloudInitPanel 中动态渲染 -->
                         </div>
                         <div class="anima-ctrl-wrap">
                             <button onclick="if(!compactBatchToggle())toggleMenu('batchCountMenu')" id="batchCountBtn" class="anima-ctrl" title="一次生成张数">
@@ -986,7 +750,7 @@
                             <span id="btnAutoBadge" class="btn-render-autogen-text" style="display:none;"></span>
                         </button>
                         <!-- 反推设置（点击弹出面板） -->
-                        <button class="anima-ctrl reverse-settings-btn" id="reverseSettingsBtn" onclick="openReverseSettingsModal()" title="反推设置" aria-label="反推设置">
+                        <button class="anima-ctrl reverse-settings-btn" id="reverseSettingsBtn" onclick="ReverseImage.open()" title="反推设置" aria-label="反推设置">
                             <i data-lucide="settings-2" class="w-3 h-3"></i>
                         </button>
                     </div>
@@ -1635,16 +1399,16 @@
                 // 清掉过期记忆避免之后一直卡住
                 _setSavedUnetForWorkflow(currentWorkflow, '');
             }
-            // 额外负面提示词：仅 ANIMA 工作流可见
-            const isAnima = name.toLowerCase().includes('anima');
+            // 额外负面提示词：ComfyUI(local) 模式下所有工作流可见
+            const isLocal = currentEngine === 'local';
             const negToggle = document.getElementById('extraNegToggle');
             const negPanel = document.getElementById('extraNegPanel');
-            if (negToggle) negToggle.style.display = isAnima ? '' : 'none';
+            if (negToggle) negToggle.style.display = isLocal ? '' : 'none';
             if (negPanel) {
                 negPanel.classList.remove('show');
-                // ANIMA: 重置为 CSS 默认 display:none，避免 inline style 覆盖 toggle 的 .show
-                // 非 ANIMA: inline display:none 彻底隐藏
-                negPanel.style.display = isAnima ? '' : 'none';
+                // local: 重置为 CSS 默认 display:none，避免 inline style 覆盖 toggle 的 .show
+                // 非 local: inline display:none 彻底隐藏
+                negPanel.style.display = isLocal ? '' : 'none';
             }
             if (negToggle) negToggle.classList.remove('active');
             updateParamsUI();
@@ -1966,8 +1730,10 @@
             if (_cgc) _cgc.style.display = isCloud ? '' : 'none';
             if (isCloud) {
                 cloudInitPanel();
-                cloudSyncGenUI();
             }
+            // 刷新顶部按钮可见性（角色/画师/LoRA/负面提示词等按 local/cloud 引擎统一显隐）
+            updateParamsUI();
+            if (typeof updateLoraSwitcherVisibility === 'function') updateLoraSwitcherVisibility();
         }
 
         // === 引擎上拉菜单 ===
@@ -1992,24 +1758,38 @@
             { value: 'Turbo', label: '低' }
         ];
 
-        function renderQualityDropdown({ btnId, textId, menuId, menuClass, value, options, onChange, toggleFn }) {
+        // 通用图标常量：消除各处重复粘贴的 SVG
+        const ICON = {
+            chevron: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>',
+            ratio: '<svg class="ratio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>',
+            res: '<svg class="res-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+            quality: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'
+        };
+
+        // 通用下拉渲染器：quality / ratio / res / batch 等所有菜单共用，避免重复手写 HTML
+        // opts: { btnId, textId, menuId, menuClass, value, options:[{value,label,icon}], dataKey, onChange, toggleFn, iconSvg, grid }
+        function renderDropdown({ btnId, textId, menuId, menuClass, value, options, dataKey, onChange, toggleFn, iconSvg, grid }) {
             const selected = options.find(o => o.value === value) || options[0];
-            const iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`;
-            const chevron = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`;
+            const dk = dataKey || 'value';
             return `
                 <div class="anima-ctrl-wrap">
                     <button type="button" onclick="${toggleFn}('${menuId}');event.stopPropagation();" id="${btnId}" class="anima-ctrl">
-                        ${iconSvg}
+                        ${iconSvg || ''}
                         <span id="${textId}">${selected ? selected.label : ''}</span>
-                        ${chevron}
+                        ${ICON.chevron}
                     </button>
-                    <div id="${menuId}" class="${menuClass ? menuClass + ' ' : ''}anima-ctrl-menu">
+                    <div id="${menuId}" class="${menuClass ? menuClass + ' ' : ''}anima-ctrl-menu${grid ? ' anima-ctrl-menu-grid' : ''}">
                         ${options.map(o => {
                             const isActive = o.value === value;
-                            return `<div type="button" onclick="${toggleFn}('${menuId}');${onChange}('${o.value}');event.stopPropagation();" data-quality="${o.value}" class="anima-ctrl-menu-item${isActive ? ' active' : ''}"><span>${o.label}</span><span class="chk" style="opacity:${isActive ? 1 : 0}">✓</span></div>`;
+                            return `<div type="button" onclick="${toggleFn}('${menuId}');${onChange}('${o.value}');event.stopPropagation();" data-${dk}="${o.value}" class="anima-ctrl-menu-item${isActive ? ' active' : ''}">${(o.icon || '')}<span class="dd-label">${o.label}</span><span class="chk" style="opacity:${isActive ? 1 : 0}">✓</span></div>`;
                         }).join('')}
                     </div>
                 </div>`;
+        }
+
+        // 质量下拉（基于通用渲染器，dataKey 固定为 quality）
+        function renderQualityDropdown(cfg) {
+            return renderDropdown(Object.assign({}, cfg, { dataKey: cfg.dataKey || 'quality', iconSvg: ICON.quality }));
         }
 
         function updateQualityDropdown({ menuId, textId, value, options }) {
@@ -2022,6 +1802,36 @@
                 const chk = el.querySelector('.chk');
                 if (chk) chk.style.opacity = isActive ? 1 : 0;
             });
+        }
+
+        // 共享：在线API 比例选项（cloud 复用，将来 local 也可复用）
+        const CLOUD_RATIO_OPTIONS = [
+            { l: '1:1', w: 1, h: 1 }, { l: '4:3', w: 4, h: 3 }, { l: '3:4', w: 3, h: 4 },
+            { l: '16:9', w: 16, h: 9 }, { l: '9:16', w: 9, h: 16 }, { l: '3:2', w: 3, h: 2 },
+            { l: '2:3', w: 2, h: 3 }, { l: '21:9', w: 21, h: 9 }
+        ];
+        function ratioIconHtml(w, h) {
+            const maxSide = 14;
+            const iw = w >= h ? maxSide : Math.max(6, Math.round(maxSide * w / h));
+            const ih = w >= h ? Math.max(6, Math.round(maxSide * h / w)) : maxSide;
+            return '<span class="ratio-icon" style="width:' + iw + 'px;height:' + ih + 'px;"></span>';
+        }
+        // 通用：根据选中值同步下拉按钮文本与 active 态（替代各处手写 .chk 切换）
+        function setDropdownActive(menuId, textId, value, dataKey) {
+            const dk = dataKey || 'value';
+            const v = String(value);
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+            let label = null;
+            menu.querySelectorAll('[data-' + dk + ']').forEach(function (el) {
+                const on = el.getAttribute('data-' + dk) === v;
+                el.classList.toggle('active', on);
+                const chk = el.querySelector('.chk');
+                if (chk) chk.style.opacity = on ? '1' : '0';
+                if (on) { const sp = el.querySelector('.dd-label'); label = sp ? sp.textContent : v; }
+            });
+            const text = document.getElementById(textId);
+            if (text && label != null) text.textContent = label;
         }
 
         // 存储 Ideogram4 JSON 提示词
@@ -2051,11 +1861,22 @@
             updateQualityDropdown({ menuId: 'booguQualityMenu', textId: 'booguQualityText', value: q, options: BOOGU_QUALITY_OPTIONS });
         }
 
+        // local 模式比例/分辨率：复用通用 renderDropdown，选择逻辑仍走 GenerationControls 原生 selectRatio/selectRes
+        // （它们负责更新按钮文字、active 态与关闭菜单）；这里只做薄封装把单值参数补全/转类型
+        function toggleRatioMenu() { if (!compactRatioToggle()) toggleMenu('ratioMenu'); }
+        function toggleResMenu() { if (!compactResToggle()) toggleMenu('resMenu'); }
+        function localSelectRatio(label) {
+            const r = CLOUD_RATIO_OPTIONS.find(function (x) { return x.l === label; });
+            if (r) GenerationControls.selectRatio(label, r.w, r.h);
+        }
+        function localSelectRes(res) {
+            GenerationControls.selectRes(parseInt(res, 10) || 1);
+        }
+
         function updateParamsUI() {
             const el = document.getElementById('dynamicParams');
             const ctrlEl = document.getElementById('animaControls');
-            const isAnima = currentWorkflow.toLowerCase().includes('anima');
-            const isKrea2 = currentWorkflow.toLowerCase().includes('krea2');
+            const isLocal = currentEngine === 'local';
             const isIdeogram4 = currentWorkflow.toLowerCase().includes('ideogram4');
             const isBoogu = currentWorkflow.toLowerCase().includes('boogu');
             // Ideogram4 模式自动切换预设
@@ -2070,18 +1891,13 @@
                     }
                 }, 100);
             }
-            if (isAnima || isKrea2) {
+            // 角色/画师：ComfyUI(local) 模式下所有工作流都显示
+            if (isLocal) {
                 document.getElementById('animaTagSwitcher').style.display = '';
                 el.innerHTML = `
                 <div class="flex flex-col gap-2">
                     <div id="presetTags" class="preset-tags"></div>
                 </div>`;
-            } else if (isIdeogram4) {
-                document.getElementById('animaTagSwitcher').style.display = 'none';
-                el.innerHTML = '';
-            } else if (isBoogu) {
-                document.getElementById('animaTagSwitcher').style.display = 'none';
-                el.innerHTML = '';
             } else {
                 document.getElementById('animaTagSwitcher').style.display = 'none';
                 el.innerHTML = '';
@@ -2118,42 +1934,16 @@
                         })}`;
                 }
                 const _gc = GenerationControls.getState();
+                const ratioOpts = CLOUD_RATIO_OPTIONS.map(function (r) {
+                    return { value: r.l, label: r.l, icon: ratioIconHtml(r.w, r.h) };
+                });
+                const ratioLabel = _gc.ratioW + ':' + _gc.ratioH;
                 ctrlEl.innerHTML = `
-                        <!-- 比例 -->
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="if(!compactRatioToggle())toggleMenu('ratioMenu')" id="ratioBtn" class="anima-ctrl">
-                                <svg class="ratio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
-                                <span id="ratioText">${_gc.ratioW}:${_gc.ratioH}</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div id="ratioMenu" class="anima-ctrl-menu anima-ctrl-menu-grid">
-                                ${[{l:'1:1',w:1,h:1},{l:'4:3',w:4,h:3},{l:'3:4',w:3,h:4},{l:'16:9',w:16,h:9},{l:'9:16',w:9,h:16},{l:'3:2',w:3,h:2},{l:'2:3',w:2,h:3},{l:'21:9',w:21,h:9}].map(r=>{
-                                    const cur = _gc.ratioW + ':' + _gc.ratioH;
-                                    const isActive = cur === r.l;
-                                    const maxSide = 14;
-                                    const iw = r.w >= r.h ? maxSide : Math.max(6, Math.round(maxSide * r.w / r.h));
-                                    const ih = r.w >= r.h ? Math.max(6, Math.round(maxSide * r.h / r.w)) : maxSide;
-                                    return '<div onclick="selectRatio(\'' + r.l + '\',' + r.w + ',' + r.h + ')" data-ratio-key="' + r.l + '" class="anima-ctrl-menu-item' + (isActive ? ' active' : '') + '">' +
-                                        '<span class="ratio-icon" style="width:' + iw + 'px;height:' + ih + 'px;"></span>' +
-                                        '<span class="ratio-label">' + r.l + '</span>' +
-                                        '<span class="chk" style="opacity:' + (isActive ? 1 : 0) + '">✓</span>' +
-                                        '</div>';
-                                }).join('')}
-                            </div>
-                        </div>
+                        <!-- 比例（与在线API 复用同一 renderDropdown；dataKey=ratio-key 兼容 GenerationControls 的 active 同步） -->
+                        ${renderDropdown({ btnId: 'ratioBtn', textId: 'ratioText', menuId: 'ratioMenu', menuClass: '', value: ratioLabel, options: ratioOpts, dataKey: 'ratio-key', onChange: 'localSelectRatio', toggleFn: 'toggleRatioMenu', iconSvg: ICON.ratio, grid: true })}
                         ${qualityHtml}
                         <!-- 分辨率 -->
-                        <div class="anima-ctrl-wrap">
-                            <button onclick="if(!compactResToggle())toggleMenu('resMenu')" id="resBtn" class="anima-ctrl">
-                                <svg class="res-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                <span id="resText">${_gc.res===2?'2K':'1K'}</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div id="resMenu" class="anima-ctrl-menu">
-                                <div onclick="selectRes(1)" data-res-key="1" class="anima-ctrl-menu-item${_gc.res===1?' active':''}"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">1K</span><span class="chk" style="opacity:${_gc.res===1?1:0}">✓</span></div>
-                                <div onclick="selectRes(2)" data-res-key="2" class="anima-ctrl-menu-item${_gc.res===2?' active':''}"><span class="ratio-icon" style="width:14px;height:8px;"></span><span class="res-label">2K</span><span class="chk" style="opacity:${_gc.res===2?1:0}">✓</span></div>
-                            </div>
-                        </div>`;
+                        ${renderDropdown({ btnId: 'resBtn', textId: 'resText', menuId: 'resMenu', menuClass: '', value: String(_gc.res), options: [{ value: '1', label: '1K' }, { value: '2', label: '2K' }], dataKey: 'res-key', onChange: 'localSelectRes', toggleFn: 'toggleResMenu', iconSvg: ICON.res })}`;
             }
             setTimeout(updateSeedUI, 0);
         }
@@ -2244,6 +2034,20 @@
             })();
         }
         document.addEventListener('DOMContentLoaded', initRefImageManager);
+
+        /* ---------- 资产库：选图回调（UI/删除/去重已拆分到 /static/modules/asset-library.js） ---------- */
+        // 作为 AssetLibrary 的 onApply 回调：把选中的资产图 URL 转成 File，加入参考图管理器
+        function applyAssetToRef(url, name) {
+            var mgr = window._refImgMgr || _refImgMgr;
+            if (!mgr) return;
+            fetch(url).then(function (r) { return r.blob(); }).then(function (blob) {
+                var ext = (name || 'image').split('.').pop() || 'png';
+                var file = new File([blob], name || ('asset.' + ext), { type: blob.type || 'image/' + ext });
+                mgr.addFiles([file]);
+            }).catch(function () {
+                alert('无法加载资产图片');
+            });
+        }
 
         // ── prompt 输入框兼容层（textarea → contenteditable） ──
         // 让 ta.value 之类的老代码继续工作
@@ -2340,12 +2144,12 @@
                     }
                     text = text.replace(/`/g, '');
                     if (!text) return;
-                    // 在当前光标位置插入纯文本节点（保留光标位置）
+                    // 在当前光标/选区位置插入纯文本：若选中了文字则先删除选区，实现“覆盖”而非“追加”
                     var sel = window.getSelection();
                     if (sel && sel.rangeCount > 0) {
                         var range = sel.getRangeAt(0);
-                        // 不删除 ref-chip，只把文字插到选区末尾
-                        range.collapse(false);
+                        // 删除选区内容（select-all 粘贴即整段替换；纯光标态删除为空操作）
+                        range.deleteContents();
                         var node = document.createTextNode(text);
                         range.insertNode(node);
                         range.setStartAfter(node);
@@ -2353,8 +2157,8 @@
                         sel.removeAllRanges();
                         sel.addRange(range);
                     } else {
-                        // 退化：没有选区信息，追加到末尾（用 setter 保留 chips）
-                        el.value = (el.value || '') + text;
+                        // 退化：没有选区信息，整体替换（setter 会保留 ref-chip 到首部）
+                        el.value = text;
                     }
                     // 通知其他监听器（updatePromptTags / syncPickerStatesFromPrompt）
                     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2369,375 +2173,7 @@
             }
         })();
 
-        // ── 反推设置（模态面板：共享缩略图条 + 三视图无缝切换） ──
-        var _reverseProvider = 'auto';
-        var _reverseMode = 'auto';  // 'auto' | 'caption' | 'tags'
-        var _reverseVisionProvider = '';
-        var _reverseFile = null;
-        var _reverseFileUrl = null;  // 缩略图 objectURL
-        var _reverseProvidersLoaded = false;
-        var _reverseAbort = null;    // 当前反推请求的 AbortController
-        var _reverseTimer = null;    // 进度动画 timer
-        var _reverseDragDepth = 0;   // 拖入状态嵌套计数（防 dragenter 抖动）
-
-        function _revView(name) {
-            var ids = { settings: 'revViewSettings', progress: 'revViewProgress', result: 'revViewResult' };
-            // 先把隐藏的视图移除再显示,让 fade-in 动画每次都触发（重置 animation）
-            Object.keys(ids).forEach(function (k) {
-                var el = document.getElementById(ids[k]);
-                if (!el) return;
-                if (k === name) {
-                    if (el.hidden) {
-                        el.hidden = false;
-                        // 强制 reflow 重启动画
-                        void el.offsetWidth;
-                        el.style.animation = 'none';
-                        void el.offsetWidth;
-                        el.style.animation = '';
-                    }
-                } else {
-                    el.hidden = true;
-                }
-            });
-            var title = document.getElementById('revViewTitle');
-            if (title) title.textContent = name === 'settings' ? '反推设置' : (name === 'progress' ? '反推中' : '反推结果');
-            var back = document.getElementById('revReRunBtn');
-            if (back) back.style.display = (name === 'result') ? 'flex' : 'none';
-            var modal = document.getElementById('reverseModal');
-            if (modal) modal.classList.toggle('on-result', name === 'result');
-        }
-
-        // ── 缩略图渲染 ──
-        function _setReverseFile(file) {
-            // 释放旧 objectURL
-            if (_reverseFileUrl) { try { URL.revokeObjectURL(_reverseFileUrl); } catch (_) {} _reverseFileUrl = null; }
-            _reverseFile = file || null;
-            var thumb = document.getElementById('revPreviewThumb');
-            var name = document.getElementById('revPreviewName');
-            var size = document.getElementById('revPreviewSize');
-            var preview = document.getElementById('revPreview');
-            if (!file) {
-                if (thumb) { thumb.style.backgroundImage = ''; thumb.classList.add('empty'); }
-                if (name) { name.textContent = ''; }
-                if (size) size.textContent = '';
-                if (preview) preview.classList.add('is-empty');
-                var btn = document.getElementById('revStartBtn');
-                if (btn) btn.disabled = true;
-                return;
-            }
-            _reverseFileUrl = URL.createObjectURL(file);
-            if (thumb) { thumb.style.backgroundImage = 'url(' + _reverseFileUrl + ')'; thumb.classList.remove('empty'); }
-            if (name) { name.textContent = file.name; }
-            if (size) size.textContent = (file.size / 1024).toFixed(1) + ' KB';
-            if (preview) preview.classList.remove('is-empty');
-            var btn = document.getElementById('revStartBtn');
-            if (btn) btn.disabled = false;
-        }
-
-        // ── 拖入支持（整张 modal 都是 dropzone） ──
-        function _bindReverseDragDrop() {
-            var overlay = document.getElementById('reverseModalOverlay');
-            if (!overlay || overlay._dragBound) return;
-            overlay._dragBound = true;
-            var onEnter = function (e) {
-                e.preventDefault();
-                if (!_reverseDragDepth) overlay.classList.add('is-dragover');
-                _reverseDragDepth++;
-            };
-            var onLeave = function (e) {
-                e.preventDefault();
-                _reverseDragDepth = Math.max(0, _reverseDragDepth - 1);
-                if (!_reverseDragDepth) overlay.classList.remove('is-dragover');
-            };
-            var onOver = function (e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; };
-            var onDrop = function (e) {
-                e.preventDefault();
-                _reverseDragDepth = 0;
-                overlay.classList.remove('is-dragover');
-                var files = e.dataTransfer && e.dataTransfer.files;
-                if (!files || !files.length) return;
-                var f = files[0];
-                if (!/^image\//.test(f.type)) {
-                    alert('请拖入图片文件');
-                    return;
-                }
-                // 若正在反推中,拖入新图无效（避免混乱）
-                var prog = document.getElementById('revViewProgress');
-                if (prog && !prog.hidden) return;
-                _setReverseFile(f);
-                _revView('settings');
-            };
-            overlay.addEventListener('dragenter', onEnter);
-            overlay.addEventListener('dragleave', onLeave);
-            overlay.addEventListener('dragover', onOver);
-            overlay.addEventListener('drop', onDrop);
-        }
-
-        function openReverseSettingsModal() {
-            var ov = document.getElementById('reverseModalOverlay');
-            if (!ov) return;
-            ov.classList.add('show');
-            _bindReverseDragDrop();
-            // 首次打开时拉取 provider 列表
-            if (!_reverseProvidersLoaded) {
-                _reverseProvidersLoaded = true;
-                fetch('/api/providers').then(function(r){return r.json();}).then(function(d){
-                    var sel = document.getElementById('reverseVisionProvider');
-                    if (!sel) return;
-                    sel.innerHTML = '<option value="">自动选择</option>';
-                    (d.providers||[]).forEach(function(p){
-                        if (!p.chat_models || !p.chat_models.length) return;
-                        var o = document.createElement('option');
-                        o.value = p.id;
-                        o.textContent = p.name + (p.primary ? ' ★' : '');
-                        if (p.has_key) o.textContent += ' ✓';
-                        sel.appendChild(o);
-                    });
-                    if (_reverseVisionProvider) sel.value = _reverseVisionProvider;
-                }).catch(function(){});
-            } else {
-                var sel = document.getElementById('reverseVisionProvider');
-                if (sel) sel.value = _reverseVisionProvider || '';
-            }
-            _revView('settings');
-            syncReverseSettingsUI();
-            if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                try { window.lucide.createIcons({ attrs: { class: 'w-3 h-3' } }); } catch (_) {}
-            }
-        }
-
-        function closeReverseSettingsModal() {
-            // 关闭时若正在反推,提示用户
-            var prog = document.getElementById('revViewProgress');
-            if (prog && !prog.hidden) {
-                if (!confirm('反推正在进行中,确定关闭？')) return;
-                cancelReverseFromModal();
-            }
-            var ov = document.getElementById('reverseModalOverlay');
-            if (ov) {
-                ov.classList.remove('show');
-                ov.classList.remove('is-dragover');
-                _reverseDragDepth = 0;
-            }
-        }
-
-        function syncReverseSettingsUI() {
-            var opts = document.querySelectorAll('#revProviderOptions .reverse-modal-opt');
-            opts.forEach(function(el){
-                if (el.getAttribute('data-value') === _reverseProvider) el.classList.add('active');
-                else el.classList.remove('active');
-            });
-            var mopts = document.querySelectorAll('#revModeOptions .reverse-modal-opt');
-            mopts.forEach(function(el){
-                if (el.getAttribute('data-value') === _reverseMode) el.classList.add('active');
-                else el.classList.remove('active');
-            });
-            var vps = document.getElementById('revVisionProviderSection');
-            if (vps) vps.style.display = (_reverseProvider === 'comfyui') ? 'none' : 'block';
-            var btn = document.getElementById('reverseSettingsBtn');
-            if (btn) {
-                if (_reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider) btn.classList.add('is-in-use');
-                else btn.classList.remove('is-in-use');
-            }
-        }
-
-        function setReverseProvider(val) { _reverseProvider = val; syncReverseSettingsUI(); }
-        function setReverseMode(val) { _reverseMode = val; syncReverseSettingsUI(); }
-        function onReverseVisionProviderChange(val) { _reverseVisionProvider = val || ''; syncReverseSettingsUI(); }
-
-        function onReverseFileChange(input) {
-            var f = input.files && input.files[0];
-            _setReverseFile(f);
-        }
-
-        // 清除已选图片（仅清除 _reverseFile, 不动 _reverseFileInput.value, 保留其他设置）
-        function clearReverseFile() {
-            var input = document.getElementById('revFileInput');
-            if (input) input.value = '';  // 清空 file input 允许下次选同一张图
-            _setReverseFile(null);
-        }
-
-        function resetReverseSettings() {
-            // 二次确认：仅在有文件/非默认设置时才询问,避免误点
-            var hasFile = !!_reverseFile;
-            var hasCustom = _reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider;
-            if (hasFile || hasCustom) {
-                if (!confirm('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。')) return;
-            }
-            _reverseProvider = 'auto';
-            _reverseMode = 'auto';
-            _reverseVisionProvider = '';
-            _setReverseFile(null);
-            var sel = document.getElementById('reverseVisionProvider');
-            if (sel) sel.value = '';
-            var fi = document.getElementById('revFileInput');
-            if (fi) fi.value = '';
-            syncReverseSettingsUI();
-        }
-
-        function _resolveReverseMode() {
-            if (_reverseMode === 'caption' || _reverseMode === 'tags') return _reverseMode;
-            var wf = (window.currentWorkflow || '').toLowerCase();
-            return wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
-        }
-
-        function _buildReverseOpts() {
-            var ts = '';
-            if (window.BUILTIN_WF_META) {
-                for (var i = 0; i < window.BUILTIN_WF_META.length; i++) {
-                    if (window.BUILTIN_WF_META[i].name === window.currentWorkflow) {
-                        ts = window.BUILTIN_WF_META[i].model_folder || '';
-                        break;
-                    }
-                }
-            }
-            return {
-                mode: _resolveReverseMode(),
-                targetStyle: ts,
-                provider: _reverseProvider,
-                visionProviderId: _reverseVisionProvider
-            };
-        }
-
-        // 进度视图：阶段 + 0-100% 伪进度
-        var _REV_STAGES = [
-            { p: 8,  t: '正在上传图片…' },
-            { p: 30, t: '正在分析图片…' },
-            { p: 60, t: '正在生成提示词…' },
-            { p: 85, t: '正在润色输出…' }
-        ];
-        function _startReverseProgress(file) {
-            var stage = document.getElementById('revProgressStage');
-            var ftext = document.getElementById('revProgressFile');
-            var bar = document.getElementById('revProgressBar');
-            var pct = document.getElementById('revProgressPercent');
-            if (ftext) ftext.textContent = file.name + '  ·  ' + (file.size / 1024).toFixed(1) + ' KB';
-            if (bar) bar.style.width = '0%';
-            if (pct) pct.textContent = '0%';
-            var i = 0, cur = 0;
-            if (_reverseTimer) clearInterval(_reverseTimer);
-            _reverseTimer = setInterval(function () {
-                if (i >= _REV_STAGES.length) {
-                    cur = Math.min(95, cur + 0.4);
-                } else {
-                    var target = _REV_STAGES[i].p;
-                    cur = Math.min(target, cur + (target - cur) * 0.18);
-                    if (stage) stage.textContent = _REV_STAGES[i].t;
-                    if (cur >= target - 0.5) i++;
-                }
-                var rounded = Math.round(cur);
-                if (bar) bar.style.width = rounded + '%';
-                if (pct) pct.textContent = rounded + '%';
-            }, 180);
-        }
-        function _stopReverseProgress(success) {
-            if (_reverseTimer) { clearInterval(_reverseTimer); _reverseTimer = null; }
-            var bar = document.getElementById('revProgressBar');
-            var pct = document.getElementById('revProgressPercent');
-            var stage = document.getElementById('revProgressStage');
-            if (bar) bar.style.width = '100%';
-            if (pct) pct.textContent = '100%';
-            if (stage) stage.textContent = success ? '完成' : '已取消';
-        }
-
-        function startReverseFromModal() {
-            if (!_reverseFile) return;
-            var file = _reverseFile;
-            var opts = _buildReverseOpts();
-            _revView('progress');
-            _startReverseProgress(file);
-            _reverseAbort = new AbortController();
-            var fd = new FormData();
-            fd.append('file', file);
-            if (opts.mode) fd.append('mode', opts.mode);
-            if (opts.targetStyle) fd.append('target_style', opts.targetStyle);
-            if (opts.provider) fd.append('provider', opts.provider);
-            if (opts.visionProviderId) fd.append('vision_provider_id', opts.visionProviderId);
-            fetch('/api/interrogate', { method: 'POST', body: fd, signal: _reverseAbort.signal })
-                .then(function (res) {
-                    if (!res.ok) return res.json().then(function (j) { throw new Error(j.detail || ('HTTP ' + res.status)); },
-                        function () { throw new Error('HTTP ' + res.status); });
-                    return res.json();
-                })
-                .then(function (result) {
-                    _stopReverseProgress(true);
-                    _showReverseResult(result);
-                })
-                .catch(function (e) {
-                    _stopReverseProgress(false);
-                    if (e.name === 'AbortError') return;
-                    _revView('settings');
-                    alert('反推失败: ' + e.message);
-                });
-        }
-
-        function cancelReverseFromModal() {
-            if (_reverseAbort) { try { _reverseAbort.abort(); } catch (_) {} _reverseAbort = null; }
-            _stopReverseProgress(false);
-            _revView('settings');
-        }
-
-        function _showReverseResult(result) {
-            var text = (result && result.text) || '';
-            var fmt = (result && result.format) || 'caption';
-            var provider = (result && result.provider) || _reverseProvider;
-            var fmtEl = document.getElementById('revResultFormat');
-            var provEl = document.getElementById('revResultProvider');
-            var txtEl = document.getElementById('revResultText');
-            var copyWrap = document.getElementById('revCopyWrap');
-            if (fmtEl) fmtEl.textContent = fmt;
-            if (provEl) provEl.textContent = provider;
-            if (txtEl) { txtEl.value = text; txtEl.readOnly = true; }
-            if (copyWrap) copyWrap.classList.remove('copied');
-            _revView('result');
-            if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                try { window.lucide.createIcons({ attrs: { class: 'w-3 h-3' } }); } catch (_) {}
-            }
-        }
-
-        function applyReverseResult(applyMode) {
-            var txtEl = document.getElementById('revResultText');
-            var text = txtEl ? txtEl.value : '';
-            var ta = document.getElementById('prompt');
-            if (!ta || !text) return;
-            if (applyMode === 'append' && ta.value.trim()) {
-                ta.value = ta.value.trim() + ', ' + text;
-            } else {
-                ta.value = text;
-            }
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            if (window.updatePromptTags) window.updatePromptTags();
-            closeReverseSettingsModal();
-        }
-
-        function copyReverseResult() {
-            var txtEl = document.getElementById('revResultText');
-            if (!txtEl) return;
-            var text = txtEl.value;
-            var wrap = document.getElementById('revCopyWrap');
-            var done = function () { if (wrap) { wrap.classList.add('copied'); setTimeout(function(){ wrap.classList.remove('copied'); }, 1200); } };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(done, done);
-            } else {
-                txtEl.removeAttribute('readonly');
-                txtEl.select();
-                try { document.execCommand('copy'); } catch (_) {}
-                txtEl.setAttribute('readonly', 'readonly');
-                done();
-            }
-        }
-
-        function backToReverseSettings() {
-            _revView('settings');
-        }
-
-        // ESC 关闭模态
-        document.addEventListener('keydown', function(e){
-            if (e.key === 'Escape') {
-                var ov = document.getElementById('reverseModalOverlay');
-                if (ov && ov.classList.contains('show')) closeReverseSettingsModal();
-            }
-        });        function refImageHandleUpload(input) {
+        function refImageHandleUpload(input) {
             initRefImageManager();
             if (_refImgMgr) _refImgMgr.upload();
         }
@@ -3020,9 +2456,8 @@
                 }
                 console.log('[BatchCount] model=' + (currentWorkflow.toLowerCase().includes('anima') ? 'ANIMA' : currentWorkflow.toLowerCase().includes('krea2') ? 'Krea2' : currentWorkflow.toLowerCase().includes('ideogram4') ? 'Ideogram4' : currentWorkflow.toLowerCase().includes('boogu') ? 'Boogu' : 'Z-Image') + ' currentBatchCount=' + _gc.batchCount + ' n69=' + (workflow['69']?.inputs?.batch_size) + ' n64=' + (workflow['64']?.inputs?.batch_size) + ' n6=' + (workflow['6']?.inputs?.batch_size) + ' n144=' + (workflow['144']?.inputs?.batch_size) + ' n185=' + (workflow['185']?.inputs?.batch_size) + ' n8=' + (workflow['8']?.inputs?.batch_size));
 
-                // 注入自定义 LoRA 节点
-                const wfLower = currentWorkflow.toLowerCase();
-                if (wfLower.includes('anima') || wfLower.includes('z-image') || wfLower.includes('z_image') || wfLower.includes('krea2') || wfLower.includes('ideogram4') || wfLower.includes('boogu')) {
+                // 注入自定义 LoRA 节点（ComfyUI/local 模式下所有工作流都支持）
+                if (currentEngine === 'local') {
                     injectLoraNodes(workflow);
                 }
 
@@ -3195,15 +2630,8 @@
             return s.width + 'x' + s.height;
         }
 
-        function cloudToggleMenu(menuId) {
-            document.querySelectorAll('.cloud-menu').forEach(function (m) {
-                if (m.id !== menuId) { m.classList.remove('open'); m.style.display = 'none'; }
-            });
-            const m = document.getElementById(menuId);
-            if (!m) return;
-            if (m.classList.contains('open')) { m.classList.remove('open'); m.style.display = 'none'; }
-            else { m.classList.add('open'); m.style.display = m.classList.contains('anima-ctrl-menu-grid') ? 'grid' : 'block'; }
-        }
+        // 注：cloud 菜单已统一复用 generation-controls.js 的 toggleMenu / closeAllMenus
+        // （见 cloudInitPanel 中的 GenerationControls.setMenuIds 注册），不再需要独立的 cloudToggleMenu
 
         async function cloudCollectRefs() {
             const out = [];
@@ -3264,7 +2692,7 @@
             cloudBuildProviderMenu();
             cloudRefreshModels();
             const menu = document.getElementById('cloudProviderMenu');
-            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            if (menu) { menu.style.display = 'none'; }
             try { localStorage.setItem('zimage_cloud_provider', id); } catch (e) {}
         }
 
@@ -3274,46 +2702,21 @@
             if (t) t.textContent = m || '模型';
             cloudBuildModelMenu();
             const menu = document.getElementById('cloudModelMenu');
-            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            if (menu) { menu.style.display = 'none'; }
             try { localStorage.setItem('zimage_cloud_model', m || ''); } catch (e) {}
         }
 
-        function cloudSyncGenUI() {
-            // 比例 / 分辨率 与 GenerationControls 状态保持同步
-            const st = GenerationControls.getState();
-            const ratioLabel = st.ratioW + ':' + st.ratioH;
-            const ratioBtn = document.getElementById('cloudRatioText');
-            if (ratioBtn) ratioBtn.textContent = ratioLabel;
-            document.querySelectorAll('#cloudRatioMenu .anima-ctrl-menu-item').forEach(function (it) {
-                const on = it.getAttribute('data-ratio') === ratioLabel;
-                it.classList.toggle('active', on);
-                const c = it.querySelector('.chk');
-                if (c) c.style.opacity = on ? '1' : '0';
-            });
-            const resText = st.res === 2 ? '2K' : '1K';
-            const resBtn = document.getElementById('cloudResText');
-            if (resBtn) resBtn.textContent = resText;
-            document.querySelectorAll('#cloudResMenu .anima-ctrl-menu-item').forEach(function (it) {
-                const on = parseInt(it.getAttribute('data-res')) === st.res;
-                it.classList.toggle('active', on);
-                const c = it.querySelector('.chk');
-                if (c) c.style.opacity = on ? '1' : '0';
-            });
-            cloudSetQuality(_cloudQuality);
-        }
+        // 比例/分辨率 active 态由 renderDropdown + setDropdownActive 统一管理，不再需要 cloudSyncGenUI
 
-        function cloudSelectRatio(label, w, h) {
-            GenerationControls.selectRatio(label, w, h);
-            cloudSyncGenUI();
-            const menu = document.getElementById('cloudRatioMenu');
-            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+        function cloudSelectRatio(label) {
+            const r = CLOUD_RATIO_OPTIONS.find(function (x) { return x.l === label; });
+            if (r) GenerationControls.selectRatio(label, r.w, r.h);
+            setDropdownActive('cloudRatioMenu', 'cloudRatioText', label, 'ratio');
         }
 
         function cloudSelectRes(res) {
-            GenerationControls.selectRes(res);
-            cloudSyncGenUI();
-            const menu = document.getElementById('cloudResMenu');
-            if (menu) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            GenerationControls.selectRes(parseInt(res, 10) || 1);
+            setDropdownActive('cloudResMenu', 'cloudResText', String(res), 'res');
         }
 
         function cloudSetQuality(q) {
@@ -3321,7 +2724,21 @@
             try { localStorage.setItem('zimage_cloud_quality', q); } catch (e) {}
             updateQualityDropdown({ menuId: 'cloudQualityMenu', textId: 'cloudQualityText', value: q, options: CLOUD_QUALITY_OPTIONS });
             const menu = document.getElementById('cloudQualityMenu');
-            if (menu && menu.classList.contains('open')) { menu.classList.remove('open'); menu.style.display = 'none'; }
+            if (menu) menu.style.display = 'none';
+        }
+
+        // 在线API 生成控制栏（比例/质量/分辨率）统一由 renderDropdown 动态渲染
+        function cloudGenControlsHtml() {
+            const st = GenerationControls.getState();
+            const ratioOpts = CLOUD_RATIO_OPTIONS.map(function (r) {
+                return { value: r.l, label: r.l, icon: ratioIconHtml(r.w, r.h) };
+            });
+            const ratioLabel = st.ratioW + ':' + st.ratioH;
+            return [
+                renderDropdown({ btnId: 'cloudRatioBtn', textId: 'cloudRatioText', menuId: 'cloudRatioMenu', menuClass: 'cloud-menu', value: ratioLabel, options: ratioOpts, dataKey: 'ratio', onChange: 'cloudSelectRatio', toggleFn: 'toggleMenu', iconSvg: ICON.ratio, grid: true }),
+                renderQualityDropdown({ btnId: 'cloudQualityBtn', textId: 'cloudQualityText', menuId: 'cloudQualityMenu', menuClass: 'cloud-menu', value: _cloudQuality, options: CLOUD_QUALITY_OPTIONS, onChange: 'cloudSetQuality', toggleFn: 'toggleMenu' }),
+                renderDropdown({ btnId: 'cloudResBtn', textId: 'cloudResText', menuId: 'cloudResMenu', menuClass: 'cloud-menu', value: String(st.res), options: [{ value: '1', label: '1K' }, { value: '2', label: '2K' }], dataKey: 'res', onChange: 'cloudSelectRes', toggleFn: 'toggleMenu', iconSvg: ICON.res })
+            ].join('');
         }
 
         async function cloudRefreshModels() {
@@ -3368,6 +2785,8 @@
         }
 
         async function cloudInitPanel() {
+            // 统一菜单开关：把 cloud 菜单注册到 GenerationControls，复用通用 toggleMenu / closeAllMenus
+            GenerationControls.setMenuIds(['batchCountMenu','modelMenu','engineMenu','ratioMenu','resMenu','qualityMenu','booguQualityMenu','cloudProviderMenu','cloudModelMenu','cloudRatioMenu','cloudQualityMenu','cloudResMenu']);
             try {
                 const sp = localStorage.getItem('zimage_cloud_provider');
                 if (sp) _cloudProviderId = sp;
@@ -3378,14 +2797,15 @@
             const p = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
             const t = document.getElementById('cloudProviderText');
             if (t && p) t.textContent = p.name || p.id;
-            cloudSyncGenUI();
+            const _cgc = document.getElementById('cloudGenControls');
+            if (_cgc) _cgc.innerHTML = cloudGenControlsHtml();
         }
 
-        // 点击外部关闭 cloud 菜单
+        // 点击外部关闭 cloud 菜单（已统一由通用 toggleMenu/closeAllMenus 管理，这里仅作双保险）
         document.addEventListener('click', function (e) {
             if (e.target.closest && e.target.closest('.anima-ctrl-wrap')) return;
             setTimeout(function () {
-                document.querySelectorAll('.cloud-menu.open').forEach(function (m) { m.classList.remove('open'); m.style.display = 'none'; });
+                document.querySelectorAll('.cloud-menu').forEach(function (m) { m.style.display = 'none'; });
             }, 0);
         }, true);
 
@@ -3736,6 +3156,101 @@
                 try { document.querySelector('main')?.scrollTo({top:0, behavior:'smooth'}); } catch(_){}
             },
         });
+        // 收藏图片时自动保存到资产库；取消收藏时同步从资产库删除（仅删本功能新建的，去重命中的既有资产不删）
+        (function() {
+            var _favInFlight = {};   // galleryUrl -> true（请求进行中，防重复）
+            var _favSavedAsset = {}; // galleryUrl -> { assetUrl, dedup }（本功能存入的资产库条目）
+            function _favAssetToast(msg) {
+                try {
+                    var t = document.createElement('div');
+                    t.textContent = msg;
+                    t.style.cssText = 'position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:9999;' +
+                        'background:rgba(15,23,42,.92);color:#e2e8f0;padding:8px 16px;border-radius:8px;' +
+                        'font-size:13px;letter-spacing:.03em;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;';
+                    document.body.appendChild(t);
+                    setTimeout(function() { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; }, 1600);
+                    setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 2100);
+                } catch (_) {}
+            }
+            if (window.GalleryDisplay && GalleryDisplay.Base && GalleryDisplay.Base.bus &&
+                typeof GalleryDisplay.Base.bus.on === 'function') {
+                function _findPromptByUrl(u) {
+                    try {
+                        var items = (window.GalleryList && GalleryList.allHistory) || [];
+                        for (var i = 0; i < items.length; i++) {
+                            var r = items[i];
+                            if (r && r.images && r.images.indexOf(u) !== -1) return r.prompt || '';
+                        }
+                    } catch (e) {}
+                    return '';
+                }
+                GalleryDisplay.Base.bus.on('fav:changed', function(ev) {
+                    if (!ev || !ev.url) return;
+                    var gUrl = ev.url;
+                    var gPrompt = _findPromptByUrl(gUrl);
+                    if (ev.added) {
+                        // 已收藏且在同步中或已存过，跳过
+                        if (_favInFlight[gUrl] || _favSavedAsset[gUrl]) return;
+                        _favInFlight[gUrl] = true;
+                        fetch('/api/user/assets/save-from-url', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: gUrl, prompt: gPrompt })
+                        }).then(function(r) {
+                            if (r.ok) {
+                                return r.json().then(function(data) {
+                                    // data: { url, name, dedup }
+                                    _favSavedAsset[gUrl] = { assetUrl: data.url || gUrl, dedup: !!data.dedup };
+                                    console.log('[收藏] 已保存到资产库:', gUrl, 'dedup=', !!data.dedup);
+                                    _favAssetToast(data.dedup ? '已收藏（资产库已有该图）' : '已收藏并保存到资产库');
+                                    // 资产库面板已加缓存，通知其失效以便立即显示新收藏
+                                    if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
+                                        try { AssetLibrary.invalidate(); } catch (_) {}
+                                    }
+                                });
+                            } else {
+                                console.warn('[收藏] 保存到资产库失败:', r.status, r.statusText);
+                                _favAssetToast('收藏成功，但保存到资产库失败');
+                            }
+                        }).catch(function(e) {
+                            console.warn('[收藏] 保存到资产库异常:', e);
+                            _favAssetToast('收藏成功，但保存到资产库失败');
+                        }).then(function() {
+                            delete _favInFlight[gUrl];
+                        });
+                    } else {
+                        // 取消收藏：若本功能曾存入该图（且非去重命中），同步删除
+                        var rec = _favSavedAsset[gUrl];
+                        delete _favSavedAsset[gUrl];
+                        delete _favInFlight[gUrl];
+                        if (rec && !rec.dedup) {
+                            fetch('/api/user/assets/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: rec.assetUrl })
+                            }).then(function(r) {
+                                if (r.ok) {
+                                    console.log('[取消收藏] 已从资产库删除:', rec.assetUrl);
+                                    _favAssetToast('已取消收藏并从资产库删除');
+                                    if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
+                                        try { AssetLibrary.invalidate(); } catch (_) {}
+                                    }
+                                } else {
+                                    console.warn('[取消收藏] 删除资产库失败:', r.status, r.statusText);
+                                    _favAssetToast('已取消收藏，但资产库删除失败');
+                                }
+                            }).catch(function(e) {
+                                console.warn('[取消收藏] 删除资产库异常:', e);
+                                _favAssetToast('已取消收藏，但资产库删除失败');
+                            });
+                        } else if (rec && rec.dedup) {
+                            // 去重命中：该图在收藏前已存在于资产库，不删除
+                            console.log('[取消收藏] 资产库原已存在该图，保留:', rec.assetUrl);
+                        }
+                    }
+                });
+            }
+        })();
         // 长按批量管理已通过上方 GalleryDisplay.init({ longPressToSelect: true }) 接入，
         // 由 gallery-display.js 内真正的 HistoryBulkManager.attach 生效（避免重复 attach 被 return）。
         // 旧文件名 → 新相对路径(迁移 localStorage 中保存的工作流选择)
@@ -4024,6 +3539,12 @@
             // 初始化生成参数控制
             GenerationControls.init();
 
+            // 修正比例/分辨率显示与生成不一致：
+            // GenerationControls.init() 已从 localStorage 恢复上次保存的 ratio/res 到 _state，
+            // 但 init() 不会重绘参数 UI，而顶部脚本在 init 之前已用默认值(9:16)渲染了比例下拉框。
+            // 这里在 init 之后重新渲染参数 UI，使 ratioText/分辨率显示与 _state（即实际生成值）保持一致。
+            updateParamsUI();
+
             // 从后端动态加载内置工作流元数据（驱动模型菜单 / 模型前缀 / LoRA 过滤）
             loadBuiltinWorkflowMeta();
 
@@ -4087,7 +3608,7 @@
                     }
                 });
             }
-            
+
             // 初始化提示词方案组件
             if (typeof RandomPrompt !== 'undefined') {
                 RandomPrompt.init('randomPromptContainer', {
@@ -4228,138 +3749,42 @@
                     applyAutoGenVisual(snap);
                 }, 250);
             })();
+
+            // 时间轴：复用画廊模块（timeline.js）GalleryTimeline，挂载到 #masonry（自带 MutationObserver + 轮询兜底）
+            // [已暂时停用] 时间轴功能暂不稳定，先不接入使用；保留模块与脚本，需要时取消下一行注释即可恢复。
+            // if (window.GalleryTimeline) GalleryTimeline.attach({ container: '#masonry' });
+
         };
     </script>
 <!-- ── 反推设置面板（悬浮模态：缩略图条 + 三视图无缝切换） ── -->
-<div class="reverse-modal-overlay" id="reverseModalOverlay" onclick="if(event.target===this)closeReverseSettingsModal()">
-    <div class="reverse-modal" id="reverseModal" role="dialog" aria-modal="true" aria-label="反推设置">
-        <div class="reverse-modal-header">
-            <div class="reverse-modal-title" id="revViewTitle">反推设置</div>
-            <div class="reverse-modal-header-right">
-                <button class="reverse-modal-header-btn rerun-btn" id="revReRunBtn" onclick="backToReverseSettings()" aria-label="重新反推" title="返回设置/重新反推" style="display:none;">
-                    <i data-lucide="rotate-ccw" style="width:18px;height:18px;"></i>
-                </button>
-                <button class="reverse-modal-close" onclick="closeReverseSettingsModal()" aria-label="关闭">
-                    <i data-lucide="x" style="width:18px;height:18px;"></i>
-                </button>
-            </div>
-        </div>
+    <div id="reverseImageMount"></div>
+    <script src="/static/modules/reverse-image.js"></script>
+    <script>
+        ReverseImage.init({
+            mountId: 'reverseImageMount',
+            onApply: function (text, mode) {
+                var ta = document.getElementById('prompt');
+                if (!ta || !text) return;
+                if (mode === 'append' && ta.value.trim()) ta.value = ta.value.trim() + ', ' + text;
+                else ta.value = text;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                if (window.updatePromptTags) window.updatePromptTags();
+            }
+        });
+    </script>
 
-        <!-- 共享：缩略图条(三视图都显示,作为视觉锚点) -->
-        <div class="reverse-modal-preview is-empty" id="revPreview" onclick="document.getElementById('revFileInput').click()">
-            <input type="file" accept="image/*" id="revFileInput" style="display:none;" onchange="onReverseFileChange(this)">
-            <div class="reverse-modal-preview-thumb empty" id="revPreviewThumb" title="选择图片">
-                <span class="reverse-modal-preview-thumb-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
-                </span>
-                <span class="reverse-modal-preview-replace">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-                </span>
-            </div>
-            <div class="reverse-modal-preview-info">
-                <div class="reverse-modal-preview-name empty" id="revPreviewName"></div>
-                <div class="reverse-modal-preview-meta" id="revPreviewMeta">
-                    <span id="revPreviewSize"></span>
-                    <button type="button" class="reverse-modal-preview-clear-side" id="revPreviewClear" onclick="event.stopPropagation();clearReverseFile()" title="清除图片" aria-label="清除图片">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        <span>清除</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 视图 A: 设置 -->
-        <div class="reverse-view" id="revViewSettings">
-            <div class="reverse-modal-section">
-                <label class="reverse-modal-label">反推提供商</label>
-                <div class="reverse-modal-options" id="revProviderOptions">
-                    <button class="reverse-modal-opt active" data-value="auto" onclick="setReverseProvider('auto')">
-                        自动
-                        <span class="reverse-modal-opt-desc">按场景自动选</span>
-                    </button>
-                    <button class="reverse-modal-opt" data-value="comfyui" onclick="setReverseProvider('comfyui')">
-                        本地 ComfyUI
-                        <span class="reverse-modal-opt-desc">本地工作流</span>
-                    </button>
-                    <button class="reverse-modal-opt" data-value="vision" onclick="setReverseProvider('vision')">
-                        AI API 多模态
-                        <span class="reverse-modal-opt-desc">调用云端模型</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="reverse-modal-section" id="revVisionProviderSection">
-                <label class="reverse-modal-label">AI 平台 / 模型</label>
-                <select class="reverse-modal-select" id="reverseVisionProvider" onchange="onReverseVisionProviderChange(this.value)">
-                    <option value="">自动选择</option>
-                </select>
-            </div>
-
-            <div class="reverse-modal-section">
-                <label class="reverse-modal-label">反推模式</label>
-                <div class="reverse-modal-options" id="revModeOptions">
-                    <button class="reverse-modal-opt active" data-value="auto" onclick="setReverseMode('auto')">
-                        自动
-                        <span class="reverse-modal-opt-desc">随工作流走</span>
-                    </button>
-                    <button class="reverse-modal-opt" data-value="caption" onclick="setReverseMode('caption')">
-                        描述
-                        <span class="reverse-modal-opt-desc">自然语言句子</span>
-                    </button>
-                    <button class="reverse-modal-opt" data-value="tags" onclick="setReverseMode('tags')">
-                        标签
-                        <span class="reverse-modal-opt-desc">逗号分隔的词</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="reverse-modal-hint">调整即时生效；可直接拖入图片到本面板。</div>
-
-            <div class="reverse-modal-actions">
-                <button class="btn-ghost" onclick="resetReverseSettings()" title="恢复所有设置为默认">
-                    <i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i>重置
-                </button>
-                <button class="btn-primary" id="revStartBtn" onclick="startReverseFromModal()" disabled>
-                    <i data-lucide="sparkles" style="width:16px;height:16px;"></i>开始反推
-                </button>
-            </div>
-        </div>
-
-        <!-- 视图 B: 进度 -->
-        <div class="reverse-view" id="revViewProgress" hidden>
-            <div class="reverse-progress">
-                <div class="reverse-progress-spinner"></div>
-                <div class="reverse-progress-stage" id="revProgressStage">正在分析图片…</div>
-                <div class="reverse-progress-file" id="revProgressFile">文件名</div>
-                <div class="reverse-progress-bar"><div id="revProgressBar" style="width:0%;"></div></div>
-                <div class="reverse-progress-percent" id="revProgressPercent">0%</div>
-            </div>
-            <div class="reverse-modal-actions">
-                <button class="btn-secondary" onclick="cancelReverseFromModal()">
-                    <i data-lucide="x" style="width:16px;height:16px;"></i>取消
-                </button>
-            </div>
-        </div>
-
-        <!-- 视图 C: 结果 -->
-        <div class="reverse-view" id="revViewResult" hidden>
-            <div class="reverse-result-meta">
-                <span class="reverse-result-meta-tag" id="revResultFormat">caption</span>
-                <span id="revResultProvider">auto</span>
-            </div>
-            <textarea class="reverse-result-text" id="revResultText" readonly></textarea>
-            <div class="reverse-modal-actions reverse-result-actions">
-                <button class="btn-primary" onclick="applyReverseResult('replace')" title="用反推结果替换当前提示词">
-                    <i data-lucide="replace" style="width:16px;height:16px;"></i>替换
-                </button>
-                <button class="btn-secondary" onclick="applyReverseResult('append')" title="把反推结果追加到当前提示词末尾">
-                    <i data-lucide="plus" style="width:16px;height:16px;"></i>追加
-                </button>
-                <button class="btn-ghost" id="revCopyWrap" onclick="copyReverseResult()" title="复制到剪贴板">
-                    <i data-lucide="copy" style="width:16px;height:16px;"></i>复制
-                </button>
-            </div>
-        </div>
-    </div>
-</div></body>
+<!-- ── 资产库选择面板（独立模块） ── -->
+    <div id="assetLibraryMount"></div>
+    <script src="/static/modules/asset-library.js"></script>
+    <script>
+        AssetLibrary.init({
+            mountId: 'assetLibraryMount',
+            allowDelete: true,
+            onApply: function (url, name) {
+                // 把选中的资产图作为参考图加入（URL → File → RefImageManager）
+                if (typeof applyAssetToRef === 'function') applyAssetToRef(url, name);
+            }
+        });
+    </script>
+</body>
 </html>

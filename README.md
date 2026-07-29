@@ -17,7 +17,7 @@ http://localhost:7000
 - **账号系统**：支持注册、登录、Token 校验、管理员用户管理，用户数据保存在 [data/users.json](data/users.json)。
 - **主控制台**：侧边栏 + iframe 多页面工作台，支持主题切换、在线状态、队列状态和应用切换。
 - **ComfyUI 图像应用**：集成图片编辑、3D 视角变换、CG 细化、2D 风格细化、抠图、扩图、高清修复、图像反推、文字抠图、万物移除等应用。
-- **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点、PS 节点、日志面板、小导航栏和资产库。
+- **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点（含 **LTX Director 多段视频导演台**：`workflows/LTXDirectorv2-API.json`，提供 timeline_data / segment_lengths / guide_strength / audioSegments 多段拼镜能力，依赖 ComfyUI 侧 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点，详情见 `LTXDirector集成方案.md`）、PS 节点、日志面板、小导航栏和资产库。
 - **在线生图**：通过 COMFLY / OpenAI 兼容协议调用在线图像模型，支持参考图、提示词预设和历史记录。
 - **提示词方案 (Prompt Plan)**：可创建 / 编辑 / 应用多个提示词组合方案（角色 + 画师 + 预设 + 固定提示词 + LoRA），支持随机 / 顺序两种抽取模式。面板从文生图页的 🎲 按钮打开。
 - **自动生成**：在提示词方案面板中可设置自动按方案生成图片——计次模式（生成 N 次后停止）或定时模式（每 N 分钟 × N 轮）。⚡ 主按钮长按可同步启动 / 停止自动生成，运行中按钮显示倒计时或进度。
@@ -32,6 +32,7 @@ http://localhost:7000
 - **提示词方案重构**：原「随机提示词」升级为「提示词方案 (Prompt Plan)」，支持多个方案保存 / 切换 / 编辑；面板合并为单页布局（方案列表 + 自动生成分区）。
 - **自动生成引擎**：纯前端实现的自动生成循环，支持计次 / 定时两种模式，可中途停止、有进度条、完成 Toast 总结。
 - **⚡ 主按钮长按**：长按「生成」主按钮可快速启动 / 停止自动生成（带 600ms 长按计时 + 脉冲动效）。运行中按钮转为绿色呼吸光晕 + loader 图标 + 徽章进度（`3/10` 或 `mm:ss` 倒计时）。
+- **LTX Director 节点集成**：补齐 `workflows/LTXDirectorv2-API.json` + `LTXDirectorv2-API.config.json` 两件套，配合前端 `ltx-director-timeline.js`（146 KB, 与 Infinite 字节级一致）支持多段视频拼镜 + 音频轨道 + 镜头强度曲线。
 - **多图拼图布局**：单条历史记录多张图片自动拼图展示，1/2/3/4/5+ 张各有不同布局。
 - **孤儿记录清理**：新增 `/api/gallery/purge-orphans` 管理员接口，可一键清理 `history.json` 中指向已删图片的孤儿记录（含 `dry_run` 预览模式）。
 - **预设中英文双向切换**：新增 `/api/preset-i18n` 与 `/api/preset-bidir` 接口，预设面板支持中英文名切换。
@@ -169,6 +170,8 @@ art-canvas/
 │   ├── F2K-gaoqingxiufu.json
 │   ├── yichuwuti.json
 │   ├── jiandanqubeijing.json
+│   ├── LTX23-图生视频.json           # LTX-2.3 单段图生视频（图+文→mp4, 含音轨）
+│   ├── LTXDirectorv2-API.json         # LTX Director 多段视频导演台（依赖 WhatDreamsCost 自定义节点）
 │   └── ...
 ├── static/                         # 前端静态资源
 │   ├── index.html                  # 主控制台

@@ -1,620 +1,363 @@
-/**
- * Asset Library 模块
- * 负责无限画布资产库功能：左侧滑出面板、资产文件夹管理、图片上传/拖入/删除
- * 预留保存工作流和保存画布功能
+/*
+ * asset-library.js — 资产库选择独立功能模块
+ * 把"从资产库选图 / 删除 / 去重"封装成可复用模块，供各页面接入。
+ *
+ * 用法：
+ *   <div id="assetLibraryMount"></div>
+ *   <script src="/static/modules/asset-library.js"></script>
+ *   <script>
+ *     AssetLibrary.init({
+ *       mountId:   'assetLibraryMount',   // 面板挂载点（任意容器，浮层 fixed 覆盖全屏）
+ *       title:     '从资产库选择',          // 面板标题（可选）
+ *       allowDelete: true,                // 是否显示每张图的删除按钮（默认 true）
+ *       onApply:   function (url, name) { // 用户点选某资产图时回调（可选）
+ *         // 由调用页面决定怎么用，例如转成 File 加到参考图管理器
+ *       },
+ *       onDeleted: function (url, name) {} // 某资产被删除后回调（可选）
+ *     });
+ *   </script>
+ *   // 触发打开：AssetLibrary.open()
+ *   // 关闭：     AssetLibrary.close()
  */
+(function () {
+  'use strict';
 
-let assetFolderCreated = false;
+  // ───────────────────────────── CSS ─────────────────────────────
+  var CSS = [
+    ".asset-picker-overlay { position:fixed; inset:0; background:rgba(15,23,42,.65); z-index:60; display:flex; align-items:center; justify-content:center; padding:24px; backdrop-filter:blur(4px); opacity:0; visibility:hidden; pointer-events:none; transition:opacity .22s ease, visibility .22s ease; }",
+    ".asset-picker-overlay.open { display:flex; opacity:1; visibility:visible; pointer-events:auto; }",
+    ".asset-picker-panel { background:#fff; border-radius:18px; width:min(900px, 95vw); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 28px 64px rgba(15,23,42,.35); transform:translateY(10px) scale(.98); opacity:0; transition:transform .28s cubic-bezier(.2,.8,.2,1), opacity .28s ease; will-change:transform,opacity; }",
+    "body.studio-theme-dark .asset-picker-panel, html.studio-theme-dark body .asset-picker-panel { background:#0f172a; border:1px solid #1f2937; }",
+    ".asset-picker-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid rgba(15,23,42,.06); }",
+    "body.studio-theme-dark .asset-picker-head, html.studio-theme-dark body .asset-picker-head { border-bottom-color:rgba(255,255,255,.06); }",
+    ".asset-picker-title { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:900; color:#0f172a; }",
+    "body.studio-theme-dark .asset-picker-title, html.studio-theme-dark body .asset-picker-title { color:#e2e8f0; }",
+    ".asset-picker-head-actions { display:flex; align-items:center; gap:6px; }",
+    ".asset-picker-dedup { font-size:10px; padding:0 8px; border-radius:6px; background:transparent; border:1px solid #94a3b8; color:#94a3b8; cursor:pointer; height:24px; transition:all .15s ease; }",
+    ".asset-picker-dedup:hover { background:rgba(148,163,184,.12); }",
+    "body.studio-theme-dark .asset-picker-dedup, html.studio-theme-dark body .asset-picker-dedup { color:#94a3b8; border-color:#475569; }",
+    "body.studio-theme-dark .asset-picker-dedup:hover, html.studio-theme-dark body .asset-picker-dedup:hover { background:rgba(148,163,184,.15); }",
+    ".asset-picker-close { width:32px; height:32px; border:0; background:transparent; color:#64748b; font-size:24px; line-height:1; border-radius:8px; cursor:pointer; transition:all .15s ease; }",
+    ".asset-picker-close:hover { background:#f1f5f9; color:#0f172a; }",
+    "body.studio-theme-dark .asset-picker-close:hover, html.studio-theme-dark body .asset-picker-close:hover { background:#1e293b; color:#e2e8f0; }",
+    ".asset-picker-content { flex:1; overflow:auto; padding:18px 22px; }",
+    ".asset-picker-toolbar { display:flex; align-items:center; gap:12px; padding:10px 22px; border-bottom:1px solid rgba(15,23,42,.06); }",
+    "body.studio-theme-dark .asset-picker-toolbar, html.studio-theme-dark body .asset-picker-toolbar { border-bottom-color:rgba(255,255,255,.06); }",
+    ".asset-picker-search { flex:1; min-width:0; height:32px; padding:0 12px; border-radius:8px; border:1px solid rgba(15,23,42,.12); background:rgba(15,23,42,.03); color:#0f172a; font-size:12px; outline:none; transition:border-color .15s ease; }",
+    ".asset-picker-search:focus { border-color:#3b82f6; }",
+    ".asset-picker-search::placeholder { color:#94a3b8; }",
+    "body.studio-theme-dark .asset-picker-search, html.studio-theme-dark body .asset-picker-search { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); color:#e2e8f0; }",
+    ".asset-picker-size { display:flex; align-items:center; gap:8px; }",
+    ".asset-picker-size-label { font-size:11px; font-weight:700; color:#64748b; white-space:nowrap; }",
+    "body.studio-theme-dark .asset-picker-size-label, html.studio-theme-dark body .asset-picker-size-label { color:#94a3b8; }",
+    ".asset-picker-size-range { width:110px; accent-color:#3b82f6; cursor:pointer; }",
+    "body.studio-theme-dark .asset-picker-size-range { accent-color:#38bdf8; }",
+    ".asset-picker-empty { padding:36px 0; text-align:center; color:#64748b; font-size:12px; font-weight:700; }",
+    "body.studio-theme-dark .asset-picker-empty, html.studio-theme-dark body .asset-picker-empty { color:#94a3b8; }",
+    ".asset-picker-grid { columns: 140px; column-gap: 12px; }",
+    ".asset-picker-item { display:block; margin:0 0 12px; break-inside:avoid; border:1px solid rgba(15,23,42,.08); border-radius:10px; cursor:pointer; background:rgba(15,23,42,.02); transition:border-color .15s ease, transform .15s ease; overflow:hidden; position:relative; }",
+    ".asset-picker-item:hover { border-color:#3b82f6; transform:translateY(-1px); }",
+    "body.studio-theme-dark .asset-picker-item, html.studio-theme-dark body .asset-picker-item { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); }",
+    ".asset-picker-item img { display:block; width:100%; height:auto; border-radius:0; background:#f1f5f9; }",
+    "body.studio-theme-dark .asset-picker-item img, html.studio-theme-dark body .asset-picker-item img { background:#1e293b; }",
+    ".asset-picker-item-name { position:absolute; top:0; left:0; right:0; padding:9px 34px 16px 10px; font-size:11px; font-weight:700; color:#f8fafc; background:linear-gradient(to bottom, rgba(15,23,42,.8), rgba(15,23,42,0)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .15s ease; z-index:3; }",
+    ".asset-picker-item:hover .asset-picker-item-name { opacity:1; }",
+    ".asset-picker-del { position:absolute; top:8px; right:8px; width:24px; height:24px; border:0; border-radius:50%; background:rgba(15,23,42,.55); color:#fff; font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .15s ease, background .15s ease; z-index:4; }",
+    ".asset-picker-item:hover .asset-picker-del { opacity:1; }",
+    ".asset-picker-del:hover { background:#ef4444; }",
+    "body.studio-theme-dark .asset-picker-del, html.studio-theme-dark body .asset-picker-del { background:rgba(15,23,42,.7); }",
+    "body.studio-theme-dark .asset-picker-del:hover, html.studio-theme-dark body .asset-picker-del:hover { background:#ef4444; }",
+    ".asset-picker-overlay.open .asset-picker-panel { transform: translateY(0) scale(1); opacity:1; }",
+    ".asset-picker-overlay-open { overflow:hidden !important; }",
+    "@media (hover: none) { .asset-picker-item:hover { transform:none; border-color:rgba(15,23,42,.08); } body.studio-theme-dark .asset-picker-item:hover { border-color:rgba(255,255,255,.1); } .asset-picker-item-name, .asset-picker-item:hover .asset-picker-item-name { opacity:1; } .asset-picker-del, .asset-picker-item:hover .asset-picker-del { opacity:1; } .asset-picker-item:active { transform:scale(.97); transition:transform .12s ease; } }",
+    "@media (max-width: 640px) { .asset-picker-overlay { padding:0; align-items:flex-end; } .asset-picker-panel { width:100%; max-width:100%; height:92vh; max-height:92vh; border-radius:18px 18px 0 0; transform:translateY(100%); transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s ease; } .asset-picker-overlay.open .asset-picker-panel { transform:translateY(0); } .asset-picker-head { padding:14px 16px; } .asset-picker-title { font-size:15px; } .asset-picker-close { width:38px; height:38px; font-size:26px; } .asset-picker-toolbar { flex-wrap:wrap; gap:10px; padding:10px 14px; } .asset-picker-search { flex:1 1 100%; height:38px; font-size:14px; } .asset-picker-size { flex:1 1 100%; justify-content:space-between; } .asset-picker-size-range { flex:1; width:auto; } .asset-picker-content { padding:14px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; } .asset-picker-grid { column-gap:8px; } .asset-picker-item { margin:0 0 8px; touch-action:manipulation; } .asset-picker-item-name { font-size:12px; } .asset-picker-del { width:30px; height:30px; font-size:18px; } }"
+  ].join('\n');
 
-window.toggleAssetLibrary = function() {
-    const sidebar = document.getElementById('assetSidebar');
-    const backdrop = document.getElementById('assetBackdrop');
-    if (sidebar.classList.contains('open')) {
-        closeAssetLibrary();
-    } else {
-        openAssetLibrary();
+  // ───────────────────────────── HTML 模板（data-act 事件委托）─────────────────────────────
+  var HTML = [
+    '<div class="asset-picker-overlay" id="assetLibraryOverlay">',
+    '    <div class="asset-picker-panel">',
+    '        <div class="asset-picker-head">',
+    '            <div class="asset-picker-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg><span id="assetLibraryTitle">从资产库选择</span></div>',
+    '            <div class="asset-picker-head-actions">',
+    '                <button class="asset-picker-dedup" data-act="dedup" title="删除重复资产">去重</button>',
+    '                <button class="asset-picker-close" data-act="close" title="关闭">&times;</button>',
+    '            </div>',
+    '        </div>',
+    '        <div class="asset-picker-toolbar">',
+    '            <input class="asset-picker-search" id="assetLibrarySearch" type="text" placeholder="搜索资产名称...">',
+    '            <div class="asset-picker-size">',
+    '                <span class="asset-picker-size-label">大小</span>',
+    '                <input class="asset-picker-size-range" id="assetLibrarySize" type="range" min="100" max="280" step="10" value="140">',
+    '            </div>',
+    '        </div>',
+    '        <div class="asset-picker-content" id="assetLibraryContent">',
+    '            <div class="asset-picker-empty"><span>加载中...</span></div>',
+    '        </div>',
+    '    </div>',
+    '</div>'
+  ].join('\n');
+
+  // ───────────────────────────── 模块状态 ─────────────────────────────
+  var _mountId = 'assetLibraryMount';
+  var _title = '从资产库选择';
+  var _onApply = null;
+  var _onDeleted = null;
+  var _allowDelete = true;
+  var _cssInjected = false;
+  var _rendered = false;
+  // ── 列表缓存 / 网格已渲染标记（避免每次打开重复请求与重建 DOM）──
+  var _cache = null;        // 最近一次拉取的资产列表（img 对象数组）
+  var _cacheTs = 0;         // 缓存时间戳
+  var _cacheTTL = 60000;    // 缓存新鲜度窗口（毫秒），过期后后台静默刷新
+  var _gridBuilt = false;   // 网格是否已渲染到 content 中（已渲染则不重建）
+  var _searchTerm = '';     // 当前搜索关键词（按名称过滤，客户端）
+  var _colWidth = 140;      // 瀑布流列宽（像素），由大小滑条控制
+
+  // ───────────────────────────── 工具 ─────────────────────────────
+  function $(id) { return document.getElementById(id); }
+
+  function escAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function _injectCss() {
+    if (_cssInjected) return;
+    if (document.getElementById('asset-library-css')) { _cssInjected = true; return; }
+    var style = document.createElement('style');
+    style.id = 'asset-library-css';
+    style.textContent = CSS;
+    document.head.appendChild(style);
+    _cssInjected = true;
+  }
+
+  function _render() {
+    var mount = $(_mountId);
+    if (!mount) { console.error('[AssetLibrary] mount not found: ' + _mountId); return; }
+    mount.innerHTML = HTML;
+    _rendered = true;
+    var titleEl = $('assetLibraryTitle');
+    if (titleEl) titleEl.textContent = _title;
+    _bindEvents();
+    _bindToolbar();
+  }
+
+  function _bindToolbar() {
+    var search = $('assetLibrarySearch');
+    var size = $('assetLibrarySize');
+    if (search) {
+      search.value = _searchTerm;
+      search.addEventListener('input', function () {
+        _searchTerm = (search.value || '').trim();
+        if (_cache) _renderGrid(_cache);   // 客户端过滤，无需重新请求
+      });
     }
-};
-
-window.closeAssetLibrary = function() {
-    document.getElementById('assetSidebar').classList.remove('open');
-    document.getElementById('assetBackdrop').classList.remove('open');
-};
-
-window.openAssetLibrary = function() {
-    const sidebar = document.getElementById('assetSidebar');
-    const backdrop = document.getElementById('assetBackdrop');
-    sidebar.classList.add('open');
-    backdrop.classList.add('open');
-    refreshIcons();
-    loadAssetLibrary();
-};
-
-async function loadAssetLibrary() {
-    if (!ensureCanvas()) return;
-    showAssetLoading(true);
-    try {
-        await ensureAssetFolder();
-        await refreshAssetList();
-    } catch (e) {
-        showAssetError('加载资产库失败: ' + (e.message || e));
+    if (size) {
+      size.value = String(_colWidth);
+      size.addEventListener('input', function () {
+        _colWidth = parseInt(size.value, 10) || 140;
+        _applySize();
+      });
     }
-    showAssetLoading(false);
-}
+  }
 
-function showAssetLoading(show) {
-    const el = document.getElementById('assetLoading');
-    if (el) el.style.display = show ? 'flex' : 'none';
-    if (show) refreshIcons();
-}
+  // 将当前列宽应用到已渲染的网格（大小滑条实时生效）
+  function _applySize() {
+    var grid = document.querySelector('#assetLibraryContent .asset-picker-grid');
+    if (grid) grid.style.columnWidth = _colWidth + 'px';
+  }
 
-function showAssetError(msg) {
-    const content = document.getElementById('assetContent');
-    content.innerHTML = `<div class="asset-empty"><div class="asset-empty-icon"><i data-lucide="alert-circle" class="w-8 h-8"></i></div>${msg}</div>`;
-    refreshIcons();
-}
+  function _bindEvents() {
+    var overlay = $('assetLibraryOverlay');
+    if (!overlay) return;
+    overlay.addEventListener('click', function (e) {
+      // 点击遮罩空白处关闭
+      if (e.target === overlay) { close(); return; }
+      var el = e.target.closest('[data-act]');
+      if (!el) return;
+      var act = el.getAttribute('data-act');
+      if (act === 'close') close();
+      else if (act === 'dedup') dedupAssets();
+      else if (act === 'select') applyAsset(el.getAttribute('data-url'), el.getAttribute('data-name'));
+      else if (act === 'delete') deleteAsset(el.getAttribute('data-url'), el.getAttribute('data-name'));
+    });
+  }
 
-async function ensureAssetFolder() {
-    if (!window.canvas) return;
-    const res = await fetch(`/api/canvases/${window.canvas.id}/asset-folder`, { method: 'POST' });
-    if (!res.ok) throw new Error('创建资产文件夹失败');
-    const data = await res.json();
-    assetFolderCreated = true;
-    return data;
-}
+  function _renderIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try { window.lucide.createIcons(); } catch (_) {}
+    }
+  }
 
-window.refreshAssetList = refreshAssetList;
-async function refreshAssetList() {
-    if (!window.canvas) return;
-    const content = document.getElementById('assetContent');
-    try {
-        const res = await fetch(`/api/canvases/${window.canvas.id}/assets`);
-        if (!res.ok) throw new Error('获取资产列表失败');
-        const data = await res.json();
-        renderAssets(data.files || []);
-    } catch (e) {
-        showAssetError('加载失败: ' + (e.message || e));
+  // ───────────────────────────── 列表加载 / 渲染 ─────────────────────────────
+  // 把列表渲染成网格。已渲染(_gridBuilt)且数据未变时不会重建 DOM，
+  // 这样再次打开面板时图片仍在 DOM 中，浏览器直接复用、不再重新下载。
+  function _renderGrid(images) {
+    var content = $('assetLibraryContent');
+    if (!content) return;
+    // 按搜索词过滤（名称 或 提示词，客户端、不重新请求）
+    var list = (images || []).filter(function (img) {
+      if (!_searchTerm) return true;
+      var t = _searchTerm.toLowerCase();
+      return (img.name || '').toLowerCase().indexOf(t) !== -1
+          || (img.prompt || '').toLowerCase().indexOf(t) !== -1;
+    });
+    if (!list.length) {
+      content.innerHTML = '<div class="asset-picker-empty"><span>' +
+        (_searchTerm ? '无匹配的资产图片' : '暂无资产图片') + '</span></div>';
+      _gridBuilt = true;   // 即使为空也标记为已渲染，避免 open() 反复重新请求
+      return;
     }
-}
+    content.innerHTML = '<div class="asset-picker-grid">' + list.map(function (img) {
+      var u = escAttr(img.url || '');
+      var n = escAttr(img.name || '');
+      var item = '<div class="asset-picker-item" data-act="select" data-url="' + u + '" data-name="' + n + '">';
+      if (_allowDelete) {
+        item += '<button class="asset-picker-del" title="删除" data-act="delete" data-url="' + u + '" data-name="' + n + '">&times;</button>';
+      }
+      item += '<div class="asset-picker-item-name">' + n + '</div><img src="' + u + '" alt="' + n + '" loading="lazy"></div>';
+      return item;
+    }).join('') + '</div>';
+    _gridBuilt = true;
+    _applySize();   // 让大小滑条设置的列宽对新网格立即生效
+  }
 
-function renderAssets(files) {
-    const content = document.getElementById('assetContent');
-    if (!files.length) {
-        content.innerHTML = `
-            <div class="asset-folder-status"><i data-lucide="folder" class="w-3.5 h-3.5 inline-block align-text-bottom"></i>资产文件夹已就绪</div>
-            <div class="asset-upload-area" id="assetUploadArea">
-                <i data-lucide="upload" class="w-5 h-5"></i>
-                <span>点击上传图片，或在画布中右键上传到资产库</span>
-                <input type="file" multiple accept="image/*,.txt,.mp4,.webm,.mov,.avi,.mkv,.mp3,.wav,.ogg,.flac,.aac,.m4a" onchange="uploadAssetsToLibrary(this.files)">
-            </div>
-            <div class="asset-empty">
-                <div class="asset-empty-icon"><i data-lucide="folder-open" class="w-8 h-8"></i></div>
-                <span>暂无资产文件</span>
-                <span style="font-size:10px;color:var(--faint);font-weight:400;">在画布中右键图片可上传到资产库</span>
-            </div>
-        `;
-    } else {
-        content.innerHTML = `
-            <div class="asset-folder-status"><i data-lucide="folder" class="w-3.5 h-3.5 inline-block align-text-bottom"></i>资产文件夹 · ${files.length} 个文件</div>
-            <div class="asset-upload-area" id="assetUploadArea">
-                <i data-lucide="upload" class="w-5 h-5"></i>
-                <span>点击上传图片，或在画布中右键上传到资产库</span>
-                <input type="file" multiple accept="image/*,.txt,.mp4,.webm,.mov,.avi,.mkv,.mp3,.wav,.ogg,.flac,.aac,.m4a" onchange="uploadAssetsToLibrary(this.files)">
-            </div>
-            <div class="asset-grid">${files.map(f => renderAssetItem(f)).join('')}</div>
-        `;
+  // opts.silent: true 时不显示"加载中"遮罩、不阻塞（用于 init 预加载 / 过期后台刷新）
+  function loadAndRender(opts) {
+    opts = opts || {};
+    var silent = !!opts.silent;
+    var content = $('assetLibraryContent');
+    if (!content) return;
+    // 非静默且网格尚未建立时才显示 loading，避免已有网格被清空闪白
+    if (!silent && !_gridBuilt) {
+      content.innerHTML = '<div class="asset-picker-empty"><span>加载中...</span></div>';
     }
-    setupAssetDragDrop();
-    refreshIcons();
-}
-
-function renderAssetItem(file) {
-    const ext = (file.name || '').split('.').pop().toLowerCase();
-    const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext);
-    const isVideo = ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext);
-    const isAudio = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext);
-    const isText = ext === 'txt';
-    
-    if (isImage) {
-        return `
-            <div class="asset-item" 
-                 draggable="false" 
-                 title="${file.name}"
-                 oncontextmenu="window.openAssetItemMenu('${file.name.replace(/'/g, "\\'")}', '${file.url.replace(/'/g, "\\'")}', 'image', event.clientX, event.clientY)">
-                <img class="asset-item-img" src="${file.url}" alt="${file.name}" loading="lazy" draggable="true" data-asset-url="${file.url}" onclick="window.open('${file.url}', '_blank')" ondragstart="assetItemDragStart(event)">
-                <div class="asset-item-name">${file.name}</div>
-                <button class="asset-item-delete" type="button" onclick="deleteAssetFile('${file.name}', event)" title="删除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-            </div>
-        `;
-    }
-    if (isVideo) {
-        return `
-            <div class="asset-item asset-item-video" 
-                 draggable="false" 
-                 title="${file.name}"
-                 oncontextmenu="window.openAssetItemMenu('${file.name.replace(/'/g, "\\'")}', '${file.url.replace(/'/g, "\\'")}', 'video', event.clientX, event.clientY)">
-                <div class="asset-item-media-preview">
-                    <video class="asset-item-video-el" src="${file.url}" preload="metadata" muted onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0" onclick="window.open('${file.url}', '_blank')"></video>
-                    <div class="asset-item-media-icon"><i data-lucide="film" class="w-5 h-5"></i></div>
-                </div>
-                <div class="asset-item-name">${file.name}</div>
-                <button class="asset-item-delete" type="button" onclick="deleteAssetFile('${file.name}', event)" title="删除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-            </div>
-        `;
-    }
-    if (isAudio) {
-        return `
-            <div class="asset-item asset-item-audio" 
-                 draggable="false" 
-                 title="${file.name}"
-                 oncontextmenu="window.openAssetItemMenu('${file.name.replace(/'/g, "\\'")}', '${file.url.replace(/'/g, "\\'")}', 'audio', event.clientX, event.clientY)">
-                <div class="asset-item-media-preview" onclick="previewAssetAudio('${file.url}', '${file.name.replace(/'/g, "\\'")}')">
-                    <div class="asset-item-media-icon"><i data-lucide="music" class="w-6 h-6"></i></div>
-                    <audio class="asset-item-audio-el" src="${file.url}" preload="none"></audio>
-                </div>
-                <div class="asset-item-name">${file.name}</div>
-                <button class="asset-item-delete" type="button" onclick="deleteAssetFile('${file.name}', event)" title="删除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-            </div>
-        `;
-    }
-    if (isText) {
-        return `
-            <div class="asset-item asset-item-text" 
-                 draggable="false" 
-                 title="${file.name}"
-                 oncontextmenu="window.openAssetItemMenu('${file.name.replace(/'/g, "\\'")}', '${file.url.replace(/'/g, "\\'")}', 'text', event.clientX, event.clientY)">
-                <div class="asset-item-media-preview" onclick="previewAssetText('${file.url}', '${file.name.replace(/'/g, "\\'")}')">
-                    <div class="asset-item-media-icon"><i data-lucide="file-text" class="w-6 h-6"></i></div>
-                    <div class="asset-item-text-preview" data-text-url="${file.url}">加载中...</div>
-                </div>
-                <div class="asset-item-name">${file.name}</div>
-                <button class="asset-item-delete" type="button" onclick="deleteAssetFile('${file.name}', event)" title="删除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-            </div>
-        `;
-    }
-    return '';
-}
-
-window.uploadAssetsToLibrary = uploadAssetsToLibrary;
-async function uploadAssetsToLibrary(files) {
-    if (!window.canvas || !files || !files.length) return;
-    const form = new FormData();
-    for (const file of files) {
-        form.append('files', file);
-    }
-    try {
-        const res = await fetch(`/api/canvases/${window.canvas.id}/assets/upload`, { method: 'POST', body: form });
-        if (!res.ok) throw new Error('上传失败');
-        await refreshAssetList();
-    } catch (e) {
-        alert('上传资产失败: ' + (e.message || e));
-    }
-}
-
-window.copyToAssetLibrary = copyToAssetLibrary;
-async function copyToAssetLibrary(url) {
-    if (!window.canvas || !url) return;
-    if (!url.startsWith('/output/')) {
-        alert('只能从画布输出图片复制到资产库');
-        return;
-    }
-    try {
-        const res = await fetch(`/api/canvases/${window.canvas.id}/assets/copy-from-canvas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ urls: [url] })
-        });
-        if (!res.ok) throw new Error('复制失败');
-        const data = await res.json();
-        if (data.files && data.files.length) {
-            await refreshAssetList();
+    _renderIcons();
+    fetch('/api/user/assets')
+      .then(function (r) {
+        if (r.status === 401) {
+          content.innerHTML = '<div class="asset-picker-empty"><span>请先登录后再使用资产库</span></div>';
+          _gridBuilt = false;
+          _cache = null;
+          return;
         }
-    } catch (e) {
-        alert('复制到资产库失败: ' + (e.message || e));
-    }
-}
+        if (!r.ok) throw new Error('获取资产列表失败');
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        var images = data.files || [];
+        _cache = images;
+        _cacheTs = Date.now();
+        _renderGrid(images);
+      })
+      .catch(function (err) {
+        content.innerHTML = '<div class="asset-picker-empty"><span>加载失败: ' + (err.message || '') + '</span></div>';
+      });
+  }
 
-window.deleteAssetFile = deleteAssetFile;
-async function deleteAssetFile(filename, event) {
-    event?.stopPropagation();
-    try {
-        const res = await fetch(`/api/canvases/${window.canvas.id}/assets/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename })
-        });
-        if (!res.ok) throw new Error('删除失败');
-        await refreshAssetList();
-    } catch (e) {
-        alert('删除资产文件失败: ' + (e.message || e));
-    }
-};
+  // ───────────────────────────── 去重 / 删除 / 选图 ─────────────────────────────
+  function dedupAssets() {
+    fetch('/api/user/assets/dedup', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.removed > 0) alert('已删除 ' + d.removed + ' 张重复图片，保留 ' + d.kept + ' 张');
+        else alert('没有找到重复图片（共 ' + d.kept + ' 张）');
+        loadAndRender();
+      })
+      .catch(function (e) { alert('去重失败: ' + e.message); });
+  }
 
-window.assetItemDragStart = function(e) {
-    const img = e.target;
-    const url = img.getAttribute('data-asset-url') || img.src;
-    if (!url) return;
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('application/x-canvas-asset-image', url);
-    e.dataTransfer.setData('text/uri-list', url);
-    // 拖动时让 backdrop 不拦截事件，使画布能收到 dragover/drop
-    const backdrop = document.getElementById('assetBackdrop');
-    if (backdrop) backdrop.style.pointerEvents = 'none';
-};
-
-window.createImageNodeFromAsset = function(url, point) {
-    if (!window.canvas || !url) return;
-    if (typeof ensureCanvas === 'function' && !ensureCanvas()) return;
-    const p = point || { x: 0, y: 0 };
-    if (typeof nodes !== 'undefined' && Array.isArray(nodes)) {
-        const id = 'img' + Date.now() + Math.random().toString(36).slice(2, 6);
-        nodes.push({ id, type: 'image', x: p.x, y: p.y, url, name: url.split('/').pop() || 'asset' });
-        if (typeof render === 'function') render();
-        if (typeof scheduleSave === 'function') scheduleSave();
-    }
-};
-
-function setupAssetDragDrop() {
-    const uploadArea = document.getElementById('assetUploadArea');
-    if (!uploadArea) return;
-    uploadArea.addEventListener('dragover', e => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
+  function deleteAsset(url, name) {
+    if (!confirm('确定从资产库删除「' + (name || '该图片') + '」？此操作不可撤销。')) return;
+    fetch('/api/user/assets/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('删除失败: ' + r.status);
+      if (typeof _onDeleted === 'function') { try { _onDeleted(url, name); } catch (_) {} }
+      return loadAndRender();
+    }).catch(function (e) {
+      alert('删除失败: ' + (e.message || ''));
     });
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
-    uploadArea.addEventListener('drop', e => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        const files = e.dataTransfer?.files;
-        if (files && files.length) {
-            uploadAssetsToLibrary(files);
-        }
-    });
-}
+  }
 
-window.previewAssetText = async function(url, name) {
-    try {
-        const res = await fetch(url);
-        const text = await res.text();
-        const maxLen = 2000;
-        const content = text.length > maxLen ? text.slice(0, maxLen) + '\n\n... (已截断，完整内容请在浏览器中打开)' : text;
-        // 在覆盖层中显示文本内容
-        let overlay = document.getElementById('assetTextPreviewOverlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'assetTextPreviewOverlay';
-            overlay.className = 'asset-text-overlay';
-            overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove('open'); };
-            document.body.appendChild(overlay);
-        }
-        overlay.innerHTML = `
-            <div class="asset-text-overlay-head">
-                <span>${name}</span>
-                <button onclick="document.getElementById('assetTextPreviewOverlay').classList.remove('open')"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <pre class="asset-text-overlay-body">${escapeHtmlForPreview(content)}</pre>
-        `;
-        overlay.classList.add('open');
-        if (typeof refreshIcons === 'function') refreshIcons();
-    } catch (e) {
-        alert('加载文本内容失败: ' + (e.message || e));
+  function applyAsset(url, name) {
+    close();
+    if (typeof _onApply === 'function') {
+      try { _onApply(url, name); } catch (err) { console.error('[AssetLibrary] onApply error:', err); }
     }
-};
+  }
 
-window.previewAssetAudio = function(url, name) {
-    let overlay = document.getElementById('assetAudioPreviewOverlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'assetAudioPreviewOverlay';
-        overlay.className = 'asset-text-overlay';
-        overlay.onclick = function(e) { if (e.target === overlay) { overlay.classList.remove('open'); const audio = overlay.querySelector('audio'); if (audio) audio.pause(); } };
-        document.body.appendChild(overlay);
-    }
-    overlay.innerHTML = `
-        <div class="asset-text-overlay-head">
-            <span>${name}</span>
-            <button onclick="document.getElementById('assetAudioPreviewOverlay').classList.remove('open'); const a = document.getElementById('assetAudioPlayer'); if(a) a.pause();"><i data-lucide="x" class="w-4 h-4"></i></button>
-        </div>
-        <div class="asset-audio-overlay-body">
-            <i data-lucide="music" class="w-12 h-12" style="opacity:.3;margin-bottom:8px;"></i>
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">${name}</div>
-            <audio id="assetAudioPlayer" src="${url}" controls autoplay style="width:100%;max-width:400px;"></audio>
-        </div>
-    `;
-    overlay.classList.add('open');
-    if (typeof refreshIcons === 'function') refreshIcons();
-};
+  // ───────────────────────────── 公开 API ─────────────────────────────
+  function open() {
+    if (!_rendered) _render();
+    var ov = $('assetLibraryOverlay');
+    if (!ov) return;
+    ov.classList.add('open');
+    document.body.classList.add('asset-picker-overlay-open');
+    // 首次打开（无缓存）→ 拉取列表
+    if (!_cache) { loadAndRender(); return; }
+    // 网格已渲染且缓存新鲜 → 直接展示，零网络请求、图片不重新下载
+    if (_gridBuilt && (Date.now() - _cacheTs) < _cacheTTL) return;
+    // 网格已渲染但缓存可能过期 → 先即时展示旧网格，后台静默刷新
+    if (_gridBuilt) { loadAndRender({ silent: true }); return; }
+    // 有缓存但网格未建立（异常分支）→ 重新拉取
+    loadAndRender();
+  }
 
-function escapeHtmlForPreview(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+  function close() {
+    var ov = $('assetLibraryOverlay');
+    if (ov) ov.classList.remove('open');
+    document.body.classList.remove('asset-picker-overlay-open');
+  }
 
-function initCanvasDragToAsset() {
-    document.addEventListener('dragstart', e => {
-        const target = e.target;
-        const imgNode = target.closest('.node.image-node, .node.output-node, .node.comfy-node');
-        if (imgNode) {
-            const img = target.tagName === 'IMG' ? target : target.querySelector('img');
-            if (img && img.src) {
-                e.dataTransfer.setData('text/plain', img.src);
-            }
-        }
-    });
+  // 面板当前是否处于打开态
+  function _isOpen() {
+    var ov = $('assetLibraryOverlay');
+    return !!(ov && ov.classList.contains('open'));
+  }
 
-    // 拖动结束后恢复 backdrop 的指针事件
-    document.addEventListener('dragend', () => {
-        const backdrop = document.getElementById('assetBackdrop');
-        if (backdrop) backdrop.style.pointerEvents = '';
-    });
+  // 使缓存失效：外部（如收藏存资产、其他页面删除）改变资产后调用，
+  // 下次打开会重新拉取；若面板正打开则立即刷新，保证用户看到最新资产。
+  function invalidate() {
+    _cache = null;
+    _cacheTs = 0;
+    _gridBuilt = false;
+    if (_isOpen()) loadAndRender();
+  }
+  function refresh() { invalidate(); }
 
-    const assetSidebar = document.getElementById('assetSidebar');
-    const assetBackdrop = document.getElementById('assetBackdrop');
-    const dragHint = document.getElementById('assetDragHint');
+  // 监听全局变更事件：任何地方改动资产库后派发该事件即可触发本模块刷新
+  if (typeof document !== 'undefined') {
+    document.addEventListener('asset:changed', function () { invalidate(); });
+  }
 
-    assetBackdrop.addEventListener('dragover', e => {
-        e.preventDefault();
-    });
-    assetBackdrop.addEventListener('drop', e => {
-        e.preventDefault();
-    });
+  function init(opts) {
+    opts = opts || {};
+    _mountId = opts.mountId || 'assetLibraryMount';
+    _title = opts.title || '从资产库选择';
+    _onApply = (typeof opts.onApply === 'function') ? opts.onApply : null;
+    _onDeleted = (typeof opts.onDeleted === 'function') ? opts.onDeleted : null;
+    _allowDelete = opts.allowDelete !== false;
+    if (typeof opts.cacheTTL === 'number' && opts.cacheTTL > 0) _cacheTTL = opts.cacheTTL;
+    _injectCss();
+    _render();
+    // 后台静默预加载资产列表，使首次打开即秒显（隐藏态完成，无闪白）
+    loadAndRender({ silent: true });
+  }
 
-    let dragEnterCount = 0;
-    assetSidebar.addEventListener('dragenter', e => {
-        e.preventDefault();
-        dragEnterCount++;
-        if (!assetSidebar.classList.contains('open')) return;
-        dragHint.classList.add('show');
-    });
-
-    assetSidebar.addEventListener('dragover', e => {
-        e.preventDefault();
-        if (!assetSidebar.classList.contains('open')) return;
-        dragHint.classList.add('show');
-    });
-
-    assetSidebar.addEventListener('dragleave', e => {
-        dragEnterCount--;
-        if (dragEnterCount <= 0) {
-            dragEnterCount = 0;
-            dragHint.classList.remove('show');
-        }
-    });
-
-    assetSidebar.addEventListener('drop', async e => {
-        e.preventDefault();
-        dragEnterCount = 0;
-        dragHint.classList.remove('show');
-        if (!assetSidebar.classList.contains('open') || !window.canvas) return;
-
-        const files = e.dataTransfer?.files;
-        if (files && files.length > 0) {
-            await uploadAssetsToLibrary(files);
-            return;
-        }
-
-        const url = e.dataTransfer?.getData('text/plain');
-        if (url && (url.startsWith('/output/') || url.startsWith('http'))) {
-            const cleanUrl = url.includes('/output/') ? '/output/' + url.split('/output/')[1].split('?')[0] : url;
-            await copyToAssetLibrary(cleanUrl);
-        }
-    });
-}
-
-window.showComingSoon = function(feature) {
-    alert(`「${feature}」功能即将推出，敬请期待！`);
-};
-
-window.sendToAssetLibrary = async function(urls) {
-    if (!window.canvas) {
-        alert('请先打开画布');
-        return;
-    }
-    if (!urls || (Array.isArray(urls) && !urls.length)) return;
-
-    const urlList = Array.isArray(urls) ? urls : [urls];
-    const validUrls = urlList.filter(u => u && (u.startsWith('/output/') || u.startsWith('http')));
-
-    if (!validUrls.length) return;
-
-    try {
-        await ensureAssetFolder();
-    } catch (e) {
-        alert('创建资产文件夹失败，请重试');
-        return;
-    }
-
-    let successCount = 0;
-    for (const url of validUrls) {
-        const cleanUrl = url.includes('/output/') ? '/output/' + url.split('/output/')[1].split('?')[0] : url;
-        try {
-            const res = await fetch(`/api/canvases/${window.canvas.id}/assets/copy-from-canvas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ urls: [cleanUrl] })
-            });
-            if (res.ok) successCount++;
-        } catch (_) {}
-    }
-
-    if (successCount > 0) {
-        if (window.canvas && document.getElementById('assetSidebar').classList.contains('open')) {
-            await refreshAssetList();
-        }
-    }
-};
-
-initCanvasDragToAsset();
-
-/**
- * 获取画布可视区域中心的世界坐标
- * @returns {Object} { x, y } 世界坐标
- */
-function getCanvasCenterPoint() {
-    const board = document.getElementById('board');
-    if (!board) return { x: 0, y: 0 };
-    
-    const rect = board.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // 将屏幕坐标转换为世界坐标
-    if (typeof screenToWorld === 'function') {
-        return screenToWorld(centerX, centerY);
-    }
-    
-    // 如果没有 screenToWorld 函数，使用默认逻辑
-    const scale = window.canvasScale || 1;
-    const panX = window.canvasPanX || 0;
-    const panY = window.canvasPanY || 0;
-    
-    return {
-        x: (centerX - panX) / scale,
-        y: (centerY - panY) / scale
-    };
-}
-
-/**
- * 打开资产项右键菜单
- * @param {string} filename - 文件名
- * @param {string} fileUrl - 文件 URL
- * @param {string} fileType - 文件类型 (image/video/audio/text)
- * @param {number} clientX - 鼠标 X 坐标
- * @param {number} clientY - 鼠标 Y 坐标
- */
-window.openAssetItemMenu = function(filename, fileUrl, fileType, clientX, clientY) {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
-    const menu = document.getElementById('assetItemMenu');
-    if (!menu) return;
-    
-    // 关闭其他菜单
-    window.closeAssetItemMenu();
-    
-    const safeName = filename.replace(/'/g, "\\'");
-    const safeUrl = fileUrl.replace(/'/g, "\\'");
-    
-    menu.innerHTML = `
-        <div class="menu-section-title">资产操作</div>
-        <button class="menu-btn" data-asset-send="${safeUrl}" data-asset-type="${fileType}">
-            <i data-lucide="send" class="w-4 h-4"></i>
-            <span>发送到画布</span>
-        </button>
-        <div class="menu-divider"></div>
-        <button class="menu-btn" data-asset-download="${safeUrl}" data-asset-name="${safeName}">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            <span>下载</span>
-        </button>
-    `;
-    
-    // 定位菜单（自动调整避免超出视口）
-    const menuWidth = 190;
-    const menuHeight = 150;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    let left = clientX;
-    let top = clientY;
-    
-    if (left + menuWidth > viewportWidth) {
-        left = viewportWidth - menuWidth - 10;
-    }
-    if (top + menuHeight > viewportHeight) {
-        top = viewportHeight - menuHeight - 10;
-    }
-    
-    menu.style.left = `${Math.max(10, left)}px`;
-    menu.style.top = `${Math.max(10, top)}px`;
-    menu.classList.add('open');
-    
-    // 绑定发送到画布事件
-    const sendBtn = menu.querySelector('[data-asset-send]');
-    if (sendBtn) {
-        sendBtn.onclick = async e => {
-            e.stopPropagation();
-            window.closeAssetItemMenu();
-            await window.sendAssetToCanvas(sendBtn.dataset.assetSend, sendBtn.dataset.assetType);
-        };
-    }
-    
-    // 绑定下载事件
-    const downloadBtn = menu.querySelector('[data-asset-download]');
-    if (downloadBtn) {
-        downloadBtn.onclick = e => {
-            e.stopPropagation();
-            window.closeAssetItemMenu();
-            window.downloadAssetFile(downloadBtn.dataset.assetDownload, downloadBtn.dataset.assetName);
-        };
-    }
-    
-    if (typeof refreshIcons === 'function') refreshIcons();
-};
-
-/**
- * 关闭资产项右键菜单
- */
-window.closeAssetItemMenu = function() {
-    const menu = document.getElementById('assetItemMenu');
-    if (menu) {
-        menu.classList.remove('open');
-        menu.innerHTML = '';
-    }
-};
-
-/**
- * 发送资产到画布
- * @param {string} fileUrl - 文件 URL
- * @param {string} fileType - 文件类型
- */
-window.sendAssetToCanvas = async function(fileUrl, fileType) {
-    if (!window.canvas) {
-        alert('请先打开画布');
-        return;
-    }
-    
-    if (typeof ensureCanvas === 'function' && !ensureCanvas()) return;
-    
-    // 获取画布可视区域中心的世界坐标
-    const point = getCanvasCenterPoint();
-    
-    if (fileType === 'image') {
-        // 调用现有的创建图片节点函数
-        if (typeof window.createImageNodeFromAsset === 'function') {
-            window.createImageNodeFromAsset(fileUrl, point);
-        }
-    } else if (fileType === 'video') {
-        // 调用视频节点创建函数
-        if (typeof window.createVideoNodeFromAsset === 'function') {
-            window.createVideoNodeFromAsset(fileUrl, point);
-        }
-    } else {
-        alert('该类型暂不支持发送到画布');
-    }
-};
-
-/**
- * 下载资产文件
- * @param {string} fileUrl - 文件 URL
- * @param {string} filename - 文件名
- */
-window.downloadAssetFile = function(fileUrl, filename) {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = filename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-
-// 点击外部关闭资产右键菜单
-document.addEventListener('mousedown', e => {
-    const menu = document.getElementById('assetItemMenu');
-    if (menu && menu.classList.contains('open') && !menu.contains(e.target)) {
-        window.closeAssetItemMenu();
-    }
-});
+  // ───────────────────────────── 暴露给外部 ─────────────────────────────
+  window.AssetLibrary = {
+    init: init,
+    open: open,
+    close: close,
+    invalidate: invalidate,
+    refresh: refresh
+  };
+})();

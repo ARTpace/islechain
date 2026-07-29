@@ -294,6 +294,11 @@
                     opt.textContent = 'ComfyUI (' + (providersRes.chat_model || '') + ')';
                     sel.appendChild(opt);
                 }
+                // [2026-07-28] 本地 ComfyUI 工作流通道 (走内置 workflows/提示词/文生提示词.json)
+                const localOpt = document.createElement('option');
+                localOpt.value = 'comfyui_local';
+                localOpt.textContent = '🖥 本地 ComfyUI (Qwen3.5)';
+                sel.appendChild(localOpt);
                 // 内置 modelscope
                 if (providersRes.has_ms_key && providersRes.ms_chat_models?.length) {
                     const opt = document.createElement('option');

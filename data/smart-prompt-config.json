@@ -1,4 +1,7 @@
 {
-  "provider_id": "agnes::agnes-1.5-flash",
-  "preset_id": "preset-mqw2nd1o"
+  "provider_id": "ai::deepseek-v4-flash",
+  "preset_id": "preset-mqw2nd1o",
+  "channel": "comfyui",
+  "comfyui_workflow": "提示词/文生提示词.json",
+  "comfyui_model": "Qwen3.5-9B-Q4_0.gguf"
 }

@@ -8,6 +8,7 @@
     <title>ART AI</title>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20260611001">
     <script src="/static/theme.js?v=20260611001"></script>
+    <script src="/static/js/i18n.js?v=2026.07.23.jimeng-upscale.2"></script>
     <style>
         :root {
             --accent: #0891B2;
@@ -758,7 +759,7 @@
                         <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"></path>
                         <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                     </svg>
-                    <span class="nav-text">在线生图</span>
+                    <span class="nav-text" data-i18n="nav.online">在线生图</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'tts')" title="TTS 语音合成">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -779,7 +780,7 @@
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span class="nav-text">GPT 对话</span>
+                    <span class="nav-text" data-i18n="nav.gpt">GPT 对话</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'canvas')" title="无限画布">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -788,13 +789,13 @@
                         <rect x="14" y="14" width="7" height="7"></rect>
                         <rect x="3" y="14" width="7" height="7"></rect>
                     </svg>
-                    <span class="nav-text">无限画布</span>
+                    <span class="nav-text" data-i18n="nav.canvas">无限画布</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'asset-manager')" title="素材库">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span class="nav-text">素材库</span>
+                    <span class="nav-text" data-i18n="nav.assetManager">素材库</span>
                 </div>
             </nav>
 
@@ -802,15 +803,15 @@
             <div id="comfyui-submenu" class="submenu">
                 <div class="nav-item nav-child" onclick="switchUI(this, 'zimage', 'comfy')" title="文生图">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="nav-text">文生图</span>
+                    <span class="nav-text" data-i18n="nav.textToImage">文生图</span>
                 </div>
                 <div class="nav-item nav-child" onclick="switchUI(this, 'klein', 'comfy')" title="图片编辑">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="nav-text">图片编辑</span>
+                    <span class="nav-text" data-i18n="nav.imageEdit">图片编辑</span>
                 </div>
                 <div class="nav-item nav-child" onclick="switchUI(this, 'angle', 'comfy')" title="3D视角变换">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="nav-text">3D视角变换</span>
+                    <span class="nav-text" data-i18n="nav.angle">3D视角变换</span>
                 </div>
                 <div class="nav-item nav-child" onclick="switchUI(this, 'cgstyle', 'comfy')" title="CG一键细化">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20.18 9l-5 4.18L16.36 20 12 17.27 7.64 20l1.18-6.82L3.82 9l6.09-.74L12 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

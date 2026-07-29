@@ -117,6 +117,27 @@
             '}',
             '.sp-picker-close:hover { background: rgba(0,0,0,0.06); color: #333; }',
             'body.studio-theme-dark .sp-picker-close:hover { background: rgba(255,255,255,0.08); color: #fff; }',
+            '.sp-channel-toggle { display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.05); border-radius: 10px; flex-shrink: 0; }',
+            '.sp-channel-btn { height: 24px; padding: 0 10px; border: none; border-radius: 7px; background: transparent; color: #888; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; }',
+            '.sp-channel-btn:hover { color: #333; }',
+            '.sp-channel-btn.active { background: #fff; color: var(--accent, #00b4d8); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }',
+            'body.studio-theme-dark .sp-channel-toggle { background: rgba(255,255,255,0.06); }',
+            'body.studio-theme-dark .sp-channel-btn { color: #888; }',
+            'body.studio-theme-dark .sp-channel-btn:hover { color: #e0e7ef; }',
+            'body.studio-theme-dark .sp-channel-btn.active { background: rgba(0,240,255,0.12); color: #00f0ff; box-shadow: 0 0 0 1px rgba(0,240,255,0.2); }',
+            '.sp-global-model-row { display: flex; align-items: center; gap: 8px; padding: 8px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); flex-shrink: 0; }',
+            '.sp-global-model-row label { font-size: 11px; color: #888; font-weight: 700; white-space: nowrap; }',
+            '.sp-global-model-row select { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; background: var(--bg-base,#fff); color: var(--text-main,#1a1a1a); font-size: 12px; outline: none; }',
+            '.sp-global-model-row select:focus { border-color: var(--accent,#00b4d8); }',
+            'body.studio-theme-dark .sp-global-model-row { border-bottom-color: rgba(255,255,255,0.06); }',
+            'body.studio-theme-dark .sp-global-model-row label { color: #888; }',
+            'body.studio-theme-dark .sp-global-model-row select { background: #0d1520; border-color: rgba(255,255,255,0.08); color: #e0e7ef; }',
+            'body.studio-theme-dark .sp-global-model-row select:focus { border-color: #00f0ff; }',
+            '.sp-test-btn { height: 28px; padding: 0 12px; border: 1px solid var(--accent,#00b4d8); border-radius: 8px; background: transparent; color: var(--accent,#00b4d8); font-size: 11px; font-weight: 800; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }',
+            '.sp-test-btn:hover { background: var(--accent,#00b4d8); color: #fff; }',
+            '.sp-test-btn:disabled { opacity: 0.6; cursor: default; }',
+            'body.studio-theme-dark .sp-test-btn { border-color: #00f0ff; color: #00f0ff; }',
+            'body.studio-theme-dark .sp-test-btn:hover { background: rgba(0,240,255,0.15); color: #00f0ff; }',
             '.sp-picker-head-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }',
             '.sp-picker-head-search { display:flex;align-items:center;gap:4px;flex:1;max-width:220px;margin:0 8px; }',
             '.sp-picker-head-search input { flex:1;height:24px;padding:0 8px;border:none;border-radius:6px;background:rgba(0,0,0,0.04);font-size:11px;font-weight:600;color:var(--text-main,#1a1a1a);outline:none; }',
@@ -458,7 +479,8 @@
             apiEndpoint: '/api/smart-prompt',   // 旧版兼容，实际使用时被 pmApi 覆盖
             buttonText: 'AI 生成',
             loadingText: '生成中...',
-            placeholder: '请先输入中文描述'
+            placeholder: '请先输入中文描述',
+            channel: 'api'   // [2026-07-28] 'api' | 'comfyui' (本地 ComfyUI 工作流)
         };
         var options = {};
         var btn = null;
@@ -543,10 +565,24 @@
             if (textSpan) textSpan.textContent = options.loadingText;
 
             try {
+                // [2026-07-28] 支持本地 ComfyUI 通道: 从 window.localPromptChannel 读取 (api|comfyui)
+                var _channel = (typeof window.localPromptChannel === 'string' && window.localPromptChannel) ? window.localPromptChannel : 'api';
+                var _body = { prompt: userText };
+                if (_channel === 'comfyui') {
+                    _body.channel = 'comfyui';
+                    _body.comfyui_workflow = (typeof window.localComfyuiWorkflow === 'string' && window.localComfyuiWorkflow) ? window.localComfyuiWorkflow : '';
+                    if (typeof window.localComfyuiModel === 'string' && window.localComfyuiModel) {
+                        _body.comfyui_model = window.localComfyuiModel;
+                    }
+                } else {
+                    _body.channel = 'api';
+                    var _providerId = (typeof window.localPromptProvider === 'string') ? window.localPromptProvider : '';
+                    if (_providerId) _body.provider_id = _providerId;
+                }
                 var res = await fetch(pmApi('/generate'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: userText })
+                    body: JSON.stringify(_body)
                 });
                 var data = await res.json();
                 if (data.success && data.prompt) {
@@ -598,11 +634,21 @@
                 var container = document.getElementById(containerId);
                 if (!container) { console.error('[SmartPrompt] 容器不存在:', containerId); return; }
                 options = Object.assign({}, DEFAULTS, opts);
+                // [2026-07-28] picker 设置的通道写入 window, 这里保持同步
+                if (opts.channel) window.localPromptChannel = opts.channel;
                 btn = createButton();
                 container.appendChild(btn);
             },
             getButton: function() { return btn; },
-            generate: function() { if (btn) handleGenerate(); }
+            generate: function() { if (btn) handleGenerate(); },
+            // [2026-07-28] 暴露通道切换 API
+            setChannel: function(channel) {
+                window.localPromptChannel = (channel === 'comfyui') ? 'comfyui' : 'api';
+                if (options) options.channel = window.localPromptChannel;
+            },
+            getChannel: function() {
+                return window.localPromptChannel || 'api';
+            }
         };
     })();
 
@@ -864,7 +910,6 @@
         document.getElementById('spPickerListView').style.display = 'none';
         var editView = document.getElementById('spPickerEditView');
         editView.style.display = '';
-        var providerOpts = spPickerProviderOptionsHtml(p.provider_id || '');
         var sName = escHtml(p.name || '');
         var sDesc = escHtml(p.description || '');
         var temp = p.temperature != null ? p.temperature : 0.3;
@@ -884,8 +929,7 @@
             '<div class="spe-field" style="flex:2.5;"><label>描述</label><input id="speDesc" value="' + sDesc + '" oninput="spEditorAutoSave()"></div>',
             '</div>',
             '<div class="spe-row">',
-            '<div class="spe-field" style="flex:2;"><label>模型</label><select id="speProvider" onchange="spEditorAutoSave()">' + providerOpts + '</select></div>',
-            '<div class="spe-field" style="flex:1;"><label>适用模型</label><select id="speModelMode" onchange="spEditorAutoSave()">' + modeOpts + '</select></div>',
+            '<div class="spe-field" style="flex:2;"><label>适用模型</label><select id="speModelMode" onchange="spEditorAutoSave()">' + modeOpts + '</select></div>',
             '<div class="spe-field" style="flex:0.7;"><label>温度</label><input id="speTemp" type="number" min="0" max="2" step="0.1" value="' + temp + '" oninput="spEditorAutoSave()"></div>',
             '<div class="spe-field" style="flex:1;"><label>Max Tokens</label><input id="speTokens" type="number" min="64" max="4096" step="64" value="' + tokens + '" oninput="spEditorAutoSave()"></div>',
             '</div>',
@@ -1075,7 +1119,6 @@
             if (!p) return;
             p.name = (document.getElementById('speName') || {}).value || p.name;
             p.description = (document.getElementById('speDesc') || {}).value || '';
-            p.provider_id = (document.getElementById('speProvider') || {}).value || '';
             p.model_mode = (document.getElementById('speModelMode') || {}).value || 'all';
             p.temperature = parseFloat((document.getElementById('speTemp') || {}).value) || 0.3;
             p.max_tokens = parseInt((document.getElementById('speTokens') || {}).value) || 1024;
@@ -1131,7 +1174,7 @@
         var id = 'preset-' + Date.now().toString(36);
         var p = {
             id: id, name: '新预设', description: '',
-            provider_id: '', model_mode: 'all',
+            model_mode: 'all',
             temperature: 0.3, max_tokens: 1024,
             quality_tags: 'masterpiece, best quality, ultra detailed, highres',
             negative_default: 'worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry',
@@ -1226,9 +1269,20 @@
             '<button class="sp-picker-add-btn" onclick="spPickerCreate()" title="新建预设">',
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
             '</button>',
+            '<div id="spChannelToggle" class="sp-channel-toggle">',
+            '<button class="sp-channel-btn" data-channel="api" onclick="spPickerChangeChannel(this, \'api\')">API</button>',
+            '<button class="sp-channel-btn" data-channel="comfyui" onclick="spPickerChangeChannel(this, \'comfyui\')">本地 ComfyUI</button>',
+            '</div>',
             '</div>',
             '<div class="sp-picker-head-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:#aaa;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="spSearchInput" placeholder="搜索..." oninput="spPickerSearch()"></div>',
             '<button class="sp-picker-close" onclick="spPickerClose()">✕</button>',
+            '</div>',
+            '<div id="spGlobalModelRow" class="sp-global-model-row">',
+            '<label id="spGlobalModelLabel">模型</label>',
+            '<select id="spGlobalModelSelect" onchange="spPickerChangeModel(this.value)"></select>',
+            '<label id="spGlobalComfyModelLabel" style="display:none;">模型</label>',
+            '<select id="spGlobalComfyModelSelect" onchange="spPickerChangeComfyModel(this.value)" style="display:none;"></select>',
+            '<button id="spGlobalTestBtn" class="sp-test-btn" onclick="spPickerTestModel()">测试</button>',
             '</div>',
             '<div id="spPickerListView" class="sp-picker-list-view">',
             '<div class="sp-picker-main">',
@@ -1247,7 +1301,182 @@
             var label = document.getElementById('spCurrentLabel');
             if (label && preset) label.textContent = preset.name;
         });
+
+        // [2026-07-28] 初始化通道 toggle: 优先读后端 /api/smart-prompt/config, 回退 localStorage
+        spPickerLoadGlobalConfig();
     }
+
+    // [2026-07-28] 从后端加载全局 channel 配置并同步到 toggle + 全局模型下拉
+    async function spPickerLoadGlobalConfig() {
+        var cfg = { channel: 'api', provider_id: '', comfyui_workflow: '提示词/文生提示词.json', comfyui_model: '' };
+        try {
+            var res = await fetch('/api/smart-prompt/config');
+            cfg = Object.assign(cfg, await res.json());
+        } catch(e) {
+            try { cfg.channel = localStorage.getItem('spChannel') || 'api'; } catch(e2) {}
+        }
+        if (cfg.channel !== 'api' && cfg.channel !== 'comfyui') cfg.channel = 'api';
+        window.localPromptChannel = cfg.channel;
+        window.localPromptProvider = cfg.provider_id || '';
+        // ComfyUI 工作流固定为文生提示词，不在前端提供选择（用户要求）
+        window.localComfyuiWorkflow = '提示词/文生提示词.json';
+        window.localComfyuiModel = cfg.comfyui_model || '';
+        try { localStorage.setItem('spChannel', cfg.channel); } catch(e) {}
+
+        var btns = document.querySelectorAll('#spChannelToggle .sp-channel-btn');
+        btns.forEach(function(b) {
+            if (b.getAttribute('data-channel') === cfg.channel) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+
+        spPickerUpdateGlobalModelUI(cfg.channel);
+        if (cfg.channel === 'api') {
+            await spPickerLoadApiProviders();
+            var sel = document.getElementById('spGlobalModelSelect');
+            if (sel) sel.value = window.localPromptProvider || '';
+        } else {
+            // ComfyUI 通道：工作流固定为文生提示词，不提供选择，仅加载本地 llama 模型
+            await spPickerLoadComfyuiModels();
+            var mSel = document.getElementById('spGlobalComfyModelSelect');
+            if (mSel) mSel.value = window.localComfyuiModel || '';
+        }
+    }
+
+    // [2026-07-28] 加载 API provider 列表到全局模型下拉
+    async function spPickerLoadApiProviders() {
+        if (!spPickerProviders.length) await spPickerLoadProviders();
+        var sel = document.getElementById('spGlobalModelSelect');
+        if (!sel) return;
+        sel.innerHTML = spPickerProviderOptionsHtml(window.localPromptProvider || '');
+    }
+
+    // [2026-07-28] 加载 ComfyUI llama 模型列表
+    async function spPickerLoadComfyuiModels() {
+        var sel = document.getElementById('spGlobalComfyModelSelect');
+        if (!sel) return;
+        var models = [];
+        try {
+            var data = await fetch('/api/comfyui/llama-models').then(function(r) { return r.json(); });
+            models = data.models || [];
+        } catch(e) {}
+        var selected = window.localComfyuiModel || '';
+        var html = '<option value="">默认模型</option>';
+        models.forEach(function(m) {
+            html += '<option value="' + escHtml(m) + '"' + (m === selected ? ' selected' : '') + '>' + escHtml(m) + '</option>';
+        });
+        sel.innerHTML = html;
+    }
+
+    // [2026-07-28] 根据 channel 切换全局模型下拉 UI
+    function spPickerUpdateGlobalModelUI(channel) {
+        var label = document.getElementById('spGlobalModelLabel');
+        var sel = document.getElementById('spGlobalModelSelect');
+        var comfyLabel = document.getElementById('spGlobalComfyModelLabel');
+        var comfySel = document.getElementById('spGlobalComfyModelSelect');
+        if (!label || !sel || !comfyLabel || !comfySel) return;
+        if (channel === 'api') {
+            // API 通道：显示「模型」下拉（provider）
+            label.textContent = '模型';
+            label.style.display = '';
+            sel.style.display = '';
+            comfyLabel.style.display = 'none';
+            comfySel.style.display = 'none';
+        } else {
+            // ComfyUI 通道：工作流固定为文生提示词，不提供选择；仅保留本地 llama 模型下拉
+            label.style.display = 'none';
+            sel.style.display = 'none';
+            comfyLabel.textContent = '模型';
+            comfyLabel.style.display = '';
+            comfySel.style.display = '';
+        }
+    }
+
+    // [2026-07-28] 统一保存全局配置到后端
+    function spPickerSaveGlobalConfig() {
+        try {
+            fetch('/api/smart-prompt/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channel: window.localPromptChannel || 'api',
+                    provider_id: window.localPromptProvider || '',
+                    comfyui_workflow: window.localComfyuiWorkflow || '提示词/文生提示词.json',
+                    comfyui_model: window.localComfyuiModel || ''
+                })
+            }).catch(function(){});
+        } catch(e) {}
+    }
+
+    // [2026-07-28] 全局模型切换（仅 API 通道使用；ComfyUI 工作流固定，不提供切换）
+    window.spPickerChangeModel = function(value) {
+        if (window.localPromptChannel === 'api') {
+            window.localPromptProvider = value;
+            spPickerSaveGlobalConfig();
+            console.log('[SmartPrompt] 全局模型切换为:', value);
+        }
+    };
+
+    // [2026-07-28] ComfyUI 模型切换
+    window.spPickerChangeComfyModel = function(value) {
+        window.localComfyuiModel = value;
+        spPickerSaveGlobalConfig();
+        console.log('[SmartPrompt] ComfyUI 模型切换为:', value);
+    };
+
+    // [2026-07-28] 测试当前选中的模型/工作流是否可用
+    window.spPickerTestModel = async function() {
+        var btn = document.getElementById('spGlobalTestBtn');
+        var channel = window.localPromptChannel || 'api';
+        var body = { channel: channel };
+        if (channel === 'api') {
+            body.provider_id = window.localPromptProvider || '';
+        } else {
+            body.comfyui_workflow = window.localComfyuiWorkflow || '提示词/文生提示词.json';
+            body.comfyui_model = window.localComfyuiModel || '';
+        }
+        var oldText = btn ? btn.textContent : '测试';
+        if (btn) { btn.disabled = true; btn.textContent = '测试中…'; }
+        try {
+            var res = await fetch('/api/smart-prompt/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            var data = await res.json();
+            var ok = data.success === true;
+            spToast((ok ? '✓ ' : '✗ ') + (data.detail || (ok ? '可用' : '不可用')));
+            console.log('[SmartPrompt] 测试结果:', data);
+        } catch(e) {
+            spToast('✗ 测试请求失败: ' + e);
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = oldText; }
+        }
+    };
+
+    // [2026-07-28] 通道切换全局函数 (picker head toggle 调用) — 写后端 + 更新 window 全局变量
+    window.spPickerChangeChannel = function(btn, channel) {
+        var btns = document.querySelectorAll('#spChannelToggle .sp-channel-btn');
+        btns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        window.localPromptChannel = channel;
+        try { localStorage.setItem('spChannel', channel); } catch(e) {}
+        spPickerUpdateGlobalModelUI(channel);
+        if (channel === 'api') {
+            spPickerLoadApiProviders().then(function() {
+                var sel = document.getElementById('spGlobalModelSelect');
+                if (sel) sel.value = window.localPromptProvider || '';
+                spPickerSaveGlobalConfig();
+            });
+        } else {
+            // ComfyUI 通道：工作流固定，仅加载本地 llama 模型
+            spPickerLoadComfyuiModels().then(function() {
+                var mSel = document.getElementById('spGlobalComfyModelSelect');
+                if (mSel) mSel.value = window.localComfyuiModel || '';
+                spPickerSaveGlobalConfig();
+            });
+        }
+        console.log('[SmartPrompt] 通道切换为:', channel);
+    };
 
     // =====================================================================
     //  4. PresetManager — 预设管理（从 smart-prompt-manager.js）
@@ -1301,7 +1530,6 @@
             return [
                 '<div class="spm-item ' + (p.id === spmEditingId ? 'active' : '') + '" onclick="spmEdit(\'' + p.id + '\')">',
                 '<div class="spm-item-name">' + spmEsc(p.name || p.id) + '</div>',
-                '<div class="spm-item-model-badge">' + spmEsc(providerLabel(p.provider_id)) + '</div>',
                 delBtn,
                 '</div>'
             ].join('');
@@ -1331,7 +1559,6 @@
         setField('spmQuality', p.quality_tags || '');
         setField('spmNegative', p.negative_default || '');
         setField('spmSystemPrompt', p.system_prompt || '');
-        spmLoadProviders(p.provider_id || '');
         spmRenderList();
     }
 
@@ -1364,7 +1591,6 @@
             id: id,
             name: '新预设',
             description: '',
-            provider_id: '',
             model_mode: 'all',
             temperature: 0.3,
             max_tokens: 1024,
@@ -1391,7 +1617,6 @@
         if (!p) return;
         p.name = (document.getElementById('spmName').value || '').trim() || p.name;
         p.description = (document.getElementById('spmDesc').value || '').trim();
-        p.provider_id = (document.getElementById('spmProvider') || {}).value || '';
         p.model_mode = (document.getElementById('spmModelMode') || {}).value || 'all';
         p.temperature = parseFloat((document.getElementById('spmTemp') || {}).value) || 0.3;
         p.max_tokens = parseInt((document.getElementById('spmTokens') || {}).value) || 1024;
@@ -1470,7 +1695,6 @@
             '<div class="sp-field"><label>描述</label><input id="spmDesc" placeholder="简短描述适用场景" oninput="spmAutoSave()"></div>',
             '</div>',
             '<div class="sp-field-row">',
-            '<div class="sp-field"><label>AI 模型</label><select id="spmProvider" onchange="spmAutoSave()"></select></div>',
             '<div class="sp-field"><label>适用模型</label><select id="spmModelMode" onchange="spmAutoSave()"><option value="all">全部模型</option><option value="Z-Image">Z-Image</option><option value="ANIMA">ANIMA</option><option value="Anima图生图">Anima图生图</option></select></div>',
             '<div class="sp-field"><label>Temperature</label><input id="spmTemp" type="number" min="0" max="2" step="0.1" value="0.3" oninput="spmAutoSave()"></div>',
             '<div class="sp-field"><label>Max Tokens</label><input id="spmTokens" type="number" min="64" max="4096" step="64" value="1024" oninput="spmAutoSave()"></div>',
@@ -1559,5 +1783,22 @@
     window.spmClose = spmClose;
     window.spmEsc = spmEsc;
     window.spmInit = spmInit;
+
+    // [2026-07-28] 全局 toast (修复: 原 spToast 全项目未定义，导致"已保存"等提示抛 ReferenceError)
+    window.spToast = function(msg) {
+        var el = document.getElementById('spToast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'spToast';
+            el.style.cssText = 'position:absolute;top:14px;left:50%;transform:translateX(-50%);padding:4px 12px;border-radius:8px;font-size:11px;font-weight:800;background:#059669;color:#fff;z-index:50;transition:opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+            var win = document.querySelector('.sp-picker-window');
+            if (win) { win.style.position = 'relative'; win.appendChild(el); }
+            else { document.body.appendChild(el); }
+        }
+        el.textContent = msg;
+        el.style.opacity = '1';
+        if (window._spToastTimer) clearTimeout(window._spToastTimer);
+        window._spToastTimer = setTimeout(function() { el.style.opacity = '0'; }, 1800);
+    };
 
 })();

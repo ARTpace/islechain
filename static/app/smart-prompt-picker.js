@@ -135,11 +135,23 @@ function spPickerInit() {
     shell.className = 'sp-picker-shell';
     shell.style.display = 'none';
     shell.onclick = (e) => { if (e.target === shell) spPickerClose(); };
+    // [2026-07-28] head 加 channel 切换器 (API / 本地 ComfyUI)
     shell.innerHTML = `
         <div class="sp-picker-window">
             <div class="sp-picker-head">
                 <div class="sp-picker-title">提示词预设</div>
+                <div class="sp-picker-channel">
+                    <label>通道</label>
+                    <select id="spPickerChannel" onchange="spPickerChangeChannel(this.value)">
+                        <option value="api">API</option>
+                        <option value="comfyui">本地 ComfyUI</option>
+                    </select>
+                </div>
                 <button class="sp-picker-close" onclick="spPickerClose()">✕</button>
+            </div>
+            <div class="sp-picker-provider-row" id="spPickerProviderRow" style="display:none;">
+                <label>模型</label>
+                <select id="spPickerProvider" onchange="spPickerChangeProvider(this.value)"></select>
             </div>
             <div id="spPickerBody" class="sp-picker-body"></div>
             <div class="sp-picker-foot">
@@ -149,10 +161,67 @@ function spPickerInit() {
         </div>`;
     document.body.appendChild(shell);
 
-    // 加载当前选中的预设名
-    Promise.all([spPickerLoadPresets(), spPickerLoadProviders()]).then(() => {
+    // 加载当前选中的预设名 + channel 状态
+    Promise.all([spPickerLoadPresets(), spPickerLoadProviders(), spPickerLoadGlobalConfig()]).then(() => {
         const preset = spPickerPresets.find(p => p.id === spPickerSelectedId);
         const label = document.getElementById('spCurrentLabel');
         if (label && preset) label.textContent = preset.name;
     });
+}
+
+// [2026-07-28] 加载全局配置 (channel + provider_id) 到下拉 + window 全局变量
+async function spPickerLoadGlobalConfig() {
+    try {
+        const cfg = await fetch('/api/smart-prompt/config').then(r => r.json());
+        const channel = cfg.channel || 'api';
+        const providerId = cfg.provider_id || '';
+        const chSel = document.getElementById('spPickerChannel');
+        const pSel = document.getElementById('spPickerProvider');
+        if (chSel) chSel.value = channel;
+        if (pSel) {
+            pSel.innerHTML = spPickerProviderOptionsHtml(providerId);
+            if (channel === 'comfyui') {
+                const opt = pSel.querySelector('option[value="comfyui_local"]');
+                if (opt) pSel.value = 'comfyui_local';
+            }
+        }
+        window.localPromptChannel = channel;
+        window.localPromptProvider = (channel === 'comfyui') ? 'comfyui_local' : providerId;
+        const provRow = document.getElementById('spPickerProviderRow');
+        if (provRow) provRow.style.display = (channel === 'api') ? '' : 'none';
+    } catch (e) {}
+}
+
+// [2026-07-28] channel 切换 - 写后端 + 更新全局变量
+async function spPickerChangeChannel(channel) {
+    window.localPromptChannel = channel;
+    if (channel === 'comfyui') {
+        window.localPromptProvider = 'comfyui_local';
+        const provRow = document.getElementById('spPickerProviderRow');
+        if (provRow) provRow.style.display = 'none';
+    } else {
+        const pSel = document.getElementById('spPickerProvider');
+        if (pSel) window.localPromptProvider = pSel.value;
+        const provRow = document.getElementById('spPickerProviderRow');
+        if (provRow) provRow.style.display = '';
+    }
+    try {
+        await fetch('/api/smart-prompt/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel, provider_id: window.localPromptProvider })
+        });
+    } catch (e) {}
+}
+
+// [2026-07-28] provider 切换 - 写后端 + 更新全局变量
+async function spPickerChangeProvider(providerId) {
+    window.localPromptProvider = providerId;
+    try {
+        await fetch('/api/smart-prompt/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel: window.localPromptChannel || 'api', provider_id: providerId })
+        });
+    } catch (e) {}
 }

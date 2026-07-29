@@ -485,6 +485,8 @@
         pruneEmptySeparators,
         ensureLoadMore,
         get allHistory() { return state.allHistory; },
-        set allHistory(v) { state.allHistory = v; }
+        set allHistory(v) { state.allHistory = v; },
+        get type() { return state.type; },
+        get hasMore() { return state.hasMore; }
     };
 })(window);
