@@ -85,23 +85,23 @@
         .lv-title { font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--text-main); }
         .lv-wf-select { padding:8px 14px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-card); color:var(--text-main); font-size:13px; cursor:pointer; min-width:220px; transition:border-color .2s, background .2s; }
         .lv-wf-select:hover { border-color:var(--primary); }
-        .lv-body { flex:1; overflow:hidden; display:grid; grid-template-columns: 360px 1fr; gap:18px; padding:18px 0; }
+        .lv-body { flex:1; overflow:hidden; display:grid; grid-template-columns: 320px 1fr; gap:14px; padding:12px 0; }
         .lv-side { overflow-y:auto; padding-right:4px; }
-        .lv-main { display:flex; flex-direction:column; gap:14px; overflow:hidden; }
-        .lv-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; transition:background .3s, border-color .3s; }
-        .lv-card-title { font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-main); display:flex; align-items:center; gap:6px; }
+        .lv-main { display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+        .lv-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; transition:background .3s, border-color .3s; }
+        .lv-card-title { font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-main); display:flex; align-items:center; gap:5px; }
         .lv-card-title [data-lucide] { color:var(--primary); }
-        .lv-field { margin-bottom:12px; }
-        .lv-label { font-size:12px; color:var(--text-soft); margin-bottom:5px; display:flex; justify-content:space-between; }
-        .lv-input, .lv-textarea, .lv-select { width:100%; padding:8px 10px; border:1px solid var(--border-strong); border-radius:8px; font-size:13px; background:var(--bg-card); color:var(--text-main); box-sizing:border-box; font-family:inherit; transition:border-color .2s, background .2s; }
-        .lv-input:focus, .lv-textarea:focus, .lv-select:focus { outline:none; border-color:var(--primary); background:var(--bg-soft); }
+        .lv-field { margin-bottom:8px; }
+        .lv-label { font-size:11px; color:var(--text-soft); margin-bottom:4px; display:flex; justify-content:space-between; }
+        .lv-input, .lv-textarea { width:100%; padding:6px 10px; border:1px solid var(--border-strong); border-radius:7px; font-size:12px; background:var(--bg-card); color:var(--text-main); box-sizing:border-box; font-family:inherit; transition:border-color .2s, background .2s; }
+        .lv-input:focus, .lv-textarea:focus { outline:none; border-color:var(--primary); background:var(--bg-soft); }
         .lv-input::placeholder, .lv-textarea::placeholder { color:var(--text-faint); }
-        .lv-textarea { min-height:72px; resize:vertical; }
+        .lv-textarea { min-height:56px; resize:vertical; }
         .lv-slider { width:100%; -webkit-appearance:none; appearance:none; height:4px; background:var(--slider-track); border-radius:2px; outline:none; transition:background .3s; }
-        .lv-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; box-shadow:0 0 8px rgba(0,240,255,0.4); transition:transform .15s; }
-        .lv-slider::-webkit-slider-thumb:hover { transform:scale(1.2); }
-        .lv-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; border:none; }
-        .lv-img-drop { width:100%; min-height:120px; max-height:280px; border:2px dashed var(--border-strong); border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--bg-soft); transition:.2s; overflow:hidden; position:relative; box-sizing:border-box; }
+        .lv-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; box-shadow:0 0 6px rgba(0,240,255,0.4); transition:transform .15s; }
+        .lv-slider::-webkit-slider-thumb:hover { transform:scale(1.15); }
+        .lv-slider::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:var(--slider-thumb); cursor:pointer; border:none; }
+        .lv-img-drop { width:100%; min-height:90px; max-height:220px; border:2px dashed var(--border-strong); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--bg-soft); transition:.2s; overflow:hidden; position:relative; box-sizing:border-box; }
         .lv-img-drop:hover { border-color:var(--primary); background:var(--bg-soft-hover); }
         .lv-img-drop.drag-over { border-color:var(--primary); background:var(--bg-soft-hover); box-shadow:inset 0 0 0 3px rgba(0,240,255,0.18); }
         .lv-img-drop.has-image { border-style:solid; padding:0; background:#000; min-height:160px; }
@@ -149,6 +149,42 @@
         .lv-note { font-size:11px; color:var(--text-faint); margin-top:4px; }
         .lv-tip-warn { color:var(--warn); font-size:11px; }
         .lv-tip-ok { color:var(--success); font-size:11px; }
+        .lv-select { position:relative; }
+        .lv-select-trigger { display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border:1px solid var(--border-strong); border-radius:8px; background:var(--bg-soft); color:var(--text-main); cursor:pointer; font:inherit; transition:.2s; }
+        .lv-select-trigger:hover { border-color:var(--primary); }
+        .lv-select.open .lv-select-trigger { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary), 0 0 8px rgba(0,240,255,0.15); }
+        .lv-select-preview { width:34px; height:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .lv-select-preview-rect { border:1.5px solid var(--primary); border-radius:2px; opacity:.9; }
+        .lv-select-text { flex:1; font-size:12px; text-align:left; }
+        .lv-select-text .lv-select-name { font-weight:600; }
+        .lv-select-text .lv-select-sub { font-size:10px; color:var(--text-faint); margin-left:6px; }
+        .lv-select-chev { width:14px; height:14px; color:var(--text-faint); transition:transform .2s; flex-shrink:0; }
+        .lv-select.open .lv-select-chev { transform:rotate(180deg); color:var(--primary); }
+        .lv-select-panel { position:absolute; bottom:calc(100% + 4px); left:0; right:0; z-index:50; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:8px; box-shadow:0 -8px 24px rgba(0,0,0,0.4); max-height:300px; overflow-y:auto; padding:4px; display:none; grid-template-columns:repeat(2, 1fr); gap:2px; }
+        .lv-select.open .lv-select-panel { display:grid; }
+        .lv-select-opt { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; transition:.15s; }
+        .lv-select-opt:hover { background:var(--bg-soft); }
+        .lv-select-opt.active { background:rgba(0,240,255,0.1); }
+        .lv-select-opt-preview { width:34px; height:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .lv-select-opt-preview-rect { border:1.5px solid var(--text-soft); border-radius:2px; }
+        .lv-select-opt:hover .lv-select-opt-preview-rect, .lv-select-opt.active .lv-select-opt-preview-rect { border-color:var(--primary); }
+        .lv-select-opt-text { flex:1; font-size:12px; color:var(--text-main); }
+        .lv-select-opt-sub { font-size:10px; color:var(--text-faint); margin-left:6px; }
+        .lv-select-opt-check { width:14px; height:14px; color:var(--primary); opacity:0; }
+        .lv-select-opt.active .lv-select-opt-check { opacity:1; }
+        .lv-ref-wrap { margin-top:4px; }
+        .lv-ref-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px 12px; border:1.5px dashed var(--border-strong); border-radius:8px; cursor:pointer; transition:.2s; color:var(--text-soft); background:var(--bg-soft); }
+        .lv-ref-drop:hover, .lv-ref-drop.drag-over { border-color:var(--primary); color:var(--primary); background:rgba(0,240,255,0.05); }
+        .lv-ref-stack { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+        .lv-ref-thumb { position:relative; width:60px; height:60px; border-radius:6px; overflow:hidden; border:1px solid var(--border-strong); background:var(--bg-soft); flex-shrink:0; transition:.2s; }
+        .lv-ref-thumb:hover { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary), 0 0 12px rgba(0,240,255,0.2); }
+        .lv-ref-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .lv-ref-thumb .lv-ref-num { position:absolute; top:2px; left:2px; min-width:18px; height:18px; padding:0 4px; border-radius:9px; background:rgba(0,240,255,0.9); color:#0a0e17; font-size:10px; font-weight:700; line-height:18px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,0.4); }
+        .lv-ref-thumb .lv-ref-del { position:absolute; top:2px; right:2px; width:18px; height:18px; padding:0; border:none; border-radius:50%; background:rgba(0,0,0,0.7); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:.15s; }
+        .lv-ref-thumb:hover .lv-ref-del { opacity:1; }
+        .lv-ref-thumb .lv-ref-del:hover { background:var(--warn); color:#0a0e17; }
+        .lv-ref-thumb .lv-ref-del svg { width:12px; height:12px; stroke-width:2.5; }
+        .lv-ref-bar { display:flex; gap:6px; margin-top:8px; }
         .lv-spinner { width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; }
         body.studio-theme-dark .lv-spinner { border-color:rgba(10,14,23,0.3); border-top-color:#0a0e17; }
         .lv-empty-hint { color:var(--text-faint); font-size:12px; padding:14px; }
@@ -168,18 +204,47 @@
             <span>视频生成</span>
         </div>
         <select id="workflowSelect" class="lv-wf-select" title="切换工作流">
-            <option value="LTX23-图生视频.json">LTX23 图生视频</option>
+            <!-- 动态从 /api/workflows/builtin 加载, 入口脚本填充 options -->
         </select>
         <div class="lv-status" id="status">就绪</div>
         <div style="flex:1"></div>
-        <button class="lv-btn lv-btn-ghost" id="randomSeed" title="随机种子">
+        <input type="number" id="seedInput" value="-1" placeholder="种子" title="随机种子 (-1=随机)" style="width:90px;padding:4px 8px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-size:12px;text-align:center;">
+        <button class="lv-btn lv-btn-ghost" id="randomSeed" title="随机种子" style="margin-left:6px;">
             <i data-lucide="dices"></i>
         </button>
     </div>
 
     <div class="layout-container lv-body">
         <aside class="lv-side">
-            <div class="lv-card">
+            <div class="lv-card" data-wf-only="video/MiniMax_H3.json" style="display:none;">
+                <div class="lv-card-title">
+                    <i data-lucide="images"></i>参考图
+                    <span style="flex:1"></span>
+                    <span class="lv-status" id="refCount">0 / 9</span>
+                </div>
+                <div class="lv-ref-wrap" id="refEmpty">
+                    <label class="lv-ref-drop" id="refDrop">
+                        <input type="file" id="refInput" accept="image/*" multiple style="display:none">
+                        <i data-lucide="upload-cloud" style="width:28px;height:28px;opacity:.6;"></i>
+                        <div style="margin-top:4px;font-size:12px;">点击或拖入参考图</div>
+                        <div style="margin-top:2px;font-size:11px;opacity:.55;">MiniMax H3 最多 9 张</div>
+                    </label>
+                </div>
+                <div class="lv-ref-stack" id="refStack" style="display:none;"></div>
+                <div class="lv-ref-bar" id="refBar" style="display:none;">
+                    <button type="button" class="lv-btn lv-btn-ghost" id="refAddBtn" style="flex:1;padding:6px;font-size:12px;">
+                        <i data-lucide="plus" style="width:14px;height:14px;"></i>
+                        <span>添加</span>
+                    </button>
+                    <button type="button" class="lv-btn lv-btn-ghost" id="refClearBtn" style="flex:1;padding:6px;font-size:12px;color:var(--text-faint);">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                        <span>清空</span>
+                    </button>
+                </div>
+                <div class="lv-note" style="margin-top:6px;">多张参考图按顺序拼接为 &lt;Picture 1&gt;…&lt;Picture 9&gt; 提示</div>
+            </div>
+
+            <div class="lv-card" data-wf-only="LTX23-图生视频.json">
                 <div class="lv-card-title"><i data-lucide="image"></i>输入图像</div>
                 <label class="lv-img-drop" id="imgDrop">
                     <input type="file" id="imgInput" accept="image/*" style="display:none">
@@ -199,21 +264,21 @@
                 <div class="lv-note" id="imgNote" style="margin-top:6px;">支持 PNG/JPG/WEBP，作为视频首帧</div>
             </div>
 
-            <div class="lv-card">
-                <div class="lv-card-title"><i data-lucide="type"></i>提示词</div>
-                <div class="lv-field">
-                    <div class="lv-label">正向提示词</div>
-                    <textarea class="lv-textarea" id="prompt" placeholder="描述视频内容…"></textarea>
+            <div class="lv-card" style="padding-top:8px;">
+                <div class="lv-card-title" style="font-size:11px;margin-bottom:4px;"><i data-lucide="type" style="width:14px;height:14px;"></i>提示词</div>
+                <div class="lv-field" style="margin-bottom:0;">
+                    <textarea class="lv-textarea" id="prompt" placeholder="正向提示词：描述视频内容…" style="margin-top:0;min-height:96px;"></textarea>
                 </div>
-                <details class="lv-collapse">
-                    <summary>反向提示词</summary>
-                    <div class="lv-field">
-                        <textarea class="lv-textarea" id="negative_prompt" style="min-height:60px" placeholder="不想出现的内容…"></textarea>
+                <details class="lv-collapse" data-wf-only="LTX23-图生视频.json" style="margin-top:6px;">
+                    <summary style="font-size:11px;padding:4px 0;">反向提示词</summary>
+                    <div class="lv-field" style="margin-bottom:0;margin-top:4px;">
+                        <textarea class="lv-textarea" id="negative_prompt" style="min-height:48px;font-size:12px;" placeholder="不想出现的内容…"></textarea>
                     </div>
                 </details>
             </div>
 
-            <div class="lv-card">
+            <!-- LTX 参数卡片 -->
+            <div class="lv-card" data-wf-only="LTX23-图生视频.json">
                 <div class="lv-card-title"><i data-lucide="sliders-horizontal"></i>参数</div>
 
                 <div class="lv-field">
@@ -239,11 +304,38 @@
                     <input class="lv-slider" type="range" id="steps" min="4" max="20" step="1" value="8">
                     <div class="lv-note">distilled 推荐 4-8</div>
                 </div>
+            </div>
+
+            <!-- MiniMax 参数卡片 (只显示 input_image / length / aspect_ratio) -->
+            <div class="lv-card" data-wf-only="video/MiniMax_H3.json" style="display:none;">
+                <div class="lv-card-title"><i data-lucide="sliders-horizontal"></i>参数</div>
 
                 <div class="lv-field">
-                    <div class="lv-label">随机种子</div>
-                    <input class="lv-input" type="number" id="seed" value="-1" placeholder="-1 为随机">
+                    <div class="lv-label"><span>时长 (秒)</span><span id="length_val">5</span></div>
+                    <input class="lv-slider" type="range" id="length" min="3" max="15" step="1" value="5">
+                    <div class="lv-note" id="length_note">3-15 秒</div>
                 </div>
+
+                <div class="lv-field">
+                    <div class="lv-label">视频比例</div>
+                    <input type="hidden" id="aspect_ratio" value="9:16 (Portrait Widescreen)">
+                    <div class="lv-select" id="aspectSelect">
+                        <button type="button" class="lv-select-trigger" id="aspectTrigger">
+                            <span class="lv-select-preview" id="aspectPreview"></span>
+                            <span class="lv-select-text"><span class="lv-select-name" id="aspectName">9:16</span><span class="lv-select-sub" id="aspectSub">竖屏</span></span>
+                            <i class="lv-select-chev" data-lucide="chevron-down"></i>
+                        </button>
+                        <div class="lv-select-panel" id="aspectPanel"></div>
+                    </div>
+                    <div class="lv-note" id="aspectNote">由 ResolutionSelector 自动计算输出尺寸</div>
+                </div>
+
+                <div class="lv-field">
+                    <div class="lv-label">精度 (百万像素) <span id="megapixelsVal" style="color:var(--primary);font-weight:600;margin-left:6px;">0.6</span></div>
+                    <input type="range" class="lv-slider" id="megapixels" min="0.2" max="1.0" step="0.1" value="0.6">
+                    <div class="lv-note" id="megapixelsNote">9:16 → 1344×768</div>
+                </div>
+
             </div>
 
             <div class="lv-card">
@@ -252,6 +344,7 @@
                     <span>生成视频</span>
                 </button>
                 <div class="lv-note" id="vramNote" style="margin-top:8px;"></div>
+                <div class="lv-note" id="wfHint" style="margin-top:4px;color:var(--primary);display:none;"></div>
             </div>
         </aside>
 
@@ -284,23 +377,54 @@
 
 <script>
 // ============= 状态 =============
-const WORKFLOW_NAME = "LTX23-图生视频.json";
-// 节点覆盖映射（直接覆盖 prompt 格式 workflow 的叶子节点）
-// LTX23 workflow 展开后是拍平的 prompt 格式, 没有 subgraph wrapper
-// 每个 node 字段写 leaf node id, input 字段是该节点的 input 名字
-const NODE_MAP = {
-    input_image:     { node: "173",    input: "image" },
-    prompt:          { node: "175:5",  input: "text" },
-    negative_prompt: { node: "175:6",  input: "text" },
-    total_frames:    { node: "175:10", input: "value" },
-    fps:             { node: "175:12", input: "value" },
-    size:            { node: "175:179", input: "size" },
-    seed:            { node: "175:16", input: "noise_seed" },
-    steps:           { node: "175:22", input: "steps" }
+// 工作流注册表：每个 workflow 列出需要填入的控件以及到 ComfyUI 节点的映射。
+// 原理：所有控件以固定 id 出现于 DOM (如 #total_frames, #length, #aspect_ratio)，
+// 运行时根据当前选中的 workflow 决定哪些 DOM 节点可见，并由 node_map 告诉你点提交时
+// 值应该写到哪个 ComfyUI node.input。
+const WORKFLOW_REGISTRY = {
+    "LTX23-图生视频.json": {
+        title: "LTX23 图生视频",
+        // 哪些控件该出现(LTX 有负向提示词、总帧、帧率、尺寸、步数、种子)
+        controls: ["negative_prompt", "total_frames", "fps", "size", "steps"],  // seed 移到 header 统一输入
+        // 主节点映射表
+        node_map: {
+            input_image:     { node: "173",    input: "image" },
+            prompt:          { node: "175:5",  input: "text" },
+            negative_prompt: { node: "175:6",  input: "text" },
+            total_frames:    { node: "175:10", input: "value" },
+            fps:             { node: "175:12", input: "value" },
+            size:            { node: "175:179", input: "size" },
+            seed:            { node: "175:16", input: "noise_seed" },
+            steps:           { node: "175:22", input: "steps" }
+        },
+        // 采样步数预估值, 用于 progress 显示
+        stepsField: "steps",
+        saveNodeId: "174",  // WS executed 消息匹配的视频输出节点
+        defaultPromptHint: "描述视频内容…"
+    },
+    "video/MiniMax_H3.json": {
+        title: "MiniMax H3 图生视频",
+        controls: ["length", "aspect_ratio", "megapixels"],  // seed 移到 header 统一输入
+        node_map: {
+            input_image:  { node: "137", input: "image" },
+            prompt:       { node: "138", input: "value" },
+            length:       { node: "132", input: "value" },
+            aspect_ratio: { node: "115", input: "aspect_ratio" },
+            megapixels:   { node: "115", input: "megapixels" },
+            seed_mm:      { node: "129", input: "noise_seed" }
+        },
+        stepsField: null,  // MiniMax 步数固定在 workflow 内 (BasicScheduler 20步), 不暴露
+        saveNodeId: "92",
+        defaultPromptHint: "Multi-shot description with sound (English preferred)…"
+    }
 };
+let currentWorkflow = "LTX23-图生视频.json";  // 启动后由动态列表覆盖
 let inputImageFile = null;
 let inputImageObjectUrl = null;  // 避免内存泄漏, 重新选择时 revoke 旧的
 let inputImageComfyName = null;  // 上传到 ComfyUI 后的文件名
+// MiniMax 多参考图状态:每项 { id, file, url(本地预览), comfyName(上传后), slot(0..8) }
+const MAX_REF_IMAGES = 9;
+let refImgs = [];  // 工作流切换或清空时整体重置
 let currentSession = [];  // {url, ts, prompt}
 let isRunning = false;
 let progressTimer = null;
@@ -397,34 +521,374 @@ function clearImage() {
 }
 
 // ============= 参数联动显示 =============
-['total_frames', 'fps', 'size', 'steps'].forEach(id => {
-    const el = document.getElementById(id);
-    const valEl = document.getElementById(id + '_val');
-    el.addEventListener('input', () => {
-        valEl.textContent = el.value;
-        updateDerived();
+// 只为当前 workflow 启用的 slider 绑 input 事件。重复调用是安全的 (nextElementSibling 防御)。
+function bindSliderEvents() {
+    const cfg = WORKFLOW_REGISTRY[currentWorkflow];
+    if (!cfg) return;
+    const sliderIds = cfg.controls.filter(c => document.getElementById(c)?.type === 'range');
+    sliderIds.forEach(id => {
+        const el = document.getElementById(id);
+        const valEl = document.getElementById(id + '_val');
+        if (!el || !valEl) return;
+        if (el.dataset.bound) return;
+        el.dataset.bound = '1';
+        el.addEventListener('input', () => {
+            valEl.textContent = el.value;
+            updateDerived();
+        });
     });
-});
+}
 function updateDerived() {
-    const frames = parseInt(document.getElementById('total_frames').value);
-    const fps = parseInt(document.getElementById('fps').value);
-    const size = parseInt(document.getElementById('size').value);
-    const sec = (frames / fps).toFixed(1);
-    document.getElementById('total_frames_note').textContent = `≈ ${sec} 秒 @ ${fps}fps`;
-    // 显存粗估: 481 帧 + 1280 像素 + int8 ≈ 28GB
-    const pixels = size * size * (frames / 30);
-    const estGB = (pixels / 1.5e8).toFixed(0);  // 经验系数
-    const note = document.getElementById('vramNote');
-    if (parseInt(estGB) >= 20) {
-        note.innerHTML = `<span class="lv-tip-warn">⚠ 预估显存 ≈ ${estGB}GB, 24GB 显卡可能 OOM</span>`;
+    const cfg = WORKFLOW_REGISTRY[currentWorkflow];
+    if (!cfg) return;
+    const vramNote = document.getElementById('vramNote');
+    if (currentWorkflow === 'LTX23-图生视频.json') {
+        const frames = parseInt(document.getElementById('total_frames').value);
+        const fps = parseInt(document.getElementById('fps').value);
+        const size = parseInt(document.getElementById('size').value);
+        const sec = (frames / fps).toFixed(1);
+        const note2 = document.getElementById('total_frames_note');
+        if (note2) note2.textContent = `≈ ${sec} 秒 @ ${fps}fps`;
+        // 显存粗估: 481 帧 + 1280 像素 + int8 ≈ 28GB
+        const pixels = size * size * (frames / 30);
+        const estGB = (pixels / 1.5e8).toFixed(0);
+        if (parseInt(estGB) >= 20) {
+            vramNote.innerHTML = `<span class="lv-tip-warn">⚠ 预估显存 ≈ ${estGB}GB, 24GB 显卡可能 OOM</span>`;
+        } else {
+            vramNote.innerHTML = `<span class="lv-tip-ok">预估显存 ≈ ${estGB}GB</span>`;
+        }
     } else {
-        note.innerHTML = `<span class="lv-tip-ok">预估显存 ≈ ${estGB}GB</span>`;
+        // MiniMax: 显存量级不同，不估计
+        vramNote.innerHTML = '';
     }
 }
-document.getElementById('randomSeed').addEventListener('click', () => {
-    document.getElementById('seed').value = randSeed();
-});
-updateDerived();
+
+// ============= workflow 切换 =============
+// 根据选中工作流控制 data-wf-only 元素的显隐, 重置绑定, 更新提示。
+function applyWorkflowVisibility(wfName) {
+    const cfg = WORKFLOW_REGISTRY[wfName];
+    if (!cfg) return;
+    currentWorkflow = wfName;
+    // 1. 切换 data-wf-only 元素
+    document.querySelectorAll('[data-wf-only]').forEach(el => {
+        el.style.display = (el.dataset.wfOnly === wfName) ? '' : 'none';
+    });
+    // 2. 提示 placeholder
+    const promptEl = document.getElementById('prompt');
+    if (promptEl) promptEl.placeholder = cfg.defaultPromptHint || '';
+    // 3. 随机种子按钮绑定 (统一用 header 的 #seedInput)
+    const randomBtn = document.getElementById('randomSeed');
+    const seedInput = document.getElementById('seedInput');
+    randomBtn.onclick = () => {
+        if (seedInput) seedInput.value = randSeed();
+    };
+    // 4. 给新出现的 slider 绑事件
+    bindSliderEvents();
+    // 5. hint 保持隐藏 (不显示安装提示)
+    const wfHint = document.getElementById('wfHint');
+    if (wfHint) wfHint.style.display = 'none';
+    // 6. 同步精度滑条的初始 note (取决于当前比例)
+    const mpSlider = document.getElementById('megapixels');
+    if (mpSlider && mpSlider._sync) mpSlider._sync(mpSlider.value);
+    updateDerived();
+}
+
+// ============= 比例下拉选择 =============
+// ComfyUI 期望的完整名字符串(如 "9:16 (Portrait Widescreen)")。value 是 hidden input 的存储值。
+const ASPECT_OPTIONS = [
+    { value: '1:1 (Square)',                short: '1:1',  sub: '正方形',  w: 1,  h: 1  },
+    { value: '16:9 (Widescreen)',            short: '16:9', sub: '横屏',    w: 16, h: 9  },
+    { value: '9:16 (Portrait Widescreen)',   short: '9:16', sub: '竖屏',    w: 9,  h: 16 },
+    { value: '4:3 (Standard)',               short: '4:3',  sub: '传统横',  w: 4,  h: 3  },
+    { value: '3:4 (Portrait Standard)',      short: '3:4',  sub: '传统竖',  w: 3,  h: 4  },
+    { value: '2:3 (Portrait Photo)',         short: '2:3',  sub: '照片竖',  w: 2,  h: 3  },
+    { value: '3:2 (Photo)',                  short: '3:2',  sub: '照片横',  w: 3,  h: 2  },
+    { value: '21:9 (Ultrawide)',             short: '21:9', sub: '超宽',    w: 21, h: 9  }
+];
+// 精度档位 0.2~1.0MP, 滑条 step=0.1
+const MEGAPIXELS_OPTIONS = [
+    { value: 0.2, sub: '草稿' },
+    { value: 0.3, sub: '预览' },
+    { value: 0.4, sub: '低清' },
+    { value: 0.5, sub: '标清' },
+    { value: 0.6, sub: '推荐' },
+    { value: 0.7, sub: '吃显存' },
+    { value: 0.8, sub: '吃显存' },
+    { value: 0.9, sub: '吃显存' },
+    { value: 1.0, sub: '1MP' }
+];
+// 按 megapixels + 比例计算输出尺寸 (multiple=32, 边缘对齐)
+function computeOutputSize(mp, aspectOpt) {
+    const ratio = aspectOpt.w / aspectOpt.h;
+    // pixels = mp * 1e6, h = sqrt(pixels / ratio), w = pixels / h
+    const pixels = mp * 1e6;
+    const h = Math.sqrt(pixels / ratio);
+    const w = pixels / h;
+    const m = 32;
+    const aw = Math.round(w / m) * m;
+    const ah = Math.round(h / m) * m;
+    return `${aw}×${ah}`;
+}
+// 容器 34×22, 矩形象内部按 w/h 等比缩放居中
+function aspectRectStyle(w, h, maxW = 30, maxH = 18) {
+    const ratio = w / h;
+    let bw, bh;
+    if (ratio >= 1) { bw = maxW; bh = maxW / ratio; }
+    else            { bh = maxH; bw = maxH * ratio; }
+    return `width:${bw.toFixed(1)}px;height:${bh.toFixed(1)}px;`;
+}
+function renderAspectPreview(container, opt, extraClass) {
+    const cls = extraClass || 'lv-select-preview-rect';
+    container.innerHTML = '<span class="' + cls + '" style="' + aspectRectStyle(opt.w, opt.h) + '"></span>';
+}
+function bindAspectRatio() {
+    const root = document.getElementById('aspectSelect');
+    const trigger = document.getElementById('aspectTrigger');
+    const panel = document.getElementById('aspectPanel');
+    const hidden = document.getElementById('aspect_ratio');
+    const preview = document.getElementById('aspectPreview');
+    const nameEl = document.getElementById('aspectName');
+    const subEl = document.getElementById('aspectSub');
+    if (!root || !trigger || !panel || !hidden || root.dataset.bound) return;
+    root.dataset.bound = '1';
+    // 1. 填充选项
+    panel.innerHTML = ASPECT_OPTIONS.map(opt => {
+        return '<div class="lv-select-opt" data-value="' + opt.value + '">' +
+            '<span class="lv-select-opt-preview"></span>' +
+            '<span class="lv-select-opt-text">' + opt.short + '<span class="lv-select-opt-sub">' + opt.sub + '</span></span>' +
+            '<i class="lv-select-opt-check" data-lucide="check"></i>' +
+            '</div>';
+    }).join('');
+    // 2. 选项预览渲染 + 选中状态
+    panel.querySelectorAll('.lv-select-opt').forEach((el, idx) => {
+        renderAspectPreview(el.querySelector('.lv-select-opt-preview'), ASPECT_OPTIONS[idx], 'lv-select-opt-preview-rect');
+    });
+    // 3. 同步当前值 -> trigger
+    function syncToTrigger(value) {
+        const opt = ASPECT_OPTIONS.find(o => o.value === value) || ASPECT_OPTIONS[2];
+        nameEl.textContent = opt.short;
+        subEl.textContent = opt.sub;
+        renderAspectPreview(preview, opt);
+        hidden.value = opt.value;
+        panel.querySelectorAll('.lv-select-opt').forEach((el, idx) => {
+            el.classList.toggle('active', ASPECT_OPTIONS[idx].value === opt.value);
+        });
+        if (window.lucide) window.lucide.createIcons();
+    }
+    syncToTrigger(hidden.value);
+    // 4. 触发:开/关
+    trigger.addEventListener('click', e => {
+        e.stopPropagation();
+        root.classList.toggle('open');
+    });
+    document.addEventListener('click', e => {
+        if (!root.contains(e.target)) root.classList.remove('open');
+    });
+    // 5. 选项点击
+    panel.addEventListener('click', e => {
+        const opt = e.target.closest('.lv-select-opt');
+        if (!opt) return;
+        syncToTrigger(opt.dataset.value);
+        // 同步刷新精度滑条的尺寸提示
+        const mpSlider = document.getElementById('megapixels');
+        if (mpSlider && mpSlider._sync) mpSlider._sync(mpSlider.value);
+        root.classList.remove('open');
+    });
+    // 6. 暴露供 applyWorkflowVisibility 重新同步
+    root._sync = syncToTrigger;
+}
+
+// ============= 精度滑条 =============
+// 滑条 + label 显示 + note 同步输出尺寸。比例变动时调用 _sync()。
+function bindMegapixels() {
+    const slider = document.getElementById('megapixels');
+    const label = document.getElementById('megapixelsVal');
+    const noteEl = document.getElementById('megapixelsNote');
+    if (!slider || slider.dataset.bound) return;
+    slider.dataset.bound = '1';
+    function syncToTrigger(value) {
+        const v = parseFloat(value);
+        if (label) label.textContent = v.toFixed(1);
+        const opt = MEGAPIXELS_OPTIONS.find(o => Math.abs(o.value - v) < 0.05) || { value: v, sub: v.toFixed(1) + 'MP' };
+        const ar = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
+        if (noteEl) noteEl.textContent = ar.short + ' → ' + computeOutputSize(opt.value, ar);
+    }
+    slider.addEventListener('input', () => syncToTrigger(slider.value));
+    // 暴露供 bindAspectRatio 比例变动时调用
+    slider._sync = syncToTrigger;
+}
+
+// ============= MiniMax 多参考图 =============
+// 添加文件 -> 创建本地预览 URL, 推入 refImgs 数组, 重渲染。
+function addRefFiles(files) {
+    const incoming = Array.from(files || []).filter(f => f.type && f.type.startsWith('image/'));
+    const slotsLeft = MAX_REF_IMAGES - refImgs.length;
+    if (slotsLeft <= 0) { status('参考图已达上限 ' + MAX_REF_IMAGES + ' 张'); return; }
+    const accepted = incoming.slice(0, slotsLeft);
+    if (incoming.length > slotsLeft) status('仅添加 ' + slotsLeft + ' 张,已达上限');
+    accepted.forEach(f => {
+        const id = 'ref_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const url = URL.createObjectURL(f);
+        refImgs.push({ id, file: f, url, comfyName: null });
+    });
+    renderRefStack();
+}
+function removeRefById(id) {
+    const idx = refImgs.findIndex(r => r.id === id);
+    if (idx < 0) return;
+    if (refImgs[idx].url) URL.revokeObjectURL(refImgs[idx].url);
+    refImgs.splice(idx, 1);
+    renderRefStack();
+}
+function clearRefImgs() {
+    refImgs.forEach(r => { if (r.url) URL.revokeObjectURL(r.url); });
+    refImgs = [];
+    renderRefStack();
+}
+function renderRefStack() {
+    const stack = document.getElementById('refStack');
+    const empty = document.getElementById('refEmpty');
+    const bar = document.getElementById('refBar');
+    const counter = document.getElementById('refCount');
+    if (!stack || !empty || !bar || !counter) return;
+    counter.textContent = refImgs.length + ' / ' + MAX_REF_IMAGES;
+    if (refImgs.length === 0) {
+        stack.style.display = 'none';
+        stack.innerHTML = '';
+        empty.style.display = '';
+        bar.style.display = 'none';
+        return;
+    }
+    empty.style.display = 'none';
+    stack.style.display = '';
+    bar.style.display = '';
+    stack.innerHTML = refImgs.map((r, i) => {
+        return '<div class="lv-ref-thumb" data-id="' + r.id + '" title="' + r.file.name + '">' +
+            '<img src="' + r.url + '" alt="ref' + (i + 1) + '">' +
+            '<span class="lv-ref-num">' + (i + 1) + '</span>' +
+            '<button type="button" class="lv-ref-del" data-id="' + r.id + '" title="删除">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>' +
+            '</button>' +
+            '</div>';
+    }).join('');
+    // 事件委托:删除按钮
+    stack.querySelectorAll('.lv-ref-del').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault(); e.stopPropagation();
+            removeRefById(btn.dataset.id);
+        });
+    });
+    if (window.lucide) window.lucide.createIcons();
+}
+// 拖拽 + 点击 + 清空 事件绑定
+function bindRefImgs() {
+    const drop = document.getElementById('refDrop');
+    const input = document.getElementById('refInput');
+    const addBtn = document.getElementById('refAddBtn');
+    const clearBtn = document.getElementById('refClearBtn');
+    if (!drop || !input || drop.dataset.bound) return;
+    drop.dataset.bound = '1';
+    drop.addEventListener('click', () => input.click());
+    input.addEventListener('change', e => {
+        if (e.target.files && e.target.files.length) addRefFiles(e.target.files);
+        e.target.value = '';  // 重置, 允许重复选同一文件
+    });
+    // 拖拽
+    let dragCounter = 0;
+    drop.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; drop.classList.add('drag-over'); });
+    drop.addEventListener('dragover', e => { e.preventDefault(); });
+    drop.addEventListener('dragleave', e => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; drop.classList.remove('drag-over'); } });
+    drop.addEventListener('drop', e => {
+        e.preventDefault(); dragCounter = 0; drop.classList.remove('drag-over');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) addRefFiles(e.dataTransfer.files);
+    });
+    if (addBtn) addBtn.addEventListener('click', () => input.click());
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        if (refImgs.length === 0) return;
+        if (confirm('清空所有参考图?')) clearRefImgs();
+    });
+}
+// 提交前逐张上传到 ComfyUI, 返回按 slot 顺序排列的文件名数组 (上传失败的跳过)
+async function uploadRefImgs() {
+    for (let i = 0; i < refImgs.length; i++) {
+        const r = refImgs[i];
+        if (r.comfyName) continue;  // 已上传过
+        const fd = new FormData();
+        fd.append('image', r.file);
+        fd.append('type', 'input');
+        fd.append('overwrite', 'true');
+        const token = getToken();
+        const resp = await fetch('/api/comfyui/upload/image', {
+            method: 'POST',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+            body: fd
+        });
+        if (!resp.ok) throw new Error('参考图上传失败: HTTP ' + resp.status);
+        const data = await resp.json();
+        if (!data.name && !data.filename) throw new Error('参考图上传响应缺少 name');
+        r.comfyName = data.name || data.filename;
+    }
+    return refImgs.map(r => r.comfyName).filter(Boolean);
+}
+// 为多张参考图在 workflow 中追加 LoadImage 节点。
+// MiniMax 工作流原有一个 LoadImage 137 给 ref_image_0; 额外图片从 200 起递增, 输出链到 136.ref_images.ref_image_{i}
+function injectExtraLoadImages(apiWorkflow, comfyNames, targetNodeId) {
+    // 已有 LoadImage 137 给 slot 0 (params 覆写 image); 剩下 slot 1..N-1 注入新节点
+    const added = [];  // { id, inputName, filename }
+    let nextId = 200;
+    for (let i = 1; i < comfyNames.length; i++) {
+        while (apiWorkflow[String(nextId)]) nextId++;
+        const lid = String(nextId);
+        nextId++;
+        apiWorkflow[lid] = {
+            inputs: { image: comfyNames[i] },
+            class_type: 'LoadImage',
+            _meta: { title: '加载图像 ref' + (i + 1) }
+        };
+        const inputName = 'ref_images.ref_image_' + i;  // 与工作流原 slot 0 命名一致
+        if (!apiWorkflow[targetNodeId].inputs) apiWorkflow[targetNodeId].inputs = {};
+        apiWorkflow[targetNodeId].inputs[inputName] = [lid, 0];  // link to LoadImage output slot 0
+        added.push({ id: lid, inputName, filename: comfyNames[i], slot: i });
+    }
+    return added;
+}
+
+// 从 /api/workflows/builtin 动态填充工作流下拉。
+async function loadWorkflowList() {
+    const sel = document.getElementById('workflowSelect');
+    let workflows = [];
+    try {
+        const resp = await fetch('/api/workflows/builtin', { headers: getToken() ? { 'Authorization': 'Bearer ' + getToken() } : {} });
+        if (resp.ok) {
+            const data = await resp.json();
+            workflows = (data.workflows || []).map(w => w.name);
+        }
+    } catch (e) {
+        console.warn('[litevideo] 拉取工作流列表失败', e);
+    }
+    // 确保至少 LTX23 在列表里 (builtin 列表可能不返回未配置 config.json 的工作流)
+    if (!workflows.includes('LTX23-图生视频.json')) workflows.unshift('LTX23-图生视频.json');
+    // 只显示注册表里支持的工作流
+    const supported = workflows.filter(n => WORKFLOW_REGISTRY[n]);
+    sel.innerHTML = '';
+    supported.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = WORKFLOW_REGISTRY[name].title || name;
+        sel.appendChild(opt);
+    });
+    if (supported.length && !supported.includes(currentWorkflow)) currentWorkflow = supported[0];
+    sel.value = currentWorkflow;
+    applyWorkflowVisibility(currentWorkflow);
+    sel.addEventListener('change', () => {
+        // 切 workflow 时保留输入图和提示词(用户要继续微调不同后端)
+        applyWorkflowVisibility(sel.value);
+        // 随机种子重置为 -1 (不同后端种子效果不可移植)
+        const seedInput = document.getElementById('seedInput');
+        if (seedInput) seedInput.value = -1;
+    });
+}
 
 // ============= 上传图到 ComfyUI =============
 async function uploadInputImage() {
@@ -476,9 +940,13 @@ function openProgressWs(clientId, onProgress) {
                 onProgress({ kind: 'start' });
             } else if (msg.type === 'execution_error') {
                 onProgress({ kind: 'error', message: msg.data?.exception_message || 'ComfyUI 节点错误' });
-            } else if (msg.type === 'executed' && msg.data?.node === '174') {
-                // SaveVideo 节点 174 完成后 -> 视频即将可读, 进度推到 99%
-                onProgress({ kind: 'video_ready' });
+            } else if (msg.type === 'executed' && msg.data?.node) {
+                // SaveVideo 完成后 -> 视频即将可读, 进度推到 99%
+                // 从注册表取当前 workflow 的 SaveVideo 节点 id
+                const _saveId = (WORKFLOW_REGISTRY[currentWorkflow] || {}).saveNodeId;
+                if (msg.data.node === _saveId) {
+                    onProgress({ kind: 'video_ready' });
+                }
             }
         } catch (err) {
             console.warn('[litevideo] WS 消息解析失败', err);
@@ -515,7 +983,11 @@ function applyProgress(evt) {
             _progressPct = Math.max(_progressPct, 85);
             showProgress(_progressPct, '编码视频…');
         } else {
-            const nodeNames = { '173': '加载图像', '175:179': '缩放', '175:10': '生成帧', '175:22': '调度', '174': '保存视频' };
+            const nodeNames = {
+                '173': '加载图像', '175:179': '缩放', '175:10': '生成帧', '175:22': '调度', '174': '保存视频',
+                '137': '加载参考图', '138': '提示词', '115': '选分辨率', '132': '时长',
+                '136': '生成视频', '130': '合成视频', '92': '保存视频'
+            };
             showProgress(_progressPct, `执行节点 ${evt.node} ${nodeNames[evt.node] || ''}`);
         }
     } else if (evt.kind === 'video_ready') {
@@ -529,8 +1001,11 @@ function applyProgress(evt) {
 // ============= 提交生成 =============
 document.getElementById('runBtn').addEventListener('click', async () => {
     if (isRunning) return;
-    if (!inputImageFile) {
-        status('请先选择输入图像'); return;
+    const isMiniMax = currentWorkflow === 'video/MiniMax_H3.json';
+    if (isMiniMax) {
+        if (refImgs.length === 0) { status('请先选择参考图(至少 1 张)'); return; }
+    } else {
+        if (!inputImageFile) { status('请先选择输入图像'); return; }
     }
     const btn = document.getElementById('runBtn');
     btn.disabled = true;
@@ -538,37 +1013,83 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     isRunning = true;
     _progressPct = 0;
     status('上传图像…', true);
-    showProgress(1, '上传输入图…');
+    showProgress(1, isMiniMax ? '上传参考图…' : '上传输入图…');
     try {
         // 0. 预先准备稳定的 client_id, 让 WS 和提交使用同一个
         const clientId = 'litevideo_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
         openProgressWs(clientId, applyProgress);
-        // 1. 上传图像
-        const imgComfyName = await uploadInputImage();
-        inputImageComfyName = imgComfyName;
+        // 1. 上传图像:LTX 单图,MiniMax 多参考图
+        let imgComfyName = null;       // LTX 单图名
+        let refComfyNames = null;     // MiniMax 参考图名列表(按 slot 顺序)
+        if (isMiniMax) {
+            refComfyNames = await uploadRefImgs();
+            imgComfyName = refComfyNames[0];  // slot 0 默认走 137 LoadImage
+        } else {
+            imgComfyName = await uploadInputImage();
+            inputImageComfyName = imgComfyName;
+        }
         status('提交工作流…', true);
         showProgress(3, '提交到 ComfyUI…');
-        // 2. 组装参数
-        const seedVal = parseInt(document.getElementById('seed').value);
-        const finalSeed = isNaN(seedVal) || seedVal === -1 ? Math.floor(Math.random() * 2 ** 31) : seedVal;
-        const fields = {
+        // 2. 组装参数 (按当前 workflow 的 node_map)
+        const cfg = WORKFLOW_REGISTRY[currentWorkflow];
+        if (!cfg) {
+            throw new Error('未识别的工作流: ' + currentWorkflow);
+        }
+        // 随机种子：统一从 header #seedInput 读取 (LTX 用 node_map.seed, MiniMax 用 node_map.seed_mm)
+        const seedInput = document.getElementById('seedInput');
+        let finalSeed = null;
+        if (seedInput) {
+            const seedVal = parseInt(seedInput.value);
+            finalSeed = isNaN(seedVal) || seedVal === -1 ? randSeed() : seedVal;
+        }
+        // 控件值采集：key 是 node_map 的 key, value 是 DOM 读取
+        // input_image/prompt 对所有 workflow 都采集
+        const rawValues = {
             input_image: imgComfyName,
-            prompt: document.getElementById('prompt').value,
-            negative_prompt: document.getElementById('negative_prompt').value,
-            total_frames: parseInt(document.getElementById('total_frames').value),
-            fps: parseInt(document.getElementById('fps').value),
-            size: parseInt(document.getElementById('size').value),
-            steps: parseInt(document.getElementById('steps').value),
-            seed: finalSeed
+            prompt: document.getElementById('prompt').value
         };
+        // 根据 workflow 决定 seed 的 key (LTX 用 'seed', MiniMax 用 'seed_mm')
+        const seedKey = cfg.node_map.seed ? 'seed' : (cfg.node_map.seed_mm ? 'seed_mm' : null);
+        if (seedKey && finalSeed !== null) rawValues[seedKey] = finalSeed;
+        // 其余 active 控件 (slider/select)
+        cfg.controls.forEach(ctrl => {
+            if (rawValues[ctrl] !== undefined) return;
+            const el = document.getElementById(ctrl);
+            if (!el) return;
+            // slider 或 hidden numeric 字段 (如 megapixels): 转 float
+            const numeric = ctrl === 'megapixels' || el.type === 'range';
+            rawValues[ctrl] = numeric ? parseFloat(el.value) : el.value;
+        });
         // 3. 提交 (走 /api/generate, params 走 { nodeId: { inputName: value } } 覆盖)
         const token = getToken();
         const params = {};
-        for (const [fid, value] of Object.entries(fields)) {
-            const m = NODE_MAP[fid];
+        for (const [fid, value] of Object.entries(rawValues)) {
+            const m = cfg.node_map[fid];
             if (!m) continue;
             if (!params[m.node]) params[m.node] = {};
             params[m.node][m.input] = value;
+        }
+        const body = {
+            prompt: rawValues.prompt || '',
+            workflow_json: currentWorkflow,
+            type: 'video',
+            client_id: clientId,
+            params: params
+        };
+        // MiniMax 多参考图:获取 workflow JSON, 追加 LoadImage 节点, 走 workflow_data 提交
+        if (isMiniMax && refComfyNames && refComfyNames.length > 1) {
+            const wfResp = await fetch('/api/workflows/' + encodeURIComponent(currentWorkflow), {
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (!wfResp.ok) throw new Error('加载工作流失败: HTTP ' + wfResp.status);
+            const wfEnvelope = await wfResp.json();
+            const apiWorkflow = JSON.parse(JSON.stringify(wfEnvelope.workflow || wfEnvelope));
+            // node_map.input_image.node = '137' (已有 LoadImage) 给 slot 0
+            // 额外 slot 1..N-1 注入 LoadImage 节点(从 200 起), 输出链到 136.ref_images.reference_image_{i}
+            injectExtraLoadImages(apiWorkflow, refComfyNames, '136');
+            body.workflow_data = apiWorkflow;
+            delete body.workflow_json;  // 优先用 workflow_data
+            showProgress(3, '提交到 ComfyUI(' + refComfyNames.length + ' 张参考图)…');
         }
         const resp = await fetch('/api/generate', {
             method: 'POST',
@@ -576,13 +1097,7 @@ document.getElementById('runBtn').addEventListener('click', async () => {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': 'Bearer ' + token } : {})
             },
-            body: JSON.stringify({
-                prompt: '',
-                workflow_json: WORKFLOW_NAME,
-                type: 'video',
-                client_id: clientId,
-                params: params
-            })
+            body: JSON.stringify(body)
         });
         if (!resp.ok) {
             const txt = await resp.text();
@@ -601,7 +1116,7 @@ document.getElementById('runBtn').addEventListener('click', async () => {
         document.getElementById('emptyStage').style.display = 'none';
         status('完成 ✓', false);
         // 6. push 到 session history
-        currentSession.unshift({ url: videoUrl, ts: Date.now(), prompt: fields.prompt });
+        currentSession.unshift({ url: videoUrl, ts: Date.now(), prompt: rawValues.prompt || '' });
         renderSession();
         // 7. 收尾进度条
         showProgress(100, '完成 ✓');
@@ -652,6 +1167,16 @@ function renderSession() {
 // 启动时补图标
 if (window.lucide) window.lucide.createIcons();
 status('就绪');
+// 比例卡片事件(静态 DOM, 启动时一次性绑定)
+bindAspectRatio();
+bindMegapixels();
+// 参考图事件
+bindRefImgs();
+// 异步加载工作流列表, 然后按当前 workflow 应用 UI
+loadWorkflowList().catch(e => {
+    console.warn('[litevideo] loadWorkflowList 失败, 使用默认 LTX23', e);
+    applyWorkflowVisibility('LTX23-图生视频.json');
+});
 </script>
 </body>
 </html>

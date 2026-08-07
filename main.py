@@ -9117,6 +9117,11 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
         else:
             raise Exception("缺少工作流数据,请提供 workflow_data 或 workflow_json")
 
+        # UI 格式(顶层含 nodes 列表) → API 格式(节点字典)。转换器见 _ui_workflow_to_api_prompt。
+        # 这样 /api/generate 不必关心调用方传的是哪种格式,后续 seed/CLIPTextEncode/EmptyLatent 注入逻辑都按 API 格式走。
+        if isinstance(workflow, dict) and isinstance(workflow.get("nodes"), list):
+            workflow = _ui_workflow_to_api_prompt(workflow)
+
         seed = random.randint(1, 10**15)
 
         if "23" in workflow and req.prompt:
@@ -9331,21 +9336,37 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                         continue
 
                     images_list = node_output['images']
-                    # 并行下载多张图+缩略图预生成,后续处理无依赖
+                    # 边界修复: ComfyUI SaveVideo 节点 outputs 在 'images' key 里 (含 animated=True/filename=*.mp4),
+                    # 需识别后路由到 download_video 而不是 download_image (避免 mp4 被保存成 png)
+                    # 返回 ('video', path) 或 ('image', path) 以便调用方分类追加
+                    _video_exts = ('.mp4', '.webm', '.mov', '.mkv', '.avi')
                     def _dl_img(img_dict):
                         _path = f"/view?filename={img_dict['filename']}&subfolder={img_dict['subfolder']}&type={img_dict['type']}"
+                        _fname = img_dict.get('filename', '')
+                        # 视频文件走下载视频路径
+                        if any(_fname.lower().endswith(ext) for ext in _video_exts) or node_output.get('animated'):
+                            _pre = f"{req.type}_{int(current_timestamp)}_"
+                            from urllib.parse import quote as _q
+                            _vp = f"/view?filename={_q(_fname, safe='')}&subfolder={_q(img_dict.get('subfolder', ''), safe='')}&type={_q(img_dict.get('type', 'output'), safe='')}"
+                            _lp = download_video(target_backend, _vp, prefix=_pre, canvas=canvas, username=username, subfolder='video')
+                            return ('video', _lp)
                         _pre = f"{req.type}_{int(current_timestamp)}_"
                         _lp = download_image(target_backend, _path, prefix=_pre, canvas=canvas, username=username, feature=req.feature)
                         if req.convert_to_jpg:
                             _lp = convert_output_to_jpg(_lp)
-                        return _lp
+                        return ('image', _lp)
                     if len(images_list) > 1:
                         with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(images_list), 4)) as _exe:
-                            _results = list(_exe.map(_dl_img, images_list))
-                        local_urls.extend(_results)
+                            for kind, _lp in _exe.map(_dl_img, images_list):
+                                if kind == 'video':
+                                    video_urls.append(_lp)
+                                local_urls.append(_lp)
                     else:
                         for img in images_list:
-                            local_urls.append(_dl_img(img))
+                            kind, _lp = _dl_img(img)
+                            if kind == 'video':
+                                video_urls.append(_lp)
+                            local_urls.append(_lp)
 
                 # Extract audio outputs (TTS)
                 if 'audio' in node_output:
@@ -10146,7 +10167,7 @@ async def jimeng_query_media(payload: JimengQueryMediaRequest):
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
 # 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器 + 提示词/ 子目录下的本地扩写工作流)
-BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词")]
+BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词"), os.path.join(WORKFLOW_DIR, "video")]
 BUILTIN_WORKFLOWS = set()
 for _wd in BUILTIN_WORKFLOW_DIRS:
     if not os.path.isdir(_wd):
@@ -11291,18 +11312,39 @@ def _extract_workflow_meta(filepath):
         return None
     unet_name = ""
     has_unet = False
-    for nid, node in wf.items():
-        if not isinstance(node, dict) or not node.get("inputs"):
-            continue
-        ct = node.get("class_type", "")
-        if ct == "UNETLoader" and "unet_name" in node["inputs"]:
-            unet_name = node["inputs"]["unet_name"]
-            has_unet = True
-            break
-        if isinstance(ct, str) and "LoadDiffusionModel" in ct and "model_name" in node["inputs"]:
-            unet_name = node["inputs"]["model_name"]
-            has_unet = True
-            break
+    # 支持两种格式: API 格式({node_id: {class_type, inputs}}) 和 UI 格式({nodes: [...], links: [...]})
+    # UI 格式下 class_type 在 nodes[].type, widgets_values 是数组,inputs 是元数据列表
+    nodes_iter = None
+    if isinstance(wf.get("nodes"), list):
+        # UI 格式
+        nodes_iter = ((n.get("id"), n) for n in wf["nodes"] if isinstance(n, dict))
+    elif isinstance(wf, dict):
+        # API 格式
+        nodes_iter = ((nid, node) for nid, node in wf.items() if isinstance(node, dict))
+    if nodes_iter is not None:
+        for nid, node in nodes_iter:
+            ct = node.get("class_type") or node.get("type") or ""
+            if ct == "UNETLoader":
+                # API: inputs.unet_name; UI: widgets_values[0]
+                wv = node.get("widgets_values") or []
+                inp = node.get("inputs") or {}
+                if isinstance(inp, dict) and "unet_name" in inp:
+                    unet_name = inp["unet_name"]
+                elif wv:
+                    unet_name = str(wv[0])
+                if unet_name:
+                    has_unet = True
+                break
+            if isinstance(ct, str) and "LoadDiffusionModel" in ct:
+                wv = node.get("widgets_values") or []
+                inp = node.get("inputs") or {}
+                if isinstance(inp, dict) and "model_name" in inp:
+                    unet_name = inp["model_name"]
+                elif wv:
+                    unet_name = str(wv[0])
+                if unet_name:
+                    has_unet = True
+                break
     # 从 unet_name 提取文件夹前缀（第一个 \ 或 / 前的部分）
     model_folder = ""
     if unet_name:
@@ -15329,6 +15371,9 @@ def _ui_workflow_to_api_prompt(wf_ui):
         ntype = n.get("type") or n.get("class_type")
         if not ntype:
             continue
+        # 跳过纯注释/装饰节点（仅在工作流画布上显示，不参与执行）
+        if ntype in ("MarkdownNote", "Note"):
+            continue
         api_inputs = {}
         # 1) 处理显式 inputs 列表
         for inp in (n.get("inputs") or []):
@@ -15364,16 +15409,18 @@ def _ui_workflow_to_api_prompt(wf_ui):
                     api_inputs[fname] = wv[i]
         # 3) 走一遍原 inputs 里的 link 字段 (某些节点 inputs 同时含 widget 标记 + link)
         #    如果还没填入,从 links 补
+        #    边界情况: widget 填了空值(wv 丢失) 但 link 有效,应优先 link (链路指向其他节点输出)
         for inp in (n.get("inputs") or []):
             if not isinstance(inp, dict):
                 continue
             iname = inp.get("name")
-            if not iname or iname in api_inputs:
+            if not iname:
                 continue
             if "link" in inp and inp["link"] is not None:
                 src = link_map.get(inp["link"])
-                if src:
+                if src and (iname not in api_inputs or api_inputs.get(iname) in ("", None)):
                     api_inputs[iname] = [src[0], src[1]]
+                continue
         out[nid] = {"class_type": ntype, "inputs": api_inputs}
     return out
 

@@ -1,0 +1,42 @@
+{
+  "title": "MiniMax H3 图生视频",
+  "description": "基于 MiniMax H3 (Ref2VA) 的图生视频工作流，单图参考，最长 15 秒。",
+  "model_folders": ["minimax_h3"],
+  "fields": [
+    {
+      "id": "prompt",
+      "label": "提示词",
+      "type": "text",
+      "default": "",
+      "node": "138",
+      "input": "value"
+    },
+    {
+      "id": "input_image",
+      "label": "输入图像",
+      "type": "image",
+      "node": "137",
+      "input": "image"
+    },
+    {
+      "id": "length",
+      "label": "时长(秒)",
+      "type": "slider",
+      "min": 5,
+      "max": 15,
+      "step": 1,
+      "default": 15,
+      "node": "132",
+      "input": "value"
+    },
+    {
+      "id": "aspect_ratio",
+      "label": "视频比例",
+      "type": "dropdown",
+      "options": ["1:1", "16:9", "9:16", "4:3", "3:4", "4:5", "5:4", "3:2", "2:3", "21:9", "9:21"],
+      "default": "9:16",
+      "node": "115",
+      "input": "aspect_ratio"
+    }
+  ]
+}
