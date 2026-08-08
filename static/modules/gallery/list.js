@@ -270,12 +270,13 @@
                 if (!res.ok) throw new Error('History API ' + res.status);
                 const json = await res.json();
                 const norm = normalizeHistoryResponse(json);
-                // 去重：按图片 URL 去重，保留最新的记录
+                // 去重：按主媒体 URL 去重（图片优先，视频兜底），保留最新的记录
                 const seenUrls = new Set();
                 state.allHistory = norm.items.filter(item => {
                     const imgs = (item.images || []).filter(Boolean);
-                    if (imgs.length === 0) return true;
-                    const key = imgs[0];
+                    const vids = (item.videos || []).filter(Boolean);
+                    const key = (imgs[0] || vids[0]) || '';
+                    if (!key) return true;   // 无任何媒体的记录保留
                     if (seenUrls.has(key)) return false;
                     seenUrls.add(key);
                     return true;
@@ -293,11 +294,16 @@
                 const norm = normalizeHistoryResponse(json);
                 // 防御：后端重复返回首页/旧数据时跳过
                 const knownTs = new Set(state.allHistory.map(x => String(x.timestamp)));
-                const knownUrls = new Set(state.allHistory.flatMap(x => (x.images || []).filter(Boolean)));
+                const knownUrls = new Set(state.allHistory.flatMap(x => {
+                    const imgs = (x.images || []).filter(Boolean);
+                    const vids = (x.videos || []).filter(Boolean);
+                    return imgs.length ? imgs : vids;
+                }));
                 const fresh = norm.items.filter(x => {
                     if (knownTs.has(String(x.timestamp))) return false;
-                    const imgs = (x.images || []).filter(Boolean);
-                    if (imgs.length > 0 && knownUrls.has(imgs[0])) return false;
+                    const meds = (x.images || []).filter(Boolean);
+                    if (meds.length === 0) meds.push(...(x.videos || []).filter(Boolean));
+                    if (meds.length > 0 && knownUrls.has(meds[0])) return false;
                     return true;
                 });
                 state.allHistory = state.allHistory.concat(fresh);

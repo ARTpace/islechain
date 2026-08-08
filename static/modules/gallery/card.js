@@ -120,13 +120,19 @@
      */
     function render(opts) {
         const { container, record, isNew = false } = opts;
-        if (!record || !record.timestamp || !record.images || !record.images[0]) return null;
-        const firstImg = record.images[0];
+        // 放宽守卫：允许纯视频记录（videos 存在但 images 为空）
+        const hasImages = record.images && record.images.length && record.images[0];
+        const hasVideos = record.videos && record.videos.length && record.videos[0];
+        if (!record || !record.timestamp || (!hasImages && !hasVideos)) return null;
+        const isVideo = !hasImages && hasVideos;
+        const firstImg = record.images && record.images[0];   // 图片记录的首图（可能 undefined）
+        const firstVideo = record.videos && record.videos[0]; // 视频记录的首视频
+        const primaryUrl = isVideo ? firstVideo : firstImg;    // 防重/数据属性用的主 URL
         // 防重：同 timestamp 或同首图 URL 已渲染则跳过。
         // 后端 save_to_history 用 time.time() 时间戳、前端用 Date.now()，两者不同，
         // 仅按 timestamp 防重会漏掉「后端 WS 广播 + 前端就地渲染」造成的同一张图两张卡片。
         if (document.getElementById(`history-${record.timestamp}`)) return null;
-        if (document.querySelector('.masonry-item[data-img0="' + String(firstImg).replace(/["\\]/g, '\\$&') + '"]')) return null;
+        if (document.querySelector('.masonry-item[data-img0="' + String(primaryUrl).replace(/["\\]/g, '\\$&') + '"]')) return null;
 
         // [Task 5 收敛] 优先 NS.Config
         const cfg = (window.GalleryDisplay && window.GalleryDisplay.Config) || {};
@@ -140,52 +146,58 @@
         card.id = `history-${record.timestamp}`;
         card.dataset.historyTs = record.timestamp;
         card.dataset.historyType = historyType;
-        card.dataset.img0 = firstImg;
+        card.dataset.img0 = primaryUrl;
         card.className = 'masonry-item group animate-in fade-in duration-300';
 
         // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用
         function openLightboxForRecord(r) {
             if (typeof global.openLightbox !== 'function') return;
             const prompt = r.prompt || '';
+            const rIsVideo = !(r.images && r.images.length && r.images[0]) && (r.videos && r.videos.length && r.videos[0]);
+            const mediaKey = rIsVideo ? 'videos' : 'images';
             if (global.openLightbox.length >= 4) {
                 const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
-                const allImages = [];
+                const allMedia = [];
                 const allPrompts = [];
                 for (const item of allHistory) {
-                    const imgs = (item.images || []).filter(Boolean);
-                    for (const u of imgs) {
-                        allImages.push(u);
+                    const itemIsVideo = !(item.images && item.images.length && item.images[0]) && (item.videos && item.videos.length && item.videos[0]);
+                    const meds = (itemIsVideo ? (item.videos || []) : (item.images || [])).filter(Boolean);
+                    for (const u of meds) {
+                        allMedia.push(u);
                         allPrompts.push(item.prompt || '');
                     }
                 }
                 const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
                 let startIndex = 0;
                 for (let i = 0; i < historyIndex; i++) {
-                    startIndex += ((allHistory[i].images || []).filter(Boolean)).length;
+                    const itemIsVideo = !(allHistory[i].images && allHistory[i].images.length && allHistory[i].images[0]) && (allHistory[i].videos && allHistory[i].videos.length && allHistory[i].videos[0]);
+                    startIndex += ((itemIsVideo ? (allHistory[i].videos || []) : (allHistory[i].images || [])).filter(Boolean)).length;
                 }
                 if (global.openLightbox.length >= 5) {
-                    global.openLightbox(r.images[0], allImages, startIndex, prompt, allPrompts);
+                    global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, allPrompts, rIsVideo);
                 } else {
-                    global.openLightbox(r.images[0], allImages, startIndex, prompt);
+                    global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, rIsVideo);
                 }
             } else if (global.openLightbox.length >= 3) {
                 const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
-                const allImages = [];
+                const allMedia = [];
                 for (const item of allHistory) {
-                    const imgs = (item.images || []).filter(Boolean);
-                    for (const u of imgs) allImages.push(u);
+                    const itemIsVideo = !(item.images && item.images.length && item.images[0]) && (item.videos && item.videos.length && item.videos[0]);
+                    const meds = (itemIsVideo ? (item.videos || []) : (item.images || [])).filter(Boolean);
+                    for (const u of meds) allMedia.push(u);
                 }
                 const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
                 let startIndex = 0;
                 for (let i = 0; i < historyIndex; i++) {
-                    startIndex += ((allHistory[i].images || []).filter(Boolean)).length;
+                    const itemIsVideo = !(allHistory[i].images && allHistory[i].images.length && allHistory[i].images[0]) && (allHistory[i].videos && allHistory[i].videos.length && allHistory[i].videos[0]);
+                    startIndex += ((itemIsVideo ? (allHistory[i].videos || []) : (allHistory[i].images || [])).filter(Boolean)).length;
                 }
-                global.openLightbox(r.images[0], allImages, startIndex, prompt);
+                global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, rIsVideo);
             } else {
-                if ((r.images || []).length > 1) {
-                    global.openLightbox(r.images, prompt);
+                if ((r[mediaKey] || []).length > 1) {
+                    global.openLightbox(r[mediaKey], prompt, rIsVideo);
                 } else {
-                    global.openLightbox(r.images[0], prompt);
+                    global.openLightbox(r[mediaKey][0], prompt, rIsVideo);
                 }
             }
         }
@@ -240,7 +252,7 @@
         if (features.modelBadge === 'auto') {
             let badgeText = record.model;
             // 如果没有model字段，从图片URL路径提取
-            if (!badgeText && record.images && record.images[0]) {
+            if (!badgeText && (record.images && record.images[0])) {
                 const url = record.images[0];
                 // 尝试从路径中提取：/output/xxx/xxx/xxx.png
                 const pathMatch = url.match(/\/output\/[^/]+\/([^/]+)(?:\/|$)/);
@@ -251,6 +263,19 @@
                     const parts = url.split('/').filter(Boolean);
                     if (parts.length >= 2) {
                         badgeText = parts[parts.length - 2].toUpperCase();
+                    }
+                }
+            }
+            // 视频记录：从 video URL 路径提取（与图片逻辑对称）
+            if (!badgeText && (record.videos && record.videos[0])) {
+                const vurl = record.videos[0];
+                const vMatch = vurl.match(/\/output\/[^/]+\/([^/]+)(?:\/|$)/);
+                if (vMatch) {
+                    badgeText = vMatch[1].toUpperCase();
+                } else {
+                    const vparts = vurl.split('/').filter(Boolean);
+                    if (vparts.length >= 2) {
+                        badgeText = vparts[vparts.length - 2].toUpperCase();
                     }
                 }
             }
@@ -288,7 +313,7 @@
         const eager = !!opts.eagerFirstImage;
 
         card.innerHTML = `
-            ${buildImagesHTML(record, features, onerror, { eagerFirstImage: eager })}
+            ${isVideo ? buildVideoHTML(record, features, onerror) : buildImagesHTML(record, features, onerror, { eagerFirstImage: eager })}
             ${fallbackHTML}
             ${badgeHTML}
             ${viewPromptHTML}
@@ -308,14 +333,19 @@
             });
         }
 
-        // Hover 预取原图：用户把鼠标移到缩略图上时就开始拉原图，
-        // 点开大图时原图已进浏览器缓存，秒显。{once:true} 每个卡片只触发一次。
-        if (images.length > 0) {
+        // Hover 预取：图片用 Image() 预取，视频用 <video> preload 触发浏览器缓存
+        const mediaToPreload = isVideo ? ((record.videos || []).filter(Boolean)) : images;
+        if (mediaToPreload.length > 0) {
             card.addEventListener('mouseenter', () => {
-                images.forEach(u => {
+                mediaToPreload.forEach(u => {
                     if (!u) return;
-                    const pre = new Image();
-                    pre.src = u;
+                    if (isVideo) {
+                        // 视频：创建临时 video 元素触发 preload 到浏览器缓存
+                        const v = document.createElement('video'); v.preload = 'auto'; v.src = u;
+                    } else {
+                        const pre = new Image();
+                        pre.src = u;
+                    }
                 });
             }, { once: true, passive: true });
         }
@@ -424,11 +454,30 @@
         }
     }
 
+    /**
+     * 渲染视频卡片封面（video muted playsinline + 播放角标）
+     * 用于 litevideo 等视频生成页面的历史记录
+     */
+    function buildVideoHTML(record, features, onerror) {
+        const vids = (record.videos || []).filter(Boolean);
+        const src = vids[0] || '';
+        const favSet = global.__galleryFavorites || new Set();
+        const favBtn = features.favorite ? imgFavBtnHTML(src, favSet.has(src)) : '';
+        return '<div class="relative group" style="background:#000;">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onerror="' + onerror + '">' +
+            '</video>' +
+            '<div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="z-index:5;">' +
+            '<svg width="36" height="36" viewBox="0 0 24 24" fill="white" style="opacity:.8; filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));"><path d="M8 5v14l11-7z"/></svg>' +
+            '</div>' +
+            favBtn +
+            '</div>';
+    }
+
     function buttonHTML(featureKey, record, extra) {
         const cfg = BUTTON_CONFIG[featureKey];
         if (!cfg) return '';
         const ts = record.timestamp;
-        const imgUrl = (record.images && record.images[0]) || '';
+        const imgUrl = (record.images && record.images[0]) || (record.videos && record.videos[0]) || '';
         // 把双引号转成 &quot;，避免在 onclick="..." 内提前关闭属性
         const q = (v) => String(v).replace(/"/g, '&quot;');
         // download 走 (imageUrl, filename, event) 三参；其余 action 传完整 record

@@ -1,74 +1,42 @@
 {
-  "92": {
+  "295": {
     "inputs": {
-      "filename_prefix": "video/MiniMax_H3",
-      "format": "auto",
-      "codec": "auto",
-      "video-preview": "",
-      "video": [
-        "157",
+      "mode": "reference",
+      "prompt": "subject_definitions:\r\n<Subject 1> is the adult East Asian fantasy woman in <Picture 1>, preserving her delicate facial identity, pale natural complexion, dark eyes, straight bangs, elaborate black updo, and graceful immortal-maiden presence.\r\n<Subject 2> is the ornate Chinese fantasy costume and accessories in <Picture 1>, including the translucent orange embroidered robe, black-and-gold bodice, blue and red accents, layered flowing sleeves, long silk ribbons, elaborate gold floral hair ornaments, dangling beads, earrings, and gemstone necklaces.\r\n<Subject 3> is the dreamlike underwater Chinese interior in <Picture 1>, featuring pale folding screens, suspended mist, clear bubbles, glowing circular light rings, drifting red-and-blue ribbons, and several orange goldfish swimming at different depths.\r\n\r\nsummary:\r\n[reference generation] The target is an 8-second Chinese fantasy video in which <Subject 1>, wearing <Subject 2>, accelerates through <Subject 3> toward the camera, slows abruptly near the lens, adopts an ingratiating and flattering expression, and directly says, “呲花~来了？” Goldfish, ribbons, sleeves, hair, jewelry, mist, and bubbles react continuously to her flight.\r\n\r\nretention_analysis:\r\n<Subject 1> (appears in [Shot 1] through [Shot 3]): fully_preserved - her facial identity, hairstyle, bangs, proportions, and elegant fantasy appearance remain stable.\r\n<Subject 2> (appears in [Shot 1] through [Shot 3]): fully_preserved - the orange translucent robe, embroidery, black-and-gold bodice, silk ribbons, hair ornaments, jewelry, and layered accessories remain structurally consistent.\r\n<Subject 3> (appears in [Shot 1] through [Shot 3]): fully_preserved - the folding screens, suspended-water atmosphere, goldfish, bubbles, ribbons, mist, and luminous rings remain recognizable and spatially coherent.\r\n\r\ndetailed_description:\r\nThe target video uses a cinematic 9:16 Chinese fantasy style with crystalline underwater light, cool cyan shadows, warm orange highlights, realistic fabric physics, and a dreamy high-speed flight effect. All movement follows one continuous forward trajectory, with <Subject 1> remaining sharply recognizable despite directional motion blur in the surrounding environment.\r\n\r\n[Shot 1] A wide shot establishes <Subject 3>, the vast weightless chamber filled with pale folding screens, floating mist, luminous circular rings, long red-and-blue ribbons, bubbles, and orange goldfish. Far in the background, <Subject 1> wearing <Subject 2> leans forward and launches toward the camera. Her body accelerates rapidly along a clear diagonal path as her translucent orange sleeves, long ribbons, black hair, dangling beads, and embroidered fabric stream behind her. Nearby goldfish dart gently aside while a spiraling wake of bubbles and mist forms around her. The camera pulls backward at fast speed while keeping her centered.\r\n\r\n[Shot 2] At 00:03.000, an action-matched cut switches to a medium tracking shot as <Subject 1> passes through a glowing ring. The camera arcs slightly around her while continuing backward. She reaches one hand forward, then draws it toward her chest as she rapidly closes the distance. Her expression changes from focused concentration to immediate recognition: her eyebrows lift, her eyes brighten, and the corners of her lips begin forming a deliberately sweet, eager smile. The gold ornaments and hanging beads sway and catch alternating cyan and gold highlights.\r\n\r\n[Shot 3] At 00:05.200, the shot cuts to a close-up as <Subject 1> brakes smoothly within arm’s reach of the lens. Her sleeves and ribbons overshoot her motion before floating around her shoulders, while bubbles drift past the foreground and one goldfish crosses behind her. <Subject 1> (S1) leans slightly toward the camera, tilts her head, draws her shoulders inward, raises her eyebrows, and gives an overtly ingratiating, flattering smile. In a soft, sweet, slightly elongated voice with an expectant upward inflection, she looks directly into the lens and says: <d>[Chinese] 呲花~来了？</d> Her lips, jaw, tongue, cheeks, and breath synchronize naturally with every syllable. She closes her mouth into a pleased, attentive smile and holds eye contact until 00:08.000. Preserve stable identity, natural hands, correct facial anatomy, readable mouth articulation, coherent jewelry, and continuous fabric motion, with no extra limbs, face drift, duplicated goldfish, warped ornaments, captions, logos, or watermarks.\r\n\r\noverall_soundscape:\r\nA strong underwater flight rush builds during her approach, accompanied by silk flutter, jewelry chimes, streaming bubbles, displaced-water movement, and a soft magical impact as she brakes near the camera. The effects reduce sharply beneath her spoken line so the dialogue remains clear.\r\n\r\nnon_diegetic_music:\r\nA brisk Chinese fantasy score combines pipa plucks, bamboo flute, light frame drums, shimmering bells, and rising strings. The music accelerates during the flight, stops briefly beneath the spoken line, then ends with a playful single plucked note at 00:08.000.\n",
+      "resolution": "480P",
+      "aspect_ratio": "9:16",
+      "width": 1344,
+      "height": 768,
+      "seconds": 8,
+      "advanced": true,
+      "fps": 24,
+      "keyframe_role": "first",
+      "ref_image_size": "1k",
+      "reference_mention_mode": "filename",
+      "h3_bundle": [
+        "308",
         0
-      ]
+      ],
+      "media_1": [
+        "311",
+        0
+      ],
+      "media_type_1": "image"
     },
-    "class_type": "SaveVideo",
+    "class_type": "MiniMaxH3Easy",
     "_meta": {
-      "title": "保存视频"
+      "title": "MiniMax H3 Easy"
     }
   },
-  "115": {
-    "inputs": {
-      "aspect_ratio": "9:16 (Portrait Widescreen)",
-      "megapixels": 0.8,
-      "multiple": 32
-    },
-    "class_type": "ResolutionSelector",
-    "_meta": {
-      "title": "Resolution Selector (Size)"
-    }
-  },
-  "119": {
-    "inputs": {
-      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "加载VAE"
-    }
-  },
-  "120": {
-    "inputs": {
-      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "加载VAE"
-    }
-  },
-  "121": {
+  "299": {
     "inputs": {
       "samples": [
-        "125",
+        "309",
         0
       ],
       "vae": [
-        "120",
-        0
-      ]
-    },
-    "class_type": "VAEDecodeAudio",
-    "_meta": {
-      "title": "VAE解码_音频"
-    }
-  },
-  "122": {
-    "inputs": {
-      "samples": [
-        "125",
-        0
-      ],
-      "vae": [
-        "119",
-        0
+        "306",
+        2
       ]
     },
     "class_type": "VAEDecode",
@@ -76,114 +44,169 @@
       "title": "VAE解码"
     }
   },
-  "123": {
+  "303": {
     "inputs": {
-      "sampler_name": "res_multistep"
+      "samples": [
+        "309",
+        0
+      ],
+      "vae": [
+        "306",
+        3
+      ]
     },
-    "class_type": "KSamplerSelect",
+    "class_type": "VAEDecodeAudio",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "VAE解码_音频"
     }
   },
-  "124": {
+  "304": {
     "inputs": {
-      "scheduler": "simple",
-      "steps": 20,
-      "denoise": 1,
+      "sage_attention": "auto",
+      "allow_compile": false,
       "model": [
-        "153",
+        "295",
         0
       ]
     },
-    "class_type": "BasicScheduler",
+    "class_type": "PathchSageAttentionKJ",
     "_meta": {
-      "title": "基础调度器"
+      "title": "SAGE注意力补丁(KJ)"
     }
   },
-  "125": {
+  "306": {
     "inputs": {
-      "noise": [
-        "129",
-        0
-      ],
-      "guider": [
-        "126",
-        0
-      ],
-      "sampler": [
-        "123",
-        0
-      ],
-      "sigmas": [
-        "124",
-        0
-      ],
-      "latent_image": [
-        "136",
+      "h3_context": [
+        "295",
         1
       ]
     },
-    "class_type": "SamplerCustomAdvanced",
+    "class_type": "MiniMaxH3EasyOutput",
     "_meta": {
-      "title": "自定义采样器(高级)"
+      "title": "MiniMax H3 Easy 输出"
     }
   },
-  "126": {
+  "308": {
     "inputs": {
+      "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+      "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "MiniMaxH3EasyLoader",
+    "_meta": {
+      "title": "MiniMax H3 Easy 加载器"
+    }
+  },
+  "309": {
+    "inputs": {
+      "seed": 210,
+      "steps": 20,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1,
       "model": [
-        "153",
+        "304",
         0
       ],
+      "positive": [
+        "306",
+        0
+      ],
+      "negative": [
+        "315",
+        0
+      ],
+      "latent_image": [
+        "306",
+        1
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "311": {
+    "inputs": {
+      "image": "1780649355147.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "315": {
+    "inputs": {
       "conditioning": [
-        "136",
+        "306",
         0
       ]
     },
-    "class_type": "BasicGuider",
+    "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "基础引导"
+      "title": "条件零化"
     }
   },
-  "127": {
+  "325": {
+    "inputs": {},
+    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+    "_meta": {
+      "title": "MiniMaX H3内存高效Sage注意力补丁 (KJ)"
+    }
+  },
+  "326": {
     "inputs": {
-      "unet_name": "minimax_h3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-      "weight_dtype": "default"
+      "tau": 1.15,
+      "start_percent": 0.25,
+      "end_percent": 0.85,
+      "min_tokens": 4096,
+      "int8_qk": true,
+      "sink_conditioning": "exact_kv_and_rows",
+      "morton": true,
+      "morton_curve": "2d_frame",
+      "int8_pv": false,
+      "verbose": false,
+      "use_tma": "",
+      "dense_blocks": "",
+      "model": [
+        "325",
+        0
+      ]
     },
-    "class_type": "UNETLoader",
+    "class_type": "SolAttnPatch",
     "_meta": {
-      "title": "UNET加载器"
+      "title": "Patch Sol-Attn"
     }
   },
-  "128": {
+  "344": {
     "inputs": {
-      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "type": "minimax",
-      "device": "default"
+      "clean_file_cache": true,
+      "clean_processes": true,
+      "clean_dlls": true,
+      "retry_times": 3,
+      "anything": [
+        "351",
+        0
+      ]
     },
-    "class_type": "CLIPLoader",
+    "class_type": "RAMCleanup",
     "_meta": {
-      "title": "加载CLIP"
+      "title": "释放内存"
     }
   },
-  "129": {
-    "inputs": {
-      "noise_seed": 19515528116436
-    },
-    "class_type": "RandomNoise",
-    "_meta": {
-      "title": "随机噪波"
-    }
-  },
-  "130": {
+  "351": {
     "inputs": {
       "fps": 24,
       "bit_depth": 8,
       "images": [
-        "122",
+        "299",
         0
       ],
       "audio": [
-        "121",
+        "303",
         0
       ]
     },
@@ -192,132 +215,19 @@
       "title": "创建视频"
     }
   },
-  "131": {
+  "353": {
     "inputs": {
-      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
-      "values.a": [
-        "132",
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "344",
         0
       ]
     },
-    "class_type": "ComfyMathExpression",
+    "class_type": "SaveVideo",
     "_meta": {
-      "title": "数学表达式"
-    }
-  },
-  "132": {
-    "inputs": {
-      "value": 4
-    },
-    "class_type": "PrimitiveFloat",
-    "_meta": {
-      "title": "Float (Duration)"
-    }
-  },
-  "136": {
-    "inputs": {
-      "prompt": [
-        "138",
-        0
-      ],
-      "width": [
-        "115",
-        0
-      ],
-      "height": [
-        "115",
-        1
-      ],
-      "length": [
-        "131",
-        1
-      ],
-      "ref_image_size": "match",
-      "clip": [
-        "128",
-        0
-      ],
-      "vae": [
-        "119",
-        0
-      ],
-      "audio_vae": [
-        "120",
-        0
-      ],
-      "ref_images.ref_image_0": [
-        "137",
-        0
-      ]
-    },
-    "class_type": "MiniMaxH3ReferenceToVideo",
-    "_meta": {
-      "title": "MiniMax H3 视频参考"
-    }
-  },
-  "137": {
-    "inputs": {
-      "image": "20260605-170816.jpg"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "加载图像"
-    }
-  },
-  "138": {
-    "inputs": {
-      "value": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n- 环境：纯白背景，突出角色本身。\n- 动作：角色保持站立姿态，身体缓慢旋转360度，镜头保持不动，距离保持一致，展示全身细节。\nnon_diegetic_music: N/A"
-    },
-    "class_type": "PrimitiveStringMultiline",
-    "_meta": {
-      "title": "Input Text (Prompt)"
-    }
-  },
-  "148": {
-    "inputs": {
-      "processing_control_value": 0.12,
-      "processing_percent_1": 0.1,
-      "processing_percent_2": 0.9,
-      "mcs": 2,
-      "device": "auto",
-      "model": [
-        "127",
-        0
-      ]
-    },
-    "class_type": "TESpeedMiniMaxH3",
-    "_meta": {
-      "title": "TE-Speed-MiniMaxH3"
-    }
-  },
-  "153": {
-    "inputs": {
-      "sage_attention": "auto",
-      "allow_compile": false,
-      "model": [
-        "148",
-        0
-      ]
-    },
-    "class_type": "PathchSageAttentionKJ",
-    "_meta": {
-      "title": "SAGE注意力补丁KJ"
-    }
-  },
-  "157": {
-    "inputs": {
-      "clean_file_cache": true,
-      "clean_processes": true,
-      "clean_dlls": true,
-      "retry_times": 3,
-      "anything": [
-        "130",
-        0
-      ]
-    },
-    "class_type": "RAMCleanup",
-    "_meta": {
-      "title": "释放内存"
+      "title": "保存视频"
     }
   }
 }

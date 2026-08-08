@@ -1,0 +1,217 @@
+{
+  "299": {
+    "inputs": {
+      "samples": [
+        "309",
+        0
+      ],
+      "vae": [
+        "306",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "303": {
+    "inputs": {
+      "samples": [
+        "309",
+        0
+      ],
+      "vae": [
+        "306",
+        3
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE解码_音频"
+    }
+  },
+  "304": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "363",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SAGE注意力补丁(KJ)"
+    }
+  },
+  "306": {
+    "inputs": {
+      "h3_context": [
+        "363",
+        1
+      ]
+    },
+    "class_type": "MiniMaxH3EasyOutput",
+    "_meta": {
+      "title": "MiniMax H3 Easy 输出"
+    }
+  },
+  "308": {
+    "inputs": {
+      "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+      "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "MiniMaxH3EasyLoader",
+    "_meta": {
+      "title": "MiniMax H3 Easy 加载器"
+    }
+  },
+  "309": {
+    "inputs": {
+      "seed": 813130857948924,
+      "steps": 20,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "304",
+        0
+      ],
+      "positive": [
+        "306",
+        0
+      ],
+      "negative": [
+        "315",
+        0
+      ],
+      "latent_image": [
+        "306",
+        1
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "311": {
+    "inputs": {
+      "image": "1784092034687.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载首帧图像"
+    }
+  },
+  "315": {
+    "inputs": {
+      "conditioning": [
+        "306",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化"
+    }
+  },
+  "344": {
+    "inputs": {
+      "clean_file_cache": true,
+      "clean_processes": true,
+      "clean_dlls": true,
+      "retry_times": 3,
+      "anything": [
+        "351",
+        0
+      ]
+    },
+    "class_type": "RAMCleanup",
+    "_meta": {
+      "title": "释放内存"
+    }
+  },
+  "351": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "images": [
+        "299",
+        0
+      ],
+      "audio": [
+        "303",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频"
+    }
+  },
+  "361": {
+    "inputs": {
+      "image": "1784092062924.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载尾帧图像"
+    }
+  },
+  "362": {
+    "inputs": {
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto",
+      "video-preview": "",
+      "video": [
+        "344",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "保存视频"
+    }
+  },
+  "363": {
+    "inputs": {
+      "mode": "image",
+      "prompt": "镜头保持平稳，画面从首帧构图平滑过渡到尾帧构图；主体身份、服装、发型与场景细节在两段之间保持一致，动作自然连贯，光影与氛围统一，电影感运镜。（请替换为你自己的运镜/动作描述；首尾两帧已由 media_1 / media_2 锁定）",
+      "resolution": "480P",
+      "aspect_ratio": "9:16",
+      "width": 1344,
+      "height": 768,
+      "seconds": 8,
+      "advanced": true,
+      "fps": 24,
+      "keyframe_role": "first",
+      "ref_image_size": "1k",
+      "reference_mention_mode": "filename",
+      "h3_bundle": [
+        "308",
+        0
+      ],
+      "media_1": [
+        "311",
+        0
+      ],
+      "media_type_1": "image",
+      "media_2": [
+        "361",
+        0
+      ],
+      "media_type_2": "image"
+    },
+    "class_type": "MiniMaxH3Easy",
+    "_meta": {
+      "title": "MiniMax H3 Easy"
+    }
+  }
+}

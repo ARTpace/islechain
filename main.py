@@ -2105,8 +2105,16 @@ def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, us
             return comfy_url_path.replace("/view", "/api/view", 1)
         return full_url
 
-def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, username=None, subfolder="video"):
-    """从 ComfyUI 下载视频文件(SaveVideo / VHS_VideoCombine 等)"""
+def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, username=None, subfolder="video", feature=""):
+    """从 ComfyUI 下载视频文件(SaveVideo / VHS_VideoCombine 等)
+    落盘规则与 download_image 对齐:
+      - canvas 指定时走画布目录(仍允许 feature 决定子目录)
+      - username + feature -> output/{user}/{feature}/{date}/
+      - 仅 username         -> output/{user}/{date}/
+      - 仅 feature          -> output/{feature}/{date}/
+      - 都没有              -> output/
+    feature 为空时退回旧的 subfolder 逻辑(向后兼容其他调用方)
+    """
     # 推断扩展名: ComfyUI SaveVideo 默认 mp4; 也能从 URL 路径识别 webm/mov/mkv/gif
     ext = ".mp4"
     url_lower = comfy_url_path.lower()
@@ -2120,21 +2128,29 @@ def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, 
         ext = ".gif"
 
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
+    date_folder = datetime.now().strftime("%Y-%m-%d")
     if canvas:
-        canvas_output_dir = get_canvas_output_dir(canvas)
+        base_dir = get_canvas_output_dir(canvas)
     elif username:
-        canvas_output_dir, _ = get_user_output_dir(username)
+        user_dir, _ = get_user_output_dir(username)
+        base_dir = user_dir
     else:
-        canvas_output_dir = OUTPUT_DIR
-    if subfolder:
-        canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
+        base_dir = OUTPUT_DIR
+
+    if feature:
+        canvas_output_dir = os.path.join(base_dir, feature, date_folder)
+        url_subfolder = f"{feature}/{date_folder}"
+    else:
+        # 向后兼容: 旧调用方仍用 subfolder(默认 'video')
+        canvas_output_dir = os.path.join(base_dir, subfolder) if subfolder else base_dir
+        url_subfolder = subfolder if subfolder else None
     os.makedirs(canvas_output_dir, exist_ok=True)
     local_path = os.path.join(canvas_output_dir, filename)
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return build_output_url(canvas, filename, username, subfolder=subfolder)
+        return build_output_url(canvas, filename, username, subfolder=url_subfolder)
     except Exception as e:
         print(f"下载视频失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -6985,6 +7001,7 @@ async def chat_stream(payload: ChatRequest, request: Request, x_user_id: str = H
 class SaveHistoryRequest(BaseModel):
     prompt: str = ""
     images: List[str] = []
+    videos: List[str] = []
     text: Optional[str] = None
     text_url: Optional[str] = None
     seed: Optional[int] = None
@@ -7002,6 +7019,7 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
     record = {
         "prompt": req.prompt,
         "images": req.images,
+        "videos": req.videos or [],
         "type": req.type,
         "timestamp": req.timestamp or time.time(),
         "user": username
@@ -7018,6 +7036,8 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
         record["model"] = req.model
     if req.params:
         record["params"] = req.params
+    if req.genParams is not None:
+        record["genParams"] = req.genParams
 
     # 下载直连模式的 ComfyUI 图片到用户目录
     if username:
@@ -7041,6 +7061,27 @@ async def save_history(req: SaveHistoryRequest, token: str = ""):
             else:
                 new_images.append(img_url)
         record["images"] = new_images
+
+    # 下载直连模式的 ComfyUI 视频到用户目录(与图片对称)
+    if username and req.videos:
+        new_videos = []
+        for vid_url in req.videos:
+            if vid_url.startswith("/output/") or vid_url.startswith("/assets/"):
+                new_videos.append(vid_url)
+            elif vid_url.startswith("http://127.0.0.1:8188/view"):
+                try:
+                    import urllib.request, shutil
+                    filename = f"{req.type}_{int(time.time())}_{uuid.uuid4().hex[:8]}.mp4"
+                    local_path = os.path.join(user_dir, filename)
+                    with urllib.request.urlopen(vid_url, timeout=60) as resp, open(local_path, 'wb') as out:
+                        shutil.copyfileobj(resp, out)
+                    new_videos.append(f"/output/{user_dirname}/{filename}")
+                except Exception as e:
+                    print(f"下载直连视频到用户目录失败: {e}")
+                    new_videos.append(vid_url)
+            else:
+                new_videos.append(vid_url)
+        record["videos"] = new_videos
 
     # 确保 user 字段不被前端数据覆盖
     record["user"] = username
@@ -7071,11 +7112,11 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
         if type:
             types = [t.strip() for t in type.split(',')]
             data = [item for item in data if item.get("type", "zimage") in types]
-        # 按用户过滤
+        # 按用户过滤: 隔离多用户, 同时保留历史遗留的空 user 记录(避免升级后旧历史凭空消失)
         if username:
-            data = [item for item in data if item.get("user") == username]
-        # Support image, text and audio outputs: keep records with images OR text OR audio
-        data = [item for item in data if item.get("images") or item.get("text") or item.get("audio")]
+            data = [item for item in data if item.get("user") in (None, "", username)]
+        # Support image, text, audio and video outputs: keep records with images OR text OR audio OR videos
+        data = [item for item in data if item.get("images") or item.get("text") or item.get("audio") or item.get("videos")]
 
         # 服务端搜索:按 prompt / model / text 关键词过滤
         # 英文整词匹配(\b),中文/非ASCII子串匹配
@@ -9301,16 +9342,24 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
             ws_thread = threading.Thread(target=_comfy_ws_worker, daemon=True)
             ws_thread.start()
 
+        _poll_timeout = float(os.getenv("COMFY_POLL_TIMEOUT", "1800"))
         try:
             while True:
                 try:
                     res = get_comfy_history(target_backend, prompt_id)
                     if prompt_id in res:
                         history_data = res[prompt_id]
-                        break
+                        # 等待执行真正结束(success/error),避免拿到运行中/刚提交时的空 outputs。
+                        # status_str 为空(部分老版本无该字段)时维持原行为直接返回。
+                        _st = (history_data.get("status") or {}).get("status_str", "") if isinstance(history_data, dict) else ""
+                        if _st in ("", "success", "error"):
+                            break
                 except Exception:
                     pass
                 elapsed = time.monotonic() - poll_start
+                if elapsed > _poll_timeout:
+                    print(f'[Generate] 轮询超时({int(elapsed)}s), prompt_id={prompt_id}')
+                    break
                 if elapsed > 60 and int(elapsed) % 60 < 1:
                     print(f'[Generate] 等待 ComfyUI 完成中… 已等待 {int(elapsed)}s, prompt_id={prompt_id}')
                 time.sleep(0.5)
@@ -9348,7 +9397,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                             _pre = f"{req.type}_{int(current_timestamp)}_"
                             from urllib.parse import quote as _q
                             _vp = f"/view?filename={_q(_fname, safe='')}&subfolder={_q(img_dict.get('subfolder', ''), safe='')}&type={_q(img_dict.get('type', 'output'), safe='')}"
-                            _lp = download_video(target_backend, _vp, prefix=_pre, canvas=canvas, username=username, subfolder='video')
+                            _lp = download_video(target_backend, _vp, prefix=_pre, canvas=canvas, username=username, feature=req.feature)
                             return ('video', _lp)
                         _pre = f"{req.type}_{int(current_timestamp)}_"
                         _lp = download_image(target_backend, _path, prefix=_pre, canvas=canvas, username=username, feature=req.feature)
@@ -9390,7 +9439,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                         comfy_url_path = f"/view?filename={quote(vid_filename, safe='')}&subfolder={quote(vid_subfolder, safe='')}&type={quote(vid_type, safe='')}"
                         save_prefix = req.params.get('save_prefix', 'video') if req.params else 'video'
                         prefix = f"{save_prefix}_{int(current_timestamp)}_"
-                        local_path = download_video(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, subfolder="video")
+                        local_path = download_video(target_backend, comfy_url_path, prefix=prefix, canvas=canvas, username=username, feature=req.feature)
                         # 视频同时追加到 local_urls(画廊 card 按后缀判断 <video>) 和 video_urls(前端可明确识别)
                         local_urls.append(local_path)
                         video_urls.append(local_path)
@@ -9430,25 +9479,39 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
 
         if not local_urls and not audio_urls and not output_text:
             comfy_error = ""
+            status_str = ""
+            out_nodes = []
             if isinstance(history_data, dict):
                 status_info = history_data.get("status", {})
                 if isinstance(status_info, dict):
-                    # status_str 是工作流执行状态 ("success" / "error" 等),不是错误信息;
-                    # 仅当 status_str == "error" 时,才从 messages 中提取真正的异常描述
-                    if status_info.get("status_str") == "error":
+                    status_str = status_info.get("status_str", "") or status_info.get("status", "")
+                    # status_str == "error" 时,从 messages 提取真正的异常描述。
+                    # execution_error 的 payload 在官方实现里是 dict(含 exception_type/exception_message),
+                    # 但部分分支/版本可能为 list([type, message, ...]),两种都兼容。
+                    if status_str == "error":
                         for msg in status_info.get("messages", []) or []:
-                            if isinstance(msg, list) and len(msg) >= 2 and msg[0] == "execution_error" and isinstance(msg[1], dict):
-                                exc_type = msg[1].get("exception_type", "") or "Error"
-                                exc_msg = msg[1].get("exception_message", "") or msg[1].get("message", "")
+                            if not (isinstance(msg, list) and len(msg) >= 2 and msg[0] == "execution_error"):
+                                continue
+                            payload = msg[1]
+                            if isinstance(payload, dict):
+                                exc_type = payload.get("exception_type", "") or "Error"
+                                exc_msg = payload.get("exception_message", "") or payload.get("message", "")
                                 comfy_error = f"{exc_type}: {exc_msg}".strip(": ")
+                            elif isinstance(payload, list) and len(payload) >= 2:
+                                exc_type = str(payload[0]) if payload[0] else "Error"
+                                exc_msg = str(payload[1]) if payload[1] else ""
+                                comfy_error = f"{exc_type}: {exc_msg}".strip(": ")
+                            if comfy_error:
                                 break
                     # 兜底:status 字典里直接带 error 字段的情况
                     if not comfy_error and status_info.get("error"):
                         comfy_error = str(status_info.get("error"))
+                out_nodes = list(history_data.get("outputs", {}).keys())
+                # 也扫描各节点输出里的 error 字段
                 if not comfy_error:
                     for node_id, node_out in history_data.get("outputs", {}).items():
                         if isinstance(node_out, dict) and "error" in node_out:
-                            comfy_error = str(node_out["error"])
+                            comfy_error = f"节点 {node_id}: {node_out['error']}"
                             break
             # 打印完整 ComfyUI 响应用于调试
             print(f"[ComfyUI-Debug] history_data keys: {list(history_data.keys()) if isinstance(history_data, dict) else type(history_data)}")
@@ -9458,7 +9521,9 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                     print(f"[ComfyUI-Debug] node {nid} output: {json.dumps(nout, ensure_ascii=False)[:500]}")
             if comfy_error:
                 raise Exception(f"ComfyUI 执行失败: {comfy_error}")
-            raise Exception("ComfyUI 未返回输出,请检查工作流配置或确认模型已安装")
+            # 没有任何媒体/文本产出: 区分"执行失败被吞"与"执行成功但无输出",便于定位
+            detail = f"[status={status_str or '未知'}] 产出节点={out_nodes if out_nodes else '无'}"
+            raise Exception(f"ComfyUI 未返回输出{detail};请检查工作流配置或确认模型已安装(详见后端 [ComfyUI-Debug] 日志)")
 
         result = {
             "prompt": req.prompt if req.prompt else "Detail Enhance",

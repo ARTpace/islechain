@@ -17,6 +17,7 @@
         currentIndex: 0,
         currentRecord: null,
         currentPrompt: '',
+        isVideoMode: false,
     };
 
     const LB_ACTION_SVGS = {
@@ -68,6 +69,7 @@
     <div class="flex flex-col w-full">
         <div id="lightboxImgContainer" class="flex items-center justify-center overflow-hidden relative" style="height:80vh; min-height:0; padding:4px;">
             <img id="lightboxImg" src="" class="object-contain rounded-lg sm:rounded-2xl shadow-2xl">
+            <video id="lightboxVideo" src="" class="object-contain rounded-lg sm:rounded-2xl shadow-2xl hidden" controls autoplay playsinline style="max-height:80vh; max-width:95vw;"></video>
         </div>
         <div id="lightboxActions" class="z-50 flex gap-1.5 justify-center flex-shrink-0" style="display:none;"></div>
         <div id="lightboxRes" class="text-center text-white/70 text-[10px] sm:text-[11px] font-bold tracking-wider py-1" style="display:none;"></div>
@@ -171,22 +173,60 @@
     function switchImage(index) {
         if (index >= 0 && index < state.images.length) {
             state.currentIndex = index;
-            const img = document.getElementById('lightboxImg');
-            if (img) img.src = state.images[index];
-            refreshThumbnails();
-            if (global.ImageViewer && typeof global.ImageViewer.goTo === 'function') {
-                global.ImageViewer.goTo(index);
+            const url = state.images[index];
+            const isVid = /\.(mp4|webm|mov|mkv)(\?|$)/i.test(url);
+            const imgEl = document.getElementById('lightboxImg');
+            const vidEl = document.getElementById('lightboxVideo');
+            if (isVid) {
+                // 切到视频项
+                if (imgEl) { imgEl.classList.add('hidden'); imgEl.src = ''; }
+                if (vidEl) {
+                    vidEl.classList.remove('hidden');
+                    if (vidEl.src !== url) { vidEl.src = url; }
+                    vidEl.play().catch(() => {});
+                }
+                state.isVideoMode = true;
+            } else {
+                // 切到图片项
+                if (vidEl) { vidEl.classList.add('hidden'); vidEl.pause(); }
+                if (imgEl) { imgEl.classList.remove('hidden'); imgEl.src = url; }
+                state.isVideoMode = false;
+                if (global.ImageViewer && typeof global.ImageViewer.goTo === 'function') {
+                    global.ImageViewer.goTo(index);
+                }
             }
+            refreshThumbnails();
         }
     }
 
     /* ============================================================
      *  Open / Close
      * ============================================================ */
-    function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam, allPrompts) {
+    function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam, allPrompts, isVideo) {
         if (!_config.lightbox) return;
 
         const actionsEl = document.getElementById('lightboxActions');
+        const lb = document.getElementById('lightbox');
+        if (lb) lb.classList.remove('hidden');
+
+        // 视频/图片切换
+        const imgEl = document.getElementById('lightboxImg');
+        const vidEl = document.getElementById('lightboxVideo');
+        if (isVideo) {
+            // 视频模式：隐藏 img，显示 video
+            if (imgEl) { imgEl.classList.add('hidden'); imgEl.src = ''; }
+            if (vidEl) {
+                vidEl.classList.remove('hidden');
+                vidEl.src = url;
+                vidEl.play().catch(() => {});
+            }
+            state.isVideoMode = true;
+        } else {
+            // 图片模式：隐藏 video，显示 img
+            if (vidEl) { vidEl.classList.add('hidden'); vidEl.pause(); vidEl.src = ''; }
+            if (imgEl) imgEl.classList.remove('hidden');
+            state.isVideoMode = false;
+        }
 
         const onImageChange = (idx, imgUrl, newPrompt) => {
             state.currentIndex = idx;
@@ -256,6 +296,10 @@
         if (actionsEl) actionsEl.style.display = 'none';
         hidePromptPanel();
         state.currentRecord = null;
+        state.isVideoMode = false;
+        // 停止视频播放并释放
+        const vid = document.getElementById('lightboxVideo');
+        if (vid) { vid.pause(); vid.src = ''; }
         setTimeout(() => {
             const img = document.getElementById('lightboxImg');
             if (img) img.src = '';

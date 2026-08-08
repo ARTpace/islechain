@@ -221,6 +221,7 @@
             if (gp.sampler != null || gp.sampler_name != null) d['采样曲'] = gp.sampler || gp.sampler_name;
             if (gp.scheduler) d['调度器'] = gp.scheduler;
             if (gp.seed != null) d['种子'] = gp.seed;
+            if (gp['耗时'] != null) d['耗时'] = gp['耗时'];   // litevideo 记录生成总耗时（点击→完成）
             if (gp.width != null) d['宽度'] = gp.width;
             if (gp.height != null) d['身高'] = gp.height;
             if (gp.batchCount != null) d['批次数'] = gp.batchCount;
