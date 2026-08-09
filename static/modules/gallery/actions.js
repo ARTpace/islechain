@@ -16,7 +16,10 @@
         if (event) event.stopPropagation();
         // 兼容 record 对象和 URL 字符串两种调用方式
         if (imageUrl && typeof imageUrl === 'object') {
-            imageUrl = (imageUrl.images && imageUrl.images[0]) || '';
+            // 视频记录用 videos 字段, 图片记录用 images 字段
+            imageUrl = (imageUrl.images && imageUrl.images[0])
+                || (imageUrl.videos && imageUrl.videos[0])
+                || '';
         }
         if (!imageUrl) return;
         if (imageUrl.startsWith('/output/')) {
@@ -219,7 +222,10 @@
      */
     function toggleFavorite(record, event, imgUrl) {
         if (event) event.stopPropagation();
-        const url = imgUrl || (record && record.images && record.images[0]) || '';
+        // 视频记录用 videos 字段, 图片记录用 images 字段
+        const url = imgUrl || (record && record.images && record.images[0])
+            || (record && record.videos && record.videos[0])
+            || '';
         if (!url) return;
         if (global.GalleryDisplay && global.GalleryDisplay.Favorites) {
             global.GalleryDisplay.Favorites.toggle(url);

@@ -2,8 +2,8 @@
   "295": {
     "inputs": {
       "mode": "reference",
-      "prompt": "subject_definitions:\r\n<Subject 1> is the adult East Asian fantasy woman in <Picture 1>, preserving her delicate facial identity, pale natural complexion, dark eyes, straight bangs, elaborate black updo, and graceful immortal-maiden presence.\r\n<Subject 2> is the ornate Chinese fantasy costume and accessories in <Picture 1>, including the translucent orange embroidered robe, black-and-gold bodice, blue and red accents, layered flowing sleeves, long silk ribbons, elaborate gold floral hair ornaments, dangling beads, earrings, and gemstone necklaces.\r\n<Subject 3> is the dreamlike underwater Chinese interior in <Picture 1>, featuring pale folding screens, suspended mist, clear bubbles, glowing circular light rings, drifting red-and-blue ribbons, and several orange goldfish swimming at different depths.\r\n\r\nsummary:\r\n[reference generation] The target is an 8-second Chinese fantasy video in which <Subject 1>, wearing <Subject 2>, accelerates through <Subject 3> toward the camera, slows abruptly near the lens, adopts an ingratiating and flattering expression, and directly says, “呲花~来了？” Goldfish, ribbons, sleeves, hair, jewelry, mist, and bubbles react continuously to her flight.\r\n\r\nretention_analysis:\r\n<Subject 1> (appears in [Shot 1] through [Shot 3]): fully_preserved - her facial identity, hairstyle, bangs, proportions, and elegant fantasy appearance remain stable.\r\n<Subject 2> (appears in [Shot 1] through [Shot 3]): fully_preserved - the orange translucent robe, embroidery, black-and-gold bodice, silk ribbons, hair ornaments, jewelry, and layered accessories remain structurally consistent.\r\n<Subject 3> (appears in [Shot 1] through [Shot 3]): fully_preserved - the folding screens, suspended-water atmosphere, goldfish, bubbles, ribbons, mist, and luminous rings remain recognizable and spatially coherent.\r\n\r\ndetailed_description:\r\nThe target video uses a cinematic 9:16 Chinese fantasy style with crystalline underwater light, cool cyan shadows, warm orange highlights, realistic fabric physics, and a dreamy high-speed flight effect. All movement follows one continuous forward trajectory, with <Subject 1> remaining sharply recognizable despite directional motion blur in the surrounding environment.\r\n\r\n[Shot 1] A wide shot establishes <Subject 3>, the vast weightless chamber filled with pale folding screens, floating mist, luminous circular rings, long red-and-blue ribbons, bubbles, and orange goldfish. Far in the background, <Subject 1> wearing <Subject 2> leans forward and launches toward the camera. Her body accelerates rapidly along a clear diagonal path as her translucent orange sleeves, long ribbons, black hair, dangling beads, and embroidered fabric stream behind her. Nearby goldfish dart gently aside while a spiraling wake of bubbles and mist forms around her. The camera pulls backward at fast speed while keeping her centered.\r\n\r\n[Shot 2] At 00:03.000, an action-matched cut switches to a medium tracking shot as <Subject 1> passes through a glowing ring. The camera arcs slightly around her while continuing backward. She reaches one hand forward, then draws it toward her chest as she rapidly closes the distance. Her expression changes from focused concentration to immediate recognition: her eyebrows lift, her eyes brighten, and the corners of her lips begin forming a deliberately sweet, eager smile. The gold ornaments and hanging beads sway and catch alternating cyan and gold highlights.\r\n\r\n[Shot 3] At 00:05.200, the shot cuts to a close-up as <Subject 1> brakes smoothly within arm’s reach of the lens. Her sleeves and ribbons overshoot her motion before floating around her shoulders, while bubbles drift past the foreground and one goldfish crosses behind her. <Subject 1> (S1) leans slightly toward the camera, tilts her head, draws her shoulders inward, raises her eyebrows, and gives an overtly ingratiating, flattering smile. In a soft, sweet, slightly elongated voice with an expectant upward inflection, she looks directly into the lens and says: <d>[Chinese] 呲花~来了？</d> Her lips, jaw, tongue, cheeks, and breath synchronize naturally with every syllable. She closes her mouth into a pleased, attentive smile and holds eye contact until 00:08.000. Preserve stable identity, natural hands, correct facial anatomy, readable mouth articulation, coherent jewelry, and continuous fabric motion, with no extra limbs, face drift, duplicated goldfish, warped ornaments, captions, logos, or watermarks.\r\n\r\noverall_soundscape:\r\nA strong underwater flight rush builds during her approach, accompanied by silk flutter, jewelry chimes, streaming bubbles, displaced-water movement, and a soft magical impact as she brakes near the camera. The effects reduce sharply beneath her spoken line so the dialogue remains clear.\r\n\r\nnon_diegetic_music:\r\nA brisk Chinese fantasy score combines pipa plucks, bamboo flute, light frame drums, shimmering bells, and rising strings. The music accelerates during the flight, stops briefly beneath the spoken line, then ends with a playful single plucked note at 00:08.000.\n",
-      "resolution": "480P",
+      "prompt": "日系二次元动漫风格，四镜头连贯视频：【镜头1】：全景俯视，深夜昏暗简陋的房间里， 少女坐在榻榻米上，无精打采地仰头打哈欠叹气，面前桌上放着发光的笔记本电脑和吃剩的杯面，影院级暗调光影。【镜头2】：镜头快速切至面部极特写，少女眼含泪水，金黄色眼睛，脸颊红晕，咬着牙表现出委屈又倔强的神情，双手趴在桌上，剧烈的破防动态画面。【镜头3】：侧面中景，疲惫的蓝发少女无精打采地趴在木桌上，身旁是发光的电脑屏幕、水瓶和杯面，阴暗沉重的室内环境，极微弱的呼吸动作。\n",
+      "resolution": "540P",
       "aspect_ratio": "9:16",
       "width": 1344,
       "height": 768,
@@ -60,20 +60,6 @@
       "title": "VAE解码_音频"
     }
   },
-  "304": {
-    "inputs": {
-      "sage_attention": "auto",
-      "allow_compile": false,
-      "model": [
-        "295",
-        0
-      ]
-    },
-    "class_type": "PathchSageAttentionKJ",
-    "_meta": {
-      "title": "SAGE注意力补丁(KJ)"
-    }
-  },
   "306": {
     "inputs": {
       "h3_context": [
@@ -91,7 +77,7 @@
       "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
       "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
       "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+      "video_vae": "minimax_h3_video_vae_int8_convrot.safetensors",
       "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
     },
     "class_type": "MiniMaxH3EasyLoader",
@@ -102,13 +88,13 @@
   "309": {
     "inputs": {
       "seed": 210,
-      "steps": 20,
+      "steps": 8,
       "cfg": 1,
       "sampler_name": "res_multistep",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "304",
+        "356",
         0
       ],
       "positive": [
@@ -150,37 +136,6 @@
       "title": "条件零化"
     }
   },
-  "325": {
-    "inputs": {},
-    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
-    "_meta": {
-      "title": "MiniMaX H3内存高效Sage注意力补丁 (KJ)"
-    }
-  },
-  "326": {
-    "inputs": {
-      "tau": 1.15,
-      "start_percent": 0.25,
-      "end_percent": 0.85,
-      "min_tokens": 4096,
-      "int8_qk": true,
-      "sink_conditioning": "exact_kv_and_rows",
-      "morton": true,
-      "morton_curve": "2d_frame",
-      "int8_pv": false,
-      "verbose": false,
-      "use_tma": "",
-      "dense_blocks": "",
-      "model": [
-        "325",
-        0
-      ]
-    },
-    "class_type": "SolAttnPatch",
-    "_meta": {
-      "title": "Patch Sol-Attn"
-    }
-  },
   "344": {
     "inputs": {
       "clean_file_cache": true,
@@ -220,6 +175,7 @@
       "filename_prefix": "video/MiniMax_H3",
       "format": "auto",
       "codec": "auto",
+      "video-preview": "",
       "video": [
         "344",
         0
@@ -228,6 +184,52 @@
     "class_type": "SaveVideo",
     "_meta": {
       "title": "保存视频"
+    }
+  },
+  "354": {
+    "inputs": {
+      "lora_name": "minimax h3\\minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
+      "strength_model": 1,
+      "model": [
+        "295",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器(仅模型)"
+    }
+  },
+  "355": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "354",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SAGE注意力补丁KJ"
+    }
+  },
+  "356": {
+    "inputs": {
+      "processing_control_value": 0.085,
+      "processing_percent_1": 0.1,
+      "processing_percent_2": 0.9,
+      "mcs": 2,
+      "device": "auto",
+      "mode": "standard",
+      "model": [
+        "355",
+        0
+      ]
+    },
+    "class_type": "TESpeedMiniMaxH3",
+    "_meta": {
+      "title": "TE-Speed-MiniMaxH3"
     }
   }
 }

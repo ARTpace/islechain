@@ -31,20 +31,6 @@
       "title": "VAE解码_音频"
     }
   },
-  "304": {
-    "inputs": {
-      "sage_attention": "auto",
-      "allow_compile": false,
-      "model": [
-        "363",
-        0
-      ]
-    },
-    "class_type": "PathchSageAttentionKJ",
-    "_meta": {
-      "title": "SAGE注意力补丁(KJ)"
-    }
-  },
   "306": {
     "inputs": {
       "h3_context": [
@@ -62,7 +48,7 @@
       "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
       "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
       "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+      "video_vae": "minimax_h3_video_vae_int8_convrot.safetensors",
       "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
     },
     "class_type": "MiniMaxH3EasyLoader",
@@ -73,13 +59,13 @@
   "309": {
     "inputs": {
       "seed": 813130857948924,
-      "steps": 20,
+      "steps": 8,
       "cfg": 1,
       "sampler_name": "res_multistep",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "304",
+        "366",
         0
       ],
       "positive": [
@@ -169,7 +155,6 @@
       "filename_prefix": "video/MiniMax_H3",
       "format": "auto",
       "codec": "auto",
-      "video-preview": "",
       "video": [
         "344",
         0
@@ -205,13 +190,59 @@
       "media_type_1": "image",
       "media_2": [
         "361",
-        0
+        1
       ],
       "media_type_2": "image"
     },
     "class_type": "MiniMaxH3Easy",
     "_meta": {
       "title": "MiniMax H3 Easy"
+    }
+  },
+  "364": {
+    "inputs": {
+      "lora_name": "minimax h3\\minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
+      "strength_model": 1,
+      "model": [
+        "363",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器(仅模型)"
+    }
+  },
+  "365": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "364",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SAGE注意力补丁KJ"
+    }
+  },
+  "366": {
+    "inputs": {
+      "processing_control_value": 0.085,
+      "processing_percent_1": 0.1,
+      "processing_percent_2": 0.9,
+      "mcs": 2,
+      "device": "auto",
+      "mode": "standard",
+      "model": [
+        "365",
+        0
+      ]
+    },
+    "class_type": "TESpeedMiniMaxH3",
+    "_meta": {
+      "title": "TE-Speed-MiniMaxH3"
     }
   }
 }

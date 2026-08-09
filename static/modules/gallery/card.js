@@ -49,7 +49,10 @@
      */
     function toggleFav(record, event, imgUrl) {
         if (event) event.stopPropagation();
-        const url = imgUrl || (record && record.images && record.images[0]) || '';
+        // 视频记录用 videos 字段, 图片记录用 images 字段
+        const url = imgUrl || (record && record.images && record.images[0])
+            || (record && record.videos && record.videos[0])
+            || '';
         if (!url) return;
         if (window.GalleryDisplay && GalleryDisplay.Favorites) {
             GalleryDisplay.Favorites.toggle(url);
@@ -212,15 +215,18 @@
             card.classList.toggle('gallery-selected');
         };
 
-        // 收藏状态标记（按图片 URL，支持多图组中只收藏某几张）
+        // 收藏状态标记（按图片/视频 URL，支持多图组中只收藏某几张）
         const favSet = global.__galleryFavorites || new Set();
         const images = (record.images || []).filter(Boolean);
-        const anyFav = images.some(u => favSet.has(u));
+        const videos = (record.videos || []).filter(Boolean);
+        // 视频记录用 videos 判断, 图片记录用 images
+        const mediaForFav = videos.length > 0 ? videos : images;
+        const anyFav = mediaForFav.some(u => favSet.has(u));
         card.dataset.fav = anyFav ? '1' : '0';
         // 标记首图 url，便于全局 fav:changed 事件同步
-        card.dataset.favUrl = images[0] || '';
+        card.dataset.favUrl = mediaForFav[0] || '';
         // 每张子图的收藏状态
-        card.dataset.favImages = JSON.stringify(images.map(u => favSet.has(u) ? 1 : 0));
+        card.dataset.favImages = JSON.stringify(mediaForFav.map(u => favSet.has(u) ? 1 : 0));
 
         // 三个悬浮按钮统一样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示
         // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
@@ -234,7 +240,10 @@
             : '';
 
         // ② 右上角 — 收藏（统一透明+drop-shadow 样式，hover 显示）
-        const favImgUrl = (record.images && record.images[0]) || '';
+        // 视频记录用 videos 字段, 图片记录用 images 字段
+        const favImgUrl = (record.images && record.images[0])
+            || (record.videos && record.videos[0])
+            || '';
         const favHandler = `toggleFav(${escAttr(JSON.stringify(record))}, event, ${escAttr(JSON.stringify(favImgUrl))})`;
         // SVG 统一使用空心，CSS 通过 .is-fav 切换填充
         const favHTML = features.favorite
@@ -464,7 +473,7 @@
         const favSet = global.__galleryFavorites || new Set();
         const favBtn = features.favorite ? imgFavBtnHTML(src, favSet.has(src)) : '';
         return '<div class="relative group" style="background:#000;">' +
-            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onerror="' + onerror + '">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)" onerror="' + onerror + '">' +
             '</video>' +
             '<div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="z-index:5;">' +
             '<svg width="36" height="36" viewBox="0 0 24 24" fill="white" style="opacity:.8; filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));"><path d="M8 5v14l11-7z"/></svg>' +
