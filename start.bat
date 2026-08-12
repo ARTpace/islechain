@@ -7,9 +7,16 @@ echo.
 
 cd /d "%~dp0"
 
-rem Prefer Python 3.12 (the one art-canvas was built against)
-set PY_EXE=C:\Users\ARTpace\AppData\Local\Programs\Python\Python312\python.exe
-if not exist "%PY_EXE%" (
+rem Prefer Python installed on this machine, fall back to PATH
+set PY_EXE=
+for %%P in (
+    "C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python313\python.exe"
+    "C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python312\python.exe"
+    "C:\Users\ARTpace\AppData\Local\Programs\Python\Python312\python.exe"
+) do (
+    if not defined PY_EXE if exist %%P set PY_EXE=%%~P
+)
+if not defined PY_EXE (
     where python >nul 2>&1
     if %errorlevel% neq 0 (
         echo ERROR: Python not found in PATH
@@ -24,6 +31,7 @@ if not exist "%PY_EXE%" (
 echo.
 
 echo Checking port 7000...
+rem 1) kill leftover art-canvas backend (LISTENING on 7000)
 set PORT_BUSY=1
 for /l %%i in (1, 1, 3) do (
     if defined PORT_BUSY (
@@ -42,31 +50,54 @@ for /l %%i in (1, 1, 3) do (
     )
 )
 
+rem 2) bind test with Python (same condition as uvicorn: catches non-LISTENING usage too, e.g. Doubao outbound)
+"%PY_EXE%" -c "import socket; s=socket.socket(); s.bind(('0.0.0.0', 7000)); s.close()" >nul 2>&1
+if errorlevel 1 goto port_busy_error
+echo Port 7000 is free.
+goto port_ok
+
+:port_busy_error
+echo.
+echo ============================================================
+echo  ERROR: Port 7000 is occupied and cannot be used.
+echo  The following entries are using port 7000:
+echo ------------------------------------------------------------
+netstat -aon | findstr :7000
+echo ------------------------------------------------------------
+echo  Common cause: another program (e.g. Doubao / browser /
+echo  or a previous art-canvas instance) holds port 7000.
+echo  Close the program listed above, then re-run this script.
+echo ============================================================
+pause
+exit /b 1
+
+:port_ok
+
 echo.
 echo Starting server...
 echo Local: http://127.0.0.1:7000
 echo.
 
-rem 环境安全: 清除可能干扰 httpx 的环境变量
+rem clear proxy env that may interfere with httpx
 set HTTP_PROXY=
 set HTTPS_PROXY=
 set SSL_CERT_FILE=
 set NO_PROXY=127.0.0.1,localhost,::1,0.0.0.0
 
-rem 显示 LAN IP（方便其他设备访问）
+rem show LAN IP for other devices
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /r /c:"IPv4"') do set LAN_IP=%%a
 set LAN_IP=%LAN_IP: =%
 if defined LAN_IP echo LAN:   http://%LAN_IP%:7000
 
-rem 1) 新窗口启动后端(和启动.bat一样标准启动,能看到日志)
+rem 1) start backend in a new window (shows logs)
 start "" "%PY_EXE%" main.py
 
-rem 2) 等后端就绪
+rem 2) wait for backend to be ready
 timeout /t 5 /nobreak >nul
 
-rem 3) 后端就绪后打开浏览器
+rem 3) open browser once backend is up
 start "" http://127.0.0.1:7000
 
-rem 4) 原窗口自动退出,只保留后端窗口
+rem 4) original window exits, only backend window remains
 echo.
 echo Server started. Close the new window to stop.
