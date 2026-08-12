@@ -1556,7 +1556,7 @@
 
 <!-- ── 资产库选择面板（复用 /static/modules/asset-library.js） ── -->
 <div id="assetLibraryMount"></div>
-<script src="/static/modules/asset-library.js"></script>
+<script src="/static/modules/asset-library.js?v=20260811"></script>
 <script>
     // 把选中的资产图（URL → File）走 handleFileUpload，直接成为高清修复的导入图
     function applyAssetToHdRepair(url, name) {
@@ -1603,32 +1603,26 @@
                 if (ev.added) {
                     if (_favInFlight[gUrl] || _favSavedAsset[gUrl]) return;
                     _favInFlight[gUrl] = true;
-                    fetch('/api/user/assets/save-from-url', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: gUrl, prompt: gPrompt })
-                    }).then(function (r) {
-                        if (r.ok) {
-                            return r.json().then(function (data) {
-                                _favSavedAsset[gUrl] = { assetUrl: data.url || gUrl, dedup: !!data.dedup };
-                                _notifyAssetChanged(); // 让资产图面板立即反映新收藏
-                            });
-                        }
-                    }).catch(function () {}).then(function () {
+                    if (window.AssetLibrary && typeof AssetLibrary.saveFavorite === 'function') {
+                        AssetLibrary.saveFavorite(gUrl, gPrompt).then(function (res) {
+                            _favSavedAsset[gUrl] = { id: res.id, url: res.url, dedup: !!res.dedup };
+                            _notifyAssetChanged(); // 让资产图面板立即反映新收藏
+                        }).catch(function () {}).then(function () {
+                            delete _favInFlight[gUrl];
+                        });
+                    } else {
                         delete _favInFlight[gUrl];
-                    });
+                    }
                 } else {
                     var rec = _favSavedAsset[gUrl];
                     delete _favSavedAsset[gUrl];
                     delete _favInFlight[gUrl];
                     if (rec && !rec.dedup) {
-                        fetch('/api/user/assets/delete', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: rec.assetUrl })
-                        }).then(function (r) {
-                            if (r.ok) _notifyAssetChanged();
-                        }).catch(function () {});
+                        if (window.AssetLibrary && typeof AssetLibrary.removeFavorite === 'function') {
+                            AssetLibrary.removeFavorite(rec.id).then(function (resp) {
+                                if (resp && resp.ok) _notifyAssetChanged();
+                            }).catch(function () {});
+                        }
                     }
                 }
             });

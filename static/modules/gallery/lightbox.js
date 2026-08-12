@@ -38,25 +38,27 @@
     /* ============================================================
      *  Helpers
      * ============================================================ */
-    function findRecord(imgUrl) {
+    function findRecord(url) {
         try {
             const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [];
             for (const h of allHistory) {
-                if (h.images && h.images.includes(imgUrl)) return h;
+                // 同时匹配图片与视频记录，使灯箱动作按钮(收藏/下载/删除)对视频也生效
+                if ((h.images && h.images.includes(url)) || (h.videos && h.videos.includes(url))) return h;
             }
         } catch (e) {}
         return null;
     }
 
     function getAllHistoryImages() {
+        // 同时平铺图片与视频，使灯箱缩略图条 / 左右切换也能正确处理视频
         const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [];
-        const allImages = [];
+        const allMedia = [];
         allHistory.forEach(h => {
-            if (h.images && h.images.length) {
-                h.images.forEach(u => { if (u) allImages.push(u); });
-            }
+            const isVid = !(h.images && h.images.length && h.images[0]) && (h.videos && h.videos.length && h.videos[0]);
+            const meds = (isVid ? (h.videos || []) : (h.images || [])).filter(Boolean);
+            meds.forEach(u => { if (u) allMedia.push(u); });
         });
-        return allImages;
+        return allMedia;
     }
 
     /* ============================================================
@@ -107,12 +109,18 @@
     function refreshFavBtn() {
         const btn = document.getElementById('lightboxFavBtn');
         if (!btn || !state.currentRecord) return;
-        const imgUrl = (state.currentRecord.images && state.currentRecord.images[state.currentIndex]) || '';
+        const rec = state.currentRecord;
+        // 视频记录用 videos 字段，图片记录用 images 字段
+        const favUrl = (rec.images && rec.images[state.currentIndex])
+            || (rec.videos && rec.videos[state.currentIndex])
+            || (rec.images && rec.images[0])
+            || (rec.videos && rec.videos[0])
+            || '';
         // data-fav-url 让全局 fav:changed 事件也能找到这个按钮
-        btn.setAttribute('data-fav-url', imgUrl);
+        btn.setAttribute('data-fav-url', favUrl);
         const isFav = (window.GalleryDisplay && GalleryDisplay.Favorites)
-            ? GalleryDisplay.Favorites.isFav(imgUrl)
-            : (global.__galleryFavorites || new Set()).has(imgUrl);
+            ? GalleryDisplay.Favorites.isFav(favUrl)
+            : (global.__galleryFavorites || new Set()).has(favUrl);
         btn.innerHTML = isFav ? LB_ACTION_SVGS.favoriteActive : LB_ACTION_SVGS.favorite;
         btn.classList.toggle('is-fav', !!isFav);
     }
@@ -346,7 +354,12 @@
     function lightboxAction(action) {
         if (!state.currentRecord) return;
         const record = state.currentRecord;
-        const imgUrl = (record.images && record.images[state.currentIndex]) || '';
+        // 视频记录用 videos 字段，图片记录用 images 字段（优先当前索引，兜底首张）
+        const imgUrl = (record.images && record.images[state.currentIndex])
+            || (record.videos && record.videos[state.currentIndex])
+            || (record.images && record.images[0])
+            || (record.videos && record.videos[0])
+            || '';
         const ts = record.timestamp;
 
         switch (action) {
@@ -355,8 +368,10 @@
                 else if (global.GalleryActions && GalleryActions.openImageFolder) GalleryActions.openImageFolder(record);
                 break;
             case 'download':
-                if (global.GalleryActions && GalleryActions.downloadImage) {
-                    GalleryActions.downloadImage(imgUrl, String(ts) + '.png');
+                if (imgUrl && global.GalleryActions && GalleryActions.downloadImage) {
+                    // 视频按真实扩展名下载，图片仍用 .png
+                    const ext = (imgUrl.match(/\.(mp4|webm|mov|mkv|m4v|ogv|avi)(\?|#|$)/i) || [, ''])[1] || 'png';
+                    GalleryActions.downloadImage(imgUrl, String(ts) + '.' + ext);
                 }
                 break;
             case 'favorite':

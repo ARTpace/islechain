@@ -1651,3 +1651,46 @@ body:not(.studio-theme-dark):not(.theme-dark) .lora-sidebar-model-btn:hover {
     background: oklch(88% 0.01 280 / 0.5);
     color: oklch(25% 0.01 280);
 }
+/* ========================================================================
+   LoRA 激活栏卡片 (lac-card) — 与 zimage 共享, 用于 litevideo
+   ======================================================================== */
+.lac-card { display:inline-flex; flex-direction:column; align-items:center; width:96px; padding:6px; border-radius:10px; background:rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.06); margin-bottom:4px; text-align:center; position:relative; }
+.lac-card:hover { background:rgba(255,255,255,0.9); border-color:rgba(0,0,0,0.12); }
+body.studio-theme-dark .lac-card { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.06); }
+body.studio-theme-dark .lac-card:hover { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.12); }
+.lac-card.lac-disabled { opacity:0.45; filter:grayscale(0.6); }
+.lac-cover { width:82px; height:110px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(0,0,0,0.04); position:relative; }
+.lac-cover img { width:100%; height:100%; object-fit:cover; }
+body.studio-theme-dark .lac-cover { background:rgba(255,255,255,0.04); }
+.lac-cover.lac-cover-empty { display:flex; align-items:center; justify-content:center; }
+.lac-cover-ph { font-size:26px; font-weight:800; color:#aaa; line-height:1; }
+body.studio-theme-dark .lac-cover-ph { color:#5a6a7e; }
+.lac-hover-name { display:none; position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:6px; background:rgba(0,0,0,0.82); color:#fff; font-size:10px; font-weight:700; white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; pointer-events:none; z-index:6; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+.lac-card:hover .lac-hover-name { display:block; }
+body.studio-theme-dark .lac-hover-name { background:rgba(20,30,45,0.92); color:#e0e7ef; }
+.lac-slider-inner { position:absolute; bottom:0; left:0; right:0; padding:4px 5px 5px; z-index:5; pointer-events:auto; display:flex; align-items:flex-end; background:linear-gradient(transparent 15%, rgba(0,0,0,0.50) 80%); border-radius:0 0 8px 8px; }
+.lac-slider-inner .lac-slider { -webkit-appearance:none; appearance:none; flex:1; height:6px; border-radius:3px; cursor:pointer; min-width:0; background:rgba(255,255,255,0.30); accent-color:#000; }
+.lac-slider-inner .lac-slider::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:rgba(255,255,255,0.30); }
+.lac-slider-inner .lac-slider::-moz-range-track { height:6px; border-radius:3px; background:rgba(255,255,255,0.30); }
+.lac-slider-inner .lac-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:#fff; margin-top:-5px; cursor:pointer; border:1px solid rgba(0,0,0,0.2); box-shadow:0 1px 3px rgba(0,0,0,0.35); }
+.lac-slider-inner .lac-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.2); cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.35); }
+body.studio-theme-dark .lac-slider-inner { background:linear-gradient(transparent 15%, rgba(0,0,0,0.65) 80%); }
+body.studio-theme-dark .lac-slider-inner .lac-slider { background:rgba(255,255,255,0.20); accent-color:#00f0ff; }
+body.studio-theme-dark .lac-slider-inner .lac-slider::-webkit-slider-runnable-track { background:rgba(255,255,255,0.20); }
+body.studio-theme-dark .lac-slider-inner .lac-slider::-moz-range-track { background:rgba(255,255,255,0.20); }
+body.studio-theme-dark .lac-slider-inner .lac-slider::-webkit-slider-thumb { background:#00f0ff; border-color:transparent; }
+body.studio-theme-dark .lac-slider-inner .lac-slider::-moz-range-thumb { background:#00f0ff; border-color:transparent; }
+.lac-strength-badge { display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:3px 9px; border-radius:8px; background:rgba(0,0,0,0.72); color:#fff; font-size:15px; font-weight:800; line-height:1; pointer-events:none; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+.lac-strength-badge.show { display:block; animation:lacBadgePop .15s ease; }
+@keyframes lacBadgePop { from { opacity:0; transform:translate(-50%,-50%) scale(0.7); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+.lac-actions-top { position:absolute; top:4px; left:4px; right:4px; display:flex; justify-content:space-between; opacity:0; transition:opacity 0.16s ease; pointer-events:none; z-index:7; }
+.lac-card:hover .lac-actions-top { opacity:1; pointer-events:auto; }
+.lac-card.lac-dragging .lac-actions-top { opacity:0 !important; pointer-events:none !important; }
+@media (hover:none) { .lac-actions-top { opacity:1; pointer-events:auto; } }
+.lac-action-btn { width:30px; height:30px; border:none; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; flex-shrink:0; padding:0; transition:background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease; background:rgba(0,0,0,0.5); color:#fff; touch-action:manipulation; -webkit-tap-highlight-color:transparent; pointer-events:auto; }
+.lac-action-btn:hover { transform:scale(1.15); background:#ff4444; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.35); }
+.lac-action-btn:active { transform:scale(0.92); }
+body.studio-theme-dark .lac-action-btn { background:rgba(0,0,0,0.6); }
+body.studio-theme-dark .lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.5); color:#fff; }
+.lac-action-btn.lac-toggle-on { background:rgba(74,222,128,0.85); color:#fff; }
+.lac-action-btn.lac-toggle-on:hover { background:rgba(74,222,128,0.95); box-shadow:0 4px 12px rgba(74,222,128,0.4); }

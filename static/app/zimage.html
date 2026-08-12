@@ -3192,60 +3192,44 @@
                         // 已收藏且在同步中或已存过，跳过
                         if (_favInFlight[gUrl] || _favSavedAsset[gUrl]) return;
                         _favInFlight[gUrl] = true;
-                        fetch('/api/user/assets/save-from-url', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: gUrl, prompt: gPrompt })
-                        }).then(function(r) {
-                            if (r.ok) {
-                                return r.json().then(function(data) {
-                                    // data: { url, name, dedup }
-                                    _favSavedAsset[gUrl] = { assetUrl: data.url || gUrl, dedup: !!data.dedup };
-                                    console.log('[收藏] 已保存到资产库:', gUrl, 'dedup=', !!data.dedup);
-                                    _favAssetToast(data.dedup ? '已收藏（资产库已有该图）' : '已收藏并保存到资产库');
-                                    // 资产库面板已加缓存，通知其失效以便立即显示新收藏
-                                    if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
-                                        try { AssetLibrary.invalidate(); } catch (_) {}
-                                    }
-                                });
-                            } else {
-                                console.warn('[收藏] 保存到资产库失败:', r.status, r.statusText);
+                        if (window.AssetLibrary && typeof AssetLibrary.saveFavorite === 'function') {
+                            AssetLibrary.saveFavorite(gUrl, gPrompt).then(function(res) {
+                                _favSavedAsset[gUrl] = { id: res.id, url: res.url, dedup: !!res.dedup };
+                                console.log('[收藏] 已保存到资产库:', gUrl, 'dedup=', !!res.dedup);
+                                _favAssetToast(res.dedup ? '已收藏（资产库已有该图）' : '已收藏并保存到资产库');
+                                if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
+                                    try { AssetLibrary.invalidate(); } catch (_) {}
+                                }
+                            }).catch(function(e) {
+                                console.warn('[收藏] 保存到资产库异常:', e);
                                 _favAssetToast('收藏成功，但保存到资产库失败');
-                            }
-                        }).catch(function(e) {
-                            console.warn('[收藏] 保存到资产库异常:', e);
-                            _favAssetToast('收藏成功，但保存到资产库失败');
-                        }).then(function() {
+                            }).then(function() {
+                                delete _favInFlight[gUrl];
+                            });
+                        } else {
                             delete _favInFlight[gUrl];
-                        });
+                        }
                     } else {
                         // 取消收藏：若本功能曾存入该图（且非去重命中），同步删除
                         var rec = _favSavedAsset[gUrl];
                         delete _favSavedAsset[gUrl];
                         delete _favInFlight[gUrl];
                         if (rec && !rec.dedup) {
-                            fetch('/api/user/assets/delete', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ url: rec.assetUrl })
-                            }).then(function(r) {
-                                if (r.ok) {
-                                    console.log('[取消收藏] 已从资产库删除:', rec.assetUrl);
+                            if (window.AssetLibrary && typeof AssetLibrary.removeFavorite === 'function') {
+                                AssetLibrary.removeFavorite(rec.id).then(function() {
+                                    console.log('[取消收藏] 已从资产库删除:', rec.id);
                                     _favAssetToast('已取消收藏并从资产库删除');
                                     if (window.AssetLibrary && typeof AssetLibrary.invalidate === 'function') {
                                         try { AssetLibrary.invalidate(); } catch (_) {}
                                     }
-                                } else {
-                                    console.warn('[取消收藏] 删除资产库失败:', r.status, r.statusText);
+                                }).catch(function(e) {
+                                    console.warn('[取消收藏] 删除资产库异常:', e);
                                     _favAssetToast('已取消收藏，但资产库删除失败');
-                                }
-                            }).catch(function(e) {
-                                console.warn('[取消收藏] 删除资产库异常:', e);
-                                _favAssetToast('已取消收藏，但资产库删除失败');
-                            });
+                                });
+                            }
                         } else if (rec && rec.dedup) {
                             // 去重命中：该图在收藏前已存在于资产库，不删除
-                            console.log('[取消收藏] 资产库原已存在该图，保留:', rec.assetUrl);
+                            console.log('[取消收藏] 资产库原已存在该图，保留:', rec.url);
                         }
                     }
                 });
@@ -3775,7 +3759,7 @@
 
 <!-- ── 资产库选择面板（独立模块） ── -->
     <div id="assetLibraryMount"></div>
-    <script src="/static/modules/asset-library.js"></script>
+    <script src="/static/modules/asset-library.js?v=20260811"></script>
     <script>
         AssetLibrary.init({
             mountId: 'assetLibraryMount',

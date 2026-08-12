@@ -5504,9 +5504,17 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
         if not content:
             continue
         ext = os.path.splitext(file.filename or "")[1].lower()
-        if ext not in [".png", ".jpg", ".jpeg", ".webp"]:
+        _IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif"}
+        _VID_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
+        _AUD_EXTS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
+        if ext not in (_IMG_EXTS | _VID_EXTS | _AUD_EXTS):
             content_type = (file.content_type or "").lower()
-            ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
+            if content_type.startswith("video/"):
+                ext = {"video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov", "video/x-matroska": ".mkv"}.get(content_type, ".mp4")
+            elif content_type.startswith("audio/"):
+                ext = {"audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/flac": ".flac", "audio/ogg": ".ogg", "audio/mp4": ".m4a", "audio/aac": ".aac"}.get(content_type, ".mp3")
+            else:
+                ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
         filename = f"ai_ref_{uuid.uuid4().hex[:12]}{ext}"
         path = os.path.join(canvas_output_dir, filename)
         with open(path, "wb") as f:

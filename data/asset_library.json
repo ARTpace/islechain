@@ -7,6 +7,214 @@
       "type": "asset",
       "categories": [
         {
+          "id": "cat_fav_8e11dabd64c7",
+          "name": "收藏",
+          "type": "image",
+          "items": [
+            {
+              "id": "asset_3e762c844c73",
+              "name": "video_1786421276_92794b3bcb.mp4",
+              "url": "/output/admin/视频/2026-08-11/video_1786421276_92794b3bcb.mp4",
+              "kind": "video",
+              "created_at": 1786432336044,
+              "registrations": {}
+            },
+            {
+              "id": "asset_45f0af9d4318",
+              "name": "video_1786382205_372416c75b.mp4",
+              "url": "/output/admin/视频/2026-08-11/video_1786382205_372416c75b.mp4",
+              "kind": "video",
+              "created_at": 1786431461317,
+              "registrations": {}
+            },
+            {
+              "id": "asset_6e09cacaec5d",
+              "name": "video_1786421598_0f6ba1a736.mp4",
+              "url": "/output/admin/视频/2026-08-11/video_1786421598_0f6ba1a736.mp4",
+              "kind": "video",
+              "created_at": 1786426441150,
+              "registrations": {}
+            },
+            {
+              "id": "asset_15f134b85f1d",
+              "name": "asset_b79484ebf3c9",
+              "url": "/assets/admin/asset_b79484ebf3c9.png",
+              "kind": "image",
+              "created_at": 1785726166496,
+              "registrations": {}
+            },
+            {
+              "id": "asset_a4e81609d4d1",
+              "name": "asset_b33928009a61",
+              "url": "/assets/admin/asset_b33928009a61.png",
+              "kind": "image",
+              "created_at": 1785725896117,
+              "registrations": {}
+            },
+            {
+              "id": "asset_e5320bff4026",
+              "name": "asset_601b7d916ea5",
+              "url": "/assets/admin/asset_601b7d916ea5.png",
+              "kind": "image",
+              "created_at": 1785649496403,
+              "registrations": {}
+            },
+            {
+              "id": "asset_977db64f41d9",
+              "name": "asset_11e56de0e9e3",
+              "url": "/assets/admin/asset_11e56de0e9e3.png",
+              "kind": "image",
+              "created_at": 1785241567903,
+              "registrations": {}
+            },
+            {
+              "id": "asset_7d5414f108c1",
+              "name": "asset_a0375e36310e",
+              "url": "/assets/admin/asset_a0375e36310e.png",
+              "kind": "image",
+              "created_at": 1785241567786,
+              "registrations": {}
+            },
+            {
+              "id": "asset_6944d889ffb8",
+              "name": "asset_f30b8a18ff9f",
+              "url": "/assets/admin/asset_f30b8a18ff9f.png",
+              "kind": "image",
+              "created_at": 1785241556940,
+              "registrations": {}
+            },
+            {
+              "id": "asset_349cf1d7fcba",
+              "name": "asset_c01b9506663b",
+              "url": "/assets/admin/asset_c01b9506663b.png",
+              "kind": "image",
+              "created_at": 1785241551181,
+              "registrations": {}
+            },
+            {
+              "id": "asset_cb75c586d9a9",
+              "name": "asset_a31fa1dfa909",
+              "url": "/assets/admin/asset_a31fa1dfa909.png",
+              "kind": "image",
+              "created_at": 1785241549641,
+              "registrations": {}
+            },
+            {
+              "id": "asset_c552e20d5ba7",
+              "name": "asset_928f5527b4e9",
+              "url": "/assets/admin/asset_928f5527b4e9.png",
+              "kind": "image",
+              "created_at": 1785241516508,
+              "registrations": {}
+            },
+            {
+              "id": "asset_082f562cc19a",
+              "name": "asset_6b73bfba7d6f",
+              "url": "/assets/admin/asset_6b73bfba7d6f.png",
+              "kind": "image",
+              "created_at": 1785241513024,
+              "registrations": {}
+            },
+            {
+              "id": "asset_c746445631df",
+              "name": "asset_797c187eafe3",
+              "url": "/assets/admin/asset_797c187eafe3.png",
+              "kind": "image",
+              "created_at": 1785241511086,
+              "registrations": {}
+            },
+            {
+              "id": "asset_0cd2340ace07",
+              "name": "asset_5b29a0e93796",
+              "url": "/assets/admin/asset_5b29a0e93796.png",
+              "kind": "image",
+              "created_at": 1785241509488,
+              "registrations": {}
+            },
+            {
+              "id": "asset_0a0e3de6dbeb",
+              "name": "asset_1f23c22842b9",
+              "url": "/assets/admin/asset_1f23c22842b9.png",
+              "kind": "image",
+              "created_at": 1785241509431,
+              "registrations": {}
+            },
+            {
+              "id": "asset_395faac2248a",
+              "name": "asset_89d1821cf445",
+              "url": "/assets/admin/asset_89d1821cf445.png",
+              "kind": "image",
+              "created_at": 1785240673988,
+              "registrations": {}
+            },
+            {
+              "id": "asset_e810fa1bcdb0",
+              "name": "asset_b5a06452f858",
+              "url": "/assets/admin/asset_b5a06452f858.png",
+              "kind": "image",
+              "created_at": 1785239962632,
+              "registrations": {}
+            },
+            {
+              "id": "asset_602b26983a23",
+              "name": "asset_aaf461dc277a",
+              "url": "/assets/admin/asset_aaf461dc277a.png",
+              "kind": "image",
+              "created_at": 1785235531494,
+              "registrations": {}
+            },
+            {
+              "id": "asset_46c2910fc2cd",
+              "name": "asset_c7ba6b94ab73",
+              "url": "/assets/admin/asset_c7ba6b94ab73.png",
+              "kind": "image",
+              "created_at": 1785205975826,
+              "registrations": {}
+            },
+            {
+              "id": "asset_03896d3e8524",
+              "name": "asset_dcf8c4009a30",
+              "url": "/assets/admin/asset_dcf8c4009a30.png",
+              "kind": "image",
+              "created_at": 1785205975697,
+              "registrations": {}
+            },
+            {
+              "id": "asset_672c7b9ed9a3",
+              "name": "asset_d789c9b88fa3",
+              "url": "/assets/admin/asset_d789c9b88fa3.png",
+              "kind": "image",
+              "created_at": 1785205974303,
+              "registrations": {}
+            },
+            {
+              "id": "asset_0156a8a53fa0",
+              "name": "asset_38cf35be9891",
+              "url": "/assets/admin/asset_38cf35be9891.png",
+              "kind": "image",
+              "created_at": 1785058464159,
+              "registrations": {}
+            },
+            {
+              "id": "asset_1fc6359254fb",
+              "name": "asset_1ebf1598d1fa",
+              "url": "/assets/admin/asset_1ebf1598d1fa.png",
+              "kind": "image",
+              "created_at": 1785057469094,
+              "registrations": {}
+            },
+            {
+              "id": "asset_8e186ea438ae",
+              "name": "asset_a2767a8d3c6d",
+              "url": "/assets/admin/asset_a2767a8d3c6d.png",
+              "kind": "image",
+              "created_at": 1784979271663,
+              "registrations": {}
+            }
+          ],
+          "dir": "收藏"
+        },
+        {
           "id": "characters",
           "name": "角色",
           "type": "image",
@@ -31,6 +239,214 @@
   ],
   "categories": [
     {
+      "id": "cat_fav_8e11dabd64c7",
+      "name": "收藏",
+      "type": "image",
+      "items": [
+        {
+          "id": "asset_3e762c844c73",
+          "name": "video_1786421276_92794b3bcb.mp4",
+          "url": "/output/admin/视频/2026-08-11/video_1786421276_92794b3bcb.mp4",
+          "kind": "video",
+          "created_at": 1786432336044,
+          "registrations": {}
+        },
+        {
+          "id": "asset_45f0af9d4318",
+          "name": "video_1786382205_372416c75b.mp4",
+          "url": "/output/admin/视频/2026-08-11/video_1786382205_372416c75b.mp4",
+          "kind": "video",
+          "created_at": 1786431461317,
+          "registrations": {}
+        },
+        {
+          "id": "asset_6e09cacaec5d",
+          "name": "video_1786421598_0f6ba1a736.mp4",
+          "url": "/output/admin/视频/2026-08-11/video_1786421598_0f6ba1a736.mp4",
+          "kind": "video",
+          "created_at": 1786426441150,
+          "registrations": {}
+        },
+        {
+          "id": "asset_15f134b85f1d",
+          "name": "asset_b79484ebf3c9",
+          "url": "/assets/admin/asset_b79484ebf3c9.png",
+          "kind": "image",
+          "created_at": 1785726166496,
+          "registrations": {}
+        },
+        {
+          "id": "asset_a4e81609d4d1",
+          "name": "asset_b33928009a61",
+          "url": "/assets/admin/asset_b33928009a61.png",
+          "kind": "image",
+          "created_at": 1785725896117,
+          "registrations": {}
+        },
+        {
+          "id": "asset_e5320bff4026",
+          "name": "asset_601b7d916ea5",
+          "url": "/assets/admin/asset_601b7d916ea5.png",
+          "kind": "image",
+          "created_at": 1785649496403,
+          "registrations": {}
+        },
+        {
+          "id": "asset_977db64f41d9",
+          "name": "asset_11e56de0e9e3",
+          "url": "/assets/admin/asset_11e56de0e9e3.png",
+          "kind": "image",
+          "created_at": 1785241567903,
+          "registrations": {}
+        },
+        {
+          "id": "asset_7d5414f108c1",
+          "name": "asset_a0375e36310e",
+          "url": "/assets/admin/asset_a0375e36310e.png",
+          "kind": "image",
+          "created_at": 1785241567786,
+          "registrations": {}
+        },
+        {
+          "id": "asset_6944d889ffb8",
+          "name": "asset_f30b8a18ff9f",
+          "url": "/assets/admin/asset_f30b8a18ff9f.png",
+          "kind": "image",
+          "created_at": 1785241556940,
+          "registrations": {}
+        },
+        {
+          "id": "asset_349cf1d7fcba",
+          "name": "asset_c01b9506663b",
+          "url": "/assets/admin/asset_c01b9506663b.png",
+          "kind": "image",
+          "created_at": 1785241551181,
+          "registrations": {}
+        },
+        {
+          "id": "asset_cb75c586d9a9",
+          "name": "asset_a31fa1dfa909",
+          "url": "/assets/admin/asset_a31fa1dfa909.png",
+          "kind": "image",
+          "created_at": 1785241549641,
+          "registrations": {}
+        },
+        {
+          "id": "asset_c552e20d5ba7",
+          "name": "asset_928f5527b4e9",
+          "url": "/assets/admin/asset_928f5527b4e9.png",
+          "kind": "image",
+          "created_at": 1785241516508,
+          "registrations": {}
+        },
+        {
+          "id": "asset_082f562cc19a",
+          "name": "asset_6b73bfba7d6f",
+          "url": "/assets/admin/asset_6b73bfba7d6f.png",
+          "kind": "image",
+          "created_at": 1785241513024,
+          "registrations": {}
+        },
+        {
+          "id": "asset_c746445631df",
+          "name": "asset_797c187eafe3",
+          "url": "/assets/admin/asset_797c187eafe3.png",
+          "kind": "image",
+          "created_at": 1785241511086,
+          "registrations": {}
+        },
+        {
+          "id": "asset_0cd2340ace07",
+          "name": "asset_5b29a0e93796",
+          "url": "/assets/admin/asset_5b29a0e93796.png",
+          "kind": "image",
+          "created_at": 1785241509488,
+          "registrations": {}
+        },
+        {
+          "id": "asset_0a0e3de6dbeb",
+          "name": "asset_1f23c22842b9",
+          "url": "/assets/admin/asset_1f23c22842b9.png",
+          "kind": "image",
+          "created_at": 1785241509431,
+          "registrations": {}
+        },
+        {
+          "id": "asset_395faac2248a",
+          "name": "asset_89d1821cf445",
+          "url": "/assets/admin/asset_89d1821cf445.png",
+          "kind": "image",
+          "created_at": 1785240673988,
+          "registrations": {}
+        },
+        {
+          "id": "asset_e810fa1bcdb0",
+          "name": "asset_b5a06452f858",
+          "url": "/assets/admin/asset_b5a06452f858.png",
+          "kind": "image",
+          "created_at": 1785239962632,
+          "registrations": {}
+        },
+        {
+          "id": "asset_602b26983a23",
+          "name": "asset_aaf461dc277a",
+          "url": "/assets/admin/asset_aaf461dc277a.png",
+          "kind": "image",
+          "created_at": 1785235531494,
+          "registrations": {}
+        },
+        {
+          "id": "asset_46c2910fc2cd",
+          "name": "asset_c7ba6b94ab73",
+          "url": "/assets/admin/asset_c7ba6b94ab73.png",
+          "kind": "image",
+          "created_at": 1785205975826,
+          "registrations": {}
+        },
+        {
+          "id": "asset_03896d3e8524",
+          "name": "asset_dcf8c4009a30",
+          "url": "/assets/admin/asset_dcf8c4009a30.png",
+          "kind": "image",
+          "created_at": 1785205975697,
+          "registrations": {}
+        },
+        {
+          "id": "asset_672c7b9ed9a3",
+          "name": "asset_d789c9b88fa3",
+          "url": "/assets/admin/asset_d789c9b88fa3.png",
+          "kind": "image",
+          "created_at": 1785205974303,
+          "registrations": {}
+        },
+        {
+          "id": "asset_0156a8a53fa0",
+          "name": "asset_38cf35be9891",
+          "url": "/assets/admin/asset_38cf35be9891.png",
+          "kind": "image",
+          "created_at": 1785058464159,
+          "registrations": {}
+        },
+        {
+          "id": "asset_1fc6359254fb",
+          "name": "asset_1ebf1598d1fa",
+          "url": "/assets/admin/asset_1ebf1598d1fa.png",
+          "kind": "image",
+          "created_at": 1785057469094,
+          "registrations": {}
+        },
+        {
+          "id": "asset_8e186ea438ae",
+          "name": "asset_a2767a8d3c6d",
+          "url": "/assets/admin/asset_a2767a8d3c6d.png",
+          "kind": "image",
+          "created_at": 1784979271663,
+          "registrations": {}
+        }
+      ],
+      "dir": "收藏"
+    },
+    {
       "id": "characters",
       "name": "角色",
       "type": "image",
@@ -51,5 +467,5 @@
       "items": []
     }
   ],
-  "updated_at": 1781496037028
+  "updated_at": 1786432336045
 }

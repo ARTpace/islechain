@@ -13,15 +13,12 @@
       "keyframe_role": "first",
       "ref_image_size": "1k",
       "reference_mention_mode": "filename",
+      "prompt_optimizer_settings": false,
+      "prompt_optimizer_scene_guide": "none",
       "h3_bundle": [
         "308",
         0
-      ],
-      "media_1": [
-        "311",
-        0
-      ],
-      "media_type_1": "image"
+      ]
     },
     "class_type": "MiniMaxH3Easy",
     "_meta": {
@@ -88,7 +85,7 @@
   "309": {
     "inputs": {
       "seed": 210,
-      "steps": 8,
+      "steps": 7,
       "cfg": 1,
       "sampler_name": "res_multistep",
       "scheduler": "simple",
@@ -175,7 +172,6 @@
       "filename_prefix": "video/MiniMax_H3",
       "format": "auto",
       "codec": "auto",
-      "video-preview": "",
       "video": [
         "344",
         0
@@ -189,7 +185,7 @@
   "354": {
     "inputs": {
       "lora_name": "minimax h3\\minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-      "strength_model": 1,
+      "strength_model": 0.65,
       "model": [
         "295",
         0

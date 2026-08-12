@@ -30,6 +30,11 @@
             // [Bugfix] 整个星形金黄：fill 金黄 + 当前色继承保持原细描边（不另加粗轮廓）
             '.gallery-fav.is-fav{opacity:1!important;pointer-events:auto!important;color:#fbbf24;fill:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.55))!important;}',
             '.gallery-fav.is-fav svg{fill:#fbbf24!important;stroke:#fbbf24!important;}',
+            // 视频卡片右下角「声音开关」按钮：默认隐藏，hover 卡片时显示
+            '.gallery-sound{opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;cursor:pointer;}',
+            '.gallery-sound.show{opacity:1;pointer-events:auto;}',
+            '.gallery-sound:hover{transform:scale(1.12)}',
+            '.gallery-sound:active{transform:scale(0.9)}',
             '.masonry-item.gallery-selected{outline:3px solid #38bdf8;outline-offset:-3px;border-radius:8px;}'
         ].join('\n');
         (document.head || document.documentElement).appendChild(style);
@@ -38,9 +43,33 @@
     // 用于 onclick="..." 属性中双引号转义
     var escAttr = function(v) { return String(v).replace(/"/g, '&quot;'); };
 
+    // 悬浮按钮统一内联样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示。
+    // 提升为模块级常量，供 render（放大镜/收藏/查看提示词按钮）与 buildVideoHTML（声音按钮）共用。
+    var BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+
     // 收藏按钮 22x22 星星 SVG
     // 注意：无论是否已收藏，统一使用空心 SVG；CSS 通过 .is-fav 切换填充
     var FAV_OUT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+
+    // 声音按钮 SVG：静音（扬声器 + 叉）/ 有声（扬声器 + 声波）
+    var SOUND_OFF_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+    var SOUND_ON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+
+    /**
+     * 视频卡片右下角「声音开关」：切换所在卡片 video 的静音状态，并同步图标。
+     * 默认视频 muted（声音关闭），点击后开启声音（需用户手势，浏览器才允许带声播放）。
+     */
+    function toggleVideoSound(btn) {
+        if (!btn) return;
+        var card = btn.closest('.masonry-item');
+        if (!card) return;
+        var v = card.querySelector('video');
+        if (!v) return;
+        v.muted = !v.muted;
+        btn.classList.toggle('sound-on', !v.muted);
+        btn.innerHTML = v.muted ? SOUND_OFF_SVG : SOUND_ON_SVG;
+    }
+    if (!global.toggleVideoSound) global.toggleVideoSound = toggleVideoSound;
 
     /**
      * 收藏切换（统一入口 GalleryDisplay.Favorites.toggle）
@@ -154,55 +183,37 @@
 
         // 提取打开 lightbox 的逻辑为独立函数，供放大按键和内部使用
         function openLightboxForRecord(r) {
+            // 注意：window.openLightbox 已被 display.js 包成代理箭头函数 (...args)=>{...}，
+            // 其 .length === 0，无法靠参数数量判断真实签名（旧代码因此误判为「老版本」，
+            // 把 isVideo 当成了 startIndexOrPrompt 传，导致视频被当作图片渲染、预览空白）。
+            // 这里统一按最新 6 参签名调用：(url, allMedia, startIndex, prompt, allPrompts, isVideo)，
+            // 由 Lightbox.openLightbox 自行根据 isVideo 渲染图片 / 视频。
             if (typeof global.openLightbox !== 'function') return;
             const prompt = r.prompt || '';
             const rIsVideo = !(r.images && r.images.length && r.images[0]) && (r.videos && r.videos.length && r.videos[0]);
             const mediaKey = rIsVideo ? 'videos' : 'images';
-            if (global.openLightbox.length >= 4) {
-                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
-                const allMedia = [];
-                const allPrompts = [];
-                for (const item of allHistory) {
-                    const itemIsVideo = !(item.images && item.images.length && item.images[0]) && (item.videos && item.videos.length && item.videos[0]);
-                    const meds = (itemIsVideo ? (item.videos || []) : (item.images || [])).filter(Boolean);
-                    for (const u of meds) {
-                        allMedia.push(u);
-                        allPrompts.push(item.prompt || '');
-                    }
-                }
-                const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
-                let startIndex = 0;
-                for (let i = 0; i < historyIndex; i++) {
-                    const itemIsVideo = !(allHistory[i].images && allHistory[i].images.length && allHistory[i].images[0]) && (allHistory[i].videos && allHistory[i].videos.length && allHistory[i].videos[0]);
-                    startIndex += ((itemIsVideo ? (allHistory[i].videos || []) : (allHistory[i].images || [])).filter(Boolean)).length;
-                }
-                if (global.openLightbox.length >= 5) {
-                    global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, allPrompts, rIsVideo);
-                } else {
-                    global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, rIsVideo);
-                }
-            } else if (global.openLightbox.length >= 3) {
-                const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
-                const allMedia = [];
-                for (const item of allHistory) {
-                    const itemIsVideo = !(item.images && item.images.length && item.images[0]) && (item.videos && item.videos.length && item.videos[0]);
-                    const meds = (itemIsVideo ? (item.videos || []) : (item.images || [])).filter(Boolean);
-                    for (const u of meds) allMedia.push(u);
-                }
-                const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
-                let startIndex = 0;
-                for (let i = 0; i < historyIndex; i++) {
-                    const itemIsVideo = !(allHistory[i].images && allHistory[i].images.length && allHistory[i].images[0]) && (allHistory[i].videos && allHistory[i].videos.length && allHistory[i].videos[0]);
-                    startIndex += ((itemIsVideo ? (allHistory[i].videos || []) : (allHistory[i].images || [])).filter(Boolean)).length;
-                }
-                global.openLightbox(r[mediaKey][0], allMedia, startIndex, prompt, rIsVideo);
-            } else {
-                if ((r[mediaKey] || []).length > 1) {
-                    global.openLightbox(r[mediaKey], prompt, rIsVideo);
-                } else {
-                    global.openLightbox(r[mediaKey][0], prompt, rIsVideo);
+            const mediaList = (r[mediaKey] || []).filter(Boolean);
+            if (!mediaList.length) return;
+
+            const allHistory = (global.GalleryList && global.GalleryList.allHistory) || [r];
+            const allMedia = [];
+            const allPrompts = [];
+            for (const item of allHistory) {
+                const itemIsVideo = !(item.images && item.images.length && item.images[0]) && (item.videos && item.videos.length && item.videos[0]);
+                const meds = (itemIsVideo ? (item.videos || []) : (item.images || [])).filter(Boolean);
+                for (const u of meds) {
+                    allMedia.push(u);
+                    allPrompts.push(item.prompt || '');
                 }
             }
+            const historyIndex = allHistory.findIndex(item => item.timestamp === r.timestamp);
+            let startIndex = 0;
+            for (let i = 0; i < (historyIndex < 0 ? allHistory.length : historyIndex); i++) {
+                const itemIsVideo = !(allHistory[i].images && allHistory[i].images.length && allHistory[i].images[0]) && (allHistory[i].videos && allHistory[i].videos.length && allHistory[i].videos[0]);
+                startIndex += ((itemIsVideo ? (allHistory[i].videos || []) : (allHistory[i].images || [])).filter(Boolean)).length;
+            }
+
+            global.openLightbox(mediaList[0], allMedia, startIndex, prompt, allPrompts, rIsVideo);
         }
         // 暴露到全局，供 HTML onclick 调用
         if (!global.openLightboxForRecord) global.openLightboxForRecord = openLightboxForRecord;
@@ -230,7 +241,7 @@
 
         // 三个悬浮按钮统一样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示
         // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
-        const BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+        // 注：BTN_INLINE 已提升为模块级常量（见文件顶部），供 render 与 buildVideoHTML 共用
         const SVG_22 = ' xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"';
 
         // ① 左上角 — 查看大图（放大镜）
@@ -360,11 +371,21 @@
         }
         // 悬停卡片显示悬浮按钮（每次进入都触发，非 once）
         card.addEventListener('mouseenter', () => {
-            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav').forEach(el => el.classList.add('show'));
+            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav, .gallery-sound').forEach(el => el.classList.add('show'));
+            // 视频卡片：悬停即在卡片上自动播放（默认静音，浏览器允许自动播放）
+            if (isVideo) {
+                const v = card.querySelector('video');
+                if (v) { try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+            }
         }, { passive: true });
         // 鼠标离开卡片时隐藏按钮
         card.addEventListener('mouseleave', () => {
-            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav').forEach(el => el.classList.remove('show'));
+            card.querySelectorAll('.gallery-vpfab, .gallery-magnify, .gallery-fav, .gallery-sound').forEach(el => el.classList.remove('show'));
+            // 视频卡片：移开暂停并复位到开头
+            if (isVideo) {
+                const v = card.querySelector('video');
+                if (v) { try { v.pause(); } catch (e) {} try { v.currentTime = 0; } catch (e) {} }
+            }
         }, { passive: true });
 
         if (isNew) containerEl.prepend(card);
@@ -472,13 +493,14 @@
         const src = vids[0] || '';
         const favSet = global.__galleryFavorites || new Set();
         const favBtn = features.favorite ? imgFavBtnHTML(src, favSet.has(src)) : '';
+        // 右下角「声音开关」按钮（默认静音图标；hover 卡片时由 JS 加 .show 显示）
+        const soundHTML = (features.soundToggle === false) ? '' :
+            `<button onclick="toggleVideoSound(this)" class="gallery-sound" title="声音开关" aria-label="声音开关" style="right:12px;bottom:12px;${BTN_INLINE}">${SOUND_OFF_SVG}</button>`;
         return '<div class="relative group" style="background:#000;">' +
-            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)" onerror="' + onerror + '">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)" onerror="' + onerror + '">' +
             '</video>' +
-            '<div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="z-index:5;">' +
-            '<svg width="36" height="36" viewBox="0 0 24 24" fill="white" style="opacity:.8; filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));"><path d="M8 5v14l11-7z"/></svg>' +
-            '</div>' +
             favBtn +
+            soundHTML +
             '</div>';
     }
 

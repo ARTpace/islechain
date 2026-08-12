@@ -33,7 +33,9 @@ let avatarBusyId = '';
 let activeAssetLibraryId = '';
 let activeAssetCategoryId = '';
 let activeAssetClassFilter = '';
+let activeAssetKindFilter = 'all';
 let openAssetClassGroup = 'environment';
+let assetGridSize = 160;
 let activeWorkflowLibraryId = '';
 let activeWorkflowCategoryId = '';
 let activePromptLibraryId = '';
@@ -422,8 +424,8 @@ function assetKindLabel(item){
 }
 function assetThumb(item){
     const kind = assetKind(item);
-    if(kind === 'video') return `<video src="${escapeAttr(item.url)}" muted preload="metadata" playsinline></video>`;
-    if(kind === 'audio') return `<div class="asset-file-icon"><i data-lucide="file-audio"></i><span>音频</span></div>`;
+    if(kind === 'video') return `<video class="asset-video-thumb" src="${escapeAttr(item.url)}" muted preload="metadata" playsinline controls></video>`;
+    if(kind === 'audio') return `<audio class="asset-audio-thumb" src="${escapeAttr(item.url)}" preload="metadata" controls></audio>`;
     if(kind === 'text') return `<div class="asset-file-icon"><i data-lucide="file-text"></i><span>文本</span></div>`;
     return `<img src="${escapeAttr(item.url)}" alt="${escapeAttr(item.name || 'asset')}" loading="lazy">`;
 }
@@ -635,6 +637,7 @@ function currentAssetItems(){
             ? assetCategories().flatMap(cat => cat.items || [])
             : (activeAssetCategory()?.items || []);
     return source.filter(item => {
+        if(activeAssetKindFilter !== 'all' && assetKind(item) !== activeAssetKindFilter) return false;
         if(!query) return true;
         return [item.name, item.url, assetKindLabel(item), assetClassificationSearchText(item)].join(' ').toLowerCase().includes(query);
     });
@@ -1358,7 +1361,8 @@ function renderLocalUploadAddCard(){
 }
 function renderLocalUploadCard(item){
     const hasCaption = assetKind(item) === 'image' && String(item.caption || '').trim();
-    return `<article class="asset-card ${item.id === selectedLocalUploadId ? 'active' : ''}" data-localup-card="${escapeAttr(item.id)}">
+    const isImg = assetKind(item) === 'image';
+    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedLocalUploadId ? 'active' : ''}" data-localup-card="${escapeAttr(item.id)}">
         <input class="asset-card-check" type="checkbox" data-localup-check="${escapeAttr(item.id)}" ${selectedLocalUploadIds.has(item.id) ? 'checked' : ''}>
         <div class="asset-thumb">${assetThumb(item)}</div>
         <div class="asset-card-body">
@@ -1433,7 +1437,8 @@ function folderContainsLocalActive(folder){
 }
 function renderLocalCard(item){
     const hasCaption = localItemKind(item) === 'image' && String(item.caption || '').trim();
-    return `<article class="asset-card ${item.id === selectedLocalId ? 'active' : ''}" data-local-card="${escapeAttr(item.id)}">
+    const isImg = localItemKind(item) === 'image';
+    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedLocalId ? 'active' : ''}" data-local-card="${escapeAttr(item.id)}">
         <input class="asset-card-check" type="checkbox" data-local-check="${escapeAttr(item.id)}" ${selectedLocalIds.has(item.id) ? 'checked' : ''}>
         <div class="asset-thumb">${localAssetThumb(item)}</div>
         <div class="asset-card-body">
@@ -1510,6 +1515,13 @@ function renderAssetManager(){
                     <span>${assetViewSubtitle(items)}</span>
                 </div>
                 <div class="asset-tools">
+                    <div class="asset-kind-filter" role="tablist" aria-label="素材类型筛选">
+                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'all' ? 'active' : ''}" data-asset-kind-filter="all">全部</button>
+                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'image' ? 'active' : ''}" data-asset-kind-filter="image">图片</button>
+                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'video' ? 'active' : ''}" data-asset-kind-filter="video">视频</button>
+                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'audio' ? 'active' : ''}" data-asset-kind-filter="audio">音频</button>
+                    </div>
+                    <label class="asset-size-wrap" title="调整卡片大小"><i data-lucide="minimize-2"></i><input id="assetGridSize" class="asset-size-range" type="range" min="72" max="320" step="8" value="${assetGridSize}"></label>
                     <label class="asset-search-wrap"><i data-lucide="search"></i><input id="assetSearch" class="asset-search" type="search" value="${escapeAttr(assetQuery)}" placeholder="搜索素材"></label>
                     <button class="asset-btn ${assetManageMode ? 'primary' : ''}" type="button" data-asset-manage><i data-lucide="list-checks"></i><span>${assetManageMode ? '完成管理' : '批量管理'}</span></button>
                 </div>
@@ -1536,10 +1548,10 @@ function renderAssetManager(){
                 </div>
             </div>
             <div class="content-scroll">
-                <div class="asset-grid">
+                <div class="asset-grid" style="--asset-card-min:${assetGridSize}px">
                     ${activeAssetClassFilter ? '' : renderUploadCard(cat)}
                     ${items.map(item => renderAssetCard(item)).join('')}
-                    ${items.length ? '' : '<div class="empty-state">当前分组还没有素材，可以上传，或从智能画布输出保存到素材库。</div>'}
+                    ${items.length ? '' : '<div class="empty-state">当前分组还没有素材，可以上传图片/视频/音频，或从智能画布输出保存到素材库。</div>'}
                 </div>
             </div>
         </section>
@@ -1779,7 +1791,8 @@ function renderAssetTreeInlineEdit(kind){
     </div>`;
 }
 function renderAssetCard(item){
-    return `<article class="asset-card ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}">
+    const isImg = assetKind(item) === 'image';
+    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}">
         <input class="asset-card-check" type="checkbox" data-asset-check="${escapeAttr(item.id)}" ${selectedAssetIds.has(item.id) ? 'checked' : ''}>
         <div class="asset-thumb">${assetThumb(item)}</div>
         <div class="asset-card-body">
@@ -2112,7 +2125,7 @@ function renderPromptDetail(item, readonly){
 }
 async function uploadFiles(files){
     const cat = activeAssetCategory();
-    if(!cat) throw new Error('请先创建图片分组');
+    if(!cat) throw new Error('请先创建素材分组');
     const form = new FormData();
     [...files].forEach(file => form.append('files', file));
     const uploaded = await apiJson('/api/ai/upload', {method:'POST', body:form});
@@ -3045,7 +3058,7 @@ async function handleClick(event){
         await deleteAssetCategory(); return;
     }
     const assetLib = target.closest?.('[data-asset-lib]');
-    if(assetLib){ activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; activeAssetCategoryId = assetCategories()[0]?.id || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    if(assetLib){ activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; activeAssetKindFilter = 'all'; activeAssetCategoryId = assetCategories()[0]?.id || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetClassRoot = target.closest?.('[data-asset-class-root]');
     if(assetClassRoot){
         activeAssetLibraryId = assetClassRoot.dataset.assetClassRoot || activeAssetLibraryId;
@@ -3074,8 +3087,16 @@ async function handleClick(event){
         render();
         return;
     }
+    const assetKindFilter = target.closest?.('[data-asset-kind-filter]');
+    if(assetKindFilter){
+        activeAssetKindFilter = assetKindFilter.dataset.assetKindFilter || 'all';
+        selectedAssetId = '';
+        selectedAssetIds.clear();
+        render();
+        return;
+    }
     const assetCat = target.closest?.('[data-asset-cat]');
-    if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; activeAssetKindFilter = 'all'; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetCard = target.closest?.('[data-asset-card]');
     if(assetCard){ selectedAssetId = assetCard.dataset.assetCard || ''; assetEditMode = false; pendingDeleteAssetId = ''; render(); return; }
 
@@ -3159,8 +3180,8 @@ function showDetailPreview(source, id){
                 : findAssetItem(id);
     if(!item) return;
     const kind = source === 'local' ? (item.kind || localItemKind(item)) : assetKind(item);
-    if(!['image','video'].includes(kind)){
-        setStatus('仅图片和视频支持预览');
+    if(!['image','video','audio'].includes(kind)){
+        setStatus('该类型暂不支持预览');
         return;
     }
     const url = source === 'local' ? localObjectUrl(item) : item.url;
@@ -3171,11 +3192,18 @@ function showDetailPreview(source, id){
     overlay.dataset.scale = '1';
     overlay.dataset.x = '0';
     overlay.dataset.y = '0';
+    const labelText = kind === 'video' ? '视频预览' : kind === 'audio' ? '音频预览' : '图片预览';
+    let mediaHtml;
+    if(kind === 'video'){
+        mediaHtml = `<video class="asset-lightbox-video" src="${escapeAttr(url)}" controls autoplay playsinline preload="metadata"></video>`;
+    } else if(kind === 'audio'){
+        mediaHtml = `<div class="asset-lightbox-audio-wrap"><audio class="asset-lightbox-audio" src="${escapeAttr(url)}" controls autoplay preload="metadata"></audio></div>`;
+    } else {
+        mediaHtml = `<img class="asset-lightbox-image" src="${escapeAttr(url)}" alt="${escapeAttr(item.name || 'preview')}" draggable="false">`;
+    }
     overlay.innerHTML = `
-        <div class="asset-lightbox-inner" role="dialog" aria-modal="true" aria-label="${kind === 'video' ? '视频预览' : '图片预览'}">
-            ${kind === 'video'
-                ? `<video class="asset-lightbox-video" src="${escapeAttr(url)}" controls autoplay playsinline preload="metadata"></video>`
-                : `<img class="asset-lightbox-image" src="${escapeAttr(url)}" alt="${escapeAttr(item.name || 'preview')}" draggable="false">`}
+        <div class="asset-lightbox-inner" role="dialog" aria-modal="true" aria-label="${labelText}">
+            ${mediaHtml}
         </div>
     `;
     document.body.appendChild(overlay);
@@ -3985,6 +4013,12 @@ root.addEventListener('compositionend', event => {
 });
 root.addEventListener('input', event => {
     const searchId = event.target?.id || '';
+    if(searchId === 'assetGridSize'){
+        assetGridSize = parseInt(event.target.value, 10) || 160;
+        const grid = root.querySelector('.asset-grid');
+        if(grid) grid.style.setProperty('--asset-card-min', assetGridSize + 'px');
+        return;
+    }
     if(SEARCH_INPUT_IDS.has(searchId)){
         updateSearchQueryFromInput(searchId, event.target.value || '');
         if(event.isComposing || searchCompositionActive) return;
