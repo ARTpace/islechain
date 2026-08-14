@@ -46,6 +46,10 @@
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260723-v2">
     <script src="/static/app/lora-picker.js?v=20260723-v2"></script>
     <script src="/static/modules/asset-library.js?v=20260811-15"></script>
+    <!-- 智能提示词模块（复用文生图页面 AI 提示词功能） -->
+    <script src="/prompt/static/prompt-module.js?v=20260728-4"></script>
+    <!-- 图片反推模块（复用文生图页面 interrogate 功能，依据参考图反推提示词） -->
+    <script src="/static/modules/reverse-image.js"></script>
     <style>
         :root {
             --bg-base: #f8f8f8;
@@ -166,6 +170,19 @@
         .lv-input:focus, .lv-textarea:focus { outline:none; border-color:var(--primary); background:var(--bg-soft); }
         .lv-input::placeholder, .lv-textarea::placeholder { color:var(--text-faint); }
         .lv-textarea { min-height:140px; resize:vertical; line-height:1.6; }
+        /* 富文本提示词框(contenteditable)：内嵌参考图缩略图 + 悬停大图 */
+        .lv-richprompt { width:100%; min-height:180px; max-height:260px; padding:8px 10px; border:1px solid transparent; border-radius:7px; font-size:12px; line-height:1.9; background:var(--bg-soft); color:var(--text-main); box-sizing:border-box; font-family:inherit; transition:border-color .2s, background .2s; overflow-y:auto; word-break:break-word; white-space:pre-wrap; resize:vertical; cursor:text; }
+        .lv-richprompt > div { display:inline; }
+        .lv-richprompt:focus { outline:none; border-color:var(--primary); background:var(--bg-card); }
+        .lv-richprompt:empty::before { content:attr(data-placeholder); color:var(--text-faint); pointer-events:none; }
+        .lv-chip { display:inline-flex; align-items:center; gap:4px; vertical-align:middle; margin:0 2px; padding:1px 5px 1px 2px; border-radius:6px; background:var(--bg-soft); border:1px solid var(--border-strong); cursor:pointer; user-select:none; white-space:nowrap; }
+        .lv-chip img, .lv-chip video { width:22px; height:22px; object-fit:cover; border-radius:4px; display:block; }
+        .lv-chip .lv-chip-ico { width:14px; height:14px; color:var(--text-soft); }
+        .lv-chip .lv-chip-label { font-size:10.5px; font-weight:600; color:var(--primary); }
+        .lv-chip:hover { border-color:var(--primary); background:var(--bg-soft-hover); }
+        #refHoverPreview { position:fixed; z-index:999; display:none; pointer-events:none; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px; padding:6px; box-shadow:0 8px 30px rgba(0,0,0,.55); }
+        #refHoverPreview img, #refHoverPreview video { max-width:280px; max-height:280px; border-radius:6px; display:block; }
+        #refHoverPreview .lv-hover-name { font-size:10px; color:var(--text-soft); margin-top:4px; text-align:center; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .lv-slider { width:100%; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; outline:none; background:linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,0%), var(--slider-track) var(--pct,0%)); transition:background .15s; }
         .lv-slider::-webkit-slider-runnable-track { -webkit-appearance:none; height:4px; border-radius:2px; background:transparent; }
         .lv-slider::-moz-range-track { height:4px; border-radius:2px; background:transparent; }
@@ -202,10 +219,14 @@
         .lv-btn-primary:disabled { background:var(--text-faint); cursor:not-allowed; box-shadow:none; }
         .lv-btn-ghost { background:transparent; color:var(--text-main); border:1px solid var(--border-strong); }
         .lv-btn-ghost:hover { background:var(--bg-btn-ghost-hover); border-color:var(--primary); color:var(--text-main); }
-        .lv-stage { flex:1; min-height:300px; background:var(--stage-bg); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.4); transition:background .3s; }
+        .lv-stage { flex:2; min-height:220px; background:var(--stage-bg); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.4); transition:background .3s; }
         body.studio-theme-dark .lv-stage { border:1px solid var(--border); box-shadow:inset 0 0 80px rgba(0,240,255,0.04); }
         .lv-stage video { max-width:100%; max-height:100%; width:auto; height:auto; }
         .lv-stage .empty { color:var(--text-mute); font-size:14px; text-align:center; }
+        /* 比例预览框：空舞台时实时显示当前视频比例的形状 */
+        .lv-stage-aspect-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); border:1.5px dashed var(--primary); border-radius:8px; box-sizing:border-box; pointer-events:none; background:rgba(0,240,255,0.05); transition:width .18s, height .18s; }
+        .lv-stage-aspect-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:13px; font-weight:600; color:var(--primary); background:var(--stage-bg); padding:2px 8px; border-radius:5px; letter-spacing:.5px; }
+        body.studio-theme-dark .lv-stage-aspect-label { background:rgba(10,14,20,.85); }
         /* 拖拽放置高亮 + 图片预览 */
         .lv-stage img.lv-result-image { max-width:100%; max-height:100%; width:auto; height:auto; display:block; }
         .lv-stage.lv-drop-active { outline:2px dashed var(--primary); outline-offset:-10px; background:rgba(0,240,255,0.06); }
@@ -353,11 +374,12 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
 .lv-ref-thumb .lv-ref-preview-btn:hover { background:var(--primary); transform:scale(1.1); }
 .lv-ref-thumb .lv-ref-preview-btn svg { width:14px; height:14px; stroke-width:2.6; }
 .lv-ref-thumb video { width:100%; height:100%; object-fit:cover; display:block; }
-/* ============ 生成模式分段控件(文生视频 / 首尾帧 / 参考视频) ============ */
-.lv-genmode { display:flex; gap:6px; margin:2px 0 8px; }
-.lv-genmode-btn { flex:1; padding:7px 4px; font-size:12px; border:1px solid var(--border-strong); border-radius:7px; background:var(--bg-soft); color:var(--text-soft); cursor:pointer; transition:.15s; line-height:1.1; }
-.lv-genmode-btn:hover { border-color:var(--primary); color:var(--primary); }
-.lv-genmode-btn.active { background:rgba(0,240,255,0.14); border-color:var(--primary); color:var(--primary); font-weight:600; box-shadow:0 0 0 1px var(--primary) inset; }
+/* ============ 生成模式下拉框（导演台右侧工具栏） ============ */
+.lv-genmode-wrap { display:inline-flex; align-items:center; flex-shrink:0; }
+.lv-genmode-select { appearance:none; -webkit-appearance:none; height:34px; padding:0 26px 0 10px; font-size:13px; font-weight:600; border:1px solid var(--border-strong); border-radius:8px; background:var(--bg-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center; color:var(--text-main); cursor:pointer; transition:.15s; min-width:110px; }
+.lv-genmode-select:hover { border-color:var(--primary); color:var(--primary); }
+.lv-genmode-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 1px var(--primary), 0 0 8px rgba(0,240,255,0.15); }
+.lv-genmode-select option { background:var(--bg-card); color:var(--text-main); font-weight:500; }
 .lv-genmode-note { font-size:11px; color:var(--text-faint); margin:0 0 8px; line-height:1.4; }
 /* ============ Lightbox 弹窗 ============ */
 .lv-lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; display:none; align-items:center; justify-content:center; padding:24px; backdrop-filter:blur(8px); }
@@ -373,6 +395,24 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
 .lv-lightbox-close:hover { background:rgba(255,255,255,0.25); transform:rotate(90deg); }
 .lv-lightbox-close svg { width:18px; height:18px; stroke-width:2.2; }
 .lv-lightbox-type { position:absolute; top:-40px; left:0; color:rgba(0,240,255,0.9); font-size:11px; letter-spacing:1px; padding:6px 12px; background:rgba(0,0,0,0.4); border:1px solid rgba(0,240,255,0.3); border-radius:6px; }
+        /* ============ AI 编剧弹窗 ============ */
+        .lv-modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9600; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); }
+        .lv-modal { width:min(560px, 92vw); max-height:88vh; overflow:auto; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.45); display:flex; flex-direction:column; }
+        .lv-modal-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+        .lv-modal-title { display:flex; align-items:center; gap:7px; font-weight:700; font-size:14px; color:var(--text-main); }
+        .lv-modal-title i { width:16px; height:16px; color:var(--primary); }
+        .lv-modal-close { width:28px; height:28px; padding:0; border:none; border-radius:8px; background:transparent; color:var(--text-faint); font-size:20px; line-height:1; cursor:pointer; }
+        .lv-modal-close:hover { background:var(--bg-btn-ghost-hover); color:var(--text-main); }
+        .lv-modal-body { padding:16px; display:flex; flex-direction:column; gap:2px; }
+        .lv-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+        .lv-label-hint { font-size:11px; color:var(--text-faint); font-weight:400; margin-left:8px; }
+        .lv-script-mode { display:flex; gap:8px; }
+        .lv-script-mode-btn { flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text-main); font-size:12.5px; cursor:pointer; transition:.15s; }
+        .lv-script-mode-btn:hover { border-color:var(--primary); }
+        .lv-script-mode-btn.active { background:var(--primary); border-color:var(--primary); color:#0a0e17; font-weight:600; }
+        .lv-modal-select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-card); color:var(--text-main); font-size:12.5px; cursor:pointer; outline:none; }
+        .lv-modal-select:focus { border-color:var(--primary); }
+        .lv-btn-primary i { width:14px; height:14px; }
         .lv-spinner { width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; }
         body.studio-theme-dark .lv-spinner { border-color:rgba(10,14,23,0.3); border-top-color:#0a0e17; }
         .lv-empty-hint { color:var(--text-faint); font-size:12px; padding:14px; }
@@ -383,28 +423,11 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
         .lv-empty-hint { color:var(--text-faint); font-size:12px; padding:14px; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
-        /* ============ 种子: 随机 / 固定 分段切换 ============ */
-        .lv-seg { display:flex; gap:4px; padding:3px; background:var(--bg-soft); border:1px solid var(--border); border-radius:8px; }
-        .lv-seg-opt { flex:1; padding:8px 10px; background:transparent; border:none; border-radius:6px; color:var(--text-soft); font-size:12px; font-weight:500; cursor:pointer; transition:.15s; }
-        .lv-seg-opt:hover { color:var(--text-main); }
-        .lv-seg-opt.active { background:var(--primary); color:#0a0e17; font-weight:600; }
-        /* 生成行: 生成视频按钮 + 种子开关 并排 */
-        .lv-run-row { display:flex; align-items:stretch; gap:8px; }
+        /* 种子开关：随机/固定 图标按钮 */
         .lv-run-aspect { flex:0 0 auto; width:96px; min-width:0; }
         .lv-seed-toggle { flex:0 0 auto; width:54px; padding:0; display:flex; align-items:center; justify-content:center; }
         .lv-seed-toggle.active { background:var(--primary); color:#0a0e17; border-color:var(--primary); }
         .lv-seed-toggle .seed-ico { width:20px; height:20px; }
-        /* 生成行按钮收紧(更小更紧凑) */
-        .lv-run-row .lv-select-trigger { height:38px; padding:0 8px; font-size:12px; border-radius:8px; }
-        .lv-run-row .lv-select-preview { width:14px; height:14px; }
-        .lv-run-row .lv-seed-toggle { width:38px; height:38px; border-radius:8px; }
-        .lv-run-row .lv-seed-toggle .seed-ico { width:16px; height:16px; }
-        .lv-run-row .lv-btn { padding:8px 13px; font-size:12px; border-radius:8px; }
-        /* LoRA 图标按钮(生成行, 仅图标 + 数量角标) */
-        .lv-lora-btn { position:relative; flex:0 0 auto; width:38px; height:38px; padding:0; }
-        .lv-lora-btn i { width:18px; height:18px; }
-        .lv-lora-btn.active { color:var(--primary); border-color:var(--primary); background:rgba(0,240,255,0.08); }
-        .lv-lora-count { position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 4px; border-radius:9px; background:var(--primary); color:#0a0e17; font-size:10px; font-weight:700; line-height:16px; text-align:center; box-sizing:border-box; }
 
         /* ============ 移动端优化 (窄屏 / 手机) ============ */
         /* 用 dvh 规避移动端地址栏导致的 100vh 高度截断; 整页改为可滚动 */
@@ -416,8 +439,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
             /* 顶栏换行: 标题行更紧凑, 工作流标签整行可横滑 */
             .lv-header { flex-wrap:wrap; gap:8px; padding:12px 0 10px; }
             .lv-header > div[style*="flex:1"] { display:none; }   /* 隐藏右侧占位 spacer */
-            /* 生成行: 手机上比例下拉换行占满, 不与生成/种子挤一行 */
-            .lv-run-row { flex-wrap:wrap; }
+            /* 手机上比例下拉换行占满 */
             .lv-run-aspect { flex:1 1 100%; width:100%; order:3; margin-top:6px; }
             .lv-select-panel { min-width:0; }
             .lv-mention { min-width:0; }
@@ -438,17 +460,12 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
             .lv-card { padding:12px 14px; }
             .lv-label { font-size:12px; }
             .lv-input, .lv-textarea { font-size:16px; padding:10px 12px; }
-            /* 种子开关已精简为图标按钮, 无输入框 */
-            .lv-seg-opt { padding:11px 10px; touch-action:manipulation; }
             .lv-note { font-size:12px; }
 
             /* 触摸目标放大, 去除点击 300ms 延迟 */
             .lv-btn { padding:13px 18px; font-size:14px; touch-action:manipulation; }
             .lv-tab { padding:9px 8px; font-size:12px; touch-action:manipulation; }
             .lv-select-trigger { height:48px; }
-            .lv-run-row .lv-select-trigger { height:44px; }
-            .lv-run-row .lv-seed-toggle, .lv-run-row .lv-lora-btn { width:44px; height:44px; }
-            .lv-run-row .lv-btn { padding:11px 14px; font-size:13px; }
             .lv-ref-drop { padding:16px 12px; }
 
             /* 滑条: 加粗轨道 + 更大滑块, 便于手指拖动 */
@@ -474,38 +491,86 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
         }
         /* ============ 导演台 / 分镜时间轴 ============ */
     /* 导演台开关条(已迁移到右侧主区域顶部, 常驻可见, 不占左侧边栏) */
-    .lv-switch { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
     .lv-director-switchbar { display:flex; align-items:center; gap:10px; padding:9px 14px; background:var(--bg-soft); border:1px solid var(--border); border-radius:10px; margin-bottom:12px; flex-wrap:wrap; }
-    .lv-director-switchbar .lv-switch-label { font-size:13px; color:var(--text-main); font-weight:600; }
-    .lv-director-switchbar .lv-director-bar { flex:1; min-width:0; }
+    .lv-director-switchbar .lv-director-bar { flex:1; min-width:0; display:flex; align-items:center; gap:6px; justify-content:flex-end; }
     /* 导演台按钮形开关：OFF=边框灰、ON=主色填充 */
     .lv-director-toggle-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; font-size:13px; font-weight:600; color:var(--text-main); background:transparent; border:1px solid var(--border); border-radius:8px; cursor:pointer; user-select:none; transition:all .15s; font-family:inherit; }
     .lv-director-toggle-btn i { width:15px; height:15px; }
     .lv-director-toggle-btn:hover { border-color:var(--primary); color:var(--primary); }
     body.lv-director-on .lv-director-toggle-btn { background:var(--primary); border-color:var(--primary); color:#fff; }
     body.lv-director-on .lv-director-toggle-btn:hover { filter:brightness(1.1); }
-    /* OFF 状态下隐藏导演台工具栏的子配置项，仅保留「生成整条」主按钮（更紧凑） */
-    body.lv-director-off .lv-director-bar .lv-director-title,
-    body.lv-director-off .lv-director-bar .lv-director-info,
-    body.lv-director-off .lv-director-bar .lv-switch,
-    body.lv-director-off .lv-director-bar #addSegBtn,
-    body.lv-director-off .lv-director-bar #delSegBtn,
-    body.lv-director-off .lv-director-bar #directorMore { display:none !important; }
-    body.lv-director-off .lv-director-bar { gap:0; }
+    /* OFF 状态下隐藏导演台工具栏的子配置项，仅保留开关（更紧凑） */
+    body.lv-director-off .lv-director-bar .lv-icon-btn,
+    body.lv-director-off .lv-director-bar .lv-dropdown,
+    body.lv-director-off .lv-director-bar .lv-toolbar-divider,
+    body.lv-director-off .lv-director-bar .lv-genmode-wrap { display:none !important; }
     .lv-director-switch-hint { font-size:11px; color:var(--text-faint); }
-    .lv-switch input { display:none; }
-    .lv-switch-slider { width:40px; height:22px; border-radius:999px; background:var(--border-strong); position:relative; transition:background .2s; flex-shrink:0; }
-    .lv-switch-slider::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .2s; box-shadow:0 1px 2px rgba(0,0,0,.3); }
-    .lv-switch input:checked + .lv-switch-slider { background:var(--primary); }
-    .lv-switch input:checked + .lv-switch-slider::after { transform:translateX(18px); }
+    /* 导演台工具条内的 比例下拉 / 种子开关 紧凑化，与相邻按钮同高 */
+    .lv-director-bar .lv-run-aspect { width:auto; }
+    .lv-director-bar .lv-select { display:inline-flex; }
+    .lv-director-bar .lv-select-trigger { height:34px; padding:0 8px; font-size:12px; border-radius:8px; }
+    .lv-director-bar .lv-select-preview { width:14px; height:14px; }
+    .lv-director-bar .lv-select-preview-rect { border-width:1.2px; }
+    .lv-director-bar .lv-select-name { font-size:12px; }
+    /* 比例面板改为向下展开，与参数弹出方向一致、右对齐 */
+    .lv-director-bar .lv-select-panel { top:calc(100% + 6px); bottom:auto; left:auto; right:0; min-width:200px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    .lv-director-bar .lv-seed-toggle { width:34px; height:34px; border-radius:8px; flex:0 0 auto; padding:0; }
+    .lv-director-bar .lv-seed-toggle .seed-ico { width:18px; height:18px; }
+    /* 合并设置面板内的种子行 */
+    .lv-settings-seed { display:flex; align-items:center; gap:10px; }
+    .lv-settings-seed .lv-seed-toggle { width:34px; height:34px; border-radius:8px; padding:0; }
+    .lv-settings-seed .lv-seed-toggle .seed-ico { width:18px; height:18px; }
+    #seedStatusText { font-size:12px; color:var(--text-soft); }
+    /* 通用图标按钮 */
+    .lv-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0; border:1px solid var(--border); border-radius:8px; background:var(--bg-soft); color:var(--text-soft); cursor:pointer; transition:all .15s; flex-shrink:0; }
+    .lv-icon-btn i { width:18px; height:18px; }
+    .lv-icon-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); background:var(--bg-card); }
+    .lv-icon-btn.on { background:var(--primary); border-color:var(--primary); color:#0a0e17; }
+    .lv-icon-btn.on:hover:not(:disabled) { filter:brightness(1.1); }
+    .lv-icon-btn:disabled { opacity:0.4; cursor:not-allowed; border-color:var(--border); color:var(--text-faint); background:var(--bg-soft); }
+    .lv-run-btn { display:inline-flex; align-items:center; gap:5px; height:34px; padding:0 12px; font-size:13px; font-weight:600; border:none; border-radius:8px; background:var(--primary); color:#0a0e17; cursor:pointer; transition:all .15s; flex-shrink:0; }
+    .lv-run-btn i { width:16px; height:16px; }
+    .lv-run-btn:hover { filter:brightness(1.1); }
+    .lv-run-btn:disabled { opacity:0.5; cursor:not-allowed; filter:none; }
+    /* 组合生成按钮：主按钮 + 小三角下拉（当前片段 / 整条） */
+    .lv-gen-wrap { position:relative; display:inline-flex; align-items:stretch; flex-shrink:0; }
+    .lv-gen-wrap .lv-run-btn { border-radius:8px 0 0 8px; }
+    .lv-gen-caret { width:22px; padding:0; border:none; border-left:1px solid rgba(10,14,23,.25); border-radius:0 8px 8px 0; background:var(--primary); color:#0a0e17; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all .15s; flex-shrink:0; }
+    .lv-gen-caret i { width:13px; height:13px; }
+    .lv-gen-caret:hover:not(:disabled) { filter:brightness(1.1); }
+    .lv-gen-caret:disabled { opacity:.5; cursor:not-allowed; filter:none; }
+    .lv-gen-menu { display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:120; min-width:110px; padding:4px; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    .lv-gen-wrap.open .lv-gen-menu { display:block; animation:lvPopIn .12s ease; }
+    .lv-gen-item { display:block; width:100%; padding:8px 12px; border:none; border-radius:6px; background:transparent; color:var(--text-soft); font-size:12px; text-align:left; cursor:pointer; transition:.15s; font-family:inherit; white-space:nowrap; }
+    .lv-gen-item:hover:not(:disabled) { background:var(--bg-soft); color:var(--text-main); }
+    .lv-gen-item.active { color:var(--primary); font-weight:600; }
+    .lv-gen-item:disabled { opacity:.4; cursor:not-allowed; }
+    .lv-toolbar-divider { width:1px; height:20px; background:var(--border-strong); margin:0 2px; flex-shrink:0; }
+    /* 弹出参数按钮（精度 / 步数 / 时长 / 帧率）：点击展开滑条面板 */
+    .lv-param-pop { position:relative; display:inline-flex; flex-shrink:0; }
+    .lv-param-trigger { display:inline-flex; align-items:center; gap:5px; height:34px; padding:0 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-soft); color:var(--text-soft); cursor:pointer; transition:all .15s; font-family:inherit; }
+    .lv-param-trigger i { width:16px; height:16px; flex-shrink:0; }
+    .lv-param-trigger:hover { border-color:var(--primary); color:var(--primary); background:var(--bg-card); }
+    .lv-param-val { font-size:12px; font-weight:700; color:var(--text-main); min-width:16px; text-align:center; }
+    .lv-param-pop.open .lv-param-trigger { border-color:var(--primary); color:var(--primary); background:rgba(0,240,255,0.08); }
+    .lv-param-panel { display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:120; min-width:230px; padding:12px 14px; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    .lv-param-pop.open .lv-param-panel { display:block; animation:lvPopIn .12s ease; }
+    @keyframes lvPopIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    .lv-param-panel .lv-field { margin-bottom:0; }
+    .lv-param-panel .lv-label { margin-bottom:6px; }
     .lv-switch-label { font-size:12px; color:var(--text-soft); }
     /* 导演台工具条内的开关：文字色与相邻按钮一致 */
     .lv-director-bar .lv-switch { gap:7px; }
     .lv-director-bar .lv-switch-label { color:var(--text-main); font-size:12px; font-weight:500; }
     .lv-director { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin-bottom:12px; }
     .lv-director-bar { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+    /* 时间轴底部控制条（添加/删除/更多/连续播放），像播放器控件 */
+    .lv-timeline-controls { display:flex; align-items:center; justify-content:center; gap:8px; padding-top:8px; margin-top:2px; border-top:1px solid var(--border); }
+    .lv-timeline-btn { width:28px; height:28px; border-radius:8px; }
+    .lv-timeline-btn i { width:15px; height:15px; }
+    .lv-timeline-btn.on { background:var(--primary); border-color:var(--primary); color:#0a0e17; }
+    .lv-timeline-controls .lv-dropdown-menu { top:auto; bottom:calc(100% + 4px); right:0; }
     .lv-director-title { display:flex; align-items:center; gap:6px; font-weight:800; font-size:13px; }
-    .lv-director-info { font-size:11px; color:var(--text-faint); }
     .lv-btn-icon { width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; flex-shrink:0; }
     .lv-btn-icon i { width:16px; height:16px; }
     /* 导演台工具栏「更多」下拉 */
@@ -516,6 +581,12 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-dropdown-item:hover { background:var(--bg-btn-ghost-hover); }
     .lv-dropdown-item i { width:15px; height:15px; flex-shrink:0; }
     .lv-timeline { overflow-x:auto; padding-bottom:6px; }
+    .lv-time-ruler { position:relative; display:flex; align-items:stretch; width:max-content; height:24px; margin:2px 0 4px; flex-shrink:0; }
+    .lv-ruler-block { position:relative; height:100%; border-right:1px solid rgba(255,255,255,.18); box-sizing:border-box; }
+    .lv-ruler-block.active { background:rgba(245,158,11,.14); }
+    .lv-ruler-label { position:absolute; top:3px; left:3px; font-size:9px; line-height:1; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
+    .lv-ruler-end { position:absolute; top:3px; right:3px; font-size:9px; line-height:1; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
+    .lv-ruler-block.active .lv-ruler-label, .lv-ruler-block.active .lv-ruler-end { color:#f59e0b; }
     .lv-timeline-track { position:relative; display:flex; align-items:flex-start; gap:8px; min-height:92px; padding:2px 0; width:max-content; }
     /* 统一卡片 = 时间轴片段：宽度按帧数×帧高比例, 高度固定(帧区撑满剩余, 拖动只变宽度) */
     .lv-clip { position:relative; flex:0 0 auto; height:88px; border:1px solid var(--border); border-radius:10px; background:var(--bg-soft); padding:5px; cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .12s; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
@@ -555,7 +626,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-clip-clear { position:absolute; top:3px; right:22px; width:16px; height:16px; border:none; border-radius:50%; background:rgba(0,0,0,.45); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:3; }
     .lv-clip-clear:hover { background:#f59e0b; }
     .lv-clip-clear svg { width:11px; height:11px; }
-    /* 跨段衔接角标（左上，紧挨序号） */
+    /* 段间引导角标（左上，紧挨序号） */
     .lv-clip-cont { position:absolute; top:3px; left:26px; z-index:3; font-size:9px; font-weight:800; line-height:1; color:#fff; background:#16a34a; border-radius:4px; padding:2px 4px; box-shadow:0 1px 3px rgba(0,0,0,.3); }
     /* 片段卡片：选择运行开关（左下） */
     .lv-clip-run { position:absolute; bottom:3px; left:4px; z-index:3; display:inline-flex; align-items:center; gap:3px; font-size:9px; font-weight:700; line-height:1; color:#fff; background:rgba(22,163,74,.92); border-radius:4px; padding:2px 4px; cursor:pointer; user-select:none; }
@@ -574,19 +645,12 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-clip-drophover::after { content:'拖入视频'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--primary); background:rgba(0,122,255,.08); border-radius:10px; pointer-events:none; z-index:2; }
     .lv-clip-dragging { opacity:.4; }
     .lv-clip-movetarget { border-color:var(--primary) !important; box-shadow:0 0 0 2px rgba(0,122,255,.45); border-style:dashed; }
-    /* 衔接连线 + 全局播放头（叠在统一轨道 #timelineTrack 上） */
+    /* 衔接连线（卡片间）+ 全局播放头（播放头现叠在按比例的时间刻度条 #timeRuler 上，沿真实时间轴移动） */
     .lv-seq-connector { position:absolute; top:50%; transform:translate(-50%,-50%); width:16px; height:10px; pointer-events:none; z-index:5; }
     .lv-seq-connector::before { content:''; position:absolute; left:0; top:50%; width:9px; height:2px; background:#16a34a; transform:translateY(-50%); border-radius:2px; }
     .lv-seq-connector::after { content:''; position:absolute; right:0; top:50%; width:0; height:0; border-top:4px solid transparent; border-bottom:4px solid transparent; border-left:6px solid #16a34a; transform:translateY(-50%); }
-    .lv-seq-playhead { position:absolute; top:-22px; bottom:-3px; width:2px; background:#f59e0b; box-shadow:0 0 6px rgba(245,158,11,.85); pointer-events:none; z-index:6; display:none; border-radius:2px; }
-    .lv-seq-playhead::before { content:''; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%); border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid #f59e0b; }
-    /* 时间刻度尺(片段上方, 点击定位到任意绝对时间) */
-    .lv-seq-ruler { position:relative; height:18px; margin:0 0 5px; width:max-content; cursor:pointer; user-select:none; }
-    .lv-seq-ruler::after { content:''; position:absolute; left:0; right:0; bottom:0; height:1px; background:rgba(255,255,255,.18); }
-    .lv-ruler-tick { position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.34); pointer-events:none; }
-    .lv-ruler-tick.major { background:rgba(255,255,255,.45); }
-    .lv-ruler-tick.minor { top:auto; bottom:0; height:6px; background:rgba(255,255,255,.16); }
-    .lv-ruler-tick-label { position:absolute; top:1px; left:3px; font-size:9px; line-height:1; color:var(--text-faint); white-space:nowrap; pointer-events:none; font-variant-numeric:tabular-nums; }
+    .lv-seq-playhead { position:absolute; top:0; bottom:0; width:2px; background:#f59e0b; box-shadow:0 0 6px rgba(245,158,11,.85); pointer-events:none; z-index:6; display:none; border-radius:2px; }
+    .lv-seq-playhead::before { content:''; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid #f59e0b; }
     /* 右键菜单 */
     .lv-ctx-menu { position:fixed; z-index:9999; min-width:130px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.25); padding:4px 0; }
     .lv-ctx-item { display:flex; align-items:center; gap:8px; padding:7px 12px; font-size:12px; color:var(--text); cursor:pointer; white-space:nowrap; }
@@ -594,9 +658,11 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-ctx-item svg { width:14px; height:14px; flex-shrink:0; opacity:.7; }
     .lv-timeline-empty { color:var(--text-faint); font-size:12px; padding:24px 0; text-align:center; width:100%; }
 
-    /* ===== LoRA 卡片 ===== */
-    .lv-lora-hint { margin-bottom:6px; color:var(--text-faint); }
-    .lv-lora-empty { color:var(--text-faint); }
+    /* ===== LoRA 在参考媒体 Tab 内 ===== */
+    /* 复用 .lv-ref-stack 的横滚容器；内部卡片单行排列, 高度固定不拉伸 */
+    .lv-lora-bar { display:flex; flex-wrap:nowrap; align-items:flex-start; gap:8px; }
+    /* 选中态卡片与参考缩略图对齐顶部 */
+    .lv-lora-bar .lac-card { margin-bottom:0; }
     .lv-mini-btn { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--border-strong); background:transparent; color:var(--text-dim); border-radius:6px; padding:3px 8px; font-size:11px; cursor:pointer; font-family:inherit; }
     .lv-mini-btn:hover { color:var(--primary); border-color:var(--primary); background:rgba(0,240,255,0.06); }
     .lv-mini-btn svg { width:11px; height:11px; stroke-width:2.4; }
@@ -608,7 +674,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-ref-role.first { background:#16a34a; }
     .lv-ref-role.last { background:#f59e0b; }
 
-    /* 导演台可视化时间轴已与片段卡片列表合二为一（卡片即时间轴），相关样式见上方 .lv-clip* / .lv-seq-connector / .lv-seq-playhead */
+    /* 导演台：上方 #timeRuler 为按真实时长比例的时间刻度条（播放头沿此轴走），下方 #timelineTrack 为与时长无关的等宽片段卡片（storyboard）。相关样式见 .lv-time-ruler* / .lv-clip* / .lv-seq-connector / .lv-seq-playhead */
 
     /* ============ 历史区工具栏吸顶 ============ */
     .lv-history-section .history-bulk-toolbar {
@@ -689,11 +755,8 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
 
     <div class="layout-container lv-body">
         <aside class="lv-side">
-            <!-- 生成模式：单一功能切换入口。按钮按当前工作流动态渲染（导演台=自动/文生/图生/首尾帧/参考生体；单段 MiniMax=文生/参考视频/首尾帧）。见 renderGenModeButtons() -->
-            <div id="genModeWrap" data-wf-only="video/MiniMax_H3.json,video/MiniMax_H3_首尾帧.json,video/MiniMax H3 导演台全能工作流.json">
-                <div class="lv-genmode" id="genMode" role="group" aria-label="生成模式"><!-- JS 填充 --></div>
-                <div class="lv-genmode-note" id="genModeNote" style="display:none;"></div>
-            </div>
+            <!-- 生成模式提示：控件已移到导演台右侧工具栏，这里保留模式说明 -->
+            <div class="lv-genmode-note" id="genModeNote" style="display:none;" data-wf-only="video/MiniMax_H3.json,video/MiniMax_H3_首尾帧.json,video/MiniMax H3 导演台全能工作流.json"></div>
             <div class="lv-card" id="refMediaCard" data-wf-only="video/MiniMax_H3.json,video/MiniMax_H3_首尾帧.json,video/MiniMax H3 导演台全能工作流.json" style="display:none;">
                 <div class="lv-card-title">
                     <i data-lucide="layers"></i>参考媒体
@@ -701,11 +764,12 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                     <button type="button" class="lv-lib-import-btn" id="refLibImportBtn" title="从资产库选择素材导入为参考"><i data-lucide="library"></i><span>从资产库</span></button>
                     <span class="lv-status" id="refCount">0</span>
                 </div>
-                <!-- Tab 切换:图片 / 视频 / 音频 -->
+                <!-- Tab 切换:图片 / 视频 / 音频 / LoRA -->
                 <div class="lv-tabs" id="refTabs">
                     <button type="button" class="lv-tab active" data-tab="image">图片 <span class="lv-tab-count" id="refImgCount">0</span></button>
                     <button type="button" class="lv-tab" data-tab="video">视频 <span class="lv-tab-count" id="refVidCount">0</span></button>
                     <button type="button" class="lv-tab" data-tab="audio">音频 <span class="lv-tab-count" id="refAudCount">0</span></button>
+                    <button type="button" class="lv-tab" data-tab="lora">LoRA <span class="lv-tab-count" id="refLoraCount">0</span></button>
                 </div>
                 <!-- ============= 图片 Tab ============= -->
                 <div class="lv-tab-panel" data-panel="image">
@@ -746,6 +810,21 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                     <div class="lv-ref-stack" id="audStack" style="display:none;"></div>
                     <div class="lv-note" style="margin-top:6px;">独立音频引于 &lt;Audio j&gt;;视频自带音轨走视频 Tab</div>
                 </div>
+                <!-- ============= LoRA Tab ============= -->
+                <div class="lv-tab-panel" data-panel="lora" style="display:none;">
+                    <!-- 空状态：点击添加 LoRA（与其它参考 Tab 一致） -->
+                    <div class="lv-ref-wrap" id="loraEmpty">
+                        <div class="lv-ref-drop" id="loraDrop" role="button" tabindex="0" title="点击添加 LoRA">
+                            <i data-lucide="layers" style="width:28px;height:28px;opacity:.6;"></i>
+                            <div style="margin-top:4px;font-size:12px;">点击添加 LoRA</div>
+                            <div style="margin-top:2px;font-size:11px;opacity:.55;">叠加风格 / 角色 LoRA</div>
+                        </div>
+                    </div>
+                    <!-- 已选 LoRA：单行横滚（与其它参考栈一致） -->
+                    <div class="lv-ref-stack" id="loraStack" style="display:none;">
+                        <div id="loraActiveBar" class="lv-lora-bar"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="lv-card" data-wf-only="LTX23-图生视频.json">
@@ -770,12 +849,21 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
 
             <div class="lv-card" style="padding-top:8px;">
                 <div class="lv-card-title" style="font-size:11px;margin-bottom:4px;"><i data-lucide="type" style="width:14px;height:14px;"></i>提示词
-                    <button type="button" class="lv-expand-prompt" id="expandPromptBtn" title="打开悬浮提示词窗口，方便单独编辑">
-                        <i data-lucide="maximize-2"></i><span>展开编辑</span>
-                    </button>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span id="smartPromptContainer"></span>
+                        <button type="button" class="lv-icon-btn" id="reversePromptBtn" title="依据参考图反推提示词（支持拖入图片）">
+                            <i data-lucide="scan-search"></i>
+                        </button>
+                        <button type="button" class="lv-icon-btn lv-clear-prompt" id="clearPromptBtn" title="一键清空提示词（含当前片段提示词）">
+                            <i data-lucide="eraser"></i>
+                        </button>
+                        <button type="button" class="lv-icon-btn" id="expandPromptBtn" title="打开悬浮提示词窗口，方便单独编辑">
+                            <i data-lucide="maximize-2"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="lv-field" style="margin-bottom:0;position:relative;">
-                    <textarea class="lv-textarea" id="prompt" placeholder="正向提示词：描述视频内容…（输入 @ 可引用参考图/视频/音频）" style="margin-top:0;"></textarea>
+                    <div class="lv-richprompt" id="prompt" contenteditable="true" data-placeholder="正向提示词：描述视频内容…（输入 @ 可引用参考图/视频/音频）" style="margin-top:0;"></div>
                     <div class="lv-mention" id="promptMention"></div>
                 </div>
                 <details class="lv-collapse" data-wf-only="LTX23-图生视频.json" style="margin-top:6px;">
@@ -787,82 +875,10 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
             </div>
 
             <div class="lv-card">
-                <div class="lv-run-row">
-                    <div class="lv-run-aspect">
-                        <input type="hidden" id="aspect_ratio" value="3:4 (Portrait Standard)">
-                        <div class="lv-select" id="aspectSelect">
-                            <button type="button" class="lv-select-trigger" id="aspectTrigger">
-                                <span class="lv-select-preview" id="aspectPreview"></span>
-                                <span class="lv-select-name" id="aspectName">3:4</span>
-                                <i class="lv-select-chev" data-lucide="chevron-down"></i>
-                            </button>
-                            <div class="lv-select-panel" id="aspectPanel"></div>
-                        </div>
-                    </div>
-                    <button class="lv-btn lv-btn-ghost lv-seed-toggle" id="seedToggle" type="button" title="随机种子（点击锁定固定）">
-                        <i data-lucide="dices" class="seed-ico seed-ico-random"></i>
-                        <i data-lucide="lock" class="seed-ico seed-ico-fixed" style="display:none;"></i>
-                    </button>
-                    <input type="hidden" id="seedInput" value="-1">
-                    <button type="button" class="lv-btn lv-btn-ghost lv-lora-btn" id="loraPickBtn" title="选择 / 管理 LoRA">
-                        <i data-lucide="layers"></i>
-                        <span class="lv-lora-count" id="loraCountBadge" style="display:none;">0</span>
-                    </button>
-                    <button class="lv-btn lv-btn-primary" id="runBtn" style="flex:1;justify-content:center;">
-                        <i data-lucide="play"></i>
-                        <span>生成视频</span>
-                    </button>
-                </div>
-                <div class="lv-note" id="vramNote" style="margin-top:8px;"></div>
+                <div class="lv-note" id="vramNote" style="margin-top:0;"></div>
                 <div class="lv-note" id="wfHint" style="margin-top:4px;color:var(--primary);display:none;"></div>
             </div>
 
-            <!-- 参数卡片: LTX / MiniMax 共用, 以 MiniMax H3 参数 UI 为准 -->
-            <div class="lv-card">
-                <div class="lv-card-title"><i data-lucide="sliders-horizontal"></i>参数<button type="button" class="lv-reset-btn" id="resetParams" title="重置参数" aria-label="重置参数"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>重置</span></button></div>
-
-                <div class="lv-field">
-                    <div class="lv-label">
-                        <span data-tip="3-15 秒" id="length_note">时长 (秒)</span>
-                        <span id="length_val">5</span>
-                    </div>
-                    <input class="lv-slider" type="range" id="length" min="3" max="15" step="1" value="5">
-                </div>
-
-                <div class="lv-field">
-                    <div class="lv-label">
-                        <span data-tip="3:4 → 540P" id="megapixelsNote">精度 (百万像素)</span>
-                        <span id="megapixelsVal">0.5</span>
-                    </div>
-                    <input type="range" class="lv-slider" id="megapixels" min="0.2" max="1.0" step="0.1" value="0.5">
-                </div>
-
-                <div class="lv-field">
-                    <div class="lv-label">
-                        <span data-tip="视频帧率 (15-60 fps, 默认 24)" id="fps_note">帧率 (FPS)</span>
-                        <span id="fps_val">24</span>
-                    </div>
-                    <input class="lv-slider" type="range" id="fps" min="15" max="60" step="1" value="24">
-                </div>
-
-                <div class="lv-field">
-                    <div class="lv-label">
-                        <span data-tip="采样步数 (4-25, LTX 推荐 4-8)" id="steps_note">采样步数</span>
-                        <span id="steps_val">8</span>
-                    </div>
-                    <input class="lv-slider" type="range" id="steps" min="4" max="25" step="1" value="8">
-                </div>
-
-            </div>
-
-            <!-- LoRA 卡片: LTX / MiniMax 通用, 每个片段独立存储 -->
-            <div class="lv-card lv-lora-card" data-wf-only="LTX23-图生视频.json,video/MiniMax_H3.json,video/MiniMax_H3_首尾帧.json,video/MiniMax H3 导演台全能工作流.json">
-                <div class="lv-card-title"><i data-lucide="layers"></i>LoRA 模型</div>
-                <div class="lv-note lv-lora-hint">叠加风格 / 角色 LoRA（LTX / MiniMax 通用）</div>
-                <!-- LoRA 激活栏：封面 + 强度调节（使用共享 lac-card 样式） -->
-                <div id="loraActiveBar" class="flex flex-wrap gap-1"></div>
-                <div id="loraEmptyHint" class="lv-note lv-lora-empty" style="display:none;">尚未选择 LoRA</div>
-            </div>
         </aside>
 
         <div class="lv-main">
@@ -876,35 +892,142 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <input type="checkbox" id="directorToggle" style="display:none;">
                 <!-- 开关 + 设置行整合：单行条件下显示，OFF 时仅保留「生成整条」-->
                 <div class="lv-director-bar" id="directorBar">
-                    <span class="lv-director-info" id="directorInfo"></span>
-                    <label class="lv-switch" id="continuityWrap" title="开启节点原生「段间引导」：相邻片段间自动对齐首/尾帧外观，让画面衔接更连贯（需 ≥2 个片段才生效）">
-                        <input type="checkbox" id="continuityToggle">
-                        <span class="lv-switch-slider"></span>
-                        <span class="lv-switch-label">跨段衔接</span>
-                    </label>
-                    <label class="lv-switch" id="cacheWrap" title="开启后，若某片段参数自上次成功生成后未变化且已有成片，则跳过重新生成、直接复用">
-                        <input type="checkbox" id="cacheToggle">
-                        <span class="lv-switch-slider"></span>
-                        <span class="lv-switch-label">复用缓存</span>
-                    </label>
-                    <span style="flex:1"></span>
-                    <button type="button" class="lv-btn lv-btn-icon" id="addSegBtn" title="添加片段"><i data-lucide="plus"></i></button>
-                    <button type="button" class="lv-btn lv-btn-icon" id="delSegBtn" title="删除片段"><i data-lucide="trash-2"></i></button>
-                    <div class="lv-dropdown" id="directorMore">
-                        <button type="button" class="lv-btn lv-btn-icon lv-dropdown-toggle" title="更多"><i data-lucide="more-vertical"></i></button>
-                        <div class="lv-dropdown-menu">
-                            <button type="button" class="lv-dropdown-item" id="concatBtn"><i data-lucide="film"></i> 合成成片</button>
-                            <button type="button" class="lv-dropdown-item" id="clearSegBtn"><i data-lucide="trash"></i> 清空所有</button>
+                    <!-- 段间引导（图标开关） -->
+                    <button type="button" class="lv-icon-btn" id="continuityBtn" title="段间引导：相邻片段间自动对齐首/尾帧外观，让画面衔接更连贯（需 ≥2 个片段才生效）" aria-pressed="false">
+                        <i data-lucide="link"></i>
+                    </button>
+                    <input type="checkbox" id="continuityToggle" style="display:none;">
+
+                    <!-- 复用缓存（图标开关） -->
+                    <button type="button" class="lv-icon-btn" id="cacheBtn" title="复用缓存：若片段参数未变化且已有成片，则跳过重新生成、直接复用" aria-pressed="false">
+                        <i data-lucide="rotate-ccw"></i>
+                    </button>
+                    <input type="checkbox" id="cacheToggle" style="display:none;">
+
+                    <!-- 时长（秒）弹出参数 -->
+                    <div class="lv-param-pop" id="lengthPop">
+                        <button type="button" class="lv-param-trigger" id="lengthTrigger" title="时长（秒）：点击展开调节滑条">
+                            <i data-lucide="clock"></i>
+                            <span class="lv-param-val" id="lengthBtnVal">5</span>
+                        </button>
+                        <div class="lv-param-panel">
+                            <div class="lv-field">
+                                <div class="lv-label">
+                                    <span data-tip="3-15 秒" id="length_note">时长 (秒)</span>
+                                    <span id="length_val">5</span>
+                                </div>
+                                <input class="lv-slider" type="range" id="length" min="3" max="15" step="1" value="5">
+                            </div>
                         </div>
                     </div>
-                    <button type="button" class="lv-btn lv-btn-primary" id="runAllBtn"><i data-lucide="play"></i> 生成整条</button>
+
+                    <!-- 分辨率（精度）弹出参数 -->
+                    <div class="lv-param-pop" id="mpPop">
+                        <button type="button" class="lv-param-trigger" id="mpTrigger" title="精度（分辨率）：点击展开调节滑条">
+                            <i data-lucide="maximize"></i>
+                            <span class="lv-param-val" id="mpBtnVal">0.5</span>
+                        </button>
+                        <div class="lv-param-panel">
+                            <div class="lv-field">
+                                <div class="lv-label">
+                                    <span data-tip="3:4 → 540P" id="megapixelsNote">精度 (百万像素)</span>
+                                    <span id="megapixelsVal">0.5</span>
+                                </div>
+                                <input type="range" class="lv-slider" id="megapixels" min="0.2" max="2.0" step="any" value="0.5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 比例（弹出选择，向下展开） -->
+                    <div class="lv-run-aspect" id="aspectPop">
+                        <input type="hidden" id="aspect_ratio" value="3:4 (Portrait Standard)">
+                        <div class="lv-select" id="aspectSelect">
+                            <button type="button" class="lv-select-trigger" id="aspectTrigger">
+                                <span class="lv-select-preview" id="aspectPreview"></span>
+                                <span class="lv-select-name" id="aspectName">3:4</span>
+                                <i class="lv-select-chev" data-lucide="chevron-down"></i>
+                            </button>
+                            <div class="lv-select-panel" id="aspectPanel"></div>
+                        </div>
+                    </div>
+
+                    <!-- 帧率 / 步数 / 种子 合并设置 -->
+                    <div class="lv-param-pop" id="genSettingsPop">
+                        <button type="button" class="lv-param-trigger" id="genSettingsTrigger" title="生成参数（帧率 / 步数 / 种子）">
+                            <i data-lucide="sliders-horizontal"></i>
+                        </button>
+                        <div class="lv-param-panel">
+                            <div class="lv-field">
+                                <div class="lv-label">
+                                    <span data-tip="视频帧率 (15-60 fps, 默认 24)" id="fps_note">帧率 (FPS)</span>
+                                    <span id="fps_val">24</span>
+                                </div>
+                                <input class="lv-slider" type="range" id="fps" min="15" max="60" step="1" value="24">
+                            </div>
+                            <div class="lv-field" style="margin-top:10px;">
+                                <div class="lv-label">
+                                    <span data-tip="采样步数 (4-25, LTX 推荐 4-8)" id="steps_note">采样步数</span>
+                                    <span id="steps_val">8</span>
+                                </div>
+                                <input type="range" class="lv-slider" id="steps" min="4" max="25" step="1" value="8">
+                            </div>
+                            <div class="lv-field" style="margin-top:10px;">
+                                <div class="lv-label"><span>种子</span><span id="seedStatusText">随机</span></div>
+                                <div class="lv-settings-seed">
+                                    <button class="lv-btn lv-btn-ghost lv-seed-toggle" id="seedToggle" type="button" title="随机种子（点击锁定固定）">
+                                        <i data-lucide="dices" class="seed-ico seed-ico-random"></i>
+                                        <i data-lucide="lock" class="seed-ico seed-ico-fixed" style="display:none;"></i>
+                                    </button>
+                                    <input type="hidden" id="seedInput" value="-1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 重置参数（时长/帧率/精度/步数恢复默认） -->
+                    <button type="button" class="lv-icon-btn" id="resetParams" title="重置参数（时长/帧率/精度/步数恢复默认）"><i data-lucide="rotate-cw"></i></button>
+
+                    <span class="lv-toolbar-divider"></span>
+
+                    <!-- 生成模式（仅下拉，无 label） -->
+                    <div class="lv-genmode-wrap" id="genModeWrap" data-wf-only="video/MiniMax_H3.json,video/MiniMax_H3_首尾帧.json,video/MiniMax H3 导演台全能工作流.json" title="生成模式">
+                        <select id="genMode" class="lv-genmode-select" aria-label="生成模式"><!-- JS 填充 --></select>
+                    </div>
+
+                    <!-- 生成组合按钮：主按钮按当前模式(当前片段/整条)执行，小三角切换模式 -->
+                    <div class="lv-gen-wrap" id="genWrap">
+                        <button class="lv-run-btn" id="runBtn" title="生成当前片段">
+                            <i data-lucide="play"></i><span id="runBtnLabel">生成</span>
+                        </button>
+                        <button type="button" class="lv-gen-caret" id="genCaret" title="选择生成方式：当前片段 / 整条">
+                            <i data-lucide="chevron-down"></i>
+                        </button>
+                        <div class="lv-gen-menu" id="genMenu">
+                            <button type="button" class="lv-gen-item active" data-mode="seg">当前片段</button>
+                            <button type="button" class="lv-gen-item" data-mode="all">整条</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- 时间轴单独留在 directorPanel 里，仅 ON 时显示 -->
             <div class="lv-director" id="directorPanel" style="display:none;">
                 <div class="lv-timeline" id="timeline">
-                    <div class="lv-seq-ruler" id="seqRuler" style="display:none;"></div>
+                    <div class="lv-time-ruler" id="timeRuler"></div>
                     <div class="lv-timeline-track" id="timelineTrack"></div>
+                </div>
+                <!-- 时间轴底部控件：像播放器控制条（添加/删除/更多/连续播放） -->
+                <div class="lv-timeline-controls" id="timelineControls">
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="addSegBtn" title="添加片段"><i data-lucide="plus"></i></button>
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="delSegBtn" title="删除片段"><i data-lucide="trash-2"></i></button>
+                    <button type="button" class="lv-icon-btn lv-timeline-btn lv-ai-script-btn" id="aiScriptBtn" title="AI 编剧：一键为多个片段生成连贯分镜提示词（人物保持一致）"><i data-lucide="wand-sparkles"></i></button>
+                    <div class="lv-dropdown" id="directorMore">
+                        <button type="button" class="lv-icon-btn lv-timeline-btn lv-dropdown-toggle" title="更多"><i data-lucide="more-vertical"></i></button>
+                        <div class="lv-dropdown-menu">
+                            <button type="button" class="lv-dropdown-item" id="concatBtn"><i data-lucide="film"></i> 合成成片</button>
+                            <button type="button" class="lv-dropdown-item" id="clearSegBtn"><i data-lucide="trash"></i> 清空所有</button>
+                        </div>
+                    </div>
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="seqPlayBtn" title="从当前片段（或第一段）起连续播放全部片段预览"><i data-lucide="play"></i></button>
                 </div>
                 <input type="file" id="segVidReplaceInput" accept="video/*" multiple style="display:none">
             </div>
@@ -914,6 +1037,9 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                     <div style="margin-top:10px;">视频生成后会显示在这里</div>
                 </div>
                 <video id="resultVideo" controls style="display:none;"></video>
+                <div class="lv-stage-aspect-box" id="stageAspectBox" style="display:none;">
+                    <span class="lv-stage-aspect-label" id="stageAspectLabel">3:4</span>
+                </div>
                 <button type="button" class="lv-stage-clear" id="stageClearBtn" title="清除视频（仅隐藏预览，不删除片段）">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                     清除视频
@@ -928,6 +1054,44 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     <!-- 历史生成展示区（与上方 .lv-body 同宽, 均受 .layout-container 限宽居中; 工具栏由 HistoryBulkManager 自动注入到 #masonry 之前） -->
     <div id="historySection" class="lv-history-section layout-container">
         <div id="masonry" class="masonry-grid"></div>
+    </div>
+</div>
+
+<!-- ============= AI 编剧弹窗（导演台整条脚本一键生成） ============= -->
+<div class="lv-modal-mask" id="aiScriptModal" style="display:none;">
+    <div class="lv-modal" id="aiScriptBox">
+        <div class="lv-modal-head">
+            <span class="lv-modal-title"><i data-lucide="wand-sparkles"></i> AI 编剧 · 整条脚本生成</span>
+            <button type="button" class="lv-modal-close" id="aiScriptClose" title="关闭">×</button>
+        </div>
+        <div class="lv-modal-body">
+            <div class="lv-field" style="margin-bottom:10px;">
+                <div class="lv-label"><span>输入方式</span></div>
+                <div class="lv-script-mode" id="aiScriptModeWrap">
+                    <button type="button" class="lv-script-mode-btn active" data-mode="idea" title="一句话创意/故事概述，AI 自动拆分成片段">一句话创意</button>
+                    <button type="button" class="lv-script-mode-btn" data-mode="beats" title="逐段剧情点，每段一句，AI 扩写成完整提示词">逐段剧情点</button>
+                </div>
+            </div>
+            <div class="lv-field" style="margin-bottom:10px;">
+                <div class="lv-label"><span>提示词预设</span><span class="lv-label-hint">复用 AI 提示词的预设规则</span></div>
+                <select class="lv-modal-select" id="aiScriptPreset" aria-label="提示词预设"></select>
+            </div>
+            <div class="lv-field" style="margin-bottom:10px;">
+                <div class="lv-label"><span id="aiScriptStoryLabel">故事概述</span><span class="lv-label-hint" id="aiScriptStoryHint">用一段话描述要拍的视频</span></div>
+                <textarea class="lv-textarea" id="aiScriptStory" rows="5" placeholder="例如：一个女孩在雨夜走进街角咖啡店，遇到多年未见的故人……"></textarea>
+            </div>
+            <div class="lv-field" style="margin-bottom:12px;">
+                <div class="lv-label"><span>片段数量</span><span id="aiScriptSegCountVal">3</span></div>
+                <input class="lv-slider" type="range" id="aiScriptSegCount" min="1" max="12" step="1" value="3">
+            </div>
+            <div class="lv-note" id="aiScriptNote" style="margin-bottom:12px;">生成后将<strong>覆盖所有现有片段</strong>的提示词（片段本身与参考素材保留），人物通过统一定义保持一致。</div>
+            <div class="lv-modal-actions">
+                <button type="button" class="lv-btn lv-btn-ghost" id="aiScriptCancel">取消</button>
+                <button type="button" class="lv-btn lv-btn-primary" id="aiScriptGo">
+                    <i data-lucide="sparkles"></i><span id="aiScriptGoLabel">生成脚本</span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -960,6 +1124,11 @@ function isDirectorWf(name) { return name === MINIMAX_DIRECTOR_WF; }
 // 格式参考 Director 插件文档 version 5，字段名与原 timeline JSON 保持一致以防节点内部校验失败。
 function buildDirectorTimeline(segments, opts) {
     opts = opts || {};
+    // 段间引导（单段重生成）：时间轴仍下发全部片段（保证 segment_count>=2、节点不关闭
+    // continuity），但用 runSelection 只重跑选中的片段；其余片段由节点从磁盘缓存读取
+    // 上一段上下文（resolve_prev_segment_output → load_segment_cache(allow_stale=True)）。
+    const _runSel = (opts && Array.isArray(opts.runSelection) && opts.runSelection.length)
+        ? opts.runSelection : null;
     const fps = parseFloat(document.getElementById('fps').value) || 24;
     const aspectRatio = document.getElementById('aspect_ratio').value;
     const ar = ASPECT_OPTIONS.find(o => o.value === aspectRatio) || ASPECT_OPTIONS[4]; // fallback 9:16
@@ -984,10 +1153,11 @@ function buildDirectorTimeline(segments, opts) {
         // 片段自身视频/音频优先；否则回退到全局参考视频/音频（导演台：全局参考媒体作为 r2v 条件）
         const segVids = (seg.refs && seg.refs.videos && seg.refs.videos.length) ? seg.refs.videos : gVids;
         const segAuds = (seg.refs && seg.refs.audios && seg.refs.audios.length) ? seg.refs.audios : gAuds;
-        // 推断 taskType：优先用片段手动选择（卡片下拉框），否则按素材类型自动推断
+        // 推断 taskType：导演台下使用全局 genMode（生成类型为全局统一参数）；否则按片段保存的 seg.genMode
         const nImg = segImgs.length;
         const hasVid = segVids.length > 0;
-        const manualMode = mapModeToTaskType(seg.genMode);  // 'auto'/'reference'/'keyframe' -> null(按素材推断); 其余 -> 显式 taskType
+        const baseMode = isDirectorWf(currentWorkflow) ? genMode : seg.genMode;
+        const manualMode = mapModeToTaskType(baseMode);  // 'auto'/'reference'/'keyframe' -> null(按素材推断); 其余 -> 显式 taskType
         let taskType;
         if (manualMode) {
             taskType = manualMode;
@@ -1046,6 +1216,11 @@ function buildDirectorTimeline(segments, opts) {
             negativePrompt: seg.negative_prompt || ''
         };
     });
+
+    // 段间引导重叠帧数（见下方赋值说明）
+    // MiniMaxH3Director 节点的官方基线为 22（DEFAULT_CONTEXT_FRAMES）；节点会把重叠帧吸附到
+    // {5,22,39,56} 之一，并对短片段自动 lock+settling 后裁剪，不会因重叠>片长而失效。直接下发 22 最稳。
+    const continuityOverlapFrames = 22;
 
     // 全局 taskType 必须根据「实际生效的片段 taskType」来定。
     // 关键：MiniMaxH3Director 节点用【全局】task_key/submode 来构建源帧；
@@ -1116,18 +1291,18 @@ function buildDirectorTimeline(segments, opts) {
                 exportMode: 'segments',
                 audioMode: 'generate',
                 continuityEnabled: directorContinuity,
-                continuityOverlapFrames: 22
+                continuityOverlapFrames: continuityOverlapFrames
             },
             global: {
                 taskType: globalTaskType,
-                prompt: document.getElementById('prompt').value || '',
+                prompt: getPromptText(),
                 refs: []
             },
             segments: [],
             shots: shots,
             timelineMode: 'fl2v',
-            runSelectEnabled: false,
-            runSelection: []
+            runSelectEnabled: !!_runSel,
+            runSelection: _runSel || []
         };
         return JSON.stringify(timeline);
     }
@@ -1145,17 +1320,17 @@ function buildDirectorTimeline(segments, opts) {
             exportMode: 'segments',
             audioMode: 'generate',
             continuityEnabled: directorContinuity,
-            continuityOverlapFrames: 22
+            continuityOverlapFrames: continuityOverlapFrames
         },
         global: {
             taskType: globalTaskType,
-            prompt: document.getElementById('prompt').value || '',
+            prompt: getPromptText(),
             refs: []
         },
         segments: segDefs,
         timelineMode: 'gen_blank',
-        runSelectEnabled: false,
-        runSelection: []
+        runSelectEnabled: !!_runSel,
+        runSelection: _runSel || []
     };
 
     return JSON.stringify(timeline);
@@ -1179,12 +1354,24 @@ async function _lvEnsureRefFile(r) {
     return (r.file && (r.file instanceof File || r.file instanceof Blob)) ? r.file : null;
 }
 
-async function runDirectorGeneration(targetSegments) {
+// Director 生成操作总耗时(ms)，供 saveDirectorResults / finalizeDirectorWhole 填充「耗时」字段（单段精确，整条为整批总耗时）
+var _lastDirectorGenMs = 0;
+
+async function runDirectorGeneration(targetSegments, opts) {
     if (!targetSegments || !targetSegments.length) throw new Error('\u6ca1\u6709\u8981\u751f\u6210\u7684\u7247\u6bb5');
+    opts = opts || {};
+    // 段间引导：时间轴放【全部】片段（保证 segment_count>=2、节点开启 continuity），
+    // 但只把 runSelection 中的片段真正重跑；其余片段由节点从磁盘缓存读取衔接上下文。
+    // fullSegments 缺省时回退为 targetSegments（即「生成整条」一次性提交全部的情况）。
+    const timelineSegments = (opts.fullSegments && opts.fullSegments.length)
+        ? opts.fullSegments : targetSegments;
+    const runSelection = (opts.runSelection && opts.runSelection.length)
+        ? opts.runSelection : null;
     if (isRunning) return null;
+    const _dgStart = Date.now(); _lastDirectorGenMs = 0;
 
     const btn = document.getElementById('runBtn');
-    btn.disabled = true;
+    setRunBtnBusy(true);
     btn.innerHTML = '<span class="lv-spinner"></span><span>\u6392\u961f\u4e2d\u2026</span>';
     isRunning = true;
     _progressPct = 0;
@@ -1238,10 +1425,11 @@ async function runDirectorGeneration(targetSegments) {
         // 构造 timeline_data
         status('\u6784\u5efa\u65f6\u95f4\u8f74\u2026', true);
         showProgress(3, '\u6784\u5efa Director \u65f6\u95f4\u8f74\u2026');
-        const timelineStr = buildDirectorTimeline(targetSegments, {
+        const timelineStr = buildDirectorTimeline(timelineSegments, {
             globalRefImages: (currentWorkflow === MINIMAX_DIRECTOR_WF ? refImages : []),
             globalRefVideos: (currentWorkflow === MINIMAX_DIRECTOR_WF ? refVideos : []),
-            globalRefAudios: (currentWorkflow === MINIMAX_DIRECTOR_WF ? refAudios : [])
+            globalRefAudios: (currentWorkflow === MINIMAX_DIRECTOR_WF ? refAudios : []),
+            runSelection: runSelection
         });
         const tl = JSON.parse(timelineStr);
 
@@ -1335,20 +1523,22 @@ async function runDirectorGeneration(targetSegments) {
         const urls = (data.images || []).concat(data.video_urls || []);
         if (!urls.length) throw new Error('\u672a\u8fd4\u56de\u89c6\u9891\u6587\u4ef6');
 
-        // 映射输出回片段：单段单输出 → 直接显示；多段 → 按顺序分配
-        if (targetSegments.length === 1) {
-            targetSegments[0].result = urls[0];
-            targetSegments[0].status = 'done';
-            showStageVideo(targetSegments[0].id, urls[0]);
-        } else {
-            targetSegments.forEach((seg, i) => {
-                if (urls[i]) { seg.result = urls[i]; seg.status = 'done'; }
-            });
-            if (targetSegments[0].result) showStageVideo(targetSegments[0].id, targetSegments[0].result);
-        }
+        // 映射输出回片段：urls 顺序 = runSelection 中片段的 run 顺序，逐一对齐 targetSegments。
+        // 主舞台展示【最后映射到的片段】（单段场景即被点选的目标段；若自动纳入上一段则跳过它）。
+        let lastMapped = null;
+        targetSegments.forEach((seg, i) => {
+            if (urls[i]) {
+                seg.result = urls[i];
+                seg.status = 'done';
+                seg.cacheSig = segmentSig(seg);
+                lastMapped = seg;
+            }
+        });
+        if (lastMapped) showStageVideo(lastMapped.id, lastMapped.result);
 
         renderTimeline();
         status('\u5b8c\u6210 \u2713', false);
+        _lastDirectorGenMs = Date.now() - _dgStart;
         return urls;
     } catch (e) {
         hideProgress();
@@ -1358,8 +1548,8 @@ async function runDirectorGeneration(targetSegments) {
         console.error('[litevideo] runDirectorGeneration error:', e);
     } finally {
         isRunning = false;
-        btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="play"></i><span>\u751f\u6210\u89c6\u9891</span>';
+        setRunBtnBusy(false);
+        setRunBtnIdle();
         closeProgressWs();
     }
 }
@@ -1512,12 +1702,14 @@ function bindSeedMode() {
     const icoF = toggle.querySelector('.seed-ico-fixed');
 
     function setMode(mode) {
+        const statusText = document.getElementById('seedStatusText');
         if (mode === 'random') {
             toggle.classList.remove('active');
             if (icoR) icoR.style.display = '';
             if (icoF) icoF.style.display = 'none';
             seedInput.value = '-1';
             toggle.title = '随机种子（点击锁定固定）';
+            if (statusText) statusText.textContent = '随机';
         } else {
             toggle.classList.add('active');
             if (icoR) icoR.style.display = 'none';
@@ -1526,6 +1718,7 @@ function bindSeedMode() {
                 seedInput.value = randSeed();
             }
             toggle.title = '固定种子: ' + seedInput.value + '（点击恢复随机）';
+            if (statusText) statusText.textContent = '固定: ' + seedInput.value;
         }
     }
 
@@ -1626,6 +1819,8 @@ function bindSliderEvents() {
             valEl.textContent = el.value;
             setSliderFill(el);
             updateDerived();
+            const btnVal = document.getElementById(id + 'BtnVal');
+            if (btnVal) btnVal.textContent = el.value;
             // 同步回当前选中片段 + 刷新导演台时间轴（卡片宽度/时长显示）
             if (directorMode && selectedSegId) {
                 const seg = getSegment(selectedSegId);
@@ -1692,7 +1887,7 @@ function applyWorkflowVisibility(wfName) {
     renderGenModeButtons();
     // 2. 提示 placeholder(随参考数量动态切换 T2V / 参考模式提示)
     updatePromptHintForMode();
-    // 3. 种子 随机/固定 图标开关绑定 (生成行右侧 #seedToggle)
+    // 3. 种子 随机/固定 图标开关绑定 (生成参数面板内 #seedToggle)
     bindSeedMode();
     // 4. 给新出现的 slider 绑事件
     bindSliderEvents();
@@ -1701,10 +1896,20 @@ function applyWorkflowVisibility(wfName) {
     if (wfHint) wfHint.style.display = 'none';
     // 6. 同步精度滑条的初始 note (取决于当前比例)
     const mpSlider = document.getElementById('megapixels');
-    if (mpSlider && mpSlider._sync) mpSlider._sync(mpSlider.value);
+    if (mpSlider) {
+        // 按工作流切换滑块量程：MiniMax 吸附节点档位(0.2~2.0 高清)，LTX 连续(0.2~1.0)
+        if (isMiniMaxWf(wfName)) {
+            mpSlider.min = '0.2'; mpSlider.max = '2.0'; mpSlider.step = 'any';
+        } else {
+            mpSlider.min = '0.2'; mpSlider.max = '1.0'; mpSlider.step = '0.1';
+        }
+        if (mpSlider._sync) mpSlider._sync(mpSlider.value);
+    }
     updateDerived();
     // 文生视频(t2v)模式隐藏参考媒体卡片；并按功能适配 Tab/数量上限/标签
     updateRefMediaForMode();
+    // 7. 保证智能提示词按钮始终可见（所有工作流均显示 AI 生成按钮，若被意外清掉则重新挂载）
+    ensureSmartPromptBtn();
 }
 
 // ============= 比例下拉选择 =============
@@ -1737,18 +1942,31 @@ const MINIMAX_RESOLUTION_TABLE = {
     0.2: '360P', 0.3: '416P', 0.4: '480P', 0.5: '540P',
     0.7: '640P', 0.9: '720P', 1.0: '768P', 1.2: '832P', 1.5: '928P', 1.8: '1024P', 2.0: '1080P'
 };
+// 滑块可选的离散档位（与节点 RESOLUTION_MEGAPIXELS 键严格一致，含高清档）
+const MP_STEPS = Object.keys(MINIMAX_RESOLUTION_TABLE).map(Number).sort((a, b) => a - b);
 function mpToMiniMaxResolution(mp) {
-    mp = Math.round((parseFloat(mp) || 0.4) * 10) / 10;
-    if (MINIMAX_RESOLUTION_TABLE[mp]) return MINIMAX_RESOLUTION_TABLE[mp];
-    // 兜底: 取最近档位(平局向上取更高分辨率)
-    const keys = Object.keys(MINIMAX_RESOLUTION_TABLE).map(Number).sort((a, b) => a - b);
-    let best = keys[0], bestDiff = Infinity;
-    for (const k of keys) {
+    mp = parseFloat(mp);
+    if (!isFinite(mp)) return '540P';
+    // 吸附到最近的档位(平局向上取更高分辨率)
+    let best = MP_STEPS[0], bestDiff = Infinity;
+    for (const k of MP_STEPS) {
         const d = Math.abs(mp - k);
         if (d < bestDiff - 1e-9) { bestDiff = d; best = k; }
         else if (Math.abs(d - bestDiff) < 1e-9 && k > best) { best = k; }
     }
     return MINIMAX_RESOLUTION_TABLE[best];
+}
+// 把任意值吸附到最近的档位(供滑条显示真实落点，避免"拖了没变化")
+function mpSnap(mp) {
+    mp = parseFloat(mp);
+    if (!isFinite(mp)) return 0.5;
+    let best = MP_STEPS[0], bestDiff = Infinity;
+    for (const k of MP_STEPS) {
+        const d = Math.abs(mp - k);
+        if (d < bestDiff - 1e-9) { bestDiff = d; best = k; }
+        else if (Math.abs(d - bestDiff) < 1e-9 && k > best) { best = k; }
+    }
+    return best;
 }
 // 按 megapixels + 比例计算输出尺寸 (multiple=32, 边缘对齐)
 function computeOutputSize(mp, aspectOpt) {
@@ -1805,6 +2023,7 @@ function bindAspectRatio() {
             el.classList.toggle('active', ASPECT_OPTIONS[idx].value === opt.value);
         });
         if (window.lucide) window.lucide.createIcons();
+        updateStageAspectBox();
     }
     syncToTrigger(hidden.value);
     // 4. 触发:开/关
@@ -1882,7 +2101,17 @@ function bindMegapixels() {
     if (!slider || slider.dataset.bound) return;
     slider.dataset.bound = '1';
     function syncToTrigger(value) {
-        const v = parseFloat(value);
+        let v = parseFloat(value);
+        if (!isFinite(v)) v = 0.5;
+        // MiniMax: 吸附到节点真实档位，避免中间值映射到同一分辨率导致“拖了没变化”
+        if (isMiniMaxWf(currentWorkflow)) {
+            v = mpSnap(v);
+            if (Math.abs(parseFloat(slider.value) - v) > 1e-9) slider.value = String(v);
+        } else {
+            // LTX: 连续 0.1 步进，保留原值（clamp 到滑块范围）
+            v = Math.round(v * 10) / 10;
+            v = Math.max(0.2, Math.min(1.0, v));
+        }
         const opt = MEGAPIXELS_OPTIONS.find(o => Math.abs(o.value - v) < 0.05) || { value: v, sub: v.toFixed(1) + 'MP' };
         const ar = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
         let txt;
@@ -1901,6 +2130,8 @@ function bindMegapixels() {
             }
         }
         if (noteEl) noteEl.textContent = txt;
+        const bv = document.getElementById('mpBtnVal');
+        if (bv) bv.textContent = label ? label.textContent : v.toFixed(1);
     }
     slider.addEventListener('input', () => syncToTrigger(slider.value));
     // 暴露供 bindAspectRatio 比例变动时调用
@@ -1924,8 +2155,8 @@ let currentRefTab = 'image';  // 当前激活的 Tab
 const GENMODE_PRESETS = {
     director: [
         { mode: 'auto', label: '自动' },
-        { mode: 't2v',  label: '文生' },
-        { mode: 'i2v',  label: '图生' },
+        { mode: 't2v',  label: '文生视频' },
+        { mode: 'i2v',  label: '图生视频' },
         { mode: 'fl2v', label: '首尾帧' },
         { mode: 'r2v',  label: '参考生体' }
     ],
@@ -1956,20 +2187,19 @@ function mapModeToTaskType(m) {
     if (m === 'r2v')  return 'r2v — 参考生视频(Reference to Video)';
     return null;
 }
-// 按当前工作流渲染顶部「生成模式」分段按钮（导演台与单段 MiniMax 按钮集不同）
+// 按当前工作流渲染「生成模式」下拉框（导演台 5 模式 / 单段 MiniMax 3 模式）
 function renderGenModeButtons() {
-    const wrap = document.getElementById('genMode');
-    if (!wrap) return;
+    const select = document.getElementById('genMode');
+    if (!select) return;
     const isDir = isDirectorWf(currentWorkflow);
     const preset = isDir ? GENMODE_PRESETS.director : GENMODE_PRESETS.minimax;
     const fallback = isDir ? 'auto' : 'reference';
     if (!preset.some(p => p.mode === genMode)) genMode = fallback;  // 跨工作流切换时纠正非法值
-    wrap.innerHTML = preset.map(p =>
-        '<button type="button" class="lv-genmode-btn' + (p.mode === genMode ? ' active' : '') + '" data-mode="' + p.mode + '">' + p.label + '</button>'
+    select.innerHTML = preset.map(p =>
+        '<option value="' + p.mode + '"' + (p.mode === genMode ? ' selected' : '') + '>' + p.label + '</option>'
     ).join('');
-    wrap.querySelectorAll('.lv-genmode-btn').forEach(btn => {
-        btn.addEventListener('click', () => selectGenMode(btn.dataset.mode));
-    });
+    select.value = genMode;
+    select.onchange = () => selectGenMode(select.value);
 }
 // 参考图数量上限随功能变化：图生(i2v)=1(首帧)，首尾帧(fl2v/keyframe)=2(首帧+尾帧)，其余=9
 function refImageLimitForMode() {
@@ -2008,18 +2238,14 @@ function updateRefMediaCardVisibility() {
 }
 function selectGenMode(mode) {
     genMode = mode;
-    document.querySelectorAll('#genMode .lv-genmode-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.mode === mode);
-    });
+    const select = document.getElementById('genMode');
+    if (select && select.value !== mode) select.value = mode;
     if (isDirectorWf(currentWorkflow)) {
-        // 导演台：模式是逐片段属性，立即写回当前选中片段（与选中片段→回填表单 双向同步）
-        const seg = getSegment(selectedSegId);
-        if (seg) {
-            seg.genMode = mode;
-            const tag = document.querySelector('[data-mode-tag="' + seg.id + '"]');
-            if (tag) tag.textContent = resolveSegModeLabel(seg);
-            scheduleSaveDraft();
-        }
+        // 导演台：生成类型(GenType)是全局统一参数，所有片段共用一个类型，不再逐片段存储。
+        // 切换类型时立即同步给所有片段，并刷新模式标签（统一显示全局类型）。
+        segments.forEach(function (s) { s.genMode = mode; });
+        refreshAllSegModeTags();
+        scheduleSaveDraft();
     } else {
         // 单段 MiniMax：首尾帧 -> 切到独立的首尾帧工作流文件; 其它 -> 回到基础 MiniMax 工作流
         const targetWf = (mode === 'keyframe') ? MINIMAX_KEYFRAME_WF : MINIMAX_BASE_WF;
@@ -2031,9 +2257,6 @@ function selectGenMode(mode) {
     updatePromptHintForMode();
     // 参考媒体区按功能适配（显隐/禁用 Tab/数量上限/标签）
     updateRefMediaForMode();
-    // 首尾帧模式下显示规则说明(hint 默认隐藏, 仅 keyframe/fl2v 时可见, 其余模式保持简洁)
-    const genNote = document.getElementById('genModeNote');
-    if (genNote) genNote.style.display = (mode === 'keyframe' || mode === 'fl2v') ? '' : 'none';
 }
 function updateGenModeNote() {
     const note = document.getElementById('genModeNote');
@@ -2061,8 +2284,8 @@ function updateGenModeNote() {
     } else { // auto
         txt = '自动：按挂载素材推断——有 2 张图走首尾帧，有 1 张图走图生，有视频/音频走参考生体，否则文生。';
     }
-    if (note) note.textContent = txt;          // 隐藏 div 仍保留文本（备用）
-    if (genModeEl) genModeEl.title = txt;     // 悬停模式按钮区显示 tooltip
+    if (note) { note.textContent = txt; note.style.display = (genMode === 'keyframe' || genMode === 'fl2v') ? '' : 'none'; }
+    if (genModeEl) genModeEl.title = txt;     // 悬停 select 显示 tooltip
 }
 
 function _refArray(type) {
@@ -2071,22 +2294,300 @@ function _refArray(type) {
     if (type === 'audio') return refAudios;
     return [];
 }
-function _refSlot(type, idx) {
-    if (type === 'image') return 'ref_images.ref_image_' + idx;
-    if (type === 'video') return 'ref_videos.ref_video_' + idx;
-    if (type === 'audio') return 'ref_audios.ref_audio_' + idx;
-    return null;
-}
-function _refLabel(type) {
-    if (type === 'image') return 'Picture';
-    if (type === 'video') return 'Video';
-    if (type === 'audio') return 'Audio';
-    return 'Ref';
-}
 // 稳定的提示词引用 token: @图1 / @视2 / @音3 (类型前缀 + 该类型内序号, 从1起)
 function _refToken(type, idx) {
     const prefix = type === 'image' ? '图' : (type === 'video' ? '视' : '音');
     return '@' + prefix + (idx + 1);
+}
+
+// ============= 富文本提示词框（contenteditable）=============
+// #prompt 已由 <textarea> 升级为 contenteditable 富文本框：
+//   @图N/@视N/@音N 与 <Picture N>/<Video N>/<Audio N> 引用 token 会被渲染成缩略图 chip，
+//   悬停显示大图；序列化(getPromptText)时 chip 还原为原始 token 纯文本。
+function _htmlEscape(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _htmlUnescape(s) {
+    return String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+}
+// 渲染单个 chip（缩略图 + token 标签）。token 为原始未转义文本。
+function _renderPromptChip(type, idx, token) {
+    const ref = _refArray(type)[idx];
+    if (!ref || !ref.url) return _htmlEscape(token);   // 找不到素材则退回纯文本
+    const escToken = _htmlEscape(token);
+    let thumb;
+    if (type === 'image') thumb = '<img src="' + ref.url + '" alt="">';
+    else if (type === 'video') thumb = '<video src="' + ref.url + '" muted preload="metadata"></video>';
+    else thumb = '<i data-lucide="music" class="lv-chip-ico"></i>';
+    return '<span class="lv-chip" data-type="' + type + '" data-idx="' + idx + '" data-token="' + escToken + '" contenteditable="false">'
+        + thumb + '<span class="lv-chip-label">' + escToken + '</span></span>';
+}
+// 纯文本 → 带 chip 的 HTML（token 替换为缩略图 chip；\n 转 <br>）
+function promptToChipHtml(text) {
+    if (!text) return '';
+    let html = _htmlEscape(text);
+    html = html.replace(/&lt;Picture\s+(\d+)&gt;/g, function (_, n) {
+        const idx = parseInt(n, 10) - 1;
+        return (refImages[idx]) ? _renderPromptChip('image', idx, '<Picture ' + n + '>') : ('&lt;Picture ' + n + '&gt;');
+    });
+    html = html.replace(/&lt;Video\s+(\d+)&gt;/g, function (_, n) {
+        const idx = parseInt(n, 10) - 1;
+        return (refVideos[idx]) ? _renderPromptChip('video', idx, '<Video ' + n + '>') : ('&lt;Video ' + n + '&gt;');
+    });
+    html = html.replace(/&lt;Audio\s+(\d+)&gt;/g, function (_, n) {
+        const idx = parseInt(n, 10) - 1;
+        return (refAudios[idx]) ? _renderPromptChip('audio', idx, '<Audio ' + n + '>') : ('&lt;Audio ' + n + '&gt;');
+    });
+    html = html.replace(/@(图|视|音)(\d+)/g, function (m, p, n) {
+        const type = p === '图' ? 'image' : (p === '视' ? 'video' : 'audio');
+        const idx = parseInt(n, 10) - 1;
+        const arr = _refArray(type);
+        return (arr[idx]) ? _renderPromptChip(type, idx, m) : m;
+    });
+    return html.replace(/\n/g, '<br>');
+}
+// 从 contenteditable DOM 序列化为纯文本（chip → data-token 还原）
+function promptToPlainText(root) {
+    if (!root) return '';
+    let out = '';
+    (function walk(node) {
+        node.childNodes.forEach(function (child) {
+            if (child.nodeType === 3) { out += child.textContent; }
+            else if (child.nodeType === 1) {
+                if (child.classList && child.classList.contains('lv-chip')) {
+                    out += _htmlUnescape(child.getAttribute('data-token') || '');
+                } else if (child.tagName === 'BR') {
+                    out += '\n';
+                } else {
+                    walk(child);
+                }
+            }
+        });
+    })(root);
+    return out;
+}
+// 读取主提示词框纯文本
+function getPromptText() {
+    const el = document.getElementById('prompt');
+    return el ? promptToPlainText(el) : '';
+}
+// 写回主提示词框（纯文本 → chip）
+function setPromptText(text) {
+    const el = document.getElementById('prompt');
+    if (!el) return;
+    el.innerHTML = promptToChipHtml(text || '');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+// 收集可编辑区域内的文本节点（跳过 chip 内部）
+function _editableTextNodes(editable) {
+    const nodes = [];
+    const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (n) {
+            let p = n.parentNode;
+            while (p && p !== editable) {
+                if (p.classList && p.classList.contains('lv-chip')) return NodeFilter.FILTER_REJECT;
+                p = p.parentNode;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    return nodes;
+}
+// 光标前的可见文本（跳过 chip 内部）
+function _editableTextBefore(editable, cursorRange) {
+    const nodes = _editableTextNodes(editable);
+    let out = '';
+    for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (n === cursorRange.startContainer) {
+            out += n.textContent.slice(0, cursorRange.startOffset);
+            break;
+        }
+        out += n.textContent;
+    }
+    return out;
+}
+// 从光标向前偏移 charOffset 个可见字符，返回 collapsed Range
+function _editableRangeBeforeCursor(editable, cursorRange, charOffset) {
+    const nodes = _editableTextNodes(editable);
+    let globalPos = 0;
+    for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (n === cursorRange.startContainer) { globalPos += cursorRange.startOffset; break; }
+        globalPos += n.length;
+    }
+    const target = Math.max(0, globalPos - charOffset);
+    let acc = 0;
+    for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (acc + n.length >= target) {
+            const r = document.createRange();
+            r.setStart(n, target - acc);
+            r.collapse(true);
+            return r;
+        }
+        acc += n.length;
+    }
+    const r = document.createRange();
+    r.selectNodeContents(editable);
+    r.collapse(true);
+    return r;
+}
+// contenteditable 版 @ 引用浮层（主提示词框用；textarea 版 bindRefMention 仍用于悬浮窗）
+function bindRefMentionEditable(editableEl, mentionEl) {
+    if (!editableEl || !mentionEl || editableEl.dataset.mentionBound) return;
+    editableEl.dataset.mentionBound = '1';
+    let items = [], active = 0, ctx = null;
+    function highlight() {
+        mentionEl.querySelectorAll('.lv-mention-item').forEach(function (el, i) {
+            el.classList.toggle('active', i === active);
+        });
+    }
+    function close() {
+        mentionEl.classList.remove('open');
+        mentionEl.innerHTML = '';
+        ctx = null;
+    }
+    function render(query) {
+        items = collectRefMentions(query);
+        active = 0;
+        if (items.length === 0) { close(); return; }
+        mentionEl.innerHTML = renderRefMentionItemsHtml(items);
+        if (window.lucide) window.lucide.createIcons();
+        mentionEl.classList.add('open');
+        const rect = editableEl.getBoundingClientRect();
+        let caretLeft = rect.left, caretTop = rect.top;
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+            const cr = sel.getRangeAt(0).getBoundingClientRect();
+            if (cr && (cr.left || cr.top)) { caretLeft = cr.left; caretTop = cr.bottom; }
+        }
+        const w = Math.max(200, Math.min(rect.width - 12, 480));
+        let left = rect.left + Math.min(caretLeft - rect.left, Math.max(0, rect.width - 90));
+        let top = caretTop + 4;
+        const h = mentionEl.offsetHeight || 240;
+        if (top + h > window.innerHeight - 4) top = caretTop - h - 4;
+        if (top < 4) top = 4;
+        if (left + w > window.innerWidth - 4) left = Math.max(4, window.innerWidth - w - 4);
+        mentionEl.style.width = w + 'px';
+        mentionEl.style.left = left + 'px';
+        mentionEl.style.top = top + 'px';
+    }
+    function getContext() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        if (!editableEl.contains(range.startContainer)) return null;
+        const pre = _editableTextBefore(editableEl, range);
+        const m = pre.match(/(^|[\s\p{P}])(@)([图视音]?)([^@\s]*)$/u);
+        if (!m) return null;
+        const atIndex = pre.length - m[0].length + m[1].length;
+        const query = (m[3] || '') + (m[4] || '');
+        return { atIndex, query, range: range.cloneRange(), beforeLen: pre.length };
+    }
+    function insert(item) {
+        if (!ctx) return;
+        const charOffset = ctx.beforeLen - ctx.atIndex;   // 从 @ 到光标字符数
+        const startRange = _editableRangeBeforeCursor(editableEl, ctx.range, charOffset);
+        const range = document.createRange();
+        range.setStart(startRange.startContainer, startRange.startOffset);
+        range.setEnd(ctx.range.startContainer, ctx.range.startOffset);
+        range.deleteContents();
+        const tmp = document.createElement('div');
+        tmp.innerHTML = _renderPromptChip(item.type, item.idx, item.token);
+        const chipNode = tmp.firstChild;
+        range.insertNode(chipNode);
+        range.setStartAfter(chipNode);
+        range.collapse(true);
+        const space = document.createTextNode(' ');
+        range.insertNode(space);
+        range.setStartAfter(space);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        close();
+        editableEl.focus();
+        editableEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function onInput() {
+        const c = getContext();
+        if (!c) { if (mentionEl.classList.contains('open')) close(); return; }
+        ctx = c;
+        render(c.query);
+        highlight();
+    }
+    editableEl.addEventListener('input', onInput);
+    editableEl.addEventListener('click', onInput);
+    editableEl.addEventListener('keyup', function (e) {
+        if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) >= 0) onInput();
+    });
+    editableEl.addEventListener('keydown', function (e) {
+        if (!mentionEl.classList.contains('open') || items.length === 0) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); active = (active + 1) % items.length; highlight(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); active = (active - 1 + items.length) % items.length; highlight(); }
+        else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); insert(items[active]); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    });
+    mentionEl.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    mentionEl.addEventListener('click', function (e) {
+        const el = e.target.closest('.lv-mention-item');
+        if (!el) return;
+        const type = el.dataset.t;
+        const idx = parseInt(el.dataset.i, 10);
+        const arr = _refArray(type);
+        if (arr[idx]) insert({ token: _refToken(type, idx), type, idx, r: arr[idx] });
+    });
+    document.addEventListener('click', function (e) {
+        if (!mentionEl.contains(e.target) && e.target !== editableEl) close();
+    });
+}
+// 悬停 chip 显示大图预览
+function initPromptHoverPreview() {
+    const el = document.getElementById('prompt');
+    const prev = document.getElementById('refHoverPreview');
+    if (!el || !prev) return;
+    function positionHover(x, y) {
+        const pw = prev.offsetWidth, ph = prev.offsetHeight;
+        let left = x + 14, top = y + 14;
+        if (left + pw > window.innerWidth - 8) left = x - pw - 14;
+        if (top + ph > window.innerHeight - 8) top = y - ph - 14;
+        prev.style.left = Math.max(8, left) + 'px';
+        prev.style.top = Math.max(8, top) + 'px';
+    }
+    function show(chip) {
+        const type = chip.dataset.type;
+        const idx = parseInt(chip.dataset.idx, 10);
+        const ref = _refArray(type)[idx];
+        if (!ref || !ref.url) return;
+        let html = '';
+        if (type === 'image') html = '<img src="' + ref.url + '" alt="">';
+        else if (type === 'video') html = '<video src="' + ref.url + '" muted autoplay loop></video>';
+        else html = '<div style="padding:40px;color:var(--text-soft);display:flex;align-items:center;justify-content:center;"><i data-lucide="music"></i></div>';
+        const name = (ref.file && ref.file.name) || '';
+        if (name) html += '<div class="lv-hover-name">' + _htmlEscape(name) + '</div>';
+        prev.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+        prev.style.display = 'block';
+    }
+    el.addEventListener('mouseover', function (e) {
+        const chip = e.target.closest('.lv-chip');
+        if (!chip) return;
+        show(chip);
+        positionHover(e.clientX, e.clientY);
+    });
+    el.addEventListener('mousemove', function (e) {
+        const chip = e.target.closest('.lv-chip');
+        if (!chip) return;
+        positionHover(e.clientX, e.clientY);
+    });
+    el.addEventListener('mouseout', function (e) {
+        const chip = e.target.closest('.lv-chip');
+        if (!chip) return;
+        prev.style.display = 'none';
+    });
 }
 // 从提示词文本解析所有 @图N/@视N/@音N 引用
 function parsePromptRefs(text) {
@@ -2152,10 +2653,12 @@ function updateRefTabCounts() {
     const imgC = document.getElementById('refImgCount');
     const vidC = document.getElementById('refVidCount');
     const audC = document.getElementById('refAudCount');
+    const loraC = document.getElementById('refLoraCount');
     if (imgC) imgC.textContent = refImages.length;
     if (vidC) vidC.textContent = refVideos.length;
     if (audC) audC.textContent = refAudios.length;
-    const total = refImages.length + refVideos.length + refAudios.length;
+    if (loraC) loraC.textContent = (currentLoras || []).length;
+    const total = refImages.length + refVideos.length + refAudios.length + (currentLoras || []).length;
     const totalEl = document.getElementById('refCount');
     if (totalEl) totalEl.textContent = total;
     updatePromptHintForMode();
@@ -2166,18 +2669,19 @@ function updateRefTabCounts() {
 function updatePromptHintForMode() {
     const promptEl = document.getElementById('prompt');
     if (!promptEl) return;
+    const setHint = (s) => { promptEl.setAttribute('data-placeholder', s); };
     if (isMiniMaxWf(currentWorkflow)) {
         const em = effectiveGenMode();
         if (em === 'keyframe') {
-            promptEl.placeholder = '首尾帧：描述首帧与尾帧之间的运镜/过渡（建议英文）…';
+            setHint('首尾帧：描述首帧与尾帧之间的运镜/过渡（建议英文）…');
         } else if (em === 'reference') {
-            promptEl.placeholder = '描述镜头，并用 <Picture 1> / <Video 1> / <Audio 1> 引用参考素材（建议英文）…';
+            setHint('描述镜头，并用 <Picture 1> / <Video 1> / <Audio 1> 引用参考素材（建议英文）…');
         } else {
-            promptEl.placeholder = '纯文生视频（T2V）：直接描述想生成的画面与运镜，无需参考（建议英文）…';
+            setHint('纯文生视频（T2V）：直接描述想生成的画面与运镜，无需参考（建议英文）…');
         }
     } else {
         const cfg = WORKFLOW_REGISTRY[currentWorkflow];
-        if (cfg) promptEl.placeholder = cfg.defaultPromptHint || '';
+        if (cfg) setHint(cfg.defaultPromptHint || '');
     }
 }
 // 渲染某个类型的堆叠区
@@ -2632,12 +3136,7 @@ function bindRefImgs() {
     _bindDropZone('image', 'refDrop', 'refInput');
     _bindDropZone('video', 'vidDrop', 'vidInput');
     _bindDropZone('audio', 'audDrop', 'audInput');
-    // 生成模式分段控件绑定
-    document.querySelectorAll('#genMode .lv-genmode-btn').forEach(btn => {
-        if (btn.dataset.bound) return;
-        btn.dataset.bound = '1';
-        btn.addEventListener('click', () => selectGenMode(btn.dataset.mode));
-    });
+    // 生成模式下拉框 onchange 在 renderGenModeButtons 中绑定；下拉选项随工作流重渲染
     // 初次渲染 + tab counts + 模式提示
     renderAllRefStacks();
     updateRefTabCounts();
@@ -2795,8 +3294,7 @@ async function loadWorkflowList() {
         applyWorkflowVisibility(name);
         // 切回基础 MiniMax 工作流时, 把生成模式复位为 reference(首尾帧是独立子工作流)
         if (name === MINIMAX_BASE_WF && genMode !== 'reference') {
-            genMode = 'reference';
-            document.querySelectorAll('#genMode .lv-genmode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'reference'));
+            selectGenMode('reference');
         }
         // 种子重置为随机 (不同后端种子效果不可移植)
         setSeedMode('random');
@@ -2900,12 +3398,6 @@ function closeProgressWs() {
         progressWs = null;
     }
 }
-// 依据当前帧数 + 步数粗估总采样步数, 用作进度条分母
-function estimateTotalSteps() {
-    const el = document.getElementById('steps');
-    const steps = el ? (parseInt(el.value) || 0) : 8;
-    return Math.max(steps, 1);
-}
 let _progressPct = 0;
 function applyProgress(evt) {
     if (evt.kind === 'start') {
@@ -2948,8 +3440,8 @@ async function runGenerationOnce(opts = {}) {
     }
     // MiniMax 支持纯文生视频(T2V): 不导入任何参考素材也能生成; 有参考时走参考视频模式。
     const btn = document.getElementById('runBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="lv-spinner"></span><span>排队中…</span>';
+    setRunBtnBusy(true);
+    btn.innerHTML = '<span class="lv-spinner"></span>';
         isRunning = true;
         const genStart = Date.now();   // 记录点击时刻，用于计算生成总耗时
         _progressPct = 0;
@@ -3011,7 +3503,7 @@ async function runGenerationOnce(opts = {}) {
         }
         // 控件值采集：key 是 node_map 的 key, value 是 DOM 读取
         // input_image/prompt 对所有 workflow 都采集
-        const rawPrompt = document.getElementById('prompt').value;
+        const rawPrompt = getPromptText();
         // 校验提示词中 @图N/@视N/@音N 引用的素材是否已上传(仅参考视频模式需要; 首尾帧/T2V 无引用)
         if (isMiniMax && effectiveGenMode() === 'reference') {
             const mentioned = parsePromptRefs(rawPrompt);
@@ -3173,37 +3665,125 @@ async function runGenerationOnce(opts = {}) {
         setTimeout(hideProgress, 4000);
     } finally {
         isRunning = false;
-        btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="play"></i><span>生成视频</span>';
-        if (window.lucide) window.lucide.createIcons();
+        setRunBtnBusy(false);
+        setRunBtnIdle();
         // 关闭 WS (但要等几秒让最后的 executed 事件过来)
         if (progressWsCloseTimer) clearTimeout(progressWsCloseTimer);
         progressWsCloseTimer = setTimeout(closeProgressWs, 3000);
     }
 }
 
-// 单段生成按钮(导演台模式下=生成当前选中片段)
+// ============= 组合生成按钮：单段 / 整条 一键切换 =============
+let runMode = 'seg';   // 'seg' = 生成当前片段, 'all' = 生成整条
+
+// 生成中禁用/恢复整个组合按钮（主按钮 + 小三角）
+function setRunBtnBusy(busy) {
+    const btn = document.getElementById('runBtn');
+    const caret = document.getElementById('genCaret');
+    if (btn) btn.disabled = busy;
+    if (caret) caret.disabled = busy;
+}
+// 恢复按钮为可用的默认状态（按当前 runMode 显示文案）
+function setRunBtnIdle() {
+    const btn = document.getElementById('runBtn');
+    if (!btn) return;
+    const isAll = (runMode === 'all' && directorMode);
+    btn.innerHTML = '<i data-lucide="play"></i><span>' + (isAll ? '整条' : '生成') + '</span>';
+    btn.title = isAll ? '生成整条：依次生成所有片段并合成一条完整视频' : '生成当前片段';
+    if (window.lucide) window.lucide.createIcons();
+}
+// 导演台开关变化时刷新菜单可用性（OFF 时「整条」不可选）
+function updateGenMenuForMode() {
+    const allItem = document.querySelector('.lv-gen-item[data-mode="all"]');
+    if (allItem) {
+        allItem.disabled = !directorMode;
+        allItem.classList.toggle('active', runMode === 'all' && directorMode);
+    }
+    document.querySelectorAll('.lv-gen-item[data-mode="seg"]').forEach(x => {
+        x.classList.toggle('active', runMode === 'seg');
+    });
+    if (runMode === 'all' && !directorMode) {
+        runMode = 'seg';   // 导演台关闭时自动回到「当前片段」
+        setRunBtnIdle();
+    }
+}
+// 组合按钮交互：小三角展开菜单 / 选项切换模式 / 点外部关闭
+function initGenButton() {
+    const wrap = document.getElementById('genWrap');
+    const caret = document.getElementById('genCaret');
+    const menu = document.getElementById('genMenu');
+    if (!wrap || !caret || !menu) return;
+    caret.addEventListener('click', (e) => {
+        e.stopPropagation();
+        wrap.classList.toggle('open');
+    });
+    menu.querySelectorAll('.lv-gen-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const mode = item.dataset.mode;
+            if (mode === 'all' && !directorMode) return;
+            runMode = mode;
+            menu.querySelectorAll('.lv-gen-item').forEach(x => x.classList.toggle('active', x === item));
+            wrap.classList.remove('open');
+            setRunBtnIdle();
+        });
+    });
+    document.addEventListener('click', () => wrap.classList.remove('open'));
+}
+initGenButton();
+
+// 单段生成按钮(导演台模式下=生成当前选中片段; 整条模式下=生成整条)
 document.getElementById('runBtn').addEventListener('click', async () => {
+    // 整条模式：导演台 ON 时直接依次生成所有片段并合成
+    if (runMode === 'all' && directorMode) {
+        runDirector();
+        return;
+    }
     if (directorMode && selectedSegId) {
         const seg = getSegment(selectedSegId);
         if (seg) collectFormToSegment(seg);
     }
-    // Director 工作流：生成当前选中片段（单段调用 runDirectorGeneration）
+    // Director 工作流：生成当前选中片段（严格单段；整条连贯请切「整条」模式）
+    if (isDirectorWf(currentWorkflow) && directorMode && !selectedSegId) {
+        status('请先在时间轴上选中要生成的片段');
+        return;
+    }
     if (isDirectorWf(currentWorkflow) && directorMode && selectedSegId) {
         const seg = getSegment(selectedSegId);
         if (!seg) return;
-        seg.status = 'running'; seg.error = null; renderTimeline();
+        const idx = (typeof segments !== 'undefined') ? segments.indexOf(seg) : -1;
+        if (idx < 0) return;
+        // 段间引导（单段重生成）：让节点也能拿到 ≥2 段的衔接上下文。
+        // 做法：时间轴仍下发【全部】片段（segment_count>=2，节点开启 continuity），
+        // 但用 runSelection 只重跑选中段；节点从上一段的磁盘缓存读取衔接上下文
+        // （resolve_prev_segment_output → load_segment_cache(allow_stale=True)），无需重跑上一段。
+        // 若上一段从未生成过（无 result），则把它一并纳入 runSelection，保证衔接可用。
+        const runSelection = [];
+        if (directorContinuity && idx > 0 && segments[idx - 1]) {
+            if (!segments[idx - 1].result) runSelection.push(idx - 1); // 上一段无结果 → 一起重跑
+            runSelection.push(idx);
+        } else {
+            runSelection.push(idx); // 首段 / 关闭衔接：只跑本段
+        }
+        const targetSegs = runSelection.map(i => segments[i]).filter(Boolean);
+        targetSegs.forEach(s => { s.status = 'running'; s.error = null; });
+        renderTimeline();
         try {
-            const urls = await runDirectorGeneration([seg]);
-            if (urls && urls[0]) {
-                seg.result = urls[0]; seg.status = 'done'; seg.cacheSig = segmentSig(seg);
+            const urls = await runDirectorGeneration(targetSegs, { fullSegments: segments, runSelection: runSelection });
+            if (urls && urls.length) {
                 renderTimeline();
-                saveDirectorResults(urls, [seg]);   // 写入历史展示区
+                saveDirectorResults(urls, targetSegs);   // 写入历史展示区
+                const label = (runSelection.length > 1)
+                    ? ('第 ' + (runSelection[0] + 1) + '、' + (idx + 1) + ' 段')
+                    : ('第 ' + (idx + 1) + ' 段');
+                status('已生成 ' + label + '（段间引导：仅重跑选中段，上一段用作衔接参考）✓', false);
             } else {
-                seg.status = 'error'; seg.error = '未返回视频'; renderTimeline();
+                targetSegs.forEach(s => { if (s.status !== 'done') { s.status = 'error'; s.error = '未返回视频'; } });
+                renderTimeline();
             }
         } catch (e) {
-            seg.status = 'error'; seg.error = e.message; renderTimeline();
+            targetSegs.forEach(s => { s.status = 'error'; s.error = e.message; });
+            renderTimeline();
             status('生成失败：' + e.message);
         }
         return;
@@ -3238,6 +3818,13 @@ async function saveToBackend(record) {
 // 导演台生成结果持久化到历史展示区
 // 普通模式在 runGenerationOnce 内已存历史；导演台单段/批量两条路径之前漏掉这一步，
 // 导致导演台生成的视频只显示在片段预览、不进历史区。这里补齐(后端入库 + Gallery 乐观更新)。
+// 把秒级时间戳(或当前时刻)格式化为本地 "YYYY-MM-DD HH:MM"，用于历史卡片「生成于」展示
+function _fmtGenTime(tsSec) {
+    const d = (tsSec && tsSec > 0) ? new Date(tsSec * 1000) : new Date();
+    const p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
 function saveDirectorResults(urls, segs) {
     if (!urls || !urls.length) return;
     const cfg = WORKFLOW_REGISTRY[currentWorkflow];
@@ -3308,7 +3895,8 @@ function saveDirectorResults(urls, segs) {
             帧率: fpsVal + ' fps',
             采样步数: stepsVal != null ? stepsVal : '—',
             种子: finalSeed,
-            耗时: '—'   // Director 多段异步，单段耗时不易精确追踪
+            耗时: (_lastDirectorGenMs > 0 ? (_lastDirectorGenMs / 1000 / Math.max(1, (segs && segs.length) || 1)).toFixed(1) + ' 秒' : '—'),
+            生成于: _fmtGenTime()
         };
 
         const rawValues = {
@@ -3350,8 +3938,7 @@ function initGallery() {
         longPressToSelect: true,
         galleryFeatures: { modelBadge: false },
         onUsePrompt: (record) => {
-            const el = document.getElementById('prompt');
-            if (el) { el.value = record.prompt || ''; el.dispatchEvent(new Event('input', {bubbles:true})); }
+            setPromptText(record.prompt || '');
         },
     });
 }
@@ -3368,14 +3955,6 @@ function _clipVideoUrl(seg) {
     if (refVid && refVid.url) return refVid.url;
     return null;
 }
-// 生成单帧 <video>：which='first' 取首帧(0.1s), 'last' 取尾帧(时长-0.1s)
-function _clipFrameHtml(url, which) {
-    const seek = which === 'last'
-        ? 'try{this.currentTime=Math.max(0.1,(this.duration||1)-0.1)}catch(e){}'
-        : 'try{this.currentTime=0.1}catch(e){}';
-    return '<video src="' + url + '" muted playsinline preload="metadata" onloadedmetadata="' + seek + '"></video>';
-}
-
 // 片段每秒帧缩略图：从视频按秒抽帧，按视频 url 缓存，用于时间轴胶片条
 const _clipFrameThumbs = new Map();  // url -> { done, urls:[dataUrl|null], ar }
 function _ensureClipThumbs(seg, done) {
@@ -3457,6 +4036,7 @@ function _lvPreviewInStage(url, isVideo) {
         img.src = url; img.style.display = 'block';
         const empty = document.getElementById('emptyStage');
         if (empty) empty.style.display = 'none';
+        updateStageClearBtn();
     }
 }
 
@@ -3508,6 +4088,27 @@ function updateStageClearBtn() {
     const b = document.getElementById('stageClearBtn');
     if (!b) return;
     b.style.display = _anyStageVisible() ? 'flex' : 'none';
+    updateStageAspectBox();
+}
+// 实时比例预览框：空舞台时按当前比例显示一个虚线框；有内容时隐藏
+function updateStageAspectBox() {
+    const box = document.getElementById('stageAspectBox');
+    const label = document.getElementById('stageAspectLabel');
+    const stage = document.getElementById('stage');
+    if (!box || !stage) return;
+    if (_anyStageVisible()) { box.style.display = 'none'; return; }
+    const opt = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
+    const ratio = opt.w / opt.h;
+    const cw = stage.clientWidth, ch = stage.clientHeight;
+    if (!cw || !ch) { box.style.display = 'none'; return; }
+    const pad = 24;
+    const maxW = cw - pad * 2, maxH = ch - pad * 2;
+    let bw = maxW, bh = bw / ratio;
+    if (bh > maxH) { bh = maxH; bw = bh * ratio; }
+    box.style.width = Math.round(bw) + 'px';
+    box.style.height = Math.round(bh) + 'px';
+    if (label) label.textContent = opt.short;
+    box.style.display = 'block';
 }
 // 清除视频展示区内容(仅隐藏预览, 不删除片段数据): 停止播放并回到空状态
 function clearStageDisplay() {
@@ -3529,8 +4130,6 @@ function showStageVideo(key, src) {
     if (empty) empty.style.display = 'none';
     updateStageClearBtn();
 }
-// 拖拽到主舞台（非片段）用的兼容入口
-function setStageVideo(src) { showStageVideo('__drag__', src); }
 // 时间轴变化后, 后台预加载所有片段的视频, 切换即秒开
 function preloadStageVideos() {
     segments.forEach(function (seg) {
@@ -3645,8 +4244,14 @@ if (window.lucide) window.lucide.createIcons();
 status('就绪');
 // 比例卡片事件(静态 DOM, 启动时一次性绑定)
 bindAspectRatio();
-// 提示词 @ 引用浮层
-bindRefMention(document.getElementById('prompt'), document.getElementById('promptMention'));
+// 窗口尺寸变化时重算比例预览框
+window.addEventListener('resize', updateStageAspectBox);
+// 初始渲染比例预览框（等布局完成后计算）
+requestAnimationFrame(function () { updateStageAspectBox(); });
+setTimeout(function () { updateStageAspectBox(); }, 300);
+// 提示词 @ 引用浮层（主框已升级为 contenteditable，用富文本版绑定）
+bindRefMentionEditable(document.getElementById('prompt'), document.getElementById('promptMention'));
+initPromptHoverPreview();
 bindMegapixels();
 bindResetButtons();
 // 参考图事件
@@ -3665,7 +4270,7 @@ initLoraVideo();     // 视频页面 LoRA 兼容层(接管 LoraManager, 关联 l
 // ============= 导演台 / 分镜时间轴 =============
 let directorMode = false;
 let savedNonDirectorWf = MINIMAX_BASE_WF;  // 退出导演台时恢复的工作流
-let directorContinuity = false;   // 跨段衔接：用上一段尾帧作为本段首帧
+let directorContinuity = false;   // 段间引导：用上一段尾帧作为本段首帧
 let directorUseCache = false;     // 复用缓存：参数未变且已有成片时跳过重新生成
 let segments = [];
 let selectedSegId = null;
@@ -3679,8 +4284,7 @@ function collectFormToSegment(seg) {
     if (!seg) return;
     seg.workflow = currentWorkflow;
     seg.genMode = effectiveGenMode();
-    const promptEl = document.getElementById('prompt');
-    seg.prompt = promptEl ? promptEl.value : '';
+    seg.prompt = getPromptText();
     const negEl = document.getElementById('negative_prompt');
     seg.negative_prompt = negEl ? negEl.value : '';
     const gv = id => { const el = document.getElementById(id); return el ? el.value : null; };
@@ -3701,6 +4305,14 @@ function collectFormToSegment(seg) {
     seg.inputImage = inputImageFile ? { file: inputImageFile, url: inputImageObjectUrl, comfyName: inputImageComfyName } : null;
     // 持久化当前片段的 LoRA 列表(每个片段独立)
     seg.loras = (currentLoras || []).map(r => Object.assign({}, r));
+    // 导演台：生成类型/比例/分辨率/步数/帧率为【全局统一】参数。
+    // 当前片段保存后，把这组全局参数同步给所有其它片段，确保统一、杜绝逐片段漂移。
+    if (isDirectorWf(currentWorkflow)) {
+        const gp = { genMode: seg.genMode, megapixels: seg.megapixels, fps: seg.fps, steps: seg.steps, aspect_ratio: seg.aspect_ratio };
+        segments.forEach(s => {
+            if (s !== seg) { s.genMode = gp.genMode; s.megapixels = gp.megapixels; s.fps = gp.fps; s.steps = gp.steps; s.aspect_ratio = gp.aspect_ratio; }
+        });
+    }
 }
 
 // 把 seg 写回侧栏表单 + 全局状态(选中片段时还原)
@@ -3712,10 +4324,13 @@ function applySegmentToForm(seg) {
         applyWorkflowVisibility(currentWorkflow);
         renderWfTabs();
     }
-    if (seg.genMode) selectGenMode(seg.genMode);
-    else selectGenMode(isDirectorWf(currentWorkflow) ? 'auto' : effectiveGenMode());
-    const promptEl = document.getElementById('prompt');
-    if (promptEl) promptEl.value = seg.prompt || '';
+    if (!isDirectorWf(currentWorkflow)) {
+        // 非导演台：回填该片段保存的生成类型
+        if (seg.genMode) selectGenMode(seg.genMode);
+        else selectGenMode(effectiveGenMode());
+    }
+    // 导演台：生成类型为全局统一参数，保持当前全局 genMode，不随片段切换而变
+    setPromptText(seg.prompt || '');
     const negEl = document.getElementById('negative_prompt');
     if (negEl) negEl.value = seg.negative_prompt || '';
     const setRange = (id, val) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); } };
@@ -3774,8 +4389,7 @@ function initLoraVideo() {
     // 渲染 LoRA 激活栏(lac-card 卡片, 与 zimage 一致)
     renderLoraActiveBar();
     // 绑定「选择」按钮: 打开共享 loraPicker
-    const pickBtn = document.getElementById('loraPickBtn');
-    if (pickBtn) pickBtn.addEventListener('click', () => {
+    const openLoraPicker = function() {
         if (typeof loraPickerOpen !== 'function') { status('LoRA 选择器未就绪'); return; }
         // 先同步 currentLoras -> LoraManager.state.active (picker 从 loraState.active 读取已选项)
         syncLorasToLoraManager();
@@ -3786,7 +4400,20 @@ function initLoraVideo() {
             renderLoraActiveBar();
             if (typeof scheduleSaveDraft === 'function') scheduleSaveDraft();
         });
-    });
+    };
+    // 暴露给 LoRA 栏内「添加」磁贴的内联 onclick
+    window.loraVideoAdd = openLoraPicker;
+    // LoRA 已整合进参考媒体区：点击 LoRA 面板内的添加区域打开选择器
+    const loraDrop = document.getElementById('loraDrop');
+    if (loraDrop) {
+        if (!loraDrop.dataset.bound) {
+            loraDrop.dataset.bound = '1';
+            loraDrop.addEventListener('click', openLoraPicker);
+            loraDrop.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLoraPicker(); }
+            });
+        }
+    }
 }
 
 // 同步 currentLoras -> LoraManager.state.active
@@ -3800,22 +4427,23 @@ function syncLorasToLoraManager() {
 // 渲染 LoRA 激活栏(使用共享 lac-card 样式, 与 zimage 完全一致)
 function renderLoraActiveBar() {
     var bar = document.getElementById('loraActiveBar');
-    var emptyHint = document.getElementById('loraEmptyHint');
-    var countBadge = document.getElementById('loraCountBadge');
+    var emptyWrap = document.getElementById('loraEmpty');
+    var stackWrap = document.getElementById('loraStack');
+    var refLoraCount = document.getElementById('refLoraCount');
+    var refCount = document.getElementById('refCount');
     if (!bar) return;
     var n = (currentLoras || []).length;
-    if (countBadge) {
-        if (n > 0) { countBadge.textContent = n; countBadge.style.display = ''; }
-        else { countBadge.style.display = 'none'; }
-    }
-    var loraBtn = document.getElementById('loraPickBtn');
-    if (loraBtn) loraBtn.classList.toggle('active', n > 0);
+    if (refLoraCount) refLoraCount.textContent = n;
+    if (refCount) refCount.textContent = (refImages || []).length + (refVideos || []).length + (refAudios || []).length + n;
+    // 空状态：显示「点击添加」拖放区, 隐藏横滚栈（与其它参考 Tab 一致）
     if (!n) {
         bar.innerHTML = '';
-        if (emptyHint) emptyHint.style.display = '';
+        if (emptyWrap) emptyWrap.style.display = '';
+        if (stackWrap) stackWrap.style.display = 'none';
         return;
     }
-    if (emptyHint) emptyHint.style.display = 'none';
+    if (emptyWrap) emptyWrap.style.display = 'none';
+    if (stackWrap) stackWrap.style.display = '';
     var htmls = [];
     currentLoras.forEach(function(item, idx) {
         var name = item.name || '';
@@ -3839,6 +4467,10 @@ function renderLoraActiveBar() {
         htmls.push('<span class="lac-hover-name">' + baseName.replace(/</g,'&lt;') + '</span>');
         htmls.push('</span>');
     });
+    // 末尾追加「添加」磁贴（与图片/视频/音频 Tab 一致, 点击继续添加）
+    htmls.push('<div class="lv-ref-add-tile" role="button" tabindex="0" title="添加 LoRA" onclick="loraVideoAdd()">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'
+        + '<span>添加</span></div>');
     bar.innerHTML = htmls.join('');
 }
 
@@ -3962,7 +4594,22 @@ function injectLoraNodesForMiniMax(wf, mmId, loras) {
 let _dragSegId = null;  // 当前被拖动排序的片段 id
 
 // 片段卡片上展示的「生成模式」短标签（非交互，仅供一眼看清；真值在顶部「生成模式」控件调整）
+function globalGenModeLabel() {
+    const m = effectiveGenMode();
+    if (m === 'r2v') return '参考生体';
+    if (m === 'fl2v') return '首尾帧';
+    if (m === 'i2v') return '图生视频';
+    if (m === 't2v') return '文生视频';
+    if (m === 'keyframe') return '首尾帧';
+    return '自动';
+}
+function refreshAllSegModeTags() {
+    const label = globalGenModeLabel();
+    document.querySelectorAll('[data-mode-tag]').forEach(function (t) { t.textContent = label; });
+}
 function resolveSegModeLabel(seg) {
+    // 导演台：所有片段共用全局生成类型，标签统一显示全局模式（不再逐片段推断）
+    if (isDirectorWf(currentWorkflow)) return globalGenModeLabel();
     const m = seg && seg.genMode;
     if (m === 'r2v') return '参考生体';
     if (m === 'fl2v') return '首尾帧';
@@ -3978,13 +4625,38 @@ function resolveSegModeLabel(seg) {
     return '文生视频';
 }
 
+// 时间刻度条：每像素对应的秒数（决定刻度条宽度，与卡片宽度无关）
+var RULER_PX_PER_SEC = 24;
+// 片段卡片基准宽度(px)：所有卡片等宽，与时长无关；视频段可手动缩放查看帧
+var CLIP_BASE_W = 150;
+
 function renderTimeline() {
     const track = document.getElementById('timelineTrack');
     if (!track) return;
     if (!segments.length) {
         track.innerHTML = '<div class="lv-timeline-empty">还没有片段，点「添加片段」新建一个空镜头（不复制现有内容）</div>';
+        const ruler = document.getElementById('timeRuler');
+        if (ruler) ruler.innerHTML = '';
         updateDirectorInfo();
         return;
+    }
+    // ===== 构建按比例的时间刻度条（宽度 = 时长 × RULER_PX_PER_SEC，反映真实时长比例）=====
+    const ruler = document.getElementById('timeRuler');
+    if (ruler) {
+        ruler.innerHTML = '';
+        let cum = 0;
+        segments.forEach((seg, i) => {
+            const len = parseFloat(seg.length) || 5;
+            const w = Math.max(1, Math.round(len * RULER_PX_PER_SEC));
+            const b = document.createElement('div');
+            b.className = 'lv-ruler-block' + (seg.id === selectedSegId ? ' active' : '');
+            b.dataset.seg = seg.id;
+            b.style.width = w + 'px';
+            b.innerHTML = '<span class="lv-ruler-label">#' + (i + 1) + ' ' + Math.round(cum) + 's</span>'
+                        + '<span class="lv-ruler-end">' + Math.round(cum + len) + 's</span>';
+            ruler.appendChild(b);
+            cum += len;
+        });
     }
     track.innerHTML = '';
     segments.forEach((seg, i) => {
@@ -4004,12 +4676,8 @@ function renderTimeline() {
         clip.className = 'lv-clip ' + (seg.status || 'idle') + (seg.id === selectedSegId ? ' active' : '');
         clip.dataset.seg = seg.id;
         clip.draggable = true;
-        // 宽度与帧渲染由同一套参数驱动：clipW = 实际帧数 × 帧高(40×zoom) × 视频比例。
-        // 帧区高度由 flex 撑满卡片剩余空间(不随 zoom 变, 拖动只改宽度)：每帧等宽均分,
-        // 图片 cover 按盒比例居中填满裁切(高度感不变、不变形、无黑边), 帧图不会整体变小。
-        const clipW = clipVid
-            ? Math.max(120, Math.round(frameN * FRAME_H * segAR * zoom))
-            : Math.max(120, Math.round(total * 36 * zoom));
+        // 卡片宽度与时长无关：固定等宽(CLIP_BASE_W)，仅视频段可手动缩放(viewZoom)查看帧
+        const clipW = Math.round(CLIP_BASE_W * zoom);
         clip.style.width = clipW + 'px';
         clip.addEventListener('dragstart', (e) => {
             _dragSegId = seg.id;
@@ -4024,8 +4692,18 @@ function renderTimeline() {
         // 帧缩略：有视频时显示每秒一帧的胶片条；图片结果兜底单图；否则占位
         let framesHtml;
         if (clipVid && thumbs && thumbs.length) {
-            framesHtml = thumbs.map(function (u, ti) {
-                if (u) return '<div class="lv-clip-frame"><span class="lv-clip-frame-img" style="background-image:url(\'' + u + '\')"></span><span class="lv-clip-frame-sec">' + (ti + 1) + '</span></div>';
+            // 卡片等宽, 帧过多会挤成细条：超过 MAX_FRAMES 时按秒均匀采样, 标签用真实秒数
+            const MAX_FRAMES = 10;
+            let shown = thumbs.map(function (u, idx) { return { u: u, sec: idx + 1 }; });
+            if (thumbs.length > MAX_FRAMES) {
+                shown = [];
+                for (let f = 0; f < MAX_FRAMES; f++) {
+                    const oi = Math.round(f * (thumbs.length - 1) / (MAX_FRAMES - 1));
+                    shown.push({ u: thumbs[oi], sec: oi + 1 });
+                }
+            }
+            framesHtml = shown.map(function (s) {
+                if (s.u) return '<div class="lv-clip-frame"><span class="lv-clip-frame-img" style="background-image:url(\'' + s.u + '\')"></span><span class="lv-clip-frame-sec">' + s.sec + '</span></div>';
                 return '<div class="lv-clip-frame"><i data-lucide="film"></i></div>';
             }).join('');
         } else if (clipVid && !thumbs) {
@@ -4041,7 +4719,7 @@ function renderTimeline() {
             framesHtml = '<div class="lv-clip-frame"><i data-lucide="film"></i></div>';
         }
         const contBadge = (directorContinuity && i > 0)
-            ? '<div class="lv-clip-cont" title="跨段衔接：本段用上一段尾帧作为首帧">衔</div>' : '';
+            ? '<div class="lv-clip-cont" title="段间引导：本段用上一段尾帧作为首帧">衔</div>' : '';
         const runOff = (seg.run === false);
         const runToggle = '<label class="lv-clip-run ' + (runOff ? 'off' : '') + '" title="是否参与整条生成（点一下临时跳过本段）">'
             + '<input type="checkbox" data-run="' + seg.id + '"' + (runOff ? '' : ' checked') + '>'
@@ -4057,16 +4735,16 @@ function renderTimeline() {
             + runToggle
             + '<div class="lv-clip-mode-tag" data-mode-tag="' + seg.id + '" title="该片段生成模式（在左侧「生成模式」里调整）">' + resolveSegModeLabel(seg) + '</div>'
             + '<div class="lv-clip-meta"><span>' + total + 's</span></div>'
-            + '<div class="lv-clip-resize" data-resize="' + seg.id + '" title="' + (clipVid ? '拖拽调整显示宽度（不改变视频时长）' : '拖拽调整时长') + '"></div>';
+            + (clipVid ? '<div class="lv-clip-resize" data-resize="' + seg.id + '" title="拖拽调整显示宽度（不改变视频时长）"></div>' : '');
         clip.addEventListener('click', (e) => {
             if (e.target.closest('[data-del]')) return;
             if (e.target.closest('[data-clearres]')) return;
             if (e.target.closest('[data-resize]')) return;   // 拖拽改时长后不触发播放
             selectSegment(seg.id);
-            // 点击片段内任意位置 → 主舞台视频跳转到该位置对应的帧时间播放(而不是从头重播)
+            // 点击片段：主舞台定位到该位置对应的帧并暂停(不自动播放、不连续播放)
             const rect = clip.getBoundingClientRect();
             const frac = (rect.width > 0) ? Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) : 0;
-            playSequenceFrom(seg.id, frac * total);
+            seekSegmentTo(seg, frac * total);
         });
         const del = clip.querySelector('[data-del]');
         if (del) del.addEventListener('click', (e) => { e.stopPropagation(); armDeleteOrRemove(seg); });
@@ -4093,17 +4771,15 @@ function renderTimeline() {
                 clip.draggable = false;   // 拖拽改时长/缩放时禁止触发卡片排序
                 const startX = e.clientX;
                 if (clipVid) {
-                    // 视频片段：拖拽仅改变「显示宽度」(viewZoom), 视频实际时长保持锁定
-                    const FRAME_H = 40;                 // 帧显示高度; 与缩略图高度(90)之比决定可放大上限(2.25x), 超过即放大模糊/变形
-                    const unitW = Math.max(1, frameN * FRAME_H * segAR);   // 1x 宽度 = 实际帧数 × 帧高 × 视频比例(与渲染宽度公式同源)
+                    // 视频片段：右缘拖拽仅调整「显示宽度」(viewZoom), 基于固定基数 CLIP_BASE_W, 与时长完全无关
+                    const BASE = CLIP_BASE_W;
                     const startZoom = (seg.viewZoom && seg.viewZoom > 0) ? seg.viewZoom : 1;
-                    const startW = Math.round(unitW * startZoom);
-                    const zoomMax = 90 / FRAME_H;       // =2.25: 拖到最宽时每帧正好等于原图分辨率, 再宽就放大模糊(变形)
-                    const MAXW = Math.min(1400, Math.round(unitW * zoomMax));   // 显示缩放硬上限：不超过原图分辨率且 ≤1400px, 防超长/变形
+                    const startW = Math.round(BASE * startZoom);
+                    const MAXW = Math.round(BASE * 2.5);   // 最多放大 2.5x 方便看帧, 不无限拉长
                     const onMove = (ev) => {
                         let newW = startW + (ev.clientX - startX);
-                        newW = Math.max(120, Math.min(MAXW, newW));   // 直接限宽：拖到顶就停, 不会超长也不会过宽变形
-                        seg.viewZoom = newW / unitW;
+                        newW = Math.max(BASE, Math.min(MAXW, newW));   // 限宽：拖到顶就停, 不会过宽变形
+                        seg.viewZoom = newW / BASE;
                         clip.style.width = newW + 'px';
                         // 帧区高度由 flex 撑满卡片(不随 zoom 变), 拖动中与重渲染一致, 帧图不整体缩放
                     };
@@ -4203,7 +4879,7 @@ function renderTimeline() {
     if (window.lucide) window.lucide.createIcons();
     updateDirectorInfo();
     preloadStageVideos();  // 后台预加载所有片段视频, 切换即秒开
-    // 跨段衔接：相邻卡片间画绿色接力箭头(仅开启衔接且段序>0)
+    // 段间引导：相邻卡片间画绿色接力箭头(仅开启衔接且段序>0)
     if (directorContinuity) {
         const geom = _seqGeom();
         for (let k = 1; k < geom.length; k++) {
@@ -4213,14 +4889,19 @@ function renderTimeline() {
             track.appendChild(c);
         }
     }
-    // 全局播放头元素(播放整条时由 rAF 驱动移动), 叠在统一轨道上
+    // 全局播放头元素(播放整条时由 rAF 驱动移动), 叠在按比例的时间刻度条上(沿真实时间轴)
     let ph = document.getElementById('seqPlayhead');
     if (!ph) { ph = document.createElement('div'); ph.id = 'seqPlayhead'; ph.className = 'lv-seq-playhead'; }
-    track.appendChild(ph);
+    if (ruler) ruler.appendChild(ph);
     // 轨道空白处点击：跳转到对应片段起点(卡片自身已由 click 处理)
     if (!track.dataset.jumpBound) {
         track.dataset.jumpBound = '1';
         track.addEventListener('click', onSeqTrackClick);
+    }
+    // 刻度条点击：按真实时间定位并从此连续播放(仅绑定一次)
+    if (ruler && !ruler.dataset.seekBound) {
+        ruler.dataset.seekBound = '1';
+        ruler.addEventListener('click', onRulerClick);
     }
 }
 
@@ -4271,53 +4952,6 @@ function _seqXToTime(x) {
     if (last >= 0) return { segIndex: last, segId: segments[last].id, offset: parseFloat(segments[last].length) || 5, absTime: cum };
     return null;
 }
-// 渲染时间刻度尺: 主刻度带 "Ns" 标签, 次刻度(半步)无标签; 与卡片/播放头共用同一几何。
-function _renderSeqRuler() {
-    const ruler = document.getElementById('seqRuler');
-    const track = document.getElementById('timelineTrack');
-    if (!ruler || !track) return;
-    if (!segments.length) { ruler.style.display = 'none'; ruler.innerHTML = ''; return; }
-    const geom = _seqGeom();
-    if (!geom.length) { ruler.style.display = 'none'; return; }
-    ruler.style.display = '';
-    const totalW = geom[geom.length - 1].left + geom[geom.length - 1].w;
-    ruler.style.width = totalW + 'px';
-    ruler.innerHTML = '';
-    let total = 0;
-    segments.forEach(s => { total += (parseFloat(s.length) || 5); });
-    const step = total <= 12 ? 2 : (total <= 30 ? 5 : 10);
-    // 主刻度(带标签)
-    for (let t = 0; t <= total + 0.001; t += step) {
-        const x = _seqTimeToX(t);
-        const tick = document.createElement('div');
-        tick.className = 'lv-ruler-tick major';
-        tick.style.left = x + 'px';
-        const lbl = document.createElement('span');
-        lbl.className = 'lv-ruler-tick-label';
-        lbl.textContent = Math.round(t) + 's';
-        tick.appendChild(lbl);
-        ruler.appendChild(tick);
-    }
-    // 次刻度(半步, 无标签)
-    for (let t = step / 2; t < total - 0.001; t += step) {
-        const x = _seqTimeToX(t);
-        const tick = document.createElement('div');
-        tick.className = 'lv-ruler-tick minor';
-        tick.style.left = x + 'px';
-        ruler.appendChild(tick);
-    }
-}
-// 点击时间刻度尺: 定位到对应绝对时间并从此连续播放
-function onSeqRulerClick(e) {
-    const ruler = document.getElementById('seqRuler');
-    if (!ruler) return;
-    const rect = ruler.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const info = _seqXToTime(x);
-    if (!info) return;
-    selectSegment(info.segId);
-    playSequenceFrom(info.segId, info.offset);
-}
 // renderSeqTimeline 已废弃：原独立的胶片条(#seqTimeline/#seqTrack)已与片段卡片列表(#timelineTrack)合二为一。
 // 卡片本身即时间轴(宽度按时长比例、内嵌首尾帧、右缘拖拽改时长、卡片间衔接连线、整条播放头), 详见 renderTimeline()。
 // 点击轨道空白/间隙：按 x 定位到对应绝对时间并从此连续播放
@@ -4332,10 +4966,60 @@ function onSeqTrackClick(e) {
     selectSegment(info.segId);
     playSequenceFrom(info.segId, info.offset);
 }
-// 播放时同步轨道「正在播放」高亮(不重建 DOM, 避免卡顿)
+// ===== 时间刻度条几何（独立于卡片宽度，纯按真实时长比例）=====
+function _rulerCumPx(k) {   // 第 k 段之前的累计像素(按真实时长)
+    let cum = 0;
+    for (let j = 0; j < k; j++) cum += (parseFloat(segments[j].length) || 5) * RULER_PX_PER_SEC;
+    return cum;
+}
+// 绝对时间(秒, 从整条起点算) -> 刻度条 x(px)
+function _rulerTimeToX(absTime) {
+    let cum = 0;
+    for (let k = 0; k < segments.length; k++) {
+        const len = parseFloat(segments[k].length) || 5;
+        if (k === segments.length - 1 || absTime <= cum + len) {
+            const frac = Math.min(1, Math.max(0, (absTime - cum) / len));
+            return _rulerCumPx(k) + frac * len * RULER_PX_PER_SEC;
+        }
+        cum += len;
+    }
+    return 0;
+}
+// 刻度条 x(px) -> 绝对时间定位信息
+function _rulerXToTime(x) {
+    let cum = 0;
+    for (let k = 0; k < segments.length; k++) {
+        const len = parseFloat(segments[k].length) || 5;
+        const segPx = len * RULER_PX_PER_SEC;
+        const segStart = cum * RULER_PX_PER_SEC;
+        if (x <= segStart + segPx) {
+            const frac = segPx > 0 ? Math.min(1, Math.max(0, (x - segStart) / segPx)) : 0;
+            return { segIndex: k, segId: segments[k].id, offset: frac * len, absTime: cum + frac * len };
+        }
+        cum += len;
+    }
+    const last = segments.length - 1;
+    if (last >= 0) return { segIndex: last, segId: segments[last].id, offset: parseFloat(segments[last].length) || 5, absTime: cum };
+    return null;
+}
+// 点击时间刻度条：按真实时间定位并从此连续播放
+function onRulerClick(e) {
+    const ruler = document.getElementById('timeRuler');
+    if (!ruler) return;
+    const rect = ruler.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const info = _rulerXToTime(x);
+    if (!info) return;
+    selectSegment(info.segId);
+    playSequenceFrom(info.segId, info.offset);
+}
+// 播放时同步「正在播放」高亮(不重建 DOM, 避免卡顿)：卡片 + 刻度块
 function updateSeqPlaying(segId) {
     document.querySelectorAll('#timelineTrack .lv-clip').forEach(el => {
         el.classList.toggle('playing', el.dataset.seg === segId);
+    });
+    document.querySelectorAll('#timeRuler .lv-ruler-block').forEach(el => {
+        el.classList.toggle('active', el.dataset.seg === segId);
     });
 }
 // ============= 全局播放头(rAF 驱动, 沿统一轨道平滑移动) =============
@@ -4353,16 +5037,20 @@ function startSeqPlayhead() {
         if (!_seq || !_seq.playing) { if (ph) ph.style.display = 'none'; _playheadRAF = 0; return; }
         const idx = _seq.idx;
         if (idx >= 0 && idx < segments.length) {
-            const geom = _seqGeom();
             const v = _seq.vid;
             let frac = 0;
             if (v && isFinite(v.duration) && v.duration > 0) frac = Math.min(1, Math.max(0, v.currentTime / v.duration));
-            const x = geom[idx].left + frac * geom[idx].w;
+            const segLen = parseFloat(segments[idx].length) || 5;
+            let cumBefore = 0;
+            for (let j = 0; j < idx; j++) cumBefore += (parseFloat(segments[j].length) || 5);
+            const absTime = cumBefore + frac * segLen;
+            const x = _rulerTimeToX(absTime);   // 播放头沿真实时间刻度条移动
             if (ph) ph.style.left = x + 'px';
             // 自动滚动让播放头保持在可视区
-            const trackRect = track.getBoundingClientRect();
+            const ruler = document.getElementById('timeRuler');
             const wrapRect = wrap.getBoundingClientRect();
-            const phViewportX = (trackRect.left - wrapRect.left) + x;
+            const rulerRect = ruler ? ruler.getBoundingClientRect() : wrapRect;
+            const phViewportX = (rulerRect.left - wrapRect.left) + x;
             if (phViewportX < 8) wrap.scrollLeft += (phViewportX - 8);
             else if (phViewportX > wrap.clientWidth - 8) wrap.scrollLeft += (phViewportX - (wrap.clientWidth - 8));
         }
@@ -4428,17 +5116,6 @@ async function importVideoIntoSegment(seg, url) {
 
 // ===== 导演台：片段参考视频 清理 / 替换 / 单个移除 =====
 let _replaceTargetSegId = null;
-
-function removeSegmentVideo(seg, vidId) {
-    if (!seg || !seg.refs || !seg.refs.videos) return;
-    const i = seg.refs.videos.findIndex((v) => v.id === vidId);
-    if (i < 0) return;
-    seg.refs.videos.splice(i, 1);
-    if (seg.id === selectedSegId) applySegmentToForm(seg);
-    renderTimeline();
-    scheduleSaveDraft();
-    status('已移除该片段的一个参考视频', false);
-}
 
 // 统一「清除视频」：同时清除片段的生成成片与拖入的参考视频（不删除片段本身），便于重新生成
 function clearSegmentMedia(seg) {
@@ -4514,11 +5191,17 @@ function _onCtxMouseDown(e) {
 }
 
 function updateDirectorInfo() {
-    const el = document.getElementById('directorInfo');
-    if (el) el.textContent = segments.length ? ('共 ' + segments.length + ' 个片段') : '';
-    // 跨段衔接仅在 ≥2 个片段时有意义（节点侧 segment_count<2 也会强制关闭）
-    const continuityWrap = document.getElementById('continuityWrap');
-    if (continuityWrap) continuityWrap.style.display = (segments.length >= 2) ? '' : 'none';
+    // 段间引导仅在 ≥2 个片段时有意义（节点侧 segment_count<2 也会强制关闭）
+    const contBtn = document.getElementById('continuityBtn');
+    const contToggle = document.getElementById('continuityToggle');
+    if (contBtn) {
+        const usable = segments.length >= 2;
+        contBtn.disabled = !usable;
+        if (!usable && contToggle && contToggle.checked) {
+            contToggle.checked = false;
+            contToggle.dispatchEvent(new Event('change'));
+        }
+    }
 }
 
 function playSegment(seg) {
@@ -4542,6 +5225,23 @@ function playSegment(seg) {
     }
 }
 
+// 点击片段：主舞台定位到该片段的对应帧位置并暂停（不自动播放、不连续播放）
+function seekSegmentTo(seg, time) {
+    playSegment(seg);                 // 显示该片段（仅显示，不播放）
+    const v = _stageVideos[seg.id];
+    if (!v) return;                   // 图片结果/空片段：无视频元素，无需定位
+    const t = Math.max(0, Number(time) || 0);
+    const apply = () => {
+        const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : (parseFloat(seg.length) || 5);
+        try { v.currentTime = Math.min(dur, t); } catch (_) {}
+        try { v.pause(); } catch (_) {}
+    };
+    // 视频元素可能尚未加载出时长：已就绪直接定位，否则等元数据加载后再定位
+    if (v.readyState >= 1 && isFinite(v.duration)) apply();
+    else v.addEventListener('loadedmetadata', apply, { once: true });
+    try { v.pause(); } catch (_) {}
+}
+
 // ===== 导演台：连续播放（按顺序预览全部片段，不依赖后端合成）=====
 let _seq = null;   // { id, idx, playing, timer, onEnd, vid }
 let _seqId = 0;
@@ -4555,6 +5255,7 @@ function playSequenceFrom(segId, startOffset) {
     _seq = { id: _seqId, idx: (idx >= 0 ? idx : 0) - 1, firstIdx: (idx >= 0 ? idx : 0), playing: true, timer: null, onEnd: null, vid: null, startOffset: (startOffset || 0), seeked: false };
     _seqPlayNext();
     startSeqPlayhead();   // 启动全局播放头, 沿胶片条平滑移动
+    _updateSeqBtn();      // 同步按钮文案(连续播放 → 停止)
 }
 
 function _seqPlayNext() {
@@ -4613,8 +5314,10 @@ function _updateSeqBtn() {
     const b = document.getElementById('seqPlayBtn');
     if (!b) return;
     b.innerHTML = (_seq && _seq.playing)
-        ? '<i data-lucide="square"></i> 停止'
-        : '<i data-lucide="play"></i> 连续播放';
+        ? '<i data-lucide="square"></i>'
+        : '<i data-lucide="play"></i>';
+    b.title = (_seq && _seq.playing) ? '停止连续播放' : '从当前片段（或第一段）起连续播放全部片段预览';
+    b.classList.toggle('on', !!(_seq && _seq.playing));
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -4676,7 +5379,7 @@ function addSegment() {
     inputImageComfyName = null;
     inputImageObjectUrl = null;
     // 清空侧栏表单内容, 让空片段真正从空白开始
-    const _p = document.getElementById('prompt'); if (_p) _p.value = '';
+    setPromptText('');
     const _n = document.getElementById('negative_prompt'); if (_n) _n.value = '';
     if (typeof clearImage === 'function') clearImage();     // 此时 inputImageObjectUrl 已 null, 不会误 revoke 其它片段的输入图
     if (typeof clearAllRefs === 'function') clearAllRefs(); // 此时全局 ref* 已是空数组, 不会误 revoke 其它片段的参考视频
@@ -4709,7 +5412,6 @@ function armDeleteOrRemove(seg) {
 }
 
 function removeSegment(id) {
-    if (segments.length <= 1) { status('至少保留一个片段，无法删除'); return; }
     const idx = segments.findIndex(s => s.id === id);
     if (idx < 0) return;
     const seg = segments[idx];
@@ -4731,14 +5433,14 @@ function clearSegments() {
     localStorage.removeItem(DRAFT_KEY);
 }
 
-// ============= 跨段衔接：把上一段尾帧喂给本段首帧 =============
+// ============= 段间引导：把上一段尾帧喂给本段首帧 =============
 function absUrl(u) {
     if (!u) return u;
     if (/^https?:\/\//i.test(u)) return u;
     return u.charAt(0) === '/' ? (location.origin + u) : (location.origin + '/' + u);
 }
 
-// 从视频 URL 提取最后一帧（用于跨段衔接），返回 jpeg Blob
+// 从视频 URL 提取最后一帧（用于段间引导），返回 jpeg Blob
 function extractLastFrame(url) {
     return new Promise((resolve, reject) => {
         const v = document.createElement('video');
@@ -4808,10 +5510,9 @@ async function runDirector() {
 
     console.log('[debug] runDirector: currentWorkflow =', currentWorkflow, 'isDirectorWf =', isDirectorWf(currentWorkflow));
 
-    // Director 工作流：一次提交所有片段（含跨段衔接），不走旧循环
+    // Director 工作流：一次提交所有片段（含段间引导），不走旧循环
     if (isDirectorWf(currentWorkflow)) {
-        const runAllBtn2 = document.getElementById('runAllBtn');
-        if (runAllBtn2) runAllBtn2.disabled = true;
+        setRunBtnBusy(true);
         try {
             // 筛选需运行的片段
             const toRun = segments.filter(s => s.run !== false);
@@ -4823,6 +5524,12 @@ async function runDirector() {
             const needsRun = [];
             for (const seg of toRun) {
                 const sig = segmentSig(seg);
+                // 段间引导需在单次提交中至少包含 2 段(节点硬性 segment_count>=2)，
+                // 因此开启时忽略缓存碎片、强制整段一起生成，避免 continuity 被静默关闭。
+                if (directorContinuity) {
+                    needsRun.push(seg);
+                    continue;
+                }
                 if (directorUseCache && seg.cacheSig && seg.cacheSig === sig && seg.result) {
                     seg.status = 'done';
                 } else {
@@ -4831,7 +5538,9 @@ async function runDirector() {
             }
             renderTimeline();
             if (!needsRun.length) {
-                status('所有片段已缓存，跳过生成');
+                // 全部已缓存：仍尝试把既有结果拼成整条视频（存在则展示，否则提示跳过）
+                const produced = await finalizeDirectorWhole(null, null);
+                if (!produced) status('所有片段已缓存，跳过生成');
                 return;
             }
             needsRun.forEach(s => { s.status = 'running'; s.error = null; });
@@ -4845,7 +5554,7 @@ async function runDirector() {
                     else { seg.status = 'error'; seg.error = '未返回视频'; }
                 });
                 renderTimeline();
-                saveDirectorResults(urls, needsRun);   // 写入历史展示区
+                await finalizeDirectorWhole(urls, needsRun);   // 合成整条并展示/留存（不足则回退逐段）
             }
             status('导演台：全部片段生成完成 ✓', false);
         } catch (e) {
@@ -4853,14 +5562,13 @@ async function runDirector() {
             if (seg) { seg.status = 'error'; seg.error = e.message; renderTimeline(); }
             status('导演台失败：' + e.message);
         } finally {
-            if (runAllBtn2) runAllBtn2.disabled = false;
+            setRunBtnBusy(false);
             scheduleSaveDraft();
         }
         return;
     }
 
-    const runAllBtn = document.getElementById('runAllBtn');
-    if (runAllBtn) runAllBtn.disabled = true;
+    setRunBtnBusy(true);
     const total = segments.length;
     try {
         for (let i = 0; i < total; i++) {
@@ -4881,7 +5589,7 @@ async function runDirector() {
                 status('导演台：片段 ' + (i + 1) + ' 参数未变，复用缓存', false);
                 continue;
             }
-            // 跨段衔接：临时把上一段尾帧注入本段首帧（生成后还原，不破坏用户素材）
+            // 段间引导：临时把上一段尾帧注入本段首帧（生成后还原，不破坏用户素材）
             let continuityApplied = false;
             let contUrl = null;
             const savedInputImage = seg.inputImage;
@@ -4890,7 +5598,7 @@ async function runDirector() {
                 const prev = segments[i - 1];
                 if (prev.result) {
                     try {
-                        status('跨段衔接：提取上一段尾帧…', true);
+                        status('段间引导：提取上一段尾帧…', true);
                         const blob = await extractLastFrame(absUrl(prev.result));
                         const file = new File([blob], 'continuity_frame.jpg', { type: 'image/jpeg' });
                         contUrl = URL.createObjectURL(file);
@@ -4898,7 +5606,7 @@ async function runDirector() {
                         continuityApplied = true;
                     } catch (e) {
                         console.warn('[continuity] 尾帧提取失败', e);
-                        status('跨段衔接提取失败，本段按原素材生成', false);
+                        status('段间引导提取失败，本段按原素材生成', false);
                     }
                 }
             }
@@ -4923,7 +5631,7 @@ async function runDirector() {
         if (seg) { seg.status = 'error'; seg.error = e.message; renderTimeline(); }
         status('导演台失败：' + e.message);
     } finally {
-        if (runAllBtn) runAllBtn.disabled = false;
+        setRunBtnBusy(false);
         scheduleSaveDraft();
     }
 }
@@ -4971,6 +5679,8 @@ function bindDirector() {
         if (directorMode && !segments.length) addSegment();
         if (!directorMode && selectedSegId) { const s = getSegment(selectedSegId); if (s) collectFormToSegment(s); }
         renderTimeline();
+        // 组合生成按钮：导演台开关切换时刷新「整条」可用性与文案
+        if (typeof updateGenMenuForMode === 'function') updateGenMenuForMode();
         // 进入导演台即把主舞台变成「整合视频」: 有素材的片段自动连续播放
         if (directorMode && segments.some(s => s.result || (s.refs && s.refs.videos && s.refs.videos.length))) {
             playSequenceFrom(segments[0].id);
@@ -4978,28 +5688,56 @@ function bindDirector() {
     });
     const addBtn = document.getElementById('addSegBtn');
     if (addBtn) addBtn.addEventListener('click', addSegment);
+    // 段间引导：图标按钮 ↔ 隐藏 checkbox
+    const contBtn = document.getElementById('continuityBtn');
     const contToggle = document.getElementById('continuityToggle');
-    if (contToggle) {
+    if (contBtn && contToggle) {
+        contBtn.addEventListener('click', () => {
+            if (segments.length < 2) { status('段间引导需至少 2 个片段'); return; }
+            contToggle.checked = !contToggle.checked;
+            contToggle.dispatchEvent(new Event('change'));
+        });
         contToggle.addEventListener('change', () => {
             directorContinuity = contToggle.checked;
+            contBtn.classList.toggle('on', contToggle.checked);
+            contBtn.setAttribute('aria-pressed', String(contToggle.checked));
             renderTimeline();       // 刷新卡片「衔」标识
             scheduleSaveDraft();
         });
+        contBtn.classList.toggle('on', contToggle.checked);
     }
+    // 复用缓存：图标按钮 ↔ 隐藏 checkbox
+    const cacheBtn = document.getElementById('cacheBtn');
     const cacheToggle = document.getElementById('cacheToggle');
-    if (cacheToggle) {
+    if (cacheBtn && cacheToggle) {
+        cacheBtn.addEventListener('click', () => {
+            cacheToggle.checked = !cacheToggle.checked;
+            cacheToggle.dispatchEvent(new Event('change'));
+        });
         cacheToggle.addEventListener('change', () => {
             directorUseCache = cacheToggle.checked;
+            cacheBtn.classList.toggle('on', cacheToggle.checked);
+            cacheBtn.setAttribute('aria-pressed', String(cacheToggle.checked));
             renderTimeline();       // 刷新卡片「缓存」标识
             scheduleSaveDraft();
         });
+        cacheBtn.classList.toggle('on', cacheToggle.checked);
     }
     const delBtn = document.getElementById('delSegBtn');
     if (delBtn) delBtn.addEventListener('click', () => { if (selectedSegId) removeSegment(selectedSegId); });
     const clearBtn = document.getElementById('clearSegBtn');
     if (clearBtn) clearBtn.addEventListener('click', clearSegments);
-    const runAllBtn = document.getElementById('runAllBtn');
-    if (runAllBtn) runAllBtn.addEventListener('click', runDirector);
+    const seqPlayBtn = document.getElementById('seqPlayBtn');
+    if (seqPlayBtn) {
+        seqPlayBtn.addEventListener('click', () => {
+            if (_seq && _seq.playing) { stopSequence(); return; }   // 正在播放 → 停止
+            const startId = (selectedSegId && getSegment(selectedSegId)) ? selectedSegId
+                : (segments[0] && segments[0].id);
+            if (!startId) { status('请先添加片段'); return; }
+            playSequenceFrom(startId);   // 从当前选中片段(默认第一段)起连续播放全部片段
+            _updateSeqBtn();
+        });
+    }
     const concatBtn = document.getElementById('concatBtn');
     if (concatBtn) concatBtn.addEventListener('click', concatSegments);
     // 视频展示区「清除视频」按钮：仅隐藏预览, 不删除片段数据
@@ -5014,8 +5752,24 @@ function bindDirector() {
             item.addEventListener('click', () => more.classList.remove('open'));
         });
     }
+    // 精度 / 步数 弹出面板：点击触发器展开，面板内点击不关闭，点外部关闭
+    const PARAM_POPS = ['lengthPop', 'mpPop', 'genSettingsPop'];
+    PARAM_POPS.forEach(popId => {
+        const pop = document.getElementById(popId);
+        if (!pop) return;
+        const trigger = pop.querySelector('.lv-param-trigger');
+        if (trigger) trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            PARAM_POPS.forEach(o => { if (o !== popId) { const p = document.getElementById(o); if (p) p.classList.remove('open'); } });
+            if (more) more.classList.remove('open');
+            pop.classList.toggle('open');
+        });
+        const panel = pop.querySelector('.lv-param-panel');
+        if (panel) panel.addEventListener('click', (e) => e.stopPropagation());
+    });
     document.addEventListener('click', () => {
         const m = document.getElementById('directorMore'); if (m) m.classList.remove('open');
+        PARAM_POPS.forEach(o => { const p = document.getElementById(o); if (p) p.classList.remove('open'); });
     });
     const segVidInput = document.getElementById('segVidReplaceInput');
     if (segVidInput && !segVidInput._bound) {
@@ -5169,40 +5923,111 @@ async function loadDraft() {
     } catch (e) { /* 损坏草稿忽略 */ }
 }
 
+// 把若干片段的结果视频在后端用 ffmpeg 拼接成「一条」视频，返回合成后的 url。
+// 供「生成整条」自动合成与「合成成片」手动按钮共用（保持顺序为时间轴顺序）。
+async function concatClipsToVideo(segs) {
+    const done = (segs || []).filter(s => s && s.result);
+    if (done.length < 2) throw new Error('需要至少 2 个已生成片段才能合成整条');
+    const token = getToken();
+    const base = location.origin;
+    // 后端 output_file_from_url 只接受以 /output/ 或 /assets/ 开头的本地路径，
+    // 因此把同源绝对 URL 还原成相对路径；外部 URL 无法本地 ffmpeg 拼接，跳过该片段。
+    const toLocalPath = (u) => {
+        if (!u) return null;
+        if (u.startsWith('/output/') || u.startsWith('/assets/')) return u;
+        if (/^https?:\/\//.test(u)) {
+            try {
+                const p = new URL(u);
+                if (p.origin === base) {
+                    const path = p.pathname + (p.search || '') + (p.hash || '');
+                    if (path.startsWith('/output/') || path.startsWith('/assets/')) return path;
+                }
+            } catch (e) { /* 解析失败则视为不可拼接 */ }
+            return null;
+        }
+        return null;
+    };
+    const clips = [];
+    done.forEach((s, i) => {
+        const local = toLocalPath(s.result);
+        if (!local) { console.warn('[concat] 跳过无法本地拼接的片段 URL:', s.result); return; }
+        clips.push({
+            url: local,
+            name: 'seg' + (i + 1),
+            start: 0,
+            end: parseFloat(s.length) || 5,
+            duration: parseFloat(s.length) || 5
+        });
+    });
+    if (clips.length < 2) throw new Error('至少 2 个可本地拼接的已生成片段才能合成整条');
+    const resp = await fetch('/api/smart-canvas/minimax-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+        body: JSON.stringify({ clips, filename: 'litevideo-director-' + Date.now() + '.mp4' })
+    });
+    if (!resp.ok) { const t = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + t.substring(0, 200)); }
+    const data = await resp.json();
+    if (!data.url) throw new Error('后端未返回合成视频');
+    return data.url;
+}
+
+// 生成整条收尾：把已生成片段在后端拼成「一条」整视频，主舞台显示整条，历史只存一条（不逐段拆分）。
+// urls/segs 为本次新生成结果（可为 null，表示用时间轴既有 seg.result）；返回是否成功生成整条。
+async function finalizeDirectorWhole(urls, segs) {
+    const toConcat = segments.filter(s => s.run !== false);
+    const ready = toConcat.filter(s => s.result);
+    const failed = toConcat.filter(s => !s.result);
+    if (ready.length >= 2 && failed.length === 0) {
+        try {
+            status('导演台：合成整条视频…（' + ready.length + ' 段）', true);
+            const wholeUrl = await concatClipsToVideo(toConcat);
+            showStageVideo('__director_whole__', wholeUrl);
+            status('导演台：整条视频已生成 ✓', false);
+            const rec = {
+                videos: [wholeUrl],
+                prompt: '导演台整条视频（' + ready.length + ' 段合成）',
+                params: { 合成: ready.length + ' 段' },
+                genParams: {
+                    成片: ready.length + ' 段 ffmpeg 拼接',
+                    工作流: (WORKFLOW_REGISTRY[currentWorkflow] ? WORKFLOW_REGISTRY[currentWorkflow].title : 'MiniMax H3 导演台'),
+                    耗时: (_lastDirectorGenMs > 0 ? (_lastDirectorGenMs / 1000).toFixed(1) + ' 秒' : '—'),
+                    生成于: _fmtGenTime()
+                },
+                timestamp: Date.now() / 1000,
+                director: true,
+                model: 'MINIMAX H3 DIRECTOR'
+            };
+            saveToBackend(rec);
+            if (typeof GalleryList !== 'undefined') GalleryList.pushNewImage(rec);
+            return true;
+        } catch (e) {
+            console.warn('[concat] 整条合成失败，回退逐段保存', e);
+            status('整条合成失败，已逐段保存：' + e.message, false);
+        }
+    } else if (ready.length >= 2) {
+        status('有 ' + failed.length + ' 个片段未生成，无法合成完整整条，已逐段保存', false);
+    }
+    // 回退：逐段保存（本次新生成用 urls/segs；缓存场景用 toConcat 的既有结果）
+    if (urls && segs) saveDirectorResults(urls, segs);
+    else if (ready.length >= 2) saveDirectorResults(ready.map(s => s.result), toConcat);
+    return false;
+}
+
+// 手动「合成成片」：把时间轴上已完成的片段拼接成一条并展示
 async function concatSegments() {
     if (isRunning) return;
     const done = segments.filter(s => s.status === 'done' && s.result);
     if (done.length < 2) { status('至少 2 个已完成片段才能合成成片（当前 ' + done.length + ' 个）'); return; }
-    const token = getToken();
-    const base = location.origin;
-    const clips = done.map((s, i) => ({
-        url: (/^https?:\/\//.test(s.result || '') ? s.result : (base + s.result)),
-        name: 'seg' + (i + 1),
-        start: 0,
-        end: parseFloat(s.length) || 5,
-        duration: parseFloat(s.length) || 5
-    }));
     status('合成成片中…（' + done.length + ' 段）', true);
     try {
-        const resp = await fetch('/api/smart-canvas/minimax-export', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
-            body: JSON.stringify({ clips, filename: 'litevideo-director-' + Date.now() + '.mp4' })
-        });
-        if (!resp.ok) { const t = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + t.substring(0, 200)); }
-        const data = await resp.json();
-        if (!data.url) throw new Error('后端未返回合成视频');
-        const v = document.getElementById('resultVideo');
-        v.src = data.url; v.style.display = 'block';
-        const empty = document.getElementById('emptyStage');
-        if (empty) empty.style.display = 'none';
-        updateStageClearBtn();
+        const url = await concatClipsToVideo(done);
+        showStageVideo('__director_whole__', url);
         status('合成完成 ✓', false);
         const rec = {
-            videos: [data.url],
+            videos: [url],
             prompt: '导演台成片（' + done.length + ' 段拼接）',
             params: { 合成: done.length + ' 段' },
-            genParams: { 成片: done.length + ' 段 ffmpeg 拼接' },
+            genParams: { 成片: done.length + ' 段 ffmpeg 拼接', 生成于: _fmtGenTime() },
             timestamp: Date.now() / 1000
         };
         saveToBackend(rec);
@@ -5283,6 +6108,22 @@ function initPromptPop(){
     const area = document.getElementById('promptPopArea');
     const main = document.getElementById('prompt');
     const openBtn = document.getElementById('expandPromptBtn');
+    const clearPromptBtn = document.getElementById('clearPromptBtn');
+    if (clearPromptBtn) {
+        clearPromptBtn.addEventListener('click', () => {
+            // 清空主提示词框（与悬浮窗编辑区同步清空）
+            const mainEl = document.getElementById('prompt');
+            setPromptText('');
+            if (area) area.value = '';
+            // 导演台：把清空结果同步到当前选中片段，并刷新时间轴
+            if (directorMode && selectedSegId) {
+                const s = getSegment(selectedSegId);
+                if (s) { collectFormToSegment(s); renderTimeline(); }
+            }
+            if (typeof scheduleSaveDraft === 'function') scheduleSaveDraft();
+            if (mainEl) mainEl.focus();
+        });
+    }
     const closeBtn = document.getElementById('promptPopClose');
     const applyBtn = document.getElementById('promptPopApply');
     const clearBtn = document.getElementById('promptPopClear');
@@ -5306,7 +6147,7 @@ function initPromptPop(){
         pop.style.top = top + 'px';
     }
     function openPop(){
-        area.value = main.value;
+        area.value = getPromptText();
         syncCount();
         positionPop();
         pop.style.display = 'flex';
@@ -5314,9 +6155,8 @@ function initPromptPop(){
         area.focus();
     }
     function syncToMain(){
-        if (area.value !== main.value) {
-            main.value = area.value;
-            main.dispatchEvent(new Event('input', { bubbles: true }));
+        if (area.value !== getPromptText()) {
+            setPromptText(area.value);
         }
     }
     function closePop(){ syncToMain(); pop.style.display = 'none'; }
@@ -5334,7 +6174,7 @@ function initPromptPop(){
     area.addEventListener('input', syncCount);
     bindPromptPopMention(); // 悬浮窗口内 @ 引用参考媒体
     // 主框变化时若窗口开着，跟随同步（避免两边不一致）
-    main.addEventListener('input', () => { if (pop.style.display !== 'none') { area.value = main.value; syncCount(); } });
+    main.addEventListener('input', () => { if (pop.style.display !== 'none') { area.value = getPromptText(); syncCount(); } });
     // 点击窗口外区域关闭
     document.addEventListener('mousedown', (e) => {
         if (pop.style.display !== 'none' && !pop.contains(e.target) && e.target !== openBtn && !openBtn.contains(e.target)) closePop();
@@ -5385,7 +6225,514 @@ function initPromptPop(){
     }
 }
 
+// ============= 智能提示词 AI 生成模块（复用文生图页面的 prompt-module） =============
+// 1. 先初始化弹窗框架（预设选择器 + 预设管理器），否则长按无弹窗
+if (typeof spPickerInit === 'function') spPickerInit();
+if (typeof spmInit === 'function') spmInit();
+
+// 2. 在 #smartPromptContainer 渲染「AI 生成」按钮
+// 注意：由于 loadWorkflowList() 异步完成后会重新调用 applyWorkflowVisibility()，
+// 可能导致按钮丢失。ensureSmartPromptBtn() 在工作流每次切换后被调用来保证按钮存活。
+var _smartPromptInited = false;
+function ensureSmartPromptBtn() {
+    var container = document.getElementById('smartPromptContainer');
+    if (!container) return;
+    // 若已存在 .smart-prompt-btn 则跳过，避免重复创建
+    if (container.querySelector('.smart-prompt-btn')) return;
+    if (typeof SmartPrompt === 'undefined') return;
+    _smartPromptInited = true;
+    SmartPrompt.init('smartPromptContainer', {
+        presetId: 'h3-video',
+        getText: function() {
+            return getPromptText();
+        },
+        setText: function(text) {
+            setPromptText(text);
+        },
+        // H3 视频上下文：告诉 LLM 当前模式/参考素材/时长，让它写对齐指令与结构化字段
+        getContext: function() {
+            return buildH3Context();
+        },
+        // [2026-08-13] 多模态看图生成：返回参考图 File[]，直接交给多模态模型（最多 9 张），
+        // 无需先反推。返回空数组则走纯文本生成。
+        getImages: function() {
+            return collectRefImageFiles();
+        },
+        onPromptUpdate: function() {
+            // 视频页面暂无 prompt-tags，保持空函数避免报错
+        },
+        onLongPress: function() {
+            if (typeof spPickerOpen === 'function') spPickerOpen();
+        }
+    });
+}
+ensureSmartPromptBtn();
+
+// ============= H3 视频提示词上下文 =============
+// 根据当前工作流/生成模式/已导入参考素材，组装一段上下文注入给 LLM，
+// 让它判断应使用哪种 H3 模式（T2VA/I2VA/FL2VA/L2VA/Ref2VA）并写对齐指令。
+// [2026-08-13] 升级：参考图不再走“反推→再生成”两步，而是通过 getImages 直接把
+// File 交给多模态模型（/generate-multimodal），一次调用完成看图+生成。本函数只提供
+// 模式/时长/引用标签等文本元信息。
+
+// 收集当前参考图（真实 File，最多 9 张），供多模态生成使用。
+// 返回 File[]；无图或读取失败返回空数组。
+async function collectRefImageFiles() {
+    var imgs = (typeof refImages !== 'undefined') ? refImages : [];
+    if (!imgs || !imgs.length) return [];
+    var files = [];
+    var n = Math.min(imgs.length, 9);
+    for (var k = 0; k < n; k++) {
+        try {
+            var realFile = await _lvEnsureRefFile(imgs[k]);
+            if (realFile) files.push(realFile);
+        } catch (e) {
+            console.warn('[litevideo] 收集参考图 ' + (k + 1) + ' 失败:', e);
+        }
+    }
+    return files;
+}
+
+function buildH3Context() {
+    const isDir = isDirectorWf(currentWorkflow);
+    const em = isDir ? genMode : effectiveGenMode();
+    const nImg = (refImages || []).length;
+    const nVid = (refVideos || []).length;
+    const nAud = (refAudios || []).length;
+    const lenEl = document.getElementById('length');
+    const durSec = lenEl ? (parseFloat(lenEl.value) || 5) : 5;
+
+    // 模式名 -> H3 模式标签
+    let h3Mode;
+    if (em === 't2v') h3Mode = 'T2VA（文生视频，无参考）';
+    else if (em === 'i2v') h3Mode = 'I2VA（图生视频，第 1 张参考图作为片头 0.00 秒首帧）';
+    else if (em === 'fl2v' || em === 'keyframe') h3Mode = 'FL2VA（首尾帧，2 张参考图分别对齐片头 0.00 秒与片尾 ' + durSec.toFixed(2) + ' 秒）';
+    else if (em === 'r2v') h3Mode = 'Ref2VA（全参考，含视频/音频素材）';
+    else if (em === 'reference') {
+        // 单段 MiniMax「参考生视频」= Ref2VA 全参考：图/视频/音频都是参考素材（media 槽引用），
+        // 图片只作 <Picture N>/<Subject N> 参考，【绝不作为片头首帧】。切勿按 I2VA/首尾帧对齐指令写。
+        h3Mode = 'Ref2VA（参考生视频：图片/视频/音频均作为参考素材引用，图片不作为片头首帧）';
+    } else if (em === 'auto') {
+        // 导演台「自动」：按挂载素材推断任务类型（与单段 reference 语义不同）
+        if (nVid > 0 || nAud > 0) h3Mode = 'Ref2VA（全参考，含视频/音频素材）';
+        else if (nImg >= 2) h3Mode = 'FL2VA（首尾帧，2 张参考图分别对齐片头 0.00 秒与片尾 ' + durSec.toFixed(2) + ' 秒）';
+        else if (nImg === 1) h3Mode = 'I2VA（图生视频，第 1 张参考图作为片头 0.00 秒首帧）';
+        else h3Mode = 'T2VA（文生视频，无参考）';
+    } else h3Mode = 'T2VA（文生视频，无参考）';
+
+    var lines = [];
+    lines.push('当前模式：' + h3Mode);
+    lines.push('目标视频时长：' + durSec.toFixed(2) + ' 秒');
+    if (nImg > 0) lines.push('参考图片：' + nImg + ' 张（引用标签 <Picture 1> … <Picture ' + nImg + '>，按上传顺序对应）');
+    if (nVid > 0) lines.push('参考视频：' + nVid + ' 段（引用标签 <Video 1> … <Video ' + nVid + '>）');
+    if (nAud > 0) lines.push('参考音频：' + nAud + ' 段（引用标签 <Audio 1> … <Audio ' + nAud + '>）');
+    if (nImg > 0) lines.push('（参考图已随本次请求一并发送给多模态模型，请直接依据图片实际内容描述画面）');
+    lines.push('请直接输出最终结构化提示词（integrated_multimodal_description / overall_soundscape / non_diegetic_music，或 Ref2VA 六段），不要输出解释。');
+    return lines.join('\n');
+}
+
+// ============= 图片反推模块（复用文生图 interrogate） =============
+// 参考图反推提示词：点「反推」按钮打开面板；若当前已有参考图，自动预填充第一张。
+if (typeof ReverseImage !== 'undefined') {
+    ReverseImage.init({
+        mountId: 'reverseImageMount',
+        onApply: function (text, mode) {
+            if (!text) return;
+            var cur = getPromptText();
+            if (mode === 'append' && cur.trim()) setPromptText(cur.trim() + ', ' + text);
+            else setPromptText(text);
+        }
+    });
+    // 反推按钮：预填充参考图后打开面板
+    var _revBtn = document.getElementById('reversePromptBtn');
+    if (_revBtn) {
+        _revBtn.addEventListener('click', function () {
+            // 预填充当前参考图（优先第一张），使反推直接可用
+            try {
+                var imgs = (typeof refImages !== 'undefined') ? refImages : [];
+                if (imgs && imgs.length && imgs[0].file) {
+                    if (typeof ReverseImage.setFile === 'function') ReverseImage.setFile(imgs[0].file);
+                }
+            } catch (e) {}
+            ReverseImage.open();
+        });
+    }
+}
+
 loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
+
+// ============= AI 编剧：导演台整条脚本一键生成 =============
+(function () {
+    var modal = document.getElementById('aiScriptModal');
+    var openBtn = document.getElementById('aiScriptBtn');
+    if (!modal || !openBtn) return;
+
+    var mode = 'idea';   // idea | beats
+    var busy = false;
+
+    var modeBtns = modal.querySelectorAll('.lv-script-mode-btn');
+    var storyEl = document.getElementById('aiScriptStory');
+    var storyLabel = document.getElementById('aiScriptStoryLabel');
+    var storyHint = document.getElementById('aiScriptStoryHint');
+    var segCountEl = document.getElementById('aiScriptSegCount');
+    var segCountVal = document.getElementById('aiScriptSegCountVal');
+    var goBtn = document.getElementById('aiScriptGo');
+    var goLabel = document.getElementById('aiScriptGoLabel');
+    var presetEl = document.getElementById('aiScriptPreset');
+
+    // 预设下拉状态：{ selectedId, loaded }
+    var presetState = { selectedId: 'h3-video', loaded: false };
+
+    // 加载 AI 提示词预设列表（复用同一套 /presets + /selected-preset）
+    async function loadPresets() {
+        if (!presetEl) return;
+        try {
+            var results = await Promise.all([
+                fetch('/api/prompt-module/presets').then(function (r) { return r.json(); }),
+                fetch('/api/prompt-module/selected-preset').then(function (r) { return r.json(); })
+            ]);
+            var presets = (results[0] && results[0].presets) || [];
+            var selected = (results[1] && results[1].preset_id) || '';
+            if (!presets.length) return;
+            // 构建下拉：优先显示 h3-video（视频专用）置顶
+            var opts = presets.slice();
+            var h3 = opts.find(function (p) { return p.id === 'h3-video'; });
+            if (h3) {
+                opts = opts.filter(function (p) { return p.id !== 'h3-video'; });
+                opts.unshift(h3);
+            }
+            presetEl.innerHTML = opts.map(function (p) {
+                return '<option value="' + (p.id || '').replace(/"/g, '') + '">' + (p.name || p.id || '') + '</option>';
+            }).join('');
+            // 默认选中：当前面板选中的预设（若是 h3 系/视频系优先 h3-video）
+            var want = presetState.selectedId;
+            var hasH3 = !!h3;
+            if (want && opts.some(function (p) { return p.id === want; })) {
+                // 保持上一次选择
+            } else if (hasH3) {
+                want = 'h3-video';
+            } else if (selected && opts.some(function (p) { return p.id === selected; })) {
+                want = selected;
+            } else {
+                want = opts[0].id;
+            }
+            presetState.selectedId = want;
+            presetEl.value = want;
+            presetState.loaded = true;
+        } catch (e) {
+            console.warn('[aiScript] 预设列表加载失败', e);
+        }
+    }
+
+    // 模式切换文案
+    var MODE_META = {
+        idea:  { label: '故事概述', hint: '用一段话描述要拍的视频，AI 自动拆分成片段', ph: '例如：一个女孩在雨夜走进街角咖啡店，遇到多年未见的故人，两人在昏黄灯光下回忆往事……' },
+        beats: { label: '剧情点（每段一句）', hint: '每行一个剧情点，对应一个片段，AI 逐段扩写成完整提示词', ph: '1. 雨夜街头，女孩撑伞匆匆走过\n2. 她推开咖啡店门，风铃响起\n3. 她看到窗边熟悉的身影，脚步顿住' }
+    };
+
+    function applyModeMeta() {
+        var m = MODE_META[mode] || MODE_META.idea;
+        storyLabel.textContent = m.label;
+        storyHint.textContent = m.hint;
+        storyEl.placeholder = m.ph;
+    }
+
+    function setMode(m) {
+        mode = m;
+        modeBtns.forEach(function (b) {
+            b.classList.toggle('active', b.dataset.mode === m);
+        });
+        applyModeMeta();
+    }
+
+    function openModal() {
+        // 默认片段数 = 当前已有片段数（至少 2），若无则 3
+        var n = (typeof segments !== 'undefined' && segments.length) ? segments.length : 0;
+        if (n < 2) n = 3;
+        segCountEl.value = Math.min(n, 12);
+        segCountVal.textContent = segCountEl.value;
+        modal.style.display = 'flex';
+        storyEl.focus();
+        if (window.lucide) window.lucide.createIcons();
+        // 首次打开时加载预设列表（之后复用）
+        if (!presetState.loaded) loadPresets();
+    }
+
+    function closeModal() {
+        if (busy) return;
+        modal.style.display = 'none';
+    }
+
+    function setBusy(b) {
+        busy = b;
+        goBtn.disabled = b;
+        if (b) {
+            goLabel.textContent = '生成中…';
+        } else {
+            goLabel.textContent = '生成脚本';
+        }
+    }
+
+    // 根据输入模式构建 story 文本
+    function buildStory() {
+        var raw = (storyEl.value || '').trim();
+        if (!raw) return null;
+        if (mode === 'beats') {
+            // 逐段剧情点：拆成数组
+            var beats = raw.split(/\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
+            return beats;
+        }
+        return raw;
+    }
+
+    // 收集参考图 File（最多 9 张）
+    function collectFiles() {
+        if (typeof collectRefImageFiles === 'function') {
+            return collectRefImageFiles();
+        }
+        return Promise.resolve([]);
+    }
+
+    // 从视频文件中抽取首帧 + 读取真实元信息（时长/分辨率），返回 { file, width, height, duration }
+    function _extractVideoFirstFrame(file) {
+        return new Promise(function (resolve, reject) {
+            var url = URL.createObjectURL(file);
+            var video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'auto';
+            var done = false;
+            var timer = setTimeout(function () {
+                if (!done) { done = true; try { URL.revokeObjectURL(url); } catch (e) {} reject(new Error('视频抽帧超时')); }
+            }, 8000);
+            function cleanup() { clearTimeout(timer); try { URL.revokeObjectURL(url); } catch (e) {} }
+            function grab() {
+                if (done) return;
+                done = true;
+                try {
+                    var w = video.videoWidth, h = video.videoHeight;
+                    var d = (video.duration && isFinite(video.duration)) ? video.duration : 0;
+                    if (!w || !h) { cleanup(); reject(new Error('无法读取视频帧')); return; }
+                    var max = 1024;
+                    var scale = Math.min(1, max / Math.max(w, h));
+                    var canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(w * scale));
+                    canvas.height = Math.max(1, Math.round(h * scale));
+                    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob(function (blob) {
+                        cleanup();
+                        if (blob) resolve({ file: new File([blob], 'vframe_' + Date.now() + '.jpg', { type: 'image/jpeg' }), width: w, height: h, duration: d });
+                        else reject(new Error('帧转换失败'));
+                    }, 'image/jpeg', 0.85);
+                } catch (e) { cleanup(); reject(e); }
+            }
+            video.addEventListener('loadeddata', function () {
+                try { if (video.duration && video.duration > 0.2) video.currentTime = Math.min(0.1, video.duration / 2); } catch (e) {}
+                grab();
+            });
+            video.addEventListener('seeked', grab);
+            video.addEventListener('error', function () {
+                if (!done) { done = true; cleanup(); reject(new Error('视频加载失败')); }
+            });
+            video.src = url;
+            video.load();
+        });
+    }
+
+    // 把宽高比归一为常见标签（16:9 / 9:16 / 4:3 / 3:4 / 1:1 / 21:9 / 3:2 / 2:3），否则输出约分后 n:m
+    function _aspectLabel(w, h) {
+        if (!w || !h) return '未知';
+        var gcd = function (a, b) { return b ? gcd(b, a % b) : a; };
+        var d = gcd(w, h);
+        var r = w / h;
+        var common = { '16:9': 16 / 9, '9:16': 9 / 16, '4:3': 4 / 3, '3:4': 3 / 4, '1:1': 1, '21:9': 21 / 9, '9:21': 9 / 21, '3:2': 3 / 2, '2:3': 2 / 3 };
+        var best = null, bestDiff = 0.05;
+        for (var k in common) {
+            var diff = Math.abs(common[k] - r);
+            if (diff < bestDiff) { bestDiff = diff; best = k; }
+        }
+        if (best) return best;
+        return Math.round(w / d) + ':' + Math.round(h / d);
+    }
+
+    // 读取音频时长（秒）；失败或无法读取返回 0
+    function _getAudioDuration(file) {
+        return new Promise(function (resolve) {
+            var url = URL.createObjectURL(file);
+            var audio = document.createElement('audio');
+            audio.preload = 'metadata';
+            var timer = setTimeout(function () { cleanup(); resolve(0); }, 5000);
+            function cleanup() { clearTimeout(timer); try { URL.revokeObjectURL(url); } catch (e) {} }
+            audio.onloadedmetadata = function () {
+                var d = audio.duration;
+                cleanup();
+                resolve((isFinite(d) && d > 0) ? d : 0);
+            };
+            audio.onerror = function () { cleanup(); resolve(0); };
+            audio.src = url;
+            audio.load();
+        });
+    }
+
+    // 收集所有可看图的素材 File（图片 + 视频首帧），合计最多 9 张；
+    // 同时返回视频元信息文本（时长/分辨率/比例，不含文件名）
+    async function collectMedia() {
+        var files = [];
+        var vidMeta = [];
+        // 1) 图片（前 9 张）
+        if (typeof collectRefImageFiles === 'function') {
+            files = await collectRefImageFiles();
+        }
+        // 2) 视频抽首帧 + 读取元信息（补足到 9 张）
+        var vids = (typeof refVideos !== 'undefined') ? refVideos : [];
+        var need = 9 - files.length;
+        for (var k = 0; k < vids.length; k++) {
+            try {
+                var realFile = await _lvEnsureRefFile(vids[k]);
+                if (!realFile) continue;
+                var info = await _extractVideoFirstFrame(realFile);
+                if (!info) continue;
+                vidMeta.push('视频 ' + (k + 1) + '：时长约 ' + (info.duration > 0 ? info.duration.toFixed(1) + ' 秒' : '未知') + '，分辨率 ' + info.width + 'x' + info.height + '，比例 ' + _aspectLabel(info.width, info.height));
+                if (info.file && need > 0) { files.push(info.file); need--; }
+            } catch (e) {
+                console.warn('[aiScript] 视频 ' + (k + 1) + ' 抽帧失败:', e);
+            }
+        }
+        var vidMetaText = vidMeta.length ? '参考视频信息：' + vidMeta.join('；') + '。请让生成的片段在画面比例/节奏上与这些视频参考保持衔接。' : '';
+        return { files: files, vidMetaText: vidMetaText };
+    }
+
+    // 收集音频时长元信息（不传文件名），返回描述文本；无音频返回 ''
+    async function collectAudioMeta() {
+        var auds = (typeof refAudios !== 'undefined') ? refAudios : [];
+        if (!auds || !auds.length) return '';
+        var parts = [];
+        for (var k = 0; k < auds.length; k++) {
+            try {
+                var realFile = await _lvEnsureRefFile(auds[k]);
+                if (!realFile) continue;
+                var d = await _getAudioDuration(realFile);
+                parts.push('音频 ' + (k + 1) + '（时长约 ' + (d > 0 ? d.toFixed(1) + ' 秒' : '未知') + '）');
+            } catch (e) {
+                console.warn('[aiScript] 音频 ' + (k + 1) + ' 读取失败:', e);
+            }
+        }
+        return parts.length ? '参考音频：' + parts.join('、') + '。请让生成的片段在声音/节奏上承接这些音频参考。' : '';
+    }
+
+    // 调后端生成脚本
+    async function doGenerate() {
+        var story = buildStory();
+        if (!story) { status('请先输入故事概述或剧情点', false); return; }
+        var segCount = parseInt(segCountEl.value, 10) || 3;
+
+        // beats 模式：剧情点数量优先于滑块
+        var storyText = story;
+        var n;
+        if (mode === 'beats' && Array.isArray(story)) {
+            n = story.length;
+            storyText = '以下是逐段剧情点，请严格按此拆分并扩写为 ' + n + ' 个片段：\n' + story.map(function (s, i) { return (i + 1) + '. ' + s; }).join('\n');
+        } else {
+            n = segCount;
+            storyText = '请把以下故事创意拆分成 ' + n + ' 个连贯片段：\n' + story;
+        }
+
+        setBusy(true);
+        status('AI 编剧生成中…', true);
+        try {
+            var media = await collectMedia();
+            var files = media.files || [];
+            var audioMeta = await collectAudioMeta();
+            // 拼接视频/音频元信息（时长/分辨率/比例，均不含文件名）
+            var extraMeta = [];
+            if (media.vidMetaText) extraMeta.push(media.vidMetaText);
+            if (audioMeta) extraMeta.push(audioMeta);
+            if (extraMeta.length) {
+                storyText = storyText + '\n\n' + extraMeta.join('\n');
+            }
+            var fd = new FormData();
+            fd.append('story', storyText);
+            fd.append('segment_count', String(n));
+            // 预设：跟随弹窗下拉选择（复用 AI 提示词预设规则），默认 h3-video
+            if (presetEl) {
+                var pid = presetEl.value || presetState.selectedId || 'h3-video';
+                fd.append('preset_id', pid);
+            }
+            // 跟随「AI 提示词」面板选中的 API 模型（provider_id），保证与单段生成一致
+            if (typeof window !== 'undefined' && typeof window.localPromptProvider === 'string' && window.localPromptProvider) {
+                fd.append('provider_id', window.localPromptProvider);
+            }
+            if (files && files.length) {
+                for (var i = 0; i < files.length; i++) {
+                    fd.append('files', files[i], 'ref_' + i + '.jpg');
+                }
+            }
+
+            var resp = await fetch('/api/prompt-module/generate-script', { method: 'POST', body: fd });
+            var data = await resp.json();
+            if (!data || data.success !== true) {
+                throw new Error((data && data.error) || '生成失败');
+            }
+            var segs = (data.segments || []).filter(function (s) { return s && (s.prompt || '').trim(); });
+            if (!segs.length) {
+                throw new Error('生成结果为空，请重试');
+            }
+            applyScript(segs, data.subjects || []);
+            closeModal();
+            status('已生成 ' + segs.length + ' 段脚本并填入片段 ✓', false);
+        } catch (err) {
+            console.error('[aiScript]', err);
+            status('AI 编剧失败: ' + (err && err.message ? err.message : err), false);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    // 覆盖所有片段：保留片段本身与参考素材，仅替换 prompt
+    function applyScript(segs, subjects) {
+        if (typeof segments === 'undefined') return;
+        // 若当前片段数少于生成数，补齐空片段；多于则删掉多余片段
+        while (segments.length < segs.length) {
+            addSegment();
+        }
+        if (segments.length > segs.length) {
+            segments.splice(segs.length);
+        }
+        // 逐个写回 prompt
+        segs.forEach(function (s, i) {
+            if (segments[i]) {
+                segments[i].prompt = (s.prompt || '').trim();
+                segments[i].result = null;       // 提示词变了，清旧结果
+                segments[i].status = 'idle';
+                segments[i].cacheSig = null;
+            }
+        });
+        // 若有第一个片段，把它设为选中并写回表单
+        if (segments.length) {
+            selectedSegId = segments[0].id;
+            applySegmentToForm(segments[0]);
+        }
+        renderTimeline();
+        scheduleSaveDraft();
+    }
+
+    // 事件绑定
+    openBtn.addEventListener('click', openModal);
+    document.getElementById('aiScriptClose').addEventListener('click', closeModal);
+    document.getElementById('aiScriptCancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+    });
+    modeBtns.forEach(function (b) {
+        b.addEventListener('click', function () { setMode(b.dataset.mode); });
+    });
+    segCountEl.addEventListener('input', function () {
+        segCountVal.textContent = segCountEl.value;
+    });
+    goBtn.addEventListener('click', doGenerate);
+
+    applyModeMeta();
+})();
 </script>
 <!-- ============= 参考媒体 Lightbox 预览弹窗 ============= -->
 <div class="lv-lightbox" id="refLightbox">
@@ -5400,6 +6747,11 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
 </div>
 <!-- ============= 资产库选择器挂载点 ============= -->
 <div id="assetLibraryMount"></div>
+<!-- ============= 图片反推挂载点（复用文生图 interrogate） ============= -->
+<div id="reverseImageMount"></div>
+
+<!-- 参考图悬停大图预览 -->
+<div id="refHoverPreview"></div>
 
 <!-- ============= 悬浮提示词编辑窗口 ============= -->
 <div class="lv-prompt-pop" id="promptPop" style="display:none;">

@@ -111,7 +111,7 @@
       "export_source_images": "Ollama",
       "minimax_director_ui": "",
       "model": [
-        "20",
+        "19",
         0
       ],
       "video_vae": [
@@ -158,24 +158,6 @@
     "class_type": "PathchSageAttentionKJ",
     "_meta": {
       "title": "SAGE注意力补丁KJ"
-    }
-  },
-  "20": {
-    "inputs": {
-      "processing_control_value": 0.085,
-      "processing_percent_1": 0.1,
-      "processing_percent_2": 0.9,
-      "mcs": 2,
-      "device": "auto",
-      "mode": "standard",
-      "model": [
-        "19",
-        0
-      ]
-    },
-    "class_type": "TESpeedMiniMaxH3",
-    "_meta": {
-      "title": "TE-Speed-MiniMaxH3"
     }
   }
 }

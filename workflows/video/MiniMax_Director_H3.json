@@ -187,7 +187,7 @@
       "title": "MiniMax H3 Director · 导演台",
       "properties": {},
       "widgets_values": [
-        "## MiniMax H3 Director — 电影导演台\n\n1. ✅ 确认模型文件与本地一致\n2. CLIP type 必须选 `minimax`\n3. **通过 litevideo 导演台界面使用**，不要在 ComfyUI 里手动编辑 timeline_data\n4. 支持 t2v / i2v / fl2v / r2v / v2v / rv2v 全部任务\n5. **跨段衔接**：timeline JSON 的 output.continuityEnabled=true 自动处理\n\n模型建议：\n- fl2va / ref2va UNET\n- Qwen3-VL CLIP (type=minimax)\n- Video VAE + Audio VAE\n\nlitevideo 前端通过 /api/generate 自动组装 timeline_data JSON 并提交。\n"
+        "## MiniMax H3 Director — 电影导演台\n\n1. ✅ 确认模型文件与本地一致\n2. CLIP type 必须选 `minimax`\n3. **通过 litevideo 导演台界面使用**，不要在 ComfyUI 里手动编辑 timeline_data\n4. 支持 t2v / i2v / fl2v / r2v / v2v / rv2v 全部任务\n5. **段间引导**：timeline JSON 的 output.continuityEnabled=true 自动处理\n\n模型建议：\n- fl2va / ref2va UNET\n- Qwen3-VL CLIP (type=minimax)\n- Video VAE + Audio VAE\n\nlitevideo 前端通过 /api/generate 自动组装 timeline_data JSON 并提交。\n"
       ],
       "color": "#432",
       "bgcolor": "#653"

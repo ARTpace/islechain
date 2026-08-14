@@ -1,38 +1,133 @@
 {
-  "295": {
+  "1": {
+    "inputs": {
+      "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+      "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "MiniMaxH3EasyLoader",
+    "_meta": {
+      "title": "MiniMax H3 Easy 加载器"
+    }
+  },
+  "2": {
     "inputs": {
       "mode": "reference",
-      "prompt": "日系二次元动漫风格，四镜头连贯视频：【镜头1】：全景俯视，深夜昏暗简陋的房间里， 少女坐在榻榻米上，无精打采地仰头打哈欠叹气，面前桌上放着发光的笔记本电脑和吃剩的杯面，影院级暗调光影。【镜头2】：镜头快速切至面部极特写，少女眼含泪水，金黄色眼睛，脸颊红晕，咬着牙表现出委屈又倔强的神情，双手趴在桌上，剧烈的破防动态画面。【镜头3】：侧面中景，疲惫的蓝发少女无精打采地趴在木桌上，身旁是发光的电脑屏幕、水瓶和杯面，阴暗沉重的室内环境，极微弱的呼吸动作。\n",
-      "resolution": "540P",
+      "prompt": "少女端起手中的咖啡喝了一口",
+      "resolution": "480P",
       "aspect_ratio": "9:16",
       "width": 1344,
-      "height": 768,
-      "seconds": 8,
+      "height": 1344,
+      "seconds": 3,
       "advanced": true,
       "fps": 24,
       "keyframe_role": "first",
       "ref_image_size": "1k",
-      "reference_mention_mode": "filename",
+      "reference_mention_mode": "index",
       "prompt_optimizer_settings": false,
       "prompt_optimizer_scene_guide": "none",
       "h3_bundle": [
-        "308",
+        "1",
         0
-      ]
+      ],
+      "media_1": [
+        "15",
+        0
+      ],
+      "media_type_1": "image"
     },
     "class_type": "MiniMaxH3Easy",
     "_meta": {
       "title": "MiniMax H3 Easy"
     }
   },
-  "299": {
+  "4": {
+    "inputs": {
+      "model": [
+        "18",
+        0
+      ],
+      "conditioning": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基础引导"
+    }
+  },
+  "5": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基础调度器"
+    }
+  },
+  "6": {
+    "inputs": {
+      "noise_seed": 920246598733367
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "7": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "8": {
+    "inputs": {
+      "noise": [
+        "6",
+        0
+      ],
+      "guider": [
+        "4",
+        0
+      ],
+      "sampler": [
+        "7",
+        0
+      ],
+      "sigmas": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "13",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器(高级)"
+    }
+  },
+  "9": {
     "inputs": {
       "samples": [
-        "309",
+        "8",
         0
       ],
       "vae": [
-        "306",
+        "13",
         2
       ]
     },
@@ -41,14 +136,14 @@
       "title": "VAE解码"
     }
   },
-  "303": {
+  "10": {
     "inputs": {
       "samples": [
-        "309",
-        0
+        "8",
+        1
       ],
       "vae": [
-        "306",
+        "13",
         3
       ]
     },
@@ -57,108 +152,19 @@
       "title": "VAE解码_音频"
     }
   },
-  "306": {
+  "11": {
     "inputs": {
-      "h3_context": [
-        "295",
-        1
-      ]
-    },
-    "class_type": "MiniMaxH3EasyOutput",
-    "_meta": {
-      "title": "MiniMax H3 Easy 输出"
-    }
-  },
-  "308": {
-    "inputs": {
-      "fl2va_model": "minimax_h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "ref2va_model": "minimax_h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-      "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "video_vae": "minimax_h3_video_vae_int8_convrot.safetensors",
-      "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
-    },
-    "class_type": "MiniMaxH3EasyLoader",
-    "_meta": {
-      "title": "MiniMax H3 Easy 加载器"
-    }
-  },
-  "309": {
-    "inputs": {
-      "seed": 210,
-      "steps": 7,
-      "cfg": 1,
-      "sampler_name": "res_multistep",
-      "scheduler": "simple",
-      "denoise": 1,
-      "model": [
-        "356",
-        0
+      "fps": [
+        "13",
+        4
       ],
-      "positive": [
-        "306",
-        0
-      ],
-      "negative": [
-        "315",
-        0
-      ],
-      "latent_image": [
-        "306",
-        1
-      ]
-    },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "K采样器"
-    }
-  },
-  "311": {
-    "inputs": {
-      "image": "1780649355147.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "加载图像"
-    }
-  },
-  "315": {
-    "inputs": {
-      "conditioning": [
-        "306",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "条件零化"
-    }
-  },
-  "344": {
-    "inputs": {
-      "clean_file_cache": true,
-      "clean_processes": true,
-      "clean_dlls": true,
-      "retry_times": 3,
-      "anything": [
-        "351",
-        0
-      ]
-    },
-    "class_type": "RAMCleanup",
-    "_meta": {
-      "title": "释放内存"
-    }
-  },
-  "351": {
-    "inputs": {
-      "fps": 24,
       "bit_depth": 8,
       "images": [
-        "299",
+        "9",
         0
       ],
       "audio": [
-        "303",
+        "10",
         0
       ]
     },
@@ -167,13 +173,14 @@
       "title": "创建视频"
     }
   },
-  "353": {
+  "12": {
     "inputs": {
-      "filename_prefix": "video/MiniMax_H3",
+      "filename_prefix": "video/MiniMaxH3_Easy",
       "format": "auto",
       "codec": "auto",
+      "video-preview": "",
       "video": [
-        "344",
+        "11",
         0
       ]
     },
@@ -182,12 +189,45 @@
       "title": "保存视频"
     }
   },
-  "354": {
+  "13": {
     "inputs": {
-      "lora_name": "minimax h3\\minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-      "strength_model": 0.65,
+      "h3_context": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "MiniMaxH3EasyOutput",
+    "_meta": {
+      "title": "MiniMax H3 Easy 输出"
+    }
+  },
+  "15": {
+    "inputs": {
+      "image": "1780649355147.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "18": {
+    "inputs": {
       "model": [
-        "295",
+        "24",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+    "_meta": {
+      "title": "MiniMaX H3内存高效Sage注意力补丁 (KJ)"
+    }
+  },
+  "24": {
+    "inputs": {
+      "lora_name": "minimax h3\\minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "2",
         0
       ]
     },
@@ -196,36 +236,20 @@
       "title": "LoRA加载器(仅模型)"
     }
   },
-  "355": {
+  "25": {
     "inputs": {
-      "sage_attention": "auto",
-      "allow_compile": false,
-      "model": [
-        "354",
+      "clean_file_cache": true,
+      "clean_processes": true,
+      "clean_dlls": true,
+      "retry_times": 3,
+      "anything": [
+        "11",
         0
       ]
     },
-    "class_type": "PathchSageAttentionKJ",
+    "class_type": "RAMCleanup",
     "_meta": {
-      "title": "SAGE注意力补丁KJ"
-    }
-  },
-  "356": {
-    "inputs": {
-      "processing_control_value": 0.085,
-      "processing_percent_1": 0.1,
-      "processing_percent_2": 0.9,
-      "mcs": 2,
-      "device": "auto",
-      "mode": "standard",
-      "model": [
-        "355",
-        0
-      ]
-    },
-    "class_type": "TESpeedMiniMaxH3",
-    "_meta": {
-      "title": "TE-Speed-MiniMaxH3"
+      "title": "释放内存"
     }
   }
 }

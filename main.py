@@ -7330,6 +7330,33 @@ async def delete_history(req: DeleteHistoryRequest, token: str = ""):
                         print(f"Failed to delete audio file {file_path}: {e}")
                 else:
                     print(f"Audio file not found (skipping): {file_path}")
+            # 删除视频文件（videos 字段：URL 字符串列表，如 litevideo 保存的 {videos:[url]}）
+            for video_url in target_record.get("videos", []):
+                file_path = _url_to_output_path(video_url)
+                if not file_path:
+                    continue
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        print(f"Failed to delete video file {file_path}: {e}")
+                else:
+                    print(f"Video file not found (skipping): {file_path}")
+            # 兜底：兼容部分记录把视频放在 "video"/"video_url"/"video_urls" 字段的情况
+            for extra_key in ("video", "video_url"):
+                v = target_record.get(extra_key)
+                if isinstance(v, str) and v:
+                    file_path = _url_to_output_path(v)
+                    if file_path and os.path.exists(file_path):
+                        try: os.remove(file_path)
+                        except Exception as e: print(f"Failed to delete {extra_key} file {file_path}: {e}")
+            vurls = target_record.get("video_urls")
+            if isinstance(vurls, list):
+                for v in vurls:
+                    file_path = _url_to_output_path(v)
+                    if file_path and os.path.exists(file_path):
+                        try: os.remove(file_path)
+                        except Exception as e: print(f"Failed to delete video_urls file {file_path}: {e}")
             return {"success": True}
         else:
             return {"success": False, "message": "Record not found"}
@@ -7839,6 +7866,7 @@ USE_NEW_PROMPT_MODULE = True
 
 if USE_NEW_PROMPT_MODULE:
     from prompt import generate as generate_smart_prompt
+    from prompt import generate_script as generate_smart_script
     from prompt import load_config
     from prompt.core import call_llm as _sp_call_llm
 else:
@@ -7848,7 +7876,7 @@ else:
 import smart_tts as smart_tts_module
 
 class SmartPromptRequest(BaseModel):
-    prompt: str
+    prompt: str = ""
     config: Optional[Dict[str, Any]] = None
     # === Local ComfyUI workflow channel (added 2026-07-28) ===
     channel: Optional[str] = None
@@ -7857,6 +7885,10 @@ class SmartPromptRequest(BaseModel):
     fields: Optional[Dict[str, Any]] = None
     # === [2026-07-28] 全局 provider/model 覆盖 - 替代 preset 内 provider_id ===
     provider_id: Optional[str] = None
+    # === [2026-08-13] 指定预设（如视频页 H3 预设），None = 走当前选中预设 ===
+    preset_id: Optional[str] = None
+    # === [2026-08-13] 多模态看图生成：base64 data URL 列表（如 data:image/jpeg;base64,...）===
+    images: Optional[List[str]] = None
 
 @app.get("/api/smart-prompt/config")
 async def get_smart_prompt_config():
@@ -7944,7 +7976,7 @@ async def smart_prompt_test(req: SmartPromptRequest):
             config = dict(_sp_config.resolve(provider_id))
         else:
             config = dict(load_config())
-        config["max_tokens"] = 24
+        config["max_tokens"] = 256
         config["temperature"] = 0.1
         raw = _sp_call_llm("ping", "你是提示词扩写助手，请只回复 ok。", config)
         if isinstance(raw, str) and raw.startswith("ERROR:"):
@@ -8381,13 +8413,79 @@ if USE_NEW_PROMPT_MODULE:
         try:
             result = pm_generate(
                 req.prompt,
-                preset_id=None,
+                preset_id=req.preset_id,
                 config_override=req.config,
                 provider_id_override=req.provider_id,
+                images=req.images,
             )
             return result
         except Exception as e:
             return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+
+    @app.post("/api/prompt-module/generate-multimodal")
+    async def pm_generate_multimodal_route(
+        prompt: str = Form(...),
+        preset_id: str = Form(None),
+        provider_id: str = Form(None),
+        files: List[UploadFile] = File(None),
+    ):
+        """多模态看图生成提示词：直接上传参考图（最多 9 张），一次调用完成看图+生成。
+        与 /api/prompt-module/generate 的区别：走 multipart 上传，图片转 base64 data URL 交给多模态模型。
+        复用与「AI 提示词」相同的 provider 配置（provider_id 缺省自动选可用 provider）。"""
+        try:
+            images: List[str] = []
+            if files:
+                if len(files) > 9:
+                    return {"success": False, "prompt": "", "negative": "", "raw": "", "error": "最多支持 9 张参考图"}
+                for f in files:
+                    content = await f.read()
+                    mime = f.content_type or "image/jpeg"
+                    if not (mime or "").startswith("image/"):
+                        mime = "image/jpeg"
+                    b64 = base64.b64encode(content).decode("ascii")
+                    images.append(f"data:{mime};base64,{b64}")
+            result = pm_generate(
+                prompt,
+                preset_id=preset_id,
+                config_override=None,
+                provider_id_override=provider_id,
+                images=images or None,
+            )
+            return result
+        except Exception as e:
+            return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e)}
+
+    @app.post("/api/prompt-module/generate-script")
+    async def pm_generate_script_route(
+        story: str = Form(...),
+        segment_count: int = Form(3),
+        preset_id: str = Form(None),
+        provider_id: str = Form(None),
+        files: List[UploadFile] = File(None),
+    ):
+        """导演台整条脚本生成：一次生成 N 个连贯片段的分镜提示词（人物保持一致）。
+        支持可选参考图（最多 9 张），与 generate-multimodal 一样走 multipart 上传。"""
+        try:
+            images: List[str] = []
+            if files:
+                if len(files) > 9:
+                    return {"success": False, "subjects": [], "segments": [], "raw": "", "error": "最多支持 9 张参考图"}
+                for f in files:
+                    content = await f.read()
+                    mime = f.content_type or "image/jpeg"
+                    if not (mime or "").startswith("image/"):
+                        mime = "image/jpeg"
+                    b64 = base64.b64encode(content).decode("ascii")
+                    images.append(f"data:{mime};base64,{b64}")
+            return generate_smart_script(
+                story,
+                segment_count=segment_count,
+                preset_id=preset_id or None,
+                provider_id_override=provider_id or None,
+                images=images or None,
+            )
+        except Exception as e:
+            return {"success": False, "subjects": [], "segments": [], "raw": "", "error": str(e)}
 
     @app.get("/api/prompt-module/presets")
     async def pm_list_presets_route():
@@ -15520,8 +15618,11 @@ _INTERROGATE_MODE_PROMPTS = {
 }
 
 
-def _interrogate_prompt_for(mode, target_style):
+def _interrogate_prompt_for(mode, target_style, custom_rule=""):
     p = _INTERROGATE_MODE_PROMPTS.get(mode, _INTERROGATE_MODE_PROMPTS["caption"])
+    # 用户自定义反推规则优先：完全接管"如何反推这张图"的指令（快速版）
+    if custom_rule and custom_rule.strip():
+        p = custom_rule.strip()
     if target_style:
         p += f"\n目标风格参考: {target_style}。"
     return p
@@ -15604,12 +15705,12 @@ def _ui_workflow_to_api_prompt(wf_ui):
     return out
 
 
-async def _interrogate_via_comfyui(abs_path, mode, target_style, emit=None):
+async def _interrogate_via_comfyui(abs_path, mode, target_style, emit=None, custom_rule=""):
     """ComfyUI 路线:上传图 -> 注入反推工作流 -> 轮询 history -> 取 ShowText 文本。
     emit(pct, stage): 可选异步回调,用于实时上报真实进度(ComfyUI 采样进度来自 websocket)。"""
     if not COMFYUI_ADDRESS:
         raise RuntimeError("未配置 ComfyUI 地址")
-    prompt_text = _interrogate_prompt_for(mode, target_style)
+    prompt_text = _interrogate_prompt_for(mode, target_style, custom_rule)
     wf_path = os.path.join(WORKFLOW_DIR, INTERROGATE_WF)
     if not os.path.exists(wf_path):
         raise RuntimeError(f"反推工作流不存在: {INTERROGATE_WF}")
@@ -15735,10 +15836,10 @@ async def _interrogate_via_comfyui(abs_path, mode, target_style, emit=None):
     return output_text.strip()
 
 
-async def _interrogate_via_vision(abs_path, mode, target_style, emit=None, provider_id=None):
+async def _interrogate_via_vision(abs_path, mode, target_style, emit=None, provider_id=None, custom_rule=""):
     """多模态大模型 API 路线:复用已有的 caption_image_with_provider。
     provider_id 缺省时自动选一个已配 key 的可用 chat provider(与「AI 提示词」同一套 API)。"""
-    prompt_text = _interrogate_prompt_for(mode, target_style)
+    prompt_text = _interrogate_prompt_for(mode, target_style, custom_rule)
     pid = provider_id or get_vision_provider_id()
     if emit:
         await emit(30, "正在调用多模态模型…")
@@ -15755,6 +15856,7 @@ async def api_interrogate_stream(
     target_style: str = Form(""),
     provider: str = Form("auto"),
     vision_provider_id: str = Form(""),
+    custom_rule: str = Form(""),
 ):
     """通用反推提示词接口(真实进度,SSE 流式)。
     provider: auto | comfyui | vision
@@ -15783,7 +15885,7 @@ async def api_interrogate_stream(
             errs = []
             if provider in ("auto", "comfyui"):
                 try:
-                    text = await _interrogate_via_comfyui(tmp_path, mode, target_style, emit)
+                    text = await _interrogate_via_comfyui(tmp_path, mode, target_style, emit, custom_rule)
                 except Exception as e:
                     errs.append(f"comfyui:{e}")
             if not text and provider in ("auto", "vision"):
@@ -15795,6 +15897,7 @@ async def api_interrogate_stream(
                         text = await _interrogate_via_vision(
                             tmp_path, mode, target_style, emit,
                             provider_id=(vision_provider_id or None),
+                            custom_rule=custom_rule,
                         )
                     except Exception as e:
                         errs.append(f"vision:{e}")

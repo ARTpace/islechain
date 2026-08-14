@@ -142,6 +142,16 @@
     ".reverse-modal-select { width:100%; min-height:48px; background:rgba(255,255,255,.5); border:1.5px solid rgba(0,0,0,.1); border-radius:10px; padding:10px 14px; font-size:14px; color:#1e293b; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236a7a8a' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>\"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px; padding-right:36px; }",
     ".reverse-modal-select:focus { border-color:rgba(0,180,216,.5); }",
     "body.studio-theme-dark .reverse-modal-select { background-color:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); color:#c8d0dc; background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%239aa8b8' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>\"); }",
+    "/* ── 反推规则（自定义指令）区块 ── */",
+    ".reverse-modal-rule-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }",
+    ".reverse-modal-rule-head .reverse-modal-label { margin-bottom:0; }",
+    ".reverse-modal-rule-select { min-height:34px; max-width:160px; background:rgba(255,255,255,.5); border:1.5px solid rgba(0,0,0,.1); border-radius:8px; padding:6px 30px 6px 10px; font-size:12px; color:#1e293b; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236a7a8a' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>\"); background-repeat:no-repeat; background-position:right 10px center; background-size:10px; }",
+    "body.studio-theme-dark .reverse-modal-rule-select { background-color:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); color:#c8d0dc; }",
+    ".reverse-modal-rule-area { width:100%; min-height:76px; resize:vertical; border:1.5px solid rgba(0,0,0,.08); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.6; color:#1e293b; box-sizing:border-box; background:rgba(255,255,255,.6); outline:none; font-family:inherit; }",
+    ".reverse-modal-rule-area:focus { border-color:rgba(0,180,216,.4); }",
+    "body.studio-theme-dark .reverse-modal-rule-area { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.08); color:#e0e7ef; }",
+    ".reverse-modal-rule-area.is-preset { background:rgba(0,0,0,.03); color:#55606e; cursor:not-allowed; }",
+    "body.studio-theme-dark .reverse-modal-rule-area.is-preset { background:rgba(255,255,255,.02); color:#8a97a8; }",
     "",
     "/* ── 统一按钮风格(主/次/幽灵),所有按钮 48px 高 ── */",
     ".reverse-modal-actions { display:flex; gap:10px; margin-top:auto; padding-top:16px; flex-shrink:0; }",
@@ -286,6 +296,18 @@
     '                </div>',
     '            </div>',
     '',
+    '            <div class="reverse-modal-section" id="revRuleSection">',
+    '                <div class="reverse-modal-rule-head">',
+    '                    <label class="reverse-modal-label">反推规则（告诉 AI 怎么反推 / 生成什么类型的提示词）</label>',
+    '                    <select class="reverse-modal-rule-select" id="revRulePreset">',
+    '                        <option value="">自定义（下方填写）</option>',
+    '                        <option value="default">默认（随模式）</option>',
+    '                    </select>',
+    '                </div>',
+    '                <textarea class="reverse-modal-rule-area" id="revRuleText" placeholder="例如：分析这张图，输出一条适合图生视频的英文提示词，包含主体、动作趋势、镜头运动方向、光影与画风，用逗号分隔……"></textarea>',
+    '                <div class="reverse-modal-hint" style="margin-top:6px;">留空则使用默认规则；填写后优先按你的规则反推。</div>',
+    '            </div>',
+    '',
     '            <div class="reverse-modal-hint">调整即时生效；可直接拖入图片到本面板。</div>',
     '',
     '            <div class="reverse-modal-actions">',
@@ -347,6 +369,52 @@
   var _reverseProvider = 'auto';
   var _reverseMode = 'auto';        // 'auto' | 'caption' | 'tags'
   var _reverseVisionProvider = '';
+  var _reverseRulePreset = '';      // 当前选中的反推规则预设 key（''=自定义 / 'default'=默认随模式）
+  var _reverseRuleText = '';        // 自定义反推规则文本
+  var _reverseRuleStorageKey = 'reverse-image-rule-v1';
+
+  // 内置反推规则预设（快速版：视频场景专用，供下拉选择）
+  var _REVERSE_RULE_PRESETS = [
+    {
+      key: 'i2v',
+      label: '图生视频 · 运镜',
+      rule: '分析这张图，输出一条适合图生视频的英文提示词：描述主体与外观、动作/运动趋势、镜头运动方向（如推进、横移、环绕、上摇），以及光影与画风；用逗号分隔，只输出提示词。'
+    },
+    {
+      key: 'fl2v',
+      label: '首尾帧 · 变化',
+      rule: '分析这张图，输出一段描述画面从当前状态到下一状态的转场与变化趋势的英文提示词，强调动态变化、运动方向与氛围，只输出提示词。'
+    },
+    {
+      key: 'director',
+      label: '导演台 · 分段',
+      rule: '作为视频导演，分析这张图，为单个镜头片段输出一段英文运镜提示词，包含主体、动作、景别（特写/中景/全景）、镜头运动与情绪氛围，只输出提示词。'
+    },
+    {
+      key: 'ecommerce',
+      label: '电商产品 · 卖点',
+      rule: '分析这张产品图，输出一段突出商品主体、材质、质感与卖点的英文提示词，适合商品展示视频，只输出提示词。'
+    }
+  ];
+
+  function _loadRuleFromStorage() {
+    try {
+      var raw = localStorage.getItem(_reverseRuleStorageKey);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      _reverseRulePreset = d.preset || '';
+      _reverseRuleText = d.text || '';
+    } catch (e) {}
+  }
+
+  function _saveRuleToStorage() {
+    try {
+      localStorage.setItem(_reverseRuleStorageKey, JSON.stringify({
+        preset: _reverseRulePreset,
+        text: _reverseRuleText
+      }));
+    } catch (e) {}
+  }
   var _reverseFile = null;
   var _reverseFileUrl = null;       // 缩略图 objectURL
   var _reverseProvidersLoaded = false;
@@ -420,6 +488,21 @@
     var sel = $('reverseVisionProvider');
     if (sel) sel.addEventListener('change', function (e) {
       onReverseVisionProviderChange(e.target.value);
+    });
+
+    // 反推规则预设下拉
+    var rp = $('revRulePreset');
+    if (rp) rp.addEventListener('change', function (e) {
+      _reverseRulePreset = e.target.value;
+      _syncRuleUI();
+      _saveRuleToStorage();
+    });
+
+    // 反推规则自由输入框
+    var rt = $('revRuleText');
+    if (rt) rt.addEventListener('input', function (e) {
+      _reverseRuleText = e.target.value;
+      _saveRuleToStorage();
     });
 
     _bindReverseDragDrop();
@@ -537,6 +620,8 @@
       if (s2) s2.value = _reverseVisionProvider || '';
     }
     _revView('settings');
+    _initRulePresetSelect();
+    _syncRuleUI();
     syncReverseSettingsUI();
     _renderIcons();
   }
@@ -559,6 +644,7 @@
     opts = opts || {};
     _mountId = opts.mountId || 'reverseImageMount';
     _onApply = (typeof opts.onApply === 'function') ? opts.onApply : null;
+    _loadRuleFromStorage();
     _injectCss();
     _render();
     _bindGlobal();
@@ -581,7 +667,7 @@
     // 反向设置入口按钮高亮（若页面上有该按钮）
     var btn = document.getElementById('reverseSettingsBtn');
     if (btn) {
-      if (_reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider) btn.classList.add('is-in-use');
+      if (_reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider || _reverseRulePreset || _reverseRuleText) btn.classList.add('is-in-use');
       else btn.classList.remove('is-in-use');
     }
   }
@@ -589,6 +675,40 @@
   function setReverseProvider(val) { _reverseProvider = val; syncReverseSettingsUI(); }
   function setReverseMode(val) { _reverseMode = val; syncReverseSettingsUI(); }
   function onReverseVisionProviderChange(val) { _reverseVisionProvider = val || ''; syncReverseSettingsUI(); }
+
+  // 初始化反推规则预设下拉（一次性填充内置预设选项）
+  function _initRulePresetSelect() {
+    var rp = $('revRulePreset');
+    if (!rp) return;
+    if (rp.getAttribute('data-seeded') === '1') return;
+    rp.setAttribute('data-seeded', '1');
+    for (var i = 0; i < _REVERSE_RULE_PRESETS.length; i++) {
+      var o = document.createElement('option');
+      o.value = _REVERSE_RULE_PRESETS[i].key;
+      o.textContent = _REVERSE_RULE_PRESETS[i].label;
+      rp.appendChild(o);
+    }
+  }
+
+  // 同步规则 UI 到当前状态（预设下拉选中 + 文本框值/可编辑性）
+  function _syncRuleUI() {
+    var rp = $('revRulePreset');
+    var rt = $('revRuleText');
+    if (rp) rp.value = _reverseRulePreset || '';
+    if (rt) {
+      // 选中内置预设时展示其规则只读；自定义时显示自由输入
+      if (_reverseRulePreset && _reverseRulePreset !== 'default') {
+        var rule = _resolveRuleText();
+        rt.value = rule;
+        rt.readOnly = true;
+        rt.classList.add('is-preset');
+      } else {
+        rt.value = _reverseRuleText || '';
+        rt.readOnly = false;
+        rt.classList.remove('is-preset');
+      }
+    }
+  }
 
   function onReverseFileChange() { /* 由事件绑定处理 */ }
 
@@ -607,11 +727,15 @@
     _reverseProvider = 'auto';
     _reverseMode = 'auto';
     _reverseVisionProvider = '';
+    _reverseRulePreset = '';
+    _reverseRuleText = '';
+    _saveRuleToStorage();
     _setReverseFile(null);
     var sel = $('reverseVisionProvider');
     if (sel) sel.value = '';
     var fi = $('revFileInput');
     if (fi) fi.value = '';
+    _syncRuleUI();
     syncReverseSettingsUI();
   }
 
@@ -619,6 +743,16 @@
     if (_reverseMode === 'caption' || _reverseMode === 'tags') return _reverseMode;
     var wf = (window.currentWorkflow || '').toLowerCase();
     return wf.indexOf('anima') >= 0 ? 'tags' : 'caption';
+  }
+
+  // 计算最终自定义规则文本：预设 key 命中内置预设则用其规则，否则用自由输入文本
+  function _resolveRuleText() {
+    if (_reverseRulePreset && _reverseRulePreset !== 'default') {
+      for (var i = 0; i < _REVERSE_RULE_PRESETS.length; i++) {
+        if (_REVERSE_RULE_PRESETS[i].key === _reverseRulePreset) return _REVERSE_RULE_PRESETS[i].rule;
+      }
+    }
+    return (_reverseRuleText || '').trim();
   }
 
   function _buildReverseOpts() {
@@ -635,7 +769,8 @@
       mode: _resolveReverseMode(),
       targetStyle: ts,
       provider: _reverseProvider,
-      visionProviderId: _reverseVisionProvider
+      visionProviderId: _reverseVisionProvider,
+      customRule: _resolveRuleText()
     };
   }
 
@@ -674,6 +809,7 @@
     if (opts.targetStyle) fd.append('target_style', opts.targetStyle);
     if (opts.provider) fd.append('provider', opts.provider);
     if (opts.visionProviderId) fd.append('vision_provider_id', opts.visionProviderId);
+    if (opts.customRule) fd.append('custom_rule', opts.customRule);
 
     function onStream(res) {
       if (!res.ok) {
@@ -808,6 +944,7 @@
   window.ReverseImage = {
     init: init,
     open: open,
-    close: close
+    close: close,
+    setFile: _setReverseFile
   };
 })();

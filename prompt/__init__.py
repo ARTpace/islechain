@@ -15,7 +15,7 @@ prompt 模块 — AI 提示词生成
     builder.py   — System Prompt 模板引擎
 """
 
-from .core import generate, call_llm, load_config
+from .core import generate, call_llm, load_config, generate_script
 from .preset import (
     list_presets, get_preset, create_preset, update_preset,
     delete_preset, duplicate_preset, export_presets, import_presets,
@@ -26,7 +26,7 @@ from .knowledge import search as search_knowledge, add_entry as add_knowledge_en
 
 __all__ = [
     # 核心生成
-    "generate", "call_llm", "load_config",
+    "generate", "call_llm", "load_config", "generate_script",
     # 预设管理
     "list_presets", "get_preset", "create_preset", "update_preset",
     "delete_preset", "duplicate_preset", "export_presets", "import_presets",

@@ -14,10 +14,11 @@ core.py — 核心生成流程编排
 
 import json
 import re
+import base64
 import urllib.request
 import urllib.error
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from . import config as cfg
 from . import preset as pst
@@ -32,7 +33,8 @@ from . import builder as bld
 def call_llm(
     user_input: str,
     system_prompt: str,
-    config: Dict[str, Any]
+    config: Dict[str, Any],
+    images: Optional[List[str]] = None,
 ) -> str:
     """
     调用 LLM API。
@@ -41,6 +43,9 @@ def call_llm(
         user_input: 用户输入文本
         system_prompt: 渲染后的 system prompt
         config: 包含 base_url, api_key, model, temperature, max_tokens
+        images: 可选，base64 data URL 列表（如 "data:image/jpeg;base64,..."），
+                非空时以 OpenAI 多模态消息格式（content 数组 + image_url）发送。
+                用于视频页「看图生成提示词」：直接把参考图交给多模态模型，一次调用完成。
 
     Returns:
         LLM 返回的文本，或 "ERROR: ..." 错误信息
@@ -51,6 +56,7 @@ def call_llm(
     model = config.get("model", "deepseek-chat")
     temperature = config.get("temperature", 0.3)
     max_tokens = config.get("max_tokens", 1024)
+    images = images or []
 
     # ── 校验 ──
     if not api_key:
@@ -75,11 +81,19 @@ def call_llm(
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
     }
+    # ── 组装 user 消息：有图则用多模态 content 数组，否则纯文本 ──
+    if images:
+        user_content = [{"type": "text", "text": user_input}]
+        for img in images:
+            user_content.append({"type": "image_url", "image_url": {"url": img}})
+        user_message = {"role": "user", "content": user_content}
+    else:
+        user_message = {"role": "user", "content": user_input}
     body = {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
+            user_message
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
@@ -96,7 +110,14 @@ def call_llm(
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode('utf-8'))
-            return result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            msg = result.get("choices", [{}])[0].get("message", {})
+            content = msg.get("content", "")
+            # [2026-08-13] 思考型模型（如 agnes-2.0-flash）可能把正文留在 content，
+            # 但当 max_tokens 不足时 content 为空、内容全在 reasoning_content。
+            # 若 content 为空，回退读取 reasoning_content，避免误判为空/超时。
+            if not content:
+                content = msg.get("reasoning_content", "")
+            return content
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8', errors='ignore')
         return f"ERROR: API 调用失败 ({e.code}): {error_body[:200]}"
@@ -204,6 +225,7 @@ def generate(
     preset_id: Optional[str] = None,
     config_override: Optional[Dict[str, Any]] = None,
     provider_id_override: Optional[str] = None,
+    images: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     智能提示词生成主函数 — prompt 模块的唯一外部入口。
@@ -265,7 +287,12 @@ def generate(
         custom_rules = preset.get("system_prompt", "") if preset else ""
 
         output_format = preset.get("output_format", "tag") if preset else "tag"
-        template_name = "json" if output_format == "json" else "default"
+        if output_format == "json":
+            template_name = "json"
+        elif output_format == "h3":
+            template_name = "h3"
+        else:
+            template_name = "default"
 
         system_prompt = bld.render(
             template_name,
@@ -276,7 +303,7 @@ def generate(
         )
 
         # ── 步骤 5：调用 LLM（带 provider 降级 fallback）───────────
-        raw_output = call_llm(user_input, system_prompt, config)
+        raw_output = call_llm(user_input, system_prompt, config, images)
         # 记录第一次（用户真正选中的预设）错误，避免被 fallback 错误覆盖
         first_error = raw_output if raw_output.startswith("ERROR:") else ""
 
@@ -299,7 +326,7 @@ def generate(
                 or fallback_config.get("api_key") != config.get("api_key")
                 or fallback_config.get("model") != config.get("model")
             ):
-                fb_raw = call_llm(user_input, system_prompt, fallback_config)
+                fb_raw = call_llm(user_input, system_prompt, fallback_config, images)
                 if not fb_raw.startswith("ERROR:"):
                     # 兜底成功，使用兜底结果
                     raw_output = fb_raw
@@ -324,7 +351,11 @@ def generate(
                 "preset_used": preset.get("id", "") if preset else "",
             }
 
-        parsed = parse_output(raw_output, output_format)
+        if output_format == "h3":
+            # H3 视频：结构化纯文本（integrated_multimodal_description 等字段），原样返回
+            parsed = {"prompt": raw_output.strip(), "negative": ""}
+        else:
+            parsed = parse_output(raw_output, output_format)
 
         return {
             "success": True,
@@ -344,3 +375,156 @@ def generate(
             "error": str(e),
             "preset_used": "",
         }
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  导演台整条脚本生成
+# ═════════════════════════════════════════════════════════════════════
+
+# 追加在 H3 规则之后的「整条脚本生成」指令，要求输出严格 JSON 分镜脚本。
+_SCRIPT_JSON_INSTRUCTION = """
+
+## 整条视频脚本生成任务
+你现在要为一个【导演台多片段视频】一次性生成 {segment_count} 个连贯片段的分镜提示词，最终剪接成一条完整视频。
+
+### 必须遵守
+1. 先定义一个统一的【主角/关键元素清单】：至少包含主要人物（外观、服装、发色、声音、说话风格）、贯穿全片的关键场景或道具。每个元素配一个稳定 ID，人物用 (S1)/(S2)/(S3)...，场景/道具用 <Subject 1>/<Subject 2>...。
+2. 所有片段的提示词里，同一人物必须使用【完全一致的外观描述 + 同一个 (Sx) ID】；同一场景/道具用同一个 <Subject N> 标签。这是人物保持一致的关键，绝不能每个片段重新描述成不同长相。
+3. 每个片段都是一段完整、可直接提交给 H3 视频模型的提示词（含该片段所需的三大核心字段或对齐指令），但【不要】在每段重复整份主角清单——只在第一个片段完整写出主角定义，后续片段用 (Sx)/<Subject N> 简洁引用即可（引用时沿用同一个 ID，不新增编号）。
+4. 片段之间按时间顺序自然连贯：上一段的结尾状态衔接下一段的开头（画面、人物动作、环境连续）。
+5. 严格输出 JSON，不要输出任何解释文字、不要用 markdown 代码块包裹。
+
+### 输出 JSON 结构（务必严格遵循）
+{
+  "subjects": ["主角/元素定义，如：S1: a young woman, long crimson hair, white silk dress, soft gentle voice", "..."],
+  "segments": [
+    {"prompt": "片段 1 的完整 H3 提示词"},
+    {"prompt": "片段 2 的完整 H3 提示词"},
+    ...共 {segment_count} 段
+  ]
+}
+"""
+
+
+def generate_script(
+    story: str,
+    segment_count: int = 3,
+    preset_id: Optional[str] = None,
+    provider_id_override: Optional[str] = None,
+    images: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """导演台整条脚本生成：一次生成 N 个连贯片段的分镜提示词。
+
+    与 generate() 的区别：输出是一整条视频的分镜脚本（JSON），不是单段提示词。
+    复用 H3 视频预设的规则（若指定 h3 相关预设），并在其基础上追加「整条脚本生成」指令，
+    要求 LLM 统一定义主角、逐段产出、保持人物一致。
+
+    Args:
+        story: 故事创意概述或逐段剧情点（按 mode 语义）
+        segment_count: 片段数量
+        preset_id: 预设 ID（缺省用 h3-video，保证视频提示词规范）
+        provider_id_override: provider 覆盖
+        images: 参考图 base64 data URL 列表（可选）
+
+    Returns:
+        {"success", "subjects": [...], "segments": [{"prompt": ...}], "raw", "error"}
+    """
+    try:
+        segment_count = max(1, min(int(segment_count), 30))
+
+        # ── 预设：默认走 H3 视频规则 ──
+        if preset_id is None:
+            preset = pst.get_preset("h3-video") or pst.get_preset("default")
+            preset_id = preset.get("id") if preset else "default"
+        else:
+            preset = pst.get_preset(preset_id)
+            if preset is None:
+                preset = pst.get_preset("default")
+
+        # ── 解析 provider 配置 ──
+        legacy_provider = preset.get("provider_id", "") if preset else ""
+        provider_id = provider_id_override or legacy_provider
+        config = cfg.resolve(provider_id)
+        if preset:
+            if preset.get("temperature") is not None:
+                config["temperature"] = preset["temperature"]
+            if preset.get("max_tokens") is not None:
+                config["max_tokens"] = preset["max_tokens"]
+        # 脚本生成需要更长输出，强制放大 max_tokens
+        config["max_tokens"] = max(int(config.get("max_tokens", 2048)), 4096)
+
+        # ── 组装 system prompt：H3 规则 + 脚本生成指令 ──
+        h3_rules = preset.get("system_prompt", "") if preset else ""
+        instruction = _SCRIPT_JSON_INSTRUCTION.replace(
+            "{segment_count}", str(segment_count)
+        )
+        system_prompt = (h3_rules + instruction) if h3_rules else instruction
+
+        # ── 调用 LLM（带降级 fallback）──
+        raw_output = call_llm(story, system_prompt, config, images)
+        if raw_output.startswith("ERROR:") and provider_id:
+            fb = cfg.resolve()
+            if preset and preset.get("max_tokens") is not None:
+                fb["max_tokens"] = max(int(preset["max_tokens"]), 4096)
+            else:
+                fb["max_tokens"] = 4096
+            if (
+                fb.get("base_url") != config.get("base_url")
+                or fb.get("api_key") != config.get("api_key")
+                or fb.get("model") != config.get("model")
+            ):
+                fb_raw = call_llm(story, system_prompt, fb, images)
+                if not fb_raw.startswith("ERROR:"):
+                    raw_output = fb_raw
+
+        if raw_output.startswith("ERROR:"):
+            return {"success": False, "subjects": [], "segments": [], "raw": raw_output, "error": raw_output}
+
+        # ── 解析 JSON ──
+        parsed = _parse_script_json(raw_output)
+        if parsed is None:
+            return {
+                "success": False,
+                "subjects": [],
+                "segments": [],
+                "raw": raw_output,
+                "error": "模型输出不是有效 JSON 分镜脚本，请重试或减少片段数",
+            }
+        return {
+            "success": True,
+            "subjects": parsed.get("subjects", []),
+            "segments": parsed.get("segments", []),
+            "raw": raw_output,
+            "error": "",
+        }
+    except Exception as e:
+        return {"success": False, "subjects": [], "segments": [], "raw": "", "error": str(e)}
+
+
+def _parse_script_json(raw: str) -> Optional[Dict[str, Any]]:
+    """从 LLM 输出中提取脚本 JSON 对象（容错：去 markdown 包裹、截取首尾花括号）。"""
+    cleaned = raw.strip()
+    cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+    cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+    first = cleaned.find('{')
+    last = cleaned.rfind('}')
+    if first == -1 or last == -1 or last <= first:
+        return None
+    cleaned = cleaned[first:last + 1]
+    try:
+        data = json.loads(cleaned)
+        segs = data.get("segments")
+        if not isinstance(segs, list):
+            return None
+        # 规整：segments 里的每项可能是 str 或 {"prompt": str}
+        normalized = []
+        for s in segs:
+            if isinstance(s, str):
+                normalized.append({"prompt": s})
+            elif isinstance(s, dict) and s.get("prompt"):
+                normalized.append({"prompt": str(s["prompt"])})
+            else:
+                normalized.append({"prompt": ""})
+        return {"subjects": data.get("subjects", []), "segments": normalized}
+    except json.JSONDecodeError:
+        return None

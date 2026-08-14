@@ -560,6 +560,12 @@
                 else { alert(options.placeholder); }
                 return;
             }
+            // [2026-08-13] 支持额外上下文（如 H3 视频模式/参考素材/时长），拼到用户输入后一起交给 LLM
+            // getContext 可为 async，用于生成前先读参考图（视觉反推）拿到内容描述
+            if (typeof options.getContext === 'function') {
+                var _ctx = await options.getContext();
+                if (_ctx) userText = userText + '\n\n' + _ctx;
+            }
             btn.disabled = true;
             var textSpan = btn.querySelector('.btn-text');
             if (textSpan) textSpan.textContent = options.loadingText;
@@ -578,13 +584,35 @@
                     _body.channel = 'api';
                     var _providerId = (typeof window.localPromptProvider === 'string') ? window.localPromptProvider : '';
                     if (_providerId) _body.provider_id = _providerId;
+                    if (options.presetId) _body.preset_id = options.presetId;
                 }
-                var res = await fetch(pmApi('/generate'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(_body)
-                });
-                var data = await res.json();
+
+                // [2026-08-13] 多模态看图生成：options.getImages 返回 File[] 时，走 multipart 端点
+                // 直接把参考图交给多模态模型（无需先反推），最多 9 张
+                var _imgs = null;
+                if (typeof options.getImages === 'function') {
+                    try { _imgs = await options.getImages(); } catch (e) { _imgs = null; }
+                }
+                var _useMulti = !!(_imgs && _imgs.length);
+
+                var res, data;
+                if (_useMulti) {
+                    var fd = new FormData();
+                    fd.append('prompt', userText);
+                    if (options.presetId) fd.append('preset_id', options.presetId);
+                    var _pid2 = (typeof window.localPromptProvider === 'string') ? window.localPromptProvider : '';
+                    if (_pid2) fd.append('provider_id', _pid2);
+                    _imgs.forEach(function (f) { fd.append('files', f); });
+                    res = await fetch(pmApi('/generate-multimodal'), { method: 'POST', body: fd });
+                    data = await res.json();
+                } else {
+                    res = await fetch(pmApi('/generate'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(_body)
+                    });
+                    data = await res.json();
+                }
                 if (data.success && data.prompt) {
                     var isIdeogram = typeof options.isIdeogram4Mode === 'function' && options.isIdeogram4Mode();
                     if (isIdeogram) {
@@ -1444,7 +1472,12 @@
             });
             var data = await res.json();
             var ok = data.success === true;
-            spToast((ok ? '✓ ' : '✗ ') + (data.detail || (ok ? '可用' : '不可用')));
+            var detail = data.detail;
+            if (detail && typeof detail === 'object') {
+                // FastAPI 校验错误时 detail 是数组/对象，转成字符串避免显示 [object Object]
+                try { detail = JSON.stringify(detail); } catch (e2) { detail = String(detail); }
+            }
+            spToast((ok ? '✓ 连接成功，模型可用' : '✗ ') + (detail || (ok ? '连接成功' : '不可用')));
             console.log('[SmartPrompt] 测试结果:', data);
         } catch(e) {
             spToast('✗ 测试请求失败: ' + e);

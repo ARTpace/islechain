@@ -91,6 +91,7 @@ def list_templates() -> list:
     builtin_files = [
         "default.md",
         "json.md",
+        "h3.md",
     ]
     for fname in builtin_files:
         path = TEMPLATES_DIR / fname

@@ -35,6 +35,7 @@
   ],
   "preset_order": [
     "default",
+    "h3-video",
     "ideogram4",
     "preset-mqgfmr6l",
     "preset-mqw2nd1o",
@@ -52,7 +53,8 @@
     "preset-mrvsrqrw",
     "preset-mrxmeaga",
     "preset-ms4duxys",
-    "preset-ms4faz1c"
+    "preset-ms4faz1c",
+    "preset-msqwiky3"
   ],
-  "selected_preset_id": "preset-mqw2nd1o"
+  "selected_preset_id": "h3-video"
 }
