@@ -222,6 +222,8 @@
             if (gp.scheduler) d['调度器'] = gp.scheduler;
             if (gp.seed != null) d['种子'] = gp.seed;
             if (gp['耗时'] != null) d['耗时'] = gp['耗时'];   // litevideo 记录生成总耗时（点击→完成）
+            // litevideo 导演台整条/手动成片：为避免“耗时”被误以为是单段时间，这里用“本批耗时”
+            if (gp['本批耗时'] != null && !d['耗时']) d['本批耗时'] = gp['本批耗时'];
             if (gp.width != null) d['宽度'] = gp.width;
             if (gp.height != null) d['身高'] = gp.height;
             if (gp.batchCount != null) d['批次数'] = gp.batchCount;

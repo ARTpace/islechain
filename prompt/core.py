@@ -385,14 +385,17 @@ def generate(
 _SCRIPT_JSON_INSTRUCTION = """
 
 ## 整条视频脚本生成任务
-你现在要为一个【导演台多片段视频】一次性生成 {segment_count} 个连贯片段的分镜提示词，最终剪接成一条完整视频。
+你现在要为一个【导演台多片段视频】一次性生成 {segment_count} 个连贯片段的分镜提示词，最终剪接成一条完整视频。整条视频画面比例固定为 **{aspect_ratio}**，每段时长不同：**片段1={seg_durations_csv} 秒**（其中第 N 段为 seg_durations_csv 中第 N 个值）。
 
 ### 必须遵守
 1. 先定义一个统一的【主角/关键元素清单】：至少包含主要人物（外观、服装、发色、声音、说话风格）、贯穿全片的关键场景或道具。每个元素配一个稳定 ID，人物用 (S1)/(S2)/(S3)...，场景/道具用 <Subject 1>/<Subject 2>...。
 2. 所有片段的提示词里，同一人物必须使用【完全一致的外观描述 + 同一个 (Sx) ID】；同一场景/道具用同一个 <Subject N> 标签。这是人物保持一致的关键，绝不能每个片段重新描述成不同长相。
 3. 每个片段都是一段完整、可直接提交给 H3 视频模型的提示词（含该片段所需的三大核心字段或对齐指令），但【不要】在每段重复整份主角清单——只在第一个片段完整写出主角定义，后续片段用 (Sx)/<Subject N> 简洁引用即可（引用时沿用同一个 ID，不新增编号）。
 4. 片段之间按时间顺序自然连贯：上一段的结尾状态衔接下一段的开头（画面、人物动作、环境连续）。
-5. 严格输出 JSON，不要输出任何解释文字、不要用 markdown 代码块包裹。
+
+### 时长与画面比例约束（务必严格遵循）
+- 每段时长不同：**片段 N 的时长 = seg_durations_csv 中第 N 个值**（如 [5, 7, 4, 6] 表示片段1=5秒/片段2=7秒/片段3=4秒/片段4=6秒）。请逐段严格按各自时长安排镜头节奏与动作密度，运镜变化、人物动作推进、场景切换至少要有 2~3 个阶段变化，避免“静态动作拍完全部时间”的空洞。
+- 整条画面比例固定为 {aspect_ratio}。请在 integrated_multimodal_description 中明确写上“aspect ratio {aspect_ratio}”或“framed in {aspect_ratio}”。同时调整镜头语言：横屏（16:9 / 3:2 / 21:9）多用「wide/horizontal composition」；竖屏（9:16 / 3:4 / 9:21）多用「vertical/portrait composition / close-up framing」；方形（1:1）多用「centered composition」。镜头运动描述也要适配比例：竖屏优先推近/侑仰/上下推拉；横屏可平移/横移/跟踪。
 
 ### 输出 JSON 结构（务必严格遵循）
 {
@@ -412,6 +415,8 @@ def generate_script(
     preset_id: Optional[str] = None,
     provider_id_override: Optional[str] = None,
     images: Optional[List[str]] = None,
+    seg_durations: Optional[List[Any]] = None,
+    aspect_ratio: Optional[str] = None,
 ) -> Dict[str, Any]:
     """导演台整条脚本生成：一次生成 N 个连贯片段的分镜提示词。
 
@@ -455,9 +460,32 @@ def generate_script(
 
         # ── 组装 system prompt：H3 规则 + 脚本生成指令 ──
         h3_rules = preset.get("system_prompt", "") if preset else ""
+        # 每段时长（可以是数组，每段不一样）与画面比例
+        durs_in = seg_durations if isinstance(seg_durations, list) and seg_durations else None
+        seg_dur_list: List[int] = []
+        for i in range(segment_count):
+            v = None
+            if durs_in and i < len(durs_in):
+                try:
+                    v = int(round(float(durs_in[i])))
+                except Exception:
+                    v = None
+            if v is None or v <= 0:
+                v = 5
+            v = max(1, min(15, v))
+            seg_dur_list.append(v)
+        # 占位符：{seg_duration} 同时反映“默认段时长”（多段不同时取中位数）；{seg_durations_list} 为逐段列表
+        try:
+            import statistics
+            median_dur = int(round(statistics.median(seg_dur_list)))
+        except Exception:
+            median_dur = seg_dur_list[0] if seg_dur_list else 5
+        seg_dur_str = str(max(1, min(15, median_dur)))
+        aspect_str = (aspect_ratio or "16:9").strip() or "16:9"
+        seg_durations_csv = ", ".join(str(x) for x in seg_dur_list)
         instruction = _SCRIPT_JSON_INSTRUCTION.replace(
             "{segment_count}", str(segment_count)
-        )
+        ).replace("{seg_duration}", seg_dur_str).replace("{aspect_ratio}", aspect_str).replace("{seg_durations_csv}", seg_dur_csv)
         system_prompt = (h3_rules + instruction) if h3_rules else instruction
 
         # ── 调用 LLM（带降级 fallback）──

@@ -8462,9 +8462,13 @@ if USE_NEW_PROMPT_MODULE:
         preset_id: str = Form(None),
         provider_id: str = Form(None),
         files: List[UploadFile] = File(None),
+        seg_duration: List[str] = Form(None),
+        aspect_ratio: str = Form(None),
     ):
         """导演台整条脚本生成：一次生成 N 个连贯片段的分镜提示词（人物保持一致）。
-        支持可选参考图（最多 9 张），与 generate-multimodal 一样走 multipart 上传。"""
+        支持可选参考图（最多 9 张），与 generate-multimodal 一样走 multipart 上传。
+        seg_duration：可重复字段，每段一个目标时长（秒，3~15），不传则统一 5 秒。
+        aspect_ratio：整条画面比例（如 16:9 / 9:16），提示 LLM 适配镜头节奏/构图。"""
         try:
             images: List[str] = []
             if files:
@@ -8477,12 +8481,16 @@ if USE_NEW_PROMPT_MODULE:
                         mime = "image/jpeg"
                     b64 = base64.b64encode(content).decode("ascii")
                     images.append(f"data:{mime};base64,{b64}")
+            # seg_duration 可能是多个值；如果只有一个值则按统一时长处理
+            durs = list(seg_duration) if seg_duration else None
             return generate_smart_script(
                 story,
                 segment_count=segment_count,
                 preset_id=preset_id or None,
                 provider_id_override=provider_id or None,
                 images=images or None,
+                seg_durations=durs,
+                aspect_ratio=aspect_ratio or None,
             )
         except Exception as e:
             return {"success": False, "subjects": [], "segments": [], "raw": "", "error": str(e)}

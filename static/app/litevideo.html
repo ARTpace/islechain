@@ -111,10 +111,10 @@
         *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
         *::-webkit-scrollbar-thumb { background-color:var(--scrollbar-thumb)!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
         * { scrollbar-width:thin!important; scrollbar-color:var(--scrollbar-thumb) transparent!important; }
-        body { background-color:var(--bg-base); font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--text-main); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; transition:background-color .3s, color .3s; }
+        body { background-color:var(--bg-base); font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--text-main); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden; transition:background-color .3s, color .3s; }
         .layout-container { max-width:var(--max-w); margin:0 auto; padding:0 40px; width:100%; }
         @media(max-width:768px){ .layout-container{ padding:0 16px; } }
-        .lv-root { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .lv-root { display:flex; flex-direction:column; min-height:100vh; overflow:visible; }
         .lv-header { padding:18px 0 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; transition:border-color .3s; }
         .lv-title { font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--text-main); }
         .lv-wf-tabs { display:flex; gap:4px; padding:3px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-card); }
@@ -126,12 +126,19 @@
 }
 .lv-wf-tab:hover { color:var(--text-main); background:rgba(255,255,255,0.04); }
 .lv-wf-tab.active { background:var(--primary); color:#0a0e17; font-weight:600; }
-        .lv-body { flex:0 1 auto; max-height:58vh; overflow:hidden; display:grid; grid-template-columns: 400px 1fr; gap:14px; padding:12px 0; }
-        .lv-side { overflow-y:auto; padding-right:4px; }
+        .lv-body { flex:1 1 auto; max-height:none; overflow:visible; display:grid; grid-template-columns: 400px 1fr; gap:14px; padding:12px 0; min-height:0; align-items:stretch; }
+        .lv-side { overflow-y:auto; padding-right:4px; display:flex; flex-direction:column; min-height:0; }
         .lv-main { display:flex; flex-direction:column; gap:12px; min-height:0; overflow-y:auto; overflow-x:hidden; }
         /* 历史展示区: 与上方 .lv-body 同宽(均受 .layout-container 限宽居中), 占 .lv-root 剩余高度, 独立滚动, 工具栏 sticky 吸顶 */
-        .lv-history-section { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:12px 0; }
+        .lv-history-section { flex:0 1 auto; min-height:160px; max-height:34vh; overflow-y:auto; overflow-x:hidden; padding:12px 0; }
         .lv-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; transition:background .3s, border-color .3s; }
+        /* 提示词卡片：在侧边栏中自适应撑满剩余高度，与右侧预览区高度对齐 */
+        .lv-prompt-card { flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
+        .lv-prompt-card .lv-card-title { flex-shrink:0; }
+        .lv-prompt-card .lv-field { flex:1 1 auto; display:flex; flex-direction:column; min-height:0; margin-bottom:0; }
+        .lv-prompt-card .lv-richprompt { flex:1 1 auto; min-height:140px; max-height:38vh; overflow-y:auto; resize:none; border:none; background:var(--bg-soft); }
+        .lv-prompt-card .lv-richprompt:focus { outline:none; border:none; background:var(--bg-card); }
+        .lv-prompt-card details.lv-collapse { flex-shrink:0; }
         .lv-card-title { font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-main); display:flex; align-items:center; gap:5px; justify-content:space-between; }
 .lv-card-title .lv-reset-btn {
     display:inline-flex; align-items:center; gap:3px;
@@ -219,16 +226,17 @@
         .lv-btn-primary:disabled { background:var(--text-faint); cursor:not-allowed; box-shadow:none; }
         .lv-btn-ghost { background:transparent; color:var(--text-main); border:1px solid var(--border-strong); }
         .lv-btn-ghost:hover { background:var(--bg-btn-ghost-hover); border-color:var(--primary); color:var(--text-main); }
-        .lv-stage { flex:2; min-height:220px; background:var(--stage-bg); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.4); transition:background .3s; }
+        .lv-stage { flex:1 1 auto; min-height:180px; max-height:calc(100vh - 360px); background:var(--stage-bg); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.4); transition:background .3s; }
         body.studio-theme-dark .lv-stage { border:1px solid var(--border); box-shadow:inset 0 0 80px rgba(0,240,255,0.04); }
-        .lv-stage video { max-width:100%; max-height:100%; width:auto; height:auto; }
+        .lv-stage video { max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; }
         .lv-stage .empty { color:var(--text-mute); font-size:14px; text-align:center; }
-        /* 比例预览框：空舞台时实时显示当前视频比例的形状 */
-        .lv-stage-aspect-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); border:1.5px dashed var(--primary); border-radius:8px; box-sizing:border-box; pointer-events:none; background:rgba(0,240,255,0.05); transition:width .18s, height .18s; }
-        .lv-stage-aspect-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:13px; font-weight:600; color:var(--primary); background:var(--stage-bg); padding:2px 8px; border-radius:5px; letter-spacing:.5px; }
+        /* 比例预览框：空舞台时实时显示当前视频比例的形状（同时替代 .empty 空状态） */
+        .lv-stage-aspect-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); border:1.5px dashed var(--primary); border-radius:8px; box-sizing:border-box; pointer-events:none; background:rgba(0,240,255,0.05); transition:width .18s, height .18s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+        .lv-stage-aspect-label { font-size:13px; font-weight:600; color:var(--primary); background:var(--stage-bg); padding:2px 10px; border-radius:5px; letter-spacing:.5px; }
         body.studio-theme-dark .lv-stage-aspect-label { background:rgba(10,14,20,.85); }
+        .lv-stage-aspect-params { font-size:11px; color:var(--text-mute); pointer-events:none; letter-spacing:.3px; }
         /* 拖拽放置高亮 + 图片预览 */
-        .lv-stage img.lv-result-image { max-width:100%; max-height:100%; width:auto; height:auto; display:block; }
+        .lv-stage img.lv-result-image { max-width:100%; max-height:100%; width:auto; height:auto; display:block; object-fit:contain; }
         .lv-stage.lv-drop-active { outline:2px dashed var(--primary); outline-offset:-10px; background:rgba(0,240,255,0.06); }
         /* 视频展示区「清除视频」按钮(右上角, 仅当舞台有内容时显示) */
         .lv-stage-clear { position:absolute; top:8px; right:8px; z-index:5; display:none; align-items:center; gap:4px; padding:5px 10px; border:none; border-radius:7px; background:rgba(0,0,0,0.55); color:#fff; font-size:12px; cursor:pointer; transition:.15s; }
@@ -274,6 +282,8 @@
         /* ✓ 选中标记 */
         .lv-select-opt-check { width:16px; height:16px; color:var(--primary); opacity:0; flex-shrink:0; transition:opacity .12s; }
         .lv-select-opt.active .lv-select-opt-check { opacity:1; }
+        /* 触发器内前导图标（如分辨率 maximize 图标），与 chev 同尺寸、不挤压文字 */
+        .lv-select-ico { width:15px; height:15px; flex-shrink:0; opacity:.85; }
         .lv-ref-wrap { margin-top:4px; }
         .lv-ref-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px 12px; border:1.5px dashed var(--border-strong); border-radius:8px; cursor:pointer; transition:.2s; color:var(--text-soft); background:var(--bg-soft); }
         .lv-ref-drop:hover, .lv-ref-drop.drag-over { border-color:var(--primary); color:var(--primary); background:rgba(0,240,255,0.05); }
@@ -412,6 +422,18 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
         .lv-script-mode-btn.active { background:var(--primary); border-color:var(--primary); color:#0a0e17; font-weight:600; }
         .lv-modal-select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-card); color:var(--text-main); font-size:12.5px; cursor:pointer; outline:none; }
         .lv-modal-select:focus { border-color:var(--primary); }
+        /* 每段时长列表 */
+        .lv-segdur-list { display:flex; flex-direction:column; gap:4px; max-height:260px; overflow-y:auto; padding:4px 0; }
+        .lv-segdur-item { display:flex; align-items:center; gap:4px; padding:2px 0; }
+        .lv-segdur-label { font-size:12px; color:var(--text-main); min-width:54px; }
+        .lv-segdur-input { width:56px; padding:4px 6px; text-align:center; border:1px solid var(--border); border-radius:8px; background:var(--bg-card); color:var(--text-main); font-size:12.5px; outline:none; -moz-appearance:textfield; }
+        .lv-segdur-input::-webkit-outer-spin-button, .lv-segdur-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+        .lv-segdur-input:focus { border-color:var(--primary); }
+        .lv-segdur-step { width:22px; height:22px; padding:0; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text-main); cursor:pointer; font-size:14px; line-height:1; }
+        .lv-segdur-step:hover { border-color:var(--primary); color:var(--primary); }
+        .lv-segdur-unit { font-size:11px; color:var(--text-faint); }
+        .lv-btn-mini { padding:3px 8px; font-size:11px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text-faint); cursor:pointer; }
+        .lv-btn-mini:hover { border-color:var(--primary); color:var(--primary); }
         .lv-btn-primary i { width:14px; height:14px; }
         .lv-spinner { width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; }
         body.studio-theme-dark .lv-spinner { border-color:rgba(10,14,23,0.3); border-top-color:#0a0e17; }
@@ -450,11 +472,17 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
             .lv-wf-tab { padding:8px 14px; font-size:12px; white-space:nowrap; }
 
             /* 主体改为单列纵向堆叠, 视频预览优先显示 (order:-1) */
-            .lv-body { grid-template-columns:1fr; gap:10px; padding:10px 0; overflow:visible; display:flex; flex-direction:column; max-height:none; }
+            .lv-body { flex:0 0 auto; grid-template-columns:1fr; gap:10px; padding:10px 0; overflow:visible; display:flex; flex-direction:column; max-height:none; }
             .lv-main { order:-1; overflow:visible; }
+            /* 导演台工具条在手机宽度允许换行, 避免单行溢出被裁且保证弹出面板可向下展开 */
+            .lv-director-bar { flex-wrap:wrap; justify-content:flex-start; gap:6px; }
+            .lv-side { display:block; }
+            .lv-prompt-card { flex:none; display:block; }
+            .lv-prompt-card .lv-field { display:block; }
+            .lv-prompt-card .lv-richprompt { flex:none; min-height:160px; max-height:260px; resize:vertical; }
             .lv-stage { min-height:240px; }
             /* 历史区移动端全宽堆叠, 随整页滚动(不独立滚动) */
-            .lv-history-section { flex:0 0 auto; overflow:visible; padding:10px 0; }
+            .lv-history-section { flex:0 0 auto; overflow:visible; max-height:none; min-height:0; padding:10px 0; }
 
             /* 卡片 / 表单: 加大留白; 输入框字号 16px 避免 iOS 聚焦缩放 */
             .lv-card { padding:12px 14px; }
@@ -489,9 +517,25 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
             .lv-card { padding:10px 11px; }
             .lv-ref-thumb, .lv-ref-add-tile { width:80px; height:80px; }
         }
+        /* 导演台工具条：窗口收窄时隐藏按钮文字、只留图标，始终保持单行 */
+        @media (max-width: 1200px) {
+            .lv-director-switchbar { gap:6px; padding:7px 10px; }
+            .lv-director-bar { gap:4px; }
+            .lv-director-toggle-btn { width:34px; height:34px; padding:0; justify-content:center; border-radius:8px; }
+            .lv-director-toggle-btn span { display:none; }
+            .lv-run-btn { padding:0 9px; }
+            .lv-run-btn span { display:none; }
+            .lv-director-bar .lv-param-trigger { padding:0 6px; }
+            .lv-director-bar .lv-select-trigger { padding:0 6px; }
+            .lv-genmode-select { padding:0 22px 0 8px; font-size:12px; }
+        }
+        @media (max-width: 900px) {
+            .lv-director-bar .lv-param-trigger .lv-param-val { display:none; }
+            .lv-director-bar .lv-select-name { display:none; }
+        }
         /* ============ 导演台 / 分镜时间轴 ============ */
     /* 导演台开关条(已迁移到右侧主区域顶部, 常驻可见, 不占左侧边栏) */
-    .lv-director-switchbar { display:flex; align-items:center; gap:10px; padding:9px 14px; background:var(--bg-soft); border:1px solid var(--border); border-radius:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .lv-director-switchbar { display:flex; align-items:center; gap:10px; padding:9px 14px; background:var(--bg-soft); border:1px solid var(--border); border-radius:10px; margin-bottom:0; flex-wrap:nowrap; }
     .lv-director-switchbar .lv-director-bar { flex:1; min-width:0; display:flex; align-items:center; gap:6px; justify-content:flex-end; }
     /* 导演台按钮形开关：OFF=边框灰、ON=主色填充 */
     .lv-director-toggle-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; font-size:13px; font-weight:600; color:var(--text-main); background:transparent; border:1px solid var(--border); border-radius:8px; cursor:pointer; user-select:none; transition:all .15s; font-family:inherit; }
@@ -562,8 +606,8 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     /* 导演台工具条内的开关：文字色与相邻按钮一致 */
     .lv-director-bar .lv-switch { gap:7px; }
     .lv-director-bar .lv-switch-label { color:var(--text-main); font-size:12px; font-weight:500; }
-    .lv-director { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin-bottom:12px; }
-    .lv-director-bar { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+    .lv-director { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:8px 12px; margin-bottom:12px; flex:0 0 auto; min-height:150px; display:flex; flex-direction:column; }
+    .lv-director-bar { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; justify-content:flex-end; }
     /* 时间轴底部控制条（添加/删除/更多/连续播放），像播放器控件 */
     .lv-timeline-controls { display:flex; align-items:center; justify-content:center; gap:8px; padding-top:8px; margin-top:2px; border-top:1px solid var(--border); }
     .lv-timeline-btn { width:28px; height:28px; border-radius:8px; }
@@ -580,16 +624,20 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-dropdown-item { display:flex; align-items:center; gap:8px; width:100%; padding:8px 12px; border:none; background:transparent; color:var(--text-main); font-size:13px; border-radius:6px; cursor:pointer; white-space:nowrap; }
     .lv-dropdown-item:hover { background:var(--bg-btn-ghost-hover); }
     .lv-dropdown-item i { width:15px; height:15px; flex-shrink:0; }
-    .lv-timeline { overflow-x:auto; padding-bottom:6px; }
-    .lv-time-ruler { position:relative; display:flex; align-items:stretch; width:max-content; height:24px; margin:2px 0 4px; flex-shrink:0; }
-    .lv-ruler-block { position:relative; height:100%; border-right:1px solid rgba(255,255,255,.18); box-sizing:border-box; }
-    .lv-ruler-block.active { background:rgba(245,158,11,.14); }
-    .lv-ruler-label { position:absolute; top:3px; left:3px; font-size:9px; line-height:1; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
-    .lv-ruler-end { position:absolute; top:3px; right:3px; font-size:9px; line-height:1; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
-    .lv-ruler-block.active .lv-ruler-label, .lv-ruler-block.active .lv-ruler-end { color:#f59e0b; }
-    .lv-timeline-track { position:relative; display:flex; align-items:flex-start; gap:8px; min-height:92px; padding:2px 0; width:max-content; }
+    .lv-timeline { flex:1 1 auto; overflow-x:auto; overflow-y:hidden; padding-bottom:4px; min-height:82px; display:flex; flex-direction:column; }
+    .lv-time-ruler { position:relative; display:flex; align-items:stretch; width:max-content; height:20px; margin:0 0 2px; flex-shrink:0; border-bottom:1px solid var(--border); }
+    .lv-ruler-block { position:relative; height:100%; box-sizing:border-box; }
+    .lv-ruler-block.active { background:rgba(0,240,255,0.05); }
+    .lv-ruler-block.active::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--primary); }
+    .lv-ruler-tick { position:absolute; bottom:0; border-left:1px solid rgba(255,255,255,.22); pointer-events:none; }
+    .lv-ruler-tick.major { height:8px; }
+    .lv-ruler-tick.minor { height:4px; }
+    .lv-ruler-label { position:absolute; top:2px; left:2px; font-size:9px; line-height:1; color:var(--text-dim); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
+    .lv-ruler-end { position:absolute; top:2px; right:2px; font-size:9px; line-height:1; color:var(--text-dim); white-space:nowrap; font-variant-numeric:tabular-nums; pointer-events:none; }
+    .lv-ruler-block.active .lv-ruler-label, .lv-ruler-block.active .lv-ruler-end { color:var(--primary); }
+    .lv-timeline-track { position:relative; display:flex; align-items:flex-start; min-height:74px; padding:2px 0; width:max-content; flex:1 1 auto; }
     /* 统一卡片 = 时间轴片段：宽度按帧数×帧高比例, 高度固定(帧区撑满剩余, 拖动只变宽度) */
-    .lv-clip { position:relative; flex:0 0 auto; height:88px; border:1px solid var(--border); border-radius:10px; background:var(--bg-soft); padding:5px; cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .12s; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+    .lv-clip { position:relative; flex:0 0 auto; height:70px; border:1px solid var(--border); border-radius:10px; background:var(--bg-soft); padding:4px; cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .12s; display:flex; flex-direction:column; gap:3px; overflow:hidden; }
     .lv-clip:hover { border-color:var(--primary); transform:translateY(-1px); }
     .lv-clip.active { border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,200,255,.4), 0 2px 8px rgba(0,200,255,.12); }
     .lv-clip.running { border-color:#f59e0b; }
@@ -615,7 +663,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     .lv-clip-frames-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.45); }
     .lv-clip-frames-loading svg { width:16px; height:16px; animation:lv-spin 1s linear infinite; }
     @keyframes lv-spin { to { transform:rotate(360deg); } }
-    .lv-clip-idx { position:absolute; top:3px; left:4px; z-index:3; font-size:11px; font-weight:800; color:var(--primary); line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.7); }
+    .lv-clip-idx { position:absolute; top:2px; left:3px; z-index:3; font-size:10px; font-weight:800; color:var(--primary); line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.7); }
     .lv-clip-del { position:absolute; top:3px; right:3px; width:16px; height:16px; border:none; border-radius:50%; background:rgba(0,0,0,.45); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; z-index:3; }
     .lv-clip-del:hover { background:#ef4444; }
     /* 删除按钮待确认态（第一次点击后变红+脉冲，再次点击才删除） */
@@ -629,17 +677,17 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
     /* 段间引导角标（左上，紧挨序号） */
     .lv-clip-cont { position:absolute; top:3px; left:26px; z-index:3; font-size:9px; font-weight:800; line-height:1; color:#fff; background:#16a34a; border-radius:4px; padding:2px 4px; box-shadow:0 1px 3px rgba(0,0,0,.3); }
     /* 片段卡片：选择运行开关（左下） */
-    .lv-clip-run { position:absolute; bottom:3px; left:4px; z-index:3; display:inline-flex; align-items:center; gap:3px; font-size:9px; font-weight:700; line-height:1; color:#fff; background:rgba(22,163,74,.92); border-radius:4px; padding:2px 4px; cursor:pointer; user-select:none; }
+    .lv-clip-run { position:absolute; bottom:2px; left:3px; z-index:3; display:inline-flex; align-items:center; gap:2px; font-size:8px; font-weight:700; line-height:1; color:#fff; background:rgba(22,163,74,.92); border-radius:3px; padding:1px 3px; cursor:pointer; user-select:none; }
     .lv-clip-run.off { background:rgba(120,120,120,.85); }
     .lv-clip-run input { width:10px; height:10px; accent-color:#fff; cursor:pointer; margin:0; }
     .lv-clip-run span { pointer-events:none; }
     /* 缓存角标（右上，紧挨删除按钮） */
     .lv-clip-cache { position:absolute; top:3px; right:24px; z-index:3; font-size:9px; font-weight:700; line-height:1; color:#0b1020; background:#38bdf8; border-radius:4px; padding:2px 4px; }
     /* 时长（右下角胶囊） */
-    .lv-clip-meta { position:absolute; bottom:4px; right:5px; z-index:3; font-size:9px; color:#fff; background:rgba(0,0,0,.5); padding:1px 4px; border-radius:3px; font-variant-numeric:tabular-nums; }
-    .lv-clip-mode-tag { position:absolute; top:3px; left:50%; transform:translateX(-50%); z-index:3; height:15px; max-width:70px; font-size:8px; line-height:15px; padding:0 5px; border:1px solid rgba(0,240,255,.35); border-radius:4px; background:rgba(0,0,0,.55); color:#7fe9ff; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+    .lv-clip-meta { position:absolute; bottom:2px; right:4px; z-index:3; font-size:8px; color:#fff; background:rgba(0,0,0,.5); padding:1px 3px; border-radius:3px; font-variant-numeric:tabular-nums; }
+    .lv-clip-mode-tag { position:absolute; top:2px; left:50%; transform:translateX(-50%); z-index:3; height:13px; max-width:70px; font-size:8px; line-height:13px; padding:0 4px; border:1px solid rgba(0,240,255,.35); border-radius:3px; background:rgba(0,0,0,.55); color:#7fe9ff; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
     /* 右缘拖拽改时长手柄（宽度按时间比例, 与全局一致） */
-    .lv-clip-resize { position:absolute; top:20px; right:0; bottom:0; width:12px; cursor:ew-resize; z-index:4; border-bottom-right-radius:9px; }
+    .lv-clip-resize { position:absolute; top:16px; right:0; bottom:0; width:12px; cursor:ew-resize; z-index:4; border-bottom-right-radius:9px; }
     .lv-clip-resize:hover { background:rgba(0,200,255,.22); }
     .lv-clip-drophover { border-color:var(--primary) !important; box-shadow:0 0 0 2px rgba(0,122,255,.45); }
     .lv-clip-drophover::after { content:'拖入视频'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--primary); background:rgba(0,122,255,.08); border-radius:10px; pointer-events:none; z-index:2; }
@@ -847,7 +895,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <div class="lv-note" id="imgNote" style="margin-top:6px;">支持 PNG/JPG/WEBP，作为视频首帧</div>
             </div>
 
-            <div class="lv-card" style="padding-top:8px;">
+            <div class="lv-card lv-prompt-card" style="padding-top:8px;">
                 <div class="lv-card-title" style="font-size:11px;margin-bottom:4px;"><i data-lucide="type" style="width:14px;height:14px;"></i>提示词
                     <div style="display:flex;align-items:center;gap:6px;">
                         <span id="smartPromptContainer"></span>
@@ -874,11 +922,6 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 </details>
             </div>
 
-            <div class="lv-card">
-                <div class="lv-note" id="vramNote" style="margin-top:0;"></div>
-                <div class="lv-note" id="wfHint" style="margin-top:4px;color:var(--primary);display:none;"></div>
-            </div>
-
         </aside>
 
         <div class="lv-main">
@@ -892,18 +935,6 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <input type="checkbox" id="directorToggle" style="display:none;">
                 <!-- 开关 + 设置行整合：单行条件下显示，OFF 时仅保留「生成整条」-->
                 <div class="lv-director-bar" id="directorBar">
-                    <!-- 段间引导（图标开关） -->
-                    <button type="button" class="lv-icon-btn" id="continuityBtn" title="段间引导：相邻片段间自动对齐首/尾帧外观，让画面衔接更连贯（需 ≥2 个片段才生效）" aria-pressed="false">
-                        <i data-lucide="link"></i>
-                    </button>
-                    <input type="checkbox" id="continuityToggle" style="display:none;">
-
-                    <!-- 复用缓存（图标开关） -->
-                    <button type="button" class="lv-icon-btn" id="cacheBtn" title="复用缓存：若片段参数未变化且已有成片，则跳过重新生成、直接复用" aria-pressed="false">
-                        <i data-lucide="rotate-ccw"></i>
-                    </button>
-                    <input type="checkbox" id="cacheToggle" style="display:none;">
-
                     <!-- 时长（秒）弹出参数 -->
                     <div class="lv-param-pop" id="lengthPop">
                         <button type="button" class="lv-param-trigger" id="lengthTrigger" title="时长（秒）：点击展开调节滑条">
@@ -921,21 +952,15 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                         </div>
                     </div>
 
-                    <!-- 分辨率（精度）弹出参数 -->
-                    <div class="lv-param-pop" id="mpPop">
-                        <button type="button" class="lv-param-trigger" id="mpTrigger" title="精度（分辨率）：点击展开调节滑条">
-                            <i data-lucide="maximize"></i>
-                            <span class="lv-param-val" id="mpBtnVal">0.5</span>
+                    <!-- 分辨率（精度）选择，与比例同款下拉 UI -->
+                    <div class="lv-select" id="mpSelect">
+                        <input type="hidden" id="megapixels" value="0.5">
+                        <button type="button" class="lv-select-trigger" id="mpTrigger" title="分辨率（精度）：点击选择档位">
+                            <i data-lucide="maximize" class="lv-select-ico"></i>
+                            <span class="lv-select-name" id="mpName">540P</span>
+                            <i class="lv-select-chev" data-lucide="chevron-down"></i>
                         </button>
-                        <div class="lv-param-panel">
-                            <div class="lv-field">
-                                <div class="lv-label">
-                                    <span data-tip="3:4 → 540P" id="megapixelsNote">精度 (百万像素)</span>
-                                    <span id="megapixelsVal">0.5</span>
-                                </div>
-                                <input type="range" class="lv-slider" id="megapixels" min="0.2" max="2.0" step="any" value="0.5">
-                            </div>
-                        </div>
+                        <div class="lv-select-panel" id="mpPanel"></div>
                     </div>
 
                     <!-- 比例（弹出选择，向下展开） -->
@@ -1019,6 +1044,31 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <div class="lv-timeline-controls" id="timelineControls">
                     <button type="button" class="lv-icon-btn lv-timeline-btn" id="addSegBtn" title="添加片段"><i data-lucide="plus"></i></button>
                     <button type="button" class="lv-icon-btn lv-timeline-btn" id="delSegBtn" title="删除片段"><i data-lucide="trash-2"></i></button>
+
+                    <!-- 段间引导（图标开关） -->
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="continuityBtn" title="段间引导：相邻片段间自动对齐首/尾帧外观，让画面衔接更连贯（需 ≥2 个片段才生效）" aria-pressed="false">
+                        <i data-lucide="link"></i>
+                    </button>
+                    <input type="checkbox" id="continuityToggle" style="display:none;">
+
+                    <!-- 复用缓存（图标开关） -->
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="cacheBtn" title="复用缓存：若片段参数未变化且已有成片，则跳过重新生成、直接复用" aria-pressed="false">
+                        <i data-lucide="rotate-ccw"></i>
+                    </button>
+                    <input type="checkbox" id="cacheToggle" style="display:none;">
+
+                    <!-- 段间清理显存（图标开关） -->
+                    <button type="button" class="lv-icon-btn lv-timeline-btn" id="vramBtn" title="段间清理显存：每生成一个片段后清理一次显存，长分镜/多段场景可避免显存不足报错（会更慢）" aria-pressed="false">
+                        <i data-lucide="memory-stick"></i>
+                    </button>
+                    <input type="checkbox" id="vramToggle" style="display:none;">
+
+                    <!-- 二次采样放大（图标开关，默认开启） -->
+                    <button type="button" class="lv-icon-btn on lv-timeline-btn" id="refineBtn" title="二次采样放大：生成后用 4x-UltraSharp 模型对视频做超分辨率优化放大（关闭则直接输出原始分辨率，更快更省显存）" aria-pressed="true">
+                        <i data-lucide="zoom-in"></i>
+                    </button>
+                    <input type="checkbox" id="refineToggle" style="display:none;" checked>
+
                     <button type="button" class="lv-icon-btn lv-timeline-btn lv-ai-script-btn" id="aiScriptBtn" title="AI 编剧：一键为多个片段生成连贯分镜提示词（人物保持一致）"><i data-lucide="wand-sparkles"></i></button>
                     <div class="lv-dropdown" id="directorMore">
                         <button type="button" class="lv-icon-btn lv-timeline-btn lv-dropdown-toggle" title="更多"><i data-lucide="more-vertical"></i></button>
@@ -1039,6 +1089,7 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <video id="resultVideo" controls style="display:none;"></video>
                 <div class="lv-stage-aspect-box" id="stageAspectBox" style="display:none;">
                     <span class="lv-stage-aspect-label" id="stageAspectLabel">3:4</span>
+                    <span class="lv-stage-params" id="stageParams"></span>
                 </div>
                 <button type="button" class="lv-stage-clear" id="stageClearBtn" title="清除视频（仅隐藏预览，不删除片段）">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -1080,9 +1131,32 @@ body.studio-theme-dark .lv-prompt-pop-btn.primary { color:#0a0e17; }
                 <div class="lv-label"><span id="aiScriptStoryLabel">故事概述</span><span class="lv-label-hint" id="aiScriptStoryHint">用一段话描述要拍的视频</span></div>
                 <textarea class="lv-textarea" id="aiScriptStory" rows="5" placeholder="例如：一个女孩在雨夜走进街角咖啡店，遇到多年未见的故人……"></textarea>
             </div>
-            <div class="lv-field" style="margin-bottom:12px;">
+            <div class="lv-field" style="margin-bottom:10px;">
                 <div class="lv-label"><span>片段数量</span><span id="aiScriptSegCountVal">3</span></div>
                 <input class="lv-slider" type="range" id="aiScriptSegCount" min="1" max="12" step="1" value="3">
+            </div>
+            <div class="lv-field-row" style="margin-bottom:12px; display:flex; gap:12px; align-items:flex-end;">
+                <div class="lv-field" style="flex:1;">
+                    <div class="lv-label" style="display:flex; align-items:center; justify-content:space-between;">
+                        <span>每段时长（秒）</span>
+                        <button type="button" class="lv-btn lv-btn-mini" id="aiScriptSegDurationsBulk" title="将该列表所有片段统一设为上方的「统一时长」">一键相同</button>
+                    </div>
+                    <div id="aiScriptSegDurations" class="lv-segdur-list"></div>
+                </div>
+                <div class="lv-field" style="flex:0 0 160px;">
+                    <div class="lv-label"><span>视频比例</span></div>
+                    <select class="lv-modal-select" id="aiScriptAspect" aria-label="视频比例">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                        <option value="4:3">4:3</option>
+                        <option value="3:4">3:4</option>
+                        <option value="21:9">21:9 超宽</option>
+                        <option value="9:21">9:21 超高</option>
+                        <option value="3:2">3:2</option>
+                        <option value="2:3">2:3</option>
+                    </select>
+                </div>
             </div>
             <div class="lv-note" id="aiScriptNote" style="margin-bottom:12px;">生成后将<strong>覆盖所有现有片段</strong>的提示词（片段本身与参考素材保留），人物通过统一定义保持一致。</div>
             <div class="lv-modal-actions">
@@ -1467,6 +1541,16 @@ async function runDirectorGeneration(targetSegments, opts) {
         const stepsEl = document.getElementById('steps');
         if (stepsEl) dirNode.inputs.steps = parseInt(stepsEl.value) || 25;
 
+        // 段间清理显存
+        const vramEl = document.getElementById('vramToggle');
+        if (vramEl) dirNode.inputs.clear_vram_between_segments = !!vramEl.checked;
+
+        // 二次采样放大：关闭时断开 refine 连接，Director 直接输出原始分辨率视频
+        const refineEl = document.getElementById('refineToggle');
+        if (refineEl && !refineEl.checked) {
+            delete dirNode.inputs.refine;
+        }
+
         // LoRA：更新工作流中已有的 LoraLoaderModelOnly 节点（18）
         if (currentLoras && currentLoras.length > 0) {
             const loraNode = apiWorkflow['18'];
@@ -1476,18 +1560,23 @@ async function runDirectorGeneration(targetSegments, opts) {
             }
         }
 
-        // 动态切换 UNET：存在 r2v 或音频/视频参考时改用 ref2va（r2v/v2v/rv2v 必须），否则保持 fl2va（t2v/i2v/fl2v）
-        const needsRef2va = (tl.global.taskType || '').indexOf('r2v') === 0
+        // 动态切换 UNET：r2v/v2v/rv2v 或含视频/音频参考 → ref2va；t2v/i2v/fl2v → fl2va
+        const tt = tl.global.taskType || '';
+        const needsRef2va = tt.indexOf('r2v') === 0 || tt.indexOf('v2v') === 0
             || (tl.segments || []).some(s => s.refVideos || s.refAudios);
-        if (needsRef2va) {
-            const unetNodeId = findNodeId(apiWorkflow, 'UNETLoader');
-            if (unetNodeId && apiWorkflow[unetNodeId] && apiWorkflow[unetNodeId].inputs.unet_name) {
+        const unetNodeId = findNodeId(apiWorkflow, 'UNETLoader');
+        if (unetNodeId && apiWorkflow[unetNodeId] && apiWorkflow[unetNodeId].inputs.unet_name) {
+            if (needsRef2va) {
                 apiWorkflow[unetNodeId].inputs.unet_name = 'minimax_h3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors';
+            } else {
+                apiWorkflow[unetNodeId].inputs.unet_name = 'minimax_h3\\minimax_h3_fl2va_pruned_int8_convrot.safetensors';
             }
-            // fl2v turbo LoRA 是 fl2va 专用，ref2va 架构下禁用（strength=0），避免不匹配
-            const loraNode = apiWorkflow['18'];
-            if (loraNode && loraNode.class_type === 'LoraLoaderModelOnly') {
-                loraNode.inputs.strength_model = 0;
+        }
+        // fl2v turbo LoRA 是 fl2va 专用，ref2va 架构下禁用（strength=0），避免不匹配
+        if (needsRef2va) {
+            const loraNode2 = apiWorkflow['18'];
+            if (loraNode2 && loraNode2.class_type === 'LoraLoaderModelOnly') {
+                loraNode2.inputs.strength_model = 0;
             }
         }
 
@@ -1839,6 +1928,8 @@ function updateDerived() {
     // 时长 note: 两个工作流都显示 秒 + 约帧数
     const ln = document.getElementById('length_note');
     if (ln) ln.textContent = `${len} 秒 · 约 ${frames} 帧`;
+    // notes 卡片可能已被移除，做空值保护避免报错
+    if (!vramNote) return;
     if (currentWorkflow === 'LTX23-图生视频.json') {
         // 显存粗估: 比例+精度 派生的长边尺寸 × 时长×帧率 推导的帧数
         const ar = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
@@ -1894,16 +1985,11 @@ function applyWorkflowVisibility(wfName) {
     // 5. hint 保持隐藏 (不显示安装提示)
     const wfHint = document.getElementById('wfHint');
     if (wfHint) wfHint.style.display = 'none';
-    // 6. 同步精度滑条的初始 note (取决于当前比例)
-    const mpSlider = document.getElementById('megapixels');
-    if (mpSlider) {
-        // 按工作流切换滑块量程：MiniMax 吸附节点档位(0.2~2.0 高清)，LTX 连续(0.2~1.0)
-        if (isMiniMaxWf(wfName)) {
-            mpSlider.min = '0.2'; mpSlider.max = '2.0'; mpSlider.step = 'any';
-        } else {
-            mpSlider.min = '0.2'; mpSlider.max = '1.0'; mpSlider.step = '0.1';
-        }
-        if (mpSlider._sync) mpSlider._sync(mpSlider.value);
+    // 6. 同步分辨率选择器（按工作流重建档位 + 同步显示）
+    const mpRoot = document.getElementById('mpSelect');
+    if (mpRoot) {
+        if (mpRoot._rebuild) mpRoot._rebuild();           // MiniMax 档位(360P~1080P) vs LTX(0.2MP~1.0MP)
+        if (mpRoot._sync) mpRoot._sync(document.getElementById('megapixels').value);
     }
     updateDerived();
     // 文生视频(t2v)模式隐藏参考媒体卡片；并按功能适配 Tab/数量上限/标签
@@ -1926,8 +2012,6 @@ const ASPECT_OPTIONS = [
 ];
 // 精度档位 0.2~1.0MP, 滑条 step=0.1
 const MEGAPIXELS_OPTIONS = [
-    { value: 0.2, sub: '草稿' },
-    { value: 0.3, sub: '预览' },
     { value: 0.4, sub: '低清' },
     { value: 0.5, sub: '标清' },
     { value: 0.6, sub: '推荐' },
@@ -1939,8 +2023,8 @@ const MEGAPIXELS_OPTIONS = [
 // MiniMaxH3Easy 的 resolution 预设档位(对应节点内部 RESOLUTION_MEGAPIXELS 表):
 // 前端"精度(百万像素)"滑块值 -> 节点 resolution 档位字符串。
 const MINIMAX_RESOLUTION_TABLE = {
-    0.2: '360P', 0.3: '416P', 0.4: '480P', 0.5: '540P',
-    0.7: '640P', 0.9: '720P', 1.0: '768P', 1.2: '832P', 1.5: '928P', 1.8: '1024P', 2.0: '1080P'
+    0.4: '480P', 0.5: '540P',
+    0.7: '640P', 0.9: '720P', 1.0: '768P', 1.2: '832P', 1.5: '928P', 1.8: '1024P'
 };
 // 滑块可选的离散档位（与节点 RESOLUTION_MEGAPIXELS 键严格一致，含高清档）
 const MP_STEPS = Object.keys(MINIMAX_RESOLUTION_TABLE).map(Number).sort((a, b) => a - b);
@@ -2029,6 +2113,7 @@ function bindAspectRatio() {
     // 4. 触发:开/关
     trigger.addEventListener('click', e => {
         e.stopPropagation();
+        closeAllPops('aspectSelect');
         root.classList.toggle('open');
     });
     document.addEventListener('click', e => {
@@ -2039,9 +2124,9 @@ function bindAspectRatio() {
         const opt = e.target.closest('.lv-select-opt');
         if (!opt) return;
         syncToTrigger(opt.dataset.value);
-        // 同步刷新精度滑条的尺寸提示
-        const mpSlider = document.getElementById('megapixels');
-        if (mpSlider && mpSlider._sync) mpSlider._sync(mpSlider.value);
+        // 同步刷新分辨率选择器的尺寸提示
+        const mpRoot = document.getElementById('mpSelect');
+        if (mpRoot && mpRoot._sync) mpRoot._sync(document.getElementById('megapixels').value);
         root.classList.remove('open');
         // 同步回当前选中片段 + 刷新导演台时间轴
         if (directorMode && selectedSegId) {
@@ -2080,10 +2165,10 @@ function bindResetButtons() {
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
-            // 2. 额外重置: 种子模式 + 精度滑条
+            // 2. 额外重置: 种子模式 + 分辨率选择器
             setSeedMode('random');
-            const mp = document.getElementById('megapixels');
-            if (mp) { mp.value = mp.defaultValue; mp.dispatchEvent(new Event('input', { bubbles: true })); }
+            const mpRoot = document.getElementById('mpSelect');
+            if (mpRoot && mpRoot._sync) mpRoot._sync(document.getElementById('megapixels').defaultValue || '0.5');
             // 3. 刷新联动显示
             // 比例下拉: reset 改了 hidden 值, 但 dropdown 不会自动刷新, 手动同步显示
             const aspectRoot = document.getElementById('aspectSelect');
@@ -2095,47 +2180,73 @@ function bindResetButtons() {
 }
 
 function bindMegapixels() {
-    const slider = document.getElementById('megapixels');
-    const label = document.getElementById('megapixelsVal');
-    const noteEl = document.getElementById('megapixelsNote');
-    if (!slider || slider.dataset.bound) return;
-    slider.dataset.bound = '1';
+    const root = document.getElementById('mpSelect');
+    const trigger = document.getElementById('mpTrigger');
+    const panel = document.getElementById('mpPanel');
+    const hidden = document.getElementById('megapixels');
+    const nameEl = document.getElementById('mpName');
+    if (!root || !trigger || !panel || !hidden || root.dataset.bound) return;
+    root.dataset.bound = '1';
+
+    // 按工作流构建分辨率档位选项
+    function buildOptions() {
+        if (isMiniMaxWf(currentWorkflow)) {
+            // MiniMax: 解析度档位(对应节点 RESOLUTION_MEGAPIXELS 表)
+            return MP_STEPS.map(k => ({ value: k, name: MINIMAX_RESOLUTION_TABLE[k] }));
+        }
+        // LTX: 连续 0.1 步进的百万像素档
+        return MEGAPIXELS_OPTIONS.map(o => ({ value: o.value, name: o.value.toFixed(1) + 'MP' }));
+    }
+    function renderPanel() {
+        const opts = buildOptions();
+        panel.innerHTML = opts.map(o =>
+            '<div class="lv-select-opt" data-value="' + o.value + '">' +
+                '<span class="lv-select-opt-text">' + o.name + '</span>' +
+                '<i class="lv-select-opt-check" data-lucide="check"></i>' +
+            '</div>'
+        ).join('');
+    }
     function syncToTrigger(value) {
         let v = parseFloat(value);
         if (!isFinite(v)) v = 0.5;
-        // MiniMax: 吸附到节点真实档位，避免中间值映射到同一分辨率导致“拖了没变化”
         if (isMiniMaxWf(currentWorkflow)) {
-            v = mpSnap(v);
-            if (Math.abs(parseFloat(slider.value) - v) > 1e-9) slider.value = String(v);
+            v = mpSnap(v);                                       // 吸附到节点真实档位
         } else {
-            // LTX: 连续 0.1 步进，保留原值（clamp 到滑块范围）
             v = Math.round(v * 10) / 10;
             v = Math.max(0.2, Math.min(1.0, v));
         }
-        const opt = MEGAPIXELS_OPTIONS.find(o => Math.abs(o.value - v) < 0.05) || { value: v, sub: v.toFixed(1) + 'MP' };
-        const ar = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
-        let txt;
-        if (isMiniMaxWf(currentWorkflow)) {
-            const resName = mpToMiniMaxResolution(v);          // MiniMax: label 与 note 都显示分辨率档位(如 480P)
-            if (label) label.textContent = resName;
-            txt = ar.short + ' → ' + resName;
-        } else {
-            if (label) label.textContent = v.toFixed(1);       // LTX: 仍显示百万像素值
-            const sz = computeOutputSize(opt.value, ar);
-            txt = ar.short + ' → ' + sz;
-            // LTX 没有 比例/精度 节点, 用它们派生长边尺寸, 这里显式标注
-            if (currentWorkflow === 'LTX23-图生视频.json') {
-                const p = sz.split('×');
-                txt += ' (长边 ' + Math.max(parseInt(p[0]) || 0, parseInt(p[1]) || 0) + ')';
-            }
-        }
-        if (noteEl) noteEl.textContent = txt;
-        const bv = document.getElementById('mpBtnVal');
-        if (bv) bv.textContent = label ? label.textContent : v.toFixed(1);
+        hidden.value = String(v);
+        // 触发器显示：MiniMax 显示分辨率档位(540P)，LTX 显示百万像素(0.5MP)
+        const lbl = isMiniMaxWf(currentWorkflow) ? mpToMiniMaxResolution(v) : (v.toFixed(1) + 'MP');
+        if (nameEl) nameEl.textContent = lbl;
+        // 选项选中态
+        panel.querySelectorAll('.lv-select-opt').forEach((el) => {
+            const ov = parseFloat(el.dataset.value);
+            el.classList.toggle('active', Math.abs(ov - v) < 1e-6);
+        });
+        if (window.lucide) window.lucide.createIcons();
     }
-    slider.addEventListener('input', () => syncToTrigger(slider.value));
-    // 暴露供 bindAspectRatio 比例变动时调用
-    slider._sync = syncToTrigger;
+    renderPanel();
+    syncToTrigger(hidden.value);
+
+    // 触发开/关
+    trigger.addEventListener('click', e => { e.stopPropagation(); closeAllPops('mpSelect'); root.classList.toggle('open'); });
+    document.addEventListener('click', e => { if (!root.contains(e.target)) root.classList.remove('open'); });
+    // 选项点击
+    panel.addEventListener('click', e => {
+        const opt = e.target.closest('.lv-select-opt');
+        if (!opt) return;
+        syncToTrigger(opt.dataset.value);
+        root.classList.remove('open');
+        // 同步回当前选中片段 + 刷新导演台时间轴
+        if (directorMode && selectedSegId) {
+            const seg = getSegment(selectedSegId);
+            if (seg) { collectFormToSegment(seg); renderTimeline(); }
+        }
+    });
+    // 暴露供 applyWorkflowVisibility(切换工作流重建档位) / reset / setRange 调用
+    root._sync = syncToTrigger;
+    root._rebuild = renderPanel;
 }
 
 // ============= MiniMax 多参考媒体(图/视频/音频) =============
@@ -2151,14 +2262,16 @@ let refVideos = [];
 let refAudios = [];
 let currentRefTab = 'image';  // 当前激活的 Tab
 // 生成模式预设：单一「生成模式」切换入口按工作流动态渲染按钮。
-// 导演台支持全部模式（auto/t2v/i2v/fl2v/r2v，逐片段可不同）；单段 MiniMax 仅基础三模式。
+// 导演台支持全部 7 种模式（auto/t2v/i2v/fl2v/r2v/v2v/rv2v，逐片段可不同）；单段 MiniMax 仅基础三模式。
 const GENMODE_PRESETS = {
     director: [
         { mode: 'auto', label: '自动' },
         { mode: 't2v',  label: '文生视频' },
         { mode: 'i2v',  label: '图生视频' },
         { mode: 'fl2v', label: '首尾帧' },
-        { mode: 'r2v',  label: '参考生体' }
+        { mode: 'r2v',  label: '参考主体' },
+        { mode: 'v2v',  label: '视频转视频' },
+        { mode: 'rv2v', label: '素材改视频' }
     ],
     minimax: [
         { mode: 't2v',       label: '文生视频' },
@@ -2184,7 +2297,9 @@ function mapModeToTaskType(m) {
     if (m === 't2v')  return 't2v — 文生视频(Text to Video)';
     if (m === 'i2v')  return 'i2v — 图生视频(Image to Video)';
     if (m === 'fl2v') return 'fl2v — 首尾帧生视频(First-Last Frame)';
-    if (m === 'r2v')  return 'r2v — 参考生视频(Reference to Video)';
+    if (m === 'r2v')  return 'r2v — 参考主体生视频(Reference to Video)';
+    if (m === 'v2v')  return 'v2v — 视频转视频(Video to Video)';
+    if (m === 'rv2v') return 'rv2v — 参考素材改视频(Reference Video to Video)';
     return null;
 }
 // 按当前工作流渲染「生成模式」下拉框（导演台 5 模式 / 单段 MiniMax 3 模式）
@@ -2272,8 +2387,15 @@ function updateGenModeNote() {
     } else if (genMode === 'r2v') {
         const total = nImg + nVid + nAud;
         txt = total > 0
-            ? '参考生体：已用 ' + nImg + ' 图 / ' + nVid + ' 视频 / ' + nAud + ' 音频作为主体参考，提示词用 <Picture k>/<Video k>/<Audio k> 引用。'
-            : '参考生体：在对应标签放入主体参考（图/视频/音频）即生效；当前为空将无法参考主体。';
+            ? '参考主体：已用 ' + nImg + ' 图 / ' + nVid + ' 视频 / ' + nAud + ' 音频作为主体参考，提示词用 <Picture k>/<Video k>/<Audio k> 引用。'
+            : '参考主体：在对应标签放入主体参考（图/视频/音频）即生效；当前为空将无法参考主体。';
+    } else if (genMode === 'v2v') {
+        txt = '视频转视频：在「视频」标签放入源视频，模型基于该视频重新生成（风格迁移/内容改编）。已放入 ' + nVid + ' 个视频。';
+    } else if (genMode === 'rv2v') {
+        const total = nImg + nVid + nAud;
+        txt = total > 0
+            ? '素材改视频：已用 ' + nImg + ' 图 / ' + nVid + ' 视频 / ' + nAud + ' 音频作为参考素材进行视频改编。'
+            : '素材改视频：在对应标签放入图片/视频/音频等参考素材即生效；当前为空将无法改编。';
     } else if (genMode === 'reference') {
         const total = nImg + nVid + nAud;
         txt = total > 0
@@ -2282,7 +2404,7 @@ function updateGenModeNote() {
     } else if (genMode === 't2v') {
         txt = '文生视频：直接写提示词即可，无需任何参考素材。';
     } else { // auto
-        txt = '自动：按挂载素材推断——有 2 张图走首尾帧，有 1 张图走图生，有视频/音频走参考生体，否则文生。';
+        txt = '自动：按挂载素材推断——有 2 张图走首尾帧，有 1 张图走图生，有视频走视频转视频/参考主体，否则文生。';
     }
     if (note) { note.textContent = txt; note.style.display = (genMode === 'keyframe' || genMode === 'fl2v') ? '' : 'none'; }
     if (genModeEl) genModeEl.title = txt;     // 悬停 select 显示 tooltip
@@ -2481,9 +2603,10 @@ function bindRefMentionEditable(editableEl, mentionEl) {
         const range = sel.getRangeAt(0);
         if (!editableEl.contains(range.startContainer)) return null;
         const pre = _editableTextBefore(editableEl, range);
-        const m = pre.match(/(^|[\s\p{P}])(@)([图视音]?)([^@\s]*)$/u);
+        // @ 前不再要求空白/标点：中文、字母、数字后面直接敲 @ 也能触发（如「你好@」）
+        const m = pre.match(/(@)([图视音]?)([^@\s]*)$/u);
         if (!m) return null;
-        const atIndex = pre.length - m[0].length + m[1].length;
+        const atIndex = pre.length - m[0].length;
         const query = (m[3] || '') + (m[4] || '');
         return { atIndex, query, range: range.cloneRange(), beforeLen: pre.length };
     }
@@ -2985,10 +3108,10 @@ function bindRefMention(textareaEl, mentionEl) {
     function getContext() {
         const pos = textareaEl.selectionStart;
         const before = textareaEl.value.slice(0, pos);
-        // @ 前必须是 行首 / 空白 / 标点(避免邮箱等误触)
-        const m = before.match(/(^|[\s\p{P}])(@)([图视音]?)([^@\s]*)$/u);
+        // @ 前不再要求空白/标点：中文、字母、数字后面直接敲 @ 也能触发（如「你好@」）
+        const m = before.match(/(@)([图视音]?)([^@\s]*)$/u);
         if (!m) return null;
-        const atIndex = pos - m[0].length + m[1].length;  // '@' 的位置
+        const atIndex = pos - m[0].length;  // '@' 的位置
         const query = (m[3] || '') + (m[4] || '');
         return { atIndex, query };
     }
@@ -3873,9 +3996,13 @@ function saveDirectorResults(urls, segs) {
         }
 
         const textPrompt = (seg && (seg.prompt || '')) || '';
+        // fullPrompt 含参考标注（供 rawValues 内部追踪），展示用 displayPrompt 不含标注
         const fullPrompt = refParts.length > 0
             ? refParts.join(' ') + '  ' + textPrompt
             : textPrompt;
+        // 展示提示词：去掉 @image#N:filename / @video#N:filename / @audio#N:filename / @图N / @视N / @音N 等参考标注
+        // 文件名是随机 UUID 对用户无意义，引用 token 在编辑器内已渲染为缩略图 chip
+        const displayPrompt = textPrompt.replace(/@(image|video|audio)#\d+:[^\s]*/g, '').replace(/@(图|视|音)\d+/g, '').replace(/\s{2,}/g, ' ').trim();
 
         // 推断生成模式（用于 genParams 展示）
         let genModeLabel = '文生视频';
@@ -3895,7 +4022,7 @@ function saveDirectorResults(urls, segs) {
             帧率: fpsVal + ' fps',
             采样步数: stepsVal != null ? stepsVal : '—',
             种子: finalSeed,
-            耗时: (_lastDirectorGenMs > 0 ? (_lastDirectorGenMs / 1000 / Math.max(1, (segs && segs.length) || 1)).toFixed(1) + ' 秒' : '—'),
+            本批耗时: (_lastDirectorGenMs > 0 ? (_lastDirectorGenMs / 1000).toFixed(1) + ' 秒' : '—'),
             生成于: _fmtGenTime()
         };
 
@@ -3911,7 +4038,7 @@ function saveDirectorResults(urls, segs) {
 
         const rec = {
             videos: [u],
-            prompt: fullPrompt,
+            prompt: displayPrompt,   // 展示用：不含参考媒体文件名/引用 token
             params: rawValues,
             genParams: genParams,
             timestamp: Date.now() / 1000,
@@ -4094,13 +4221,16 @@ function updateStageClearBtn() {
 function updateStageAspectBox() {
     const box = document.getElementById('stageAspectBox');
     const label = document.getElementById('stageAspectLabel');
+    const params = document.getElementById('stageParams');
     const stage = document.getElementById('stage');
+    const empty = document.getElementById('emptyStage');
     if (!box || !stage) return;
-    if (_anyStageVisible()) { box.style.display = 'none'; return; }
+    if (_anyStageVisible()) { box.style.display = 'none'; if (empty) empty.style.display = ''; return; }
+    if (empty) empty.style.display = 'none';
     const opt = ASPECT_OPTIONS.find(o => o.value === document.getElementById('aspect_ratio').value) || ASPECT_OPTIONS[2];
     const ratio = opt.w / opt.h;
     const cw = stage.clientWidth, ch = stage.clientHeight;
-    if (!cw || !ch) { box.style.display = 'none'; return; }
+    if (!cw || !ch) { box.style.display = 'none'; if (empty) empty.style.display = ''; return; }
     const pad = 24;
     const maxW = cw - pad * 2, maxH = ch - pad * 2;
     let bw = maxW, bh = bw / ratio;
@@ -4108,7 +4238,17 @@ function updateStageAspectBox() {
     box.style.width = Math.round(bw) + 'px';
     box.style.height = Math.round(bh) + 'px';
     if (label) label.textContent = opt.short;
-    box.style.display = 'block';
+    // 参数行：总时长(所有片段累加) + 分辨率
+    const lenEl = document.getElementById('length');
+    const mpEl = document.getElementById('megapixels');
+    const segs = segments || [];
+    const totalSec = segs.reduce((s, seg) => s + (parseFloat(seg.length) || 5), 0);
+    const durStr = totalSec >= 60
+        ? Math.floor(totalSec / 60) + 'm' + (totalSec % 60) + 's'
+        : totalSec + 's';
+    const resName = mpEl ? mpToMiniMaxResolution(parseFloat(mpEl.value)) : '';
+    if (params) params.textContent = [durStr, resName].filter(Boolean).join(' · ');
+    box.style.display = 'flex';
 }
 // 清除视频展示区内容(仅隐藏预览, 不删除片段数据): 停止播放并回到空状态
 function clearStageDisplay() {
@@ -4121,6 +4261,7 @@ function clearStageDisplay() {
     const empty = document.getElementById('emptyStage');
     if (empty) empty.style.display = '';
     updateStageClearBtn();
+    updateStageAspectBox();
 }
 function showStageVideo(key, src) {
     _hideAllStageVideos();
@@ -4136,7 +4277,12 @@ function preloadStageVideos() {
         let src = null;
         if (seg.result && _lvIsVideoUrl(seg.result)) src = seg.result;
         else { const r = seg.refs && seg.refs.videos && seg.refs.videos[0]; if (r && r.url) src = r.url; }
-        if (src) _stageVideoEl(seg.id, src);
+        if (src) {
+            const v = _stageVideoEl(seg.id, src);
+            // 显式启动预加载：隐藏视频元素(display:none)不会主动缓冲，
+            // 必须调用 load() 才能让连续播放切换时不因未缓冲而卡顿。
+            if (v.readyState < 3) { try { v.load(); } catch (_) {} }
+        }
     });
 }
 function _removeStageVideo(key) {
@@ -4238,6 +4384,8 @@ function initCardDragDrop() {
 
 // LoRA 模块全局状态(每个片段独立的 LoRA 列表)
 let currentLoras = [];        // [{ name, strength }] 当前片段(或单段模式)的 LoRA 列表
+// 分镜时间轴片段数据(提前声明, 避免启动期 updateStageAspectBox 访问时处于 TDZ)
+let segments = [];
 
 // 启动时补图标
 if (window.lucide) window.lucide.createIcons();
@@ -4272,7 +4420,8 @@ let directorMode = false;
 let savedNonDirectorWf = MINIMAX_BASE_WF;  // 退出导演台时恢复的工作流
 let directorContinuity = false;   // 段间引导：用上一段尾帧作为本段首帧
 let directorUseCache = false;     // 复用缓存：参数未变且已有成片时跳过重新生成
-let segments = [];
+let directorClearVram = false;    // 段间清理显存：每生成一段后清理一次显存，长分镜/显存紧张时防 OOM
+let directorRefine = true;        // 二次采样放大：生成后用 4x-UltraSharp 超分辨率优化（默认开启）
 let selectedSegId = null;
 let _segSeq = 0;
 
@@ -4333,7 +4482,17 @@ function applySegmentToForm(seg) {
     setPromptText(seg.prompt || '');
     const negEl = document.getElementById('negative_prompt');
     if (negEl) negEl.value = seg.negative_prompt || '';
-    const setRange = (id, val) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); } };
+    const setRange = (id, val) => {
+        const el = document.getElementById(id);
+        if (!el || val == null) return;
+        el.value = val;
+        if (id === 'megapixels') {
+            const mpRoot = document.getElementById('mpSelect');
+            if (mpRoot && mpRoot._sync) mpRoot._sync(val);   // 隐藏输入，靠下拉组件刷新显示
+        } else {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
     setRange('length', seg.length);
     setRange('megapixels', seg.megapixels);
     setRange('fps', seg.fps);
@@ -4596,7 +4755,9 @@ let _dragSegId = null;  // 当前被拖动排序的片段 id
 // 片段卡片上展示的「生成模式」短标签（非交互，仅供一眼看清；真值在顶部「生成模式」控件调整）
 function globalGenModeLabel() {
     const m = effectiveGenMode();
-    if (m === 'r2v') return '参考生体';
+    if (m === 'r2v') return '参考主体';
+    if (m === 'v2v') return '视频转视频';
+    if (m === 'rv2v') return '素材改视频';
     if (m === 'fl2v') return '首尾帧';
     if (m === 'i2v') return '图生视频';
     if (m === 't2v') return '文生视频';
@@ -4611,7 +4772,9 @@ function resolveSegModeLabel(seg) {
     // 导演台：所有片段共用全局生成类型，标签统一显示全局模式（不再逐片段推断）
     if (isDirectorWf(currentWorkflow)) return globalGenModeLabel();
     const m = seg && seg.genMode;
-    if (m === 'r2v') return '参考生体';
+    if (m === 'r2v') return '参考主体';
+    if (m === 'v2v') return '视频转视频';
+    if (m === 'rv2v') return '素材改视频';
     if (m === 'fl2v') return '首尾帧';
     if (m === 'i2v') return '图生视频';
     if (m === 't2v') return '文生视频';
@@ -4640,20 +4803,34 @@ function renderTimeline() {
         updateDirectorInfo();
         return;
     }
-    // ===== 构建按比例的时间刻度条（宽度 = 时长 × RULER_PX_PER_SEC，反映真实时长比例）=====
+    // ===== 构建时间刻度条：类剪映风格，连续刻度 + 主/次 tick + 段高亮 =====
     const ruler = document.getElementById('timeRuler');
     if (ruler) {
         ruler.innerHTML = '';
         let cum = 0;
+        const secStep = RULER_PX_PER_SEC;
+        const minorStep = secStep / 2;
         segments.forEach((seg, i) => {
             const len = parseFloat(seg.length) || 5;
-            const w = Math.max(1, Math.round(len * RULER_PX_PER_SEC));
+            const w = Math.max(1, Math.round(len * secStep));
             const b = document.createElement('div');
             b.className = 'lv-ruler-block' + (seg.id === selectedSegId ? ' active' : '');
             b.dataset.seg = seg.id;
             b.style.width = w + 'px';
-            b.innerHTML = '<span class="lv-ruler-label">#' + (i + 1) + ' ' + Math.round(cum) + 's</span>'
-                        + '<span class="lv-ruler-end">' + Math.round(cum + len) + 's</span>';
+            let html = '';
+            // 每秒主刻度 + 0.5 秒次刻度；右边界 tick 由下一个 segment 的左边界覆盖
+            for (let x = 0; x < w; x += minorStep) {
+                const isMajor = Math.abs(x % secStep) < 0.5;
+                const absSec = cum + x / secStep;
+                const cls = 'lv-ruler-tick ' + (isMajor ? 'major' : 'minor');
+                html += '<span class="' + cls + '" style="left:' + Math.round(x) + 'px;"></span>';
+                if (isMajor) {
+                    // 只显示时间（秒），不再显示 #序号
+                    const labelText = Math.round(absSec) + 's';
+                    html += '<span class="lv-ruler-label" style="left:' + (Math.round(x) + 3) + 'px;">' + labelText + '</span>';
+                }
+            }
+            b.innerHTML = html;
             ruler.appendChild(b);
             cum += len;
         });
@@ -4676,8 +4853,9 @@ function renderTimeline() {
         clip.className = 'lv-clip ' + (seg.status || 'idle') + (seg.id === selectedSegId ? ' active' : '');
         clip.dataset.seg = seg.id;
         clip.draggable = true;
-        // 卡片宽度与时长无关：固定等宽(CLIP_BASE_W)，仅视频段可手动缩放(viewZoom)查看帧
-        const clipW = Math.round(CLIP_BASE_W * zoom);
+        // 卡片宽度按时长比例（与上方时间刻度条对齐）：每秒 RULER_PX_PER_SEC px，最小钳制到 CLIP_BASE_W
+        const segLen = parseFloat(seg.length) || 5;
+        const clipW = Math.max(Math.round(CLIP_BASE_W), Math.round(segLen * RULER_PX_PER_SEC));
         clip.style.width = clipW + 'px';
         clip.addEventListener('dragstart', (e) => {
             _dragSegId = seg.id;
@@ -4771,11 +4949,11 @@ function renderTimeline() {
                 clip.draggable = false;   // 拖拽改时长/缩放时禁止触发卡片排序
                 const startX = e.clientX;
                 if (clipVid) {
-                    // 视频片段：右缘拖拽仅调整「显示宽度」(viewZoom), 基于固定基数 CLIP_BASE_W, 与时长完全无关
-                    const BASE = CLIP_BASE_W;
+                    // 视频片段：右缘拖拽仅调整「显示宽度」(viewZoom), 基于时长比例宽度为起点
+                    const BASE_W = Math.max(Math.round(CLIP_BASE_W), Math.round(segLen * RULER_PX_PER_SEC));
                     const startZoom = (seg.viewZoom && seg.viewZoom > 0) ? seg.viewZoom : 1;
-                    const startW = Math.round(BASE * startZoom);
-                    const MAXW = Math.round(BASE * 2.5);   // 最多放大 2.5x 方便看帧, 不无限拉长
+                    const startW = Math.round(BASE_W * startZoom);
+                    const MAXW = Math.round(BASE_W * 2.5);   // 最多放大 2.5x 方便看帧, 不无限拉长
                     const onMove = (ev) => {
                         let newW = startW + (ev.clientX - startX);
                         newW = Math.max(BASE, Math.min(MAXW, newW));   // 限宽：拖到顶就停, 不会过宽变形
@@ -4793,13 +4971,13 @@ function renderTimeline() {
                     document.addEventListener('mousemove', onMove);
                     document.addEventListener('mouseup', onUp);
                 } else {
-                    // 无视频：拖拽改时长(3~15s), 同步卡片时长与表单
+                    // 无视频：拖拽改时长(3~15s), 同步卡片时长与表单（每秒 RULER_PX_PER_SEC px，与刻度条对齐）
                     const startLen = parseFloat(seg.length) || 5;
                     const onMove = (ev) => {
-                        let newLen = startLen + (ev.clientX - startX) / 36;
+                        let newLen = startLen + (ev.clientX - startX) / RULER_PX_PER_SEC;
                         newLen = Math.round(Math.min(15, Math.max(3, newLen)));
                         seg.length = String(newLen);
-                        clip.style.width = Math.max(120, Math.round(newLen * 36)) + 'px';
+                        clip.style.width = Math.max(CLIP_BASE_W, Math.round(newLen * RULER_PX_PER_SEC)) + 'px';
                         const dur = clip.querySelector('.lv-clip-meta span'); if (dur) dur.textContent = newLen + 's';
                         if (seg.id === selectedSegId) {
                             const sl = document.getElementById('length');
@@ -5271,6 +5449,7 @@ function _seqPlayNext() {
     updateClipActive(seg.id);          // 仅高亮, 不重建时间轴(避免卡顿)
     updateSeqPlaying(seg.id);          // 同步可视化时间轴的「正在播放」高亮
     playSegment(seg);                  // 复用视频池, 切换即秒开
+    _seqPreloadNext(myId);             // 预加载下一段, 消除段间缓冲卡顿
     const v = _stageVideos[seg.id];
     if (v && v.style.display !== 'none') {
         // 第一段支持从指定偏移(点击位置)开始播; 后续段从头播
@@ -5284,18 +5463,52 @@ function _seqPlayNext() {
         const onEnd = () => { if (_seq && _seq.id === myId) _seqPlayNext(); };
         v.addEventListener('ended', onEnd);
         _seq.onEnd = onEnd; _seq.vid = v;
-        const p = v.play();
-        if (p && p.catch) {
-            p.catch(() => {
-                // 自动播放被拦截(如带声视频), 用时长兜底前进
-                const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration * 1000 : (parseFloat(seg.length) || 5) * 1000;
-                _seq.timer = setTimeout(() => { if (_seq && _seq.id === myId) _seqPlayNext(); }, Math.min(Math.max(dur, 2000), 15000));
-            });
+        const doPlay = () => {
+            if (!_seq || _seq.id !== myId || !_seq.playing) return;
+            const p = v.play();
+            if (p && p.catch) {
+                p.catch(() => {
+                    // 自动播放被拦截(如带声视频), 用时长兜底前进
+                    const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration * 1000 : (parseFloat(seg.length) || 5) * 1000;
+                    _seq.timer = setTimeout(() => { if (_seq && _seq.id === myId) _seqPlayNext(); }, Math.min(Math.max(dur, 2000), 15000));
+                });
+            }
+        };
+        // 关键优化：视频尚未缓冲就绪时，先等 canplay/loadeddata 再播放，
+        // 避免立即 play() 触发解码等待导致段间卡顿。
+        if (v.readyState >= 2) { doPlay(); }
+        else {
+            let ready = false;
+            const onReady = () => { if (ready) return; ready = true; v.removeEventListener('canplay', onReady); v.removeEventListener('loadeddata', onReady); doPlay(); };
+            v.addEventListener('canplay', onReady);
+            v.addEventListener('loadeddata', onReady);
+            // 兜底：300ms 后若仍未就绪则强行播放(避免卡太久)
+            setTimeout(() => { onReady(); }, 300);
         }
     } else {
         // 图片结果或空片段: 按片段时长停留后前进
         const dur = Math.min(Math.max((parseFloat(seg.length) || 5) * 1000, 2000), 8000);
         _seq.timer = setTimeout(() => { if (_seq && _seq.id === myId) _seqPlayNext(); }, dur);
+    }
+}
+
+// 预加载下一段视频，让段间切换「即切即播」，消除切换瞬间的解码/缓冲停顿。
+function _seqPreloadNext(myId) {
+    if (!_seq || !_seq.playing || _seq.id !== myId) return;
+    const nextIdx = _seq.idx + 1;
+    if (nextIdx >= segments.length) return;
+    const seg = segments[nextIdx];
+    let src = null;
+    if (seg.result && _lvIsVideoUrl(seg.result)) src = seg.result;
+    else { const r = seg.refs && seg.refs.videos && seg.refs.videos[0]; if (r && r.url) src = r.url; }
+    if (!src) return;
+    const v = _stageVideoEl(seg.id, src);
+    // 隐藏预加载（不抢占可视舞台）：主动 load + 调起缓冲
+    if (v.readyState < 3) {
+        try {
+            if (v.style.display === 'none') { v.load(); }
+            else if (v.readyState < 2) { v.load(); }
+        } catch (_) {}
     }
 }
 
@@ -5723,6 +5936,38 @@ function bindDirector() {
         });
         cacheBtn.classList.toggle('on', cacheToggle.checked);
     }
+    // 段间清理显存：图标按钮 ↔ 隐藏 checkbox
+    const vramBtn = document.getElementById('vramBtn');
+    const vramToggle = document.getElementById('vramToggle');
+    if (vramBtn && vramToggle) {
+        vramBtn.addEventListener('click', () => {
+            vramToggle.checked = !vramToggle.checked;
+            vramToggle.dispatchEvent(new Event('change'));
+        });
+        vramToggle.addEventListener('change', () => {
+            directorClearVram = vramToggle.checked;
+            vramBtn.classList.toggle('on', vramToggle.checked);
+            vramBtn.setAttribute('aria-pressed', String(vramToggle.checked));
+            scheduleSaveDraft();
+        });
+        vramBtn.classList.toggle('on', vramToggle.checked);
+    }
+    // 二次采样放大：图标按钮 ↔ 隐藏 checkbox（默认开启）
+    const refineBtn = document.getElementById('refineBtn');
+    const refineToggle = document.getElementById('refineToggle');
+    if (refineBtn && refineToggle) {
+        refineBtn.addEventListener('click', () => {
+            refineToggle.checked = !refineToggle.checked;
+            refineToggle.dispatchEvent(new Event('change'));
+        });
+        refineToggle.addEventListener('change', () => {
+            directorRefine = refineToggle.checked;
+            refineBtn.classList.toggle('on', refineToggle.checked);
+            refineBtn.setAttribute('aria-pressed', String(refineToggle.checked));
+            scheduleSaveDraft();
+        });
+        refineBtn.classList.toggle('on', refineToggle.checked);
+    }
     const delBtn = document.getElementById('delSegBtn');
     if (delBtn) delBtn.addEventListener('click', () => { if (selectedSegId) removeSegment(selectedSegId); });
     const clearBtn = document.getElementById('clearSegBtn');
@@ -5740,6 +5985,12 @@ function bindDirector() {
     }
     const concatBtn = document.getElementById('concatBtn');
     if (concatBtn) concatBtn.addEventListener('click', concatSegments);
+    // 统一关闭所有弹出层（全局函数，保证同时只展开一个；在 bindDirector/bindAspectRatio/bindMegapixels 中调用）
+    window.closeAllPops = function(exceptId) {
+        document.querySelectorAll('.lv-select.open').forEach(el => { if (el.id !== exceptId) el.classList.remove('open'); });
+        ['lengthPop', 'genSettingsPop'].forEach(id => { if (id !== exceptId) { const p = document.getElementById(id); if (p) p.classList.remove('open'); } });
+        if ('directorMore' !== exceptId) { const m = document.getElementById('directorMore'); if (m) m.classList.remove('open'); }
+    };
     // 视频展示区「清除视频」按钮：仅隐藏预览, 不删除片段数据
     const stageClear = document.getElementById('stageClearBtn');
     if (stageClear) stageClear.addEventListener('click', clearStageDisplay);
@@ -5747,21 +5998,20 @@ function bindDirector() {
     const more = document.getElementById('directorMore');
     if (more) {
         const toggle = more.querySelector('.lv-dropdown-toggle');
-        if (toggle) toggle.addEventListener('click', (e) => { e.stopPropagation(); more.classList.toggle('open'); });
+        if (toggle) toggle.addEventListener('click', (e) => { e.stopPropagation(); closeAllPops('directorMore'); more.classList.toggle('open'); });
         more.querySelectorAll('.lv-dropdown-item').forEach(item => {
             item.addEventListener('click', () => more.classList.remove('open'));
         });
     }
     // 精度 / 步数 弹出面板：点击触发器展开，面板内点击不关闭，点外部关闭
-    const PARAM_POPS = ['lengthPop', 'mpPop', 'genSettingsPop'];
+    const PARAM_POPS = ['lengthPop', 'genSettingsPop'];
     PARAM_POPS.forEach(popId => {
         const pop = document.getElementById(popId);
         if (!pop) return;
         const trigger = pop.querySelector('.lv-param-trigger');
         if (trigger) trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            PARAM_POPS.forEach(o => { if (o !== popId) { const p = document.getElementById(o); if (p) p.classList.remove('open'); } });
-            if (more) more.classList.remove('open');
+            closeAllPops(popId);
             pop.classList.toggle('open');
         });
         const panel = pop.querySelector('.lv-param-panel');
@@ -5770,6 +6020,7 @@ function bindDirector() {
     document.addEventListener('click', () => {
         const m = document.getElementById('directorMore'); if (m) m.classList.remove('open');
         PARAM_POPS.forEach(o => { const p = document.getElementById(o); if (p) p.classList.remove('open'); });
+        document.querySelectorAll('.lv-select.open').forEach(el => el.classList.remove('open'));
     });
     const segVidInput = document.getElementById('segVidReplaceInput');
     if (segVidInput && !segVidInput._bound) {
@@ -5881,7 +6132,7 @@ function deserializeSegments(arr) {
 async function saveDraft() {
     try {
         const data = await serializeSegments();
-        const json = JSON.stringify({ v: 1, savedAt: Date.now(), directorContinuity: directorContinuity, directorUseCache: directorUseCache, segments: data });
+        const json = JSON.stringify({ v: 1, savedAt: Date.now(), directorContinuity: directorContinuity, directorUseCache: directorUseCache, directorClearVram: directorClearVram, directorRefine: directorRefine, segments: data });
         if (json.length > 4 * 1024 * 1024) {
             status('草稿体积过大（含大图），未自动保存，仅当前会话有效');
             return;
@@ -5906,6 +6157,8 @@ async function loadDraft() {
         directorMode = true;
         directorContinuity = !!obj.directorContinuity;
         directorUseCache = !!obj.directorUseCache;
+        directorClearVram = !!obj.directorClearVram;
+        directorRefine = obj.directorRefine !== false;  // 默认开启，仅显式 false 才关闭
         const toggle = document.getElementById('directorToggle');
         if (toggle) toggle.checked = true;
         // 草稿恢复场景：手动同步面板/body 类（不走 change 事件）
@@ -5917,6 +6170,12 @@ async function loadDraft() {
         if (contToggle) contToggle.checked = directorContinuity;
         const cacheToggle = document.getElementById('cacheToggle');
         if (cacheToggle) cacheToggle.checked = directorUseCache;
+        const vramToggle = document.getElementById('vramToggle');
+        if (vramToggle) vramToggle.checked = directorClearVram;
+        const refineToggle = document.getElementById('refineToggle');
+        if (refineToggle) refineToggle.checked = directorRefine;
+        const refineBtn = document.getElementById('refineBtn');
+        if (refineBtn) refineBtn.classList.toggle('on', directorRefine);
         if (selectedSegId) { const s = getSegment(selectedSegId); if (s) applySegmentToForm(s); }
         renderTimeline();
         status('已恢复上次分镜草稿（' + segments.length + ' 段，视频/音频参考若缺失请重传）');
@@ -5983,14 +6242,52 @@ async function finalizeDirectorWhole(urls, segs) {
             const wholeUrl = await concatClipsToVideo(toConcat);
             showStageVideo('__director_whole__', wholeUrl);
             status('导演台：整条视频已生成 ✓', false);
+
+            // 读取当前生成参数(与逐段保存保持一致)
+            const mp = parseFloat(document.getElementById('megapixels')?.value) || 0.5;
+            const fpsVal = parseFloat(document.getElementById('fps')?.value) || 24;
+            const stepsVal = parseInt(document.getElementById('steps')?.value);
+            const ar = document.getElementById('aspect_ratio')?.value || '—';
+            const seedVal = parseInt(document.getElementById('seedInput')?.value);
+            const finalSeed = isNaN(seedVal) || seedVal === -1 ? '随机' : seedVal;
+            const resLabel = mpToMiniMaxResolution(mp);
+            // 整条总时长 = 各片段时长之和；整条耗时 = 整批生成总耗时
+            const totalDur = ready.reduce((sum, s) => sum + (parseFloat(s.length) || 5), 0);
+            const totalDurText = totalDur.toFixed(1) + ' 秒';
+            const totalMs = (_lastDirectorGenMs > 0 ? _lastDirectorGenMs : 0);
+            const costText = totalMs > 0 ? (totalMs / 1000).toFixed(1) + ' 秒' : '—';
+
+            // 拼接所有片段的真实提示词(每段一行, 不含参考标注, 顶部加全片标题)
+            const segmentPromptLines = ready.map((s, i) => {
+                const p = (s.prompt || '').trim();
+                return p ? ('【片段' + (i + 1) + '】' + p) : ('【片段' + (i + 1) + '】(空)');
+            });
+            const fullPromptText = '导演台整条视频 (' + ready.length + ' 段 / 共 ' + totalDurText + ')\n' + segmentPromptLines.join('\n');
+
             const rec = {
                 videos: [wholeUrl],
-                prompt: '导演台整条视频（' + ready.length + ' 段合成）',
-                params: { 合成: ready.length + ' 段' },
+                prompt: fullPromptText,
+                params: {
+                    合成: ready.length + ' 段',
+                    时长: totalDurText,
+                    分辨率: resLabel,
+                    比例: ar,
+                    帧率: fpsVal + ' fps',
+                    采样步数: stepsVal != null ? stepsVal : '—',
+                    种子: finalSeed
+                },
                 genParams: {
                     成片: ready.length + ' 段 ffmpeg 拼接',
+                    整条时长: totalDurText,
+                    生成模式: '导演台整条',
                     工作流: (WORKFLOW_REGISTRY[currentWorkflow] ? WORKFLOW_REGISTRY[currentWorkflow].title : 'MiniMax H3 导演台'),
-                    耗时: (_lastDirectorGenMs > 0 ? (_lastDirectorGenMs / 1000).toFixed(1) + ' 秒' : '—'),
+                    时长: totalDurText,
+                    分辨率: resLabel,
+                    比例: ar,
+                    帧率: fpsVal + ' fps',
+                    采样步数: stepsVal != null ? stepsVal : '—',
+                    种子: finalSeed,
+                    本批耗时: costText,
                     生成于: _fmtGenTime()
                 },
                 timestamp: Date.now() / 1000,
@@ -6023,12 +6320,53 @@ async function concatSegments() {
         const url = await concatClipsToVideo(done);
         showStageVideo('__director_whole__', url);
         status('合成完成 ✓', false);
+
+        // 读取当前生成参数并补齐所有元数据
+        const mp = parseFloat(document.getElementById('megapixels')?.value) || 0.5;
+        const fpsVal = parseFloat(document.getElementById('fps')?.value) || 24;
+        const stepsVal = parseInt(document.getElementById('steps')?.value);
+        const ar = document.getElementById('aspect_ratio')?.value || '—';
+        const seedVal = parseInt(document.getElementById('seedInput')?.value);
+        const finalSeed = isNaN(seedVal) || seedVal === -1 ? '随机' : seedVal;
+        const resLabel = mpToMiniMaxResolution(mp);
+        const totalDur = done.reduce((sum, s) => sum + (parseFloat(s.length) || 5), 0);
+        const totalDurText = totalDur.toFixed(1) + ' 秒';
+
+        // 拼接所有片段提示词(供整条卡片查看)
+        const segmentPromptLines = done.map((s, i) => {
+            const p = (s.prompt || '').trim();
+            return p ? ('【片段' + (i + 1) + '】' + p) : ('【片段' + (i + 1) + '】(空)');
+        });
+        const fullPromptText = '导演台整条视频 (' + done.length + ' 段 / 共 ' + totalDurText + ')\n' + segmentPromptLines.join('\n');
+
         const rec = {
             videos: [url],
-            prompt: '导演台成片（' + done.length + ' 段拼接）',
-            params: { 合成: done.length + ' 段' },
-            genParams: { 成片: done.length + ' 段 ffmpeg 拼接', 生成于: _fmtGenTime() },
-            timestamp: Date.now() / 1000
+            prompt: fullPromptText,
+            params: {
+                合成: done.length + ' 段',
+                时长: totalDurText,
+                分辨率: resLabel,
+                比例: ar,
+                帧率: fpsVal + ' fps',
+                采样步数: stepsVal != null ? stepsVal : '—',
+                种子: finalSeed
+            },
+            genParams: {
+                成片: done.length + ' 段 ffmpeg 拼接',
+                整条时长: totalDurText,
+                生成模式: '导演台整条',
+                工作流: (WORKFLOW_REGISTRY[currentWorkflow] ? WORKFLOW_REGISTRY[currentWorkflow].title : 'MiniMax H3 导演台'),
+                时长: totalDurText,
+                分辨率: resLabel,
+                比例: ar,
+                帧率: fpsVal + ' fps',
+                采样步数: stepsVal != null ? stepsVal : '—',
+                种子: finalSeed,
+                生成于: _fmtGenTime()
+            },
+            timestamp: Date.now() / 1000,
+            director: true,
+            model: 'MINIMAX H3 DIRECTOR'
         };
         saveToBackend(rec);
         if (typeof GalleryList !== 'undefined') GalleryList.pushNewImage(rec);
@@ -6066,6 +6404,7 @@ async function importAssetsFromLibrary(items){
     status(msg);
 }
 (function initRefLibraryPicker(){
+    function run(){
     if(typeof AssetLibrary === 'undefined'){ console.error('[litevideo] AssetLibrary 模块未加载'); return; }
     AssetLibrary.init({
         mountId: 'assetLibraryMount',
@@ -6096,6 +6435,9 @@ async function importAssetsFromLibrary(items){
     } else {
         console.warn('[litevideo] GalleryDisplay.Base 未就绪，收藏→资产库同步未挂载');
     }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
 })();
 
 // ============= 悬浮提示词编辑窗口 =============
@@ -6308,6 +6650,8 @@ function buildH3Context() {
     else if (em === 'i2v') h3Mode = 'I2VA（图生视频，第 1 张参考图作为片头 0.00 秒首帧）';
     else if (em === 'fl2v' || em === 'keyframe') h3Mode = 'FL2VA（首尾帧，2 张参考图分别对齐片头 0.00 秒与片尾 ' + durSec.toFixed(2) + ' 秒）';
     else if (em === 'r2v') h3Mode = 'Ref2VA（全参考，含视频/音频素材）';
+    else if (em === 'v2v') h3Mode = 'V2V（视频转视频，基于源视频重新生成/风格迁移）';
+    else if (em === 'rv2v') h3Mode = 'RV2V（参考素材改视频，用图片/视频/音频作为参考进行视频改编）';
     else if (em === 'reference') {
         // 单段 MiniMax「参考生视频」= Ref2VA 全参考：图/视频/音频都是参考素材（media 槽引用），
         // 图片只作 <Picture N>/<Subject N> 参考，【绝不作为片头首帧】。切勿按 I2VA/首尾帧对齐指令写。
@@ -6334,6 +6678,7 @@ function buildH3Context() {
 // ============= 图片反推模块（复用文生图 interrogate） =============
 // 参考图反推提示词：点「反推」按钮打开面板；若当前已有参考图，自动预填充第一张。
 if (typeof ReverseImage !== 'undefined') {
+    function run(){
     ReverseImage.init({
         mountId: 'reverseImageMount',
         onApply: function (text, mode) {
@@ -6357,6 +6702,9 @@ if (typeof ReverseImage !== 'undefined') {
             ReverseImage.open();
         });
     }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
 }
 
 loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
@@ -6376,6 +6724,10 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
     var storyHint = document.getElementById('aiScriptStoryHint');
     var segCountEl = document.getElementById('aiScriptSegCount');
     var segCountVal = document.getElementById('aiScriptSegCountVal');
+    var segDurContainer = document.getElementById('aiScriptSegDurations');
+    var segDurBulkBtn = document.getElementById('aiScriptSegDurationsBulk');
+    var segDurTemplateVal = 5;   // 「一键相同」使用的统一值（可被下方滑块暂存）
+    var aspectSelEl = document.getElementById('aiScriptAspect');
     var goBtn = document.getElementById('aiScriptGo');
     var goLabel = document.getElementById('aiScriptGoLabel');
     var presetEl = document.getElementById('aiScriptPreset');
@@ -6445,12 +6797,78 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
         applyModeMeta();
     }
 
+    // 渲染「每段时长」输入列表（N 行 · 数字输入 + ±调节）
+    function renderSegDurationList(n, defaultDur) {
+        if (!segDurContainer) return;
+        var base = Math.max(3, Math.min(15, Math.round(parseFloat(defaultDur) || 5)));
+        segDurTemplateVal = base;
+        var items = [];
+        for (var i = 0; i < n; i++) {
+            items.push(
+                '<div class="lv-segdur-item">' +
+                    '<span class="lv-segdur-label">第 ' + (i + 1) + '段</span>' +
+                    '<button type="button" class="lv-segdur-step" data-act="dec" data-idx="' + i + '" title="减少 1 秒">−</button>' +
+                    '<input class="lv-segdur-input" type="number" data-idx="' + i + '" min="3" max="15" step="1" value="' + base + '">' +
+                    '<button type="button" class="lv-segdur-step" data-act="inc" data-idx="' + i + '" title="增加 1 秒">+</button>' +
+                    '<span class="lv-segdur-unit">秒</span>' +
+                '</div>'
+            );
+        }
+        segDurContainer.innerHTML = items.join('');
+    }
+    // 读出每段时长数组（数字）
+    function readSegDurations() {
+        if (!segDurContainer) return [];
+        var inputs = segDurContainer.querySelectorAll('input.lv-segdur-input');
+        var arr = [];
+        for (var i = 0; i < inputs.length; i++) {
+            var v = parseFloat(inputs[i].value);
+            if (!isFinite(v)) v = 5;
+            v = Math.max(1, Math.min(15, Math.round(v)));
+            arr.push(v);
+        }
+        return arr;
+    }
+
     function openModal() {
         // 默认片段数 = 当前已有片段数（至少 2），若无则 3
         var n = (typeof segments !== 'undefined' && segments.length) ? segments.length : 0;
         if (n < 2) n = 3;
         segCountEl.value = Math.min(n, 12);
         segCountVal.textContent = segCountEl.value;
+        // 每段时长默认 = 当前片段时长（第一段 / 全局）；缺省 5 秒
+        var curDur = (typeof selectedSegId !== 'undefined' && selectedSegId != null && typeof segments !== 'undefined') ? (segments.find(function (s) { return s.id === selectedSegId; }) || {}).length : null;
+        if (!curDur && typeof segments !== 'undefined' && segments[0]) curDur = segments[0].length;
+        if (!curDur) {
+            var lengthEl = document.getElementById('length');
+            curDur = lengthEl ? parseFloat(lengthEl.value || '5') : 5;
+        }
+        // 默认填充列表：若已有 N 个片段，且各自 length 有值，使用各自 length；否则全部使用统一默认值
+        var perSeg = [];
+        if (typeof segments !== 'undefined' && segments.length === parseInt(segCountEl.value, 10)) {
+            for (var k = 0; k < segments.length; k++) {
+                var dl = parseFloat(segments[k].length);
+                perSeg.push(isFinite(dl) && dl > 0 ? dl : curDur);
+            }
+        }
+        renderSegDurationList(parseInt(segCountEl.value, 10), perSeg.length ? perSeg[0] : curDur);
+        // 如有各自时长，逐项覆盖默认
+        if (perSeg.length) {
+            var inputs = segDurContainer.querySelectorAll('input.lv-segdur-input');
+            for (var j = 0; j < inputs.length && j < perSeg.length; j++) {
+                inputs[j].value = String(Math.max(3, Math.min(15, Math.round(perSeg[j]))));
+            }
+        }
+        // 视频比例默认 = 当前比例（#aspectSelect 选中项）
+        var curAr = '';
+        var aspSel = document.getElementById('aspectSelect');
+        if (aspSel && aspSel.value) curAr = aspSel.value;
+        if (!curAr && typeof segments !== 'undefined' && segments[0]) curAr = segments[0].aspect_ratio;
+        if (!curAr) curAr = '16:9';
+        if (aspectSelEl) {
+            var opts = Array.from(aspectSelEl.options || []).map(function (o) { return o.value; });
+            if (opts.indexOf(curAr) >= 0) aspectSelEl.value = curAr;
+        }
         modal.style.display = 'flex';
         storyEl.focus();
         if (window.lucide) window.lucide.createIcons();
@@ -6625,6 +7043,12 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
         var story = buildStory();
         if (!story) { status('请先输入故事概述或剧情点', false); return; }
         var segCount = parseInt(segCountEl.value, 10) || 3;
+        // 每段时长（数组，可逐段不同） & 比例（从弹窗控件读）
+        var segDurations = readSegDurations();
+        // 补齐/裁剪与片段数对齐
+        while (segDurations.length < n) segDurations.push(segDurations[segDurations.length - 1] || 5);
+        if (segDurations.length > n) segDurations = segDurations.slice(0, n);
+        var aspectVal = (aspectSelEl && aspectSelEl.value) ? aspectSelEl.value : '16:9';
 
         // beats 模式：剧情点数量优先于滑块
         var storyText = story;
@@ -6653,6 +7077,11 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
             var fd = new FormData();
             fd.append('story', storyText);
             fd.append('segment_count', String(n));
+            // 每段时长：多段不一样；同一 key 重复 append 变成多值
+            for (var di = 0; di < segDurations.length; di++) {
+                fd.append('seg_duration', String(segDurations[di]));
+            }
+            fd.append('aspect_ratio', aspectVal);
             // 预设：跟随弹窗下拉选择（复用 AI 提示词预设规则），默认 h3-video
             if (presetEl) {
                 var pid = presetEl.value || presetState.selectedId || 'h3-video';
@@ -6677,7 +7106,7 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
             if (!segs.length) {
                 throw new Error('生成结果为空，请重试');
             }
-            applyScript(segs, data.subjects || []);
+            applyScript(segs, data.subjects || [], segDurations, aspectVal);
             closeModal();
             status('已生成 ' + segs.length + ' 段脚本并填入片段 ✓', false);
         } catch (err) {
@@ -6688,8 +7117,8 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
         }
     }
 
-    // 覆盖所有片段：保留片段本身与参考素材，仅替换 prompt
-    function applyScript(segs, subjects) {
+    // 覆盖所有片段：保留片段本身与参考素材，仅替换 prompt/length/aspect_ratio
+    function applyScript(segs, subjects, segDurations, aspectRatio) {
         if (typeof segments === 'undefined') return;
         // 若当前片段数少于生成数，补齐空片段；多于则删掉多余片段
         while (segments.length < segs.length) {
@@ -6698,13 +7127,19 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
         if (segments.length > segs.length) {
             segments.splice(segs.length);
         }
-        // 逐个写回 prompt
+        var durArr = Array.isArray(segDurations) ? segDurations : [];
+        // 逐个写回 prompt + 每段时长 & 比例（导演台统一比例，单独时长）
         segs.forEach(function (s, i) {
             if (segments[i]) {
                 segments[i].prompt = (s.prompt || '').trim();
                 segments[i].result = null;       // 提示词变了，清旧结果
                 segments[i].status = 'idle';
                 segments[i].cacheSig = null;
+                if (durArr.length) {
+                    var d = durArr[i] != null ? durArr[i] : (durArr[durArr.length - 1] || 5);
+                    segments[i].length = String(Math.max(1, parseFloat(d) || 5));
+                }
+                if (aspectRatio) segments[i].aspect_ratio = aspectRatio;
             }
         });
         // 若有第一个片段，把它设为选中并写回表单
@@ -6714,6 +7149,24 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
         }
         renderTimeline();
         scheduleSaveDraft();
+        // 全局参数也同步到顶部表单（比例 + 第一个片段时长作为默认）
+        try {
+            if (aspectRatio) {
+                var aspSel = document.getElementById('aspectSelect');
+                if (aspSel && Array.from(aspSel.options || []).some(function (o) { return o.value === aspectRatio; })) {
+                    aspSel.value = aspectRatio;
+                    aspSel.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            if (durArr.length) {
+                var lengthEl = document.getElementById('length');
+                if (lengthEl) {
+                    var first = durArr[0];
+                    lengthEl.value = String(Math.max(1, parseFloat(first) || 5));
+                    lengthEl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        } catch (e) { console.warn('[aiScript] 同步全局表单失败', e); }
     }
 
     // 事件绑定
@@ -6728,7 +7181,48 @@ loadDraft();  // 自动恢复上次的分镜草稿（若 localStorage 存在）
     });
     segCountEl.addEventListener('input', function () {
         segCountVal.textContent = segCountEl.value;
+        // 重新渲染每段时长列表，保持已有值；不足的用模板值补齐
+        var n = parseInt(segCountEl.value, 10) || 1;
+        var prev = readSegDurations();
+        renderSegDurationList(n, prev[0] || segDurTemplateVal || 5);
+        var inputs = segDurContainer ? segDurContainer.querySelectorAll('input.lv-segdur-input') : [];
+        for (var i = 0; i < inputs.length; i++) {
+            if (i < prev.length) inputs[i].value = String(prev[i]);
+        }
     });
+    if (segDurContainer) {
+        // ±按钮
+        segDurContainer.addEventListener('click', function (e) {
+            var t = e.target.closest('.lv-segdur-step');
+            if (!t) return;
+            var idx = parseInt(t.dataset.idx, 10);
+            var act = t.dataset.act;
+            var inputs = segDurContainer.querySelectorAll('input.lv-segdur-input');
+            if (!inputs[idx]) return;
+            var v = parseInt(inputs[idx].value, 10) || 5;
+            v = act === 'inc' ? v + 1 : v - 1;
+            v = Math.max(1, Math.min(15, v));
+            inputs[idx].value = String(v);
+        });
+        // 手动输入越界修正
+        segDurContainer.addEventListener('change', function (e) {
+            var t = e.target;
+            if (!t.classList.contains('lv-segdur-input')) return;
+            var v = parseInt(t.value, 10) || 5;
+            v = Math.max(1, Math.min(15, v));
+            t.value = String(v);
+        });
+    }
+    if (segDurBulkBtn) {
+        segDurBulkBtn.addEventListener('click', function () {
+            var n = parseInt(segCountEl.value, 10) || 1;
+            // 使用列表中第一项的值作为统一值，缺省 5
+            var first = segDurContainer ? segDurContainer.querySelector('input.lv-segdur-input') : null;
+            var base = first ? (parseInt(first.value, 10) || 5) : (segDurTemplateVal || 5);
+            base = Math.max(1, Math.min(15, base));
+            renderSegDurationList(n, base);
+        });
+    }
     goBtn.addEventListener('click', doGenerate);
 
     applyModeMeta();
