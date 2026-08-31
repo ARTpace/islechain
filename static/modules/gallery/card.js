@@ -484,6 +484,19 @@
         }
     }
 
+    // 把比例字符串解析为数字宽高比（w/h），供视频卡片初始 aspect-ratio 使用
+    // 支持："16:9" / "3:4 (Portrait Standard)" / 数字 0.5625 / "—" 等
+    function parseAspectRatio(ar) {
+        if (!ar || ar === '—') return 0;
+        if (typeof ar === 'number' && isFinite(ar) && ar > 0) return ar;
+        const m = String(ar).match(/(\d+(?:\.\d+)?)\s*[:：×xX]\s*(\d+(?:\.\d+)?)/);
+        if (m) {
+            const w = parseFloat(m[1]), h = parseFloat(m[2]);
+            if (w > 0 && h > 0) return w / h;
+        }
+        return 0;
+    }
+
     /**
      * 渲染视频卡片封面（video muted playsinline + 播放角标）
      * 用于 litevideo 等视频生成页面的历史记录
@@ -496,8 +509,13 @@
         // 右下角「声音开关」按钮（默认静音图标；hover 卡片时由 JS 加 .show 显示）
         const soundHTML = (features.soundToggle === false) ? '' :
             `<button onclick="toggleVideoSound(this)" class="gallery-sound" title="声音开关" aria-label="声音开关" style="right:12px;bottom:12px;${BTN_INLINE}">${SOUND_OFF_SVG}</button>`;
+        // 优先使用记录里的比例（导演台/普通模式都已写入），避免默认 16/9 导致竖屏视频被压成横屏
+        const arNum = parseAspectRatio(record.params && record.params.aspectRatio) ||
+                      parseAspectRatio(record.params && record.params.aspect_ratio) ||
+                      parseAspectRatio(record.aspect_ratio) || 0;
+        const arCSS = arNum > 0 ? arNum.toFixed(4) : '16/9';
         return '<div class="relative group" style="background:#000;">' +
-            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:16/9;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)" onerror="' + onerror + '">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:' + arCSS + ';" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||' + arCSS + ').toFixed(4)" onerror="' + onerror + '">' +
             '</video>' +
             favBtn +
             soundHTML +

@@ -485,7 +485,7 @@ def generate_script(
         seg_durations_csv = ", ".join(str(x) for x in seg_dur_list)
         instruction = _SCRIPT_JSON_INSTRUCTION.replace(
             "{segment_count}", str(segment_count)
-        ).replace("{seg_duration}", seg_dur_str).replace("{aspect_ratio}", aspect_str).replace("{seg_durations_csv}", seg_dur_csv)
+        ).replace("{seg_duration}", seg_dur_str).replace("{aspect_ratio}", aspect_str).replace("{seg_durations_csv}", seg_durations_csv)
         system_prompt = (h3_rules + instruction) if h3_rules else instruction
 
         # ── 调用 LLM（带降级 fallback）──

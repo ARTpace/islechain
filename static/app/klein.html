@@ -423,11 +423,7 @@
         }
 
         async function apiFetch(url, options = {}) {
-            if (IS_LOCAL_SERVER) {
-                const directUrl = COMFYUI_SERVER + url;
-                const response = await fetch(directUrl, options);
-                return response;
-            }
+            // 始终走后端代理,避免本地 ComfyUI 8188 端口跨源(CORS/403)问题
             const headers = {
                 'X-ComfyUI-Server-Url': COMFYUI_SERVER,
                 ...(options.headers || {})
@@ -834,10 +830,10 @@
                 // 节点 19 (VAEEncode) 用原图原比例编码作为参考
                 workflowData["19"]["inputs"]["pixels"] = ["8", 0];
                 workflowData["8"]["inputs"]["image"] = uploadedImages[0];
-                if (uploadedImages[1]) {
-                    workflowData["4"]["inputs"]["image"] = uploadedImages[1];
-                } else {
-                    workflowData["4"]["inputs"]["image"] = uploadedImages[0];
+                // 第二张参考图(原节点4)。当前 klein 工作流版本已移除节点4(参考图 LoadImage),
+                // 该槽位在此工作流下无效,跳过写入以避免崩溃;若工作流含节点4 则正常接入参考图。
+                if (workflowData["4"] && workflowData["4"]["inputs"]) {
+                    workflowData["4"]["inputs"]["image"] = uploadedImages[1] || uploadedImages[0];
                 }
                 if (ignoreRef) {
                     delete workflowData["3"];

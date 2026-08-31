@@ -9290,10 +9290,16 @@ async def ms_generate(req: MsGenerateRequest, token: str = ""):
 
 # --- 本地 ComfyUI 生图 ---
 
+# 最近一次提交到 ComfyUI 的任务(prompt_id + 目标后端), 供 /api/generate/cancel 真正中断使用。
+# 局限: 并发多个生成时只记录最后一个(当前业务为单任务串行, 足够用)。
+_ACTIVE_COMFY_TASK = {"prompt_id": None, "backend": None}
+_ACTIVE_COMFY_LOCK = threading.Lock()
+
 def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
     """Execute a ComfyUI generate task synchronously. Returns result dict.
     Used by both /api/generate (backward compat) and async canvas-comfy-tasks."""
     global NEXT_TASK_ID
+    prompt_id = None
     current_task = None
     target_backend = None
     username = require_valid_token(token)
@@ -9489,6 +9495,10 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                 raise Exception("ComfyUI 提交失败:\n" + "\n".join(err_lines))
 
             prompt_id = submit_result['prompt_id']
+
+        # 记录当前正在执行的 ComfyUI 任务, 供 /api/generate/cancel 真正中断
+        with _ACTIVE_COMFY_LOCK:
+            _ACTIVE_COMFY_TASK.update({"prompt_id": prompt_id, "backend": target_backend})
 
         history_data = None
         poll_start = time.monotonic()
@@ -9770,6 +9780,10 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
     except Exception as e:
         return {"images": [], "audio": [], "videos": [], "video_urls": [], "error": str(e)}
     finally:
+        if prompt_id:
+            with _ACTIVE_COMFY_LOCK:
+                if _ACTIVE_COMFY_TASK.get("prompt_id") == prompt_id:
+                    _ACTIVE_COMFY_TASK.update({"prompt_id": None, "backend": None})
         if target_backend:
             with LOAD_LOCK:
                 if BACKEND_LOCAL_LOAD.get(target_backend, 0) > 0:
@@ -9838,6 +9852,32 @@ async def get_canvas_comfy_task(task_id: str):
 @app.post("/api/generate")
 def generate(req: GenerateRequest, token: str = ""):
     return _run_comfy_generate_sync(req, token)
+
+
+@app.post("/api/generate/cancel")
+def cancel_generate(token: str = ""):
+    """真正中断正在执行的 ComfyUI 生成任务(释放显存/停止采样):
+    1) POST /interrupt 中断当前执行中的任务;
+    2) DELETE /queue 把该 prompt_id 从未开始的队列中移除(interrupt 只对执行中有效)。
+    """
+    with _ACTIVE_COMFY_LOCK:
+        pid = _ACTIVE_COMFY_TASK.get("prompt_id")
+        backend = _ACTIVE_COMFY_TASK.get("backend")
+    if not pid or not backend:
+        return {"success": False, "detail": "当前没有正在执行的 ComfyUI 生成任务"}
+    notes = []
+    try:
+        requests.post(f"http://{backend}/interrupt", timeout=3)
+        notes.append("interrupt ok")
+    except Exception as e:
+        notes.append(f"interrupt fail: {e}")
+    try:
+        requests.delete(f"http://{backend}/queue", json={"delete": [pid]}, timeout=3)
+        notes.append("queue-delete ok")
+    except Exception as e:
+        notes.append(f"queue-delete fail: {e}")
+    print(f"[Generate] 用户终止: prompt_id={pid} backend={backend} ({'; '.join(notes)})")
+    return {"success": True, "prompt_id": pid, "detail": "; ".join(notes)}
 
 # --- API 设置相关 API ---
 
