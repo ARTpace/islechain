@@ -45,6 +45,7 @@
         2
       ],
       "bit_depth": 8,
+      "color_space": "sRGB",
       "images": [
         "12",
         0
@@ -63,8 +64,8 @@
     "inputs": {
       "filename_prefix": "video/MiniMaxH3_Director",
       "format": "auto",
+      "format.codec": "auto",
       "codec": "auto",
-      "video-preview": "",
       "video": [
         "6",
         0
@@ -99,7 +100,7 @@
       "height": 1056,
       "ref_max_size": 1056,
       "total_frames": 243,
-      "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":243,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[],\"deletedSourceRanges\":[],\"sourceFrameCount\":243,\"width\":0,\"height\":0,\"storageWidth\":864,\"storageHeight\":32},\"videoClips\":[],\"global\":{\"taskType\":\"r2v — 参考主体生视频(Reference to Video)\",\"prompt\":\"一个女生<Picture 1> 走在古风的街道上 无人机直播拍摄，动漫3D风格。\",\"refs\":[{\"index\":0,\"imageFile\":\"1784094114662.png\",\"imageB64\":\"\"}],\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"continuousReference\":false,\"genImage\":{\"imageFile\":\"\"},\"sourceWidth\":768,\"sourceHeight\":1024,\"refAudios\":[],\"commonEnabled\":true,\"commonCollapsed\":false,\"refVideos\":[]},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"9:16 (竖屏)\",\"megapixels\":0.6,\"multiple\":32,\"longEdge\":1056,\"width\":608,\"height\":1056,\"maxExportFrames\":0,\"exportMode\":\"all\",\"audioMode\":\"source\",\"continuityEnabled\":true,\"continuityOverlapFrames\":22},\"runSelectEnabled\":false,\"runSelection\":[],\"segments\":[{\"id\":\"mswph2gspz6gv\",\"start\":0,\"length\":243,\"frameCount\":243,\"durationSec\":10,\"prompt\":\"两个汉服女生走在古风的街道上 无人机直播拍摄\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"continuityFromPrev\":false}],\"timelineMode\":\"prompt_batch\",\"width\":608,\"height\":1056,\"refMaxSize\":1056,\"gen\":{\"defaultFrameCount\":124},\"keyframes\":[{\"id\":\"msdtx3zi62ktv_s\",\"imageFile\":\"0059.png\",\"width\":768,\"height\":1024,\"start\":0,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"一个猴子在极速奔跑，跑的过程中裤子掉在地上，但他仍然继续奔跑。过程中伴随自然的跑步声\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtx3zi62ktv_e\",\"imageFile\":\"0060.png\",\"width\":512,\"height\":682,\"start\":62,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdtx87njf33g_s\",\"imageFile\":\"0060.png\",\"width\":512,\"height\":682,\"start\":124,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"猴子在快速奔跑，双臂自然摆动，跑到一个岩石旁，慢慢的坐下，随着时间的流逝，沙尘慢慢消失，漏出蓝天背景。过程中伴随自然的跑步、坐下时候产生的声音\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtx87njf33g_e\",\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024,\"start\":186,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdtwxyuscavj_s\",\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024,\"start\":248,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"猴子从岩石上起身，起身后穿上衣服，背上书包，去教室上课，慢慢走到教室里，过程中伴随穿衣、背书包、走路的背景音\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtwxyuscavj_e\",\"imageFile\":\"0086.png\",\"width\":768,\"height\":1024,\"start\":310,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdx1e2eigp2x\",\"imageFile\":\"\",\"width\":0,\"height\":0,\"start\":372,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false}],\"durationSec\":20,\"shots\":[{\"id\":\"msdtx3zi62ktv\",\"durationSec\":5,\"prompt\":\"一个猴子在极速奔跑，跑的过程中裤子掉在地上，但他仍然继续奔跑。过程中伴随自然的跑步声\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0059.png\",\"width\":768,\"height\":1024},\"endImage\":{\"imageFile\":\"0060.png\",\"width\":512,\"height\":682}},{\"id\":\"msdtx87njf33g\",\"durationSec\":5,\"prompt\":\"猴子在快速奔跑，双臂自然摆动，跑到一个岩石旁，慢慢的坐下，随着时间的流逝，沙尘慢慢消失，漏出蓝天背景。过程中伴随自然的跑步、坐下时候产生的声音\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0060.png\",\"width\":512,\"height\":682},\"endImage\":{\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024}},{\"id\":\"msdtwxyuscavj\",\"durationSec\":5,\"prompt\":\"猴子从岩石上起身，起身后穿上衣服，背上书包，去教室上课，慢慢走到教室里，过程中伴随穿衣、背书包、走路的背景音\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024},\"endImage\":{\"imageFile\":\"0086.png\",\"width\":768,\"height\":1024}},{\"id\":\"msdx1e2eigp2x\",\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"startImage\":null,\"endImage\":null}],\"liveTaePreview\":true}",
+      "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":243,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[],\"deletedSourceRanges\":[],\"sourceFrameCount\":243,\"width\":0,\"height\":0,\"storageWidth\":864,\"storageHeight\":32},\"videoClips\":[],\"global\":{\"taskType\":\"r2v — 参考主体生视频(Reference to Video)\",\"prompt\":\"一个女生<Picture 1> 走在古风的街道上 无人机直播拍摄，动漫3D风格。\",\"refs\":[{\"index\":0,\"imageFile\":\"1784094114662.png\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"}],\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"continuousReference\":false,\"genImage\":{\"imageFile\":\"\"},\"sourceWidth\":768,\"sourceHeight\":1024,\"refAudios\":[],\"commonEnabled\":true,\"commonCollapsed\":false,\"refVideos\":[]},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"9:16 (竖屏)\",\"megapixels\":0.6,\"multiple\":32,\"longEdge\":1056,\"width\":608,\"height\":1056,\"maxExportFrames\":0,\"exportMode\":\"all\",\"audioMode\":\"source\",\"continuityEnabled\":true,\"continuityOverlapFrames\":22},\"runSelectEnabled\":false,\"runSelection\":[],\"segments\":[{\"id\":\"mswph2gspz6gv\",\"start\":0,\"length\":243,\"frameCount\":243,\"durationSec\":10,\"prompt\":\"两个汉服女生走在古风的街道上 无人机直播拍摄\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"continuityFromPrev\":false}],\"timelineMode\":\"prompt_batch\",\"width\":608,\"height\":1056,\"refMaxSize\":1056,\"gen\":{\"defaultFrameCount\":124},\"keyframes\":[{\"id\":\"msdtx3zi62ktv_s\",\"imageFile\":\"0059.png\",\"width\":768,\"height\":1024,\"start\":0,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"一个猴子在极速奔跑，跑的过程中裤子掉在地上，但他仍然继续奔跑。过程中伴随自然的跑步声\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtx3zi62ktv_e\",\"imageFile\":\"0060.png\",\"width\":512,\"height\":682,\"start\":62,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdtx87njf33g_s\",\"imageFile\":\"0060.png\",\"width\":512,\"height\":682,\"start\":124,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"猴子在快速奔跑，双臂自然摆动，跑到一个岩石旁，慢慢的坐下，随着时间的流逝，沙尘慢慢消失，漏出蓝天背景。过程中伴随自然的跑步、坐下时候产生的声音\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtx87njf33g_e\",\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024,\"start\":186,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdtwxyuscavj_s\",\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024,\"start\":248,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"猴子从岩石上起身，起身后穿上衣服，背上书包，去教室上课，慢慢走到教室里，过程中伴随穿衣、背书包、走路的背景音\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false},{\"id\":\"msdtwxyuscavj_e\",\"imageFile\":\"0086.png\",\"width\":768,\"height\":1024,\"start\":310,\"length\":62,\"frameCount\":62,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":false,\"isEndFrame\":true},{\"id\":\"msdx1e2eigp2x\",\"imageFile\":\"\",\"width\":0,\"height\":0,\"start\":372,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"isStartFrame\":true,\"isEndFrame\":false}],\"durationSec\":20,\"shots\":[{\"id\":\"msdtx3zi62ktv\",\"durationSec\":5,\"prompt\":\"一个猴子在极速奔跑，跑的过程中裤子掉在地上，但他仍然继续奔跑。过程中伴随自然的跑步声\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0059.png\",\"width\":768,\"height\":1024},\"endImage\":{\"imageFile\":\"0060.png\",\"width\":512,\"height\":682}},{\"id\":\"msdtx87njf33g\",\"durationSec\":5,\"prompt\":\"猴子在快速奔跑，双臂自然摆动，跑到一个岩石旁，慢慢的坐下，随着时间的流逝，沙尘慢慢消失，漏出蓝天背景。过程中伴随自然的跑步、坐下时候产生的声音\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0060.png\",\"width\":512,\"height\":682},\"endImage\":{\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024}},{\"id\":\"msdtwxyuscavj\",\"durationSec\":5,\"prompt\":\"猴子从岩石上起身，起身后穿上衣服，背上书包，去教室上课，慢慢走到教室里，过程中伴随穿衣、背书包、走路的背景音\",\"negativePrompt\":\"bad video\",\"startImage\":{\"imageFile\":\"0062.png\",\"width\":768,\"height\":1024},\"endImage\":{\"imageFile\":\"0086.png\",\"width\":768,\"height\":1024}},{\"id\":\"msdx1e2eigp2x\",\"durationSec\":5,\"prompt\":\"\",\"negativePrompt\":\"bad video\",\"startImage\":null,\"endImage\":null}],\"liveTaePreview\":true,\"batchDetailMode\":\"solo\",\"batchWorkspaces\":{\"r2v\":{\"selectedIndex\":0,\"editMode\":\"segment\",\"runSelectEnabled\":false,\"runSelection\":[],\"segments\":[{\"id\":\"mswph2gspz6gv\",\"start\":0,\"length\":243,\"frameCount\":243,\"durationSec\":10,\"prompt\":\"两个汉服女生走在古风的街道上 无人机直播拍摄\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"continuityFromPrev\":false,\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"_videoFrameCount\":243,\"previewFps\":24}],\"globalCommon\":{\"commonEnabled\":true,\"commonCollapsed\":false,\"prompt\":\"一个女生<Picture 1> 走在古风的街道上 无人机直播拍摄，动漫3D风格。\",\"refs\":[{\"index\":0,\"imageFile\":\"1784094114662.png\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"}],\"refAudios\":[],\"refVideos\":[]}}}}",
       "bd_grp_advanced": "高级采样",
       "steps": 8,
       "sampler": "res_multistep",
@@ -127,45 +128,13 @@
         0
       ],
       "refine": [
-        "16",
+        "28",
         0
       ]
     },
     "class_type": "MiniMaxH3Director",
     "_meta": {
       "title": "MiniMax H3 导演"
-    }
-  },
-  "16": {
-    "inputs": {
-      "mode": "refine",
-      "upscale_method": "lanczos",
-      "denoise": 0.4,
-      "steps": 10,
-      "passes": 1,
-      "seed_mode": "inherit",
-      "aspect_ratio": "16:9 (宽屏)",
-      "megapixels": 2,
-      "width": 1920,
-      "height": 1088,
-      "skip_fl2v": true,
-      "upscale_model": [
-        "17",
-        0
-      ]
-    },
-    "class_type": "MiniMaxH3DirectorRefine",
-    "_meta": {
-      "title": "MiniMax H3 导演优化"
-    }
-  },
-  "17": {
-    "inputs": {
-      "model_name": "4x-UltraSharp.pth"
-    },
-    "class_type": "UpscaleModelLoader",
-    "_meta": {
-      "title": "放大模型加载器"
     }
   },
   "22": {
@@ -206,6 +175,116 @@
       "mode": "4-step LoRA",
       "model": [
         "23",
+        0
+      ]
+    },
+    "class_type": "TESpeedMiniMaxH3",
+    "_meta": {
+      "title": "TE-Speed-MiniMaxH3"
+    }
+  },
+  "25": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "29",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SAGE注意力补丁(KJ)"
+    }
+  },
+  "26": {
+    "inputs": {
+      "scheduler": "beta",
+      "steps": 3,
+      "denoise": 0.2,
+      "model": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基础调度器"
+    }
+  },
+  "27": {
+    "inputs": {
+      "model": [
+        "25",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+    "_meta": {
+      "title": "MiniMaX H3内存高效Sage注意力补丁 (KJ)"
+    }
+  },
+  "28": {
+    "inputs": {
+      "mode": "upscale",
+      "upscale_method": "h3_latent",
+      "latent_upscale_model": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
+      "sampler": "euler",
+      "passes": 1,
+      "seed_mode": "inherit",
+      "aspect_ratio": "16:9 (宽屏)",
+      "megapixels": 2,
+      "width": 1920,
+      "height": 1088,
+      "skip_fl2v": true,
+      "refine_model": [
+        "31",
+        0
+      ],
+      "sigmas": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3DirectorRefine",
+    "_meta": {
+      "title": "MiniMax H3 导演优化"
+    }
+  },
+  "29": {
+    "inputs": {
+      "lora_name": "minimax h3\\minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "30",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器(仅模型)"
+    }
+  },
+  "30": {
+    "inputs": {
+      "unet_name": "minimax_h3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "MiniMax H3 UNET"
+    }
+  },
+  "31": {
+    "inputs": {
+      "processing_control_value": 0.085,
+      "processing_percent_1": 0.1,
+      "processing_percent_2": 0.9,
+      "mcs": 2,
+      "device": "auto",
+      "mode": "4-step LoRA",
+      "model": [
+        "27",
         0
       ]
     },

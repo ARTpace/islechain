@@ -148,20 +148,6 @@
       "title": "LoRA堆加载器"
     }
   },
-  "16": {
-    "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "9",
-        0
-      ]
-    },
-    "class_type": "VRAMCleanup",
-    "_meta": {
-      "title": "释放显存"
-    }
-  },
   "18": {
     "inputs": {
       "clean_file_cache": true,
@@ -169,7 +155,7 @@
       "clean_dlls": true,
       "retry_times": 3,
       "anything": [
-        "16",
+        "9",
         0
       ]
     },
