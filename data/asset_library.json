@@ -12,6 +12,30 @@
           "type": "image",
           "items": [
             {
+              "id": "asset_25edc33f77b9",
+              "name": "SeedVR2.5 超分 2K",
+              "url": "/output/admin/SeedVR2.5超分2K/2026-08-31/SeedVR2.5超分2K_3633122630.png",
+              "kind": "image",
+              "created_at": 1788188714023,
+              "registrations": {}
+            },
+            {
+              "id": "asset_e6fac6dc3d68",
+              "name": "SeedVR2.5 超分 2K",
+              "url": "/output/admin/SeedVR2.5超分2K/2026-08-31/SeedVR2.5超分2K_e012239deb.png",
+              "kind": "image",
+              "created_at": 1788188528380,
+              "registrations": {}
+            },
+            {
+              "id": "asset_2b1d01920aa5",
+              "name": "参考图的女生, 图1的1个高中女学生和图2的一个初中女学生, Polaroid style, instant film look, 衣服换成女仆装, 两个女生 坐在床上, 身上脏脏的, 背景换成流浪汉的房床上, 感觉像被侵犯过, 脸看着正前",
+              "url": "/output/admin/krea2/2026-08-31/krea2_1788155939_8a095b3064.png",
+              "kind": "image",
+              "created_at": 1788156130950,
+              "registrations": {}
+            },
+            {
               "id": "asset_25b736c0e70d",
               "name": "SeedVR2.5 超分 2K",
               "url": "/output/admin/SeedVR2.5超分2K/2026-08-30/SeedVR2.5超分2K_0f1f8e3008.png",
@@ -308,6 +332,30 @@
       "type": "image",
       "items": [
         {
+          "id": "asset_25edc33f77b9",
+          "name": "SeedVR2.5 超分 2K",
+          "url": "/output/admin/SeedVR2.5超分2K/2026-08-31/SeedVR2.5超分2K_3633122630.png",
+          "kind": "image",
+          "created_at": 1788188714023,
+          "registrations": {}
+        },
+        {
+          "id": "asset_e6fac6dc3d68",
+          "name": "SeedVR2.5 超分 2K",
+          "url": "/output/admin/SeedVR2.5超分2K/2026-08-31/SeedVR2.5超分2K_e012239deb.png",
+          "kind": "image",
+          "created_at": 1788188528380,
+          "registrations": {}
+        },
+        {
+          "id": "asset_2b1d01920aa5",
+          "name": "参考图的女生, 图1的1个高中女学生和图2的一个初中女学生, Polaroid style, instant film look, 衣服换成女仆装, 两个女生 坐在床上, 身上脏脏的, 背景换成流浪汉的房床上, 感觉像被侵犯过, 脸看着正前",
+          "url": "/output/admin/krea2/2026-08-31/krea2_1788155939_8a095b3064.png",
+          "kind": "image",
+          "created_at": 1788156130950,
+          "registrations": {}
+        },
+        {
           "id": "asset_25b736c0e70d",
           "name": "SeedVR2.5 超分 2K",
           "url": "/output/admin/SeedVR2.5超分2K/2026-08-30/SeedVR2.5超分2K_0f1f8e3008.png",
@@ -595,5 +643,5 @@
       "items": []
     }
   ],
-  "updated_at": 1788063764537
+  "updated_at": 1788188714023
 }

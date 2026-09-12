@@ -1,27 +1,5 @@
 [
   {
-    "id": "agnes",
-    "name": "Agnes",
-    "base_url": "https://apihub.agnes-ai.com",
-    "protocol": "openai",
-    "image_request_mode": "openai",
-    "image_models": [
-      "agnes-image-2.0-flash",
-      "agnes-image-2.1-flash"
-    ],
-    "chat_models": [
-      "agnes-2.0-flash",
-      "agnes-2.5-pro-alpha",
-      "agnes-1.5-flash"
-    ],
-    "video_models": [
-      "agnes-video-v2.0"
-    ],
-    "ms_loras": [],
-    "primary": false,
-    "enabled": true
-  },
-  {
     "id": "ai",
     "name": "商汤AI",
     "base_url": "https://token.sensenova.cn/v1",
