@@ -16,20 +16,20 @@ async def get_animadex_characters(
     limit: int = 200
 ):
     """获取 animadex 角色数据(用于头像映射)"""
-    global _animadex_cache, _animadex_cache_time
     import time
 
-    # 缓存 10 分钟
+    # 缓存 10 分钟。缓存本体定义在 main.py（_animadex_cache / _animadex_cache_time），
+    # 必须通过 _main. 赋值才能真正共享；此前用 global 声明只会写进本 router 模块，导致每次请求都重载且返回空列表。
     if _main._animadex_cache is None or (time.time() - _main._animadex_cache_time) > 600:
         try:
-            animadex_path = os.path.join(_main.DATA_DIR, "animadex-characters.json")
+            animadex_path = os.path.join(_main.STATIC_DIR, "app", "characters.json")
             if os.path.exists(animadex_path):
                 with open(animadex_path, 'r', encoding='utf-8') as f:
-                    _animadex_cache = json.load(f)
-                    _animadex_cache_time = time.time()
+                    _main._animadex_cache = json.load(f)
+                    _main._animadex_cache_time = time.time()
         except Exception as e:
             print(f"加载 animadex 数据失败: {e}")
-            _animadex_cache = {"characters": []}
+            _main._animadex_cache = {"characters": []}
 
     characters = _main._animadex_cache.get("characters", []) if _main._animadex_cache else []
 

@@ -422,49 +422,20 @@ function pickerRemoveSelectedByChip(e, btn) {
 
 
 function pickerLoadData() {
-
-
     if (ANIMA_CHAR_DB.length > 0) return Promise.resolve();
 
-
-    return fetch('/static/app/character_data_full.js')
-
-
-        .then(r => r.text())
-
-
-        .then(text => {
-
-
-            const startIdx = text.indexOf('[');
-
-
-            const endIdx = text.lastIndexOf(']');
-
-
-            if (startIdx !== -1 && endIdx !== -1) {
-
-
-                ANIMA_CHAR_DB = JSON.parse(text.substring(startIdx, endIdx + 1));
-                window.ANIMA_CHAR_DB = ANIMA_CHAR_DB; // 暴露给同页脚本（zimage.html 等用 window[name] 读，避免 let 不挂 window 的问题）
-                console.log('[AnimaPicker] Loaded ' + ANIMA_CHAR_DB.length + ' characters');
-
-
-                // 迁移旧版 localStorage（小写名字 → title case）
-
-
-                pickerMigrateLocalData();
-
-
-            }
-
-
+    // 单一数据源：/static/app/characters.json，与后端 random_source.py / routers/animadex.py 共用同一文件
+    return fetch('/static/app/characters.json')
+        .then(r => r.json())
+        .then(payload => {
+            const list = Array.isArray(payload) ? payload : ((payload && payload.characters) || []);
+            if (!list.length) return;
+            ANIMA_CHAR_DB = list;
+            window.ANIMA_CHAR_DB = ANIMA_CHAR_DB; // 暴露给同页脚本（zimage.html 等用 window[name] 读，避免 let 不挂 window 的问题）
+            console.log('[AnimaPicker] Loaded ' + ANIMA_CHAR_DB.length + ' characters');
+            pickerMigrateLocalData();
         })
-
-
         .catch(e => console.error('[AnimaPicker] Failed to load character data', e));
-
-
 }
 
 

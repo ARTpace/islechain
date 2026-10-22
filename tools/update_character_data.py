@@ -9,15 +9,12 @@ AnimaDex 角色数据更新脚本
   python tools/update_character_data.py --force       # 强制重新下载
 
 输出：
-  static/app/character_data_full.js   — 兼容现有 picker 的 JS 数组
-  data/animadex-characters.json       — 完整数据（含 trigger/tags/img_url）
+  static/app/characters.json          — 完整数据（前后端单一数据源）
 """
 
 import csv
 import io
 import json
-import os
-import re
 import sys
 import time
 from pathlib import Path
@@ -27,8 +24,8 @@ from urllib.parse import quote
 BASE_URL = "https://animadex.net"
 EXPORT_TOKEN = "IPpCh4IE4iMAVaeuREs4WqiXynSti60pWAxpcd-nXRQ"
 VERSION_FILE = Path(__file__).resolve().parent.parent / "data" / "animadex-version.json"
-JS_OUTPUT = Path(__file__).resolve().parent.parent / "static" / "app" / "character_data_full.js"
-JSON_OUTPUT = Path(__file__).resolve().parent.parent / "data" / "animadex-characters.json"
+# 单一数据源：前端 anima-character-picker.js 与后端 random_source.py / routers/animadex.py 共用
+JSON_OUTPUT = Path(__file__).resolve().parent.parent / "static" / "app" / "characters.json"
 
 # 从 core_tags 提取性别/发色/瞳色的映射
 GENDER_MAP = {"1girl": "1girl", "1boy": "1boy"}
@@ -184,34 +181,6 @@ def download_and_parse() -> list[dict]:
     return characters
 
 
-def write_js(characters: list[dict]):
-    """写入兼容现有 picker 的 JS 文件"""
-    JS_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-
-    # 保留 picker 需要的字段（含 trigger/tags/thumb_url）
-    compact = []
-    for c in characters:
-        compact.append({
-            "name": c["name"],
-            "copyright": c["copyright"],
-            "post_count": c["post_count"],
-            "gender": c["gender"],
-            "hair": c["hair"],
-            "eye": c["eye"],
-            "trigger": c["trigger"],
-            "tags": c["tags"],
-            "thumb_url": c["thumb_url"],
-        })
-
-    with open(JS_OUTPUT, "w", encoding="utf-8") as f:
-        f.write("const ANIMA_CHAR_DB = ")
-        json.dump(compact, f, ensure_ascii=False, separators=(",", ":"))
-        f.write(";\n")
-
-    size_kb = JS_OUTPUT.stat().st_size // 1024
-    print(f"[write] {JS_OUTPUT.name} — {len(compact)} chars, {size_kb} KB")
-
-
 def write_json(characters: list[dict]):
     """写入完整 JSON 数据文件"""
     JSON_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -221,7 +190,7 @@ def write_json(characters: list[dict]):
             "version": time.strftime("%Y-%m-%d"),
             "count": len(characters),
             "characters": characters,
-        }, f, ensure_ascii=False, indent=1)
+        }, f, ensure_ascii=False, separators=(",", ":"))
 
     size_kb = JSON_OUTPUT.stat().st_size // 1024
     print(f"[write] {JSON_OUTPUT.name} — {len(characters)} chars, {size_kb} KB")
@@ -257,7 +226,6 @@ def main():
         print("[error] 未解析到任何角色数据")
         sys.exit(1)
 
-    write_js(characters)
     write_json(characters)
     save_version(manifest, len(characters))
     print("[done] 数据更新完成 ✓")

@@ -5,7 +5,6 @@
 
 import json
 import random
-import os
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
@@ -81,7 +80,9 @@ class CharacterSource(RandomSource):
     
     def __init__(self):
         super().__init__("character", "角色", "👤")
-        self.data_file = Path(__file__).parent / "static" / "app" / "character_data_full.js"
+        # 单一数据源：static/app/characters.json 同时供后端（本类 / routers/animadex.py）
+        # 与前端（anima-character-picker.js fetch）使用，不再维护 character_data_full.js 副本
+        self.data_file = Path(__file__).parent / "static" / "app" / "characters.json"
     
     def load(self):
         """加载角色数据"""
@@ -89,12 +90,9 @@ class CharacterSource(RandomSource):
             if not self.data_file.exists():
                 return
             
-            content = self.data_file.read_text(encoding='utf-8')
-            # 解析 JS 变量赋值格式
-            import re
-            match = re.search(r'const\s+ANIMA_CHAR_DB\s*=\s*(\[.*?\]);', content, re.DOTALL)
-            if match:
-                data = json.loads(match.group(1))
+            raw = json.loads(self.data_file.read_text(encoding='utf-8'))
+            data = raw.get("characters", []) if isinstance(raw, dict) else raw
+            if data:
                 self.items = []
                 categories = set()
                 
