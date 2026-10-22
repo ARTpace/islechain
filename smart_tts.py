@@ -9,6 +9,8 @@ import urllib.error
 from typing import Optional, Dict, Any
 from pathlib import Path
 from smart_prompt import load_config
+import logging
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """你是一个 TTS 文本精修师。分析用户输入的中文文本，完成：
@@ -64,7 +66,8 @@ def call_llm_direct(user_input: str, system_prompt: str, config: Dict[str, Any])
     api_key = config.get("api_key", "")
     model = config.get("model", "")
     
-    print(f"[LLM] base_url={base_url}, model={model}, api_key={api_key[:10] if api_key else 'None'}...")
+    _kp = (api_key[:3] + "***") if api_key else "None"
+    print(f"[LLM] base_url={base_url}, model={model}, api_key={_kp}...")
 
     if not base_url:
         return "ERROR: 未配置 API base_url"

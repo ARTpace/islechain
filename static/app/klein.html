@@ -602,7 +602,7 @@
             }
             strip.innerHTML = historyImages.map(function(h, i) {
                 return '<div class="history-item' + (i === historyActiveIdx ? ' active' : '') + '">'
-                    + '<img src="' + h.url + '" alt="" onclick="restoreFromHistory(' + i + ')">'
+                    + '<img src="' + String(h.url).replace(/"/g,'&quot;') + '" alt="" onclick="restoreFromHistory(' + i + ')">'
                     + '<span class="hist-idx">' + (i + 1) + '</span>'
                     + '<button class="hist-del" onclick="event.stopPropagation();deleteHistoryImage(' + i + ')">\u00D7</button>'
                     + '</div>';

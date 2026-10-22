@@ -465,7 +465,7 @@
             if(msg.attachments?.length){
                 const thumbs = document.createElement('div');
                 thumbs.className = 'thumbs';
-                msg.attachments.forEach(ref => thumbs.insertAdjacentHTML('beforeend', `<img class="thumb" src="${ref.url}">`));
+                msg.attachments.forEach(ref => thumbs.insertAdjacentHTML('beforeend', `<img class="thumb" src="${String(ref.url).replace(/"/g,'&quot;')}">`));
                 bubble.appendChild(thumbs);
             }
             if(msg.image_url){
@@ -500,7 +500,7 @@
 
         function renderRefs(){
             const strip = document.getElementById('refStrip');
-            strip.innerHTML = refs.map((ref,i) => `<div class="ref-chip"><img src="${ref.url}"><button onclick="removeRef(${i})">×</button></div>`).join('');
+            strip.innerHTML = refs.map((ref,i) => `<div class="ref-chip"><img src="${String(ref.url).replace(/"/g,'&quot;')}"><button onclick="removeRef(${i})">×</button></div>`).join('');
         }
 
         function removeRef(i){ refs.splice(i,1); renderRefs(); }

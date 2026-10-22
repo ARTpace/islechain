@@ -1,0 +1,29 @@
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "T20"]
+ignore = ["E501", "SIM102"]
+
+[lint.per-file-ignores]
+# main.py 是约 16000 行的巨型单文件 FastAPI 后端，暂全面放宽，
+# 等 task-9/10 拆分模块后再逐块收紧。
+# 2026-10-22：P1-3 已把路由拆到 routers/（main.py 8.4k 行），F821/F811/F541 已收紧，
+# 曾靠这次收紧查出 6 处 NameError（username/storage_file_path/BASE_URL/datetime 等）。
+"main.py" = [
+    "E501", "SIM102", "T20",
+    "E401", "E402", "E701", "E702", "E722",
+    "F401", "F841",
+    "I001", "W291", "W292", "W293",
+    "B005", "B007", "B008", "B023", "B904", "B905",
+    "C420",
+    # 风格/现代化类（UP/SIM 系列），等 task-9/10 拆分后逐块清理
+    "UP006", "UP015", "UP045", "UP035", "UP017", "UP037", "UP041",
+    "SIM105", "SIM108", "SIM115", "SIM117", "SIM222", "SIM114", "SIM118", "SIM103", "SIM110",
+]
+"tests/*" = ["E501", "SIM102", "T20"]
+# 参考实现与工具脚本不参与 CI lint
+"static/setting/*" = ["E501", "SIM102", "T20"]
+"tools/**" = ["E501", "SIM102", "T20"]
+"prompt/**" = ["E501", "SIM102", "T20"]
+"logs/**" = ["E501", "SIM102", "T20"]

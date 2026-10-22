@@ -1,0 +1,181 @@
+"""路由模块（自 main.py 拆出，2026-10-22 P1-3 继续拆分）
+
+前缀: /api/view, /api/download-output, /api/open-output-folder, /api/delete-output-file, /api/scan-output, /api/upload, /api/ai/upload
+"""
+from fastapi import File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from typing import List
+from starlette.responses import Response
+import os, requests, subprocess, uuid
+from fastapi import APIRouter
+
+import main as _main
+
+router = APIRouter()
+
+
+@router.get("/api/view")
+def view_image(filename: str, type: str = "input", subfolder: str = ""):
+    for addr in _main.COMFYUI_INSTANCES:
+        try:
+            url = f"http://{addr}/view"
+            params = {"filename": filename, "type": type, "subfolder": subfolder}
+            r = requests.get(url, params=params, timeout=1)
+            if r.status_code == 200:
+                return Response(content=r.content, media_type=r.headers.get('Content-Type'))
+        except Exception:
+            continue
+    raise HTTPException(status_code=404, detail="Image not found on any available backend")
+
+@router.get("/api/download-output")
+async def download_output(url: str, name: str = "", inline: bool = False):
+    path = _main.output_file_from_url(url)
+    if path:
+        filename = os.path.basename(name) if name else os.path.basename(path)
+        return FileResponse(path, media_type=_main.content_type_for_path(path), filename=filename,
+            headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+    # 远程 URL：proxy 下载
+    if url and (url.startswith("http://") or url.startswith("https://")):
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                content = resp.content
+            filename = name or os.path.basename(url.split("?")[0]) or "image.png"
+            return Response(content=content, media_type=resp.headers.get("content-type", "image/png"),
+                headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"下载远程图片失败: {e}")
+    raise HTTPException(status_code=404, detail="文件不存在")
+
+
+@router.get("/api/open-output-folder")
+async def open_output_folder(path: str = ""):
+    """在资源管理器中打开 output 目录中的图片所在文件夹"""
+    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
+    full_path = os.path.join(_main.OUTPUT_DIR, safe_path)
+    folder = os.path.dirname(full_path) if os.path.isfile(full_path) else full_path
+    if not os.path.exists(folder):
+        raise HTTPException(status_code=404, detail=f"目录不存在: {folder}")
+    try:
+        if os.path.isfile(full_path):
+            subprocess.Popen(["explorer", "/select,", full_path])
+        else:
+            subprocess.Popen(["explorer", folder])
+        return {"ok": True, "path": full_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"打开文件夹失败: {str(e)}")
+
+
+@router.get("/api/delete-output-file")
+async def delete_output_file(path: str = ""):
+    """删除 output 目录中的图片文件"""
+    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
+    full_path = os.path.join(_main.OUTPUT_DIR, safe_path)
+    output_root = os.path.abspath(_main.OUTPUT_DIR)
+    if not os.path.abspath(full_path).startswith(output_root):
+        raise HTTPException(status_code=403, detail="不允许删除 output 目录之外")
+    if not os.path.isfile(full_path):
+        return {"ok": False, "error": "文件不存在", "path": full_path}
+    try:
+        os.remove(full_path)
+        return {"ok": True, "path": full_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
+
+
+@router.get("/api/scan-output")
+async def scan_output_folder(token: str = ""):
+    """扫描当前登录用户的 rmbg output 目录下的图片"""
+    username = _main.get_username_by_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="未登录")
+    user_dir = _main.get_user_dirname(username)
+    scan_root = os.path.join(_main.OUTPUT_DIR, user_dir, "抠图")
+    if not os.path.isdir(scan_root):
+        return {"images": []}
+    images = []
+    exts = {".png", ".jpg", ".jpeg", ".webp"}
+    for root, dirs, files in os.walk(scan_root):
+        for f in sorted(files, reverse=True):
+            ext = os.path.splitext(f)[1].lower()
+            if ext in exts:
+                rel = os.path.relpath(os.path.join(root, f), _main.OUTPUT_DIR)
+                url_path = "/output/" + rel.replace("\\", "/")
+                mtime = os.path.getmtime(os.path.join(root, f))
+                images.append({"url": url_path, "filename": f, "path": rel, "mtime": int(mtime * 1000)})
+    images.sort(key=lambda x: x["mtime"], reverse=True)
+    return {"images": images[:500]}
+
+
+@router.post("/api/upload")
+async def upload_image(files: List[UploadFile] = File(...)):
+    uploaded_files = []
+    files_content = []
+    for file in files:
+        content = await file.read()
+        files_content.append((file, content))
+
+    for file, content in files_content:
+        success_count = 0
+        last_result = None
+        for addr in _main.COMFYUI_INSTANCES:
+            try:
+                files_data = {'image': (file.filename, content, file.content_type)}
+                response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
+                if response.status_code == 200:
+                    last_result = response.json()
+                    success_count += 1
+            except Exception as e:
+                print(f"Upload error for {addr}: {e}")
+
+        if success_count > 0 and last_result:
+            uploaded_files.append({"comfy_name": last_result.get("name", file.filename)})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to upload to any backend")
+
+    return {"files": uploaded_files}
+
+@router.post("/api/ai/upload")
+async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: str = Form(None), token: str = Form("")):
+    username = _main.get_username_by_token(token)
+    canvas = None
+    if canvas_id:
+        try:
+            canvas = _main.load_canvas(canvas_id)
+        except:
+            pass
+
+    if canvas:
+        canvas_output_dir = _main.get_canvas_output_dir(canvas)
+    elif username:
+        canvas_output_dir, _ = _main.get_user_output_dir(username)
+    else:
+        canvas_output_dir = _main.OUTPUT_DIR
+    os.makedirs(canvas_output_dir, exist_ok=True)
+
+    uploaded = []
+    for file in files:
+        content = await file.read()
+        if not content:
+            continue
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        _IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif"}
+        _VID_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
+        _AUD_EXTS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
+        if ext not in (_IMG_EXTS | _VID_EXTS | _AUD_EXTS):
+            content_type = (file.content_type or "").lower()
+            if content_type.startswith("video/"):
+                ext = {"video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov", "video/x-matroska": ".mkv"}.get(content_type, ".mp4")
+            elif content_type.startswith("audio/"):
+                ext = {"audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/flac": ".flac", "audio/ogg": ".ogg", "audio/mp4": ".m4a", "audio/aac": ".aac"}.get(content_type, ".mp3")
+            else:
+                ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
+        filename = f"ai_ref_{uuid.uuid4().hex[:12]}{ext}"
+        path = os.path.join(canvas_output_dir, filename)
+        with open(path, "wb") as f:
+            f.write(content)
+        url_path = _main.build_output_url(canvas, filename, username)
+        uploaded.append({"url": url_path, "name": file.filename or filename})
+    return {"files": uploaded}

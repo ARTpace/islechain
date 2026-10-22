@@ -50,11 +50,18 @@
 
     var originalFetch = window.fetch;
     window.fetch = function(url, options) {
+        if (typeof url !== 'string') return originalFetch.apply(this, arguments);
         // 每次调用时刷新一次 localStorage,防止 token 过期/切换后仍是旧值
         refreshToken();
+        options = options || {};
         if (AUTH_TOKEN && shouldAttach(url)) {
-            var separator = url.indexOf('?') > -1 ? '&' : '?';
-            url = url + separator + 'token=' + encodeURIComponent(AUTH_TOKEN);
+            if (typeof Headers !== 'undefined' && options.headers instanceof Headers) {
+                options.headers.set('Authorization', 'Bearer ' + AUTH_TOKEN);
+            } else if (options.headers && typeof options.headers === 'object') {
+                options.headers['Authorization'] = 'Bearer ' + AUTH_TOKEN;
+            } else {
+                options.headers = { 'Authorization': 'Bearer ' + AUTH_TOKEN };
+            }
         }
         var resp = originalFetch.call(window, url, options);
         // 未登录(token 无效/过期)触发生成接口时,跳转登录页

@@ -43,6 +43,7 @@ os.environ["NO_PROXY"] = ",".join(_parts_np)
 os.environ["no_proxy"] = os.environ["NO_PROXY"]
 
 # ── 启动环境诊断日志 ──────────────────────────────────
+from datetime import datetime  # noqa: E402  (需早于下方诊断日志)
 try:
     _env_keys = ["HTTP_PROXY","HTTPS_PROXY","NO_PROXY","no_proxy","http_proxy","https_proxy",
                  "COMFYUI_INSTANCES","COMFYUI_BASE_PATH","ALL_PROXY","all_proxy",
@@ -64,10 +65,8 @@ except Exception:
 # ──────────────────────────────────────────────────────
 
 from PIL import Image, ImageOps
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Header, Request, Form, Query
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Request, Form
 from fastapi.responses import FileResponse, Response, StreamingResponse, RedirectResponse
-from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1031,14 +1030,15 @@ RUNNINGHUB_WORKFLOW_STORE_FILE = os.path.join(DATA_DIR, "runninghub_workflows.js
 SEED_UINT32_MAX = 4294967295
 
 # === history.json 进程内缓存 ===
-# 第一次 GET 时读盘并缓存,save_to_history 写盘时失效
+# 第一次 GET 时读盘并缓存,save_to_history 写穿透更新(不再失效重读)
 # history.json 越大,这个优化收益越明显(从 N ms 读盘 + N ms json.load → 0)
-_HISTORY_CACHE = None  # list[dict] or None
+# 与 _USERS_CACHE 一致: 按 HISTORY_FILE 路径失效, 防止路径变化后读到陈旧数据
+_HISTORY_CACHE = {"path": None, "data": None}
 _HISTORY_LOCK = threading.Lock() if 'threading' in dir() else None
 def _load_history_cached():
     global _HISTORY_CACHE
-    if _HISTORY_CACHE is not None:
-        return _HISTORY_CACHE
+    if _HISTORY_CACHE["data"] is not None and _HISTORY_CACHE["path"] == HISTORY_FILE:
+        return _HISTORY_CACHE["data"]
     data = []
     if os.path.exists(HISTORY_FILE):
         try:
@@ -1047,16 +1047,17 @@ def _load_history_cached():
         except Exception as e:
             print(f"读取历史文件失败: {e}")
             data = []
-    _HISTORY_CACHE = data
+    _HISTORY_CACHE["path"] = HISTORY_FILE
+    _HISTORY_CACHE["data"] = data
     # 迁移旧版时间戳：秒→毫秒（兼容旧记录）
-    for item in _HISTORY_CACHE:
+    for item in _HISTORY_CACHE["data"]:
         ts = item.get("timestamp", 0)
         if isinstance(ts, (int, float)) and 1000000000 < ts < 2000000000:
             item["timestamp"] = ts * 1000
-    return _HISTORY_CACHE
+    return _HISTORY_CACHE["data"]
 def _invalidate_history_cache():
     global _HISTORY_CACHE
-    _HISTORY_CACHE = None
+    _HISTORY_CACHE = {"path": None, "data": None}
 
 # --- YAML 预设缓存 ---
 _preset_cache = None
@@ -1158,19 +1159,66 @@ USERS_FILE = os.path.join(BASE_DIR, "data", "users.json")
 def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
+def atomic_write_json(path, data, encoding="utf-8", **json_kwargs):
+    """原子化 JSON 落盘：同目录临时文件写入 + fsync + os.replace 原地替换。
+
+    旧写法直接 open(path, 'w')，一旦进程在写入中途崩溃/断电，原文件已被
+    截断成半截 JSON（数据全丢）。本函数保证任何时刻磁盘上要么是旧完整
+    文件、要么是新完整文件。json_kwargs 透传给 json.dump，默认
+    ensure_ascii=False, indent=2（与既有落盘格式一致）。
+    """
+    json_kwargs.setdefault("ensure_ascii", False)
+    json_kwargs.setdefault("indent", 2)
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=directory)
     try:
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+        with os.fdopen(fd, "w", encoding=encoding) as f:
+            json.dump(data, f, **json_kwargs)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+_USERS_CACHE = {"path": None, "data": None}
+_USERS_CACHE_LOCK = threading.Lock()
+
+
+def load_users():
+    """读取用户表（进程内缓存，按 USERS_FILE 路径失效）。
+
+    返回浅拷贝：既避免调用方直接 mutate 污染缓存，也消除
+    「register 插入顶层键」与「find_user_by_token 迭代」并发时的
+    RuntimeError。内层 user dict 仍为共享引用（CPython GIL 下读写原子）。
+    契约：调用方 mutate 后必须调 save_users 回写。
+    """
+    with _USERS_CACHE_LOCK:
+        if _USERS_CACHE["path"] != USERS_FILE or _USERS_CACHE["data"] is None:
+            users = {}
+            if os.path.exists(USERS_FILE):
+                try:
+                    with open(USERS_FILE, "r", encoding="utf-8") as f:
+                        users = json.load(f)
+                    if not isinstance(users, dict):
+                        users = {}
+                except Exception:
+                    users = {}
+            _USERS_CACHE["path"] = USERS_FILE
+            _USERS_CACHE["data"] = users
+        return dict(_USERS_CACHE["data"])
+
 
 def save_users(users):
-    os.makedirs(os.path.dirname(USERS_FILE), exist_ok=True)
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
+    atomic_write_json(USERS_FILE, users)
+    with _USERS_CACHE_LOCK:
+        _USERS_CACHE["path"] = USERS_FILE
+        _USERS_CACHE["data"] = users
 
 def find_user_by_token(token):
     users = load_users()
@@ -1335,8 +1383,7 @@ def load_api_providers():
     """从文件加载 API 提供商列表（内置平台自动补全）"""
     if not os.path.exists(API_PROVIDERS_FILE):
         try:
-            with open(API_PROVIDERS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(list(BUILTIN_PROVIDERS), f, ensure_ascii=False, indent=2)
+            atomic_write_json(API_PROVIDERS_FILE, list(BUILTIN_PROVIDERS), ensure_ascii=False, indent=2)
         except Exception:
             pass
         return list(BUILTIN_PROVIDERS)
@@ -1350,8 +1397,7 @@ def load_api_providers():
     data, changed = ensure_builtin_providers(data)
     if changed:
         try:
-            with open(API_PROVIDERS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            atomic_write_json(API_PROVIDERS_FILE, data, ensure_ascii=False, indent=2)
         except Exception:
             pass
     return data
@@ -1359,8 +1405,7 @@ def load_api_providers():
 def save_api_providers(providers):
     """保存 API 提供商列表到文件"""
     try:
-        with open(API_PROVIDERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(providers, f, ensure_ascii=False, indent=2)
+        atomic_write_json(API_PROVIDERS_FILE, providers, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Failed to save API providers: {e}")
 
@@ -1553,9 +1598,7 @@ os.makedirs(LOCAL_UPLOAD_DIR, exist_ok=True)
 os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
 
 # Custom static files with no-cache headers for HTML files
-from starlette.responses import Response
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
-from starlette.datastructures import Headers
 import mimetypes
 
 # 确保 .js 文件被正确识别为 application/javascript
@@ -1808,11 +1851,6 @@ class DeleteCanvasLogRequest(BaseModel):
     reset_referencing_nodes: bool = False
     base_updated_at: int = 0
 
-class CanvasMetaUpdate(BaseModel):
-    title: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    pinned: Optional[bool] = None
 
 class CanvasMetaUpdate(BaseModel):
     title: Optional[str] = None
@@ -2159,12 +2197,8 @@ def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, 
 
 def save_to_history(record):
     with HISTORY_LOCK:
-        history = []
-        if os.path.exists(HISTORY_FILE):
-            try:
-                with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                    history = json.load(f)
-            except: pass
+        # 走进程内缓存, 避免每次生成都全量读盘(history.json 4.4MB/2654 条, 5000 条封顶约 8MB)
+        history = _load_history_cached()
         if "timestamp" not in record:
             record["timestamp"] = time.time() * 1000
         # 幂等：同首图 URL + 同 type 视为同一条记录，更新而非重复插入。
@@ -2176,21 +2210,20 @@ def save_to_history(record):
                 exist_first = (item.get("images") or [None])[0]
                 if exist_first == first and item.get("type") == record.get("type"):
                     history[i] = record
-                    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-                        json.dump(history[:5000], f, ensure_ascii=False, indent=4)
-                    _invalidate_history_cache()
-                    return
-        history.insert(0, record)
-        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-            json.dump(history[:5000], f, ensure_ascii=False, indent=4)
-        # 写盘后失效缓存
-        _invalidate_history_cache()
+                    break
+            else:
+                history.insert(0, record)
+        else:
+            history.insert(0, record)
+        # 缓存与磁盘保持一致: 截断到 5000 条后写穿透(不再失效缓存重读)
+        del history[5000:]
+        atomic_write_json(HISTORY_FILE, history, ensure_ascii=False, indent=4)
 
 def get_comfy_history(comfy_address, prompt_id):
     try:
         with urllib.request.urlopen(f"http://{comfy_address}/history/{prompt_id}") as response:
             return json.loads(response.read())
-    except Exception as e:
+    except Exception:
         return {}
 
 def safe_user_id(user_id, request: Request):
@@ -2219,8 +2252,7 @@ def now_ms():
 def save_conversation(user_id, conversation):
     with CONVERSATION_LOCK:
         path = conversation_path(user_id, conversation["id"])
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(conversation, f, ensure_ascii=False, indent=2)
+        atomic_write_json(path, conversation, ensure_ascii=False, indent=2)
 
 def new_conversation(user_id, title="新对话"):
     timestamp = now_ms()
@@ -2272,8 +2304,7 @@ def canvas_path(canvas_id):
 def save_canvas(canvas):
     canvas["updated_at"] = now_ms()
     with CANVAS_LOCK:
-        with open(canvas_path(canvas["id"]), 'w', encoding='utf-8') as f:
-            json.dump(canvas, f, ensure_ascii=False, indent=2)
+        atomic_write_json(canvas_path(canvas["id"]), canvas, ensure_ascii=False, indent=2)
 
 def new_canvas(title="未命名画布", icon="layers", owner=None):
     timestamp = now_ms()
@@ -2525,37 +2556,7 @@ async def wait_for_image_task(client, task_id):
         await asyncio.sleep(IMAGE_POLL_INTERVAL)
     raise HTTPException(status_code=504, detail=f"生图任务超时,task_id={task_id}")
 
-def output_file_from_url(url):
-    if not url:
-        return None
 
-    clean_url = url.split("?")[0]
-
-    if clean_url.startswith("/output/"):
-        relative_path = clean_url[len("/output/"):]
-        path = os.path.abspath(os.path.join(OUTPUT_DIR, relative_path))
-        output_root = os.path.abspath(OUTPUT_DIR)
-        if os.path.commonpath([output_root, path]) == output_root and os.path.exists(path):
-            return path
-        return None
-
-    if clean_url.startswith("/assets/"):
-        relative_path = clean_url[len("/assets/"):]
-        path = os.path.abspath(os.path.join(INPUT_DIR, relative_path))
-        input_root = os.path.abspath(INPUT_DIR)
-        if os.path.commonpath([input_root, path]) == input_root and os.path.exists(path):
-            return path
-        return None
-
-    return None
-
-def content_type_for_path(path):
-    ext = os.path.splitext(path)[1].lower()
-    if ext in [".jpg", ".jpeg"]:
-        return "image/jpeg"
-    if ext == ".webp":
-        return "image/webp"
-    return "image/png"
 
 def convert_output_to_jpg(url, quality=88):
     path = output_file_from_url(url)
@@ -2716,7 +2717,6 @@ async def _gen_openai_responses(client, base_url, api_key, model, prompt, size, 
         "tools": [],
     }
     # size 映射
-    sz = size
     resp = await client.post(
         f"{base_url.rstrip('/')}/v1/responses",
         headers=_openai_headers(base_url, api_key),
@@ -2725,7 +2725,6 @@ async def _gen_openai_responses(client, base_url, api_key, model, prompt, size, 
     )
     resp.raise_for_status()
     data = resp.json()
-    urls = []
     return await _download_data_urls(client, data)
 
 
@@ -2979,7 +2978,7 @@ async def _gen_apimart(client, base_url, api_key, model, prompt, size, quality, 
 
 async def _gen_volcengine(client, ak, sk, model, prompt, size, quality, refs):
     """VolcEngine Ark image/vision: uses /api/v3/text-to-image."""
-    pass  # placeholder for volcengine auth; use token env variable instead
+    base_root = os.getenv("VOLCENGINE_BASE_ROOT", "https://ark.cn-beijing.volces.com").rstrip("/")
     ak = ak or jimeng_env_value("VOLCENGINE_AK") or os.getenv("VOLCENGINE_ACCESS_KEY", "")
     sk = sk or jimeng_env_value("VOLCENGINE_SK") or os.getenv("VOLCENGINE_SECRET_KEY", "")
     if not ak or not sk:
@@ -2988,7 +2987,7 @@ async def _gen_volcengine(client, ak, sk, model, prompt, size, quality, refs):
     token = jimeng_env_value("VOLCENGINE_TOKEN") or os.getenv("VOLCENGINE_TOKEN", ak)
     hdrs = {"Content-Type":"application/json","Authorization":f"Bearer {token}"}
     body = {"model":model,"prompt":prompt,"size":size,"quality":quality,"n":1}
-    resp = await client.post(f"{VOLCENGINE_DEFAULT_BASE_URL}/api/v3/images/generations", headers=hdrs, json=body)
+    resp = await client.post(f"{base_root}/api/v3/images/generations", headers=hdrs, json=body)
     if resp.status_code >= 400:
         raise HTTPException(status_code=resp.status_code, detail=f"火山引擎接口错误: {resp.text[:300]}")
     raw = resp.json()
@@ -2997,6 +2996,7 @@ async def _gen_volcengine(client, ak, sk, model, prompt, size, quality, refs):
 
 async def _gen_runninghub(client, provider_cfg, model, prompt, size, quality, refs):
     """RunningHub workflow/app image generation."""
+    rh_base = str((provider_cfg or {}).get("base_url") or os.getenv("RUNNINGHUB_BASE_URL", "https://www.runninghub.ai")).rstrip("/")
     wf_store = load_runninghub_workflow_store()
     cfg = None
     for wid, c in wf_store.items():
@@ -3019,14 +3019,14 @@ async def _gen_runninghub(client, provider_cfg, model, prompt, size, quality, re
     api_key = runninghub_api_key(provider_cfg)
     hdrs = runninghub_app_headers(provider_cfg)
     submit_body = {"workflowId": cfg.get("workflowId",""),"nodeInfoList":[],"useWallet":True}
-    resp = await client.post(f"{RH_DEFAULT_BASE_URL}/enterprise-api/consumerApi/run", headers=hdrs, json=submit_body)
+    resp = await client.post(f"{rh_base}/enterprise-api/consumerApi/run", headers=hdrs, json=submit_body)
     resp.raise_for_status()
     raw = resp.json()
     task_id = raw.get("data",{}).get("taskId") or raw.get("data",{}).get("task_id")
     if task_id:
         deadline = time.monotonic() + AI_REQUEST_TIMEOUT
         while time.monotonic() < deadline:
-            qresp = await client.get(f"{RH_DEFAULT_BASE_URL}/enterprise-api/consumerApi/query", headers=hdrs, params={"taskId":task_id})
+            qresp = await client.get(f"{rh_base}/enterprise-api/consumerApi/query", headers=hdrs, params={"taskId":task_id})
             qresp.raise_for_status()
             qraw = qresp.json()
             st = str(qraw.get("data",{}).get("status","")).upper()
@@ -3404,8 +3404,7 @@ def save_asset_library(lib):
     sort_asset_library_items(lib)
     lib["updated_at"] = now_ms()
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(ASSET_LIBRARY_PATH, "w", encoding="utf-8") as f:
-        json.dump(lib, f, ensure_ascii=False, indent=2)
+    atomic_write_json(ASSET_LIBRARY_PATH, lib, ensure_ascii=False, indent=2)
 
 def asset_library_media_kind(path: str, content_type: str = "") -> str:
     ext = os.path.splitext(path or "")[1].lower()
@@ -4078,8 +4077,7 @@ def load_runninghub_workflow_store():
 
 def save_runninghub_workflow_store(store):
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(RUNNINGHUB_WORKFLOW_STORE_FILE, "w", encoding="utf-8") as f:
-        json.dump(store, f, ensure_ascii=False, indent=2)
+    atomic_write_json(RUNNINGHUB_WORKFLOW_STORE_FILE, store, ensure_ascii=False, indent=2)
 
 def runninghub_provider_workflow_config(workflow_id: str):
     key = runninghub_workflow_store_key(workflow_id)
@@ -4589,8 +4587,7 @@ def _read_local_upload_classification(filename):
 
 def _write_local_upload_classification(filename, classification):
     path = _local_upload_classification_path(filename)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(normalize_asset_classification(classification), f, ensure_ascii=False, indent=2)
+    atomic_write_json(path, normalize_asset_classification(classification), ensure_ascii=False, indent=2)
 
 def asset_classification_prompt(extra_prompt=""):
     extra = str(extra_prompt or "").strip()
@@ -4698,8 +4695,7 @@ def shared_folders_load():
 
 def shared_folders_save(data):
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SHARED_FOLDERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    atomic_write_json(SHARED_FOLDERS_FILE, data, ensure_ascii=False, indent=2)
 
 def shared_folder_by_id(folder_id):
     for entry in shared_folders_load().get("folders", []):
@@ -5040,7 +5036,6 @@ def canvas_assets_index():
 
 def extract_canvas_assets(canvas):
     """从画布 JSON 中提取所有素材 URL(节点图片/视频/音频)"""
-    import copy
     items = []
     seen = set()
     MEDIA_INPUT_EXT_RE = re.compile(r"\.(png|jpe?g|webp|gif|bmp|tiff?|mp4|webm|mov|m4v|avi|mkv|mp3|wav|m4a|aac|ogg|flac)(?:\?|$)", re.I)
@@ -5224,8 +5219,7 @@ def save_prompt_libraries(data):
     data = normalize_prompt_libraries(data)
     data["updated_at"] = now_ms()
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(PROMPT_LIBRARY_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    atomic_write_json(PROMPT_LIBRARY_PATH, data, ensure_ascii=False, indent=2)
     return data
 
 def public_prompt_libraries(data=None):
@@ -5247,314 +5241,12 @@ def find_prompt_library(data, library_id=""):
 
 # --- 认证路由 ---
 
-@app.post("/api/auth/register")
-async def auth_register(payload: AuthRegisterRequest):
-    username = payload.username.strip()
-    if not username:
-        raise HTTPException(status_code=400, detail="用户名不能为空")
-    users = load_users()
-    if username in users:
-        raise HTTPException(status_code=400, detail="该用户名已存在,请直接登录")
-    is_admin = (username == SUPER_ADMIN_USERNAME)
-    token = str(uuid.uuid4())
-    users[username] = {
-        "password": hash_password(payload.password),
-        "is_admin": is_admin,
-        "token": token,
-        "created_at": time.time(),
-    }
-    save_users(users)
-    return {"ok": True, "username": username, "is_admin": is_admin, "token": token}
-
-@app.post("/api/auth/login")
-async def auth_login(payload: AuthLoginRequest):
-    username = payload.username.strip()
-    if not username:
-        raise HTTPException(status_code=400, detail="用户名不能为空")
-    users = load_users()
-    user = users.get(username)
-    if not user:
-        raise HTTPException(status_code=400, detail="用户不存在,请先注册")
-    if user["password"] != hash_password(payload.password):
-        raise HTTPException(status_code=400, detail="密码错误")
-    token = str(uuid.uuid4())
-    users[username]["token"] = token
-    save_users(users)
-    return {"ok": True, "username": username, "is_admin": user["is_admin"], "token": token}
-
-@app.get("/api/auth/me")
-async def auth_me(token: str = ""):
-    if not token:
-        raise HTTPException(status_code=401, detail="未提供认证令牌")
-    username, user = find_user_by_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail="令牌无效或已过期")
-    return {"ok": True, "username": username, "is_admin": user["is_admin"]}
-
-@app.post("/api/auth/logout")
-async def auth_logout(payload: Optional[TokenRequest] = None):
-    token = payload.token if payload else ""
-    if not token:
-        return {"ok": True}
-    username, user = find_user_by_token(token)
-    if user:
-        users = load_users()
-        if username in users:
-            users[username]["token"] = ""
-            save_users(users)
-    return {"ok": True}
-
 # ---
-
-@app.get("/api/auth/admin/users")
-async def admin_list_users(token: str = ""):
-    if not token:
-        raise HTTPException(status_code=401, detail="未提供认证令牌")
-    username, user = find_user_by_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail="令牌无效")
-    if not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="仅管理员可操作")
-    users = load_users()
-    usernames = sorted(users.keys(), key=lambda x: (x != "admin", x))
-    return {"users": [{"username": u, "is_admin": users[u].get("is_admin", False)} for u in usernames]}
-
-@app.post("/api/auth/admin/reset-password")
-async def admin_reset_password(payload: AdminResetPasswordRequest):
-    if not payload.token:
-        raise HTTPException(status_code=401, detail="未提供认证令牌")
-    username, user = find_user_by_token(payload.token)
-    if not user:
-        raise HTTPException(status_code=401, detail="令牌无效")
-    if not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="仅管理员可操作")
-    users = load_users()
-    if payload.username not in users:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    users[payload.username]["password"] = hash_password(payload.new_password)
-    save_users(users)
-    return {"ok": True}
-
-@app.post("/api/auth/admin/delete-user")
-async def admin_delete_user(payload: AdminDeleteUserRequest):
-    if not payload.token:
-        raise HTTPException(status_code=401, detail="未提供认证令牌")
-    username, user = find_user_by_token(payload.token)
-    if not user:
-        raise HTTPException(status_code=401, detail="令牌无效")
-    if not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="仅管理员可操作")
-    users = load_users()
-    if payload.username not in users:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    if payload.username == SUPER_ADMIN_USERNAME:
-        raise HTTPException(status_code=400, detail="不能删除管理员账号")
-    del users[payload.username]
-    save_users(users)
-    return {"ok": True}
 
 @app.get("/")
 async def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-@app.get("/api/view")
-def view_image(filename: str, type: str = "input", subfolder: str = ""):
-    for addr in COMFYUI_INSTANCES:
-        try:
-            url = f"http://{addr}/view"
-            params = {"filename": filename, "type": type, "subfolder": subfolder}
-            r = requests.get(url, params=params, timeout=1)
-            if r.status_code == 200:
-                return Response(content=r.content, media_type=r.headers.get('Content-Type'))
-        except Exception:
-            continue
-    raise HTTPException(status_code=404, detail="Image not found on any available backend")
-
-@app.get("/api/download-output")
-async def download_output(url: str, name: str = "", inline: bool = False):
-    path = output_file_from_url(url)
-    if path:
-        filename = os.path.basename(name) if name else os.path.basename(path)
-        return FileResponse(path, media_type=content_type_for_path(path), filename=filename,
-            headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
-    # 远程 URL：proxy 下载
-    if url and (url.startswith("http://") or url.startswith("https://")):
-        import httpx
-        try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                content = resp.content
-            filename = name or os.path.basename(url.split("?")[0]) or "image.png"
-            return Response(content=content, media_type=resp.headers.get("content-type", "image/png"),
-                headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"下载远程图片失败: {e}")
-    raise HTTPException(status_code=404, detail="文件不存在")
-
-
-@app.get("/api/open-output-folder")
-async def open_output_folder(path: str = ""):
-    """在资源管理器中打开 output 目录中的图片所在文件夹"""
-    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
-    full_path = os.path.join(OUTPUT_DIR, safe_path)
-    folder = os.path.dirname(full_path) if os.path.isfile(full_path) else full_path
-    if not os.path.exists(folder):
-        raise HTTPException(status_code=404, detail=f"目录不存在: {folder}")
-    try:
-        if os.path.isfile(full_path):
-            subprocess.Popen(["explorer", "/select,", full_path])
-        else:
-            subprocess.Popen(["explorer", folder])
-        return {"ok": True, "path": full_path}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"打开文件夹失败: {str(e)}")
-
-
-@app.get("/api/delete-output-file")
-async def delete_output_file(path: str = ""):
-    """删除 output 目录中的图片文件"""
-    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
-    full_path = os.path.join(OUTPUT_DIR, safe_path)
-    output_root = os.path.abspath(OUTPUT_DIR)
-    if not os.path.abspath(full_path).startswith(output_root):
-        raise HTTPException(status_code=403, detail="不允许删除 output 目录之外")
-    if not os.path.isfile(full_path):
-        return {"ok": False, "error": "文件不存在", "path": full_path}
-    try:
-        os.remove(full_path)
-        return {"ok": True, "path": full_path}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
-
-
-@app.get("/api/scan-output")
-async def scan_output_folder(token: str = ""):
-    """扫描当前登录用户的 rmbg output 目录下的图片"""
-    username = get_username_by_token(token)
-    if not username:
-        raise HTTPException(status_code=401, detail="未登录")
-    user_dir = get_user_dirname(username)
-    scan_root = os.path.join(OUTPUT_DIR, user_dir, "抠图")
-    if not os.path.isdir(scan_root):
-        return {"images": []}
-    images = []
-    exts = {".png", ".jpg", ".jpeg", ".webp"}
-    for root, dirs, files in os.walk(scan_root):
-        for f in sorted(files, reverse=True):
-            ext = os.path.splitext(f)[1].lower()
-            if ext in exts:
-                rel = os.path.relpath(os.path.join(root, f), OUTPUT_DIR)
-                url_path = "/output/" + rel.replace("\\", "/")
-                mtime = os.path.getmtime(os.path.join(root, f))
-                images.append({"url": url_path, "filename": f, "path": rel, "mtime": int(mtime * 1000)})
-    images.sort(key=lambda x: x["mtime"], reverse=True)
-    return {"images": images[:500]}
-
-
-@app.post("/api/upload")
-async def upload_image(files: List[UploadFile] = File(...)):
-    uploaded_files = []
-    files_content = []
-    for file in files:
-        content = await file.read()
-        files_content.append((file, content))
-
-    for file, content in files_content:
-        success_count = 0
-        last_result = None
-        for addr in COMFYUI_INSTANCES:
-            try:
-                files_data = {'image': (file.filename, content, file.content_type)}
-                response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
-                if response.status_code == 200:
-                    last_result = response.json()
-                    success_count += 1
-            except Exception as e:
-                print(f"Upload error for {addr}: {e}")
-
-        if success_count > 0 and last_result:
-            uploaded_files.append({"comfy_name": last_result.get("name", file.filename)})
-        else:
-            raise HTTPException(status_code=500, detail="Failed to upload to any backend")
-
-    return {"files": uploaded_files}
-
-@app.post("/api/ai/upload")
-async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: str = Form(None), token: str = Form("")):
-    username = get_username_by_token(token)
-    canvas = None
-    if canvas_id:
-        try:
-            canvas = load_canvas(canvas_id)
-        except:
-            pass
-
-    if canvas:
-        canvas_output_dir = get_canvas_output_dir(canvas)
-    elif username:
-        canvas_output_dir, _ = get_user_output_dir(username)
-    else:
-        canvas_output_dir = OUTPUT_DIR
-    os.makedirs(canvas_output_dir, exist_ok=True)
-
-    uploaded = []
-    for file in files:
-        content = await file.read()
-        if not content:
-            continue
-        ext = os.path.splitext(file.filename or "")[1].lower()
-        _IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif"}
-        _VID_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
-        _AUD_EXTS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
-        if ext not in (_IMG_EXTS | _VID_EXTS | _AUD_EXTS):
-            content_type = (file.content_type or "").lower()
-            if content_type.startswith("video/"):
-                ext = {"video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov", "video/x-matroska": ".mkv"}.get(content_type, ".mp4")
-            elif content_type.startswith("audio/"):
-                ext = {"audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/flac": ".flac", "audio/ogg": ".ogg", "audio/mp4": ".m4a", "audio/aac": ".aac"}.get(content_type, ".mp3")
-            else:
-                ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
-        filename = f"ai_ref_{uuid.uuid4().hex[:12]}{ext}"
-        path = os.path.join(canvas_output_dir, filename)
-        with open(path, "wb") as f:
-            f.write(content)
-        url_path = build_output_url(canvas, filename, username)
-        uploaded.append({"url": url_path, "name": file.filename or filename})
-    return {"files": uploaded}
-
-@app.get("/api/config")
-async def ai_config():
-    preferred_chat_model = next((m for m in CHAT_MODELS if m == "gpt-5.5"), CHAT_MODELS[0] if CHAT_MODELS else CHAT_MODEL)
-    # 收集所有 provider
-    all_chat_providers = []
-    all_api_providers = []
-    providers = load_api_providers()
-    for p in providers:
-        if p.get("chat_models"):
-            all_chat_providers.append({
-                "id": p["id"],
-                "name": p.get("name", p["id"]),
-                "base_url": p.get("base_url", ""),
-                "chat_models": p["chat_models"],
-            })
-        all_api_providers.append(p)
-    return {
-        "base_url": AI_BASE_URL,
-        "chat_model": preferred_chat_model,
-        "image_model": IMAGE_MODEL,
-        "chat_models": CHAT_MODELS,
-        "image_models": IMAGE_MODELS,
-        "has_api_key": bool(AI_API_KEY),
-        "ms_chat_models": MODELSCOPE_CHAT_MODELS,
-        "has_ms_key": bool(MODELSCOPE_API_KEY),
-        "chat_providers": all_chat_providers,
-        "api_providers": all_api_providers,
-    }
-
-@app.get("/api/models")
-async def ai_models():
-    return {"chat_models": CHAT_MODELS, "image_models": IMAGE_MODELS}
 
 # 内置平台默认模型（按 provider_id 区分）
 MODELSCOPE_DEFAULT_IMAGE_MODELS = [
@@ -5589,65 +5281,6 @@ def builtin_default_models(provider_id: str):
         return list(RUNNINGHUB_DEFAULT_IMAGE_MODELS), [], []
     return [], [], []
 
-@app.get("/api/providers/models")
-async def provider_models(provider_id: str = ""):
-    """Fetch available models for a specific provider."""
-    if not provider_id:
-        return {"provider_id": provider_id, "image_models": IMAGE_MODELS, "chat_models": CHAT_MODELS, "video_models": []}
-
-    prov = get_api_provider(provider_id)
-    builtin_img, builtin_chat, builtin_video = builtin_default_models(provider_id)
-
-    if prov:
-        # 1) 优先使用 provider 自身的 image_models（用户保存的）
-        img = list(prov.get("image_models") or [])
-        chat = list(prov.get("chat_models") or [])
-        vid = list(prov.get("video_models") or [])
-        # 2) 对内置平台用专属 defaults 兜底（避免空列表导致的 OpenAI 通用模型泄漏）
-        if not img and builtin_img:
-            img = builtin_img
-        if not chat and builtin_chat:
-            chat = builtin_chat
-        if not vid and builtin_video:
-            vid = builtin_video
-        # 3) 仍有 api key + base_url 时尝试从上游拉取，会覆盖内置 defaults
-        pk = get_provider_api_key(prov["id"])
-        if pk and prov.get("base_url") and provider_id not in ("comfly", "modelscope", "jimeng", "codex", "gemini-cli"):
-            try:
-                result = await fetch_models_from_upstream(prov["base_url"], pk)
-                upstream_img = result.get("image_models") or []
-                upstream_chat = result.get("chat_models") or []
-                upstream_video = result.get("video_models") or []
-                return {
-                    "provider_id": provider_id,
-                    "image_models": upstream_img or img,
-                    "chat_models": upstream_chat or chat,
-                    "video_models": upstream_video or vid,
-                }
-            except Exception as e:
-                return {"provider_id": provider_id, "error": str(e)[:300],
-                        "image_models": img, "video_models": vid, "chat_models": chat}
-        return {"provider_id": provider_id, "image_models": img, "chat_models": chat, "video_models": vid}
-
-    # Provider 不存在 → 内置平台返回专属 defaults，其它回退到全局变量
-    if builtin_img or builtin_chat or builtin_video:
-        return {"provider_id": provider_id, "image_models": builtin_img, "chat_models": builtin_chat, "video_models": builtin_video}
-    return {"provider_id": provider_id, "image_models": IMAGE_MODELS, "chat_models": CHAT_MODELS, "video_models": []}
-
-
-@app.get("/api/config/token")
-async def get_global_token():
-    # 优先读 env,回退到 global_config.json(兼容旧数据)
-    if MODELSCOPE_API_KEY:
-        return {"token": MODELSCOPE_API_KEY}
-    if os.path.exists(GLOBAL_CONFIG_FILE):
-        try:
-            with open(GLOBAL_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                return {"token": config.get("modelscope_token", "")}
-        except:
-            pass
-    return {"token": ""}
 
 @app.post("/api/config/update")
 async def update_config(payload: ConfigUpdateRequest):
@@ -5676,413 +5309,11 @@ async def update_config(payload: ConfigUpdateRequest):
 
 # --- 在线生图 (Infinite-Canvas unified style) ---
 
-@app.post("/api/online-image")
-async def online_image(payload: OnlineImageRequest, token: str = ""):
-    username = get_username_by_token(token)
-    return await build_online_image_result(payload, username=username)
-
-async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
-    provider_id = payload.provider_id or "comfly"
-    prov = _resolve_image_provider(provider_id)
-    model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
-    mode = normalize_image_request_mode(payload.image_request_mode or prov.get("image_request_mode", "openai"))
-    print(f"[online-image] provider={provider_id} model={model} key={prov.get('api_key','')[:16]}... size={payload.size} mode={mode}")
-    try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
-        # 组织子文件夹: {feature}/{日期} (feature 留空时回退 online/{日期})
-        date_str = time.strftime("%Y-%m-%d", time.localtime())
-        feature = (payload.feature or "").strip()
-        subfolder = f"{feature}/{date_str}" if feature else f"online/{date_str}"
-        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
-    except httpx.HTTPStatusError as exc:
-        text = exc.response.text or ''
-        friendly = None
-        m = re.search(r"longest edge must be less than or equal to (\d+)", text)
-        if m:
-            limit = m.group(1)
-            friendly = f"该模型不支持当前分辨率:最长边超过 {limit}px。请把图片分辨率调低(例如换到 2K 或更小),或更换支持高分辨率的模型。"
-        elif "Invalid size" in text or "invalid_value" in text:
-            friendly = f"该模型不支持当前尺寸:{payload.size}。请尝试更换分辨率或模型。"
-        elif "rate limit" in text.lower() or "429" in text:
-            friendly = "请求过于频繁,已被上游限流,请稍后再试。"
-        elif "Unauthorized" in text or "401" in text:
-            friendly = "API Key 无效或已过期,请到「API 设置」检查 Key。"
-        # ModelScope 任务查询 404 → 更友好的提示
-        if exc.response.status_code == 404 and payload.provider_id in ("modelscope", "ms"):
-            friendly = friendly or "ModelScope 模型接口未返回预期结果。请确认 API Key 有效，或尝试更换模型（部分模型可能不通过在线生图接口提供）。"
-        raise HTTPException(status_code=502 if exc.response.status_code in (404, 502) else exc.response.status_code, detail=friendly or text) from exc
-    except (httpx.RemoteProtocolError, httpx.ReadTimeout) as exc:
-        raise HTTPException(status_code=502, detail=f"上游服务器连接异常或响应超时：模型生成耗时过长，请稍后重试或更换模型。") from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
-    except Exception as exc:
-        detail = getattr(exc, "detail", None) or str(exc)
-        raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
-    return {
-        "prompt": payload.prompt,
-        "images": [local_url],
-        "timestamp": time.time() * 1000,
-        "type": feature if feature else "online",
-        "model": model,
-        "provider_id": provider_id,
-        "protocol": prov["protocol"],
-        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
-        "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
-    }
-
-@app.post("/api/online-video")
-async def online_video(payload: OnlineVideoRequest, token: str = ""):
-    return await build_online_video_result(payload, username=token)
-
-async def build_online_video_result(payload: OnlineVideoRequest, username: str = None):
-    provider_id = payload.provider_id or "jimeng"
-    prov = _resolve_image_provider(provider_id)
-    model = payload.model or (prov.get("video_models") or [""])[0] or payload.model
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
-    try:
-        result = await generate_video(payload.prompt, payload.size, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, duration=payload.duration)
-        local_url = await save_remote_video_to_output(result.get("value", ""), prefix="video_")
-    except httpx.HTTPStatusError as exc:
-        text = exc.response.text or ''
-        friendly = "视频生成接口返回错误"
-        if "rate limit" in text.lower():
-            friendly = "请求过于频繁，已被上游限流，请稍后重试。"
-        elif "Unauthorized" in text or "401" in text:
-            friendly = "API Key 无效或已过期，请到「API 设置」检查 Key。"
-        raise HTTPException(status_code=exc.response.status_code, detail=friendly) from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"上游视频接口异常:{exc}") from exc
-    except Exception as exc:
-        detail = getattr(exc, "detail", None) or str(exc)
-        raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
-    return {
-        "prompt": payload.prompt,
-        "videos": [local_url],
-        "timestamp": time.time() * 1000,
-        "type": "video",
-        "model": model,
-        "provider_id": provider_id,
-        "protocol": prov["protocol"],
-        "params": {"model": model, "size": payload.size, "duration": payload.duration, "reference_images": refs, "provider_id": provider_id},
-    }
-
-async def generate_video(prompt, size, model, refs, protocol="jimeng", provider_id="", provider=None, duration=5):
-    """视频生成分发器"""
-    actual_proto = provider_protocol(provider) if isinstance(provider, dict) else (protocol or PROTOCOL_JIMENG)
-    
-    if actual_proto == PROTOCOL_JIMENG or str(provider_id).lower() == "jimeng":
-        return await generate_jimeng_video({"prompt": prompt, "model": model, "resolution": size, "duration_seconds": duration}, provider)
-    elif actual_proto == PROTOCOL_RUNNINGHUB or str(provider_id).lower() == "runninghub":
-        return await _gen_runninghub_video(provider, model, prompt, size, refs)
-    elif actual_proto == PROTOCOL_VOLCENGINE or str(provider_id).lower() == "volcengine":
-        return await _gen_volcengine_video(provider, model, prompt, size, refs)
-    else:
-        raise HTTPException(status_code=400, detail=f"协议 {actual_proto} 暂不支持视频生成")
-
-PROTOCOL_JIMENG = "jimeng"
-
-async def _gen_runninghub_video(provider_cfg, model, prompt, size, refs):
-    """RunningHub 视频生成"""
-    base = str((provider_cfg or {}).get("base_url") or "").rstrip("/")
-    api_key = str((provider_cfg or {}).get("api_key") or "")
-    if not base or not api_key:
-        raise HTTPException(status_code=400, detail="RunningHub 未配置请求地址或 API Key")
-    import uuid
-    workflow_id = str(uuid.uuid4())
-    body = {
-        "workflow_id": workflow_id,
-        "model": model,
-        "prompt": prompt,
-        "size": size,
-        "output_type": "video",
-        "params": {},
-    }
-    async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.post(f"{base}/api/v1/workflows/submit", headers={"Authorization": f"Bearer {api_key}"}, json=body)
-        resp.raise_for_status()
-        data = resp.json()
-        task_id = data.get("task_id") or data.get("id", "")
-        deadline = time.monotonic() + 600
-        while time.monotonic() < deadline:
-            await asyncio.sleep(5)
-            poll = await client.get(f"{base}/api/v1/workflows/{task_id}", headers={"Authorization": f"Bearer {api_key}"})
-            poll.raise_for_status()
-            status = poll.json()
-            s = str(status.get("status") or "").lower()
-            if s in ("succeeded", "completed", "success", "done"):
-                video_url = status.get("output") or status.get("video_url") or status.get("result", {}).get("video", "")
-                if video_url:
-                    return {"type": "url", "value": video_url}
-                raise HTTPException(status_code=502, detail=f"RunningHub 视频结果无 URL: {status}")
-            if s in ("failed", "error", "cancelled", "timeout"):
-                raise HTTPException(status_code=502, detail=f"RunningHub 视频任务失败: {status.get('error', '')}")
-        raise HTTPException(status_code=504, detail="RunningHub 视频任务超时")
-    return {"type": "url", "value": ""}
-
-async def _gen_volcengine_video(provider_cfg, model, prompt, size, refs):
-    """火山引擎方舟视频生成（Seedance/豆包视频模型）"""
-    base = str((provider_cfg or {}).get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api/v3", "")
-    api_key = str((provider_cfg or {}).get("api_key") or "")
-    if not base or not api_key:
-        raise HTTPException(status_code=400, detail="火山引擎未配置请求地址或 API Key")
-    body = {"model": model, "prompt": prompt, "size": size}
-    async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.post(f"{base}/api/v3/video/generations", headers={"Authorization": f"Bearer {api_key}"}, json=body)
-        resp.raise_for_status()
-        data = resp.json()
-        result = data.get("result", {})
-        video_url = result.get("video_url") or result.get("url") or ""
-        if video_url:
-            return {"type": "url", "value": video_url}
-        task_id = result.get("id") or result.get("task_id") or data.get("id", "")
-        if task_id:
-            deadline = time.monotonic() + 600
-            while time.monotonic() < deadline:
-                await asyncio.sleep(5)
-                poll = await client.get(f"{base}/api/v3/video/tasks/{task_id}", headers={"Authorization": f"Bearer {api_key}"})
-                if poll.status_code != 200:
-                    await asyncio.sleep(5)
-                    continue
-                ps = poll.json()
-                s = str(ps.get("status") or "").lower()
-                if s in ("succeeded", "completed", "success"):
-                    vid_url = ps.get("result", {}).get("video_url") or ps.get("video_url") or ""
-                    if vid_url:
-                        return {"type": "url", "value": vid_url}
-                    raise HTTPException(status_code=502, detail=f"火山视频成功但无URL: {ps}")
-                if s in ("failed", "error"):
-                    raise HTTPException(status_code=502, detail=f"火山视频失败: {ps.get('error', '')}")
-            raise HTTPException(status_code=504, detail="火山视频生成超时")
-        raise HTTPException(status_code=502, detail=f"火山视频未返回 task_id: {data}")
-    return {"type": "url", "value": ""}
-
-class CanvasVideoRequest(BaseModel):
-    prompt: str = Field(min_length=1, max_length=4000)
-    provider_id: str = "jimeng"
-    model: str = "veo3-fast"
-    duration: int = 5
-    aspect_ratio: str = "16:9"
-    resolution: str = ""
-    size: str = ""
-    images: List[Dict[str, Any]] = []
-    videos: List[str] = []
-    audios: List[str] = []
-    enhance_prompt: bool = False
-    enable_upsample: bool = False
-    watermark: bool = False
-    seed: Optional[int] = None
-    camerafixed: bool = False
-
-class ImageTaskQueryRequest(BaseModel):
-    provider_id: str = ""
-    task_id: str = ""
-    model: str = ""
-
-PROTOCOL_JIMENG = "jimeng"
 PROTOCOL_RUNNINGHUB = "runninghub"
 PROTOCOL_VOLCENGINE = "volcengine"
 
-@app.post("/api/canvas-video")
-async def canvas_video_route(payload: CanvasVideoRequest):
-    provider_id = payload.provider_id or "jimeng"
-    size = payload.size or payload.resolution or "1920x1080"
-    refs = [r for r in payload.images if isinstance(r, dict)]
-    return await generate_video(
-        prompt=payload.prompt, size=size, model=payload.model or "veo3-fast",
-        refs=refs, protocol=PROTOCOL_JIMENG, provider_id=provider_id,
-        provider={"id": provider_id}, duration=payload.duration or 5,
-    )
-
-@app.post("/api/image-task-query")
-async def query_image_task(payload: ImageTaskQueryRequest):
-    provider_id = payload.provider_id or ""
-    if str(provider_id).lower() == "runninghub":
-        cfg = load_api_providers()
-        provider = next((p for p in cfg if p.get("id") == "runninghub"), None)
-        if not isinstance(provider, dict):
-            raise HTTPException(status_code=400, detail="RunningHub 未配置")
-        base = str(provider.get("base_url") or "https://www.runninghub.ai").rstrip("/")
-        api_key = str(provider.get("api_key") or "")
-        import httpx
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{base}/task/openapi/outputs",
-                headers={"Content-Type": "application/json"},
-                json={"apiKey": api_key, "taskId": payload.task_id})
-            resp.raise_for_status()
-            data = resp.json()
-            code = data.get("code") if isinstance(data, dict) else None
-            if code in (0, "0"):
-                outputs = data.get("data", {}).get("outputs", data.get("data", []))
-                urls = [o.get("url", o) if isinstance(o, dict) else o for o in (outputs or [])]
-                return {"status": "succeeded", "images": urls, "task_id": payload.task_id}
-            raise HTTPException(status_code=502, detail=f"RunningHub 查询失败: {data}")
-    else:
-        raise HTTPException(status_code=400, detail=f"不支持的 provider: {provider_id}")
-
-async def run_canvas_image_task(task_id: str, payload: OnlineImageRequest, username: str = None):
-    with CANVAS_TASK_LOCK:
-        if task_id in CANVAS_TASKS:
-            CANVAS_TASKS[task_id]["status"] = "running"
-            CANVAS_TASKS[task_id]["updated_at"] = time.time()
-    try:
-        result = await build_online_image_result(payload, username=username)
-        with CANVAS_TASK_LOCK:
-            CANVAS_TASKS[task_id].update({
-                "status": "succeeded",
-                "result": result,
-                "error": "",
-                "updated_at": time.time(),
-            })
-    except Exception as exc:
-        detail = getattr(exc, "detail", None) or str(exc)
-        status_code = getattr(exc, "status_code", 500)
-        with CANVAS_TASK_LOCK:
-            CANVAS_TASKS[task_id].update({
-                "status": "failed",
-                "error": str(detail),
-                "status_code": status_code,
-                "updated_at": time.time(),
-            })
-
-@app.post("/api/canvas-image-tasks")
-async def create_canvas_image_task(payload: OnlineImageRequest, token: str = ""):
-    task_id = f"canvas_img_{uuid.uuid4().hex}"
-    if token:
-        require_valid_token(token)
-    with CANVAS_TASK_LOCK:
-        CANVAS_TASKS[task_id] = {
-            "id": task_id,
-            "type": "online-image",
-            "status": "queued",
-            "created_at": time.time(),
-            "updated_at": time.time(),
-            "result": None,
-            "error": "",
-        }
-    asyncio.create_task(run_canvas_image_task(task_id, payload, username=username))
-    return {"task_id": task_id, "status": "queued"}
-
-@app.get("/api/canvas-image-tasks/{task_id}")
-async def get_canvas_image_task(task_id: str):
-    with CANVAS_TASK_LOCK:
-        task = dict(CANVAS_TASKS.get(task_id) or {})
-    if not task:
-        raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
-    return task
-
-# --- Canvas LLM ---
-
-@app.post("/api/canvas-llm")
-async def canvas_llm(payload: CanvasLLMRequest):
-    chat_base, chat_hdrs, model = resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
-    upstream_messages = [{"role": "system", "content": payload.system_prompt or SYSTEM_PROMPT}]
-    for item in payload.messages[-MAX_HISTORY_MESSAGES:]:
-        role = item.get("role")
-        content = item.get("content")
-        if role in {"user", "assistant"} and content:
-            upstream_messages.append({"role": role, "content": content})
-    upstream_messages.append({"role": "user", "content": payload.message})
-    try:
-        async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
-            response = await client.post(
-                f"{chat_base}/chat/completions",
-                headers=chat_hdrs,
-                json={"model": model, "messages": upstream_messages},
-            )
-            response.raise_for_status()
-            if not response.content:
-                raise HTTPException(status_code=502, detail="上游接口返回了空响应")
-            raw = response.json()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误:{exc.response.text}") from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游接口失败:{exc}") from exc
-    text = text_from_chat_response(raw).strip() or "接口返回了空回复。"
-    return {"text": text, "model": model, "raw_usage": raw.get("usage") if isinstance(raw, dict) else None}
-
-# --- 对话管理 ---
-
-@app.get("/api/conversations")
-async def conversations(request: Request, x_user_id: str = Header(default="")):
-    user_id = safe_user_id(x_user_id, request)
-    return {"user_id": user_id, "conversations": list_conversations(user_id)}
-
-@app.post("/api/conversations")
-async def create_conversation(payload: ConversationCreateRequest, request: Request, x_user_id: str = Header(default="")):
-    user_id = safe_user_id(x_user_id, request)
-    return {"conversation": new_conversation(user_id, payload.title)}
-
-@app.get("/api/conversations/{conversation_id}")
-async def get_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
-    user_id = safe_user_id(x_user_id, request)
-    return {"conversation": load_conversation(user_id, conversation_id)}
-
-@app.delete("/api/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
-    user_id = safe_user_id(x_user_id, request)
-    path = conversation_path(user_id, conversation_id)
-    if os.path.exists(path):
-        os.remove(path)
-    return {"ok": True}
 
 # --- 画布管理 ---
-
-@app.get("/api/canvases")
-async def canvases(token: str = ""):
-    username, user = find_user_by_token(token)
-    is_admin = bool(user and user.get("is_admin", False)) if user else False
-    if not is_admin and not username:
-        # 无 token 时返回所有画布（兼容新前端）
-        return {"canvases": list_canvases()}
-    owner_filter = None if is_admin else username
-    return {"canvases": list_canvases(owner_filter=owner_filter)}
-
-@app.get("/api/canvases/trash")
-async def trashed_canvases(token: str = ""):
-    username, user = find_user_by_token(token)
-    is_admin = bool(user and user.get("is_admin", False)) if user else False
-    if not is_admin and not username:
-        return {"canvases": list_deleted_canvases(), "retention_days": 30}
-    owner_filter = None if is_admin else username
-    return {"canvases": list_deleted_canvases(owner_filter=owner_filter), "retention_days": 30}
-
-@app.post("/api/canvases")
-async def create_canvas(payload: CanvasCreateRequest, token: str = ""):
-    username = get_username_by_token(token)
-    canvas = new_canvas(payload.title, payload.icon, owner=username)
-    canvas["kind"] = payload.kind or "classic"
-    save_canvas(canvas)
-    return {"canvas": canvas}
-
-@app.get("/api/canvases/{canvas_id}")
-async def get_canvas(canvas_id: str, token: str = ""):
-    canvas = load_canvas(canvas_id)
-    validate_canvas_owner(canvas, token)
-    return {"canvas": canvas}
-
-@app.put("/api/canvases/{canvas_id}")
-async def update_canvas(canvas_id: str, payload: CanvasSaveRequest, token: str = ""):
-    canvas = load_canvas(canvas_id)
-    validate_canvas_owner(canvas, token)
-    canvas["title"] = (payload.title or canvas.get("title") or "未命名画布")[:80]
-    canvas["icon"] = (payload.icon or canvas.get("icon") or "layers")[:32]
-    canvas["nodes"] = payload.nodes
-    canvas["connections"] = payload.connections
-    canvas["viewport"] = payload.viewport
-    # 保存生成日志（最多 500 条；从 Infinite-Canvas 移植：画布层独立日志管理）
-    canvas["logs"] = list(payload.logs or [])[-500:]
-    save_canvas(canvas)
-    return {"canvas": canvas}
-
-@app.delete("/api/canvases/{canvas_id}")
-async def delete_canvas(canvas_id: str, token: str = ""):
-    canvas = load_canvas_any(canvas_id)
-    validate_canvas_owner(canvas, token)
-    if not canvas.get("deleted_at"):
-        canvas["deleted_at"] = now_ms()
-        save_canvas(canvas)
-    return {"ok": True}
 
 # --- 画布生成日志辅助函数（移植自 Infinite-Canvas，用于 logs/delete 端点） ---
 
@@ -6110,7 +5341,9 @@ def local_media_path_from_url(url: str) -> Optional[str]:
     if clean.startswith("/api/storage-files/"):
         rest = clean[len("/api/storage-files/"):].lstrip("/")
         kind, _, rel = rest.partition("/")
-        return storage_file_path(kind, rel) if kind and rel else None
+        # storage_file_path() 已随 P0 迁移移除（无对应实现），此处安全降级
+        _ = (kind, rel)
+        return None
     if clean.startswith("/assets/"):
         root = ASSETS_DIR
         rel = clean[len("/assets/"):]
@@ -6204,8 +5437,7 @@ def prune_generation_history_for_media(paths: List[str]) -> int:
             ]
             removed = len(history) - len(kept)
             if removed:
-                with open(HISTORY_FILE, "w", encoding="utf-8") as handle:
-                    json.dump(kept, handle, ensure_ascii=False, indent=4)
+                atomic_write_json(HISTORY_FILE, kept, ensure_ascii=False, indent=4)
             return removed
     except (OSError, UnicodeError, json.JSONDecodeError):
         return 0
@@ -6333,245 +5565,10 @@ def delete_media_preview_cache(path: str) -> int:
     return removed
 
 
-@app.post("/api/canvases/{canvas_id}/logs/delete")
-async def delete_canvas_log(canvas_id: str, payload: DeleteCanvasLogRequest, token: str = ""):
-    """删除画布的一条生成日志（移植自 Infinite-Canvas）。
-
-    可选副作用：
-    - delete_unreferenced_media=True：删除该日志产出的本地媒体文件（其他画布/会话还在引用则跳过）
-    - reset_referencing_nodes=True：清空画布上引用这些媒体的节点的 generatedOutputs / images
-    """
-    log_id = str(payload.log_id or "").strip()
-    if not log_id:
-        raise HTTPException(status_code=400, detail="缺少日志 ID")
-
-    def remove_log_record():
-        with CANVAS_LOCK:
-            canvas = load_canvas(canvas_id)
-            validate_canvas_owner(canvas, token)
-            current_updated_at = int(canvas.get("updated_at") or 0)
-            if payload.base_updated_at and current_updated_at and int(payload.base_updated_at) < current_updated_at:
-                raise HTTPException(status_code=409, detail={
-                    "message": "画布已被其他页面更新，请刷新后重试。",
-                    "canvas": canvas,
-                    "updated_at": current_updated_at,
-                })
-            logs = list(canvas.get("logs") or [])
-            target = next((item for item in logs if str(item.get("id") or "") == log_id), None)
-            if not target:
-                raise HTTPException(status_code=404, detail="生成日志不存在")
-
-            candidate_paths: List[str] = []
-            if payload.delete_unreferenced_media:
-                for url in collect_local_media_urls(target.get("outputs") or []):
-                    path = generated_media_path_from_url(url)
-                    if path and path not in candidate_paths:
-                        candidate_paths.append(path)
-
-            reset_node_ids: List[str] = []
-            if payload.reset_referencing_nodes and candidate_paths:
-                candidate_paths = expand_canvas_generated_media_paths(canvas, candidate_paths)
-                reset_node_ids = reset_canvas_result_nodes_for_media(canvas, candidate_paths)
-
-            canvas["logs"] = [item for item in logs if str(item.get("id") or "") != log_id]
-            save_canvas(canvas)
-            return canvas, candidate_paths, reset_node_ids
-
-    canvas, candidate_paths, reset_node_ids = await asyncio.to_thread(remove_log_record)
-
-    removed_files: List[str] = []
-    skipped_referenced: List[str] = []
-    removed_previews = 0
-    if payload.delete_unreferenced_media:
-        def cleanup_unreferenced_media():
-            removed: List[str] = []
-            skipped: List[str] = []
-            previews = 0
-            deletable: List[str] = []
-            for path in candidate_paths:
-                if persisted_json_references_media_path(path):
-                    skipped.append(os.path.basename(path))
-                    continue
-                deletable.append(path)
-            prune_generation_history_for_media(deletable)
-            for path in deletable:
-                try:
-                    previews += delete_media_preview_cache(path)
-                    os.remove(path)
-                    removed.append(os.path.basename(path))
-                except OSError:
-                    skipped.append(os.path.basename(path))
-            return removed, skipped, previews
-
-        def locked_cleanup():
-            with CANVAS_LOCK:
-                return cleanup_unreferenced_media()
-
-        removed_files, skipped_referenced, removed_previews = await asyncio.to_thread(locked_cleanup)
-
-    return {
-        "ok": True,
-        "canvas": canvas,
-        "removed_files": removed_files,
-        "removed_previews": removed_previews,
-        "reset_node_ids": reset_node_ids,
-        "skipped_referenced": skipped_referenced,
-    }
 
 
-
-
-@app.post("/api/canvases/{canvas_id}/restore")
-async def restore_canvas(canvas_id: str, token: str = ""):
-    canvas = load_canvas_any(canvas_id)
-    validate_canvas_owner(canvas, token)
-    if canvas.get("deleted_at"):
-        canvas.pop("deleted_at", None)
-        save_canvas(canvas)
-    return {"canvas": canvas}
-
-@app.delete("/api/canvases/{canvas_id}/purge")
-async def purge_canvas(canvas_id: str, token: str = ""):
-    canvas = load_canvas_any(canvas_id)
-    validate_canvas_owner(canvas, token)
-    path = canvas_path(canvas_id)
-    if os.path.exists(path):
-        os.remove(path)
-    return {"ok": True}
-
-@app.get("/api/canvases/{canvas_id}/files")
-async def list_canvas_files(canvas_id: str):
-    canvas = load_canvas(canvas_id)
-    canvas_output_dir = get_canvas_output_dir(canvas)
-    if not os.path.exists(canvas_output_dir):
-        return {"files": []}
-
-    files = []
-    try:
-        for filename in sorted(os.listdir(canvas_output_dir), key=lambda f: os.path.getmtime(os.path.join(canvas_output_dir, f)), reverse=True):
-            filepath = os.path.join(canvas_output_dir, filename)
-            if os.path.isfile(filepath):
-                stat = os.stat(filepath)
-                files.append({
-                    "name": filename,
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime,
-                    "url": f"/output/{canvas['output_folder']}/{filename}"
-                })
-    except Exception as e:
-        print(f"读取画布文件列表失败: {e}")
-        return {"files": [], "error": str(e)}
-    return {"files": files}
 
 # --- 资产库 API ---
-
-@app.post("/api/canvases/{canvas_id}/asset-folder")
-async def create_asset_folder(canvas_id: str):
-    """创建或确认画布资产文件夹存在"""
-    canvas = load_canvas(canvas_id)
-    asset_dir = get_canvas_asset_dir(canvas)
-    os.makedirs(asset_dir, exist_ok=True)
-    folder_name = canvas.get("output_folder", "")
-    owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
-    path = f"/assets/{owner}/{folder_name}" if owner and folder_name else (f"/assets/{folder_name}" if folder_name else "/assets")
-    return {"folder": folder_name, "path": path}
-
-@app.get("/api/canvases/{canvas_id}/assets")
-async def list_assets(canvas_id: str):
-    """获取画布资产文件列表(含用户级资产,互通在线生图保存的文件)"""
-    canvas = load_canvas(canvas_id)
-    asset_dir = get_canvas_asset_dir(canvas)
-
-    seen = set()
-    files = []
-
-    def collect_from(dir_path, url_builder):
-        if not os.path.exists(dir_path):
-            return
-        for filename in sorted(os.listdir(dir_path), key=lambda f: os.path.getmtime(os.path.join(dir_path, f)), reverse=True):
-            filepath = os.path.join(dir_path, filename)
-            if os.path.isfile(filepath) and filename not in seen:
-                seen.add(filename)
-                stat = os.stat(filepath)
-                ext = os.path.splitext(filename)[1].lower()
-                files.append({
-                    "name": filename,
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime,
-                    "url": url_builder(filename),
-                    "type": "image" if ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "video" if ext in [".mp4", ".webm", ".mov", ".avi", ".mkv"] else "audio" if ext in [".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a"] else "text" if ext == ".txt" else "other"
-                })
-
-    try:
-        # 1. 画布专属资产文件夹
-        collect_from(asset_dir, lambda fn: build_asset_url(canvas, fn))
-
-        # 2. 用户级资产文件夹(在线生图等保存的资产),使其互通
-        owner = canvas.get("owner", "")
-        if owner:
-            user_dirname = get_user_dirname(owner)
-            user_asset_dir = os.path.join(INPUT_DIR, user_dirname)
-            collect_from(user_asset_dir, lambda fn: f"/assets/{user_dirname}/{fn}")
-
-        # 按修改时间倒序
-        files.sort(key=lambda f: f["modified"], reverse=True)
-    except Exception as e:
-        print(f"读取资产文件列表失败: {e}")
-        return {"files": [], "error": str(e)}
-    return {"files": files}
-
-@app.post("/api/canvases/{canvas_id}/assets/upload")
-async def upload_assets(canvas_id: str, files: List[UploadFile] = File(...)):
-    """上传图片到画布资产文件夹"""
-    canvas = load_canvas(canvas_id)
-    asset_dir = get_canvas_asset_dir(canvas)
-    os.makedirs(asset_dir, exist_ok=True)
-
-    uploaded = []
-    for file in files:
-        content = await file.read()
-        if not content:
-            continue
-        ext = os.path.splitext(file.filename or "")[1].lower()
-        allowed_exts = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".mp4", ".webm", ".mov", ".avi", ".mkv", ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a"]
-        if ext not in allowed_exts:
-            ext = ".bin"
-        filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
-        path = os.path.join(asset_dir, filename)
-        with open(path, "wb") as f:
-            f.write(content)
-        url_path = build_asset_url(canvas, filename)
-        uploaded.append({"url": url_path, "name": file.filename or filename})
-    return {"files": uploaded}
-
-@app.post("/api/canvases/{canvas_id}/assets/copy-from-canvas")
-async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
-    """从画布的 Output 节点复制图片到资产文件夹"""
-    canvas = load_canvas(canvas_id)
-    asset_dir = get_canvas_asset_dir(canvas)
-    os.makedirs(asset_dir, exist_ok=True)
-
-    urls = (payload or {}).get("urls", [])
-    copied = []
-    for url in urls:
-        if not url or not url.startswith("/output/"):
-            continue
-        clean_url = url.split("?")[0]
-        relative = clean_url[len("/output/"):]
-        source_path = os.path.join(OUTPUT_DIR, relative)
-        if not os.path.exists(source_path):
-            continue
-        ext = os.path.splitext(relative)[1].lower() or ".png"
-        filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
-        dest_path = os.path.join(asset_dir, filename)
-        try:
-            import shutil
-            shutil.copy2(source_path, dest_path)
-            url_path = build_asset_url(canvas, filename)
-            copied.append({"url": url_path, "name": filename, "original": url})
-        except Exception as e:
-            print(f"复制资产失败: {e}")
-    return {"files": copied}
 
 @app.get("/api/projects")
 async def get_projects():
@@ -6608,498 +5605,23 @@ async def touch_canvas(canvas_id: str):
     save_canvas(canvas)
     return {"touched": True}
 
-@app.get("/api/canvases/{canvas_id}/meta")
-async def get_canvas_meta(canvas_id: str):
-    canvas = load_canvas(canvas_id)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
-
-@app.post("/api/canvases/{canvas_id}/meta")
-async def update_canvas_meta(canvas_id: str, payload: dict = None):
-    canvas = load_canvas(canvas_id)
-    if not payload:
-        return {"meta": {}}
-    if payload.get("title") is not None:
-        canvas["title"] = str(payload["title"])[:80]
-    if payload.get("icon") is not None:
-        canvas["icon"] = str(payload["icon"])[:32]
-    if payload.get("color") is not None:
-        canvas["color"] = str(payload["color"]).strip()
-    if payload.get("pinned") is not None:
-        canvas["pinned"] = bool(payload["pinned"])
-    save_canvas(canvas)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color")}}
-
-@app.post("/api/canvases/{canvas_id}/touch")
-async def touch_canvas(canvas_id: str):
-    canvas = load_canvas(canvas_id)
-    canvas["updated_at"] = int(time.time())
-    save_canvas(canvas)
-    return {"touched": True}
-
-@app.post("/api/canvases/{canvas_id}/assets/delete")
-async def delete_asset(canvas_id: str, payload: dict = None):
-    """删除资产文件夹中的指定文件"""
-    canvas = load_canvas(canvas_id)
-    asset_dir = get_canvas_asset_dir(canvas)
-    filename = (payload or {}).get("filename", "")
-    if not filename:
-        raise HTTPException(status_code=400, detail="缺少文件名")
-    safe_name = os.path.basename(filename.replace("\\", "/"))
-    filepath = os.path.join(asset_dir, safe_name)
-    if not filepath.startswith(os.path.abspath(asset_dir)):
-        raise HTTPException(status_code=400, detail="无效的文件名")
-    if os.path.exists(filepath) and os.path.isfile(filepath):
-        os.remove(filepath)
-        return {"ok": True}
-    raise HTTPException(status_code=404, detail="文件不存在")
-
 class UserAssetSaveRequest(BaseModel):
     url: str = ""
     name: str = ""
     prompt: Optional[str] = None
 
-@app.post("/api/user/assets/save-from-url")
-async def save_user_asset_from_url(payload: UserAssetSaveRequest, token: str = "", request: Request = None):
-    """保存在线图片到用户级别的资产文件夹 input/{username}/"""
-    username = get_username_by_token(token)
-    if not username:
-        raise HTTPException(status_code=401, detail="请先登录")
-
-    asset_dir, dirname = get_user_input_dir(username)
-    os.makedirs(asset_dir, exist_ok=True)
-
-    download_url = payload.url
-    if download_url.startswith("/"):
-        base = str(request.base_url).rstrip("/")
-        download_url = base + download_url
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(download_url)
-            response.raise_for_status()
-            content = response.content
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"下载图片失败: {str(e)}")
-
-    ext = ".png"
-    content_type = ""
-    for key, val in response.headers.items():
-        if key.lower() == "content-type":
-            content_type = val
-            break
-    if "jpeg" in content_type or "jpg" in content_type:
-        ext = ".jpg"
-    elif "webp" in content_type:
-        ext = ".webp"
-    elif "gif" in content_type:
-        ext = ".gif"
-
-    import hashlib
-    content_hash = hashlib.md5(content).hexdigest()
-    # 检查是否已存在相同内容的文件（去重）
-    if os.path.isdir(asset_dir):
-        for existing in os.listdir(asset_dir):
-            existing_path = os.path.join(asset_dir, existing)
-            if os.path.isfile(existing_path):
-                try:
-                    with open(existing_path, "rb") as ef:
-                        existing_hash = hashlib.md5(ef.read()).hexdigest()
-                    if existing_hash == content_hash:
-                        url_path = f"/assets/{dirname}/{existing}"
-                        # 读取已有提示词元数据（若有），去重命中时一并带出
-                        existing_txt = os.path.splitext(existing_path)[0] + ".txt"
-                        existing_prompt = ""
-                        if os.path.isfile(existing_txt):
-                            try:
-                                with open(existing_txt, "r", encoding="utf-8") as etf:
-                                    existing_prompt = etf.read()
-                            except Exception:
-                                pass
-                        return {"url": url_path, "name": payload.name or existing, "dedup": True, "prompt": existing_prompt}
-                except Exception:
-                    pass
-    filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
-    filepath = os.path.join(asset_dir, filename)
-    with open(filepath, "wb") as f:
-        f.write(content)
-    # 保存提示词元数据（同名 .txt），供资产库按提示词搜索
-    if payload.prompt:
-        try:
-            with open(os.path.splitext(filepath)[0] + ".txt", "w", encoding="utf-8") as tf:
-                tf.write(payload.prompt)
-        except Exception:
-            pass
-
-    url_path = f"/assets/{dirname}/{filename}"
-    return {"url": url_path, "name": payload.name or filename, "prompt": payload.prompt or ""}
-
-@app.post("/api/user/assets/delete")
-async def delete_user_asset_from_url(payload: dict = None, token: str = ""):
-    """删除用户级资产文件夹 input/{username}/ 中的图片（与 save-from-url 配套，用于取消收藏时同步移除）"""
-    username = get_username_by_token(token)
-    if not username:
-        raise HTTPException(status_code=401, detail="请先登录")
-    if not payload or not payload.get("url"):
-        raise HTTPException(status_code=400, detail="缺少 url")
-    asset_dir, dirname = get_user_input_dir(username)
-    raw = payload["url"].lstrip("/")
-    # 仅接受 /assets/... 形式
-    if not raw.startswith("assets/"):
-        raise HTTPException(status_code=400, detail="无效的资产地址")
-    # 去掉 assets/ 前缀，剩余为 {dirname}/{rest}
-    rel = raw[len("assets/"):]
-    parts = rel.split("/")
-    if not parts or parts[0] != dirname:
-        raise HTTPException(status_code=403, detail="无权删除该资产")
-    target = os.path.join(asset_dir, *parts[1:])
-    # 安全校验：target 必须位于 asset_dir 内，防止路径穿越
-    abs_asset = os.path.abspath(asset_dir)
-    abs_target = os.path.abspath(target)
-    if abs_target != abs_asset and not abs_target.startswith(abs_asset + os.sep):
-        raise HTTPException(status_code=403, detail="无权删除该资产")
-    if os.path.isfile(target):
-        try:
-            os.remove(target)
-            # 一并删除提示词元数据（同名 .txt）
-            txt = os.path.splitext(target)[0] + ".txt"
-            if os.path.isfile(txt):
-                try:
-                    os.remove(txt)
-                except Exception:
-                    pass
-            return {"ok": True, "deleted": True}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"删除失败: {e}")
-    return {"ok": True, "deleted": False}
-
-@app.get("/api/user/assets")
-async def list_user_assets(token: str = ""):
-    """列出用户级资产文件夹 input/{username}/ 中的图片文件(包括画布资产子目录中的图片)"""
-    username = get_username_by_token(token)
-    if not username:
-        raise HTTPException(status_code=401, detail="请先登录")
-
-    asset_dir, dirname = get_user_input_dir(username)
-    if not os.path.exists(asset_dir):
-        return {"files": []}
-
-    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
-    files = []
-    try:
-        for filename in sorted(os.listdir(asset_dir), key=lambda f: os.path.getmtime(os.path.join(asset_dir, f)), reverse=True):
-            filepath = os.path.join(asset_dir, filename)
-            if os.path.isfile(filepath):
-                ext = os.path.splitext(filename)[1].lower()
-                if ext in image_exts:
-                    stat = os.stat(filepath)
-                    # 读取提示词元数据（同名 .txt）
-                    prompt = ""
-                    txt_path = os.path.splitext(filepath)[0] + ".txt"
-                    if os.path.isfile(txt_path):
-                        try:
-                            with open(txt_path, "r", encoding="utf-8") as tf:
-                                prompt = tf.read()
-                        except Exception:
-                            pass
-                    files.append({
-                        "name": filename,
-                        "size": stat.st_size,
-                        "modified": stat.st_mtime,
-                        "url": f"/assets/{dirname}/{filename}",
-                        "type": "image",
-                        "prompt": prompt
-                    })
-        # 同时扫描画布资产子目录 input/{username}/{canvas_folder}/
-        for item in sorted(os.listdir(asset_dir), reverse=True):
-            subdir = os.path.join(asset_dir, item)
-            if not os.path.isdir(subdir):
-                continue
-            for filename in sorted(os.listdir(subdir), key=lambda f: os.path.getmtime(os.path.join(subdir, f)), reverse=True):
-                filepath = os.path.join(subdir, filename)
-                if os.path.isfile(filepath):
-                    ext = os.path.splitext(filename)[1].lower()
-                    if ext in image_exts:
-                        stat = os.stat(filepath)
-                        # 读取提示词元数据（同名 .txt）
-                        prompt = ""
-                        txt_path = os.path.splitext(filepath)[0] + ".txt"
-                        if os.path.isfile(txt_path):
-                            try:
-                                with open(txt_path, "r", encoding="utf-8") as tf:
-                                    prompt = tf.read()
-                            except Exception:
-                                pass
-                        files.append({
-                            "name": filename,
-                            "size": stat.st_size,
-                            "modified": stat.st_mtime,
-                            "url": f"/assets/{dirname}/{item}/{filename}",
-                            "type": "image",
-                            "prompt": prompt
-                        })
-    except Exception as e:
-        print(f"读取用户资产列表失败: {e}")
-        return {"files": [], "error": str(e)}
-    return {"files": files}
 
 # --- Output 下载 ---
 
-from fastapi.responses import StreamingResponse
-import zipfile
 import io
 
 class DownloadZipRequest(BaseModel):
     urls: List[str]
     filename: str = "output.zip"
 
-@app.post("/api/download-output-zip")
-async def download_output_zip(payload: DownloadZipRequest):
-    """下载 Output 节点图片为 ZIP"""
-    if not payload.urls:
-        raise HTTPException(status_code=400, detail="没有可下载的图片")
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for i, url in enumerate(payload.urls):
-            try:
-                # 处理本地路径
-                if url.startswith('/assets/') or url.startswith('/output/'):
-                    local_path = url.lstrip('/')
-                    if os.path.isfile(local_path):
-                        zf.write(local_path, f"image_{i+1}_{os.path.basename(local_path)}")
-                        continue
-
-                # 处理远程 URL
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(url, timeout=10.0)
-                    if resp.status_code == 200:
-                        ext = url.split('.')[-1].split('?')[0] or 'png'
-                        zf.writestr(f"image_{i+1}.{ext}", resp.content)
-            except Exception as e:
-                print(f"Download failed for {url}: {e}")
-                continue
-
-    zip_buffer.seek(0)
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={payload.filename}"}
-    )
-
-@app.post("/api/user/assets/dedup")
-async def dedup_user_assets(token: str = ""):
-    """删除资产库中的重复图片（基于 MD5 内容去重）"""
-    import hashlib
-    username = get_username_by_token(token)
-    if not username:
-        raise HTTPException(status_code=401, detail="请先登录")
-    asset_dir, dirname = get_user_input_dir(username)
-    if not os.path.exists(asset_dir):
-        return {"removed": 0, "kept": 0}
-    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
-    hash_map = {}  # md5 → [(filepath, mtime)]
-    for filename in os.listdir(asset_dir):
-        filepath = os.path.join(asset_dir, filename)
-        if os.path.isfile(filepath) and os.path.splitext(filename)[1].lower() in image_exts:
-            try:
-                with open(filepath, "rb") as f:
-                    h = hashlib.md5(f.read()).hexdigest()
-                mtime = os.path.getmtime(filepath)
-                hash_map.setdefault(h, []).append((filepath, mtime))
-            except Exception:
-                pass
-    removed = 0
-    kept = 0
-    for h, files in hash_map.items():
-        if len(files) > 1:
-            # 保留最新的，删除旧的
-            files.sort(key=lambda x: x[1], reverse=True)
-            for path, _ in files[1:]:
-                try:
-                    os.remove(path)
-                    removed += 1
-                except Exception:
-                    pass
-            kept += 1
-        else:
-            kept += 1
-    import shutil
-    # 删除空目录
-    for root, dirs, files in os.walk(asset_dir, topdown=False):
-        for d in dirs:
-            try:
-                os.rmdir(os.path.join(root, d))
-            except Exception:
-                pass
-    return {"removed": removed, "kept": kept}
 
 # --- GPT 对话 ---
 
-@app.post("/api/chat")
-async def chat(payload: ChatRequest, request: Request, x_user_id: str = Header(default=""), token: str = ""):
-    username = get_username_by_token(token)
-    user_id = safe_user_id(x_user_id, request)
-    conversation = (
-        load_conversation(user_id, payload.conversation_id)
-        if payload.conversation_id
-        else new_conversation(user_id, display_title(payload.message))
-    )
-    if not conversation.get("messages"):
-        conversation["title"] = display_title(payload.message)
-
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
-    user_message = {
-        "id": uuid.uuid4().hex,
-        "role": "user",
-        "content": payload.message,
-        "created_at": now_ms(),
-        "attachments": refs,
-        "mode": payload.mode,
-    }
-    conversation["messages"].append(user_message)
-    conversation["updated_at"] = now_ms()
-    save_conversation(user_id, conversation)
-
-    if payload.mode == "image":
-        model = selected_model(payload.image_model or payload.model, IMAGE_MODEL)
-        try:
-            image_data, raw = await generate_ai_image(payload.message, payload.size, payload.quality, model, refs)
-            local_url = await save_ai_image_to_output(image_data, prefix="chat_", username=username)
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=f"上游生图接口错误:{exc.response.text}") from exc
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
-        assistant_message = {
-            "id": uuid.uuid4().hex,
-            "role": "assistant",
-            "type": "image",
-            "content": payload.message,
-            "image_url": local_url,
-            "created_at": now_ms(),
-            "model": model,
-            "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
-        }
-    else:
-        chat_base, chat_hdrs, model = resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
-        history = conversation["messages"][-MAX_HISTORY_MESSAGES:]
-        upstream_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        for item in history:
-            msg = upstream_message_from_record(item)
-            if msg:
-                upstream_messages.append(msg)
-        try:
-            async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
-                response = await client.post(
-                    f"{chat_base}/chat/completions",
-                    headers=chat_hdrs,
-                    json={"model": model, "messages": upstream_messages},
-                )
-                response.raise_for_status()
-                raw = response.json()
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误:{exc.response.text}") from exc
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail=f"请求上游接口失败:{exc}") from exc
-        assistant_message = {
-            "id": uuid.uuid4().hex,
-            "role": "assistant",
-            "content": text_from_chat_response(raw).strip() or "接口返回了空回复。",
-            "created_at": now_ms(),
-            "model": model,
-            "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
-        }
-
-    conversation["messages"].append(assistant_message)
-    conversation["updated_at"] = now_ms()
-    save_conversation(user_id, conversation)
-    return {"conversation": conversation, "message": assistant_message}
-
-@app.post("/api/chat/stream")
-async def chat_stream(payload: ChatRequest, request: Request, x_user_id: str = Header(default="")):
-    if payload.mode == "image":
-        raise HTTPException(status_code=400, detail="图片模式请使用 /api/chat")
-
-    user_id = safe_user_id(x_user_id, request)
-    conversation = (
-        load_conversation(user_id, payload.conversation_id)
-        if payload.conversation_id
-        else new_conversation(user_id, display_title(payload.message))
-    )
-    if not conversation.get("messages"):
-        conversation["title"] = display_title(payload.message)
-
-    refs = [ref.dict() for ref in payload.reference_images if ref.url]
-    user_message = {
-        "id": uuid.uuid4().hex,
-        "role": "user",
-        "content": payload.message,
-        "created_at": now_ms(),
-        "attachments": refs,
-        "mode": payload.mode,
-    }
-    conversation["messages"].append(user_message)
-    conversation["updated_at"] = now_ms()
-    save_conversation(user_id, conversation)
-
-    chat_base, chat_hdrs, model = resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
-    history = conversation["messages"][-MAX_HISTORY_MESSAGES:]
-    upstream_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for item in history:
-        msg = upstream_message_from_record(item)
-        if msg:
-            upstream_messages.append(msg)
-
-    async def stream():
-        content_parts = []
-        raw_usage = None
-        yield sse_event({"type": "meta", "conversation": conversation})
-        try:
-            async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
-                async with client.stream(
-                    "POST",
-                    f"{chat_base}/chat/completions",
-                    headers=chat_hdrs,
-                    json={"model": model, "messages": upstream_messages, "stream": True},
-                ) as response:
-                    if response.status_code >= 400:
-                        detail = await response.aread()
-                        yield sse_event({"type": "error", "detail": f"上游接口错误:{detail.decode('utf-8', errors='ignore')}"})
-                        return
-                    async for line in response.aiter_lines():
-                        if not line:
-                            continue
-                        if line.startswith("data:"):
-                            line = line[5:].strip()
-                        if line == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-                        if isinstance(chunk, dict) and chunk.get("usage"):
-                            raw_usage = chunk.get("usage")
-                        delta = text_delta_from_chat_chunk(chunk)
-                        if delta:
-                            content_parts.append(delta)
-                            yield sse_event({"type": "delta", "delta": delta})
-        except httpx.HTTPError as exc:
-            yield sse_event({"type": "error", "detail": f"请求上游接口失败:{exc}"})
-            return
-
-        assistant_message = {
-            "id": uuid.uuid4().hex,
-            "role": "assistant",
-            "content": "".join(content_parts).strip() or "接口返回了空回复。",
-            "created_at": now_ms(),
-            "model": model,
-            "raw_usage": raw_usage,
-        }
-        conversation["messages"].append(assistant_message)
-        conversation["updated_at"] = now_ms()
-        save_conversation(user_id, conversation)
-        yield sse_event({"type": "done", "conversation": conversation, "message": assistant_message})
-
-    return StreamingResponse(stream(), media_type="text/event-stream")
 
 # --- 历史记录 ---
 
@@ -7118,296 +5640,6 @@ class SaveHistoryRequest(BaseModel):
     genParams: Optional[Dict[str, Any]] = None  # 完整生成参数,用于载入提示词恢复
     original: Optional[str] = None  # 高清修复原图 URL,用于重启后仍能前后对比
 
-@app.post("/api/history/save")
-async def save_history(req: SaveHistoryRequest, token: str = ""):
-    username = get_username_by_token(token)
-    record = {
-        "prompt": req.prompt,
-        "images": req.images,
-        "videos": req.videos or [],
-        "type": req.type,
-        "timestamp": req.timestamp or time.time(),
-        "user": username
-    }
-    if req.text:
-        record["text"] = req.text
-    if req.text_url:
-        record["text_url"] = req.text_url
-    if req.seed is not None:
-        record["seed"] = req.seed
-    if req.prompt_id:
-        record["prompt_id"] = req.prompt_id
-    if req.model:
-        record["model"] = req.model
-    if req.params:
-        record["params"] = req.params
-    if req.genParams is not None:
-        record["genParams"] = req.genParams
-
-    # 下载直连模式的 ComfyUI 图片到用户目录
-    if username:
-        user_dir, user_dirname = get_user_output_dir(username)
-        new_images = []
-        for img_url in (req.images or []):
-            if img_url.startswith("/output/") or img_url.startswith("/assets/"):
-                new_images.append(img_url)
-            elif img_url.startswith("http://127.0.0.1:8188/view"):
-                # 直连模式图片:从 ComfyUI 下载到用户目录
-                try:
-                    import urllib.request, shutil
-                    filename = f"{req.type}_{int(time.time())}_{uuid.uuid4().hex[:8]}.png"
-                    local_path = os.path.join(user_dir, filename)
-                    with urllib.request.urlopen(img_url, timeout=30) as resp, open(local_path, 'wb') as out:
-                        shutil.copyfileobj(resp, out)
-                    new_images.append(f"/output/{user_dirname}/{filename}")
-                except Exception as e:
-                    print(f"下载直连图片到用户目录失败: {e}")
-                    new_images.append(img_url)
-            else:
-                new_images.append(img_url)
-        record["images"] = new_images
-
-    # 下载直连模式的 ComfyUI 视频到用户目录(与图片对称)
-    if username and req.videos:
-        new_videos = []
-        for vid_url in req.videos:
-            if vid_url.startswith("/output/") or vid_url.startswith("/assets/"):
-                new_videos.append(vid_url)
-            elif vid_url.startswith("http://127.0.0.1:8188/view"):
-                try:
-                    import urllib.request, shutil
-                    filename = f"{req.type}_{int(time.time())}_{uuid.uuid4().hex[:8]}.mp4"
-                    local_path = os.path.join(user_dir, filename)
-                    with urllib.request.urlopen(vid_url, timeout=60) as resp, open(local_path, 'wb') as out:
-                        shutil.copyfileobj(resp, out)
-                    new_videos.append(f"/output/{user_dirname}/{filename}")
-                except Exception as e:
-                    print(f"下载直连视频到用户目录失败: {e}")
-                    new_videos.append(vid_url)
-            else:
-                new_videos.append(vid_url)
-        record["videos"] = new_videos
-
-    # 确保 user 字段不被前端数据覆盖
-    record["user"] = username
-    if req.genParams:
-        record["genParams"] = req.genParams
-    if req.original:
-        record["original"] = req.original
-    save_to_history(record)
-    return {"success": True, "timestamp": record["timestamp"]}
-
-@app.get("/api/history")
-async def get_history_api(type: str = None, token: str = "", page: int = None, page_size: int = 15, q: str = None):
-    username = get_username_by_token(token)
-    # 优先走进程内缓存,history.json 越大收益越明显
-    if _HISTORY_CACHE is not None:
-        data = list(_HISTORY_CACHE)  # 拷贝避免污染缓存
-    elif os.path.exists(HISTORY_FILE):
-        try:
-            data = _load_history_cached()
-            data = list(data)
-        except Exception as e:
-            print(f"读取历史文件失败: {e}")
-            data = [] if page is None else {"items": [], "total": 0, "page": 0, "pageSize": page_size, "hasMore": False}
-    else:
-        data = [] if page is None else {"items": [], "total": 0, "page": 0, "pageSize": page_size, "hasMore": False}
-    # 当 data 还是 list 时,继续走过滤逻辑
-    if isinstance(data, list):
-        if type:
-            types = [t.strip() for t in type.split(',')]
-            data = [item for item in data if item.get("type", "zimage") in types]
-        # 按用户过滤: 隔离多用户, 同时保留历史遗留的空 user 记录(避免升级后旧历史凭空消失)
-        if username:
-            data = [item for item in data if item.get("user") in (None, "", username)]
-        # Support image, text, audio and video outputs: keep records with images OR text OR audio OR videos
-        data = [item for item in data if item.get("images") or item.get("text") or item.get("audio") or item.get("videos")]
-
-        # 服务端搜索:按 prompt / model / text 关键词过滤
-        # 英文整词匹配(\b),中文/非ASCII子串匹配
-        if q:
-            import re as _re
-            tokens = [w for w in q.lower().split() if w]
-            ascii_words = [_re.escape(w) for w in tokens if w.isascii()]
-            cjk_words = [w for w in tokens if not w.isascii()]
-            pat = _re.compile(r'\b(?:' + '|'.join(ascii_words) + r')\b') if ascii_words else None
-            def _match(item):
-                txt = ((item.get('prompt', '') or '') + ' ' + (item.get('model', '') or '') + ' ' + (item.get('text', '') or '')).lower()
-                if pat and pat.search(txt):
-                    return True
-                for w in cjk_words:
-                    if w in txt:
-                        return True
-                return False
-            data = [item for item in data if _match(item)]
-
-        def sort_key(item):
-            ts = item.get("timestamp", 0)
-            if isinstance(ts, (int, float)):
-                return float(ts)
-            return 0
-
-        data.sort(key=sort_key, reverse=True)
-
-        # === 分页(可选,向后兼容)===
-        # 调用方传 ?page=N&page_size=M → 返回 {items,total,page,pageSize,hasMore}
-        # 调用方不传 page → 保持旧行为,直接返回数组(不破坏老客户端)
-        if page is not None and page >= 0 and page_size > 0:
-            total = len(data)
-            start = page * page_size
-            items = data[start:start + page_size]
-            return {
-                "items": items,
-                "total": total,
-                "page": page,
-                "pageSize": page_size,
-                "hasMore": start + len(items) < total
-            }
-        return data
-    return data
-
-@app.get("/api/queue_status")
-async def get_queue_status(client_id: str):
-    with QUEUE_LOCK:
-        total = len(QUEUE)
-        positions = [i + 1 for i, t in enumerate(QUEUE) if t["client_id"] == client_id]
-        position = positions[0] if positions else 0
-    return {"total": total, "position": position}
-
-@app.post("/api/history/delete")
-async def delete_history(req: DeleteHistoryRequest, token: str = ""):
-    username = get_username_by_token(token)
-    is_admin = is_admin_by_token(token)
-    if not os.path.exists(HISTORY_FILE):
-        return {"success": False, "message": "History file not found"}
-    try:
-        with HISTORY_LOCK:
-            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                history = json.load(f)
-            target_record = None
-            new_history = []
-            for item in history:
-                is_match = False
-                item_ts = item.get("timestamp", 0)
-                if isinstance(req.timestamp, (int, float)) and isinstance(item_ts, (int, float)):
-                    if abs(float(item_ts) - float(req.timestamp)) < 0.001:
-                        is_match = True
-                elif str(item_ts) == str(req.timestamp):
-                    is_match = True
-                if is_match:
-                    target_record = item
-                else:
-                    new_history.append(item)
-            if target_record:
-                # 检查权限:只能删除自己的记录,或管理员可删任意
-                if username and not is_admin and target_record.get("user") and target_record.get("user") != username:
-                    return {"success": False, "message": "无权删除其他用户的历史记录"}
-                with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(new_history, f, ensure_ascii=False, indent=4)
-
-        if target_record:
-            # 删除图片文件
-            for img_url in target_record.get("images", []):
-                file_path = _url_to_output_path(img_url)
-                if not file_path:
-                    continue
-                if os.path.exists(file_path):
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        print(f"Failed to delete file {file_path}: {e}")
-                else:
-                    print(f"File not found (skipping): {file_path}")
-            # 删除音频文件
-            for audio_url in target_record.get("audio", []):
-                file_path = _url_to_output_path(audio_url)
-                if not file_path:
-                    continue
-                if os.path.exists(file_path):
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        print(f"Failed to delete audio file {file_path}: {e}")
-                else:
-                    print(f"Audio file not found (skipping): {file_path}")
-            # 删除视频文件（videos 字段：URL 字符串列表，如 litevideo 保存的 {videos:[url]}）
-            for video_url in target_record.get("videos", []):
-                file_path = _url_to_output_path(video_url)
-                if not file_path:
-                    continue
-                if os.path.exists(file_path):
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        print(f"Failed to delete video file {file_path}: {e}")
-                else:
-                    print(f"Video file not found (skipping): {file_path}")
-            # 兜底：兼容部分记录把视频放在 "video"/"video_url"/"video_urls" 字段的情况
-            for extra_key in ("video", "video_url"):
-                v = target_record.get(extra_key)
-                if isinstance(v, str) and v:
-                    file_path = _url_to_output_path(v)
-                    if file_path and os.path.exists(file_path):
-                        try: os.remove(file_path)
-                        except Exception as e: print(f"Failed to delete {extra_key} file {file_path}: {e}")
-            vurls = target_record.get("video_urls")
-            if isinstance(vurls, list):
-                for v in vurls:
-                    file_path = _url_to_output_path(v)
-                    if file_path and os.path.exists(file_path):
-                        try: os.remove(file_path)
-                        except Exception as e: print(f"Failed to delete video_urls file {file_path}: {e}")
-            return {"success": True}
-        else:
-            return {"success": False, "message": "Record not found"}
-    except Exception as e:
-        print(f"Delete history error: {e}")
-        return {"success": False, "message": str(e)}
-
-
-class DeleteImageRequest(BaseModel):
-    timestamp: float
-    image_url: str
-
-@app.post("/api/history/delete-image")
-async def delete_single_image(req: DeleteImageRequest, token: str = ""):
-    """从历史记录中删除单张图片(多图组合场景)"""
-    username = get_username_by_token(token)
-    if not os.path.exists(HISTORY_FILE):
-        return {"success": False, "message": "History file not found"}
-    try:
-        with HISTORY_LOCK:
-            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                history = json.load(f)
-            target_record = None
-            for item in history:
-                item_ts = item.get("timestamp", 0)
-                if abs(float(item_ts) - float(req.timestamp)) < 0.001:
-                    target_record = item
-                    break
-            if not target_record:
-                return {"success": False, "message": "Record not found"}
-            if username and not is_admin_by_token(token) and target_record.get("user") and target_record.get("user") != username:
-                return {"success": False, "message": "无权操作"}
-            images = target_record.get("images", [])
-            if req.image_url not in images:
-                return {"success": False, "message": "Image not in record"}
-            # 删除本地文件
-            file_path = _url_to_output_path(req.image_url)
-            if file_path and os.path.exists(file_path):
-                try: os.remove(file_path)
-                except: pass
-            # 从记录中移除
-            images.remove(req.image_url)
-            if not images:
-                # 图片全部删完,删除整条记录
-                history = [h for h in history if abs(float(h.get("timestamp", 0)) - float(req.timestamp)) >= 0.001]
-            with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-                json.dump(history[:5000], f, ensure_ascii=False, indent=4)
-            _invalidate_history_cache()
-            return {"success": True, "remaining": len(images)}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
 
 
 def _url_to_output_path(url: str) -> Optional[str]:
@@ -7424,320 +5656,6 @@ def _url_to_output_path(url: str) -> Optional[str]:
     return full
 
 
-@app.post("/api/gallery/purge-orphans")
-async def purge_orphan_records(token: str = "", dry_run: bool = False):
-    """
-    扫描 history.json,找出 images[] 指向不存在的孤儿记录:
-      - 所有图片都缺失 → 整条删除
-      - 部分图片缺失 → 修剪 images[],仅保留仍存在的图片
-    仅管理员可调用。dry_run=True 时只统计不写盘。
-    """
-    username = get_username_by_token(token)
-    is_admin = is_admin_by_token(token)
-    if not is_admin:
-        return {"success": False, "message": "需要管理员权限"}
-
-    if not os.path.exists(HISTORY_FILE):
-        return {"success": True, "removed": 0, "trimmed": 0, "scanned": 0}
-
-    try:
-        with HISTORY_LOCK:
-            data = _load_history_cached()
-            data = [dict(item) for item in data]  # 拷贝,避免污染缓存
-
-            removed_records = []   # 整条删除
-            trimmed_records = []   # 修剪 images[]
-            scanned = 0
-
-            new_history = []
-            for item in data:
-                images = item.get("images") or []
-                if not images:
-                    new_history.append(item)
-                    continue
-                scanned += 1
-                kept_imgs = []
-                missing = []
-                for img in images:
-                    p = _url_to_output_path(img) if isinstance(img, str) else None
-                    if p and os.path.isfile(p):
-                        kept_imgs.append(img)
-                    else:
-                        missing.append(img)
-                if not kept_imgs:
-                    # 所有图片都缺失 → 整条删除
-                    removed_records.append({
-                        "timestamp": item.get("timestamp"),
-                        "user": item.get("user"),
-                        "model": item.get("model"),
-                        "missing": missing,
-                    })
-                    # 不加入 new_history
-                elif missing:
-                    # 部分缺失 → 修剪
-                    new_history.append({**item, "images": kept_imgs})
-                    trimmed_records.append({
-                        "timestamp": item.get("timestamp"),
-                        "user": item.get("user"),
-                        "kept": len(kept_imgs),
-                        "missing": missing,
-                    })
-                else:
-                    new_history.append(item)
-
-            if not dry_run and (removed_records or trimmed_records):
-                with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(new_history, f, ensure_ascii=False, indent=4)
-                _invalidate_history_cache()
-
-        return {
-            "success": True,
-            "dry_run": dry_run,
-            "scanned": scanned,
-            "removed": len(removed_records),
-            "trimmed": len(trimmed_records),
-            "removed_records": removed_records[:20],   # 最多返回 20 条详情
-            "trimmed_records": trimmed_records[:20],
-        }
-    except Exception as e:
-        print(f"Purge orphans error: {e}")
-        return {"success": False, "message": str(e)}
-
-
-@app.get("/api/gallery/scan-new")
-async def scan_new_images(type: str = "", token: str = ""):
-    """扫描用户 output 文件夹,找出还没入库的图片,自动创建历史记录"""
-    username = get_username_by_token(token)
-    if not username:
-        return {"success": False, "message": "未登录"}
-
-    user_dirname = get_user_dirname(username)
-    user_output = os.path.join(OUTPUT_DIR, user_dirname)
-    if not os.path.isdir(user_output):
-        return {"success": True, "imported": 0}
-
-    # 收集已入库的图片 URL
-    existing_images = set()
-    with HISTORY_LOCK:
-        try:
-            data = _load_history_cached()
-            for item in data:
-                for img in (item.get("images") or []):
-                    existing_images.add(img)
-        except: pass
-
-    IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'}
-
-    def extract_prompt_from_png(fpath):
-        """从 ComfyUI PNG 元数据提取正面 prompt + genParams,直接匹配工具参数"""
-        import struct as _struct, json as _json
-        def _read_workflow(fpath):
-            with open(fpath, 'rb') as f:
-                data = f.read(1024 * 1024)
-            idx = data.find(b'prompt')
-            if idx < 0: return None
-            chunk_start = idx - 8
-            if chunk_start < 0: return None
-            length = _struct.unpack('>I', data[chunk_start:chunk_start+4])[0]
-            chunk_data = data[chunk_start+8:chunk_start+8+length]
-            marker = b'prompt\x00'
-            pidx = chunk_data.find(marker)
-            if pidx < 0: return None
-            raw = chunk_data[pidx+len(marker):].decode('utf-8', errors='ignore').rstrip('\x00').strip()
-            return _json.loads(raw)
-
-        def _resolve(node_id, wf, depth=0):
-            """追踪引用链拿到文本"""
-            if depth > 8: return ''
-            nid = str(node_id)
-            node = wf.get(nid)
-            if not isinstance(node, dict): return ''
-            inputs = node.get('inputs', {})
-            ct = node.get('class_type', '')
-            # CLIPTextEncode → text
-            if ct.startswith('CLIPTextEncode'):
-                t = inputs.get('text', '')
-                if isinstance(t, str) and t.strip(): return t.strip()
-                if isinstance(t, list) and len(t) == 2: return _resolve(t[0], wf, depth+1)
-                return ''
-            # 自定义节点 → 常见文本字段
-            for k in ('character_tags', 'text', 'prompt', 'opt_prompt'):
-                v = inputs.get(k, '')
-                if isinstance(v, str) and v.strip(): return v.strip()
-            # 递归引用
-            for v in inputs.values():
-                if isinstance(v, list) and len(v) == 2:
-                    r = _resolve(v[0], wf, depth+1)
-                    if r: return r
-            return ''
-
-        try:
-            wf = _read_workflow(fpath)
-            if not wf: return '', {}
-
-            prompt_text = ''
-            seed = None
-            width = height = None
-            batch = 1
-            loras = []
-            is_anima = False
-
-            for nid, node in wf.items():
-                if not isinstance(node, dict): continue
-                ct = node.get('class_type', '')
-                inp = node.get('inputs', {})
-
-                # 识别工作流类型
-                if ct == 'AnimaCharacterTagSelector':
-                    is_anima = True
-
-                # 采样器 → seed + positive prompt
-                if ct in ('KSampler', 'KSamplerAdvanced') and 'positive' in inp:
-                    ref = inp['positive']
-                    if isinstance(ref, list) and len(ref) == 2:
-                        prompt_text = _resolve(ref[0], wf)
-                    seed = inp.get('seed') or inp.get('noise_seed')
-
-                # CFGGuider → positive prompt
-                elif ct == 'CFGGuider' and 'positive' in inp:
-                    ref = inp['positive']
-                    if isinstance(ref, list) and len(ref) == 2:
-                        prompt_text = _resolve(ref[0], wf)
-
-                # RandomNoise → seed
-                elif ct == 'RandomNoise':
-                    seed = inp.get('noise_seed')
-
-                # Latent → 尺寸 + batch
-                elif ct in ('EmptyLatentImage',) or 'EmptyFlux' in ct:
-                    width = inp.get('width')
-                    height = inp.get('height')
-                    bs = inp.get('batch_size')
-                    if isinstance(bs, int) and bs > 0: batch = bs
-
-                # LoRA
-                elif 'LoraLoader' in ct:
-                    name = inp.get('lora_name', '')
-                    strength = float(inp.get('strength_model', 1.0))
-                    if name:
-                        loras.append({'name': name, 'strength': strength})
-
-            # 从尺寸推算 ratio + resolution
-            ratio_w, ratio_h, resolution = 9, 16, 1
-            if width and height:
-                from math import gcd
-                g = gcd(width, height)
-                rw, rh = width // g, height // g
-                # 标准化到常见比例
-                _known = {(1,1),(4,3),(3,4),(16,9),(9,16),(3,2),(2,3)}
-                if (rw, rh) not in _known:
-                    rw, rh = min(_known, key=lambda k: abs(k[0]/k[1] - rw/rh))
-                ratio_w, ratio_h = rw, rh
-                resolution = 2 if max(width, height) > 1200 else 1
-
-            gen_params = {
-                'workflow': 'text2image/anima.json' if is_anima else 'text2image/z-image.json',
-                'ratioW': ratio_w, 'ratioH': ratio_h,
-                'resolution': resolution,
-                'batchCount': batch,
-                'loras': loras,
-            }
-            if seed is not None: gen_params['seed'] = seed
-            if width: gen_params['width'] = width
-            if height: gen_params['height'] = height
-
-            return prompt_text, gen_params
-        except:
-            return '', {}
-
-    new_records = []
-
-    # 遍历 output/{user}/{feature}/{date}/ 目录
-    for feature_dir in os.listdir(user_output):
-        feature_path = os.path.join(user_output, feature_dir)
-        if not os.path.isdir(feature_path):
-            continue
-        # 按 type 过滤
-        if type:
-            types = [t.strip() for t in type.split(',')]
-            if feature_dir not in types:
-                continue
-        for date_dir in os.listdir(feature_path):
-            date_path = os.path.join(feature_path, date_dir)
-            if not os.path.isdir(date_path):
-                continue
-            for fname in os.listdir(date_path):
-                ext = os.path.splitext(fname)[1].lower()
-                if ext not in IMAGE_EXTS:
-                    continue
-                img_url = f"/output/{user_dirname}/{feature_dir}/{date_dir}/{fname}"
-                if img_url in existing_images:
-                    continue
-                # 新图片:创建记录
-                fpath = os.path.join(date_path, fname)
-                try:
-                    mtime = os.path.getmtime(fpath)
-                except:
-                    mtime = time.time()
-                # 尝试从 PNG 元数据提取 prompt 和参数
-                prompt_text = ''
-                gen_params = {}
-                if ext == '.png':
-                    prompt_text, gen_params = extract_prompt_from_png(fpath)
-                record = {
-                    "prompt": prompt_text or f"[自动导入] {feature_dir}",
-                    "images": [img_url],
-                    "type": feature_dir,
-                    "timestamp": mtime * 1000,
-                    "user": username,
-                    "model": feature_dir.upper(),
-                    "auto_imported": True
-                }
-                if gen_params:
-                    record['genParams'] = gen_params
-                new_records.append(record)
-                existing_images.add(img_url)
-
-    # 批量写入新记录
-    updated_old = 0
-    with HISTORY_LOCK:
-        try:
-            data = _load_history_cached()
-            data = list(data)
-        except:
-            data = []
-        # 更新旧的自动导入记录(prompt 还是 [自动导入] 的)
-        for item in data:
-            if not item.get('auto_imported'):
-                continue
-            if not item.get('prompt', '').startswith('[自动导入]'):
-                continue
-            images = item.get('images', [])
-            if not images:
-                continue
-            img_url = images[0]
-            if not img_url.startswith('/output/'):
-                continue
-            fpath = _url_to_output_path(img_url)
-            if not fpath or not os.path.isfile(fpath):
-                continue
-            ext = os.path.splitext(fpath)[1].lower()
-            if ext != '.png':
-                continue
-            prompt_text, gen_params = extract_prompt_from_png(fpath)
-            if prompt_text:
-                item['prompt'] = prompt_text
-                updated_old += 1
-            if gen_params:
-                item['genParams'] = gen_params
-        for rec in new_records:
-            data.insert(0, rec)
-        data.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data[:5000], f, ensure_ascii=False, indent=4)
-        _invalidate_history_cache()
-
-    return {"success": True, "imported": len(new_records), "updated": updated_old}
 
 
 # --- 提示词预设(委托 preset_manager 模块)---
@@ -7750,115 +5668,6 @@ from preset_manager import (
     get_all_presets,
 )
 
-@app.get("/api/preset-i18n")
-def api_preset_i18n():
-    """返回预设中文名映射表(兼容旧接口)"""
-    return load_preset_i18n()
-
-STYLE_I18N_FILE = os.path.join(DATA_DIR, "style-i18n.json")
-
-@app.get("/api/style-i18n")
-def api_style_i18n():
-    """返回风格预设中文名映射表"""
-    if os.path.exists(STYLE_I18N_FILE):
-        try:
-            with open(STYLE_I18N_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"categories": {}, "subcategories": {}, "presets": {}}
-
-@app.get("/api/preset-bidir")
-def api_preset_bidir():
-    """返回 {id_to_name, name_to_id}(兼容旧接口)"""
-    id_to_name, name_to_id = get_preset_bidir()
-    return {"id_to_name": id_to_name, "name_to_id": name_to_id}
-
-@app.get("/api/reload-presets")
-async def api_reload_presets():
-    """强制刷新预设缓存并返回最新数据"""
-    preset_manager._cache.invalidate()
-    return get_all_presets()
-
-@app.get("/api/prompt-presets")
-async def get_prompt_presets():
-    """获取标签预设(兼容旧接口,YAML 优先回退 JSON)"""
-    return get_tag_presets()
-
-@app.post("/api/prompt-presets")
-async def api_save_prompt_presets(data: dict):
-    """保存标签预设"""
-    ok = save_tag_presets(data)
-    return {"success": ok}
-
-@app.get("/api/style-presets")
-async def api_get_style_presets():
-    """获取风格预设(完整提示词)"""
-    return get_style_presets()
-
-@app.post("/api/style-presets")
-async def api_save_style_presets(data: dict):
-    """保存风格预设"""
-    ok = save_style_presets(data)
-    return {"success": ok}
-
-
-@app.post("/api/import/fooocus-styles")
-async def api_import_fooocus_styles(payload: dict = None):
-    """
-    一键导入 Fooocus 官方风格包到 style-presets.json
-
-    Body 参数:
-      - sources: List[str]  要导入的源 key,默认全部
-        可选: fooocus, sai, diva, marc_k3nt3l, twri, mre
-      - dry_run: bool       预览模式,不写文件
-      - skip_thumbs: bool   不下载缩略图
-    """
-    payload = payload or {}
-    try:
-        from tools.fooocus_importer import import_fooocus_styles
-    except ImportError as e:
-        raise HTTPException(status_code=500, detail=f"fooocus_importer 加载失败: {e}")
-
-    sources = payload.get("sources")  # None=全部
-    dry_run = bool(payload.get("dry_run", False))
-    skip_thumbs = bool(payload.get("skip_thumbs", False))
-
-    try:
-        result = import_fooocus_styles(
-            sources=sources,
-            dry_run=dry_run,
-            skip_thumbs=skip_thumbs,
-        )
-        return result
-    except Exception as e:
-        log.exception(f"Fooocus 导入失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/all-presets")
-async def api_get_all_presets():
-    """获取所有预设(标签 + 风格),统一输出"""
-    return get_all_presets()
-
-@app.get("/api/thumbnails/{filename}")
-async def api_get_thumbnail(filename: str):
-    """获取风格预设缩略图"""
-    import re
-    # 安全校验:只允许字母数字下划线和点
-    if not re.match(r'^[a-zA-Z0-9_.-]+$', filename):
-        raise HTTPException(status_code=400, detail="Invalid filename")
-    thumb_path = os.path.join(DATA_DIR, "thumbnails", filename)
-    if not os.path.exists(thumb_path):
-        raise HTTPException(status_code=404, detail="Thumbnail not found")
-    # 根据扩展名返回正确的 content-type
-    ext = os.path.splitext(filename)[1].lower()
-    content_type = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext, "image/png")
-    stat = os.stat(thumb_path)
-    etag = _etag_for(thumb_path, stat)
-    return FileResponse(thumb_path, media_type=content_type, headers={
-        "Cache-Control": "public, max-age=2592000, immutable",
-        "ETag": f'"{etag}"',
-    })
 
 # --- 智能提示词生成 ---
 # Feature flag: 设为 True 使用新模块，False 回退旧版
@@ -7872,8 +5681,6 @@ if USE_NEW_PROMPT_MODULE:
 else:
     from smart_prompt import generate_smart_prompt, load_config
     from smart_prompt import call_llm as _sp_call_llm
-
-import smart_tts as smart_tts_module
 
 class SmartPromptRequest(BaseModel):
     prompt: str = ""
@@ -7890,292 +5697,6 @@ class SmartPromptRequest(BaseModel):
     # === [2026-08-13] 多模态看图生成：base64 data URL 列表（如 data:image/jpeg;base64,...）===
     images: Optional[List[str]] = None
 
-@app.get("/api/smart-prompt/config")
-async def get_smart_prompt_config():
-    """获取智能提示词的 provider 选择"""
-    config_file = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
-    try:
-        if os.path.exists(config_file):
-            with open(config_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                # [2026-07-28] 返回 channel + provider_id + comfyui 工作流/模型
-                return {
-                    "provider_id": data.get("provider_id", ""),
-                    "channel": data.get("channel", "api"),
-                    "comfyui_workflow": data.get("comfyui_workflow", "提示词/文生提示词.json"),
-                    "comfyui_model": data.get("comfyui_model", ""),
-                }
-    except Exception:
-        pass
-    return {"provider_id": "", "channel": "api", "comfyui_workflow": "提示词/文生提示词.json", "comfyui_model": ""}
-
-@app.post("/api/smart-prompt/config")
-async def save_smart_prompt_config(payload: dict):
-    """保存智能提示词的 provider 选择"""
-    config_file = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
-    os.makedirs(os.path.dirname(config_file), exist_ok=True)
-    data = {}
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception:
-            pass
-    # [2026-07-28] 存 channel + provider_id + comfyui 工作流/模型
-    data["provider_id"] = payload.get("provider_id", "")
-    channel = payload.get("channel", "api")
-    if channel not in ("api", "comfyui"):
-        channel = "api"
-    data["channel"] = channel
-    data["comfyui_workflow"] = payload.get("comfyui_workflow", "提示词/文生提示词.json") or "提示词/文生提示词.json"
-    data["comfyui_model"] = payload.get("comfyui_model", "") or ""
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return {"success": True, "channel": channel, "provider_id": data["provider_id"], "comfyui_workflow": data["comfyui_workflow"], "comfyui_model": data["comfyui_model"]}
-
-@app.get("/api/comfyui/llama-models")
-async def list_comfyui_llama_models():
-    """从本地 ComfyUI 获取 llama_cpp_model_loader 可用模型列表"""
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"http://{COMFYUI_ADDRESS}/object_info/llama_cpp_model_loader")
-            resp.raise_for_status()
-            info = resp.json() or {}
-        node_info = info.get("llama_cpp_model_loader", {}) or {}
-        inputs = node_info.get("input", {}) or node_info.get("input_required", {}) or {}
-        required = inputs.get("required", {}) if isinstance(inputs, dict) else {}
-        model_input = required.get("model") or []
-        models = []
-        if isinstance(model_input, (list, tuple)) and len(model_input) > 0 and isinstance(model_input[0], list):
-            models = [str(m) for m in model_input[0]]
-        return {"models": models}
-    except Exception as e:
-        return {"models": [], "error": str(e)}
-
-@app.post("/api/smart-prompt/test")
-async def smart_prompt_test(req: SmartPromptRequest):
-    """测试当前选中的模型/工作流是否可用 (轻量探针，不跑完整生成)
-
-    - API 通道: 直接对选中 provider 发一次最小推理调用 (不走 provider 降级 fallback)，
-      能真实发现过期 key / 地址错误 / 模型不存在等问题。
-    - 本地 ComfyUI 通道: 校验 ComfyUI 连通性 + 工作流文件存在 + (若指定) llama 模型在可用列表。
-      不实际跑工作流 (本地 LLM 推理约 18s，过重)。
-    """
-    if (req.channel or "api") == "comfyui":
-        return await _smart_prompt_comfyui_test(req)
-
-    # === API 通道: 直接测试选中 provider (无 fallback) ===
-    provider_id = req.provider_id or ""
-    try:
-        from prompt.core import config as _sp_config
-    except Exception:
-        _sp_config = None
-    try:
-        if _sp_config is not None:
-            config = dict(_sp_config.resolve(provider_id))
-        else:
-            config = dict(load_config())
-        config["max_tokens"] = 256
-        config["temperature"] = 0.1
-        raw = _sp_call_llm("ping", "你是提示词扩写助手，请只回复 ok。", config)
-        if isinstance(raw, str) and raw.startswith("ERROR:"):
-            return {"success": False, "channel": "api", "provider_id": provider_id,
-                    "detail": raw[len("ERROR:"):].strip()}
-        return {"success": True, "channel": "api", "provider_id": provider_id, "detail": "模型可用"}
-    except Exception as e:
-        return {"success": False, "channel": "api", "provider_id": provider_id,
-                "detail": f"测试异常: {e}"}
-
-
-async def _smart_prompt_comfyui_test(req: SmartPromptRequest):
-    """本地 ComfyUI 通道可用性探针 (不实际跑工作流)"""
-    wf_rel = req.comfyui_workflow or "提示词/文生提示词.json"
-    # 1) 连通性
-    try:
-        urllib.request.urlopen(f"http://{COMFYUI_ADDRESS}/system_stats", timeout=8).read()
-    except Exception as e:
-        return {"success": False, "channel": "comfyui",
-                "detail": f"ComfyUI 不可达 ({COMFYUI_ADDRESS}): {e}"}
-    # 2) 工作流文件存在 + 名称合法
-    if not WORKFLOW_NAME_RE.match(wf_rel):
-        return {"success": False, "channel": "comfyui", "detail": f"工作流名称非法: {wf_rel}"}
-    wf_path = os.path.join(WORKFLOW_DIR, *wf_rel.split("/"))
-    if not os.path.exists(wf_path):
-        return {"success": False, "channel": "comfyui", "detail": f"工作流文件不存在: {wf_rel}"}
-    # 3) (可选) llama 模型在 ComfyUI 可用列表
-    if req.comfyui_model:
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(f"http://{COMFYUI_ADDRESS}/object_info/llama_cpp_model_loader")
-                resp.raise_for_status()
-                info = resp.json() or {}
-            node_info = info.get("llama_cpp_model_loader", {}) or {}
-            inputs = node_info.get("input", {}) or node_info.get("input_required", {}) or {}
-            required = inputs.get("required", {}) if isinstance(inputs, dict) else {}
-            model_input = required.get("model") or []
-            avail = model_input[0] if (isinstance(model_input, (list, tuple)) and len(model_input) > 0 and isinstance(model_input[0], list)) else []
-            avail = [str(m) for m in avail]
-            if req.comfyui_model not in avail:
-                return {"success": False, "channel": "comfyui",
-                        "detail": f"模型不在 ComfyUI 可用列表: {req.comfyui_model}"}
-        except Exception as e:
-            return {"success": False, "channel": "comfyui", "detail": f"无法获取 ComfyUI 模型列表: {e}"}
-    suffix = f"，模型[{req.comfyui_model}]可用" if req.comfyui_model else ""
-    return {"success": True, "channel": "comfyui",
-            "detail": f"ComfyUI 可达，工作流[{wf_rel}]可用{suffix}"}
-
-# === 提示词预设 CRUD ===
-SMART_PRESETS_DIR = os.path.join(BASE_DIR, "data", "smart-prompt-presets")
-os.makedirs(SMART_PRESETS_DIR, exist_ok=True)
-
-def load_presets():
-    presets = []
-    if os.path.exists(SMART_PRESETS_DIR):
-        for f in sorted(os.listdir(SMART_PRESETS_DIR)):
-            if f.endswith('.json'):
-                try:
-                    with open(os.path.join(SMART_PRESETS_DIR, f), 'r', encoding='utf-8') as fh:
-                        presets.append(json.load(fh))
-                except Exception:
-                    pass
-    return presets
-
-def save_preset(preset):
-    pid = preset.get('id', '')
-    if not pid:
-        pid = 'preset-' + uuid.uuid4().hex[:8]
-        preset['id'] = pid
-    path = os.path.join(SMART_PRESETS_DIR, f'{pid}.json')
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(preset, f, ensure_ascii=False, indent=2)
-    return preset
-
-@app.get("/api/smart-prompt/presets")
-async def list_presets():
-    return {"presets": load_presets()}
-
-@app.post("/api/smart-prompt/presets")
-async def create_preset(payload: dict):
-    preset = {
-        "id": payload.get('id', ''),
-        "name": payload.get('name', '新预设'),
-        "description": payload.get('description', ''),
-        "provider_id": payload.get('provider_id', ''),
-        "system_prompt": payload.get('system_prompt', ''),
-        "temperature": payload.get('temperature', 0.3),
-        "max_tokens": payload.get('max_tokens', 1024),
-        "quality_tags": payload.get('quality_tags', 'masterpiece, best quality, ultra detailed, highres'),
-        "negative_default": payload.get('negative_default', 'worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry'),
-        "output_format": payload.get('output_format', 'tag_only'),
-        "is_default": payload.get('is_default', False),
-        "created_at": payload.get('created_at', ''),
-    }
-    saved = save_preset(preset)
-    return {"success": True, "preset": saved}
-
-@app.put("/api/smart-prompt/presets/{preset_id}")
-async def update_preset(preset_id: str, payload: dict):
-    payload['id'] = preset_id
-    saved = save_preset(payload)
-    return {"success": True, "preset": saved}
-
-@app.delete("/api/smart-prompt/presets/{preset_id}")
-async def delete_preset(preset_id: str):
-    path = os.path.join(SMART_PRESETS_DIR, f'{preset_id}.json')
-    if os.path.exists(path):
-        os.remove(path)
-    return {"success": True}
-
-# === 提示词预设选择(文生图用) ===
-SMART_PRESET_SELECT_FILE = os.path.join(BASE_DIR, "data", "smart-prompt-config.json")
-
-@app.get("/api/smart-prompt/selected-preset")
-async def get_selected_preset():
-    try:
-        if os.path.exists(SMART_PRESET_SELECT_FILE):
-            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return {"preset_id": data.get('preset_id', 'default')}
-    except Exception:
-        pass
-    return {"preset_id": "default"}
-
-@app.post("/api/smart-prompt/selected-preset")
-async def set_selected_preset(payload: dict):
-    os.makedirs(os.path.dirname(SMART_PRESET_SELECT_FILE), exist_ok=True)
-    data = {}
-    if os.path.exists(SMART_PRESET_SELECT_FILE):
-        try:
-            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception:
-            pass
-    data['preset_id'] = payload.get('preset_id', 'default')
-    with open(SMART_PRESET_SELECT_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    # [FIX 2026-07-28] 同步到新模块 index.json。
-    # 否则 new-module 生成路径里 generate() -> get_selected_preset_id() 读的是
-    # prompt/presets/index.json 的 selected_preset_id，而本端点只写 data/smart-prompt-config.json，
-    # 导致用户在 UI 选中的带规则预设从未被加载，模型只按字面生成。
-    try:
-        from prompt.preset import set_selected_preset_id as _sp_set_selected
-        _sp_set_selected(data['preset_id'])
-    except Exception:
-        pass
-    return {"success": True}
-
-@app.post("/api/smart-prompt")
-async def smart_prompt(req: SmartPromptRequest):
-    """智能提示词生成: 中文描述 → 扩写后 prompt (支持 LLM 平台或本地 ComfyUI 工作流)"""
-    # === Local ComfyUI workflow channel (added 2026-07-28) ===
-    if (req.channel or "api") == "comfyui":
-        try:
-            return await _smart_prompt_comfyui(req)
-        except HTTPException:
-            raise
-        except Exception as e:
-            import traceback
-            return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e), "traceback": traceback.format_exc()[-1500:]}
-    try:
-        if USE_NEW_PROMPT_MODULE:
-            # 新模块：内部处理预设加载 + 配置解析 + 知识库检索
-            result = generate_smart_prompt(
-                req.prompt,
-                preset_id=None,
-                config_override=req.config,
-                provider_id_override=req.provider_id,
-            )
-        else:
-            # 旧版兼容路径
-            preset_id = 'default'
-            try:
-                if os.path.exists(SMART_PRESET_SELECT_FILE):
-                    with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        preset_id = data.get('preset_id', 'default')
-            except Exception:
-                pass
-            preset = None
-            for p in load_presets():
-                if p.get('id') == preset_id:
-                    preset = p
-                    break
-            config = load_config()
-            if req.config:
-                config.update(req.config)
-            if preset:
-                if preset.get('provider_id'):
-                    config['_preset_provider'] = preset['provider_id']
-                if preset.get('temperature') is not None:
-                    config['temperature'] = preset['temperature']
-                if preset.get('max_tokens') is not None:
-                    config['max_tokens'] = preset['max_tokens']
-            result = generate_smart_prompt(req.prompt, config, preset)
-        return result
-    except Exception as e:
-        return {"success": False, "prompt": "", "negative": "", "raw": "", "error": str(e), "traceback": traceback.format_exc()[-1500:]}
 
 
 async def _smart_prompt_comfyui(req: SmartPromptRequest):
@@ -8548,752 +6069,31 @@ if USE_NEW_PROMPT_MODULE:
 class AIGenPlanRequest(BaseModel):
     description: str
 
-@app.post("/api/random-plan/ai-generate")
-async def ai_generate_random_plan(req: AIGenPlanRequest, token: str = ""):
-    """用 LLM 根据自然语言描述生成提示词方案结构 (角色 / 画师 / 预设)"""
-    require_valid_token(token)
-    try:
-        config = load_config()
-        if not config.get('api_key'):
-            return {"success": False, "error": "未配置 API Key，请先在设置中配置 LLM API"}
-
-        sys_prompt = (
-            "你是一个 AI 绘画提示词方案生成助手。用户会用自然语言描述他想要的方案主题，你需要输出一个 JSON 对象。\n"
-            "JSON 结构：\n"
-            "{\n"
-            '  "name": string,            // 方案名（简洁中文）\n'
-            '  "characters": string[],    // 角色 tag 数组（英文，如 "nahida (genshin impact)"）\n'
-            '  "artists": string[],       // 画师 tag 数组（英文，如 "wlop", \"ask\"）\n'
-            '  "presets": string[],       // 预设词数组（英文画质 / 风格 tag，如 \"masterpiece, best quality\", \"detailed background\"）\n'
-            '  "fixedPrompt": string      // 固定提示词（可选，其他需要每次都附加的词）\n'
-            "}\n\n"
-            "要求：\n"
-            "1. 只输出 JSON，不要 markdown 代码块标记，不要任何解释文字\n"
-            "2. 角色 / 画师都用英文 tag（与 stable diffusion 模型兼容）\n"
-            "3. 角色至少给 1 个，如果用户描述的是原创 / 通用主题，可留空数组\n"
-            "4. 画师给 1-3 个，符合主题风格\n"
-            "5. 预设给 2-5 个常用画质 / 风格 tag\n"
-            "6. 如果用户描述不明确，自行发挥创意填充合理内容\n"
-        )
-
-        raw = _sp_call_llm(req.description.strip(), sys_prompt, config)
-        if isinstance(raw, str) and raw.startswith('ERROR'):
-            return {"success": False, "error": raw}
-
-        # 尝试解析 JSON（容错：去掉可能的 markdown 标记）
-        import re as _re
-        cleaned = raw.strip()
-        # 去掉 ```json ... ``` 包裹
-        m = _re.search(r'```(?:json)?\s*(.*?)```', cleaned, _re.DOTALL)
-        if m:
-            cleaned = m.group(1).strip()
-        # 尝试截取第一个 { 到最后一个 }
-        s = cleaned.find('{')
-        e = cleaned.rfind('}')
-        if s >= 0 and e > s:
-            cleaned = cleaned[s:e+1]
-
-        data = json.loads(cleaned)
-        # 字段兼容性保证
-        plan = {
-            'name': str(data.get('name') or 'AI 方案')[:30],
-            'characters': list(data.get('characters') or []),
-            'artists': list(data.get('artists') or []),
-            'presets': list(data.get('presets') or []),
-            'fixedPrompt': str(data.get('fixedPrompt') or ''),
-        }
-        return {"success": True, "plan": plan, "raw": raw}
-    except json.JSONDecodeError as e:
-        return {"success": False, "error": f"AI 输出 JSON 解析失败: {e}", "raw": raw if 'raw' in dir() else ''}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# --- 智能 TTS 文本精修 ---
-class SmartTTSRequest(BaseModel):
-    text: str = ""
-    config: Optional[Dict[str, Any]] = None
-
-@app.post("/api/smart-tts")
-async def smart_tts_enhance(req: SmartTTSRequest):
-    """智能 TTS 文本精修"""
-    try:
-        config = load_config()
-        if req.config:
-            config.update(req.config)
-        if not config.get('api_key'):
-            return {"success": False, "enhanced_text": "", "suggested_params": {}, "changes": [], "raw": "", "error": "未配置 API Key"}
-        result = smart_tts_module.generate_smart_tts(req.text, config)
-        return result
-    except Exception as e:
-        return {"success": False, "enhanced_text": "", "suggested_params": {}, "changes": [], "raw": "", "error": str(e)}
-
-# --- 翻译模型 ---
-TRANSLATE_CONFIG_FILE = os.path.join(BASE_DIR, "data", "translate-config.json")
-
-# 翻译结果缓存: key="text||direction" → {result, ts}
-_TRANSLATE_CACHE = {}
-_TRANSLATE_CACHE_MAX = 500
-_TRANSLATE_CACHE_TTL = 3600  # 1 小时
-
-def _translate_cache_key(text: str, direction: str) -> str:
-    return f"{text}||{direction}"
-
-def _translate_cache_get(text: str, direction: str):
-    key = _translate_cache_key(text, direction)
-    entry = _TRANSLATE_CACHE.get(key)
-    if entry and (time.time() - entry["ts"]) < _TRANSLATE_CACHE_TTL:
-        return entry["result"]
-    return None
-
-def _translate_cache_set(text: str, direction: str, result: str):
-    key = _translate_cache_key(text, direction)
-    # 满了就淘汰最老的
-    if len(_TRANSLATE_CACHE) >= _TRANSLATE_CACHE_MAX:
-        oldest_key = min(_TRANSLATE_CACHE, key=lambda k: _TRANSLATE_CACHE[k]["ts"])
-        del _TRANSLATE_CACHE[oldest_key]
-    _TRANSLATE_CACHE[key] = {"result": result, "ts": time.time()}
-
-def load_translate_config():
-    default = {
-        "provider_type": "ai",
-        "baidu_app_id": "",
-        "baidu_secret_key": "",
-        "ai_provider_id": "",
-        "ai_model": "",
-        "ai_prompt_template": "将以下提示词翻译成目标语言,保持提示词风格和意图,只输出翻译结果,不要任何解释:\n\n{text}",
-        "source_lang": "zh",
-        "target_lang": "en",
-    }
-    if os.path.exists(TRANSLATE_CONFIG_FILE):
-        try:
-            with open(TRANSLATE_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                saved = json.load(f)
-                default.update(saved)
-        except Exception:
-            pass
-    return default
-
-def save_translate_config(cfg):
-    os.makedirs(os.path.dirname(TRANSLATE_CONFIG_FILE), exist_ok=True)
-    with open(TRANSLATE_CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-
-@app.get("/api/translate/config")
-async def get_translate_config():
-    cfg = load_translate_config()
-    # 安全返回:隐藏 secret_key 中间部分
-    safe = dict(cfg)
-    if safe.get("baidu_secret_key"):
-        sk = safe["baidu_secret_key"]
-        safe["baidu_secret_key_preview"] = sk[:3] + "***" + sk[-3:] if len(sk) > 6 else "***"
-    else:
-        safe["baidu_secret_key_preview"] = ""
-    return safe
-
-@app.post("/api/translate/config")
-async def save_translate_config_api(payload: dict):
-    cfg = load_translate_config()
-    for key in ["provider_type", "baidu_app_id", "baidu_secret_key", "ai_provider_id", "ai_model", "ai_prompt_template", "source_lang", "target_lang"]:
-        if key in payload:
-            cfg[key] = payload[key]
-    save_translate_config(cfg)
-    return {"success": True}
-
-async def translate_with_baidu(text: str, from_lang: str, to_lang: str, app_id: str, secret_key: str) -> str:
-    """百度通用翻译 API"""
-    salt = str(int(time.time() * 1000))
-    sign_str = app_id + text + salt + secret_key
-    sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
-    lang_map = {"zh": "zh", "en": "en", "ja": "jp", "ko": "kor", "fr": "fra", "de": "de", "ru": "ru", "es": "spa", "pt": "pt", "it": "it", "ar": "ara", "th": "th", "vi": "vie"}
-    from_lang_baidu = lang_map.get(from_lang, from_lang)
-    to_lang_baidu = lang_map.get(to_lang, to_lang)
-    params = urllib.parse.urlencode({
-        "q": text, "from": from_lang_baidu, "to": to_lang_baidu,
-        "appid": app_id, "salt": salt, "sign": sign
-    })
-    url = f"https://fanyi-api.baidu.com/api/trans/vip/translate?{params}"
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(url)
-        data = resp.json()
-    if "error_code" in data:
-        raise Exception(f"百度翻译错误 ({data['error_code']}): {data.get('error_msg', '')}")
-    results = data.get("trans_result", [])
-    return "\n".join(r.get("dst", "") for r in results)
-
-async def translate_with_ai(text: str, from_lang: str, to_lang: str, provider_id: str, model: str, template: str) -> str:
-    """用 AI 模型翻译"""
-    providers = load_api_providers()
-    provider = next((p for p in providers if p.get("id") == provider_id), None)
-    if not provider:
-        raise Exception(f"未找到 provider: {provider_id}")
-    base_url = (provider.get("base_url") or "").strip()
-    if not base_url:
-        raise Exception("provider 未配置 base_url")
-    # 读取 API Key
-    env_key = f"{provider_id.upper()}_API_KEY"
-    api_key = os.environ.get(env_key, "").strip()
-    if not api_key:
-        try:
-            api_env = os.path.join(BASE_DIR, "API", ".env")
-            if os.path.exists(api_env):
-                with open(api_env, 'r', encoding='utf-8-sig') as f:
-                    for line in f.read().splitlines():
-                        line = line.strip()
-                        if not line or line.startswith('#') or '=' not in line:
-                            continue
-                        k, v = line.split('=', 1)
-                        if k.strip().upper() == env_key.upper():
-                            api_key = v.strip().strip('"').strip("'")
-                            break
-        except Exception:
-            pass
-    if not api_key:
-        raise Exception("未配置 API Key")
-    if not model:
-        chat_models = provider.get("chat_models") or []
-        model = chat_models[0] if chat_models else "gpt-4o-mini"
-    lang_names = {"zh": "中文", "en": "英文", "ja": "日文", "ko": "韩文", "fr": "法文", "de": "德文", "ru": "俄文", "es": "西班牙文", "pt": "葡萄牙文", "ar": "阿拉伯文", "th": "泰文", "vi": "越南文"}
-    from_name = lang_names.get(from_lang, from_lang)
-    to_name = lang_names.get(to_lang, to_lang)
-    # 构建翻译 prompt,明确指定源语言和目标语言
-    prompt = f"将以下{from_name}文本翻译成{to_name},只输出翻译结果,不要任何解释:\n\n{text}"
-    if base_url.endswith('/v1'):
-        url = f"{base_url}/chat/completions"
-    else:
-        url = f"{base_url}/v1/chat/completions"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {sanitize_api_key(api_key)}"}
-    body = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
-        "max_tokens": 2048,
-        "stream": False
-    }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(url, json=body, headers=headers)
-        if resp.status_code >= 400:
-            raise Exception(f"AI API 错误 ({resp.status_code}): {resp.text[:200]}")
-        data = resp.json()
-    return data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-
-@app.post("/api/translate")
-async def translate_text(payload: dict):
-    text = (payload.get("text") or "").strip()
-    direction = payload.get("direction", "zh2en")
-    if not text:
-        return {"success": False, "error": "请输入要翻译的文本"}
-    cfg = load_translate_config()
-    # 解析方向:zh2en, en2ja, zh2fr 等
-    lang_map = {
-        'zh': '中文', 'en': '英语', 'ja': '日语', 'ko': '韩语',
-        'fr': '法语', 'de': '德语', 'es': '西班牙语', 'pt': '葡萄牙语',
-        'ru': '俄语', 'ar': '阿拉伯语', 'th': '泰语', 'vi': '越南语'
-    }
-    parts = direction.split('2')
-    if len(parts) == 2 and parts[0] in lang_map and parts[1] in lang_map:
-        from_lang, to_lang = parts[0], parts[1]
-    elif direction == 'zh2en':
-        from_lang, to_lang = cfg.get('source_lang', 'zh'), cfg.get('target_lang', 'en')
-    else:
-        from_lang, to_lang = 'zh', 'en'
-    provider_type = cfg.get("provider_type", "ai")
-    try:
-        # 先查缓存
-        cached = _translate_cache_get(text, direction)
-        if cached is not None:
-            return {"success": True, "result": cached, "_cached": True}
-
-        if provider_type == "baidu":
-            app_id = cfg.get("baidu_app_id", "")
-            secret_key = cfg.get("baidu_secret_key", "")
-            if not app_id or not secret_key:
-                return {"success": False, "error": "未配置百度翻译 App ID 或 Secret Key"}
-            result = await translate_with_baidu(text, from_lang, to_lang, app_id, secret_key)
-        else:
-            ai_pid = cfg.get("ai_provider_id", "")
-            if not ai_pid:
-                return {"success": False, "error": "未选择 AI 翻译模型"}
-            result = await translate_with_ai(
-                text, from_lang, to_lang, ai_pid,
-                cfg.get("ai_model", ""),
-                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言,只输出翻译结果:\n\n{text}")
-            )
-            # 写入缓存
-            _translate_cache_set(text, direction, result)
-        return _clean_translate_response({"success": True, "result": result})
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# 缓存返回时清理内部字段
-def _clean_translate_response(resp: dict) -> dict:
-    """去掉 _cached 等内部字段，只暴露给前端"""
-    if not isinstance(resp, dict):
-        return resp
-    return {k: v for k, v in resp.items() if not k.startswith('_')}
-
-@app.post("/api/translate/test")
-async def test_translate():
-    cfg = load_translate_config()
-    test_text = "一只粉色头发的女孩在夕阳下的海滩上微笑,穿着白色连衣裙"
-    try:
-        if cfg.get("provider_type") == "baidu":
-            app_id = cfg.get("baidu_app_id", "")
-            sk = cfg.get("baidu_secret_key", "")
-            if not app_id or not sk:
-                return {"success": False, "error": "未配置百度翻译 App ID 或 Secret Key"}
-            result = await translate_with_baidu(test_text, "zh", "en", app_id, sk)
-        else:
-            ai_pid = cfg.get("ai_provider_id", "")
-            if not ai_pid:
-                return {"success": False, "error": "未选择 AI 翻译模型"}
-            result = await translate_with_ai(
-                test_text, "zh", "en", ai_pid,
-                cfg.get("ai_model", ""),
-                cfg.get("ai_prompt_template", "将以下提示词翻译成目标语言,只输出翻译结果:\n\n{text}")
-            )
-        return {"success": True, "result": result, "test_input": test_text}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# --- 用户提示词字典 ---
-
-USER_PROMPT_DICT_FILE = os.path.join(BASE_DIR, "data", "user-prompt-dict.json")
-
-def load_user_prompt_dict() -> dict:
-    if os.path.exists(USER_PROMPT_DICT_FILE):
-        try:
-            with open(USER_PROMPT_DICT_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"zh2en": {}, "en2zh": {}}
-
-def save_user_prompt_dict(data: dict):
-    os.makedirs(os.path.dirname(USER_PROMPT_DICT_FILE), exist_ok=True)
-    with open(USER_PROMPT_DICT_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-@app.get("/api/prompt-dict")
-async def get_prompt_dict():
-    return {"success": True, "dict": load_user_prompt_dict()}
-
-@app.post("/api/prompt-dict/learn")
-async def learn_prompt_dict(payload: dict):
-    """自动学习:将翻译结果的词条对写入用户字典"""
-    entries = payload.get("entries", {})
-    if not entries:
-        return {"success": False, "error": "无词条数据"}
-    user_dict = load_user_prompt_dict()
-    added = 0
-    skipped = 0
-    for direction in ["zh2en", "en2zh"]:
-        pairs = entries.get(direction, {})
-        if not pairs:
-            continue
-        if direction not in user_dict:
-            user_dict[direction] = {}
-        for src, tgt in pairs.items():
-            src = src.strip()
-            tgt = tgt.strip()
-            if not src or not tgt:
-                skipped += 1
-                continue
-            if src in user_dict[direction]:
-                skipped += 1
-                continue
-            user_dict[direction][src] = tgt
-            added += 1
-    save_user_prompt_dict(user_dict)
-    return {"success": True, "added": added, "skipped": skipped}
-
-# --- ModelScope 角度控制 ---
-
-@app.post("/api/angle/poll_status")
-async def poll_angle_cloud(req: CloudPollRequest):
-    base_url = 'https://api-inference.modelscope.cn/'
-    clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
-    if not clean_token:
-        raise HTTPException(status_code=400, detail="未提供 ModelScope API Key")
-
-    headers = {
-        "Authorization": f"Bearer {clean_token}",
-        "Content-Type": "application/json",
-        "X-ModelScope-Async-Mode": "true"
-    }
-    task_id = req.task_id
-    print(f"Resuming polling for Angle Task: {task_id}")
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            for i in range(300):
-                await asyncio.sleep(2)
-                try:
-                    result = await client.get(
-                        f"{base_url}v1/tasks/{task_id}",
-                        headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
-                    )
-                    data = result.json()
-                    status = data.get("task_status")
-
-                    if status == "SUCCEED":
-                        img_url = data["output_images"][0]
-                        local_path = ""
-                        try:
-                            async with httpx.AsyncClient() as dl_client:
-                                img_res = await dl_client.get(img_url)
-                                if img_res.status_code == 200:
-                                    filename = f"cloud_angle_{int(time.time())}.png"
-                                    file_path = os.path.join(OUTPUT_DIR, filename)
-                                    with open(file_path, "wb") as f:
-                                        f.write(img_res.content)
-                                    local_path = f"/output/{filename}"
-                                else:
-                                    local_path = img_url
-                        except Exception:
-                            local_path = img_url
-
-                        record = {"timestamp": time.time() * 1000, "prompt": f"Resumed {task_id}", "images": [local_path], "type": "angle"}
-                        save_to_history(record)
-                        if req.client_id:
-                            await manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)
-                        return {"url": local_path}
-
-                    elif status == "FAILED":
-                        if req.client_id:
-                            await manager.send_personal_message({"type": "cloud_status", "status": "FAILED", "task_id": task_id}, req.client_id)
-                        raise Exception(f"ModelScope task failed: {data}")
-
-                    if i % 5 == 0 and req.client_id:
-                        await manager.send_personal_message({
-                            "type": "cloud_status", "status": f"{status} ({i}/300)",
-                            "task_id": task_id, "progress": i, "total": 300
-                        }, req.client_id)
-
-                except Exception as loop_e:
-                    print(f"Angle polling error: {loop_e}")
-                    continue
-
-            if req.client_id:
-                await manager.send_personal_message({"type": "cloud_status", "status": "TIMEOUT", "task_id": task_id}, req.client_id)
-            return {"status": "timeout", "task_id": task_id, "message": "Task still pending"}
-
-    except Exception as e:
-        print(f"Angle polling error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/api/angle/generate")
-async def generate_angle_cloud(req: CloudGenRequest, token: str = ""):
-    if token:
-        require_valid_token(token)
-    base_url = 'https://api-inference.modelscope.cn/'
-    clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
-    if not clean_token:
-        raise HTTPException(status_code=400, detail="未提供 ModelScope API Key")
-
-    headers = {
-        "Authorization": f"Bearer {clean_token}",
-        "Content-Type": "application/json",
-        "X-ModelScope-Async-Mode": "true"
-    }
-    payload = {
-        "model": "Qwen/Qwen-Image-Edit-2511",
-        "prompt": req.prompt.strip(),
-        "image_url": req.image_urls
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            submit_res = await client.post(f"{base_url}v1/images/generations", headers=headers, json=payload)
-            if submit_res.status_code != 200:
-                try:
-                    detail = submit_res.json()
-                except:
-                    detail = submit_res.text
-                raise HTTPException(status_code=submit_res.status_code, detail=detail)
-
-            task_id = submit_res.json().get("task_id")
-            print(f"Angle Task submitted, ID: {task_id}")
-
-            for i in range(300):
-                await asyncio.sleep(0.5)
-                try:
-                    result = await client.get(
-                        f"{base_url}v1/tasks/{task_id}",
-                        headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
-                    )
-                    data = result.json()
-                    status = data.get("task_status")
-
-                    if status == "SUCCEED":
-                        img_url = data["output_images"][0]
-                        local_path = ""
-                        try:
-                            async with httpx.AsyncClient() as dl_client:
-                                img_res = await dl_client.get(img_url)
-                                if img_res.status_code == 200:
-                                    filename = f"cloud_angle_{int(time.time())}.png"
-                                    if username:
-                                        user_dir, _ = get_user_output_dir(username)
-                                        file_path = os.path.join(user_dir, filename)
-                                        local_path = build_output_url(None, filename, username)
-                                    else:
-                                        file_path = os.path.join(OUTPUT_DIR, filename)
-                                        local_path = f"/output/{filename}"
-                                    with open(file_path, "wb") as f:
-                                        f.write(img_res.content)
-                                else:
-                                    local_path = img_url
-                        except Exception:
-                            local_path = img_url
-
-                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "angle"}
-                        save_to_history(record)
-                        if req.client_id:
-                            await manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)
-                        if GLOBAL_LOOP:
-                            asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(record), GLOBAL_LOOP)
-                        return {"url": local_path, "task_id": task_id}
-
-                    elif status == "FAILED":
-                        if req.client_id:
-                            await manager.send_personal_message({"type": "cloud_status", "status": "FAILED", "task_id": task_id}, req.client_id)
-                        raise Exception(f"ModelScope task failed: {data}")
-
-                    if i % 5 == 0 and req.client_id:
-                        await manager.send_personal_message({
-                            "type": "cloud_status", "status": f"{status} ({i}/300)",
-                            "task_id": task_id, "progress": i, "total": 300
-                        }, req.client_id)
-
-                except Exception as loop_e:
-                    print(f"Angle polling error: {loop_e}")
-                    continue
-
-            if req.client_id:
-                await manager.send_personal_message({"type": "cloud_status", "status": "TIMEOUT", "task_id": task_id}, req.client_id)
-            return {"status": "timeout", "task_id": task_id, "message": "Task still pending"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Angle generation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-# --- ModelScope Z-Image 云端生图 ---
-
-@app.post("/generate")
-async def generate_cloud(req: CloudGenRequest, token: str = ""):
-    username = require_valid_token(token)
-    base_url = 'https://api-inference.modelscope.cn/'
-    clean_token = sanitize_api_key((req.api_key or MODELSCOPE_API_KEY).strip())
-    if not clean_token:
-        raise HTTPException(status_code=400, detail="未提供 ModelScope API Key")
-
-    headers = {
-        "Authorization": f"Bearer {clean_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": "Tongyi-MAI/Z-Image-Turbo",
-        "prompt": req.prompt.strip(),
-        "size": req.resolution,
-        "n": 1
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            submit_res = await client.post(
-                f"{base_url}v1/images/generations",
-                headers={**headers, "X-ModelScope-Async-Mode": "true"},
-                json=payload
-            )
-            if submit_res.status_code != 200:
-                try:
-                    detail = submit_res.json()
-                except:
-                    detail = submit_res.text
-                raise HTTPException(status_code=submit_res.status_code, detail=detail)
-
-            task_id = submit_res.json().get("task_id")
-            print(f"Z-Image Task submitted, ID: {task_id}")
-
-            for i in range(200):
-                await asyncio.sleep(0.8)
-                try:
-                    result = await client.get(
-                        f"{base_url}v1/tasks/{task_id}",
-                        headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
-                    )
-                    data = result.json()
-                    status = data.get("task_status")
-
-                    if i % 5 == 0:
-                        print(f"Task {task_id} status check {i}: {status}")
-
-                    if status == "SUCCEED":
-                        img_url = data["output_images"][0]
-                        local_path = ""
-                        try:
-                            async with httpx.AsyncClient() as dl_client:
-                                img_res = await dl_client.get(img_url)
-                                if img_res.status_code == 200:
-                                    filename = f"cloud_{int(time.time())}.png"
-                                    if username:
-                                        user_dir, _ = get_user_output_dir(username)
-                                        file_path = os.path.join(user_dir, filename)
-                                        local_path = build_output_url(None, filename, username)
-                                    else:
-                                        file_path = os.path.join(OUTPUT_DIR, filename)
-                                        local_path = f"/output/{filename}"
-                                    with open(file_path, "wb") as f:
-                                        f.write(img_res.content)
-                                else:
-                                    local_path = img_url
-                        except Exception as dl_e:
-                            print(f"Download error: {dl_e}")
-                            local_path = img_url
-
-                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "cloud"}
-                        save_to_history(record)
-                        try:
-                            await manager.broadcast_new_image(record)
-                        except Exception:
-                            pass
-                        return {"url": local_path}
-
-                    elif status == "FAILED":
-                        raise Exception(f"ModelScope task failed: {data}")
-
-                except Exception as loop_e:
-                    print(f"Polling error (retrying): {loop_e}")
-                    continue
-
-            raise Exception("Cloud generation timeout")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Cloud generation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-# --- ModelScope 通用图片生成(支持图生图) ---
-
-@app.post("/api/ms/generate")
-async def ms_generate(req: MsGenerateRequest, token: str = ""):
-    if token:
-        require_valid_token(token)
-    base_url = 'https://api-inference.modelscope.cn/'
-    clean_token = sanitize_api_key(MODELSCOPE_API_KEY.strip())
-    if not clean_token:
-        raise HTTPException(status_code=400, detail="未配置 MODELSCOPE_API_KEY,请在 API/.env 中填写。")
-
-    headers = {
-        "Authorization": f"Bearer {clean_token}",
-        "Content-Type": "application/json",
-        "X-ModelScope-Async-Mode": "true"
-    }
-    payload = {
-        "model": req.model,
-        "prompt": req.prompt.strip(),
-    }
-    if req.width and req.height:
-        payload["width"] = req.width
-        payload["height"] = req.height
-        payload["size"] = req.size or f"{req.width}x{req.height}"
-        payload["size"] = req.size or f"{req.width}x{req.height}"
-    if req.image_urls:
-        payload["image_url"] = req.image_urls
-    if req.loras is not None:
-        payload["loras"] = req.loras
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            submit_res = await client.post(
-                f"{base_url}v1/images/generations",
-                headers=headers,
-                json=payload
-            )
-            if submit_res.status_code != 200:
-                try:
-                    detail = submit_res.json()
-                except:
-                    detail = submit_res.text
-                raise HTTPException(status_code=submit_res.status_code, detail=detail)
-
-            task_id = submit_res.json().get("task_id")
-            print(f"MS Generate Task submitted ({req.model}), ID: {task_id}")
-
-            TERMINAL_FAILED_STATUSES = {"FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED", "TIMEOUT", "REVOKED"}
-
-            for i in range(300):
-                await asyncio.sleep(0.5)
-                try:
-                    result = await client.get(
-                        f"{base_url}v1/tasks/{task_id}",
-                        headers={**headers, "X-ModelScope-Task-Type": "image_generation"},
-                    )
-                    data = result.json()
-                    status = data.get("task_status")
-                    print(f"MS Task {task_id} poll {i}: status={status}")
-
-                    if status == "SUCCEED":
-                        img_url = data["output_images"][0]
-                        local_path = ""
-                        try:
-                            async with httpx.AsyncClient() as dl_client:
-                                img_res = await dl_client.get(img_url)
-                                if img_res.status_code == 200:
-                                    filename = f"ms_{req.model.replace('/', '_').replace(':', '_')}_{int(time.time())}.png"
-                                    if username:
-                                        user_dir, _ = get_user_output_dir(username)
-                                        file_path = os.path.join(user_dir, filename)
-                                        local_path = build_output_url(None, filename, username)
-                                    else:
-                                        file_path = os.path.join(OUTPUT_DIR, filename)
-                                        local_path = f"/output/{filename}"
-                                    with open(file_path, "wb") as f:
-                                        f.write(img_res.content)
-                                else:
-                                    local_path = img_url
-                        except Exception:
-                            local_path = img_url
-
-                        record = {
-                            "timestamp": time.time() * 1000,
-                            "prompt": req.prompt,
-                            "images": [local_path],
-                            "type": "klein",
-                            "model": req.model,
-                        }
-                        save_to_history(record)
-                        if GLOBAL_LOOP:
-                            asyncio.run_coroutine_threadsafe(manager.broadcast_new_image(record), GLOBAL_LOOP)
-                        return {"url": local_path, "task_id": task_id}
-
-                    elif status in TERMINAL_FAILED_STATUSES:
-                        error_info = data.get("error_info") or data.get("message") or data.get("detail") or str(data)
-                        raise HTTPException(status_code=502, detail=f"MS task {status}: {error_info}")
-
-                except HTTPException:
-                    raise
-                except Exception as loop_e:
-                    print(f"MS polling error: {loop_e}")
-                    continue
-
-            raise HTTPException(status_code=504, detail="MS 生图超时")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"MS generate error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
 
 # --- 本地 ComfyUI 生图 ---
 
-# 最近一次提交到 ComfyUI 的任务(prompt_id + 目标后端), 供 /api/generate/cancel 真正中断使用。
-# 局限: 并发多个生成时只记录最后一个(当前业务为单任务串行, 足够用)。
-_ACTIVE_COMFY_TASK = {"prompt_id": None, "backend": None}
+# 正在执行中的 ComfyUI 任务登记表(prompt_id -> backend/caller), 供 /api/generate/cancel 精确中断。
+# 多槽化(2026-10-22): 旧版单槽只记最后一个 prompt_id, canvas 异步任务经 asyncio.to_thread
+# 多线程并发时后注册的会覆盖先注册的, 且 cancel 无法按调用方隔离。现改为 prompt_id 主键 +
+# caller 索引, 支持同用户多任务并发; cancel 按调用方取消自己的任务(全局唯一时宽松兜底,
+# 兼容未带 token 的老客户端)。
+_ACTIVE_COMFY_TASKS = {}
 _ACTIVE_COMFY_LOCK = threading.Lock()
+
+def _comfy_caller_key(req, token: str = "") -> str:
+    """生成任务的调用方标识: 优先用户名(带 token), 其次 client_id, 最后匿名。"""
+    username = None
+    if token:
+        try:
+            username = get_username_by_token(token)
+        except Exception:
+            username = None
+    if username:
+        return username
+    client_id = getattr(req, "client_id", None)
+    if client_id:
+        return "client:" + str(client_id)
+    return "anon"
 
 def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
     """Execute a ComfyUI generate task synchronously. Returns result dict.
@@ -9496,9 +6296,12 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
 
             prompt_id = submit_result['prompt_id']
 
-        # 记录当前正在执行的 ComfyUI 任务, 供 /api/generate/cancel 真正中断
+        # 登记当前正在执行的 ComfyUI 任务, 供 /api/generate/cancel 按调用方精确中断
         with _ACTIVE_COMFY_LOCK:
-            _ACTIVE_COMFY_TASK.update({"prompt_id": prompt_id, "backend": target_backend})
+            _ACTIVE_COMFY_TASKS[prompt_id] = {
+                "backend": target_backend,
+                "caller": _comfy_caller_key(req, token),
+            }
 
         history_data = None
         poll_start = time.monotonic()
@@ -9704,7 +6507,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                 print(f"[TextOutput] Failed to save text file: {e}")
                 text_url = ""
         else:
-            print(f"[TextOutput] WARNING: No text extracted from ComfyUI history")
+            print("[TextOutput] WARNING: No text extracted from ComfyUI history")
             text_url = ""
 
         if not local_urls and not audio_urls and not output_text:
@@ -9782,8 +6585,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
     finally:
         if prompt_id:
             with _ACTIVE_COMFY_LOCK:
-                if _ACTIVE_COMFY_TASK.get("prompt_id") == prompt_id:
-                    _ACTIVE_COMFY_TASK.update({"prompt_id": None, "backend": None})
+                _ACTIVE_COMFY_TASKS.pop(prompt_id, None)
         if target_backend:
             with LOAD_LOCK:
                 if BACKEND_LOCAL_LOAD.get(target_backend, 0) > 0:
@@ -9822,31 +6624,6 @@ async def run_canvas_comfy_task(task_id: str, req: GenerateRequest, token: str =
             })
 
 
-@app.post("/api/canvas-comfy-tasks")
-async def create_canvas_comfy_task(payload: GenerateRequest, token: str = ""):
-    """Create an async ComfyUI task. Returns task_id immediately."""
-    task_id = f"canvas_comfy_{uuid.uuid4().hex}"
-    with CANVAS_TASK_LOCK:
-        CANVAS_TASKS[task_id] = {
-            "id": task_id,
-            "type": "comfy-generate",
-            "status": "queued",
-            "created_at": time.time(),
-            "updated_at": time.time(),
-            "result": None,
-            "error": "",
-        }
-    asyncio.create_task(run_canvas_comfy_task(task_id, payload, token))
-    return {"task_id": task_id, "status": "queued"}
-
-
-@app.get("/api/canvas-comfy-tasks/{task_id}")
-async def get_canvas_comfy_task(task_id: str):
-    with CANVAS_TASK_LOCK:
-        task = dict(CANVAS_TASKS.get(task_id) or {})
-    if not task:
-        raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
-    return task
 
 
 @app.post("/api/generate")
@@ -9859,25 +6636,43 @@ def cancel_generate(token: str = ""):
     """真正中断正在执行的 ComfyUI 生成任务(释放显存/停止采样):
     1) POST /interrupt 中断当前执行中的任务;
     2) DELETE /queue 把该 prompt_id 从未开始的队列中移除(interrupt 只对执行中有效)。
+    多槽化(2026-10-22): 按调用方取消自己的全部任务; 若调用方无任务且全局仅剩一个,
+    宽松取消该任务(兼容未带 token 的老客户端单任务场景)。
     """
     with _ACTIVE_COMFY_LOCK:
-        pid = _ACTIVE_COMFY_TASK.get("prompt_id")
-        backend = _ACTIVE_COMFY_TASK.get("backend")
-    if not pid or not backend:
+        caller = "anon"
+        if token:
+            try:
+                caller = get_username_by_token(token) or "anon"
+            except Exception:
+                caller = "anon"
+        mine = [(pid, info) for pid, info in _ACTIVE_COMFY_TASKS.items()
+                if info.get("caller") == caller]
+        if not mine and len(_ACTIVE_COMFY_TASKS) == 1:
+            mine = list(_ACTIVE_COMFY_TASKS.items())
+        # 取消意图立即生效: 同一临界区内摘除登记, 连点取消第二次即返回无任务
+        # (_run_comfy_generate_sync 的 finally 里 pop(prompt_id, None) 幂等兼容)
+        for pid, _ in mine:
+            _ACTIVE_COMFY_TASKS.pop(pid, None)
+    if not mine:
         return {"success": False, "detail": "当前没有正在执行的 ComfyUI 生成任务"}
     notes = []
-    try:
-        requests.post(f"http://{backend}/interrupt", timeout=3)
-        notes.append("interrupt ok")
-    except Exception as e:
-        notes.append(f"interrupt fail: {e}")
-    try:
-        requests.delete(f"http://{backend}/queue", json={"delete": [pid]}, timeout=3)
-        notes.append("queue-delete ok")
-    except Exception as e:
-        notes.append(f"queue-delete fail: {e}")
-    print(f"[Generate] 用户终止: prompt_id={pid} backend={backend} ({'; '.join(notes)})")
-    return {"success": True, "prompt_id": pid, "detail": "; ".join(notes)}
+    cancelled = []
+    for pid, info in mine:
+        backend = info.get("backend")
+        try:
+            requests.post(f"http://{backend}/interrupt", timeout=3)
+            notes.append("interrupt ok")
+        except Exception as e:
+            notes.append(f"interrupt fail: {e}")
+        try:
+            requests.delete(f"http://{backend}/queue", json={"delete": [pid]}, timeout=3)
+            notes.append("queue-delete ok")
+        except Exception as e:
+            notes.append(f"queue-delete fail: {e}")
+        cancelled.append(pid)
+        print(f"[Generate] 用户终止: prompt_id={pid} backend={backend} caller={caller} ({'; '.join(notes)})")
+    return {"success": True, "prompt_ids": cancelled, "prompt_id": cancelled[0], "detail": "; ".join(notes)}
 
 # --- API 设置相关 API ---
 
@@ -9989,196 +6784,6 @@ class TestConnectionPayload(BaseModel):
     api_key: str = ""
     provider_id: str = ""
 
-@app.get("/api/providers")
-async def api_providers():
-    """获取 API 提供商列表"""
-    return {"providers": [public_provider(p) for p in load_api_providers()]}
-
-@app.put("/api/providers")
-async def save_providers(payload: List[ApiProviderPayload]):
-    """保存 API 提供商列表"""
-    providers = []
-    env_updates = {}
-
-    # 收集 primary 标记
-    raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
-
-    for item in payload:
-        provider = normalize_provider(item.dict(exclude={"api_key"}))
-
-        # 检查 ID 重复
-        if any(existing["id"] == provider["id"] for existing in providers):
-            raise HTTPException(status_code=400, detail=f"API 平台 ID 重复:{provider['id']}")
-
-        providers.append(provider)
-
-        # 收集 API Key
-        if item.api_key is not None:
-            env_updates[provider_key_env(provider["id"])] = item.api_key.strip()
-
-        # 收集其他配置
-        if provider["id"] == "comfly":
-            env_updates["COMFLY_BASE_URL"] = provider["base_url"]
-            env_updates["IMAGE_MODELS"] = ",".join(provider["image_models"])
-            env_updates["CHAT_MODELS"] = ",".join(provider["chat_models"])
-            env_updates["VIDEO_MODELS"] = ",".join(provider.get("video_models") or [])
-
-        if provider["id"] == "modelscope":
-            env_updates["MODELSCOPE_CHAT_MODELS"] = ",".join(provider["chat_models"])
-
-    if not providers:
-        raise HTTPException(status_code=400, detail="至少保留一个 API 平台")
-
-    # 强制最多一个 primary(取最后被标记的)
-    primary_indices = [i for i, flag in enumerate(raw_primary_flags) if flag]
-    if primary_indices:
-        winner = primary_indices[-1]
-        for i, p in enumerate(providers):
-            p["primary"] = (i == winner)
-
-    save_api_providers(providers)
-
-    if env_updates:
-        update_env_values(env_updates)
-        reload_env_globals()  # 立即同步环境变量
-
-    return {"providers": [public_provider(p) for p in providers]}
-
-@app.post("/api/providers/test-connection")
-async def test_provider_connection(payload: TestConnectionPayload):
-    """测试请求地址是否可用:调用上游 /v1/models"""
-    base_url = (payload.base_url or "").strip().rstrip("/")
-    if not base_url:
-        raise HTTPException(status_code=400, detail="请先填写请求地址")
-
-    if not re.match(r"^https?://", base_url):
-        raise HTTPException(status_code=400, detail="请求地址必须以 http:// 或 https:// 开头")
-
-    api_key = (payload.api_key or "").strip()
-    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
-    if any(ch in api_key for ch in ("•", "…", "****")):
-        api_key = ""
-    if not api_key and payload.provider_id:
-        api_key = read_api_env_value(provider_key_env(payload.provider_id))
-
-    if not api_key:
-        raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
-
-    url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url, headers={
-                "Authorization": f"Bearer {sanitize_api_key(api_key)}",
-                "Accept": "application/json"
-            })
-
-        if resp.status_code >= 400:
-            return {"ok": False, "status": resp.status_code, "message": resp.text[:300]}
-
-        data = resp.json() if resp.text else {}
-        items = (data.get("data") if isinstance(data, dict) else None) or []
-
-        # 抽取模型 ID
-        ids = []
-        for it in items:
-            if isinstance(it, str):
-                ids.append(it)
-            elif isinstance(it, dict):
-                mid = it.get("id") or it.get("name") or it.get("model")
-                if mid:
-                    ids.append(str(mid))
-
-        ids = sorted(set(ids))
-
-        # 关键字分类
-        def classify(mid):
-            lc = mid.lower()
-            video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
-            if any(k in lc for k in video_keys):
-                return "video"
-            image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
-            if any(k in lc for k in image_keys):
-                return "image"
-            return "chat"
-
-        grouped = {"image": [], "chat": [], "video": []}
-        for mid in ids:
-            grouped[classify(mid)].append(mid)
-
-        return {
-            "ok": True,
-            "status": resp.status_code,
-            "model_count": len(ids),
-            "image_models": grouped["image"],
-            "chat_models": grouped["chat"],
-            "video_models": grouped["video"],
-            "all": ids
-        }
-    except httpx.HTTPError as e:
-        return {"ok": False, "status": 0, "message": str(e)[:300]}
-
-@app.post("/api/providers/probe-async")
-async def probe_async_endpoint(payload: TestConnectionPayload):
-    """验证异步协议:用假 task_id 请求 GET /v1/tasks/{fake_id}"""
-    base_url = (payload.base_url or "").strip().rstrip("/")
-    if not base_url:
-        raise HTTPException(status_code=400, detail="请先填写请求地址")
-
-    api_key = (payload.api_key or "").strip()
-    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
-    if any(ch in api_key for ch in ("•", "…", "****")):
-        api_key = ""
-    if not api_key and payload.provider_id:
-        api_key = read_api_env_value(provider_key_env(payload.provider_id))
-
-    if not api_key:
-        raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
-
-    tasks_base = base_url if base_url.endswith("/v1") else f"{base_url}/v1"
-    probe_url = f"{tasks_base}/tasks/healthcheck_probe_do_not_submit"
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(probe_url, headers={
-                "Authorization": f"Bearer {sanitize_api_key(api_key)}",
-                "Accept": "application/json"
-            })
-
-        try:
-            body = resp.json()
-        except Exception:
-            body = resp.text[:500]
-
-        sc = resp.status_code
-        err_msg = ""
-        if isinstance(body, dict):
-            err = body.get("error") or {}
-            if isinstance(err, dict):
-                err_msg = str(err.get("message") or "").lower()
-            else:
-                err_msg = str(err).lower()
-
-        # 判断结果
-        if sc == 400 and "invalid task id" in err_msg:
-            return {"ok": True, "status_code": sc, "message": "异步任务端点可用,API Key 已通过认证", "raw": body}
-
-        if sc in (401, 403):
-            return {"ok": False, "status_code": sc, "message": "API Key 无效或无权限", "raw": body}
-
-        if sc == 404:
-            return {"ok": False, "status_code": sc, "message": "平台不支持 /v1/tasks/ 端点,可能不是 APIMart 异步协议", "raw": body}
-
-        if 400 <= sc < 500:
-            return {"ok": None, "status_code": sc, "message": f"端点返回 {sc},请查看原始响应判断", "raw": body}
-
-        if sc < 300:
-            return {"ok": True, "status_code": sc, "message": f"端点返回 {sc}(意外成功)", "raw": body}
-
-        return {"ok": False, "status_code": sc, "message": f"服务端错误 {sc}", "raw": body}
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=str(e)[:300])
-
 async def fetch_models_from_upstream(base_url: str, api_key: str):
     """从 OpenAI 兼容 /v1/models 端点拉取模型"""
     base_url = (base_url or "").strip().rstrip("/")
@@ -10247,244 +6852,9 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
         "all": ids
     }
 
-@app.post("/api/providers/fetch-models")
-async def fetch_upstream_models_from_payload(payload: TestConnectionPayload):
-    """按页面当前表单值拉取模型"""
-    api_key = (payload.api_key or "").strip()
-    # 检测预览/掩码串（含 • … 等），视为空值，走 .env 兜底
-    if any(ch in api_key for ch in ("•", "…", "****")):
-        api_key = ""
-    if not api_key and payload.provider_id:
-        api_key = read_api_env_value(provider_key_env(payload.provider_id))
-    return await fetch_models_from_upstream(payload.base_url, api_key)
-
-@app.get("/api/providers/{provider_id}/fetch-models")
-async def fetch_upstream_models(provider_id: str):
-    """从已保存的上游接口拉取模型列表"""
-    provider = get_api_provider_exact(provider_id)
-    api_key = read_api_env_value(provider_key_env(provider["id"]))
-    if not api_key:
-        raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
-    return await fetch_models_from_upstream(provider.get("base_url") or "", api_key)
-
 # --- 即梦 CLI API ---
 
-@app.get("/api/jimeng/status")
-async def jimeng_status():
-    exe = jimeng_cli_executable()
-    if not exe:
-        return {"installed": False, "logged_in": False, "message": "未找到 dreamina CLI"}
-    version, version_text = await jimeng_cli_version()
-    version_str = ".".join(str(part) for part in version) if version else None
-    version_ok = version >= JIMENG_MIN_CLI_VERSION if version else None
-    min_version_str = ".".join(str(part) for part in JIMENG_MIN_CLI_VERSION)
-    try:
-        raw = await run_jimeng_cli(["user_credit"], timeout=30)
-        return {
-            "installed": True,
-            "logged_in": True,
-            "raw": raw,
-            "cli_version": version_str,
-            "version_ok": version_ok,
-            "min_version": min_version_str,
-        }
-    except HTTPException as exc:
-        return {
-            "installed": True,
-            "logged_in": False,
-            "message": str(exc.detail),
-            "cli_version": version_str,
-            "version_ok": version_ok,
-            "min_version": min_version_str,
-        }
-
-@app.get("/api/jimeng/credit")
-async def jimeng_credit():
-    raw = await run_jimeng_cli(["user_credit"], timeout=30)
-    return {"success": True, "raw": raw}
-
-@app.post("/api/jimeng/logout")
-async def jimeng_logout():
-    raw = await run_jimeng_cli(["logout"], timeout=30)
-    return {"success": True, "raw": raw}
-
-@app.post("/api/jimeng/login/start")
-async def jimeng_login_start():
-    old_proc = JIMENG_LOGIN_SESSION.get("proc")
-    if old_proc and getattr(old_proc, "returncode", None) is None:
-        try:
-            old_proc.terminate()
-        except Exception:
-            pass
-    exe = jimeng_cli_executable()
-    if not exe:
-        raise HTTPException(status_code=400, detail="未找到 dreamina CLI")
-    JIMENG_LOGIN_SESSION.update({"proc": None, "stdout": "", "stderr": "", "started_at": time.time()})
-    args = ["login", "--headless"]
-    command = jimeng_command(args, exe)
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=BASE_DIR,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=400, detail=f"未找到即梦 CLI:{exe}") from exc
-    JIMENG_LOGIN_SESSION["proc"] = proc
-    asyncio.create_task(jimeng_login_reader(proc))
-    await asyncio.sleep(2)
-    text = jimeng_login_text()
-    if proc.returncode not in (None, 0) and ("unknown" in text.lower() or "no such option" in text.lower()):
-        JIMENG_LOGIN_SESSION.update({"proc": None, "stdout": "", "stderr": "", "started_at": time.time()})
-        proc = await asyncio.create_subprocess_exec(
-            *jimeng_command(["login", "--debug"], exe),
-            cwd=BASE_DIR,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        JIMENG_LOGIN_SESSION["proc"] = proc
-        asyncio.create_task(jimeng_login_reader(proc))
-        await asyncio.sleep(2)
-        text = jimeng_login_text()
-    return {
-        "success": True,
-        "running": JIMENG_LOGIN_SESSION.get("proc") is not None and JIMENG_LOGIN_SESSION["proc"].returncode is None,
-        "text": text,
-        "qr_url": jimeng_login_qr_from_text(text),
-        "started_at": JIMENG_LOGIN_SESSION.get("started_at") or 0,
-    }
-
-@app.get("/api/jimeng/login/status")
-async def jimeng_login_status():
-    proc = JIMENG_LOGIN_SESSION.get("proc")
-    text = jimeng_login_text()
-    running = proc is not None and getattr(proc, "returncode", None) is None
-    logged_in = False
-    credit_raw = None
-    if not running:
-        try:
-            credit_raw = await run_jimeng_cli(["user_credit"], timeout=20)
-            logged_in = True
-        except HTTPException:
-            logged_in = False
-    return {
-        "success": True,
-        "running": running,
-        "logged_in": logged_in,
-        "text": text,
-        "qr_url": jimeng_login_qr_from_text(text),
-        "raw": credit_raw,
-    }
-
-@app.post("/api/jimeng/help")
-async def jimeng_help(payload: JimengHelpRequest):
-    command = str(payload.command or "").strip()
-    allowed = {"", "login", "logout", "user_credit", "text2image", "image2image", "image_upscale", "text2video", "image2video", "multimodal2video", "frames2video", "multiframe2video", "list_task", "query_result"}
-    if command not in allowed:
-        raise HTTPException(status_code=400, detail="不支持的帮助命令")
-    args = [command, "-h"] if command else ["-h"]
-    raw = await run_jimeng_cli(args, timeout=30, raw_text=True)
-    text = raw.get("_stdout") or ""
-    if raw.get("_stderr"):
-        text = f"{text}\n{raw.get('_stderr')}".strip()
-    return {"success": True, "command": command, "text": text, "raw": raw}
-
 # --- OpenAI Codex CLI ---
-@app.get("/api/codex/status")
-async def codex_status():
-    import shutil
-    exe = shutil.which("codex")
-    if not exe:
-        return {"installed": False, "logged_in": False, "message": "未找到 OpenAI Codex CLI，请先安装。"}
-    try:
-        proc = await asyncio.create_subprocess_exec(exe, "whoami", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
-        logged_in = proc.returncode == 0 and bool(stdout.strip())
-        return {"installed": True, "logged_in": logged_in, "message": stdout.decode("utf-8", errors="replace").strip() or "已安装"}
-    except Exception as e:
-        return {"installed": True, "logged_in": False, "message": f"检测失败: {e}"}
-
-@app.post("/api/codex/help")
-async def codex_help(payload: CodexHelpRequest):
-    import shutil
-    exe = shutil.which("codex")
-    if not exe:
-        raise HTTPException(status_code=400, detail="未找到 OpenAI Codex CLI。")
-    allowed = {"", "exec", "login", "logout", "doctor", "mcp", "app", "update"}
-    command = str(payload.command or "").strip()
-    if command not in allowed:
-        raise HTTPException(status_code=400, detail="不允许的 Codex CLI 命令")
-    args = [exe]
-    if command:
-        args += [command, "--help"]
-    else:
-        args.append("--help")
-    try:
-        proc = await asyncio.create_subprocess_exec(*args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
-        text = stdout.decode("utf-8", errors="replace").strip()
-        err_text = stderr.decode("utf-8", errors="replace").strip()
-        if err_text:
-            text = f"{text}\n{err_text}" if text else err_text
-        return {"success": True, "output": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# --- Antigravity CLI ---
-@app.get("/api/gemini-cli/status")
-async def gemini_cli_status():
-    import shutil
-    exe = shutil.which("gemini")
-    if not exe:
-        return {"installed": False, "logged_in": False, "message": "未找到 Gemini CLI，请先安装。"}
-    try:
-        proc = await asyncio.create_subprocess_exec(exe, "auth", "status", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
-        logged_in = proc.returncode == 0
-        return {"installed": True, "logged_in": logged_in, "message": stdout.decode("utf-8", errors="replace").strip() or "已安装"}
-    except Exception as e:
-        return {"installed": True, "logged_in": False, "message": f"检测失败: {e}"}
-
-@app.post("/api/gemini-cli/help")
-async def gemini_cli_help(payload: GeminiCliHelpRequest):
-    import shutil
-    exe = shutil.which("gemini")
-    if not exe:
-        raise HTTPException(status_code=400, detail="未找到 Gemini CLI。")
-    allowed = {"", "help", "mcp", "extensions"}
-    command = str(payload.command or "").strip()
-    if command not in allowed:
-        raise HTTPException(status_code=400, detail="不允许的 Gemini CLI 命令")
-    args = [exe, "help", command] if command else [exe, "help"]
-    try:
-        proc = await asyncio.create_subprocess_exec(*args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
-        text = stdout.decode("utf-8", errors="replace").strip()
-        err_text = stderr.decode("utf-8", errors="replace").strip()
-        if err_text:
-            text = f"{text}\n{err_text}" if text else err_text
-        return {"success": True, "output": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/jimeng/query-media")
-async def jimeng_query_media(payload: JimengQueryMediaRequest):
-    """按 submit_id 续查即梦任务:出图返回 succeeded+urls;仍排队返回 pending+queue_info;失败返回 failed。"""
-    submit_id = str(payload.submit_id or "").strip()
-    if not submit_id:
-        raise HTTPException(status_code=400, detail="缺少 submit_id")
-    kind = str(payload.kind or "image").strip().lower()
-    if kind not in ("image", "video", "audio"):
-        kind = "image"
-    queried = await jimeng_query_result(submit_id, kind)
-    try:
-        urls = await jimeng_store_outputs(queried, kind, allow_query=False)
-        return {"status": "succeeded", "submit_id": submit_id, "kind": kind, "urls": urls}
-    except JimengPendingError as exc:
-        return {"status": "pending", "submit_id": submit_id, "kind": kind, "queue_info": exc.queue_info, "message": jimeng_pending_payload(exc)["message"]}
-    except HTTPException as exc:
-        return {"status": "failed", "submit_id": submit_id, "kind": kind, "error": str(getattr(exc, "detail", "") or exc)}
 
 # --- ComfyUI 设置相关 API ---
 
@@ -10555,216 +6925,9 @@ def is_builtin_workflow(name: str) -> bool:
 class ComfyUIInstancesUpdateRequest(BaseModel):
     instances: List[str] = []
 
-@app.get("/api/comfyui/instances")
-async def get_comfyui_instances():
-    """获取 ComfyUI 实例列表"""
-    return {"instances": COMFYUI_INSTANCES.copy(), "basePath": COMFYUI_BASE_PATH or ""}
-
-@app.put("/api/comfyui/base-path")
-async def update_comfyui_base_path(req: dict):
-    """更新 ComfyUI 基础路径"""
-    global COMFYUI_BASE_PATH
-    path = str(req.get("path", "")).strip().rstrip("\\").rstrip("/")
-    if path and not os.path.isdir(path):
-        raise HTTPException(status_code=400, detail=f"路径不存在:{path}")
-    try:
-        update_env_values({"COMFYUI_BASE_PATH": path})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存配置失败:{e}")
-    COMFYUI_BASE_PATH = path
-    return {"basePath": COMFYUI_BASE_PATH}
-
-@app.put("/api/comfyui/instances")
-async def update_comfyui_instances(req: ComfyUIInstancesUpdateRequest):
-    """更新 ComfyUI 实例列表"""
-    global COMFYUI_INSTANCES, COMFYUI_ADDRESS, BACKEND_LOCAL_LOAD
-
-    # 清洗实例地址
-    cleaned = []
-    for item in req.instances:
-        s = str(item or "").strip()
-        if not s:
-            continue
-        # 去除 http(s):// 前缀
-        s = re.sub(r"^https?://", "", s)
-        # 去除尾部斜杠
-        s = s.rstrip("/")
-        # 校验格式:host:port
-        if ":" not in s:
-            raise HTTPException(status_code=400, detail=f"地址缺少端口号:{item}(应为 host:port,例如 127.0.0.1:8188)")
-        host, _, port = s.rpartition(":")
-        if not host or not port.isdigit():
-            raise HTTPException(status_code=400, detail=f"地址不合法:{item}(应为 host:port,例如 127.0.0.1:8188)")
-        # 去重
-        if s in cleaned:
-            continue
-        cleaned.append(s)
-
-    if not cleaned:
-        raise HTTPException(status_code=400, detail="至少需要一个 ComfyUI 实例地址")
-
-    # 保存到 .env 文件
-    try:
-        update_env_values({"COMFYUI_INSTANCES": ",".join(cleaned)})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存配置文件失败:{e}")
-
-    # 更新全局变量
-    COMFYUI_INSTANCES = cleaned
-    COMFYUI_ADDRESS = cleaned[0]
-    new_load = {addr: 0 for addr in cleaned}
-    # 保留已有的负载计数
-    for addr, n in BACKEND_LOCAL_LOAD.items():
-        if addr in new_load:
-            new_load[addr] = n
-    BACKEND_LOCAL_LOAD = new_load
-
-    return {"instances": COMFYUI_INSTANCES.copy()}
-
 # ---- ComfyUI 进程管理 (启动/停止) ----
 _comfyui_process: Optional[subprocess.Popen] = None
 
-@app.post("/api/comfyui/start")
-async def start_comfyui_process():
-    """启动 ComfyUI 后端进程"""
-    global _comfyui_process
-
-    # 检查是否已在运行
-    if await get_comfyui_health():
-        if _comfyui_process is not None and _comfyui_process.poll() is None:
-            return {"status": "already_running", "pid": _comfyui_process.pid}
-        return {"status": "already_running", "note": "ComfyUI 后端已达"}
-
-    base_path = COMFYUI_BASE_PATH or ""
-    if not base_path or not os.path.isdir(base_path):
-        # 尝试从 env 推断
-        base_path = os.environ.get("COMFYUI_BASE_PATH", "").rstrip("\\")
-        if not base_path or not os.path.isdir(base_path):
-            raise HTTPException(status_code=400, detail="未配置 ComfyUI 路径，请先在设置-路径中配置")
-
-    if not os.path.isfile(os.path.join(base_path, "main.py")):
-        # 也许 base_path 是 AIO 根目录，main.py 在 ComfyUI/ 下
-        if os.path.isfile(os.path.join(base_path, "ComfyUI", "main.py")):
-            base_path = os.path.join(base_path, "ComfyUI")
-        else:
-            raise HTTPException(status_code=400, detail=f"ComfyUI 主程序不存在: {os.path.join(base_path, 'main.py')}")
-
-    main_py = os.path.join(base_path, "main.py")
-
-    # 查找 Python 可执行文件（兼容 ComfyUI standalone 各种布局：python/ / python_embeded/ / venv/）
-    parent = os.path.dirname(base_path)
-    candidates = [
-        os.path.join(base_path, "python", "python.exe"),                      # ComfyUI/python/python.exe
-        os.path.join(base_path, "python_embeded", "python.exe"),              # ComfyUI/python_embeded/python.exe
-        os.path.join(parent, "python", "python.exe"),                         # <父目录>/python/python.exe
-        os.path.join(parent, "python_embeded", "python.exe"),                 # <父目录>/python_embeded/python.exe
-        os.path.join(base_path, "venv", "Scripts", "python.exe"),
-        os.path.join(parent, "venv", "Scripts", "python.exe"),
-        os.path.join(base_path, "..", "..", "python", "python.exe"),
-    ]
-    python_exe = ""
-    for c in candidates:
-        resolved = os.path.abspath(c)
-        if os.path.isfile(resolved):
-            python_exe = resolved
-            break
-    # 轻量兜底：扫描 base_path 与 parent 自身及直接子目录，寻找 python.exe（不递归深层，避免扫大目录）
-    if not python_exe:
-        for root in (base_path, parent):
-            if not os.path.isdir(root):
-                continue
-            dirs_to_check = [root]
-            try:
-                dirs_to_check += [os.path.join(root, d) for d in os.listdir(root)
-                                  if os.path.isdir(os.path.join(root, d))]
-            except OSError:
-                pass
-            for d in dirs_to_check:
-                for sub in ("", "python", "Scripts"):
-                    cand = os.path.join(d, sub, "python.exe") if sub else os.path.join(d, "python.exe")
-                    if os.path.isfile(cand):
-                        python_exe = cand
-                        break
-                if python_exe:
-                    break
-            if python_exe:
-                break
-    if not python_exe:
-        # 系统 PATH 中的 python
-        import shutil
-        python_exe = shutil.which("python") or shutil.which("python3") or "python"
-
-    cmd = [
-        python_exe, "-s", main_py,
-        "--windows-standalone-build",
-        "--fast", "fp16_accumulation",
-        "--disable-xformers",
-        "--listen",
-    ]
-
-    # 日志文件: logs/comfyui-YYYYMMDD-HHMMSS.log
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-    log_name = time.strftime("comfyui-%Y%m%d-%H%M%S.log")
-    log_path = os.path.join(log_dir, log_name)
-    log_fh = open(log_path, "ab", buffering=0)
-
-    print(f"启动 ComfyUI: {' '.join(cmd)}")
-    print(f"  日志: {log_path}")
-    try:
-        _comfyui_process = subprocess.Popen(
-            cmd,
-            cwd=base_path,
-            stdout=log_fh,
-            stderr=log_fh,
-        )
-        return {"status": "started", "pid": _comfyui_process.pid, "log": log_path}
-    except Exception as e:
-        print(f"启动 ComfyUI 失败: {e}")
-        log_fh.close()
-        raise HTTPException(status_code=500, detail=f"启动失败: {e}")
-
-
-@app.post("/api/comfyui/stop")
-async def stop_comfyui_process():
-    """停止 ComfyUI 后端进程"""
-    global _comfyui_process
-
-    killed = []
-    if _comfyui_process is not None and _comfyui_process.poll() is None:
-        try:
-            _comfyui_process.terminate()
-            _comfyui_process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            _comfyui_process.kill()
-            _comfyui_process.wait()
-        killed.append(f"proc:{_comfyui_process.pid}")
-        _comfyui_process = None
-
-    # 也尝试通过端口 kill 残留进程（如果配置了实例地址）
-    for addr in COMFYUI_INSTANCES:
-        try:
-            host_part, _, port_part = addr.rpartition(":")
-            port = int(port_part)
-            try:
-                import psutil
-                for conn in psutil.net_connections():
-                    if conn.laddr.port == port and conn.status == "LISTEN":
-                        try:
-                            p = psutil.Process(conn.pid)
-                            p.terminate()
-                            p.wait(timeout=5)
-                            killed.append(f"port:{port} pid:{conn.pid}")
-                        except:
-                            pass
-            except ImportError:
-                pass
-        except:
-            pass
-
-    if killed:
-        return {"status": "stopped", "details": killed}
-    return {"status": "not_running"}
 
 
 async def get_comfyui_health() -> bool:
@@ -10781,18 +6944,6 @@ async def get_comfyui_health() -> bool:
         return False
 
 
-@app.get("/api/comfyui/process-status")
-async def get_comfyui_status():
-    """获取 ComfyUI 进程状态"""
-    running = _comfyui_process is not None and _comfyui_process.poll() is None
-    reachable = await get_comfyui_health()
-
-    return {
-        "running": running,
-        "pid": _comfyui_process.pid if running else None,
-        "reachable": reachable,
-    }
-
 
 def _find_latest_comfyui_log() -> Optional[str]:
     """查找 logs/ 下最新的 comfyui-*.log"""
@@ -10803,51 +6954,6 @@ def _find_latest_comfyui_log() -> Optional[str]:
     return logs[0] if logs else None
 
 
-@app.get("/api/comfyui/log-tail")
-async def get_comfyui_log_tail(lines: int = 80, max_bytes: int = 200_000):
-    """读取 ComfyUI 日志最后 N 行。max_bytes 限制读取大小，避免巨文件。"""
-    log_path = _find_latest_comfyui_log()
-    if not log_path or not os.path.isfile(log_path):
-        return {"path": None, "content": "(暂无日志)"}
-    try:
-        size = os.path.getsize(log_path)
-        with open(log_path, "rb") as f:
-            if size > max_bytes:
-                f.seek(size - max_bytes)
-            data = f.read()
-        # 容错解码: ComfyUI 的中文在 Windows 可能是 cp936/utf-8 混合
-        for enc in ("utf-8", "gbk", "latin-1"):
-            try:
-                text = data.decode(enc, errors="replace")
-                break
-            except:
-                continue
-        else:
-            text = data.decode("utf-8", errors="replace")
-        # 只保留最后 lines 行
-        all_lines = text.splitlines()
-        tail = "\n".join(all_lines[-lines:]) if lines > 0 else text
-        return {
-            "path": log_path,
-            "size": size,
-            "content": tail,
-        }
-    except Exception as e:
-        return {"path": log_path, "content": f"读取失败: {e}"}
-
-
-@app.post("/api/comfyui/log-clear")
-async def clear_comfyui_log():
-    """清空当前 ComfyUI 日志（截断到 0）"""
-    log_path = _find_latest_comfyui_log()
-    if not log_path or not os.path.isfile(log_path):
-        return {"status": "no_log"}
-    try:
-        with open(log_path, "wb") as f:
-            pass
-        return {"status": "cleared", "path": log_path}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"清空失败: {e}")
 
 
 # --- ComfyUI 代理端点(供前端在 non-local 模式下使用) ---
@@ -10856,476 +6962,9 @@ async def clear_comfyui_log():
 _object_info_cache = {"data": None, "ts": 0}
 _OBJECT_INFO_CACHE_TTL = 30  # 秒
 
-@app.get("/api/comfyui/object_info")
-@app.get("/api/comfyui/object_info/{node_type:path}")
-async def proxy_comfyui_object_info(node_type: str = None):
-    """代理获取 ComfyUI 节点信息(含模型列表等),支持按节点类型查询"""
-    import time
-    now = time.time()
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        # 无 node_type 时使用缓存
-        if node_type is None and _object_info_cache["data"] and (now - _object_info_cache["ts"] < _OBJECT_INFO_CACHE_TTL):
-            return Response(content=_object_info_cache["data"], media_type="application/json")
-        base = f"http://{target}/object_info"
-        url = f"{base}/{node_type}" if node_type else base
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.get(url)
-        if node_type is None:
-            _object_info_cache["data"] = resp.content
-            _object_info_cache["ts"] = now
-        return Response(content=resp.content, media_type="application/json")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI object_info 请求失败: {str(e)}")
-
-@app.get("/api/comfyui/loras")
-async def list_comfyui_loras():
-    """从 ComfyUI 获取可用 LoRA 列表(查询 LoraLoader 和 LoraLoaderModelOnly 节点)"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    all_loras = set()
-    node_types = ["LoraLoaderModelOnly", "LoraLoader"]
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            for node_type in node_types:
-                try:
-                    url = f"http://{target}/object_info/{node_type}"
-                    resp = await client.get(url)
-                    if resp.status_code != 200:
-                        continue
-                    data = resp.json()
-                    node_info = data.get(node_type, data)
-                    input_params = node_info.get("input", {}).get("required", {})
-                    lora_field = input_params.get("lora_name", None)
-                    if lora_field and isinstance(lora_field, list) and len(lora_field) > 0:
-                        loras = lora_field[0] if isinstance(lora_field[0], list) else []
-                        all_loras.update(loras)
-                except Exception:
-                    continue
-        return {"loras": sorted(all_loras)}
-    except Exception as e:
-        import traceback as _tb
-        _tb.print_exc()
-        raise HTTPException(status_code=502, detail=f"获取 LoRA 列表失败: {str(e)}")
-
-import socket as _sock
-@app.get("/api/_dbug")
-async def _dbug():
-    import traceback as _tb_
-    r = {}
-    # 0) COMFYUI_ADDRESS 的真面目
-    r["address_repr"] = repr(COMFYUI_ADDRESS)
-    # 1) 原生 socket
-    try:
-        s = _sock.create_connection(("127.0.0.1", 8188), timeout=5); s.close()
-        r["raw"] = "OK"
-    except Exception as e:
-        r["raw"] = f"{type(e).__name__}: {e}"; r["raw_tb"] = _tb_.format_exc()
-    # 2) httpx GET system_stats
-    try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            resp = await c.get(f"http://{COMFYUI_ADDRESS}/system_stats")
-        r["httpx_get"] = f"OK {resp.status_code}"
-    except Exception as e:
-        r["httpx_get"] = f"{type(e).__name__}: {e}"; r["httpx_get_tb"] = _tb_.format_exc()
-    # 3) httpx POST prompt (同生成)
-    try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            resp = await c.post(f"http://{COMFYUI_ADDRESS}/prompt", json={"prompt":{},"client_id":"_dbug"})
-        r["httpx_post"] = f"OK {resp.status_code}"
-    except Exception as e:
-        r["httpx_post"] = f"{type(e).__name__}: {e}"; r["httpx_post_tb"] = _tb_.format_exc()
-    return r
-
-@app.get("/api/loras/scan")
-async def scan_lora_folder(subfolder: str = ""):
-    """直接扫描本地 LoRA 文件夹获取完整列表(不依赖 ComfyUI 节点枚举)"""
-    if not COMFYUI_BASE_PATH:
-        raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
-    # 兼容两种路径:ComfyUI 根目录 或 已经是 loras 文件夹
-    normalized = COMFYUI_BASE_PATH.lower().replace("\\", "/").rstrip("/")
-    if normalized.endswith("/models/loras"):
-        lora_dir = COMFYUI_BASE_PATH
-    else:
-        lora_dir = os.path.join(COMFYUI_BASE_PATH, "models", "loras")
-    if subfolder:
-        lora_dir = os.path.join(lora_dir, subfolder)
-    if not os.path.isdir(lora_dir):
-        return {"loras": [], "error": f"目录不存在: {lora_dir}"}
-    extensions = {".safetensors", ".pt", ".pth", ".ckpt", ".bin"}
-    loras = []
-    previews = {}  # rel_path -> preview_url
-    # entries: 每条 LoRA 的完整信息(含 modelRoot / versionLabel,用于前端版本合并)
-    entries = []
-
-    # 版本号识别:剥掉文件 basename 末尾的「下划线或连字符」接版本号,剩余部分即"模型根名"
-    # 覆盖:xxx_v1 / xxx-v11 / xxx_v0.1 / xxx-v2.3
-    import re as _re
-    _VERSION_TAIL_RE = _re.compile(r'[-_][vV](\d+(?:\.\d+)*)$')
-
-    def _split_model_root(base_name: str):
-        m = _VERSION_TAIL_RE.search(base_name)
-        if m:
-            return base_name[: m.start()], m.group(0).lstrip('_-')  # 根名 + 标签如 v11
-        return base_name, ''
-
-    for root, dirs, files in os.walk(lora_dir):
-        for f in files:
-            ext = os.path.splitext(f)[1].lower()
-            if ext in extensions:
-                # 计算相对于 loras 目录的路径
-                full_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_path, lora_dir)
-                # 统一用反斜杠(ComfyUI 格式)
-                rel_path_bs = rel_path.replace("/", "\\")
-                loras.append(rel_path_bs)
-                # 检查是否有预览(同名的图片或视频)
-                # 视频后缀也作为"预览"返回,对齐 ComfyUI-Lora-Manager 的 find_preview_file 行为
-                base = os.path.splitext(full_path)[0]
-                # 顺序:长后缀优先(.preview.png 优先于 .png),视频后缀与图片后缀混排
-                for preview_ext in [
-                    ".preview.png", ".preview.jpg", ".preview.jpeg", ".preview.webp",
-                    ".preview.mp4", ".preview.webm",
-                    ".png", ".jpg", ".jpeg", ".webp",
-                    ".mp4", ".webm", ".gif"
-                ]:
-                    preview_path = base + preview_ext
-                    if os.path.isfile(preview_path):
-                        # 返回相对于 ComfyUI 根目录的路径
-                        preview_rel = os.path.relpath(preview_path, COMFYUI_BASE_PATH).replace("\\", "/")
-                        previews[rel_path_bs] = f"/api/loras/preview?path={preview_rel}"
-                        break
-                # 拆分 modelRoot + versionLabel,用于前端合并多版本
-                file_stem = os.path.splitext(f)[0]
-                model_root, version_label = _split_model_root(file_stem)
-                try:
-                    _mtime = os.path.getmtime(full_path)
-                except OSError:
-                    _mtime = 0
-                entries.append({
-                    "name": rel_path_bs,
-                    "modelRoot": model_root,
-                    "versionLabel": version_label,
-                    # 文件修改时间(秒,浮点),供前端 "按 LoRA 添加时间" 排序使用
-                    "mtime": _mtime,
-                })
-    return {
-        "loras": sorted(loras),
-        "count": len(loras),
-        "path": lora_dir,
-        "previews": previews,
-        "entries": entries,  # 含 modelRoot/versionLabel,供前端版本合并
-    }
-
-@app.get("/api/loras/preview")
-async def get_lora_preview(path: str, request: Request):
-    """获取 LoRA 预览图"""
-    if not COMFYUI_BASE_PATH:
-        raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
-    # 安全校验:防止路径遍历
-    if ".." in path:
-        raise HTTPException(status_code=400, detail="无效路径")
-    full_path = os.path.join(COMFYUI_BASE_PATH, path)
-    if not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail="预览图不存在")
-    # ETag + Last-Modified 走条件请求,重复访问秒返 304
-    try:
-        st = os.stat(full_path)
-        mtime_ts = int(st.st_mtime)
-        size = st.st_size
-        etag = f'W/"lora-{mtime_ts}-{size}"'
-        last_modified = datetime.fromtimestamp(mtime_ts, tz=timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    except OSError:
-        etag = None
-        last_modified = None
-    if etag and request.headers.get('if-none-match') == etag:
-        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=604800, immutable"})
-    if last_modified and request.headers.get('if-modified-since') == last_modified:
-        return Response(status_code=304, headers={"Last-Modified": last_modified, "Cache-Control": "public, max-age=604800, immutable"})
-    ext = os.path.splitext(full_path)[1].lower()
-    media_type = {
-        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
-        ".gif": "image/gif",
-        ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"
-    }.get(ext, "image/png")
-    # 视频走分块传输 + 接受 Range 请求,便于 <video> 拖动进度
-    resp = FileResponse(
-        full_path,
-        media_type=media_type,
-        headers={
-            "Cache-Control": "public, max-age=604800, immutable",
-            "Accept-Ranges": "bytes",
-        }
-    )
-    if etag: resp.headers["ETag"] = etag
-    if last_modified: resp.headers["Last-Modified"] = last_modified
-    return resp
-
 # --- LoRA Manager 代理端点 ---
 
-@app.get("/api/lora-manager/loras")
-async def proxy_lora_manager_list():
-    """代理 LoRA Manager 的 LoRA 列表,自动遍历所有分页返回完整数据。
-    增强:对每条 LoRA 读取其 file_path 旁边的 .metadata.json 文件,
-    把 civitai / preview_nsfw_level / trainedWords / model_name / tags
-    合并到 item(这些是 ComfyUI 拖入 LoRA 时自动写入的本地元数据,权威性更高)"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    def _enrich_with_metadata_json(items):
-        """对每条 item,若 file_path 旁边有 .metadata.json,合并本地元数据"""
-        for it in items:
-            try:
-                fp = it.get("file_path")
-                if not fp or not os.path.isfile(fp):
-                    continue
-                meta_path = os.path.splitext(fp)[0] + ".metadata.json"
-                if not os.path.isfile(meta_path):
-                    continue
-                with open(meta_path, 'r', encoding='utf-8') as f:
-                    md = json.load(f)
-                if md.get("civitai"):
-                    it["civitai"] = md["civitai"]
-                if md.get("preview_nsfw_level") is not None:
-                    it["preview_nsfw_level"] = md["preview_nsfw_level"]
-                if md.get("trainedWords") and not it.get("trainedWords"):
-                    it["trainedWords"] = md["trainedWords"]
-                if md.get("tags") and not it.get("tags"):
-                    it["tags"] = md["tags"]
-                # 后端已翻译的中文描述(modelDescription_zh 优先,translated_description 兼容)
-                if md.get("modelDescription_zh"):
-                    it["modelDescription_zh"] = md["modelDescription_zh"]
-                elif md.get("translated_description"):
-                    it["translated_description"] = md["translated_description"]
-                # 英文描述(modelDescription 不为空时也转发,供前端备用)
-                if md.get("modelDescription") and not it.get("model_name"):
-                    # 只转发,不做覆盖
-                    pass
-                # 文件元数据(用于弹出详情面板)
-                if md.get("size") and not it.get("size"):
-                    it["size"] = md["size"]
-                if md.get("modified") and not it.get("modified"):
-                    it["modified"] = md["modified"]
-                if md.get("sha256") and not it.get("sha256"):
-                    it["sha256"] = md["sha256"]
-                if md.get("file_name") and not it.get("file_name"):
-                    it["file_name"] = md["file_name"]
-                if not it.get("model_name"):
-                    if md.get("model_name"):
-                        it["model_name"] = md["model_name"]
-                    elif md.get("civitai") and md["civitai"].get("model") and md["civitai"]["model"].get("name"):
-                        it["model_name"] = md["civitai"]["model"]["name"]
-                if not it.get("base_model") and md.get("base_model"):
-                    it["base_model"] = md["base_model"]
-            except Exception:
-                continue
-        return items
-    try:
-        all_items = []
-        page = 1
-        total_pages = 1
-        async with httpx.AsyncClient(timeout=60) as client:
-            while page <= total_pages and page <= 30:  # 最多 30 页 = 3000 个 LoRA
-                url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
-                resp = await client.get(url)
-                if resp.status_code != 200:
-                    _enrich_with_metadata_json(all_items)
-                    return {"items": all_items, "total": len(all_items), "error": f"LoRA Manager 返回 {resp.status_code}"}
-                data = resp.json()
-                items = data.get("items", [])
-                all_items.extend(items)
-                total_pages = data.get("total_pages", 1)
-                if not items:
-                    break
-                page += 1
-        _enrich_with_metadata_json(all_items)
-        return {"items": all_items, "total": len(all_items), "page": 1, "page_size": len(all_items), "total_pages": 1}
-    except Exception as e:
-        return {"items": [], "error": str(e)}
 
-
-@app.post("/api/lora-manager/fetch-all-civitai")
-async def proxy_lora_manager_fetch_all_civitai():
-    """触发 LoRA Manager 批量从 civitai 拉取元数据(用于补全 tags)"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/api/lm/loras/fetch-all-civitai"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(url, json={})
-        return Response(content=resp.content, media_type="application/json", status_code=resp.status_code)
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-@app.get("/api/lora-manager/tags-stats")
-async def proxy_lora_manager_tags_stats():
-    """统计 LoRA Manager 中各 tag 大类的 LoRA 数量"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        all_items = []
-        page = 1
-        total_pages = 1
-        async with httpx.AsyncClient(timeout=60) as client:
-            while page <= total_pages and page <= 30:
-                url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
-                resp = await client.get(url)
-                if resp.status_code != 200:
-                    return {"tags": {}, "total": 0, "error": f"LoRA Manager 返回 {resp.status_code}"}
-                data = resp.json()
-                items = data.get("items", [])
-                all_items.extend(items)
-                total_pages = data.get("total_pages", 1)
-                if not items:
-                    break
-                page += 1
-        # 统计每个 tag 的 LoRA 数量
-        tag_count = {}
-        for it in all_items:
-            for t in (it.get("tags") or []):
-                if isinstance(t, str):
-                    tag_count[t] = tag_count.get(t, 0) + 1
-        # 排序返回 top 200
-        top_tags = sorted(tag_count.items(), key=lambda x: -x[1])[:200]
-        return {"tags": dict(top_tags), "total_loras": len(all_items), "tagged_loras": sum(1 for it in all_items if it.get("tags"))}
-    except Exception as e:
-        return {"tags": {}, "total": 0, "error": str(e)}
-
-@app.get("/api/lora-manager/preview")
-async def proxy_lora_manager_preview(name: str):
-    """获取 LoRA 封面图"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/api/lm/loras/preview-url"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url, params={"name": name})
-        if resp.status_code == 200:
-            data = resp.json()
-            preview_url = data.get("url", "")
-            if preview_url:
-                # 如果是相对路径,拼上 ComfyUI 地址
-                if preview_url.startswith("/"):
-                    preview_url = f"http://{target}{preview_url}"
-                return {"url": preview_url}
-        return {"url": ""}
-    except Exception as e:
-        return {"url": "", "error": str(e)}
-
-@app.get("/api/lora-manager/proxy-preview")
-async def proxy_lora_manager_preview_proxy(url: str):
-    """代理 LoRA Manager 的预览图请求(转发到 ComfyUI)"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        # url 是相对路径如 /api/lm/previews?path=...
-        full_url = f"http://{target}{url}" if url.startswith("/") else url
-        # 生成 ETag 基于 URL
-        etag = hashlib.md5(full_url.encode()).hexdigest()
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(full_url)
-        if resp.status_code == 200:
-            ct = resp.headers.get("content-type", "image/jpeg")
-            return Response(
-                content=resp.content,
-                media_type=ct,
-                headers={
-                    "Cache-Control": "public, max-age=604800, immutable",
-                    "ETag": f'"{etag}"',
-                }
-            )
-        raise HTTPException(status_code=resp.status_code, detail="预览图获取失败")
-    except httpx.HTTPStatusError:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"代理预览图失败: {str(e)}")
-
-@app.get("/api/lora-manager/metadata")
-async def proxy_lora_manager_metadata(name: str):
-    """获取 LoRA 元数据(触发词、基础模型、描述等)"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/api/lm/loras/metadata"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url, params={"name": name})
-        if resp.status_code == 200:
-            return Response(content=resp.content, media_type="application/json")
-        return {"metadata": {}}
-    except Exception as e:
-        return {"metadata": {}, "error": str(e)}
-
-@app.get("/api/lora-manager/trigger-words")
-async def proxy_lora_manager_trigger_words(name: str):
-    """获取 LoRA 触发词"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/api/lm/loras/get-trigger-words"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url, params={"name": name})
-        if resp.status_code == 200:
-            return Response(content=resp.content, media_type="application/json")
-        return {"triggerWords": []}
-    except Exception as e:
-        return {"triggerWords": [], "error": str(e)}
-
-@app.get("/api/comfyui/history/{prompt_id}")
-async def proxy_comfyui_history(prompt_id: str):
-    """代理获取 ComfyUI 任务历史"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/history/{prompt_id}"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-        return Response(content=resp.content, media_type="application/json")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI history 请求失败: {str(e)}")
-
-@app.get("/api/comfyui/queue")
-async def proxy_comfyui_queue():
-    """代理获取 ComfyUI 队列状态（用于前端进度轮询）"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/queue"
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(url)
-        return Response(content=resp.content, media_type="application/json")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI queue 请求失败: {str(e)}")
-
-@app.post("/api/comfyui/prompt")
-async def proxy_comfyui_prompt(request: Request):
-    """代理提交 ComfyUI 任务"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        body = await request.body()
-        url = f"http://{target}/prompt"
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(url, content=body, headers={"Content-Type": "application/json"})
-        return Response(content=resp.content, media_type="application/json", status_code=resp.status_code)
-    except Exception as e:
-        import traceback as _tb
-        _tb.print_exc()
-        raise HTTPException(status_code=502, detail=f"ComfyUI prompt 请求失败: {str(e)}")
-
-@app.get("/api/comfyui/view")
 async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str = "output", w: int = 0):
     """代理 ComfyUI /view,支持缩略图与流式透传
 
@@ -11406,225 +7045,9 @@ async def proxy_comfyui_view(filename: str = "", subfolder: str = "", type: str 
         raise HTTPException(status_code=502, detail=f"生成 ComfyUI 缩略图失败: {str(e)}")
 
 
-@app.get("/api/comfyui/open-folder")
-async def open_comfyui_folder(filename: str = "", subfolder: str = "", type: str = "output"):
-    """在资源管理器中打开图片所在文件夹"""
-    if not COMFYUI_BASE_PATH:
-        raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")
-    type_map = {"output": "output", "temp": "temp", "input": "input"}
-    sub_dir = type_map.get(type, "output")
-    folder_path = os.path.join(COMFYUI_BASE_PATH, sub_dir, subfolder or "")
-    file_path = os.path.join(folder_path, filename) if filename else folder_path
-    if not os.path.exists(folder_path):
-        raise HTTPException(status_code=404, detail=f"目录不存在: {folder_path}")
-    try:
-        if filename and os.path.exists(file_path):
-            subprocess.Popen(["explorer", "/select,", file_path])
-        else:
-            subprocess.Popen(["explorer", folder_path])
-        return {"ok": True, "path": file_path if filename else folder_path}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"打开文件夹失败: {str(e)}")
-
-
-@app.get("/api/proxy-download-to-output")
-async def proxy_download_to_output(url: str = "", token: str = "", feature: str = "云端图片"):
-    """
-    将任意远程 URL(ModelScope 等云端临时链接)下载到用户 output 目录
-    解决云端 URL 在 5-60 分钟后失效导致缩略图变成"图片已删除"的问题
-    """
-    if not url:
-        raise HTTPException(status_code=400, detail="缺少 url 参数")
-    # 安全:只允许 http/https
-    if not url.startswith("http://") and not url.startswith("https://"):
-        raise HTTPException(status_code=400, detail="只支持 http/https URL")
-
-    try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(url)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"下载远程图片失败 HTTP {resp.status_code}")
-
-        content = resp.content
-        # 从 URL/Content-Type 推断扩展名
-        ext = ".png"
-        ct = resp.headers.get("content-type", "").lower()
-        if "jpeg" in ct or "jpg" in ct:
-            ext = ".jpg"
-        elif "webp" in ct:
-            ext = ".webp"
-        elif "png" not in ct:
-            # 从 URL 路径猜扩展名
-            from urllib.parse import urlparse
-            path = urlparse(url).path
-            if "." in path:
-                e = os.path.splitext(path)[1].lower()
-                if e in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
-                    ext = e
-
-        now = time.localtime()
-        username = get_username_by_token(token)
-        date_str = f"{now.tm_year:04d}-{now.tm_mon:02d}-{now.tm_mday:02d}"
-        if username:
-            user_dir = get_user_dirname(username)
-            date_path = f"{user_dir}/{feature}/{date_str}"
-        else:
-            date_path = f"{feature}/{date_str}"
-        save_dir = os.path.join(OUTPUT_DIR, date_path)
-        os.makedirs(save_dir, exist_ok=True)
-        local_name = f"cloud_{uuid.uuid4().hex[:10]}{ext}"
-        local_path = os.path.join(save_dir, local_name)
-        with open(local_path, "wb") as f:
-            f.write(content)
-
-        return {"url": f"/output/{date_path}/{local_name}", "path": local_path}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"下载远程图片失败: {str(e)}")
-
-
-@app.get("/api/comfyui/save-to-output")
-async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: str = "output", token: str = "", feature: str = "其他"):
-    """将 ComfyUI 的图片保存到用户 output 目录,返回本地 URL
-
-    性能优化(解决 47s 慢问题):
-    - 用 client.stream() 边下边写盘,避免内存中转大图(1-2MB 一次性加载)
-    - timeout 60s(原 15s 太短,ComfyUI 慢时容易超时)
-    """
-    import time as _t
-    _t_start = _t.perf_counter()
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-
-    try:
-        # 从 ComfyUI 流式下载到磁盘
-        params = {"filename": filename, "subfolder": subfolder, "type": type}
-        url = f"http://{target}/view"
-
-        # 存到用户文件夹: output/{user}/{feature}/YYYY-MM-DD/
-        ext = os.path.splitext(filename)[1] or ".png"
-        now = time.localtime()
-        username = get_username_by_token(token)
-        date_str = f"{now.tm_year:04d}-{now.tm_mon:02d}-{now.tm_mday:02d}"
-        if username:
-            user_dir = get_user_dirname(username)
-            date_path = f"{user_dir}/{feature}/{date_str}"
-        else:
-            date_path = f"{feature}/{date_str}"
-        save_dir = os.path.join(OUTPUT_DIR, date_path)
-        os.makedirs(save_dir, exist_ok=True)
-        local_name = f"{feature}_{uuid.uuid4().hex[:10]}{ext}"
-        local_path = os.path.join(save_dir, local_name)
-
-        _t_dl = _t.perf_counter()
-        bytes_written = 0
-        async with httpx.AsyncClient(timeout=60) as client:
-            async with client.stream("GET", url, params=params) as resp:
-                if resp.status_code != 200:
-                    raise HTTPException(status_code=502, detail="从 ComfyUI 获取图片失败")
-                with open(local_path, "wb") as f:
-                    async for chunk in resp.aiter_bytes(64 * 1024):
-                        f.write(chunk)
-                        bytes_written += len(chunk)
-        _t_dl_cost = (_t.perf_counter() - _t_dl) * 1000
-        _t_total = (_t.perf_counter() - _t_start) * 1000
-        print(f"[comfyui-save] dl={_t_dl_cost:.0f}ms total={_t_total:.0f}ms bytes={bytes_written//1024}KB {filename[:40]}")
 
 
 
-        # === 预生成 WebP 缩略图(与 /api/media-preview 共用缓存,刷新秒出) ===
-        # 复用统一 helper(同步版,可在事件循环内通过 to_thread 安全调用)
-        asyncio.create_task(asyncio.to_thread(_prewarm_thumbnails, local_path, (600, 768, 1536)))
-
-        return {"url": f"/output/{date_path}/{local_name}", "path": local_path}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"保存图片失败: {str(e)}")
-
-
-@app.get("/api/comfyui/system_stats")
-async def proxy_comfyui_system_stats():
-    """代理检查 ComfyUI 服务器状态"""
-    target = COMFYUI_ADDRESS
-    if not target:
-        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
-    try:
-        url = f"http://{target}/system_stats"
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(url)
-        return Response(content=resp.content, media_type="application/json")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI 连接失败: {str(e)}")
-
-@app.post("/api/comfyui/upload/image")
-async def proxy_comfyui_upload_image(image: UploadFile = File(None), file: UploadFile = File(None)):
-    """代理上传图片到 ComfyUI(兼容前端 apiFetch 模式)"""
-    upload = image or file
-    if upload is None:
-        raise HTTPException(status_code=422, detail="缺少 image 或 file 字段")
-    content = await upload.read()
-    file_filename = upload.filename
-    file_content_type = upload.content_type
-    result = None
-    for addr in COMFYUI_INSTANCES:
-        try:
-            files_data = {'image': (file_filename or f"upload_{int(time.time())}.png", content, file_content_type or "image/png")}
-            resp = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=10)
-            if resp.status_code == 200 and result is None:
-                result = resp.json()
-        except Exception as e:
-            print(f"[ComfyUI Proxy] Upload to {addr} failed: {e}")
-    if result:
-        return result
-    raise HTTPException(status_code=502, detail="所有 ComfyUI 实例上传均失败")
-
-@app.websocket("/api/comfyui/ws")
-async def proxy_comfyui_ws(websocket: WebSocket, client_id: str = None):
-    """代理 ComfyUI WebSocket,让前端通过后端获取实时进度"""
-    await websocket.accept()
-    target = COMFYUI_ADDRESS
-    if not target:
-        await websocket.send_json({"type": "error", "message": "未配置 ComfyUI 地址"})
-        await websocket.close()
-        return
-
-    cid = client_id or str(uuid.uuid4())
-    comfy_ws = None
-    try:
-        comfy_ws = await ws_client.connect(f"ws://{target}/ws?clientId={cid}")
-
-        async def forward_to_frontend():
-            try:
-                async for message in comfy_ws:
-                    if isinstance(message, str):
-                        await websocket.send_text(message)
-                    else:
-                        await websocket.send_bytes(message)
-            except Exception:
-                pass
-
-        async def forward_to_comfy():
-            try:
-                while True:
-                    data = await websocket.receive_text()
-                    await comfy_ws.send(data)
-            except WebSocketDisconnect:
-                pass
-            except Exception:
-                pass
-
-        await asyncio.gather(forward_to_frontend(), forward_to_comfy())
-    except Exception as e:
-        print(f"[ComfyUI WS Proxy] 连接错误: {e}")
-    finally:
-        if comfy_ws:
-            try:
-                await comfy_ws.close()
-            except Exception:
-                pass
 
 # --- 工作流管理 API ---
 
@@ -11685,267 +7108,7 @@ def _extract_workflow_meta(filepath):
     }
 
 
-@app.get("/api/workflows/builtin")
-async def list_builtin_workflows():
-    """列出所有内置工作流及元数据（含模型文件夹前缀）"""
-    if not os.path.isdir(WORKFLOW_DIR):
-        return {"workflows": []}
-    items = []
-    for rel in sorted(BUILTIN_WORKFLOWS):
-        filepath = os.path.join(WORKFLOW_DIR, *rel.split("/"))
-        if not os.path.isfile(filepath):
-            continue
-        meta = _extract_workflow_meta(filepath)
-        # 读取 config.json
-        cfg = {}
-        cfg_path = filepath.replace(".json", ".config.json")
-        if os.path.exists(cfg_path):
-            try:
-                with open(cfg_path, "r", encoding="utf-8") as f:
-                    cfg = json.load(f) or {}
-            except Exception:
-                cfg = {}
-        title = cfg.get("title") or os.path.basename(rel).replace(".json", "")
-        # model_folders 优先取 config.json,fallback 到 unet 解析的 model_folder
-        _mf = cfg.get("model_folders")
-        if isinstance(_mf, list) and _mf:
-            model_folders = _mf
-        else:
-            _unet_folder = (meta and meta.get("model_folder")) or ""
-            model_folders = [_unet_folder] if _unet_folder else []
-        items.append({
-            "name": rel,
-            "title": title,
-            "builtin": True,
-            "has_unet": meta and meta.get("has_unet"),
-            "model_folder": (model_folders[0] if model_folders else ((meta and meta.get("model_folder")) or "")),
-            "model_folders": model_folders,
-            "unet_name": (meta and meta.get("unet_name")) or "",
-        })
-    return {"workflows": items}
 
-
-@app.get("/api/workflows")
-async def list_workflows():
-    """获取工作流列表"""
-    if not os.path.isdir(WORKFLOW_DIR):
-        return {"workflows": []}
-
-    items = []
-    for root, dirs, files in os.walk(WORKFLOW_DIR):
-        # 只遍历特定目录
-        if os.path.abspath(root) == os.path.abspath(WORKFLOW_DIR):
-            dirs[:] = [d for d in dirs if d in {"custom", "自定义"}]  # 允许遍历自定义工作流目录
-
-        for fn in sorted(files):
-            if not fn.endswith(".json") or fn.endswith(".config.json"):
-                continue
-
-            rel = os.path.relpath(os.path.join(root, fn), WORKFLOW_DIR).replace("\\", "/")
-
-            # 跳过内置工作流
-            if is_builtin_workflow(rel):
-                continue
-
-            # 读取配置
-            cfg = {}
-            cfg_path = workflow_config_path(rel)
-            if os.path.exists(cfg_path):
-                try:
-                    with open(cfg_path, "r", encoding="utf-8") as f:
-                        cfg = json.load(f) or {}
-                except Exception:
-                    cfg = {}
-
-            items.append({
-                "name": rel,
-                "title": cfg.get("title") or fn.replace(".json", ""),
-                "builtin": False,
-                "field_count": len(cfg.get("fields") or [])
-            })
-
-    # 排序
-    items.sort(key=lambda item: item["title"])
-    return {"workflows": items}
-
-@app.get("/api/workflows/{name:path}")
-async def get_workflow(name: str):
-    """获取单个工作流详情"""
-    if not WORKFLOW_NAME_RE.match(name):
-        raise HTTPException(status_code=400, detail="工作流名称不合法")
-
-    workflow_path = workflow_path_from_name(name)
-    if not os.path.exists(workflow_path):
-        raise HTTPException(status_code=404, detail="工作流不存在")
-
-    # 读取工作流
-    with open(workflow_path, "r", encoding="utf-8") as f:
-        workflow = json.load(f)
-
-    # 读取配置
-    cfg = {"title": name.replace(".json", ""), "fields": []}
-    cfg_path = workflow_config_path(name)
-    if os.path.exists(cfg_path):
-        try:
-            with open(cfg_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f) or cfg
-        except Exception:
-            pass
-
-    return {
-        "name": name,
-        "workflow": workflow,
-        "config": cfg,
-        "builtin": is_builtin_workflow(name)
-    }
-
-@app.post("/api/workflows")
-async def create_workflow(req: Request):
-    """创建新工作流"""
-    try:
-        body = await req.json()
-        name = os.path.basename(body.get('name', 'workflow.json').strip())
-        workflow_data = body.get('workflow', {})
-
-        if not name.endswith('.json'):
-            name = name + '.json'
-
-        if not WORKFLOW_NAME_RE.match(name):
-            raise HTTPException(status_code=400, detail="工作流名称不合法,请使用中文/英文/数字/_-.")
-
-        if not isinstance(workflow_data, dict) or not workflow_data:
-            raise HTTPException(status_code=400, detail="工作流 JSON 为空")
-
-        # 校验是否为有效的 ComfyUI API 格式
-        sample = next(iter(workflow_data.values()), None)
-        if not isinstance(sample, dict) or "class_type" not in sample:
-            raise HTTPException(status_code=400, detail="不是有效的 ComfyUI API 工作流 JSON(需包含 class_type)")
-
-        # 保存到自定义工作流目录
-        custom_dir = os.path.join(WORKFLOW_DIR, "custom")
-        os.makedirs(custom_dir, exist_ok=True)
-        stored_name = f"custom/{name}"
-        path = workflow_path_from_name(stored_name)
-
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(workflow_data, f, ensure_ascii=False, indent=2)
-
-        return {"name": stored_name}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"创建工作流失败: {str(e)}")
-
-@app.put("/api/workflows/{name:path}/config")
-async def update_workflow_config(name: str, req: Request):
-    """更新工作流配置"""
-    if not WORKFLOW_NAME_RE.match(name):
-        raise HTTPException(status_code=400, detail="工作流名称不合法")
-
-    workflow_path = workflow_path_from_name(name)
-    if not os.path.exists(workflow_path):
-        raise HTTPException(status_code=404, detail="工作流不存在")
-
-    try:
-        body = await req.json()
-        cfg_path = workflow_config_path(name)
-
-        with open(cfg_path, "w", encoding="utf-8") as f:
-            json.dump(body, f, ensure_ascii=False, indent=2)
-
-        return {"config": body}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
-
-@app.delete("/api/workflows/{name:path}")
-async def delete_workflow(name: str):
-    """删除工作流"""
-    if not WORKFLOW_NAME_RE.match(name):
-        raise HTTPException(status_code=400, detail="工作流名称不合法")
-
-    # 内置工作流不可删除
-    if is_builtin_workflow(name):
-        raise HTTPException(status_code=400, detail="内置工作流不可删除")
-
-    workflow_path = workflow_path_from_name(name)
-    cfg_path = workflow_config_path(name)
-
-    if not os.path.exists(workflow_path):
-        raise HTTPException(status_code=404, detail="工作流不存在")
-
-    try:
-        os.remove(workflow_path)
-        if os.path.exists(cfg_path):
-            os.remove(cfg_path)
-        return {"ok": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除工作流失败: {str(e)}")
-
-@app.post("/api/workflows/{workflow_name:path}/run")
-def run_workflow(workflow_name: str, payload: WorkflowRunRequest, token: str = ""):
-    """运行工作流(使用 generate 函数)"""
-    try:
-        # 校验工作流名称
-        if not WORKFLOW_NAME_RE.match(workflow_name):
-            raise HTTPException(status_code=400, detail="工作流名称不合法")
-
-        workflow_path = workflow_path_from_name(workflow_name)
-        if not os.path.exists(workflow_path):
-            raise HTTPException(status_code=404, detail="工作流不存在")
-
-        # 根据 config 的字段把值映射成 params 节点覆盖
-        params: Dict[str, Dict[str, Any]] = {}
-        for field in payload.config.fields:
-            if not field.node or not field.input:
-                continue
-            if field.id in payload.fields:
-                value = payload.fields[field.id]
-                # 类型转换
-                if field.type in ("number", "slider"):
-                    try:
-                        value = float(value) if (field.step and field.step < 1) else int(float(value))
-                    except Exception:
-                        pass
-                elif field.type == "boolean":
-                    value = bool(value)
-                elif field.type == "dropdown":
-                    # 下拉值如果看起来是数字,自动转成 int/float
-                    if isinstance(value, str):
-                        s = value.strip()
-                        try:
-                            if s and ('.' in s or 'e' in s.lower()):
-                                value = float(s)
-                            elif s and s.lstrip('-').isdigit():
-                                value = int(s)
-                        except (ValueError, TypeError):
-                            pass
-                elif field.type == "image":
-                    # 图片字段:值已经是 ComfyUI 图片文件名
-                    pass
-                params.setdefault(field.node, {})[field.input] = value
-
-        # 调用 generate 函数
-        generate_req = GenerateRequest(
-            prompt="",
-            workflow_json=workflow_name,
-            params=params,
-            type="workflow",
-            client_id=payload.client_id or CLIENT_ID,
-        )
-
-        # 调用同步的 generate 函数
-        result = generate(generate_req, token=token)
-
-        if result.get("error"):
-            raise HTTPException(status_code=500, detail=result["error"])
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"运行工作流失败: {str(e)}")
 
 
 # ==================== 海报设计 API ====================
@@ -12051,108 +7214,6 @@ def _load_poster_styles():
     return styles
 
 
-@app.get("/api/poster/layouts")
-async def get_poster_layouts():
-    return {"layouts": _load_poster_layouts()}
-
-
-@app.get("/api/poster/styles")
-async def get_poster_styles():
-    return {"styles": _load_poster_styles()}
-
-
-@app.post("/api/poster/generate")
-async def poster_generate(req: Request, token: str = ""):
-    """生成海报"""
-    require_valid_token(token)
-    try:
-        body = await req.json()
-        prompt = body.get('prompt', '')
-        width = body.get('width', 1024)
-        height = body.get('height', 1536)
-        steps = body.get('steps', 4)
-        mode = body.get('mode', 'turbo')
-        count = body.get('count', 2)
-        style_prompt = body.get('style_prompt', '')
-
-        if not prompt:
-            return {"error": "提示词不能为空"}
-
-        # 合并风格提示词
-        full_prompt = prompt
-        if style_prompt:
-            full_prompt = f"{prompt}, {style_prompt}"
-
-        # 选择工作流
-        workflow_name = "text2image/boogu-turbo.json" if mode == 'turbo' else "text2image/boogu-base.json"
-        workflow_path = os.path.join(WORKFLOW_DIR, workflow_name)
-        if not os.path.exists(workflow_path):
-            return {"error": f"工作流 {workflow_name} 不存在"}
-
-        with open(workflow_path, 'r', encoding='utf-8') as f:
-            base_workflow = json.load(f)
-
-        generated_images = []
-
-        for i in range(count):
-            workflow = json.loads(json.dumps(base_workflow))
-            seed = int.from_bytes(os.urandom(6), 'big') % (2**32)
-
-            # 设置参数
-            workflow['11']['inputs']['text'] = full_prompt
-            workflow['8']['inputs']['width'] = width
-            workflow['8']['inputs']['height'] = height
-            workflow['32']['inputs']['noise_seed'] = seed if 'noise_seed' in workflow.get('32', {}).get('inputs', {}) else workflow.get('32', {}).get('inputs', {}).get('seed', seed)
-            if 'seed' in workflow.get('32', {}).get('inputs', {}):
-                workflow['32']['inputs']['seed'] = seed
-            workflow['34']['inputs']['filename_prefix'] = f"poster_{int(time.time())}_{i}"
-
-            # 步数覆盖
-            if '32' in workflow and 'steps' in workflow['32'].get('inputs', {}):
-                workflow['32']['inputs']['steps'] = steps
-            if '26' in workflow and 'steps' in workflow['26'].get('inputs', {}):
-                workflow['26']['inputs']['steps'] = steps
-
-            # 提交到 ComfyUI
-            target = COMFYUI_ADDRESS
-            if not target:
-                return {"error": "未配置 ComfyUI 地址"}
-
-            prompt_payload = {"prompt": workflow, "client_id": f"poster_{token[:8] if token else 'anon'}"}
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(f"http://{target}/prompt", json=prompt_payload)
-                if resp.status_code != 200:
-                    return {"error": f"提交失败: {resp.text[:200]}"}
-                pid = resp.json().get('prompt_id')
-
-            # 等待完成
-            for _ in range(180):
-                await asyncio.sleep(0.5)
-                try:
-                    async with httpx.AsyncClient(timeout=5) as client:
-                        hr = await client.get(f"http://{target}/history/{pid}")
-                        if hr.status_code == 200:
-                            h = hr.json()
-                            if pid in h and h[pid].get('status', {}).get('completed'):
-                                outputs = h[pid].get('outputs', {})
-                                for nid, out in outputs.items():
-                                    if 'images' in out:
-                                        for img in out['images']:
-                                            fn = img['filename']
-                                            generated_images.append({
-                                                'filename': fn,
-                                                'url': f'/api/view?filename={fn}&type=output'
-                                            })
-                                break
-                except Exception:
-                    pass
-
-        return {"images": generated_images}
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"error": str(e)}
 
 
 # ==================== TTS API 路由 ====================
@@ -12256,52 +7317,14 @@ def _load_voice_index() -> dict:
 
 def _save_voice_index(index: dict):
     """保存音色库索引(全局共享)"""
-    with open(VOICE_INDEX_FILE, 'w', encoding='utf-8') as f:
-        json.dump(index, f, ensure_ascii=False, indent=2)
+    atomic_write_json(VOICE_INDEX_FILE, index, ensure_ascii=False, indent=2)
 
-
-@app.get("/api/tts/voices")
-async def get_tts_voices():
-    """获取音色库列表(全局共享)"""
-    index = _load_voice_index()
-    return {"voices": index}
 
 
 # 缓存 animadex 角色数据
 _animadex_cache = None
 _animadex_cache_time = 0
 
-@app.get("/api/animadex/characters")
-async def get_animadex_characters(
-    copyright: str = "",
-    limit: int = 200
-):
-    """获取 animadex 角色数据(用于头像映射)"""
-    global _animadex_cache, _animadex_cache_time
-    import time
-
-    # 缓存 10 分钟
-    if _animadex_cache is None or (time.time() - _animadex_cache_time) > 600:
-        try:
-            animadex_path = os.path.join(DATA_DIR, "animadex-characters.json")
-            if os.path.exists(animadex_path):
-                with open(animadex_path, 'r', encoding='utf-8') as f:
-                    _animadex_cache = json.load(f)
-                    _animadex_cache_time = time.time()
-        except Exception as e:
-            print(f"加载 animadex 数据失败: {e}")
-            _animadex_cache = {"characters": []}
-
-    characters = _animadex_cache.get("characters", []) if _animadex_cache else []
-
-    # 按 copyright 过滤
-    if copyright:
-        characters = [c for c in characters if c.get("copyright") == copyright]
-
-    # 限制数量
-    characters = characters[:limit]
-
-    return {"characters": characters, "count": len(characters)}
 
 
 # ==================== 播客文本质检 ====================
@@ -12480,705 +7503,17 @@ PODCAST_SYSTEM_PROMPT = """你是一位顶级播客内容制作人,擅长将文�
 - Speaker_3: 另一位嘉宾(如果是3人以上)
 """
 
-@app.post("/api/tts/to-podcast")
-async def convert_to_podcast(
-    text: str = Form(...),
-    num_speakers: int = Form(2),
-    style: str = Form("default"),
-    word_count: int = Form(500)
-):
-    """将文本转换为播客对话格式"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
 
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="文本不能为空")
-
-    config = load_config()
-    if not config.get("api_key"):
-        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
-
-    # 构造用户提示
-    style_desc = {
-        "default": "自然对话,主持人和嘉宾轻松交流",
-        "news": "新闻播报风格,语言正式、节奏明快",
-        "casual": "轻松闲聊,像朋友聊天一样随意",
-        "interview": "深度采访,主持人追问细节",
-        "debate": "观点碰撞,正反方讨论",
-        "storytelling": "故事讲述,用叙事方式展开",
-        "educational": "教学讲解,循序渐进地解释概念"
-    }
-
-    # 构造详细的用户提示
-    user_prompt = f"""请将以下文章转换为 {num_speakers} 人对话的播客节目。
-
-## 播客风格
-{style_desc.get(style, style_desc['default'])}
-
-## 对话人数
-{num_speakers} 人(1位主持人 + {num_speakers - 1}位嘉宾)
-
-## 输出要求
-1. 必须包含完整的开场白(主持人介绍话题和嘉宾)
-2. 将文章内容分解为 3-5 个讨论点
-3. 必须包含结尾总结
-4. 每句话控制在 15-40 字
-5. 总字数控制在 {word_count} 字左右
-6. 直接输出对话内容
-
-## 格式要求(非常重要!)
-- 角色标签必须用: [Speaker_1]: [Speaker_2]: [Speaker_3]:
-- 绝对不要用人名作为标签(如 [张三] [李四] 都是错误的)
-- 绝对不要在括号里加描述(如 (微笑) (回忆) (语气轻快) 都是错误的)
-- 语气通过文字内容自然体现,不要加括号说明
-
-## 文章内容
-{text}"""
-
-    try:
-        result = call_llm_direct(user_prompt, PODCAST_SYSTEM_PROMPT, config)
-
-        # 解析结果,提取说话人信息
-        speakers = set()
-        lines = result.strip().split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('[') and ']:' in line:
-                speaker_name = line.split(']:')[0].replace('[', '').strip()
-                speakers.add(speaker_name)
-
-        # 将对话格式转换为 TTS 格式 (Speaker_1:, Speaker_2: 等)
-        speaker_list = list(speakers)
-        speaker_map = {}
-        for i, name in enumerate(speaker_list[:num_speakers]):
-            speaker_map[name] = f"Speaker_{i+1}"
-
-        tts_lines = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith('[') and ']:' in line:
-                speaker_name = line.split(']:')[0].replace('[', '').strip()
-                content = line.split(']:', 1)[1].strip() if ']:' in line else ''
-                tts_id = speaker_map.get(speaker_name, speaker_name)
-                
-                # 清理括号描述 (如 (微笑) (回忆) 等)
-                content = re.sub(r'\([^)]*?\)', '', content)
-                content = re.sub(r'\s+', ' ', content).strip()
-                
-                if content:
-                    tts_lines.append(f"[{tts_id}]: {content}")
-            else:
-                line = re.sub(r'\([^)]*?\)', '', line)
-                line = re.sub(r'\s+', ' ', line).strip()
-                if line:
-                    tts_lines.append(line)
-        
-        initial_text = "\n".join(tts_lines)
-        
-        # ========== 质检步骤 ==========
-        print(f"[Podcast] 初稿生成完成,开始质检...")
-        check_result = check_podcast_text(initial_text, num_speakers, word_count)
-        
-        if check_result['issues']:
-            print(f"[Podcast] 发现 {len(check_result['issues'])} 个问题:")
-            for issue in check_result['issues']:
-                print(f"  - {issue}")
-            
-            # 如果有自动修复,先应用
-            if check_result['auto_fixed']:
-                initial_text = check_result['fixed_text']
-                print(f"[Podcast] 自动修复完成")
-            
-            # 如果需要AI修正(字数问题),调用AI
-            if check_result['needs_ai_fix']:
-                print(f"[Podcast] 需要AI修正字数...")
-                fix_prompt = get_ai_fix_prompt(check_result['issues'], initial_text)
-                fixed_result = call_llm_direct(fix_prompt, "你是一个文本修正助手,只修正指定的问题,不要改变其他内容。", config)
-                if fixed_result and not fixed_result.startswith('ERROR:'):
-                    initial_text = fixed_result
-                    print(f"[Podcast] AI修正完成")
-            
-            # 最终检查
-            final_check = check_podcast_text(initial_text, num_speakers, word_count)
-            if final_check['issues']:
-                print(f"[Podcast] 最终检查仍有 {len(final_check['issues'])} 个问题:")
-                for issue in final_check['issues']:
-                    print(f"  - {issue}")
-            else:
-                print(f"[Podcast] 最终检查通过!")
-        else:
-            print(f"[Podcast] 质检通过,无问题!")
-        
-        return {
-            "success": True,
-            "podcast_text": initial_text,
-            "original_speakers": speaker_list[:num_speakers],
-            "speaker_map": speaker_map,
-            "raw_text": result,
-            "quality_check": {
-                "issues_found": len(check_result['issues']),
-                "auto_fixed": check_result['auto_fixed'],
-                "total_chars": check_result['total_chars']
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
-
-
-@app.post("/api/tts/fetch-url")
-async def fetch_url_content(url: str = Form("")):
-    """抓取网页文章内容"""
-    import re
-    
-    if not url.strip():
-        raise HTTPException(status_code=400, detail="URL 不能为空")
-    
-    # 补全协议
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
-    
-    try:
-        # 方法1: 使用 Jina Reader API (免费,能绕过大部分反爬)
-        try:
-            import urllib.request
-            jina_url = f"https://r.jina.ai/{url}"
-            req = urllib.request.Request(jina_url, headers={
-                'User-Agent': 'Mozilla/5.0',
-                'Accept': 'text/plain',
-            })
-            with urllib.request.urlopen(req, timeout=20) as response:
-                text = response.read().decode('utf-8', errors='ignore')
-            
-            # 清理 Jina 返回的内容
-            text = text.strip()
-            
-            # 提取 Markdown Content 后的正文
-            if 'Markdown Content:' in text:
-                text = text.split('Markdown Content:', 1)[1].strip()
-            elif 'Content:' in text:
-                text = text.split('Content:', 1)[1].strip()
-            
-            # 移除图片链接和导航链接
-            text = re.sub(r'!\[Image \d+:.*?\]\(.*?\)', '', text)
-            text = re.sub(r'\[_.*?_\]\(.*?\)', '', text)
-            text = re.sub(r'\[.*?\]\(https?://.*?\)', '', text)
-            # 移除标题标记
-            text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-            # 移除列表标记
-            text = re.sub(r'^\*\s+', '', text, flags=re.MULTILINE)
-            text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
-            # 移除多余空行和空格
-            text = re.sub(r'\n{3,}', '\n\n', text)
-            text = re.sub(r' {2,}', ' ', text)
-            # 移除开头的导航部分(直到找到文章标题)
-            lines = text.split('\n')
-            article_start = 0
-            for i, line in enumerate(lines):
-                line = line.strip()
-                if len(line) > 20 and not line.startswith(('*', '-', '#', '!', '[')):
-                    article_start = i
-                    break
-            text = '\n'.join(lines[article_start:]).strip()
-            
-            if len(text) > 200:
-                # 截取前 5000 字
-                if len(text) > 5000:
-                    text = text[:5000] + '...'
-                return {
-                    "success": True,
-                    "content": text,
-                    "url": url
-                }
-        except Exception as e:
-            print(f"[FetchURL] Jina Reader 失败: {e}")
-        
-        # 方法2: 使用 trafilatura
-        try:
-            import trafilatura
-            downloaded = trafilatura.fetch_url(url)
-            if downloaded:
-                text = trafilatura.extract(downloaded, include_comments=False, include_tables=True, no_fallback=False)
-                if text and len(text) > 100:
-                    if len(text) > 5000:
-                        text = text[:5000] + '...'
-                    return {
-                        "success": True,
-                        "content": text,
-                        "url": url
-                    }
-        except Exception as e:
-            print(f"[FetchURL] trafilatura 失败: {e}")
-        
-        # 方法3: 回退到 urllib
-        import urllib.request
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        })
-        
-        with urllib.request.urlopen(req, timeout=15) as response:
-            html = response.read().decode('utf-8', errors='ignore')
-        
-        html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.I)
-        html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.I)
-        text = re.sub(r'<[^>]+>', ' ', html)
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        if len(text) > 5000:
-            text = text[:5000] + '...'
-        
-        if len(text) < 50:
-            raise Exception("抓取内容过少,可能是反爬页面")
-        
-        return {
-            "success": True,
-            "content": text,
-            "url": url
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"抓取失败: {str(e)}")
-
-
-@app.post("/api/tts/to-solo-podcast")
-async def convert_to_solo_podcast(
-    text: str = Form(...),
-    style: str = Form("storytelling"),
-    word_count: int = Form(500)
-):
-    """将文本转换为单人播客风格"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
-
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="文本不能为空")
-
-    config = load_config()
-    print(f"[SoloPodcast] config: base_url={config.get('base_url')}, api_key={'set' if config.get('api_key') else 'empty'}, model={config.get('model')}")
-    if not config.get("api_key"):
-        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
-    if not config.get("base_url"):
-        raise HTTPException(status_code=400, detail=f"未配置 API base_url, config={config}")
-
-    # 风格配置
-    style_configs = {
-        "storytelling": {
-            "desc": "故事讲述风格,用生动的叙事方式展开,有起伏和悬念"
-        },
-        "knowledge": {
-            "desc": "知识讲解风格,清晰有条理,用通俗易懂的语言解释概念"
-        },
-        "news": {
-            "desc": "新闻播报风格,语言正式、节奏明快、客观公正"
-        },
-        "casual": {
-            "desc": "轻松闲聊风格,像和朋友聊天一样自然随意"
-        },
-        "motivational": {
-            "desc": "励志分享风格,充满感染力,激励人心"
-        },
-        "educational": {
-            "desc": "教学讲解风格,循序渐进,由浅入深地讲解"
-        }
-    }
-
-    style_config = style_configs.get(style, style_configs['storytelling'])
-
-    # 字数范围
-    word_min = max(100, word_count - 150)
-    word_max = word_count + 150
-
-    # 构造用户提示
-    user_prompt = f"""请将以下文本转换为单人播客风格,适合一个人朗读讲述。
-
-## 播客风格
-{style_config['desc']}
-
-## 输出要求
-1. 开头要有吸引人的开场白,引出话题
-2. 将内容重新组织为适合口语讲述的结构
-3. 语言要自然流畅,像在和听众对话
-4. 适当加入过渡词和连接词
-5. 结尾要有总结或引发思考的收尾
-6. 【重要】总字数必须控制在 {word_count} 字左右(不少于 {word_min} 字,不超过 {word_max} 字),超出或不足都不可接受
-7. 如果原文较长,请提炼核心内容;如果原文较短,请适当展开
-
-## 原始文本
-{text}"""
-
-    system_prompt = """你是一位专业的播客内容创作者,擅长将各种文本转换为适合单人讲述的播客风格。
-
-## 播客创作原则
-1. **口语化**:使用自然的口语表达,避免书面语
-2. **节奏感**:合理安排停顿和节奏变化
-3. **情感丰富**:根据内容调整语气和情感
-4. **结构清晰**:有明确的开头、展开和结尾
-5. **互动感**:适当使用"你"、"我们"等人称,拉近与听众的距离
-
-## 输出格式
-直接输出转换后的播客讲述内容,不要加任何标记或标签。"""
-
-    try:
-        result = call_llm_direct(user_prompt, system_prompt, config)
-
-        return {
-            "success": True,
-            "result": result.strip()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
 
 # ==================== 统一类型 API ====================
 
-@app.get("/api/tts/genres")
-async def get_genres():
-    """获取所有可用的语音节目类型"""
-    from genre_registry import list_genres
-    return {"genres": list_genres()}
 
 
-@app.post("/api/tts/to-genre")
-async def convert_to_genre(
-    genre: str = Form(...),
-    text: str = Form(...),
-    style: str = Form(""),
-    num_speakers: int = Form(0),
-    word_count: int = Form(500),
-):
-    """统一类型转换接口"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
-    from genre_registry import get_genre, build_user_prompt, get_system_prompt, clean_stage_directions
-
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="文本不能为空")
-
-    genre_config = get_genre(genre)
-    if not genre_config:
-        raise HTTPException(status_code=400, detail=f"未知类型: {genre}")
-
-    config = load_config()
-    if not config.get("api_key"):
-        raise HTTPException(status_code=400, detail="请先在智能提示配置中设置 API Key")
-
-    # 确定模式和人数
-    is_solo = num_speakers <= 1
-    if num_speakers <= 0:
-        num_speakers = genre_config["default_speakers"]
-    num_speakers = max(genre_config["min_speakers"], min(num_speakers, genre_config["max_speakers"]))
-    is_solo = num_speakers <= 1
-
-    # 校验模式
-    if is_solo and "solo" not in genre_config["modes"]:
-        # 类型不支持 solo，强制切到 multi
-        num_speakers = genre_config["default_speakers"]
-        is_solo = False
-    if not is_solo and "multi" not in genre_config["modes"]:
-        # 类型不支持 multi，强制切到 solo
-        num_speakers = 1
-        is_solo = True
-
-    # 获取 prompt
-    system_prompt = get_system_prompt(genre, is_solo)
-    user_prompt = build_user_prompt(genre, text, style, num_speakers, word_count)
-
-    try:
-        result = call_llm_direct(user_prompt, system_prompt, config)
-        # 后处理：清理舞台指示
-        result = clean_stage_directions(result)
-
-        if is_solo:
-            # 单人模式：直接返回文本
-            return {
-                "success": True,
-                "mode": "solo",
-                "genre": genre,
-                "result": result.strip(),
-            }
-        else:
-            # 多人模式：解析对话格式，映射为 Speaker_N
-            speakers = []
-            speaker_set = set()
-            lines = result.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                if line.startswith('[') and ']:' in line:
-                    speaker_name = line.split(']:')[0].replace('[', '').strip()
-                    if speaker_name not in speaker_set:
-                        speaker_set.add(speaker_name)
-                        speakers.append(speaker_name)
-
-            # 构建角色映射
-            role_map = {}
-            role_keys = list(genre_config["roles"].keys())
-            for i, name in enumerate(speakers[:num_speakers]):
-                if i < len(role_keys):
-                    role_map[name] = f"Speaker_{i+1}"
-                else:
-                    role_map[name] = f"Speaker_{i+1}"
-
-            tts_lines = []
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith('[') and ']:' in line:
-                    speaker_name = line.split(']:')[0].replace('[', '').strip()
-                    content = line.split(']:', 1)[1].strip() if ']:' in line else ''
-                    tts_id = role_map.get(speaker_name, speaker_name)
-                    tts_lines.append(f"[{tts_id}]: {content}")
-                else:
-                    tts_lines.append(line)
-
-            return {
-                "success": True,
-                "mode": "multi",
-                "genre": genre,
-                "podcast_text": "\n".join(tts_lines),
-                "original_speakers": speakers[:num_speakers],
-                "speaker_map": role_map,
-                "raw_text": result,
-            }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
 
-@app.post("/api/tts/voices")
-async def save_tts_voice(
-    name: str = Form(...),
-    instruct: str = Form(""),
-    category: str = Form("custom"),
-    file: UploadFile = File(...),
-):
-    """保存音色到音色库(全局共享)"""
-    if not name.strip():
-        raise HTTPException(status_code=400, detail="音色名称不能为空")
-
-    # 保存音频文件到分类目录
-    category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
-    os.makedirs(category_dir, exist_ok=True)
-
-    ext = os.path.splitext(file.filename or "voice.wav")[1] or ".wav"
-    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())[:60]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{safe_name}_{timestamp}{ext}"
-    file_path = os.path.join(category_dir, filename)
-
-    content = await file.read()
-    with open(file_path, 'wb') as f:
-        f.write(content)
-
-    # 更新索引(存储相对路径)
-    index = _load_voice_index()
-    index[name.strip()] = {
-        "file": f"audio/{category}/{filename}",
-        "instruct": instruct,
-        "category": category,
-        "duration": 0,
-        "created": timestamp,
-        "starred": False,
-        "note": "",
-    }
-    _save_voice_index(index)
-
-    return {"success": True, "name": name.strip(), "filename": f"audio/{category}/{filename}"}
 
 
-@app.post("/api/tts/voices/import")
-async def import_tts_voices(
-    source_dir: str = Form(...),
-    category: str = Form("genshin"),
-):
-    """批量导入音色(全局共享)"""
-    # 创建分类目录
-    category_dir = os.path.join(TTS_VOICE_DIR, "audio", category)
-    os.makedirs(category_dir, exist_ok=True)
-
-    if not os.path.exists(source_dir):
-        raise HTTPException(status_code=400, detail="源目录不存在")
-
-    index = _load_voice_index()
-    imported = 0
-    skipped = 0
-    errors = []
-
-    # 扫描角色文件夹
-    for character_name in os.listdir(source_dir):
-        character_dir = os.path.join(source_dir, character_name)
-        if not os.path.isdir(character_dir):
-            continue
-
-        # 获取所有音频文件
-        audio_files = [f for f in os.listdir(character_dir) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
-        if not audio_files:
-            continue
-
-        # 按文件大小排序,选择中间的
-        audio_files_with_size = []
-        for af in audio_files:
-            try:
-                size = os.path.getsize(os.path.join(character_dir, af))
-                audio_files_with_size.append((af, size))
-            except:
-                continue
-
-        if not audio_files_with_size:
-            continue
-
-        audio_files_with_size.sort(key=lambda x: x[1])
-        mid_idx = len(audio_files_with_size) // 2
-        selected_file = audio_files_with_size[mid_idx][0]
-
-        # 跳过已存在的
-        voice_name = f"原神·{character_name}"
-        if voice_name in index:
-            skipped += 1
-            continue
-
-        try:
-            # 复制音频文件到分类目录
-            src_path = os.path.join(character_dir, selected_file)
-            ext = os.path.splitext(selected_file)[1]
-            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", character_name)[:60]
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dest_filename = f"{safe_name}_{timestamp}{ext}"
-            dest_path = os.path.join(category_dir, dest_filename)
-
-            shutil.copy2(src_path, dest_path)
-
-            # 更新索引(存储相对路径)
-            index[voice_name] = {
-                "file": f"audio/{category}/{dest_filename}",
-                "instruct": "女,高音调",
-                "category": category,
-                "created": timestamp,
-            }
-            imported += 1
-        except Exception as e:
-            errors.append(f"{character_name}: {str(e)}")
-
-    _save_voice_index(index)
-
-    return {
-        "success": True,
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors[:10],  # 只返回前10个错误
-    }
-
-
-@app.post("/api/tts/voices/import-single")
-async def import_single_voice(
-    request: Request,
-    name: str = Form(...),
-    instruct: str = Form(""),
-    category: str = Form("custom"),
-    audio: UploadFile = File(...),
-    avatar: UploadFile = File(None),
-    token: str = Query(default=""),
-):
-    """导入单个音色"""
-    if not name.strip():
-        raise HTTPException(status_code=400, detail="名称不能为空")
-    
-    # 创建角色文件夹
-    char_dir = os.path.join(CHARACTERS_DIR, name.strip())
-    os.makedirs(char_dir, exist_ok=True)
-    
-    # 保存音频文件
-    audio_ext = os.path.splitext(audio.filename)[1] or '.mp3'
-    audio_path = os.path.join(char_dir, f'ref_audio{audio_ext}')
-    with open(audio_path, 'wb') as f:
-        content = await audio.read()
-        f.write(content)
-    
-    # 保存头像（如果有）
-    if avatar and avatar.filename:
-        avatar_ext = os.path.splitext(avatar.filename)[1] or '.png'
-        avatar_path = os.path.join(char_dir, f'avatar{avatar_ext}')
-        with open(avatar_path, 'wb') as f:
-            content = await avatar.read()
-            f.write(content)
-    
-    # 保存配置文件
-    meta = {
-        'name': name.strip(),
-        'display_name': name.strip(),
-        'instruct': instruct,
-        'category': category,
-        'created': datetime.now().strftime('%Y%m%d')
-    }
-    meta_path = os.path.join(char_dir, 'meta.json')
-    with open(meta_path, 'w', encoding='utf-8') as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-    
-    return {"success": True, "name": name.strip()}
-
-
-@app.get("/api/tts/voices/file/{filename:path}")
-async def get_tts_voice_file(filename: str):
-    """获取音色音频文件(全局共享)"""
-    # 路径安全检查:禁止路径穿越
-    if ".." in filename or filename.startswith("/") or filename.startswith("\\"):
-        raise HTTPException(status_code=400, detail="非法路径")
-    # filename 现在是 audio/category/file 格式
-    file_path = os.path.abspath(os.path.join(TTS_VOICE_DIR, filename))
-    voice_dir_abs = os.path.abspath(TTS_VOICE_DIR)
-    if not file_path.startswith(voice_dir_abs + os.sep) and file_path != voice_dir_abs:
-        raise HTTPException(status_code=403, detail="禁止访问目录外文件")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
-
-    # 根据扩展名设置 Content-Type
-    ext = os.path.splitext(filename)[1].lower()
-    content_type_map = {
-        ".wav": "audio/wav",
-        ".mp3": "audio/mpeg",
-        ".flac": "audio/flac",
-        ".ogg": "audio/ogg",
-    }
-    content_type = content_type_map.get(ext, "audio/wav")
-
-    return FileResponse(file_path, media_type=content_type)
-
-
-@app.delete("/api/tts/voices/{voice_name}")
-async def delete_tts_voice(voice_name: str):
-    """删除音色(全局共享)"""
-    index = _load_voice_index()
-
-    entry = index.pop(voice_name, None)
-    if not entry:
-        raise HTTPException(status_code=404, detail="音色不存在")
-
-    # 删除音频文件
-    file_path = os.path.join(TTS_VOICE_DIR, entry.get("file", ""))
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-    _save_voice_index(index)
-    return {"success": True}
-
-
-@app.put("/api/tts/voices/{voice_name}/meta")
-async def update_tts_voice_meta(voice_name: str, body: dict):
-    """更新音色元数据(星标、备注等)"""
-    index = _load_voice_index()
-    entry = index.get(voice_name)
-    if not entry:
-        raise HTTPException(status_code=404, detail="音色不存在")
-
-    if "starred" in body:
-        entry["starred"] = bool(body["starred"])
-    if "note" in body:
-        entry["note"] = str(body["note"])
-
-    index[voice_name] = entry
-    _save_voice_index(index)
-    return {"success": True, "voice": entry}
 
 
 # Whisper ASR 模型缓存
@@ -13245,145 +7580,8 @@ def _get_asr_pipeline():
     return _asr_pipeline
 
 
-@app.post("/api/tts/asr")
-async def tts_asr(
-    request: Request,
-    token: str = Form(""),
-):
-    """真正的 ASR:用 Whisper 转写参考音频为文本"""
-    form = await request.form()
-    audio_file = form.get("audio")
-    if not audio_file or not hasattr(audio_file, 'read'):
-        raise HTTPException(status_code=400, detail="请上传音频文件")
-
-    content = await audio_file.read()
-    if len(content) < 100:
-        raise HTTPException(status_code=400, detail="音频文件太小")
-
-    # 保存临时文件
-    tmp_path = os.path.join(TTS_VOICE_DIR, f"_asr_{int(time.time())}.wav")
-    try:
-        with open(tmp_path, 'wb') as f:
-            f.write(content)
-
-        # 在 ComfyUI 的 Python 环境中运行 ASR
-        comfy_python = os.path.join(
-            os.path.dirname(COMFYUI_ADDRESS.split(":")[0]) if ":" in COMFYUI_ADDRESS else "",
-            "..", "..", "..", "python", "python.exe"
-        )
-        # 尝试用 ComfyUI Python 环境(有 omnivoice)
-        # fallback: 用当前环境的 transformers pipeline
-        try:
-            import torch
-            import numpy as np
-            import soundfile as sf
-            from transformers import pipeline as hf_pipeline
-
-            # 读取音频
-            audio_data, sr = sf.read(tmp_path)
-            if len(audio_data.shape) > 1:
-                audio_data = audio_data.mean(axis=1)  # 转单声道
-
-            # 重采样到 16kHz(Whisper 要求)
-            if sr != 16000:
-                import scipy.signal
-                audio_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / sr))
-                sr = 16000
-
-            # 加载模型并转写
-            pipe = _get_asr_pipeline()
-            result = pipe(audio_data, generate_kwargs={"language": None})
-            text = result.get("text", "").strip()
-
-            return {"text": text}
-        except Exception as e:
-            print(f"[ASR] 转写失败: {e}")
-            import traceback
-            traceback.print_exc()
-            return {"text": "", "note": f"ASR 失败: {e}"}
-    finally:
-        try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except:
-            pass
 
 
-@app.get("/api/tts/presets")
-async def get_tts_presets():
-    """获取 TTS 参数预设列表"""
-    return {
-        "presets": [
-            {"id": "fast_preview", "label": "极速预览", "steps": 8, "cfg": 1.5, "speed": 1.2, "denoise": False, "normalize": False, "preprocess": False, "postprocess": False},
-            {"id": "balanced", "label": "均衡推荐", "steps": 32, "cfg": 2.0, "speed": 1.0, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
-            {"id": "high_quality", "label": "高质量", "steps": 64, "cfg": 2.5, "speed": 1.0, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
-            {"id": "clone_focused", "label": "克隆相似度优先", "steps": 40, "cfg": 3.0, "speed": 1.0, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
-            {"id": "emotion_focused", "label": "情绪表现优先", "steps": 48, "cfg": 2.8, "speed": 0.95, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
-            {"id": "longtext_stable", "label": "长文本稳定", "steps": 32, "cfg": 2.0, "speed": 0.9, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
-            {"id": "broadcast", "label": "新闻播报", "steps": 40, "cfg": 2.2, "speed": 1.1, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
-            {"id": "storytelling", "label": "有声书", "steps": 48, "cfg": 2.5, "speed": 0.92, "denoise": True, "normalize": False, "preprocess": True, "postprocess": True},
-            {"id": "whisper", "label": "耳语", "steps": 40, "cfg": 2.3, "speed": 0.8, "denoise": False, "normalize": False, "preprocess": False, "postprocess": True},
-            {"id": "advertising", "label": "广告配音", "steps": 48, "cfg": 2.6, "speed": 1.05, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
-            {"id": "meditation", "label": "冥想放松", "steps": 32, "cfg": 2.0, "speed": 0.78, "denoise": True, "normalize": True, "preprocess": True, "postprocess": True},
-            {"id": "low_vram", "label": "低显存模式", "steps": 16, "cfg": 1.8, "speed": 1.0, "denoise": False, "normalize": False, "preprocess": False, "postprocess": False},
-        ]
-    }
-
-
-@app.get("/api/tts/modes")
-async def get_tts_modes():
-    """获取支持的 TTS 模式列表"""
-    return {
-        "modes": [
-            {
-                "id": "clone",
-                "name": "Voice Clone",
-                "description": "短文本声音克隆",
-                "needs_ref": True,
-            },
-            {
-                "id": "design",
-                "name": "Voice Design",
-                "description": "文字设计声音",
-                "needs_ref": False,
-            },
-            {
-                "id": "longform",
-                "name": "Longform",
-                "description": "长文本分块生成",
-                "needs_ref": True,
-            },
-            {
-                "id": "multi",
-                "name": "Multi-Speaker",
-                "description": "多人对话",
-                "needs_ref": True,
-                "multi_speaker": True,
-            },
-        ]
-    }
-
-
-@app.post("/api/tts/generate")
-async def tts_generate(request: Request, token: str = Query(default="")):
-    """TTS 生成接口"""
-    # 优先从 URL 参数获取 token,其次从 Form 字段
-    if not token:
-        try:
-            form = await request.form()
-            token = form.get("token", "")
-        except:
-            pass
-    require_valid_token(token)
-    try:
-        return await _tts_generate_inner(request, token)
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        print(f"[TTS] 生成异常: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
 
 async def _tts_generate_inner(request: Request, token: str):
     """TTS 生成核心逻辑"""
@@ -13636,1069 +7834,18 @@ async def _tts_generate_inner(request: Request, token: str):
 
 # --- 本地素材 API ---
 
-@app.post("/api/local-assets/upload")
-async def upload_local_assets(files: List[UploadFile] = File(...), folder: str = Form("")):
-    uploaded = []
-    folder_rel, folder_abs = _local_upload_safe_folder(folder)
-    os.makedirs(folder_abs, exist_ok=True)
-    for file in files:
-        content = await file.read()
-        if not content:
-            continue
-        kind, ext = _local_upload_kind_ext(file.filename, file.content_type)
-        if kind is None:
-            continue
-        base = os.path.splitext(os.path.basename(file.filename or "file"))[0]
-        base = re.sub(r"[^0-9A-Za-z一-鿿._-]+", "_", base).strip("_") or "file"
-        base = base[:60]
-        filename = f"up_{uuid.uuid4().hex[:12]}_{base}{ext}"
-        rel_name = f"{folder_rel}/{filename}".lstrip("/")
-        path = os.path.join(folder_abs, filename)
-        with open(path, "wb") as f:
-            f.write(content)
-        if kind == "image":
-            classification = await classify_asset_image_best_effort(path)
-            if classification:
-                _write_local_upload_classification(rel_name, classification)
-        uploaded.append(_local_upload_item(rel_name))
-    return {"files": uploaded}
-
-@app.post("/api/local-assets/import-urls")
-async def import_local_assets_from_urls(payload: LocalAssetUrlImportRequest):
-    uploaded = []
-    results = []
-    folder_rel, folder_abs = _local_upload_safe_folder(payload.folder)
-    os.makedirs(folder_abs, exist_ok=True)
-    timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, headers={"User-Agent": "art-canvas-Asset-Importer/1.0"}) as client:
-        for entry in (payload.items or [])[:200]:
-            src_url = str(entry.url or "").strip()
-            inline_data = str(entry.data or "").strip()
-            result = {"url": src_url, "ok": False, "file": "", "error": ""}
-            if not inline_data and not src_url.startswith(("http://", "https://")):
-                result["error"] = "仅支持 http(s) 素材地址"
-                results.append(result)
-                continue
-            try:
-                if inline_data:
-                    content_type = str(entry.content_type or "").split(";", 1)[0].strip().lower()
-                    b64 = inline_data
-                    if inline_data.startswith("data:"):
-                        header, _, b64 = inline_data.partition(",")
-                        if not content_type:
-                            content_type = header[5:].split(";", 1)[0].strip().lower()
-                    try:
-                        content = base64.b64decode(b64, validate=False)
-                    except Exception:
-                        raise HTTPException(status_code=400, detail="素材数据无法解码")
-                    name_path = urllib.parse.urlparse(src_url).path
-                else:
-                    response = await client.get(src_url)
-                    response.raise_for_status()
-                    content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-                    content = response.content
-                    name_path = urllib.parse.urlparse(src_url).path
-                kind, ext = _local_upload_kind_ext(name_path, content_type)
-                if kind not in ("image", "video"):
-                    raise HTTPException(status_code=400, detail=f"不是图片或视频资源:{content_type or src_url}")
-                if not content:
-                    raise HTTPException(status_code=400, detail="素材内容为空")
-                if entry.name:
-                    base = os.path.splitext(entry.name)[0]
-                else:
-                    base = os.path.splitext(os.path.basename(urllib.parse.unquote(name_path)))[0]
-                base = base or ("web-video" if kind == "video" else "web-image")
-                base = re.sub(r"[^0-9A-Za-z一-鿿._-]+", "_", base).strip("_") or ("web-video" if kind == "video" else "web-image")
-                base = base[:60]
-                if ext and base.lower().endswith(ext.lower()):
-                    base = base[:-len(ext)].rstrip(".") or ("web-video" if kind == "video" else "web-image")
-                filename = f"up_{uuid.uuid4().hex[:12]}_{base}{ext}"
-                rel_name = f"{folder_rel}/{filename}".lstrip("/")
-                path = os.path.join(folder_abs, filename)
-                with open(path, "wb") as f:
-                    f.write(content)
-                if payload.classify and kind == "image":
-                    classification = await classify_asset_image_best_effort(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
-                    if classification:
-                        _write_local_upload_classification(rel_name, classification)
-                item = _local_upload_item(rel_name)
-                uploaded.append(item)
-                result.update({"ok": True, "file": rel_name, "item": item})
-            except HTTPException as exc:
-                result["error"] = str(exc.detail or "导入失败")
-            except Exception as exc:
-                result["error"] = str(exc) or "导入失败"
-            results.append(result)
-    return {"ok": True, "count": len(uploaded), "files": uploaded, "items": results}
-
-@app.get("/api/local-assets")
-async def list_local_assets():
-    tree, items = _local_upload_tree_and_items()
-    return {"items": items, "tree": tree}
-
-@app.post("/api/local-assets/folders")
-async def create_local_asset_folder(payload: LocalAssetFolderRequest, request: Request):
-    ensure_same_origin_request(request)
-    parent_rel, parent_abs = _local_upload_safe_folder(payload.parent)
-    if not os.path.isdir(parent_abs):
-        raise HTTPException(status_code=404, detail="父文件夹不存在")
-    name = _local_upload_safe_folder_name(payload.name)
-    rel = f"{parent_rel}/{name}".lstrip("/")
-    _, abs_path = _local_upload_safe_folder(rel)
-    if os.path.exists(abs_path):
-        raise HTTPException(status_code=400, detail="同名文件夹已存在")
-    os.makedirs(abs_path, exist_ok=False)
-    tree, items = _local_upload_tree_and_items()
-    return {"ok": True, "folder": {"path": rel, "name": name}, "tree": tree, "items": items}
-
-@app.patch("/api/local-assets/folders")
-async def rename_local_asset_folder(payload: LocalAssetFolderRequest, request: Request):
-    ensure_same_origin_request(request)
-    rel, abs_path = _local_upload_safe_folder(payload.path)
-    if not rel:
-        raise HTTPException(status_code=400, detail="根目录不能重命名")
-    if not os.path.isdir(abs_path):
-        raise HTTPException(status_code=404, detail="文件夹不存在")
-    name = _local_upload_safe_folder_name(payload.name)
-    parent = os.path.dirname(rel).replace("\\", "/")
-    new_rel = f"{parent}/{name}".lstrip("/")
-    _, new_abs = _local_upload_safe_folder(new_rel)
-    if os.path.exists(new_abs):
-        raise HTTPException(status_code=400, detail="同名文件夹已存在")
-    os.rename(abs_path, new_abs)
-    tree, items = _local_upload_tree_and_items()
-    return {"ok": True, "folder": {"path": new_rel, "name": name}, "tree": tree, "items": items}
-
-@app.patch("/api/local-assets/items")
-async def rename_local_asset_item(payload: LocalAssetRenameRequest, request: Request):
-    ensure_same_origin_request(request)
-    rel, abs_path = _local_upload_safe_path(payload.path)
-    if not os.path.isfile(abs_path):
-        raise HTTPException(status_code=404, detail="本地素材不存在")
-    kind, ext = _local_upload_kind_ext(rel, "")
-    if kind is None:
-        raise HTTPException(status_code=400, detail="不支持的素材类型")
-    new_stem = _local_upload_safe_file_stem(payload.name)
-    old_ext = os.path.splitext(rel)[1] or ext
-    parent = os.path.dirname(rel).replace("\\", "/")
-    new_rel = f"{parent}/{new_stem}{old_ext}".lstrip("/")
-    if new_rel == rel:
-        tree, items = _local_upload_tree_and_items()
-        return {"ok": True, "item": _local_upload_item(rel), "tree": tree, "items": items}
-    _, new_abs = _local_upload_abs(new_rel)
-    if os.path.exists(new_abs):
-        raise HTTPException(status_code=400, detail="同名素材已存在")
-    os.rename(abs_path, new_abs)
-    old_caption = _local_upload_caption_path(rel)
-    new_caption = _local_upload_caption_path(new_rel)
-    if os.path.isfile(old_caption) and not os.path.exists(new_caption):
-        os.rename(old_caption, new_caption)
-    old_classification = _local_upload_classification_path(rel)
-    new_classification = _local_upload_classification_path(new_rel)
-    if os.path.isfile(old_classification) and not os.path.exists(new_classification):
-        os.rename(old_classification, new_classification)
-    tree, items = _local_upload_tree_and_items()
-    return {"ok": True, "item": _local_upload_item(new_rel), "old_path": rel, "tree": tree, "items": items}
-
-@app.post("/api/local-assets/delete")
-async def delete_local_assets(payload: dict, request: Request):
-    ensure_same_origin_request(request)
-    names = payload.get("names") if isinstance(payload, dict) else None
-    if not isinstance(names, list):
-        names = []
-    deleted = []
-    for name in names:
-        try:
-            rel, path = _local_upload_safe_path(name)
-        except HTTPException:
-            continue
-        if os.path.isfile(path):
-            try:
-                os.remove(path)
-                txt_path = _local_upload_caption_path(rel)
-                if os.path.isfile(txt_path):
-                    os.remove(txt_path)
-                cls_path = _local_upload_classification_path(rel)
-                if os.path.isfile(cls_path):
-                    os.remove(cls_path)
-                deleted.append(rel)
-            except OSError:
-                pass
-    return {"deleted": deleted}
-
-@app.post("/api/local-assets/move")
-async def move_local_assets(payload: dict, request: Request):
-    ensure_same_origin_request(request)
-    names = payload.get("names") if isinstance(payload, dict) else None
-    if not isinstance(names, list) or not names:
-        raise HTTPException(status_code=400, detail="没有选择素材")
-    folder_value = str(payload.get("folder") or "").strip() if isinstance(payload, dict) else ""
-    target_rel, target_abs = _local_upload_safe_folder(folder_value)
-    if target_rel and not os.path.isdir(target_abs):
-        raise HTTPException(status_code=404, detail="目标文件夹不存在")
-    moved = 0
-    for name in names:
-        try:
-            rel, abs_path = _local_upload_safe_path(name)
-        except HTTPException:
-            continue
-        if not os.path.isfile(abs_path):
-            continue
-        base = os.path.basename(rel)
-        new_rel = f"{target_rel}/{base}".lstrip("/") if target_rel else base
-        if new_rel == rel:
-            continue
-        _, new_abs = _local_upload_abs(new_rel)
-        if os.path.exists(new_abs):
-            stem, ext = os.path.splitext(base)
-            base = f"{stem}_{uuid.uuid4().hex[:6]}{ext}"
-            new_rel = f"{target_rel}/{base}".lstrip("/") if target_rel else base
-            _, new_abs = _local_upload_abs(new_rel)
-        try:
-            os.makedirs(os.path.dirname(new_abs), exist_ok=True)
-            os.rename(abs_path, new_abs)
-            for src_sib, dst_sib in (
-                (_local_upload_caption_path(rel), _local_upload_caption_path(new_rel)),
-                (_local_upload_classification_path(rel), _local_upload_classification_path(new_rel)),
-            ):
-                if os.path.isfile(src_sib) and not os.path.exists(dst_sib):
-                    os.rename(src_sib, dst_sib)
-            moved += 1
-        except OSError:
-            continue
-    tree, items = _local_upload_tree_and_items()
-    return {"ok": True, "moved": moved, "items": items, "tree": tree}
-
-@app.post("/api/local-assets/caption")
-async def caption_local_assets(payload: LocalAssetCaptionRequest):
-    prompt = (payload.prompt or "描述图片").strip() or "描述图片"
-    items = []
-    ok_count = 0
-    for name in (payload.names or [])[:100]:
-        item = {"name": name, "ok": False, "caption": "", "caption_file": "", "error": ""}
-        try:
-            filename, path = _local_upload_safe_path(name)
-            if not os.path.isfile(path):
-                raise HTTPException(status_code=404, detail="文件不存在")
-            kind, _ = _local_upload_kind_ext(filename, "")
-            if kind != "image":
-                raise HTTPException(status_code=400, detail="仅支持图片素材反推提示词")
-            caption, resolved_model = await caption_image_with_provider(
-                path, prompt, payload.provider, payload.model, payload.ms_model,
-            )
-            txt_path = _local_upload_caption_path(filename)
-            with open(txt_path, "w", encoding="utf-8", newline="") as f:
-                f.write(caption)
-            item.update({
-                "ok": True, "name": filename, "caption": caption,
-                "caption_file": os.path.basename(txt_path), "model": resolved_model,
-            })
-            ok_count += 1
-        except HTTPException as exc:
-            item["error"] = str(exc.detail or "反推失败")
-        except Exception as exc:
-            item["error"] = str(exc) or "反推失败"
-        items.append(item)
-    return {"ok": True, "count": ok_count, "items": items}
-
-@app.post("/api/local-assets/classify")
-async def classify_local_assets(payload: LocalAssetClassifyRequest):
-    items = []
-    ok_count = 0
-    for name in (payload.names or [])[:80]:
-        item = {"name": name, "ok": False, "classification": None, "classification_file": "", "error": ""}
-        try:
-            filename, path = _local_upload_safe_path(name)
-            if not os.path.isfile(path):
-                raise HTTPException(status_code=404, detail="文件不存在")
-            kind, _ = _local_upload_kind_ext(filename, "")
-            if kind != "image":
-                raise HTTPException(status_code=400, detail="仅支持图片素材智能分类")
-            classification = await classify_image_with_provider(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
-            _write_local_upload_classification(filename, classification)
-            item.update({
-                "ok": True, "name": filename, "classification": classification,
-                "classification_file": os.path.basename(_local_upload_classification_path(filename)),
-                "model": classification.get("model") or "",
-            })
-            ok_count += 1
-        except HTTPException as exc:
-            item["error"] = str(exc.detail or "智能分类失败")
-        except Exception as exc:
-            item["error"] = str(exc) or "智能分类失败"
-        items.append(item)
-    return {"ok": True, "count": ok_count, "items": items}
-
-@app.patch("/api/local-assets/caption")
-async def save_local_asset_caption(payload: LocalAssetCaptionSaveRequest):
-    filename, path = _local_upload_safe_path(payload.name)
-    if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    kind, _ = _local_upload_kind_ext(filename, "")
-    if kind != "image":
-        raise HTTPException(status_code=400, detail="仅支持图片素材保存提示词")
-    caption = str(payload.caption or "")[:100000]
-    txt_path = _local_upload_caption_path(filename)
-    with open(txt_path, "w", encoding="utf-8", newline="") as f:
-        f.write(caption)
-    return {"ok": True, "caption": caption, "caption_file": os.path.basename(txt_path)}
-
-# --- 画布资产 API ---
-
-@app.get("/api/canvas-assets")
-async def list_canvas_assets():
-    return await asyncio.to_thread(canvas_assets_index)
-
-@app.post("/api/canvas-assets/check")
-async def check_canvas_assets(payload: CanvasAssetCheckRequest):
-    result = {}
-    for url in payload.urls[:3000]:
-        text = str(url or "").strip()
-        if not text:
-            continue
-        if text.startswith("/output/") or text.startswith("/assets/"):
-            result[text] = bool(output_file_from_url(text))
-        else:
-            result[text] = True
-    return {"exists": result}
-
-@app.post("/api/canvas-assets/download")
-async def download_canvas_assets(payload: CanvasAssetDownloadRequest):
-    buffer = BytesIO()
-    used_names = set()
-    count = 0
-    raw_items = payload.items or [{"url": url} for url in payload.urls]
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for raw in raw_items[:1000]:
-            if isinstance(raw, dict):
-                text = str(raw.get("url") or "").strip()
-                requested_name = str(raw.get("name") or "").strip()
-            else:
-                text = str(raw or "").strip()
-                requested_name = ""
-            if not text:
-                continue
-            path = output_file_from_url(text)
-            content = None
-            content_type = ""
-            if path and os.path.isfile(path):
-                base = sanitize_export_filename(requested_name or os.path.basename(path), os.path.basename(path) or f"image-{count + 1}.png")
-            else:
-                local_by_name = local_media_file_by_basename(filename_from_media_url(text, ""))
-                if local_by_name and os.path.isfile(local_by_name):
-                    path = local_by_name
-                    base = sanitize_export_filename(requested_name or os.path.basename(path), os.path.basename(path) or f"image-{count + 1}.png")
-                else:
-                    try:
-                        remote = fetch_remote_media_bytes(text)
-                    except Exception:
-                        remote = None
-                    if not remote:
-                        continue
-                    content, content_type = remote
-                    base = sanitize_export_filename(requested_name or filename_from_media_url(text, f"image-{count + 1}.bin"), f"image-{count + 1}.bin")
-            name, ext = os.path.splitext(base)
-            archive_name = base
-            suffix = 2
-            while archive_name in used_names:
-                archive_name = f"{name}-{suffix}{ext}"
-                suffix += 1
-            used_names.add(archive_name)
-            if path and os.path.isfile(path):
-                zf.write(path, archive_name)
-            elif content:
-                zf.writestr(archive_name, content)
-            count += 1
-    if count <= 0:
-        raise HTTPException(status_code=404, detail="没有可下载的内容")
-    buffer.seek(0)
-    filename = sanitize_export_filename(payload.filename or "canvas-output-images.zip", "canvas-output-images.zip")
-    if not filename.lower().endswith(".zip"):
-        filename += ".zip"
-    encoded = urllib.parse.quote(filename)
-    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"}
-    return Response(buffer.getvalue(), media_type="application/zip", headers=headers)
-
-# --- 资产库 API ---
-
-@app.get("/api/asset-library")
-async def get_asset_library():
-    return {"library": load_asset_library()}
-
-@app.post("/api/asset-library/libraries")
-async def create_asset_library(payload: AssetLibraryRequest):
-    lib = load_asset_library()
-    library = {"id": f"lib_{uuid.uuid4().hex[:12]}", "name": sanitize_asset_name(payload.name, "资产库"), "type": "asset", "categories": []}
-    library["categories"].append({"id": f"cat_{uuid.uuid4().hex[:12]}", "name": "默认分组", "type": "image", "items": []})
-    library["categories"].append({"id": f"wf_{uuid.uuid4().hex[:12]}", "name": "工作流", "type": "workflow", "items": []})
-    lib.setdefault("libraries", []).append(library)
-    lib["active_library_id"] = library["id"]
-    save_asset_library(lib)
-    return {"library": lib, "asset_library": library}
-
-@app.patch("/api/asset-library/libraries/{library_id}")
-async def rename_asset_library(library_id: str, payload: AssetLibraryRenameRequest):
-    lib = load_asset_library()
-    library = find_asset_library(lib, library_id)
-    if not library or library.get("id") != library_id:
-        raise HTTPException(status_code=404, detail="资产库不存在")
-    library["name"] = sanitize_asset_name(payload.name, library.get("name") or "资产库")
-    save_asset_library(lib)
-    return {"library": lib, "asset_library": library}
-
-@app.delete("/api/asset-library/libraries/{library_id}")
-async def delete_asset_library(library_id: str):
-    lib = load_asset_library()
-    libraries = lib.get("libraries") or []
-    if len(libraries) <= 1:
-        raise HTTPException(status_code=400, detail="至少保留一个资产库")
-    if not any(item.get("id") == library_id for item in libraries):
-        raise HTTPException(status_code=404, detail="资产库不存在")
-    lib["libraries"] = [item for item in libraries if item.get("id") != library_id]
-    if lib.get("active_library_id") == library_id:
-        lib["active_library_id"] = lib["libraries"][0].get("id")
-    save_asset_library(lib)
-    return {"library": lib}
-
-@app.post("/api/asset-library/categories")
-async def create_asset_library_category(payload: AssetLibraryCategoryRequest):
-    lib = load_asset_library()
-    library = find_asset_library(lib, payload.library_id)
-    if not library:
-        raise HTTPException(status_code=404, detail="资产库不存在")
-    cat_type = "workflow" if str(payload.type or "").lower() == "workflow" else "image"
-    category = {"id": f"cat_{uuid.uuid4().hex[:12]}", "name": sanitize_asset_name(payload.name, "新文件夹"), "type": cat_type, "items": []}
-    if cat_type == "image":
-        category["dir"] = unique_asset_category_dir(library, payload.name)
-        try:
-            os.makedirs(os.path.join(ASSET_LIBRARY_DIR, category["dir"]), exist_ok=True)
-        except Exception as exc:
-            print(f"创建分组文件夹失败: {exc}")
-    library.setdefault("categories", []).append(category)
-    lib["active_library_id"] = library.get("id") or lib.get("active_library_id")
-    save_asset_library(lib)
-    return {"library": lib, "category": category}
-
-@app.patch("/api/asset-library/categories/{category_id}")
-async def rename_asset_library_category(category_id: str, payload: AssetLibraryRenameRequest):
-    lib = load_asset_library()
-    _, cat = find_asset_category_with_library(lib, category_id, payload.library_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="分类不存在")
-    cat["name"] = sanitize_asset_name(payload.name, cat.get("name") or "新文件夹")
-    save_asset_library(lib)
-    return {"library": lib, "category": cat}
-
-@app.delete("/api/asset-library/categories/{category_id}")
-async def delete_asset_library_category(category_id: str, library_id: str = ""):
-    lib = load_asset_library()
-    library, cat = find_asset_category_with_library(lib, category_id, library_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="分类不存在")
-    cat_items = cat.get("items") or []
-    categories = library.get("categories") or []
-    remaining = [c for c in categories if c.get("id") != category_id]
-    if remaining:
-        fallback_cat = remaining[0]
-        fallback_cat.setdefault("items", []).extend(cat_items)
-    else:
-        default_cat = library.get("categories", [{}])[0] if library.get("categories") else None
-        if default_cat and default_cat.get("id") != category_id:
-            default_cat.setdefault("items", []).extend(cat_items)
-    library["categories"] = remaining
-    save_asset_library(lib)
-    return {"library": lib}
-
-@app.post("/api/asset-library/items")
-async def add_asset_library_item(payload: AssetLibraryAddRequest):
-    lib = load_asset_library()
-    _, cat = find_asset_category_with_library(lib, payload.category_id, payload.library_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="分类不存在")
-    url = str(payload.url or "").strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="素材 URL 不能为空")
-    item = {
-        "id": f"asset_{uuid.uuid4().hex[:12]}",
-        "name": sanitize_asset_name(payload.name, "asset"),
-        "url": url,
-        "kind": asset_library_media_kind(url),
-        "created_at": now_ms(),
-    }
-    cat.setdefault("items", []).append(item)
-    lib["active_library_id"] = library_id = lib.get("active_library_id") or (find_asset_library(lib, "") or {}).get("id")
-    save_asset_library(lib)
-    return {"library": lib, "item": item}
-
-@app.post("/api/asset-library/items/batch")
-async def batch_add_asset_library_items(payload: AssetLibraryBatchAddRequest):
-    lib = load_asset_library()
-    _, cat = find_asset_category_with_library(lib, payload.category_id, payload.library_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="分类不存在")
-    added = []
-    for entry in (payload.items or [])[:200]:
-        url = str(entry.url or "").strip()
-        if not url:
-            continue
-        item = {
-            "id": f"asset_{uuid.uuid4().hex[:12]}",
-            "name": sanitize_asset_name(entry.name, "asset"),
-            "url": url,
-            "kind": asset_library_media_kind(url),
-            "created_at": now_ms(),
-        }
-        cat.setdefault("items", []).append(item)
-        added.append(item)
-    save_asset_library(lib)
-    return {"library": lib, "items": added}
-
-@app.patch("/api/asset-library/items/{item_id}")
-async def rename_asset_library_item(item_id: str, payload: AssetLibraryRenameRequest):
-    lib = load_asset_library()
-    for library in lib.get("libraries", []):
-        for cat in library.get("categories", []):
-            for item in cat.get("items", []):
-                if item.get("id") == item_id:
-                    item["name"] = sanitize_asset_name(payload.name, item.get("name") or "asset")
-                    save_asset_library(lib)
-                    return {"library": lib, "item": item}
-    raise HTTPException(status_code=404, detail="资产不存在")
-
-@app.post("/api/asset-library/items/classify")
-async def classify_asset_library_items(payload: AssetLibraryClassifyRequest):
-    lib = load_asset_library()
-    results = []
-    changed = False
-    for item_id in (payload.ids or [])[:80]:
-        item = find_asset_item_in_library(lib, item_id, payload.library_id)
-        result = {"id": item_id, "ok": False, "classification": None, "error": ""}
-        if not item:
-            result["error"] = "资产不存在"
-            results.append(result)
-            continue
-        if asset_library_media_kind(item.get("url") or "") != "image" and item.get("kind") != "image":
-            result["error"] = "仅支持图片素材智能分类"
-            results.append(result)
-            continue
-        path = output_file_from_url(item.get("url") or "")
-        if not path or not os.path.isfile(path):
-            result["error"] = "文件不存在"
-            results.append(result)
-            continue
-        try:
-            classification = await classify_image_with_provider(path, payload.provider, payload.model, payload.ms_model, payload.prompt)
-            item["classification"] = classification
-            changed = True
-            result.update({"ok": True, "classification": classification})
-        except Exception as exc:
-            result["error"] = str(getattr(exc, "detail", "") or exc)
-        results.append(result)
-    if changed:
-        save_asset_library(lib)
-    return {"library": lib, "count": sum(1 for item in results if item.get("ok")), "items": results}
-
-@app.delete("/api/asset-library/items/{item_id}")
-async def delete_asset_library_item(item_id: str):
-    lib = load_asset_library()
-    removed = None
-    for library in lib.get("libraries", []):
-        for cat in library.get("categories", []):
-            keep = []
-            for item in cat.get("items", []):
-                if item.get("id") == item_id:
-                    removed = item
-                else:
-                    keep.append(item)
-            cat["items"] = keep
-    if not removed:
-        raise HTTPException(status_code=404, detail="资产不存在")
-    remove_asset_library_file(removed)
-    save_asset_library(lib)
-    return {"library": lib}
-
-@app.post("/api/asset-library/items/delete")
-async def batch_delete_asset_library_items(payload: AssetLibraryBatchDeleteRequest):
-    ids = {str(item) for item in (payload.ids or []) if str(item)}
-    if not ids:
-        raise HTTPException(status_code=400, detail="没有选择资产")
-    lib = load_asset_library()
-    removed = 0
-    removed_items = []
-    for library in lib.get("libraries", []):
-        if payload.library_id and library.get("id") != payload.library_id:
-            continue
-        for cat in library.get("categories", []):
-            keep = []
-            for item in cat.get("items", []):
-                if item.get("id") in ids:
-                    removed += 1
-                    removed_items.append(item)
-                else:
-                    keep.append(item)
-            cat["items"] = keep
-    for item in removed_items:
-        remove_asset_library_file(item)
-    save_asset_library(lib)
-    return {"library": lib, "removed": removed}
-
-@app.post("/api/asset-library/items/move")
-async def batch_move_asset_library_items(payload: AssetLibraryBatchMoveRequest):
-    ids = {str(item) for item in (payload.ids or []) if str(item)}
-    if not ids:
-        raise HTTPException(status_code=400, detail="没有选择资产")
-    lib = load_asset_library()
-    target_cat = find_asset_category_in_library(lib, payload.target_category_id, payload.target_library_id)
-    if not target_cat:
-        raise HTTPException(status_code=404, detail="目标分组不存在")
-    target_type = target_cat.get("type") or "image"
-    moved = []
-    for library in lib.get("libraries", []):
-        if payload.library_id and library.get("id") != payload.library_id:
-            continue
-        for cat in library.get("categories", []):
-            if (cat.get("type") or "image") != target_type:
-                continue
-            keep = []
-            for item in cat.get("items", []):
-                if item.get("id") in ids:
-                    moved.append(item)
-                else:
-                    keep.append(item)
-            cat["items"] = keep
-    existing_ids = {item.get("id") for item in target_cat.get("items", [])}
-    for item in moved:
-        if item.get("id") not in existing_ids:
-            target_cat.setdefault("items", []).append(item)
-            existing_ids.add(item.get("id"))
-    save_asset_library(lib)
-    return {"library": lib, "moved": len(moved)}
-
-@app.post("/api/asset-library/items/crop")
-async def batch_crop_asset_library_items(payload: AssetLibraryBatchCropRequest):
-    ids = {str(item) for item in (payload.ids or []) if str(item)}
-    if not ids:
-        raise HTTPException(status_code=400, detail="没有选择资产")
-    lib = load_asset_library()
-    target_cat = None
-    if payload.target_category_id:
-        target_cat = find_asset_category_in_library(lib, payload.target_category_id, payload.target_library_id)
-        if not target_cat:
-            raise HTTPException(status_code=404, detail="目标分组不存在")
-        if target_cat.get("type") != "image":
-            raise HTTPException(status_code=400, detail="目标分组不支持媒体")
-    added = []
-    for library in lib.get("libraries", []):
-        if payload.library_id and library.get("id") != payload.library_id:
-            continue
-        for cat in library.get("categories", []):
-            if cat.get("type") != "image":
-                continue
-            cat_items = cat.get("items") or []
-            target_items = []
-            remaining = []
-            for item in cat_items:
-                if item.get("id") in ids:
-                    target_items.append(item)
-                else:
-                    remaining.append(item)
-            cat["items"] = remaining
-            if not target_cat:
-                target_cat = cat
-            for item in target_items:
-                existing_ids = {i.get("id") for i in target_cat.get("items", [])}
-                if item.get("id") not in existing_ids:
-                    target_cat.setdefault("items", []).append(item)
-                    added.append(item)
-    save_asset_library(lib)
-    return {"library": lib, "items": added}
 
 # --- 提示词库 API ---
 
-@app.get("/api/prompt-libraries")
-async def get_prompt_libraries():
-    return {"library": public_prompt_libraries()}
-
-@app.post("/api/prompt-libraries")
-async def create_prompt_library(payload: PromptLibraryRequest):
-    data = load_prompt_libraries()
-    library = {
-        "id": f"lib_{uuid.uuid4().hex[:12]}",
-        "name": sanitize_asset_name(payload.name, "提示词库"),
-        "type": "prompt",
-        "categories": [],
-        "items": [],
-    }
-    data.setdefault("libraries", []).append(library)
-    data["active_library_id"] = library["id"]
-    data = save_prompt_libraries(data)
-    new_lib = next((lib for lib in data.get("libraries", []) if lib.get("id") == library["id"]), library)
-    return {"library": public_prompt_libraries(data), "prompt_library": new_lib}
-
-@app.patch("/api/prompt-libraries/{library_id}")
-async def rename_prompt_library(library_id: str, payload: PromptLibraryRequest):
-    data = load_prompt_libraries()
-    library = find_prompt_library(data, library_id)
-    if not library or library.get("id") != library_id:
-        raise HTTPException(status_code=404, detail="提示词库不存在")
-    library["name"] = sanitize_asset_name(payload.name, library.get("name") or "提示词库")
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data), "prompt_library": library}
-
-@app.delete("/api/prompt-libraries/{library_id}")
-async def delete_prompt_library(library_id: str):
-    if library_id == "system":
-        raise HTTPException(status_code=400, detail="系统提示词库不能删除,可以删除其中的提示词")
-    data = load_prompt_libraries()
-    libraries = data.get("libraries", []) or []
-    kept = [lib for lib in libraries if lib.get("id") != library_id]
-    if len(kept) == len(libraries):
-        raise HTTPException(status_code=404, detail="提示词库不存在")
-    data["libraries"] = kept
-    if data.get("active_library_id") == library_id:
-        data["active_library_id"] = "system"
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data)}
-
-@app.post("/api/prompt-libraries/items")
-async def add_prompt_library_item(payload: PromptLibraryItemRequest):
-    data = load_prompt_libraries()
-    library = find_prompt_library(data, payload.library_id)
-    if not library:
-        raise HTTPException(status_code=404, detail="提示词库不存在")
-    if not str(payload.positive or "").strip():
-        raise HTTPException(status_code=400, detail="提示词内容不能为空")
-    item = normalize_prompt_library_item({
-        "id": f"tpl_{uuid.uuid4().hex[:12]}",
-        "name": payload.name,
-        "category": payload.category,
-        "positive": payload.positive,
-        "negative": payload.negative,
-        "scene": payload.scene,
-        "created_at": now_ms(),
-        "updated_at": now_ms(),
-    })
-    library.setdefault("items", []).insert(0, item)
-    data["active_library_id"] = library.get("id") or data.get("active_library_id")
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data), "item": item}
-
-@app.patch("/api/prompt-libraries/items/{item_id}")
-async def update_prompt_library_item(item_id: str, payload: PromptLibraryItemRequest):
-    data = load_prompt_libraries()
-    for library in data.get("libraries", []) or []:
-        if payload.library_id and library.get("id") != payload.library_id:
-            continue
-        for index, item in enumerate(library.get("items", []) or []):
-            if item.get("id") == item_id:
-                next_item = normalize_prompt_library_item({
-                    **item,
-                    "name": payload.name or item.get("name"),
-                    "category": payload.category or item.get("category"),
-                    "positive": payload.positive or item.get("positive"),
-                    "negative": payload.negative,
-                    "scene": payload.scene,
-                    "updated_at": now_ms(),
-                })
-                library["items"][index] = next_item
-                data = save_prompt_libraries(data)
-                return {"library": public_prompt_libraries(data), "item": next_item}
-    raise HTTPException(status_code=404, detail="提示词不存在")
-
-@app.delete("/api/prompt-libraries/items/{item_id}")
-async def delete_prompt_library_item(item_id: str):
-    data = load_prompt_libraries()
-    removed = None
-    for library in data.get("libraries", []) or []:
-        keep = []
-        for item in library.get("items", []) or []:
-            if item.get("id") == item_id:
-                removed = item
-            else:
-                keep.append(item)
-        library["items"] = keep
-    if not removed:
-        raise HTTPException(status_code=404, detail="提示词不存在")
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data), "removed": 1}
-
-@app.post("/api/prompt-libraries/items/delete")
-async def batch_delete_prompt_library_items(payload: PromptLibraryBatchDeleteRequest):
-    ids = {str(item) for item in (payload.ids or []) if str(item)}
-    if not ids:
-        raise HTTPException(status_code=400, detail="没有选择提示词")
-    data = load_prompt_libraries()
-    removed = 0
-    for library in data.get("libraries", []) or []:
-        keep = []
-        for item in library.get("items", []) or []:
-            if item.get("id") in ids:
-                removed += 1
-            else:
-                keep.append(item)
-        library["items"] = keep
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data), "removed": removed}
-
-PROMPT_BUILTIN_CATEGORY_IDS = {"view", "storyboard", "character", "product", "lighting", "custom"}
-
-@app.post("/api/prompt-libraries/categories")
-async def add_prompt_library_category(payload: PromptLibraryCategoryRequest):
-    data = load_prompt_libraries()
-    library = find_prompt_library(data, payload.library_id) or find_prompt_library(data, "system")
-    if not library:
-        raise HTTPException(status_code=404, detail="提示词库不存在")
-    name = sanitize_asset_name(payload.name, "新分组")
-    existing = {str(c.get("id")) for c in (library.get("categories") or []) if isinstance(c, dict)} | PROMPT_BUILTIN_CATEGORY_IDS
-    cat_id = f"pcat_{uuid.uuid4().hex[:10]}"
-    while cat_id in existing:
-        cat_id = f"pcat_{uuid.uuid4().hex[:10]}"
-    category = {"id": cat_id, "name": name}
-    library.setdefault("categories", []).append(category)
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data), "category": category}
-
-@app.patch("/api/prompt-libraries/categories/{category_id}")
-async def rename_prompt_library_category(category_id: str, payload: PromptLibraryCategoryRequest):
-    name = sanitize_asset_name(payload.name, "")
-    if not name:
-        raise HTTPException(status_code=400, detail="分组名称不能为空")
-    data = load_prompt_libraries()
-    updated = False
-    for library in data.get("libraries", []) or []:
-        for cat in library.get("categories") or []:
-            if isinstance(cat, dict) and cat.get("id") == category_id:
-                cat["name"] = name
-                updated = True
-    if not updated:
-        raise HTTPException(status_code=404, detail="分组不存在")
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data)}
-
-@app.delete("/api/prompt-libraries/categories/{category_id}")
-async def delete_prompt_library_category(category_id: str):
-    data = load_prompt_libraries()
-    found = False
-    for library in data.get("libraries", []) or []:
-        cats = library.get("categories") or []
-        kept = [c for c in cats if not (isinstance(c, dict) and c.get("id") == category_id)]
-        if len(kept) != len(cats):
-            found = True
-            library["categories"] = kept
-            fallback = next((str(c.get("id")) for c in kept if isinstance(c, dict) and c.get("id")), "")
-            for item in library.get("items", []) or []:
-                if isinstance(item, dict) and item.get("category") == category_id:
-                    item["category"] = fallback
-    if not found:
-        raise HTTPException(status_code=404, detail="分组不存在")
-    data = save_prompt_libraries(data)
-    return {"library": public_prompt_libraries(data)}
 
 # --- 共享文件夹 API ---
 
-@app.get("/api/shared-folders")
-async def list_shared_folders():
-    data = shared_folders_load()
-    folders = []
-    for entry in data.get("folders", []):
-        abs_path = shared_folder_abs(entry)
-        folders.append({
-            "id": entry.get("id"),
-            "name": entry.get("name") or os.path.basename(abs_path) or abs_path,
-            "rel": entry.get("rel") or "",
-            "path": abs_path,
-            "exists": os.path.isdir(abs_path),
-            "created_at": entry.get("created_at"),
-        })
-    return {"folders": folders}
-
-@app.post("/api/shared-folders")
-async def register_shared_folder(payload: SharedFolderRegister):
-    abs_path, rel = shared_resolve_register(payload.path)
-    name = sanitize_asset_name(payload.name or os.path.basename(abs_path), "共享文件夹")
-    with SHARED_FOLDERS_LOCK:
-        data = shared_folders_load()
-        for entry in data.get("folders", []):
-            if os.path.normpath(shared_folder_abs(entry)) == os.path.normpath(abs_path):
-                entry["name"] = name
-                shared_folders_save(data)
-                return {"folder": {**entry, "path": abs_path, "exists": True}}
-        entry = {
-            "id": f"shared_{uuid.uuid4().hex[:12]}",
-            "name": name,
-            "rel": rel,
-            "created_at": now_ms(),
-        }
-        data.setdefault("folders", []).append(entry)
-        shared_folders_save(data)
-    return {"folder": {**entry, "path": abs_path, "exists": True}}
-
-@app.delete("/api/shared-folders/{folder_id}")
-async def unregister_shared_folder(folder_id: str):
-    with SHARED_FOLDERS_LOCK:
-        data = shared_folders_load()
-        before = len(data.get("folders", []))
-        data["folders"] = [f for f in data.get("folders", []) if f.get("id") != folder_id]
-        if len(data["folders"]) == before:
-            raise HTTPException(status_code=404, detail="共享文件夹不存在")
-        shared_folders_save(data)
-    return {"ok": True}
-
-@app.get("/api/shared-folders/{folder_id}/tree")
-async def get_shared_folder_tree(folder_id: str):
-    entry = shared_folder_by_id(folder_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="共享文件夹不存在")
-    abs_path = shared_folder_abs(entry)
-    if not os.path.isdir(abs_path):
-        raise HTTPException(status_code=404, detail="文件夹已不存在")
-    tree = scan_shared_tree(folder_id, abs_path, "", entry.get("name") or os.path.basename(abs_path))
-    return {"folder": {"id": folder_id, "name": entry.get("name"), "path": abs_path}, "tree": tree}
-
-@app.get("/api/shared-folders/{folder_id}/file")
-async def get_shared_folder_file(folder_id: str, path: str = ""):
-    entry = shared_folder_by_id(folder_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="共享文件夹不存在")
-    folder_abs = shared_folder_abs(entry)
-    abs_path = shared_child_abs(folder_abs, path)
-    if not os.path.isfile(abs_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
-    ext = os.path.splitext(abs_path)[1].lower()
-    if ext not in SHARED_MEDIA_EXTS:
-        raise HTTPException(status_code=400, detail="不支持的文件类型")
-    return FileResponse(abs_path, media_type=content_type_for_path(abs_path))
-
-@app.post("/api/shared-folders/import")
-async def import_shared_folder_files(payload: SharedFolderImport):
-    entry = shared_folder_by_id(payload.folder_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="共享文件夹不存在")
-    folder_abs = shared_folder_abs(entry)
-    lib = load_asset_library()
-    cat = find_asset_category_in_library(lib, payload.category_id, payload.library_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="分类不存在")
-    if cat.get("type") != "image":
-        raise HTTPException(status_code=400, detail="该分类暂不支持添加媒体")
-    added = []
-    for rel in (payload.paths or [])[:200]:
-        abs_path = shared_child_abs(folder_abs, rel)
-        if not os.path.isfile(abs_path):
-            continue
-        ext = os.path.splitext(abs_path)[1].lower()
-        if ext not in SHARED_MEDIA_EXTS:
-            continue
-        _, item = make_asset_library_item(abs_path, os.path.basename(abs_path), subdir=cat.get("dir") or "")
-        if item.get("kind") == "image":
-            classification = await classify_asset_image_best_effort(output_file_from_url(item.get("url") or "") or abs_path)
-            if classification:
-                item["classification"] = classification
-        cat.setdefault("items", []).append(item)
-        added.append(item)
-    save_asset_library(lib)
-    return {"library": lib, "items": added}
 
 # --- 服务静态文件(上传素材) ---
 
-@app.get("/assets/uploads/{path:path}")
-async def serve_local_upload(path: str):
-    clean_path = path.replace("\\", "/")
-    if ".." in clean_path:
-        raise HTTPException(status_code=404, detail="File not found")
-    full_path = os.path.abspath(os.path.join(LOCAL_UPLOAD_DIR, clean_path))
-    root = os.path.abspath(LOCAL_UPLOAD_DIR)
-    if not full_path.startswith(root):
-        raise HTTPException(status_code=404, detail="File not found")
-    if not os.path.exists(full_path) or not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    ext = os.path.splitext(full_path)[1].lower()
-    media_type = {
-        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".webp": "image/webp", ".gif": "image/gif",
-        ".mp4": "video/mp4", ".webm": "video/webm",
-    }.get(ext, "application/octet-stream")
-    return StarletteFileResponse(full_path, media_type=media_type)
-
-@app.get("/assets/library/{path:path}")
-async def serve_asset_library(path: str):
-    clean_path = path.replace("\\", "/")
-    if ".." in clean_path:
-        raise HTTPException(status_code=404, detail="File not found")
-    full_path = os.path.abspath(os.path.join(ASSET_LIBRARY_DIR, clean_path))
-    root = os.path.abspath(ASSET_LIBRARY_DIR)
-    if not full_path.startswith(root):
-        raise HTTPException(status_code=404, detail="File not found")
-    if not os.path.exists(full_path) or not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    ext = os.path.splitext(full_path)[1].lower()
-    media_type = {
-        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".webp": "image/webp", ".gif": "image/gif",
-        ".json": "application/json",
-        ".zip": "application/zip",
-    }.get(ext, "application/octet-stream")
-    return StarletteFileResponse(full_path, media_type=media_type)
 
 # --- 智能画布分组导出 API ---
 
-@app.get("/api/smart-canvas/prompt-templates")
-async def smart_canvas_prompt_templates():
-    try:
-        template_path = prompt_template_markdown_path()
-        source = os.path.relpath(template_path, BASE_DIR).replace("\\", "/") if template_path else ""
-        return {"templates": builtin_prompt_templates(), "source": source}
-    except Exception as e:
-        print(f"读取提示词模板失败: {e}")
-        return {"templates": []}
-
-@app.post("/api/smart-canvas/group-export")
-async def export_smart_canvas_group(payload: SmartCanvasGroupExportRequest):
-    target_dir = smart_group_export_folder(payload.folder, payload.group_name)
-    used_names = set()
-    count = 0
-    text_index = 1
-    for item in payload.items[:2000]:
-        kind = str(item.kind or "").lower()
-        if kind == "text":
-            text = str(item.text or "")
-            if not text.strip():
-                continue
-            base = sanitize_export_filename(item.name or f"{text_index}.txt", f"{text_index}.txt")
-            if not base.lower().endswith(".txt"):
-                base += ".txt"
-            text_index += 1
-            name, ext = os.path.splitext(base)
-            out_name = base
-            suffix = 2
-            while out_name in used_names:
-                out_name = f"{name}-{suffix}{ext}"
-                suffix += 1
-            used_names.add(out_name)
-            with open(os.path.join(target_dir, out_name), "w", encoding="utf-8") as f:
-                f.write(text)
-            count += 1
-            continue
-        src = output_file_from_url(item.url)
-        if not src or not os.path.isfile(src):
-            continue
-        base = sanitize_export_filename(item.name or os.path.basename(src), os.path.basename(src) or f"asset-{count + 1}")
-        name, ext = os.path.splitext(base)
-        if not ext:
-            _, src_ext = os.path.splitext(src)
-            ext = src_ext or ".bin"
-            base = name + ext
-        out_name = base
-        suffix = 2
-        while out_name in used_names:
-            out_name = f"{name}-{suffix}{ext}"
-            suffix += 1
-        used_names.add(out_name)
-        shutil.copy2(src, os.path.join(target_dir, out_name))
-        count += 1
-    if count <= 0:
-        raise HTTPException(status_code=404, detail="没有可导出的内容")
-    return {"ok": True, "folder": target_dir, "count": count}
 
 
 # --- 画布工作流辅助函数 ---
@@ -14780,521 +7927,11 @@ def build_canvas_workflow_archive(payload: CanvasWorkflowExportRequest) -> Tuple
 
 # --- 媒体预览 API ---
 
-@app.get("/api/media-preview")
-async def media_preview(url: str, w: int = 512):
-    # ComfyUI 图片(如 /api/comfyui/view?filename=...)直接走 ComfyUI 代理缩略图
-    if url.startswith("/api/comfyui/view"):
-        from urllib.parse import urlparse, parse_qs
-        parsed = urlparse(url)
-        qs = parse_qs(parsed.query)
-        filename = qs.get("filename", [""])[0]
-        subfolder = qs.get("subfolder", [""])[0]
-        ctype = qs.get("type", ["output"])[0]
-        return await proxy_comfyui_view(filename=filename, subfolder=subfolder, type=ctype, w=w)
-
-    path = output_file_from_url(url)
-    if not path or not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="媒体文件不存在")
-
-    width = max(64, min(2048, int(w or 512)))
-    webp_path, png_path = media_preview_cache_paths(path, width)
-
-    if os.path.exists(webp_path):
-        return FileResponse(webp_path, media_type="image/webp")
-    if os.path.exists(png_path):
-        return FileResponse(png_path, media_type="image/png")
-
-    try:
-        os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
-        if is_video_preview_file(path):
-            img = await asyncio.to_thread(generate_video_preview_image, path, width)
-        else:
-            def _process_image():
-                with Image.open(path) as source:
-                    img = ImageOps.exif_transpose(source)
-                    img.thumbnail((width, width), Image.BILINEAR)
-                    return img.convert("RGBA" if image_has_alpha(img) else "RGB")
-            img = await asyncio.to_thread(_process_image)
-
-        def _save_preview():
-            try:
-                img.save(webp_path, format="WEBP", quality=88)
-                return webp_path, "image/webp"
-            except Exception:
-                img.save(png_path, format="PNG", optimize=True)
-                return png_path, "image/png"
-        saved_path, saved_type = await asyncio.to_thread(_save_preview)
-        # 浏览器缓存:文件名含 mtime+size 哈希,内容变了 key 就变,可以安全长缓存
-        etag = _etag_for(saved_path)
-        headers = {
-            "Cache-Control": "public, max-age=2592000, immutable",
-            "ETag": f'"{etag}"',
-        }
-        return FileResponse(saved_path, media_type=saved_type, headers=headers)
-    except Exception as exc:
-        raise HTTPException(status_code=415, detail=f"无法生成预览图:{exc}") from exc
-
-# --- 缓存管理 API ---
-
-@app.get("/api/cache/info")
-async def api_cache_info():
-    """获取缩略图缓存信息"""
-    if not os.path.isdir(MEDIA_PREVIEW_DIR):
-        return {"count": 0, "size": 0}
-    total_size = 0
-    count = 0
-    for f in os.listdir(MEDIA_PREVIEW_DIR):
-        fp = os.path.join(MEDIA_PREVIEW_DIR, f)
-        if os.path.isfile(fp):
-            total_size += os.path.getsize(fp)
-            count += 1
-    return {"count": count, "size": total_size}
-
-@app.post("/api/cache/clear")
-async def api_cache_clear():
-    """清理缩略图缓存"""
-    if not os.path.isdir(MEDIA_PREVIEW_DIR):
-        return {"message": "缓存目录不存在,无需清理", "cleared": 0}
-    count = 0
-    for f in os.listdir(MEDIA_PREVIEW_DIR):
-        fp = os.path.join(MEDIA_PREVIEW_DIR, f)
-        try:
-            if os.path.isfile(fp):
-                os.remove(fp)
-                count += 1
-        except OSError:
-            pass
-    return {"message": f"已清理 {count} 个缓存文件", "cleared": count}
-
-# --- 云视频上传 API ---
-
-@app.post("/api/cloud-video/upload")
-async def cloud_video_upload(payload: CloudVideoUploadRequest, request: Request):
-    ensure_same_origin_request(request)
-    return await upload_local_video_to_cloud(payload.url, payload.service)
-
-# --- 本地图片导入 API ---
-
-@app.post("/api/ai/import-local-image")
-async def import_local_ai_reference(payload: LocalImageImportRequest, request: Request):
-    ensure_same_origin_request(request)
-    requested = [payload.path] if payload.path else []
-    requested.extend(payload.paths or [])
-    requested = [p for p in requested if str(p or "").strip()][:20]
-    if not requested:
-        raise HTTPException(status_code=400, detail="没有可导入的本地图片")
-    return {"files": [import_local_image_file(normalize_local_image_path(path)) for path in requested]}
 
 # --- RunningHub API ---
 
-@app.get("/api/runninghub/app-info")
-async def runninghub_app_info(webappId: str = ""):
-    webapp_id = str(webappId or "").strip()
-    if not webapp_id:
-        raise HTTPException(status_code=400, detail="webappId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider)
-    url = runninghub_endpoint_url(provider, f"/api/webapp/apiCallDemo?apiKey={urllib.parse.quote(api_key)}&webappId={urllib.parse.quote(webapp_id)}")
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)) as client:
-        try:
-            response = await client.get(url, headers=runninghub_app_headers(False))
-            raw = response.json()
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500]) from exc
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"请求 RunningHub 应用信息失败:{exc}") from exc
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:500])
-    if isinstance(raw, dict) and raw.get("code") not in (0, "0", None):
-        raise HTTPException(status_code=400, detail=raw.get("msg") or f"RunningHub 查询失败 code={raw.get('code')}")
-    data = raw.get("data") if isinstance(raw, dict) else {}
-    return {"success": True, "data": data or {}}
-
-@app.post("/api/runninghub/submit")
-async def runninghub_submit(payload: RunningHubSubmitRequest):
-    webapp_id = str(payload.webappId or "").strip()
-    if not webapp_id:
-        raise HTTPException(status_code=400, detail="webappId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider, use_wallet=payload.useWallet)
-    body = {
-        "apiKey": api_key,
-        "webappId": webapp_id,
-        "nodeInfoList": sanitize_runninghub_node_info_list(payload.nodeInfoList or []),
-    }
-    instance_type = str(payload.instanceType or "").strip()
-    if instance_type:
-        body["instanceType"] = instance_type
-    url = runninghub_endpoint_url(provider, "/task/openapi/ai-app/run")
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=180.0, write=120.0, pool=20.0)) as client:
-        try:
-            response = await client.post(url, headers=runninghub_app_headers(True, payload.useWallet), json=body)
-            raw = response.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"提交 RunningHub 任务失败:{exc}") from exc
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
-    if isinstance(raw, dict) and raw.get("code") in (0, "0"):
-        task_id = raw.get("data", {}).get("taskId") if isinstance(raw.get("data"), dict) else ""
-        if not task_id:
-            raise HTTPException(status_code=502, detail=f"RunningHub 未返回 taskId:{raw}")
-        return {"success": True, "data": {"taskId": task_id, "raw": raw}}
-    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 提交失败:{raw}")
-
-@app.post("/api/runninghub/workflow-submit")
-async def runninghub_workflow_submit(payload: RunningHubWorkflowSubmitRequest):
-    workflow_id = str(payload.workflowId or "").strip()
-    if not workflow_id:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider, use_wallet=payload.useWallet)
-    body = {
-        "apiKey": api_key,
-        "workflowId": workflow_id,
-        "addMetadata": True,
-    }
-    if payload.nodeInfoList:
-        body["nodeInfoList"] = sanitize_runninghub_node_info_list(payload.nodeInfoList)
-    workflow_payload = payload.workflow
-    if workflow_payload:
-        if isinstance(workflow_payload, (dict, list)):
-            body["workflow"] = json.dumps(sanitize_seed_like_workflow_values(workflow_payload), ensure_ascii=False)
-        else:
-            body["workflow"] = str(workflow_payload)
-    url = runninghub_endpoint_url(provider, "/task/openapi/create")
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=180.0, write=120.0, pool=20.0)) as client:
-        try:
-            response = await client.post(url, headers=runninghub_app_headers(True, payload.useWallet), json=body)
-            raw = response.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"提交 RunningHub 工作流失败:{exc}") from exc
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
-    if isinstance(raw, dict) and raw.get("code") in (0, "0"):
-        task_id = raw.get("data", {}).get("taskId") if isinstance(raw.get("data"), dict) else ""
-        if not task_id:
-            raise HTTPException(status_code=502, detail=f"RunningHub 工作流未返回 taskId:{raw}")
-        return {"success": True, "data": {"taskId": task_id, "raw": raw}}
-    raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流提交失败:{raw}")
-
-@app.get("/api/runninghub/workflow-info")
-async def runninghub_workflow_info(workflowId: str = ""):
-    workflow_id = str(workflowId or "").strip()
-    if not workflow_id:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider)
-    url = runninghub_endpoint_url(provider, "/api/openapi/getJsonApiFormat")
-    body = {"apiKey": api_key, "workflowId": workflow_id}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=180.0, write=60.0, pool=20.0)) as client:
-        try:
-            response = await client.post(url, headers=runninghub_app_headers(True), json=body)
-            raw = response.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"拉取 RunningHub 工作流参数失败:{exc}") from exc
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
-    if not isinstance(raw, dict) or raw.get("code") not in (0, "0"):
-        raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub 工作流参数拉取失败:{raw}")
-    data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
-    prompt = data.get("prompt")
-    workflow_json = {}
-    if isinstance(prompt, str) and prompt.strip():
-        try:
-            workflow_json = json.loads(prompt)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"RunningHub 工作流 JSON 解析失败:{exc}") from exc
-    elif isinstance(prompt, dict):
-        workflow_json = prompt
-    node_info_list = runninghub_workflow_node_info_list(workflow_json)
-    return {"success": True, "data": {"workflowId": workflow_id, "nodeInfoList": node_info_list, "raw": raw}}
-
-@app.get("/api/runninghub/workflows")
-def list_runninghub_workflows():
-    with RUNNINGHUB_WORKFLOW_LOCK:
-        store = load_runninghub_workflow_store()
-    merged = {workflow_id: cfg for workflow_id, cfg in store.items() if isinstance(cfg, dict)}
-    for provider in load_api_providers():
-        if provider.get("id") != "runninghub":
-            continue
-        for entry in provider.get("rh_workflows") or []:
-            workflow_id = runninghub_workflow_store_key(entry.get("workflowId") or entry.get("id"))
-            if not workflow_id:
-                continue
-            provider_cfg = runninghub_provider_workflow_config(workflow_id)
-            if provider_cfg:
-                merged[workflow_id] = runninghub_select_workflow_config(merged.get(workflow_id), provider_cfg, workflow_id)
-    items = []
-    for workflow_id, cfg in merged.items():
-        if not isinstance(cfg, dict):
-            continue
-        items.append({
-            "workflowId": workflow_id,
-            "title": cfg.get("title") or workflow_id,
-            "fieldCount": len(cfg.get("fields") or []),
-            "updatedAt": cfg.get("updatedAt"),
-            "description": cfg.get("description") or "",
-        })
-    items.sort(key=lambda item: item["title"])
-    return {"workflows": items}
-
-@app.get("/api/runninghub/workflows/{workflow_id:path}")
-def get_runninghub_workflow(workflow_id: str):
-    key = runninghub_workflow_store_key(workflow_id)
-    if not key:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    with RUNNINGHUB_WORKFLOW_LOCK:
-        store = load_runninghub_workflow_store()
-    cfg = store.get(key)
-    provider_cfg = runninghub_provider_workflow_config(key)
-    cfg = runninghub_select_workflow_config(cfg, provider_cfg, key)
-    if not isinstance(cfg, dict):
-        raise HTTPException(status_code=404, detail="RunningHub 工作流未找到")
-    return {"workflow": cfg}
-
-@app.post("/api/runninghub/workflows/fetch")
-async def fetch_runninghub_workflow(payload: RunningHubWorkflowConfig):
-    workflow_id = runninghub_workflow_store_key(payload.workflowId)
-    if not workflow_id:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider)
-    url = runninghub_endpoint_url(provider, "/api/openapi/getJsonApiFormat")
-    body = {"apiKey": api_key, "workflowId": workflow_id}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=180.0, write=60.0, pool=20.0)) as client:
-        try:
-            response = await client.post(url, headers=runninghub_app_headers(True), json=body)
-            raw = response.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch RunningHub workflow parameters: {exc}") from exc
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
-    if not isinstance(raw, dict) or raw.get("code") not in (0, "0"):
-        raise HTTPException(status_code=400, detail=(raw.get("msg") if isinstance(raw, dict) else "") or f"RunningHub workflow fetch failed: {raw}")
-    data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
-    prompt = data.get("prompt")
-    workflow_json = {}
-    if isinstance(prompt, str) and prompt.strip():
-        try:
-            workflow_json = json.loads(prompt)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to parse RunningHub workflow JSON: {exc}") from exc
-    elif isinstance(prompt, dict):
-        workflow_json = prompt
-    fields = runninghub_collect_workflow_fields(workflow_json)
-    return {"success": True, "data": {"workflowId": workflow_id, "title": payload.title or workflow_id, "description": payload.description or "", "fields": fields, "workflowJson": workflow_json, "raw": raw}}
-
-@app.put("/api/runninghub/workflows/{workflow_id:path}")
-def save_runninghub_workflow(workflow_id: str, payload: RunningHubWorkflowConfig):
-    key = runninghub_workflow_store_key(workflow_id)
-    if not key:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    fields = [
-        field for field in (runninghub_normalize_field(item) for item in (payload.fields or []))
-        if not runninghub_is_saved_link_field(field)
-    ]
-    cfg = {
-        "workflowId": key,
-        "title": (payload.title or key).strip() or key,
-        "description": payload.description or "",
-        "fields": fields,
-        "workflowJson": payload.workflowJson or {},
-        "optionalImageMode": payload.optionalImageMode or "prune-workflow",
-        "raw": payload.raw or {},
-        "updatedAt": now_ms(),
-    }
-    with RUNNINGHUB_WORKFLOW_LOCK:
-        store = load_runninghub_workflow_store()
-        store[key] = cfg
-        save_runninghub_workflow_store(store)
-    sync_runninghub_workflow_to_provider(cfg)
-    return {"success": True, "workflow": cfg}
-
-@app.delete("/api/runninghub/workflows/{workflow_id:path}")
-def delete_runninghub_workflow(workflow_id: str):
-    key = runninghub_workflow_store_key(workflow_id)
-    if not key:
-        raise HTTPException(status_code=400, detail="workflowId 必填")
-    with RUNNINGHUB_WORKFLOW_LOCK:
-        store = load_runninghub_workflow_store()
-        provider_cfg = runninghub_provider_workflow_config(key)
-        if key not in store and not provider_cfg:
-            raise HTTPException(status_code=404, detail="RunningHub 工作流未找到")
-        store.pop(key, None)
-        save_runninghub_workflow_store(store)
-    remove_runninghub_workflow_from_provider(key)
-    return {"success": True}
-
-@app.get("/api/runninghub/query")
-async def runninghub_query(taskId: str = ""):
-    task_id = str(taskId or "").strip()
-    if not task_id:
-        raise HTTPException(status_code=400, detail="taskId 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider)
-    url = runninghub_endpoint_url(provider, "/task/openapi/outputs")
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=240.0, write=30.0, pool=20.0)) as client:
-        try:
-            response = await client.post(url, headers=runninghub_app_headers(True), json={"apiKey": api_key, "taskId": task_id})
-            raw = response.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"查询 RunningHub 任务失败:{exc}") from exc
-        if response.status_code >= 400:
-            raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:800])
-        code = raw.get("code") if isinstance(raw, dict) else None
-        status = "PENDING"
-        urls = []
-        if code in (0, "0"):
-            status = "SUCCESS"
-            for remote in runninghub_extract_outputs(raw.get("data")):
-                try:
-                    urls.append(await runninghub_store_remote_output(client, remote))
-                except Exception:
-                    urls.append(remote)
-        elif code in (804, "804"):
-            status = "RUNNING"
-        elif code in (813, "813"):
-            status = "QUEUED"
-        elif code in (805, "805"):
-            status = "FAILED"
-        else:
-            status = "UNKNOWN"
-        return {"success": True, "data": {"status": status, "urls": urls, "failReason": runninghub_fail_reason(raw), "code": code, "raw": raw}}
-
-@app.post("/api/runninghub/upload-asset")
-async def runninghub_upload_asset(payload: RunningHubUploadAssetRequest):
-    source_url = str(payload.url or "").strip()
-    if not source_url:
-        raise HTTPException(status_code=400, detail="url 必填")
-    provider = runninghub_provider()
-    api_key = runninghub_api_key(provider, use_wallet=payload.useWallet)
-    filename = "asset.bin"
-    content_type = "application/octet-stream"
-    content = b""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=240.0, write=240.0, pool=20.0), follow_redirects=True) as client:
-        path = runninghub_local_asset_path(source_url)
-        if path:
-            filename = os.path.basename(path)
-            content_type = content_type_for_path(path)
-            with open(path, "rb") as f:
-                content = f.read()
-        elif source_url.startswith(("http://", "https://")):
-            response = await client.get(source_url)
-            if not response.is_success:
-                raise HTTPException(status_code=400, detail=f"下载素材失败 HTTP {response.status_code}")
-            content = response.content
-            content_type = response.headers.get("content-type") or content_type
-        else:
-            raise HTTPException(status_code=400, detail="不支持的素材来源")
-    upload_url = runninghub_endpoint_url(provider, "/api/openapi/upload")
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=20.0, read=120.0, write=300.0, pool=20.0)) as client:
-        files = {"file": (filename, content, content_type)}
-        data = {"apiKey": api_key}
-        response = await client.post(upload_url, data=data, files=files, headers=runninghub_app_headers(False, payload.useWallet))
-        raw = response.json()
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=json.dumps(raw, ensure_ascii=False)[:500])
-    if isinstance(raw, dict) and raw.get("code") not in (0, "0"):
-        raise HTTPException(status_code=400, detail=raw.get("msg") or f"RunningHub 上传失败:{raw}")
-    file_url = ""
-    data = raw.get("data") if isinstance(raw, dict) else {}
-    if isinstance(data, dict):
-        file_url = data.get("fileUrl") or data.get("url") or ""
-    return {"success": True, "url": file_url, "raw": raw}
-
 # --- 画布工作流 API ---
 
-@app.post("/api/canvas-workflows/export")
-async def export_canvas_workflow(payload: CanvasWorkflowExportRequest):
-    archive, _ = build_canvas_workflow_archive(payload)
-    filename = sanitize_export_filename(payload.filename or "canvas-workflow.zip", "canvas-workflow.zip")
-    if not filename.lower().endswith(".zip"):
-        filename += ".zip"
-    encoded = urllib.parse.quote(filename)
-    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"}
-    return Response(archive, media_type="application/zip", headers=headers)
-
-@app.post("/api/canvas-workflows/export-to-library")
-async def export_canvas_workflow_to_library(payload: CanvasWorkflowExportRequest):
-    archive, meta = build_canvas_workflow_archive(payload)
-    filename = sanitize_export_filename(payload.filename or "canvas-workflow.zip", "canvas-workflow.zip")
-    if not filename.lower().endswith(".zip"):
-        filename += ".zip"
-    lib = load_asset_library()
-    _, cat = asset_library_workflow_category(lib, payload.library_id, payload.category_id)
-    item = make_workflow_library_item_from_bytes(archive, filename, payload.name or os.path.splitext(filename)[0])
-    item["node_count"] = meta.get("node_count") or len(payload.nodes or [])
-    item["connection_count"] = meta.get("connection_count") or len(payload.connections or [])
-    item["resource_count"] = len(meta.get("resources") or [])
-    cat.setdefault("items", []).append(item)
-    save_asset_library(lib)
-    return {"library": lib, "item": item}
-
-@app.post("/api/canvas-workflows/import")
-async def import_canvas_workflow(file: UploadFile = File(...)):
-    raw = await file.read()
-    if not raw:
-        raise HTTPException(status_code=400, detail="文件为空")
-    name = str(file.filename or "").lower()
-    resource_mapping = {}
-    workflow = None
-    try:
-        if name.endswith(".zip") or raw[:2] == b"PK":
-            with zipfile.ZipFile(BytesIO(raw), "r") as zf:
-                candidates = [n for n in zf.namelist() if n.lower().endswith("workflow.json")]
-                workflow_name = "workflow.json" if "workflow.json" in zf.namelist() else (candidates[0] if candidates else "")
-                if not workflow_name:
-                    raise HTTPException(status_code=400, detail="压缩包中没有 workflow.json")
-                workflow = json.loads(zf.read(workflow_name).decode("utf-8-sig"))
-                stamp = time.strftime("%Y%m%d-%H%M%S")
-                import_dir = os.path.join(OUTPUT_INPUT_DIR, f"workflow_import_{stamp}_{uuid.uuid4().hex[:6]}")
-                os.makedirs(import_dir, exist_ok=True)
-                for res in workflow.get("resources") or []:
-                    archive = str(res.get("archive") or "").replace("\\", "/").lstrip("/")
-                    if not archive or archive not in zf.namelist():
-                        continue
-                    base = sanitize_export_filename(res.get("name") or os.path.basename(archive), os.path.basename(archive) or "resource.bin")
-                    target = os.path.join(import_dir, f"{uuid.uuid4().hex[:8]}_{base}")
-                    with zf.open(archive) as src, open(target, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
-                    rel = os.path.relpath(target, ASSETS_DIR).replace("\\", "/")
-                    new_url = f"/assets/{rel}"
-                    old_url = str(res.get("url") or "").strip()
-                    if old_url:
-                        resource_mapping[old_url] = new_url
-                    resource_mapping[archive] = new_url
-                    resource_mapping[f"./{archive}"] = new_url
-                    resource_mapping[os.path.basename(archive)] = new_url
-        else:
-            workflow = json.loads(raw.decode("utf-8-sig"))
-    except HTTPException:
-        raise
-    except zipfile.BadZipFile as exc:
-        raise HTTPException(status_code=400, detail="无法读取压缩包") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"无法解析工作流文件:{exc}") from exc
-    if isinstance(workflow, list):
-        workflow = {"nodes": workflow, "connections": []}
-    if not isinstance(workflow, dict):
-        raise HTTPException(status_code=400, detail="工作流格式不正确")
-    nodes_payload = workflow.get("nodes")
-    connections_payload = workflow.get("connections")
-    if nodes_payload is None and isinstance(workflow.get("workflow"), dict):
-        nodes_payload = workflow["workflow"].get("nodes")
-        connections_payload = workflow["workflow"].get("connections")
-    if not isinstance(nodes_payload, list):
-        raise HTTPException(status_code=400, detail="工作流 JSON 缺少 nodes")
-    if not isinstance(connections_payload, list):
-        connections_payload = []
-    if resource_mapping:
-        nodes_payload = canvas_workflow_replace_strings(nodes_payload, resource_mapping)
-        connections_payload = canvas_workflow_replace_strings(connections_payload, resource_mapping)
-    return {
-        "workflow": canvas_workflow_payload(nodes_payload, connections_payload, workflow.get("resources") or []),
-        "nodes": nodes_payload,
-        "connections": connections_payload,
-        "resource_map": resource_mapping,
-    }
 
 # ============ Ideogram4 结构化 JSON 提示词生成 ============
 IDEOGRAM4_JSON_SYSTEM_PROMPT = """你是 Ideogram4 结构化 JSON 提示词生成器。根据用户创意描述与目标画面比例，输出一个简洁、稳定、可直接传给 Ideogram4PromptBuilderKJ 的 JSON 对象。
@@ -15336,64 +7973,6 @@ class Ideogram4JsonRequest(BaseModel):
     model: str = ""
 
 
-@app.post("/api/ideogram4/generate-json")
-async def generate_ideogram4_json(req: Ideogram4JsonRequest, token: str = ""):
-    """调用 LLM 将中文创意描述转换为 Ideogram4 结构化 JSON 提示词"""
-    require_valid_token(token)
-    if not req.prompt.strip():
-        raise HTTPException(status_code=400, detail="提示词不能为空")
-
-    user_message = (
-        f"Please generate the JSON caption for the user idea below.\n\n"
-        f"TARGET IMAGE ASPECT RATIO: {req.width}:{req.height} (width:height).\n"
-        f"User idea: {req.prompt.strip()}"
-    )
-
-    try:
-        chat_base, chat_hdrs, model = resolve_chat_provider(req.provider, req.model, "")
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(
-                f"{chat_base}/chat/completions",
-                headers=chat_hdrs,
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": IDEOGRAM4_JSON_SYSTEM_PROMPT},
-                        {"role": "user", "content": user_message}
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 2000
-                },
-            )
-            response.raise_for_status()
-            raw = response.json()
-    except HTTPException:
-        raise
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误: {exc.response.text}") from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求上游接口失败: {exc}") from exc
-
-    result_text = text_from_chat_response(raw).strip()
-    if not result_text:
-        raise HTTPException(status_code=502, detail="LLM 返回为空")
-
-    # 清理可能的 markdown 代码块
-    cleaned = re.sub(r'^```(?:json)?\s*', '', result_text)
-    cleaned = re.sub(r'\s*```\s*$', '', cleaned)
-    first_brace = cleaned.find('{')
-    last_brace = cleaned.rfind('}')
-    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        cleaned = cleaned[first_brace:last_brace + 1]
-    cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
-
-    # 验证 JSON 格式
-    try:
-        json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=502, detail=f"LLM 返回的 JSON 无效: {str(e)[:100]}")
-
-    return {"json": cleaned, "model": model}
 
 
 # === 随机源管理 API ===
@@ -15402,252 +7981,12 @@ async def generate_ideogram4_json(req: Ideogram4JsonRequest, token: str = ""):
 try:
     from random_source import get_manager
     random_manager = get_manager()
-    print("[RandomSource] 随机源管理器已加载")
+    print("[RandomSource] 随机源管理器已注册（数据懒加载，首次调用时解析）")
 except Exception as e:
     print(f"[RandomSource] 加载失败: {e}")
     random_manager = None
 
 
-@app.get("/api/random/sources")
-async def random_sources():
-    """列出所有随机源"""
-    if not random_manager:
-        raise HTTPException(status_code=500, detail="随机源管理器未加载")
-    return random_manager.list_sources()
-
-
-@app.get("/api/random/categories/{source_id}")
-async def random_categories(source_id: str):
-    """获取指定随机源的所有类别"""
-    if not random_manager:
-        raise HTTPException(status_code=500, detail="随机源管理器未加载")
-    categories = random_manager.get_categories(source_id)
-    return {"categories": categories}
-
-
-@app.get("/api/random/{source_id}")
-async def random_get(source_id: str, category: Optional[str] = None, count: int = 1):
-    """随机获取指定源的元素"""
-    if not random_manager:
-        raise HTTPException(status_code=500, detail="随机源管理器未加载")
-    
-    source = random_manager.get_source(source_id)
-    if not source:
-        raise HTTPException(status_code=404, detail=f"随机源不存在: {source_id}")
-    
-    filters = {}
-    if category:
-        filters['category'] = category
-    
-    if count == 1:
-        item = source.random(filters)
-        return item or {}
-    else:
-        items = source.random_multi(filters, count)
-        return {"items": items}
-
-
-@app.post("/api/random/all")
-async def random_all(config: Dict[str, Dict]):
-    """根据配置随机选择所有源"""
-    if not random_manager:
-        raise HTTPException(status_code=500, detail="随机源管理器未加载")
-    return random_manager.random_all(config)
-
-
-@app.post("/api/random/apply-plan")
-async def random_apply_plan(config: Dict[str, Any]):
-    """根据方案配置随机选择"""
-    if not random_manager:
-        raise HTTPException(status_code=500, detail="随机源管理器未加载")
-    
-    result = {}
-    
-    # 处理角色
-    char_config = config.get('character', {})
-    if char_config.get('enabled'):
-        names = char_config.get('names', [])
-        count = char_config.get('count', 1)
-        if names:
-            source = random_manager.get_source('character')
-            if source:
-                filtered = [item for item in source.items if item.get('name') in names]
-                if filtered:
-                    actual_count = min(count, len(filtered))
-                    if actual_count == 1:
-                        result['character'] = random.choice(filtered)
-                    else:
-                        result['character'] = random.sample(filtered, actual_count)
-    
-    # 处理画师
-    artist_config = config.get('artist', {})
-    if artist_config.get('enabled'):
-        names = artist_config.get('names', [])
-        count = artist_config.get('count', 1)
-        if names:
-            source = random_manager.get_source('artist')
-            if source:
-                filtered = [item for item in source.items if item.get('name') in names]
-                if filtered:
-                    actual_count = min(count, len(filtered))
-                    if actual_count == 1:
-                        result['artist'] = [random.choice(filtered)]
-                    else:
-                        result['artist'] = random.sample(filtered, actual_count)
-    
-    # 处理预设
-    preset_config = config.get('preset', {})
-    if preset_config.get('enabled'):
-        names = preset_config.get('names', [])
-        count = preset_config.get('count', 1)
-        if names:
-            source = random_manager.get_source('preset')
-            if source:
-                # 跨分类同名时用 name_key(category_id::id)严格匹配;
-                # 旧方案可能存的是短 name,这里用 name 再兜底一次保持兼容
-                name_set = set(names)
-                def _preset_match(item):
-                    if item.get('name_key') in name_set:
-                        return True
-                    if item.get('name') in name_set:
-                        return True
-                    return False
-                filtered = [item for item in source.items if _preset_match(item)]
-                if filtered:
-                    actual_count = min(count, len(filtered))
-                    if actual_count == 1:
-                        result['preset'] = random.choice(filtered)
-                    else:
-                        result['preset'] = random.sample(filtered, actual_count)
-    
-    return result
-
-
-@app.post("/api/restart")
-async def restart_server():
-    """重启后端服务(同窗口)"""
-    async def _restart():
-        await asyncio.sleep(1)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-    asyncio.create_task(_restart())
-    return {"message": "restarting", "status": "ok"}
-
-
-# ============================================================
-# 通配符管理 API
-# - 列出内置 / 导入的通配符
-# - 创建 / 更新 / 删除用户通配符（每行一条提示词）
-# - 随机组合：选多个类型，每个类型随机抽一条拼接
-# ============================================================
-from wildcard_engine import get_engine as _wc_engine, WildcardEngine as _WildcardEngine
-
-@app.get("/api/wildcards")
-async def api_wildcards_list():
-    """列出所有通配符（builtin + imported），附带条目数"""
-    try:
-        return _wc_engine().list_wildcards()
-    except Exception as e:
-        log.exception(f"列出通配符失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/wildcards/{name}")
-async def api_wildcards_get(name: str):
-    """获取指定通配符的原始文本（每行一条，# 为注释）"""
-    name = (name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="name 不能为空")
-    text = _wc_engine().get_wildcard_text(name)
-    if not text:
-        raise HTTPException(status_code=404, detail=f"通配符 {name} 不存在")
-    options = _wc_engine().get_wildcard(name)
-    return {"name": name, "text": text, "count": len(options)}
-
-
-@app.post("/api/wildcards")
-async def api_wildcards_create(payload: dict):
-    """创建新的用户通配符（写入 data/wildcards/imported/）
-
-    Body: { "name": "my_pack", "text": "line1\\nline2\\n..." , "overwrite": false }
-    """
-    name = (payload.get("name") or "").strip()
-    text = payload.get("text") or ""
-    overwrite = bool(payload.get("overwrite", False))
-    if not name:
-        raise HTTPException(status_code=400, detail="name 不能为空")
-    result = _wc_engine().save_wildcard(name, text, overwrite=overwrite)
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
-
-
-@app.put("/api/wildcards/{name}")
-async def api_wildcards_update(name: str, payload: dict):
-    """更新一个已存在的用户通配符（不能覆盖内置）"""
-    name = (name or "").strip()
-    text = payload.get("text") or ""
-    if not name:
-        raise HTTPException(status_code=400, detail="name 不能为空")
-    result = _wc_engine().save_wildcard(name, text, overwrite=True)
-    if not result["success"]:
-        # 当类型不存在时退化为创建
-        if "已存在" not in result["error"]:
-            result = _wc_engine().save_wildcard(name, text, overwrite=False)
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=result["error"])
-    return result
-
-
-@app.delete("/api/wildcards/{name}")
-async def api_wildcards_delete(name: str):
-    """删除一个导入的通配符（内置不可删）"""
-    name = (name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="name 不能为空")
-    result = _wc_engine().delete_wildcard(name)
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
-
-
-@app.post("/api/wildcards/roll")
-async def api_wildcards_roll(payload: dict):
-    """随机组合：从所选类型中各抽一条拼接
-
-    Body: { "names": ["clothing","background","pose"], "seed": 42(可选) }
-    """
-    names = payload.get("names") or []
-    if not isinstance(names, list) or not names:
-        raise HTTPException(status_code=400, detail="names 不能为空")
-    seed = payload.get("seed")
-    try:
-        seed = int(seed) if seed is not None and str(seed) != "" else None
-    except (ValueError, TypeError):
-        seed = None
-    return _wc_engine().roll_combo([str(n).strip() for n in names if str(n).strip()], seed=seed)
-
-
-@app.post("/api/wildcards/resolve")
-async def api_wildcards_resolve(payload: dict):
-    """解析一段带通配符的文本（{a|b|c} / __name__ / [opt]）"""
-    text = (payload.get("text") or "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="text 不能为空")
-    seed = payload.get("seed")
-    try:
-        seed = int(seed) if seed is not None and str(seed) != "" else None
-    except (ValueError, TypeError):
-        seed = None
-    return _wc_engine().preview(text, seed=seed) if hasattr(_wc_engine(), 'preview') else {
-        "resolved": _wc_engine().resolve(text, seed=seed)
-    }
-
-
-@app.post("/api/wildcards/validate")
-async def api_wildcards_validate(payload: dict):
-    """校验一段提示词的通配符语法"""
-    text = (payload.get("text") or "").strip()
-    return {"warnings": _wc_engine().validate(text)}
 
 
 # ================= 通用反推提示词模块 (Interrogator) =================
@@ -15897,93 +8236,209 @@ async def _interrogate_via_vision(abs_path, mode, target_style, emit=None, provi
     return (text or "").strip()
 
 
-@app.post("/api/interrogate")
-async def api_interrogate_stream(
-    file: UploadFile = File(...),
-    mode: str = Form("caption"),
-    target_style: str = Form(""),
-    provider: str = Form("auto"),
-    vision_provider_id: str = Form(""),
-    custom_rule: str = Form(""),
-):
-    """通用反推提示词接口(真实进度,SSE 流式)。
-    provider: auto | comfyui | vision
-    vision_provider_id: 可选,指定走 vision 路线时用哪个 chat provider(复用「AI 提示词」的 API)。
-    事件格式(SSE, 每行 `data: {json}`):
-      {"type":"progress","value":N,"stage":"..."}   实时进度(ComfyUI 走真实采样进度)
-      {"type":"result","text":...,"format":...,"tags":...,"raw":...,"provider":...}
-      {"type":"error","message":"..."}
-    """
-    suffix = os.path.splitext(file.filename or "x.png")[1] or ".png"
-    tmp_path = os.path.join(DATA_DIR, f".interrogate_{uuid.uuid4().hex}{suffix}")
-    content = await file.read()
-    with open(tmp_path, 'wb') as f:
-        f.write(content)
 
-    q: "asyncio.Queue" = asyncio.Queue()   # type: ignore
-    sentinel = object()
 
-    async def emit(pct, stage):
-        await q.put({"type": "progress", "value": int(pct), "stage": stage})
+# ─── P2 路由拆分接入（2026-10-22）────────────────────────────────────
+# 注册顺序：auth → canvases → comfyui → jimeng → runninghub → tts → workflows → assets → config
+# 接在全部定义之后：main.py 内剩余同名路由先注册、优先匹配，线上行为不变。
+# 注意：变量名必须与 routers/ 文件 stem 一致，tests/test_route_inventory.py 的
+#       静态分析依赖该约定统计已接入 router 的路由多重集。
+#
+# 脚本直跑兼容（2026-10-22 修复）：`python main.py` 时本模块名是 __main__，
+# 而 routers/*.py 用 `import main as _main` 做惰性依赖。若不登记别名，会重新
+# 执行一遍 main.py 生成第二个 'main' 模块（日志重复打印、路由重复注册），
+# 且第二遍执行到本行时 routers 包仍半初始化 → AttributeError: no attribute 'routes'。
+# 必须先于下面这行 import 执行。
+# --- 翻译缓存 / 用户提示词词典（被 routers/translate.py、routers/prompt_dict.py 通过 _main 引用，需留在 main） ---
+TRANSLATE_CONFIG_FILE = os.path.join(BASE_DIR, "data", "translate-config.json")
 
-    async def run():
+# 翻译结果缓存: key="text||direction" → {result, ts}
+_TRANSLATE_CACHE = {}
+_TRANSLATE_CACHE_MAX = 500
+_TRANSLATE_CACHE_TTL = 3600  # 1 小时
+
+def _translate_cache_key(text: str, direction: str) -> str:
+    return f"{text}||{direction}"
+
+def _translate_cache_get(text: str, direction: str):
+    key = _translate_cache_key(text, direction)
+    entry = _TRANSLATE_CACHE.get(key)
+    if entry and (time.time() - entry["ts"]) < _TRANSLATE_CACHE_TTL:
+        return entry["result"]
+    return None
+
+def _translate_cache_set(text: str, direction: str, result: str):
+    key = _translate_cache_key(text, direction)
+    # 满了就淘汰最老的
+    if len(_TRANSLATE_CACHE) >= _TRANSLATE_CACHE_MAX:
+        oldest_key = min(_TRANSLATE_CACHE, key=lambda k: _TRANSLATE_CACHE[k]["ts"])
+        del _TRANSLATE_CACHE[oldest_key]
+    _TRANSLATE_CACHE[key] = {"result": result, "ts": time.time()}
+
+def load_translate_config():
+    default = {
+        "provider_type": "ai",
+        "baidu_app_id": "",
+        "baidu_secret_key": "",
+        "ai_provider_id": "",
+        "ai_model": "",
+        "ai_prompt_template": "将以下提示词翻译成目标语言,保持提示词风格和意图,只输出翻译结果,不要任何解释:\n\n{text}",
+        "source_lang": "zh",
+        "target_lang": "en",
+    }
+    if os.path.exists(TRANSLATE_CONFIG_FILE):
         try:
-            await emit(8, "图片已就绪,准备推理…")
-            text = None
-            errs = []
-            if provider in ("auto", "comfyui"):
-                try:
-                    text = await _interrogate_via_comfyui(tmp_path, mode, target_style, emit, custom_rule)
-                except Exception as e:
-                    errs.append(f"comfyui:{e}")
-            if not text and provider in ("auto", "vision"):
-                # auto 模式下,仅在存在可用多模态 provider(已配 key)时才尝试云端兜底,
-                # 避免 ComfyUI 偶发失败时错误信息被「未配置 key」污染,掩盖真实原因。
-                vision_enabled = (provider == "vision") or has_usable_vision_provider()
-                if vision_enabled:
-                    try:
-                        text = await _interrogate_via_vision(
-                            tmp_path, mode, target_style, emit,
-                            provider_id=(vision_provider_id or None),
-                            custom_rule=custom_rule,
-                        )
-                    except Exception as e:
-                        errs.append(f"vision:{e}")
-            if not text:
-                raise RuntimeError("反推失败: " + "; ".join(errs))
-            tags = []
-            if mode == "tags":
-                tags = [t.strip() for t in text.split(',') if t.strip()]
-            await q.put({
-                "type": "result",
-                "text": text,
-                "format": mode,
-                "tags": tags,
-                "raw": text,
-                "provider": provider,
-            })
-        except Exception as e:
-            await q.put({"type": "error", "message": str(e)})
-        finally:
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
-            await q.put(sentinel)
+            with open(TRANSLATE_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                saved = json.load(f)
+                default.update(saved)
+        except Exception:
+            pass
+    return default
 
-    async def stream():
-        asyncio.create_task(run())
-        while True:
-            ev = await q.get()
-            if ev is sentinel:
-                break
-            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+def save_translate_config(cfg):
+    os.makedirs(os.path.dirname(TRANSLATE_CONFIG_FILE), exist_ok=True)
+    atomic_write_json(TRANSLATE_CONFIG_FILE, cfg, ensure_ascii=False, indent=2)
 
-    return StreamingResponse(
-        stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+
+# --- 用户提示词字典 ---
+
+USER_PROMPT_DICT_FILE = os.path.join(BASE_DIR, "data", "user-prompt-dict.json")
+
+def load_user_prompt_dict() -> dict:
+    if os.path.exists(USER_PROMPT_DICT_FILE):
+        try:
+            with open(USER_PROMPT_DICT_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"zh2en": {}, "en2zh": {}}
+
+def save_user_prompt_dict(data: dict):
+    os.makedirs(os.path.dirname(USER_PROMPT_DICT_FILE), exist_ok=True)
+    atomic_write_json(USER_PROMPT_DICT_FILE, data, ensure_ascii=False, indent=2)
+
+# --- online 生成公共模型/助手（被 routers/canvas_tasks.py 等通过 _main 引用，需留在 main） ---
+async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
+    provider_id = payload.provider_id or "comfly"
+    prov = _resolve_image_provider(provider_id)
+    model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
+    refs = [ref.dict() for ref in payload.reference_images if ref.url]
+    mode = normalize_image_request_mode(payload.image_request_mode or prov.get("image_request_mode", "openai"))
+    print(f"[online-image] provider={provider_id} model={model} key={prov.get('api_key','')[:16]}... size={payload.size} mode={mode}")
+    try:
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
+        # 组织子文件夹: {feature}/{日期} (feature 留空时回退 online/{日期})
+        date_str = time.strftime("%Y-%m-%d", time.localtime())
+        feature = (payload.feature or "").strip()
+        subfolder = f"{feature}/{date_str}" if feature else f"online/{date_str}"
+        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
+    except httpx.HTTPStatusError as exc:
+        text = exc.response.text or ''
+        friendly = None
+        m = re.search(r"longest edge must be less than or equal to (\d+)", text)
+        if m:
+            limit = m.group(1)
+            friendly = f"该模型不支持当前分辨率:最长边超过 {limit}px。请把图片分辨率调低(例如换到 2K 或更小),或更换支持高分辨率的模型。"
+        elif "Invalid size" in text or "invalid_value" in text:
+            friendly = f"该模型不支持当前尺寸:{payload.size}。请尝试更换分辨率或模型。"
+        elif "rate limit" in text.lower() or "429" in text:
+            friendly = "请求过于频繁,已被上游限流,请稍后再试。"
+        elif "Unauthorized" in text or "401" in text:
+            friendly = "API Key 无效或已过期,请到「API 设置」检查 Key。"
+        # ModelScope 任务查询 404 → 更友好的提示
+        if exc.response.status_code == 404 and payload.provider_id in ("modelscope", "ms"):
+            friendly = friendly or "ModelScope 模型接口未返回预期结果。请确认 API Key 有效，或尝试更换模型（部分模型可能不通过在线生图接口提供）。"
+        raise HTTPException(status_code=502 if exc.response.status_code in (404, 502) else exc.response.status_code, detail=friendly or text) from exc
+    except (httpx.RemoteProtocolError, httpx.ReadTimeout) as exc:
+        raise HTTPException(status_code=502, detail="上游服务器连接异常或响应超时：模型生成耗时过长，请稍后重试或更换模型。") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求上游生图接口失败:{exc}") from exc
+    except Exception as exc:
+        detail = getattr(exc, "detail", None) or str(exc)
+        raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
+    return {
+        "prompt": payload.prompt,
+        "images": [local_url],
+        "timestamp": time.time() * 1000,
+        "type": feature if feature else "online",
+        "model": model,
+        "provider_id": provider_id,
+        "protocol": prov["protocol"],
+        "params": {"model": model, "size": payload.size, "quality": payload.quality, "reference_images": refs, "provider_id": provider_id},
+        "raw_usage": raw.get("usage") if isinstance(raw, dict) else None,
+    }
+
+
+
+
+
+
+
+
+class ImageTaskQueryRequest(BaseModel):
+    provider_id: str = ""
+    task_id: str = ""
+    model: str = ""
+
+import sys as _sys
+_sys.modules.setdefault("main", _sys.modules[__name__])
+
+from routers import auth, canvases, comfyui, jimeng, runninghub, tts, workflows, assets, config
+from routers import random_sources, wildcards
+from routers import prompt_libraries, shared_folders
+from routers import lora_manager, poster, translate, prompt_dict
+from routers import chat, history, gallery, smart_prompt, angle, modelscope
+from routers import presets, output_ops, canvas_tasks, cli_tools, lora_scan
+from routers import asset_library, static_files, canvas_workflows, smart_canvas
+from routers import ms_generate
+from routers import canvas_comfy, proxy_download, workflows_legacy, animadex
+from routers import media_ops, ideogram4, restart, interrogate
+from routers import online_gen, output_zip, user_assets
+
+app.include_router(auth)
+app.include_router(canvases)
+app.include_router(comfyui)
+app.include_router(jimeng)
+app.include_router(runninghub)
+app.include_router(tts)
+app.include_router(workflows)
+app.include_router(assets)
+app.include_router(config)
+app.include_router(random_sources)
+app.include_router(wildcards)
+app.include_router(prompt_libraries)
+app.include_router(shared_folders)
+app.include_router(lora_manager)
+app.include_router(poster)
+app.include_router(translate)
+app.include_router(prompt_dict)
+app.include_router(chat)
+app.include_router(history)
+app.include_router(gallery)
+app.include_router(smart_prompt)
+app.include_router(angle)
+app.include_router(modelscope)
+app.include_router(presets)
+app.include_router(output_ops)
+app.include_router(canvas_tasks)
+app.include_router(cli_tools)
+app.include_router(lora_scan)
+app.include_router(asset_library)
+app.include_router(static_files)
+app.include_router(canvas_workflows)
+app.include_router(smart_canvas)
+app.include_router(ms_generate)
+app.include_router(canvas_comfy)
+app.include_router(proxy_download)
+app.include_router(workflows_legacy)
+app.include_router(animadex)
+app.include_router(media_ops)
+app.include_router(ideogram4)
+app.include_router(restart)
+app.include_router(interrogate)
+app.include_router(online_gen)
+app.include_router(output_zip)
+app.include_router(user_assets)
 
 
 if __name__ == "__main__":
@@ -15999,7 +8454,7 @@ if __name__ == "__main__":
     except Exception:
         local_ip = "127.0.0.1"
 
-    print(f"\n  Local:   http://127.0.0.1:7000")
+    print("\n  Local:   http://127.0.0.1:7000")
     print(f"  LAN:     http://{local_ip}:7000\n")
 
     uvicorn.run(app, host="0.0.0.0", port=7000)

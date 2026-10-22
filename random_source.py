@@ -270,6 +270,7 @@ class RandomSourceManager:
     
     def __init__(self):
         self.sources: Dict[str, RandomSource] = {}
+        self._loaded_ids: set = set()
         self._register_defaults()
     
     def _register_defaults(self):
@@ -280,17 +281,27 @@ class RandomSourceManager:
         self.register(LoraSource())
     
     def register(self, source: RandomSource):
-        """注册随机源"""
+        """注册随机源（数据懒加载，首次访问时才解析）"""
         self.sources[source.id] = source
-        source.load()
-        print(f"[RandomSource] 注册: {source.name} ({source.id}) - {len(source.items)} 项")
+        self._loaded_ids.discard(source.id)
+
+    def _ensure_loaded(self):
+        """按需加载各源数据——避免 import 阶段解析 10 万+ 条数据拖慢启动"""
+        for sid, source in self.sources.items():
+            if sid in self._loaded_ids:
+                continue
+            source.load()
+            self._loaded_ids.add(sid)
+            print(f"[RandomSource] 加载: {source.name} ({sid}) - {len(source.items)} 项")
     
     def get_source(self, source_id: str) -> Optional[RandomSource]:
         """获取随机源"""
+        self._ensure_loaded()
         return self.sources.get(source_id)
     
     def list_sources(self) -> List[Dict]:
         """列出所有随机源"""
+        self._ensure_loaded()
         return [source.to_dict() for source in self.sources.values()]
     
     def random_all(self, config: Dict[str, Dict]) -> Dict[str, Any]:
@@ -306,6 +317,7 @@ class RandomSourceManager:
         }
         """
         result = {}
+        self._ensure_loaded()
         
         for source_id, source in self.sources.items():
             source_config = config.get(source_id, {})
@@ -329,6 +341,7 @@ class RandomSourceManager:
     
     def get_categories(self, source_id: str) -> List[str]:
         """获取指定源的所有类别"""
+        self._ensure_loaded()
         source = self.sources.get(source_id)
         return source.get_categories() if source else []
 

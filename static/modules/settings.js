@@ -642,37 +642,53 @@ class SettingsUI {
                         </span>
                         <span class="set-card-body">
                             <span class="set-card-title">系统设置</span>
-                            <span class="set-card-sub">外观、侧边栏与服务</span>
+                            <span class="set-card-sub">外观、账号与服务</span>
                         </span>
                     </div>
                     <!-- 分割线 -->
                     <div style="height:1px;background:var(--border);margin:0 14px;opacity:0.5;"></div>
                     <!-- 功能行 -->
                     <div style="display:flex;flex-direction:column;padding:8px 10px 12px;gap:8px;" id="sys-settings-rows">
-                        <!-- 侧边栏锁定 -->
-                        <button id="sys-lock-btn" class="sys-tile" style="--tile:#38bdf8;--tile2:#0ea5e9;">
-                            <span class="sys-tile-ico">
-                                <svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                                <svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
-                            </span>
-                            <span class="sys-tile-txt">
-                                <span class="sys-tile-title">锁定侧边栏</span>
-                                <span id="sys-lock-status" class="sys-tile-sub">关闭</span>
-                            </span>
-                            <span class="sys-tile-trail" id="sys-lock-trail">关</span>
-                        </button>
-                        <!-- 深浅主题 -->
-                        <button id="sys-theme-btn" class="sys-tile" style="--tile:#a78bfa;--tile2:#8b5cf6;">
-                            <span class="sys-tile-ico">
-                                <svg id="sys-icon-moon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                                <svg id="sys-icon-sun" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                            </span>
-                            <span class="sys-tile-txt">
-                                <span class="sys-tile-title">切换主题</span>
-                                <span id="sys-theme-status" class="sys-tile-sub">深色</span>
-                            </span>
-                            <span class="sys-tile-trail" id="sys-theme-trail">深色</span>
-                        </button>
+                        <div id="look-settings-card" style="display:flex;flex-direction:column;gap:10px;padding:8px;border-radius:14px;border:1px solid var(--border);background:color-mix(in srgb, var(--accent) 6%, transparent);">
+                            <div style="font-size:12px;font-weight:800;color:var(--text);">外观</div>
+                            <div style="display:flex;gap:6px;" id="look-theme-row">
+                                <button type="button" data-look-theme="light" style="flex:1;height:32px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:800;cursor:pointer;">浅色</button>
+                                <button type="button" data-look-theme="dark" style="flex:1;height:32px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:800;cursor:pointer;">深色</button>
+                            </div>
+                            <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#22d3ee;--tile2:#06b6d4;">
+                                <span class="sys-tile-txt">
+                                    <span class="sys-tile-title">背景扫描线</span>
+                                    <span id="look-scan-status" class="sys-tile-sub">关闭</span>
+                                </span>
+                                <span class="sys-tile-trail" id="look-scan-trail">关</span>
+                            </button>
+                            <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;">
+                                <span class="sys-tile-ico">
+                                    <svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                                    <svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+                                </span>
+                                <span class="sys-tile-txt">
+                                    <span class="sys-tile-title">锁定侧边栏</span>
+                                    <span id="sys-lock-status" class="sys-tile-sub">关闭</span>
+                                </span>
+                                <span class="sys-tile-trail" id="sys-lock-trail">关</span>
+                            </button>
+                            <div>
+                                <div style="font-size:11px;font-weight:800;color:var(--muted);margin-bottom:6px;">强调色</div>
+                                <div id="look-accent-row" style="display:flex;gap:8px;">
+                                    <button type="button" data-look-accent="" title="默认" style="width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891B2,#7C3AED,#D97706,#059669,#E11D48,#0891B2);cursor:pointer;"></button>
+                                    <button type="button" data-look-accent="cyan" title="青" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#06B6D4;cursor:pointer;"></button>
+                                    <button type="button" data-look-accent="violet" title="紫" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#A78BFA;cursor:pointer;"></button>
+                                    <button type="button" data-look-accent="amber" title="琥珀" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#FBBF24;cursor:pointer;"></button>
+                                    <button type="button" data-look-accent="emerald" title="绿" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#34D399;cursor:pointer;"></button>
+                                    <button type="button" data-look-accent="rose" title="玫红" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#FB7185;cursor:pointer;"></button>
+                                </div>
+                            </div>
+                            <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--text);">
+                                <span>界面缩放</span>
+                                <select id="look-scale" style="height:30px;border-radius:8px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);font-size:12px;font-weight:700;padding:0 8px;"></select>
+                            </label>
+                        </div>
                         <!-- 登录/退出 -->
                         <button id="sys-auth-btn" class="sys-tile" style="--tile:#34d399;--tile2:#10b981;">
                             <span class="sys-tile-ico">
@@ -848,7 +864,6 @@ class SettingsUI {
 
         // ---- 系统设置卡片事件绑定 ----
         const sysLockBtn = document.getElementById('sys-lock-btn');
-        const sysThemeBtn = document.getElementById('sys-theme-btn');
         const sysAuthBtn = document.getElementById('sys-auth-btn');
         const sysRestartBtn = document.getElementById('sys-restart-btn');
 
@@ -858,13 +873,7 @@ class SettingsUI {
                 this.updateSysSettingsState();
             };
         }
-        if (sysThemeBtn) {
-            sysThemeBtn.onclick = () => {
-                if (typeof toggleTheme === 'function') toggleTheme();
-                this.updateThemeIcon();
-                this.updateSysThemeStatus();
-            };
-        }
+        this.bindLookSettings();
         if (sysAuthBtn) {
             sysAuthBtn.onclick = () => {
                 if (AuthManager.isLoggedIn()) {
@@ -882,6 +891,64 @@ class SettingsUI {
         }
     }
     
+    bindLookSettings() {
+        const paint = () => {
+            const dark = document.body.classList.contains('theme-dark') ||
+                document.documentElement.classList.contains('studio-theme-dark');
+            document.querySelectorAll('[data-look-theme]').forEach(btn => {
+                const on = btn.dataset.lookTheme === (dark ? 'dark' : 'light');
+                btn.style.background = on ? 'var(--accent)' : 'transparent';
+                btn.style.color = on ? '#0a1628' : 'var(--text)';
+                btn.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+            });
+            const scan = window.StudioLook ? window.StudioLook.scanlines() : false;
+            const scanStatus = document.getElementById('look-scan-status');
+            const scanTrail = document.getElementById('look-scan-trail');
+            if (scanStatus) scanStatus.textContent = scan ? '开启，深色界面会叠一层细横线' : '关闭';
+            if (scanTrail) scanTrail.textContent = scan ? '开' : '关';
+            const accent = window.StudioLook ? window.StudioLook.accent() : '';
+            document.querySelectorAll('[data-look-accent]').forEach(btn => {
+                const on = btn.dataset.lookAccent === accent;
+                btn.style.outline = on ? '2px solid var(--text)' : 'none';
+                btn.style.outlineOffset = '2px';
+            });
+            const scale = document.getElementById('look-scale');
+            if (scale && window.StudioScale && !scale.dataset.ready) {
+                const opts = window.StudioScale.options.slice();
+                scale.innerHTML = opts.map(v => `<option value="${v}">${v === 'auto' ? '自动' : v + '%'}</option>`).join('');
+                scale.dataset.ready = '1';
+                scale.value = window.StudioScale.getMode();
+                scale.onchange = () => window.StudioScale.set(scale.value);
+            } else if (scale && window.StudioScale && document.activeElement !== scale) {
+                scale.value = window.StudioScale.getMode();
+            }
+        };
+        document.querySelectorAll('[data-look-theme]').forEach(btn => {
+            btn.onclick = () => {
+                if (typeof broadcastTheme === 'function') broadcastTheme(btn.dataset.lookTheme);
+                else if (window.StudioTheme) window.StudioTheme.set(btn.dataset.lookTheme);
+                this.updateThemeIcon();
+                paint();
+            };
+        });
+        const scanBtn = document.getElementById('look-scan-btn');
+        if (scanBtn) {
+            scanBtn.onclick = () => {
+                if (window.StudioLook) window.StudioLook.setScanlines(!window.StudioLook.scanlines());
+                paint();
+            };
+        }
+        document.querySelectorAll('[data-look-accent]').forEach(btn => {
+            btn.onclick = () => {
+                if (window.StudioLook) window.StudioLook.setAccent(btn.dataset.lookAccent);
+                paint();
+            };
+        });
+        window.addEventListener('studio-theme-change', paint);
+        window.addEventListener('studio-look-change', paint);
+        paint();
+    }
+
     togglePanel() {
         if (this.panelVisible) {
             this.hidePanel();

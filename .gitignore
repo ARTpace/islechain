@@ -36,8 +36,17 @@ __pycache__/
 venv/
 env/
 
-# 文档目录
-docs/
+# 文档目录（忽略所有文件，但保留目录结构）
+docs/*
+# 放行 P2 文档交付文件（仅这 8 份，其它 docs/* 仍忽略）
+!docs/README.md
+!docs/architecture.md
+!docs/api.md
+!docs/frontend-modules.md
+!docs/deployment.md
+!docs/migration-guide.md
+!docs/p2-roadmap.md
+!docs/framework-evaluation.md
 
 # 独立 Python 环境（类似 ComfyUI 整合包）
 python/
@@ -52,3 +61,56 @@ packages/
 # OS
 .DS_Store
 Thumbs.db
+
+# --- P0 卫生止血 2026-10-21 ---
+
+# Syncthing / Resilio 同步冲突副本
+*.sync-conflict-*
+
+# TTS 参考音频（约 71 个）与其存放目录
+*.mp3
+data/tts_voices/
+
+# 会话记录（内含 LLM 响应原文）
+data/conversations/
+
+# 用户凭据：密码哈希 + 认证 token，禁止入库
+data/users.json
+
+# 本地存储自检数据
+data/_test_localstorage.json
+
+# 说明：assets/output/ 与 input/output/ 已被上文 `output/` 规则（任意层级匹配）覆盖，
+#       static/modules/gallery/__selftest.js 已在上文列出，故此处不重复添加。
+
+# esbuild 构建产物
+static/dist/
+static/manifest.json
+
+# --- 仓库卫生 2026-10-22 ---
+# 说明：以上多数规则早已存在，但对应文件在规则写入前就已入库，
+#       ignore 对已跟踪文件无效。需配合 git rm --cached 才真正生效。
+
+# 运行日志（此前完全没有规则，14 个 .log 一直在库里）
+logs/
+*.log
+
+# 备份与同步冲突副本
+*.bak
+*.bak-*
+*.bak.*
+*.sync-conflict-*
+
+# 缩略图 / 预览图缓存（可重新生成）
+data/thumbnails/
+data/media_previews/
+
+# 数据备份目录
+data/backups/
+
+# 运行时诊断输出
+data/startup_env.log
+
+# 工具缓存
+.pytest_cache/
+.ruff_cache/

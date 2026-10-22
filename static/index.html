@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-studio-scale="off">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 22 22'%3E%3Cpath d='M11 2L19 11L11 20L3 11L11 2Z' stroke='%230891B2' stroke-width='2' stroke-linejoin='round' fill='none' opacity='0.85'/%3E%3Ccircle cx='11' cy='11' r='4.5' stroke='%230891B2' stroke-width='0.7' opacity='0.35' stroke-dasharray='2.5 2'/%3E%3Cpath d='M6.5 6.5L15.5 15.5M6.5 15.5L15.5 6.5' stroke='%230891B2' stroke-width='0.5' opacity='0.25'/%3E%3Ccircle cx='11' cy='11' r='2' fill='%230891B2' opacity='0.85'/%3E%3Ccircle cx='11' cy='11' r='1' fill='%2306B6D4' opacity='0.5'/%3E%3C/svg%3E">
     <title>ART AI</title>
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20260611001">
-    <script src="/static/theme.js?v=20260611001"></script>
-    <script src="/static/js/i18n.js?v=2026.07.23.jimeng-upscale.2"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261022002">
+    <script src="/static/js/theme.js?v=20261022e"></script>
+    <script src="/static/js/i18n.js?v=20261022002"></script>
     <style>
         :root {
             --accent: #0891B2;
@@ -604,7 +604,7 @@
             font-size: 9px;
         }
 
-        body.theme-dark .stage::after {
+        body.theme-dark.scanlines-on .stage::after {
             content: '';
             position: absolute;
             inset: 0;
@@ -725,7 +725,7 @@
 
         .theme-toggle svg { width: 16px; height: 16px; }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
+    <link rel="stylesheet" href="/static/theme.css?v=20261022002">
 </head>
 
 <body>
@@ -868,28 +868,28 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20260723-btn"></iframe>
-            <iframe id="frame-klein" data-src="/static/app/klein.html?v=20260526003"></iframe>
-            <iframe id="frame-angle" data-src="/static/app/angle.html?v=20260525001"></iframe>
-            <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20260520004"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261022e"></iframe>
+            <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261022002"></iframe>
+            <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261022002"></iframe>
+            <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261022002"></iframe>
             <iframe id="frame-2dstyle" data-src="/static/app/2dstyle.html"></iframe>
             <iframe id="frame-rmbg" data-src="/static/app/rmbg.html"></iframe>
-            <iframe id="frame-yichuwuti" data-src="/static/app/yichuwuti.html?v=20260521001"></iframe>
-            <iframe id="frame-watermark-removal" data-src="/static/app/watermark-removal.html?v=20260619006"></iframe>
+            <iframe id="frame-yichuwuti" data-src="/static/app/yichuwuti.html?v=20261022002"></iframe>
+            <iframe id="frame-watermark-removal" data-src="/static/app/watermark-removal.html?v=20261022002"></iframe>
             <iframe id="frame-gaoqingxiufu" data-src="/static/app/gaoqingxiufu.html"></iframe>
             <iframe id="frame-kuotu" data-src="/static/app/kuotu.html"></iframe>
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
-            <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20260522002"></iframe>
-            <iframe id="frame-poster" data-src="/static/app/poster.html?v=20260626001"></iframe>
-            <iframe id="frame-online" data-src="/static/online.html?v=20260726-8"></iframe>
+            <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20261022002"></iframe>
+            <iframe id="frame-poster" data-src="/static/app/poster.html?v=20261022002"></iframe>
+            <iframe id="frame-online" data-src="/static/online.html?v=20261022e"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
-    <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20260819-7"></iframe>
-            <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20260526008"></iframe>
-            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20260526008"></iframe>
+    <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261022e"></iframe>
+            <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20261022002"></iframe>
+            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261022f"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html"></iframe>
-            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20260517"></iframe>
-            <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20260517"></iframe>
-            <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20260627001"></iframe>
+            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261022002"></iframe>
+            <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261022002"></iframe>
+            <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20261022002"></iframe>
             <div class="nano-monitor" id="nano-monitor">
                 <div class="stat-group">
                     <div class="pulse-dot animate-pulse"></div>
@@ -906,7 +906,7 @@
         </main>
     </div>
 
-    <script src="/static/modules/settings.js?v=20260701001"></script>
+    <script src="/static/modules/settings.js?v=20261022d"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -923,6 +923,18 @@
         }
         const CID = localStorage.getItem("client_id") || generateUUID();
         localStorage.setItem("client_id", CID);
+
+        const retainedFrames = [];
+        function retainFrames(target) {
+            const idx = retainedFrames.indexOf(target);
+            if (idx >= 0) retainedFrames.splice(idx, 1);
+            retainedFrames.push(target);
+            while (retainedFrames.length > 2) {
+                const old = retainedFrames.shift();
+                if (!old || old === target || old.classList.contains('active')) continue;
+                old.removeAttribute('src');
+            }
+        }
 
         function switchUI(el, id, parentId) {
             // Clear all nav item active states
@@ -976,6 +988,7 @@
             const target = document.getElementById('frame-' + id);
             target.classList.add('active');
             if (!target.src) target.src = target.dataset.src;
+            retainFrames(target);
             // sync theme and auth to newly activated iframe
             syncThemeToFrame(target);
             syncAuthToFrame(target);
@@ -1146,6 +1159,12 @@
             try {
                 if (iframe && iframe.contentWindow) {
                     iframe.contentWindow.postMessage({ type: 'studio-theme', theme }, '*');
+                    iframe.contentWindow.postMessage({
+                        type: 'studio-look',
+                        scanlines: window.StudioLook ? window.StudioLook.scanlines() : false,
+                        accent: window.StudioLook ? window.StudioLook.accent() : '',
+                        scale: window.StudioScale ? window.StudioScale.getMode() : 'auto'
+                    }, '*');
                 }
             } catch (e) {}
         }
@@ -1240,6 +1259,7 @@
                         if (target) {
                             target.classList.add('active');
                             if (!target.src) target.src = target.dataset.src;
+                            retainFrames(target);
                             syncThemeToFrame(target);
                         }
                     }
@@ -1254,6 +1274,7 @@
                 if (zimageFrame) {
                     zimageFrame.classList.add('active');
                     if (!zimageFrame.src) zimageFrame.src = zimageFrame.dataset.src;
+                    retainFrames(zimageFrame);
                     syncThemeToFrame(zimageFrame);
                 }
                 const zimageNav = document.querySelector(`.nav-item[onclick*="'zimage'"]`);

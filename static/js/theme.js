@@ -2,6 +2,15 @@
     const KEY = 'studio_theme';
     const LEGACY_KEY = 'canvas_theme';
     const SCALE_KEY = 'studio_ui_scale_mode';
+    const SCAN_KEY = 'studio_scanlines';
+    const ACCENT_KEY = 'studio_accent';
+    const ACCENTS = {
+        cyan: ['#0891B2', '#06B6D4'],
+        violet: ['#7C3AED', '#A78BFA'],
+        amber: ['#D97706', '#FBBF24'],
+        emerald: ['#059669', '#34D399'],
+        rose: ['#E11D48', '#FB7185']
+    };
     const SCALE_OPTIONS = ['auto', '60', '65', '70', '75', '80', '85', '90', '95', '100', '115', '125', '140'];
 
     function currentTheme(){
@@ -130,7 +139,8 @@
     }
 
     function scaleOptedOut(){
-        return document.documentElement.dataset.studioScale === 'off';
+        if(document.documentElement.dataset.studioScale === 'off') return true;
+        return !!(document.querySelector && document.querySelector('.app-shell'));
     }
 
     function contentFitOptedOut(){
@@ -229,6 +239,58 @@
         }, 160);
     }
 
+    function scanlinesOn(){
+        try { return localStorage.getItem(SCAN_KEY) === '1'; } catch(e) { return false; }
+    }
+
+    function currentAccent(){
+        try {
+            const key = localStorage.getItem(ACCENT_KEY) || '';
+            return ACCENTS[key] ? key : '';
+        } catch(e) { return ''; }
+    }
+
+    function ensureLookStyle(){
+        if(document.getElementById('studio-look-style')) return;
+        const style = document.createElement('style');
+        style.id = 'studio-look-style';
+        document.head.appendChild(style);
+    }
+
+    function applyLook(){
+        const on = scanlinesOn();
+        document.documentElement.classList.toggle('scanlines-on', on);
+        if(document.body) document.body.classList.toggle('scanlines-on', on);
+        ensureLookStyle();
+        const style = document.getElementById('studio-look-style');
+        const accent = currentAccent();
+        if(!accent){
+            style.textContent = '';
+            return;
+        }
+        const pair = ACCENTS[accent];
+        const glow = pair[1];
+        style.textContent = `html, body, body.theme-dark, html.studio-theme-dark, html.studio-theme-dark body { --accent:${pair[0]}; --accent-glow:${glow}; --look-accent:${glow}; }
+body.studio-theme-dark .btn-render, body.theme-dark .btn-render, body.studio-theme-dark .anima-ctrl.active, body.theme-dark .anima-ctrl.active { color:#0a1628 !important; border-color:${glow} !important; background:${glow} !important; }`;
+    }
+
+    window.StudioLook = {
+        accents: Object.keys(ACCENTS),
+        scanlines(){ return scanlinesOn(); },
+        setScanlines(on){
+            try { localStorage.setItem(SCAN_KEY, on ? '1' : '0'); } catch(e) {}
+            applyLook();
+            window.dispatchEvent(new CustomEvent('studio-look-change'));
+        },
+        accent: currentAccent,
+        setAccent(key){
+            const next = ACCENTS[key] ? key : '';
+            try { localStorage.setItem(ACCENT_KEY, next); } catch(e) {}
+            applyLook();
+            window.dispatchEvent(new CustomEvent('studio-look-change'));
+        }
+    };
+
     window.StudioTheme = {
         key: KEY,
         get: currentTheme,
@@ -252,10 +314,12 @@
 
     applyTheme(currentTheme());
     applyScale(currentScaleMode());
+    applyLook();
 
     document.addEventListener('DOMContentLoaded', () => {
         applyTheme(currentTheme());
         applyScale(currentScaleMode());
+        applyLook();
     });
     window.addEventListener('message', event => {
         if(event.data?.type === 'studio-theme') applyTheme(event.data.theme);
@@ -269,6 +333,7 @@
     window.addEventListener('storage', event => {
         if(event.key === KEY || event.key === LEGACY_KEY) applyTheme(currentTheme());
         if(event.key === SCALE_KEY) applyScale(currentScaleMode());
+        if(event.key === SCAN_KEY || event.key === ACCENT_KEY) applyLook();
     });
     window.addEventListener('resize', scheduleAutoScaleRefresh);
     window.addEventListener('scroll', lockScaledHorizontalScroll, { passive: true });

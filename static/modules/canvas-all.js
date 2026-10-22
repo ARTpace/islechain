@@ -1723,7 +1723,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 render();
             };
             const title = node.type === 'image' ? 'Image' : node.type === 'text' ? 'Text' : node.type === 'prompt' ? 'Prompt' : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'msgen' ? 'Modelscope生成' : node.type === 'loop' ? '循环' : node.type === 'video' ? '视频生成' : node.type === 'audio' ? '音频' : node.type === 'upload-video' ? '视频' : node.type === 'ps' ? '获取photoshop图像' : 'API生成';
-            el.innerHTML = `<div class="node-head"><span class="node-title">${title}</span><button onclick="deleteNode('${node.id}', event)" class="text-gray-300 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
+            el.innerHTML = `<div class="node-head"><span class="node-title">${escapeHtml(title)}</span><button onclick="deleteNode('${node.id}', event)" class="text-gray-300 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button></div>`;
             const body = document.createElement('div');
             body.className = 'node-body';
             if(node.type === 'image') {
@@ -1769,7 +1769,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 if(imgCount) parts.push(`${imgCount} 张图片`);
                 if(promptCount) parts.push(`${promptCount} 个提示词`);
                 const text = parts.length ? parts.join(' · ') + ' 已成组' : '拖入图片或提示词到此';
-                body.innerHTML = `<div class="text-[11px] text-gray-400">${text}</div>`;
+                body.innerHTML = `<div class="text-[11px] text-gray-400">${escapeHtml(text)}</div>`;
             }
             if(node.type === 'promptGroup') {
                 const promptNodes = (node.items || []).map(id => nodes.find(n => n.id === id)).filter(Boolean);
@@ -2472,7 +2472,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
                 visible.map(src => {
                     const text = escapeHtml(src.label || '');
                     const truncated = text.length > 80 ? text.slice(0, 80) + '…' : text;
-                    return `<div class="prompt-tag" title="${text}">${truncated}</div>`;
+                    return `<div class="prompt-tag" title="${escapeHtml(text)}">${truncated}</div>`;
                 }).join('') +
                 (collapsed ? `<div class="text-[10px] text-gray-400 mt-1">+${moreCount} more…</div>` : '');
         }

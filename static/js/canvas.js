@@ -1189,8 +1189,11 @@ function applyViewport(){
     scheduleMinimapRender();
 }
 function estimatedNodeRect(n){
-    const el = nodesEl?.querySelector?.(`.node[data-id="${CSS.escape(n.id)}"]`);
     const size = defaultNodeSize(n.type);
+    if(document.body.classList.contains('canvas-board-pan')){
+        return {x:n.x || 0, y:n.y || 0, w:n.w || size.w || 260, h:n.h || size.h || 160};
+    }
+    const el = nodesEl?.querySelector?.(`.node[data-id="${CSS.escape(n.id)}"]`);
     const w = el?.offsetWidth || n.w || size.w || 260;
     const h = el?.offsetHeight || n.h || size.h || 160;
     return {x:n.x || 0, y:n.y || 0, w, h};
@@ -14703,8 +14706,6 @@ board.onwheel = e => {
     viewport.x = e.clientX - rect.left - before.x * viewport.scale;
     viewport.y = e.clientY - rect.top - before.y * viewport.scale;
     applyViewport();
-    renderLinks();
-    renderSelectionHub();
     scheduleViewportSave();
 };
 board.addEventListener('dragover', e => {
