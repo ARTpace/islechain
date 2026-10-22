@@ -5,6 +5,8 @@
 from fastapi import HTTPException, Header, Request
 import asyncio, httpx, os, time, uuid
 from fastapi import APIRouter
+from pydantic import BaseModel
+from typing import List
 
 import main as _main
 
@@ -141,3 +143,44 @@ async def delete_conversation(conversation_id: str, request: Request, x_user_id:
     if os.path.exists(path):
         os.remove(path)
     return {"ok": True}
+
+class ConversationImagesRequest(BaseModel):
+    image_urls: List[str] = []
+
+class ConversationTurnRequest(BaseModel):
+    user: str = ""
+    assistant: str = ""
+
+@router.post("/api/conversations/{conversation_id}/turn")
+async def append_conversation_turn(conversation_id: str, payload: ConversationTurnRequest, request: Request, x_user_id: str = Header(default="")):
+    user_id = _main.safe_user_id(x_user_id, request)
+    conversation = _main.load_conversation(user_id, conversation_id)
+    now = _main.now_ms()
+    messages = conversation.setdefault("messages", [])
+    user_text = (payload.user or "").strip()
+    assistant_text = (payload.assistant or "").strip()
+    if user_text:
+        messages.append({"id": uuid.uuid4().hex, "role": "user", "content": user_text, "created_at": now})
+    if assistant_text:
+        messages.append({"id": uuid.uuid4().hex, "role": "assistant", "content": assistant_text, "created_at": now, "image_urls": []})
+    if user_text and (not conversation.get("title") or conversation.get("title") in ("新对话", "对话生图")):
+        conversation["title"] = user_text[:24]
+    conversation["updated_at"] = now
+    _main.save_conversation(user_id, conversation)
+    return {"ok": True, "conversation": conversation}
+
+@router.post("/api/conversations/{conversation_id}/images")
+async def attach_conversation_images(conversation_id: str, payload: ConversationImagesRequest, request: Request, x_user_id: str = Header(default="")):
+    user_id = _main.safe_user_id(x_user_id, request)
+    conversation = _main.load_conversation(user_id, conversation_id)
+    target = next((item for item in reversed(conversation.get("messages") or []) if item.get("role") == "assistant"), None)
+    if target is None:
+        target = {"id": uuid.uuid4().hex, "role": "assistant", "content": "", "created_at": _main.now_ms(), "image_urls": []}
+        conversation.setdefault("messages", []).append(target)
+    urls = target.setdefault("image_urls", [])
+    for url in payload.image_urls:
+        if url and url not in urls:
+            urls.append(url)
+    conversation["updated_at"] = _main.now_ms()
+    _main.save_conversation(user_id, conversation)
+    return {"ok": True, "image_urls": urls}

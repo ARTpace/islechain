@@ -461,14 +461,15 @@
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
             return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u, i) {
-                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
-                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('') + '</div>';
         } else if (imgs.length === 3) {
             return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
                 '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
                 '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
-                    return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                    const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                    return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
                 }).join('') + '</div>' +
             '</div>';
         } else {
@@ -477,8 +478,8 @@
                 var overlay = isLast
                     ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
-                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
             return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
         }

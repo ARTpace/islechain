@@ -105,7 +105,7 @@ async def smart_tts_enhance(req: SmartTTSRequest):
 
 @router.post("/api/ms/generate")
 async def ms_generate(req: _main.MsGenerateRequest, token: str = ""):
-    username = _main.require_valid_token(token) if token else None
+    username = _main.get_username_by_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
     clean_token = _main.sanitize_api_key(_main.MODELSCOPE_API_KEY.strip())
     if not clean_token:
@@ -188,6 +188,7 @@ async def ms_generate(req: _main.MsGenerateRequest, token: str = ""):
                             "images": [local_path],
                             "type": "klein",
                             "model": req.model,
+                            "user": username,
                         }
                         _main.save_to_history(record)
                         if _main.GLOBAL_LOOP:

@@ -1533,6 +1533,27 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     /* ============================================================
      *  Open / Close
      * ============================================================ */
+    function unwrapLightboxUrl(url) {
+        const raw = String(url || '');
+        try {
+            const parsed = new URL(raw, location.origin);
+            if (parsed.pathname === '/api/media-preview') {
+                const inner = parsed.searchParams.get('url') || '';
+                if (inner) return unwrapLightboxUrl(inner);
+            }
+            if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+        } catch (e) {}
+        return raw;
+    }
+
+    function locateLightboxImage(url) {
+        const target = unwrapLightboxUrl(url);
+        const images = getAllHistoryImages();
+        const index = images.findIndex(item => unwrapLightboxUrl(item) === target);
+        if (index >= 0) return { images, index };
+        return { images: [target], index: 0 };
+    }
+
     function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam, allPrompts, isVideo) {
         if (!_config.lightbox) return;
 
@@ -1601,16 +1622,16 @@ body.nsfw-only-mode .date-separator { display: none !important; }
                 }
                 global.ImageViewer.init(state.images, state.currentIndex, { prompts, onShow: onImageChange });
             } else {
-                state.images = getAllHistoryImages();
-                state.currentIndex = state.images.indexOf(url);
-                if (state.currentIndex === -1) state.currentIndex = 0;
+                const located = locateLightboxImage(url);
+                state.images = located.images;
+                state.currentIndex = located.index;
                 global.ImageViewer.init(state.images, state.currentIndex);
             }
         } else {
             state.currentPrompt = imagesOrPrompt || '';
-            state.images = getAllHistoryImages();
-            state.currentIndex = state.images.indexOf(Array.isArray(url) ? url[0] : url);
-            if (state.currentIndex === -1) state.currentIndex = 0;
+            const located = locateLightboxImage(Array.isArray(url) ? url[0] : url);
+            state.images = located.images;
+            state.currentIndex = located.index;
             global.ImageViewer.init(state.images, state.currentIndex);
         }
 
@@ -4271,14 +4292,15 @@ body.studio-theme-dark .lightbox-thumb.active {
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
             return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u, i) {
-                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
-                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('') + '</div>';
         } else if (imgs.length === 3) {
             return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
                 '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
                 '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
-                    return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full h-full" loading="lazy" onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                    const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                    return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
                 }).join('') + '</div>' +
             '</div>';
         } else {
@@ -4287,8 +4309,8 @@ body.studio-theme-dark .lightbox-thumb.active {
                 var overlay = isLast
                     ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                const attr = (eager && i === 0) ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
-                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 600) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
+                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
             return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
         }

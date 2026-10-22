@@ -17,6 +17,7 @@ import asyncio
 import shlex
 import tempfile
 import threading
+from contextvars import ContextVar
 import concurrent.futures
 import zipfile
 from io import BytesIO
@@ -69,6 +70,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Uplo
 from fastapi.responses import FileResponse, Response, StreamingResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # --- WebSocket 状态管理器 ---
 class ConnectionManager:
@@ -161,6 +163,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+REQUEST_TOKEN: ContextVar[str] = ContextVar("request_token", default="")
+
+class RequestTokenMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        token = ""
+        auth = request.headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            token = auth[7:].strip()
+        if not token:
+            token = (request.query_params.get("token") or "").strip()
+        handle = REQUEST_TOKEN.set(token)
+        try:
+            return await call_next(request)
+        finally:
+            REQUEST_TOKEN.reset(handle)
+
+app.add_middleware(RequestTokenMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -1221,6 +1240,9 @@ def save_users(users):
         _USERS_CACHE["data"] = users
 
 def find_user_by_token(token):
+    token = (token or "").strip() or REQUEST_TOKEN.get()
+    if not token:
+        return None, None
     users = load_users()
     for username, data in users.items():
         if data.get("token") == token:
@@ -1236,6 +1258,17 @@ def get_username_by_token(token):
     username, user = find_user_by_token(token)
     return username
 
+def request_auth_token(request: Request = None, token: str = "") -> str:
+    """查询参数、Authorization 头、当前请求上下文，按这个顺序取登录令牌。"""
+    token = (token or "").strip()
+    if token:
+        return token
+    if request is not None:
+        auth = request.headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            token = auth[7:].strip()
+    return token or (REQUEST_TOKEN.get() or "").strip()
+
 def require_valid_token(token):
     """要求有效的登录令牌,否则抛出 401。用于需要登录才能使用的接口(如图片生成)。
 
@@ -1243,6 +1276,7 @@ def require_valid_token(token):
     """
     # 空 token 一律视为未登录(注意: 已注销用户的 token 字段为 "", 必须显式拒绝,
     # 否则 find_user_by_token("") 会把空串误匹配成该用户而放行)
+    token = (token or "").strip() or (REQUEST_TOKEN.get() or "").strip()
     if not token:
         raise HTTPException(status_code=401, detail="请先登录后再使用")
     username, user = find_user_by_token(token)
@@ -1669,7 +1703,7 @@ async def serve_output_file(path: str):
         import hashlib as _hl
         etag = _hl.md5(f"{full_path}:{int(mtime)}".encode()).hexdigest()
         cache_h = {
-            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'Cache-Control': 'public, max-age=2592000, immutable',
             'ETag': f'"{etag}"',
             'Last-Modified': time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(mtime)),
         }
@@ -1709,7 +1743,7 @@ async def serve_asset_file(path: str):
         import hashlib as _hl
         etag = _hl.md5(f"{full_path}:{int(mtime)}".encode()).hexdigest()
         cache_h = {
-            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'Cache-Control': 'public, max-age=2592000, immutable',
             'ETag': f'"{etag}"',
             'Last-Modified': time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(mtime)),
         }
@@ -1810,6 +1844,7 @@ class ChatRequest(BaseModel):
     reference_images: List[AIReference] = []
     provider: str = "comfly"
     ms_model: str = ""
+    system_prompt: str = Field(default="", max_length=20000)
 
 class MsGenerateRequest(BaseModel):
     prompt: str
@@ -2070,8 +2105,32 @@ def get_best_backend(required_images: List[str] = None):
 
 # --- 辅助工具 ---
 
+def comfy_output_file(comfy_url_path: str):
+    """ComfyUI 已经把图写在本机 output 目录时，直接返回那个文件，避免再走 /view 下载。"""
+    if not COMFYUI_BASE_PATH or not str(comfy_url_path or "").startswith("/view"):
+        return None
+    parsed = urllib.parse.urlparse(comfy_url_path)
+    qs = urllib.parse.parse_qs(parsed.query)
+    filename = urllib.parse.unquote((qs.get("filename") or [""])[0])
+    subfolder = urllib.parse.unquote((qs.get("subfolder") or [""])[0]).replace("\\", "/").strip("/")
+    kind = urllib.parse.unquote((qs.get("type") or ["output"])[0])
+    if kind not in ("output", "temp", "input"):
+        kind = "output"
+    if not filename or ".." in filename or ".." in subfolder:
+        return None
+    root = os.path.abspath(os.path.join(COMFYUI_BASE_PATH, kind))
+    path = os.path.abspath(os.path.join(root, subfolder, os.path.basename(filename)))
+    if os.path.commonpath([root, path]) != root or not os.path.isfile(path):
+        return None
+    return path
+
+
 def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None, username=None, feature=""):
-    filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
+    src_file = comfy_output_file(comfy_url_path)
+    src_ext = os.path.splitext(src_file or "")[1].lower()
+    if src_ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+        src_ext = ".png"
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}{src_ext}"
     date_folder = datetime.now().strftime("%Y-%m-%d")
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
@@ -2089,18 +2148,18 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
     local_path = os.path.join(canvas_output_dir, filename)
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
-        with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
-            shutil.copyfileobj(response, out_file)
+        if src_file:
+            shutil.copy2(src_file, local_path)
+        else:
+            with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
         subfolder_parts = []
         if feature:
             subfolder_parts.append(feature)
         subfolder_parts.append(date_folder)
         subfolder = "/".join(subfolder_parts)
-        # 同步预生成画廊缩略图缓存(600/768),确保首刷命中、避免现场缩放
-        try:
-            _prewarm_thumbnails(local_path)
-        except Exception:
-            pass
+        # 缩略图放到后台生成，避免 4 张图都压完才把地址返回给页面
+        threading.Thread(target=_prewarm_thumbnails, args=(local_path, (600, 768)), daemon=True).start()
         return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载图片失败: {e}")
@@ -2861,6 +2920,61 @@ async def _download_data_urls(client, data):
     return image_data_list, raw
 
 
+_OPTIONAL_IMAGE_FIELDS = ("output_format", "quality", "style", "background")
+
+def _drop_rejected_image_fields(payload, response_text):
+    """上游点名拒绝的可选字段去掉后再试，例如 Agnes 不接受 output_format。"""
+    raw = response_text or ""
+    text = raw.lower()
+    trimmed = dict(payload)
+    changed = False
+    # multipart 里的 n 只能是字符串，Agnes 要求 uint：cannot unmarshal string into ... field Alias.n
+    for match in re.finditer(r"struct field\s+\w+\.(\w+)", raw):
+        key = match.group(1)
+        if key in trimmed:
+            trimmed.pop(key, None)
+            changed = True
+    if any(word in text for word in ("not supported", "unsupported", "invalid", "unknown")):
+        for key in _OPTIONAL_IMAGE_FIELDS:
+            if key in trimmed and key in text:
+                trimmed.pop(key, None)
+                changed = True
+    return trimmed, changed
+
+def _post_kwargs(headers, timeout):
+    kwargs = {"headers": headers}
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    return kwargs
+
+async def _post_image_json(client, url, headers, payload, timeout):
+    body = dict(payload)
+    resp = None
+    for _ in range(1 + len(_OPTIONAL_IMAGE_FIELDS)):
+        resp = await client.post(url, json=body, **_post_kwargs(headers, timeout))
+        if resp.status_code < 400:
+            return resp
+        body, changed = _drop_rejected_image_fields(body, resp.text)
+        if not changed:
+            return resp
+    return resp
+
+async def _post_image_form(client, url, headers, data, files, timeout):
+    body = dict(data)
+    resp = None
+    for _ in range(1 + len(_OPTIONAL_IMAGE_FIELDS)):
+        for item in files or []:
+            handle = item[1][1] if isinstance(item, tuple) and len(item) > 1 and isinstance(item[1], tuple) and len(item[1]) > 1 else None
+            if handle is not None and hasattr(handle, "seek"):
+                handle.seek(0)
+        resp = await client.post(url, data=body, files=files, **_post_kwargs(headers, timeout))
+        if resp.status_code < 400:
+            return resp
+        body, changed = _drop_rejected_image_fields(body, resp.text)
+        if not changed:
+            return resp
+    return resp
+
 async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quality, refs, is_grok=False):
     """OpenAI /v1/images/generations or /edits, also Grok via /v1/messages."""
     hdrs = _openai_headers(base_url, api_key)
@@ -2909,12 +3023,12 @@ async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quali
                 fh = open(path, "rb"); opened.append(fh)
                 ct = content_type_for_path(path)
                 files.append(("image", (os.path.basename(path), fh, ct)))
-            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":"1"}
-            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files, timeout=httpx.Timeout(connect=30.0, read=180.0, write=60.0, pool=30.0))
+            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
+            resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, httpx.Timeout(connect=30.0, read=180.0, write=60.0, pool=30.0))
         finally:
             for fh in opened: fh.close()
     else:
-        resp = await client.post(f"{base}/v1/images/generations", headers=_openai_headers(base_url, api_key), json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, timeout=httpx.Timeout(connect=30.0, read=120.0, write=60.0, pool=30.0))
+        resp = await _post_image_json(client, f"{base}/v1/images/generations", _openai_headers(base_url, api_key), {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, httpx.Timeout(connect=30.0, read=120.0, write=60.0, pool=30.0))
     
     resp.raise_for_status()
     try: raw = resp.json()
@@ -2958,12 +3072,12 @@ async def _gen_apimart(client, base_url, api_key, model, prompt, size, quality, 
                 if not path: continue
                 fh = open(path,"rb"); opened.append(fh)
                 files.append(("image",(os.path.basename(path),fh,content_type_for_path(path))))
-            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":"1"}
-            resp = await client.post(f"{base}/v1/images/edits", headers=_openai_headers(base_url, api_key, multipart=True), data=data, files=files)
+            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
+            resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, None)
         finally:
             for fh in opened: fh.close()
     else:
-        resp = await client.post(f"{base}/v1/images/generations", headers=hdrs, json={"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1})
+        resp = await _post_image_json(client, f"{base}/v1/images/generations", hdrs, {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, None)
     resp.raise_for_status()
     try: raw = resp.json()
     except: raise HTTPException(status_code=502, detail=f"APIMart 返回无效响应: {resp.text[:200]}")
@@ -6627,8 +6741,8 @@ async def run_canvas_comfy_task(task_id: str, req: GenerateRequest, token: str =
 
 
 @app.post("/api/generate")
-def generate(req: GenerateRequest, token: str = ""):
-    return _run_comfy_generate_sync(req, token)
+def generate(req: GenerateRequest, request: Request, token: str = ""):
+    return _run_comfy_generate_sync(req, request_auth_token(request, token))
 
 
 @app.post("/api/generate/cancel")
@@ -8343,8 +8457,12 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
             friendly = f"该模型不支持当前尺寸:{payload.size}。请尝试更换分辨率或模型。"
         elif "rate limit" in text.lower() or "429" in text:
             friendly = "请求过于频繁,已被上游限流,请稍后再试。"
-        elif "Unauthorized" in text or "401" in text:
-            friendly = "API Key 无效或已过期,请到「API 设置」检查 Key。"
+        elif "Authentication failed" in text or "valid ModelScope token" in text or "Unauthorized" in text or "invalid api key" in text.lower():
+            friendly = "这把 API Key 被平台拒绝了。模型列表不校验 Key，请到「API 设置」重新复制 Access Token 并保存。"
+        else:
+            message = re.search(r'"message"\s*:\s*"([^"]+)"', text)
+            if message:
+                friendly = message.group(1)
         # ModelScope 任务查询 404 → 更友好的提示
         if exc.response.status_code == 404 and payload.provider_id in ("modelscope", "ms"):
             friendly = friendly or "ModelScope 模型接口未返回预期结果。请确认 API Key 有效，或尝试更换模型（部分模型可能不通过在线生图接口提供）。"

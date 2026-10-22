@@ -6405,7 +6405,9 @@ function clearSegments() {
     segments = []; selectedSegId = null;
     _clearStageVideos();
     renderTimeline();
-    localStorage.removeItem(DRAFT_KEY);
+    const draftKey = draftStorageKey();
+    if (draftKey) localStorage.removeItem(draftKey);
+    localStorage.removeItem(DRAFT_KEY_LEGACY);
 }
 
 // ============= 段间引导：把上一段尾帧喂给本段首帧 =============
@@ -6809,7 +6811,16 @@ function bindDirector() {
 }
 
 // ===== 导演台：合成成片 + 分镜草稿持久化 =====
-const DRAFT_KEY = 'litevideo_director_draft_v1';
+const DRAFT_KEY_LEGACY = 'litevideo_director_draft_v1';
+function draftStorageKey() {
+    try {
+        const raw = localStorage.getItem('xy_auth_user');
+        const user = raw ? JSON.parse(raw) : null;
+        const name = user && (user.username || user.name);
+        if (name) return DRAFT_KEY_LEGACY + ':' + name;
+    } catch (e) {}
+    return '';
+}
 let _draftTimer = null;
 
 function fileToDataURL(file) {
@@ -6901,7 +6912,9 @@ async function saveDraft() {
             status('草稿体积过大（含大图），未自动保存，仅当前会话有效');
             return;
         }
-        localStorage.setItem(DRAFT_KEY, json);
+        const draftKey = draftStorageKey();
+        if (!draftKey) return;
+        localStorage.setItem(draftKey, json);
     } catch (e) { /* 忽略 */ }
 }
 
@@ -6912,7 +6925,9 @@ function scheduleSaveDraft() {
 
 async function loadDraft() {
     try {
-        const raw = localStorage.getItem(DRAFT_KEY);
+        try { localStorage.removeItem(DRAFT_KEY_LEGACY); } catch (e) {}
+        const draftKey = draftStorageKey();
+        const raw = draftKey ? localStorage.getItem(draftKey) : '';
         if (!raw) return;
         const obj = JSON.parse(raw);
         if (!obj.segments || !obj.segments.length) return;

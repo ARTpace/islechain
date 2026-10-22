@@ -59,7 +59,8 @@ async def chat(payload: _main.ChatRequest, request: Request, x_user_id: str = He
     else:
         chat_base, chat_hdrs, model = _main.resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
         history = conversation["messages"][-_main.MAX_HISTORY_MESSAGES:]
-        upstream_messages = [{"role": "system", "content": _main.SYSTEM_PROMPT}]
+        system_prompt = (payload.system_prompt or "").strip() or _main.SYSTEM_PROMPT
+        upstream_messages = [{"role": "system", "content": system_prompt}]
         for item in history:
             msg = _main.upstream_message_from_record(item)
             if msg:
@@ -120,7 +121,8 @@ async def chat_stream(payload: _main.ChatRequest, request: Request, x_user_id: s
 
     chat_base, chat_hdrs, model = _main.resolve_chat_provider(payload.provider, payload.model, payload.ms_model)
     history = conversation["messages"][-_main.MAX_HISTORY_MESSAGES:]
-    upstream_messages = [{"role": "system", "content": _main.SYSTEM_PROMPT}]
+    system_prompt = (payload.system_prompt or "").strip() or _main.SYSTEM_PROMPT
+    upstream_messages = [{"role": "system", "content": system_prompt}]
     for item in history:
         msg = _main.upstream_message_from_record(item)
         if msg:

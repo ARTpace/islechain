@@ -152,9 +152,18 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
     env_updates = {}
 
     raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
+    existing = {p.get("id"): p for p in _main.load_api_providers()}
 
     for item in payload:
         provider = _main.normalize_provider(item.dict(exclude={"api_key"}))
+        old = existing.get(provider["id"]) or {}
+        for key in ("ms_loras", "rh_apps", "rh_workflows", "image_generation_endpoint", "image_edit_endpoint"):
+            if key in old and not provider.get(key):
+                provider[key] = old[key]
+        if provider["id"] == "runninghub":
+            provider["protocol"] = "runninghub"
+        elif provider["id"] == "volcengine":
+            provider["protocol"] = "volcengine"
 
         if any(existing["id"] == provider["id"] for existing in providers):
             raise HTTPException(status_code=400, detail=f"API 平台 ID 重复:{provider['id']}")
@@ -249,6 +258,38 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
         grouped = {"image": [], "chat": [], "video": []}
         for mid in ids:
             grouped[classify(mid)].append(mid)
+
+        # /models 不校验 Token 的平台（ModelScope 不带 Key 也返回 200）
+        # 再用列表里的真实模型打一次对话接口，确认 Key 能通过鉴权。
+        try:
+            async with httpx.AsyncClient(timeout=12) as bare_client:
+                bare = await bare_client.get(url, headers={"Accept": "application/json"})
+            if bare.status_code < 400 and ids:
+                probe_model = (grouped["chat"] or ids)[0]
+                chat_url = f"{base_url}/chat/completions" if base_url.endswith("/v1") else f"{base_url}/v1/chat/completions"
+                async with httpx.AsyncClient(timeout=20) as probe_client:
+                    probe = await probe_client.post(
+                        chat_url,
+                        headers={
+                            "Authorization": f"Bearer {_main.sanitize_api_key(api_key)}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": probe_model,
+                            "messages": [{"role": "user", "content": "ping"}],
+                            "max_tokens": 1,
+                        },
+                    )
+                probe_text = (probe.text or "").lower()
+                if probe.status_code in (401, 403) or "authentication failed" in probe_text or "invalid api key" in probe_text or "incorrect api key" in probe_text:
+                    return {
+                        "ok": False,
+                        "status": probe.status_code,
+                        "message": "请求地址可以打开，模型列表也不检查 Key。当前这把 Key 被上游拒绝了，请重新复制 Access Token，粘贴后保存再验证。",
+                        "model_count": len(ids),
+                    }
+        except httpx.HTTPError:
+            pass
 
         return {
             "ok": True,

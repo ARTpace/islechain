@@ -575,14 +575,27 @@
         }
 
         // ── 持久化 historyImages 到 localStorage（重启后保留小图历史） ──
-        const KLEIN_HISTORY_STORAGE_KEY = 'klein_history_images';
+        function kleinHistoryStorageKey() {
+            try {
+                const raw = localStorage.getItem('xy_auth_user');
+                const user = raw ? JSON.parse(raw) : null;
+                const name = user && (user.username || user.name);
+                if (name) return 'klein_history_images:' + name;
+            } catch (e) {}
+            return '';
+        }
+        const KLEIN_HISTORY_STORAGE_KEY = kleinHistoryStorageKey();
         function persistHistoryImages() {
             try {
+                if (!KLEIN_HISTORY_STORAGE_KEY) return;
+                try { localStorage.removeItem('klein_history_images'); } catch (e) {}
                 localStorage.setItem(KLEIN_HISTORY_STORAGE_KEY, JSON.stringify(historyImages));
             } catch (_) { /* quota 满则静默 */ }
         }
         function loadHistoryImages() {
             try {
+                try { localStorage.removeItem('klein_history_images'); } catch (e) {}
+                if (!KLEIN_HISTORY_STORAGE_KEY) return [];
                 var raw = localStorage.getItem(KLEIN_HISTORY_STORAGE_KEY);
                 if (!raw) return [];
                 var arr = JSON.parse(raw);

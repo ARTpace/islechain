@@ -87,7 +87,7 @@
     "id": "runninghub",
     "name": "RunningHub",
     "base_url": "https://www.runninghub.ai",
-    "protocol": "openai",
+    "protocol": "runninghub",
     "image_request_mode": "openai",
     "image_models": [],
     "chat_models": [],
@@ -100,10 +100,44 @@
     "id": "volcengine",
     "name": "火山引擎",
     "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-    "protocol": "openai",
+    "protocol": "volcengine",
     "image_request_mode": "openai",
     "image_models": [],
     "chat_models": [],
+    "video_models": [],
+    "ms_loras": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "free",
+    "name": "free",
+    "base_url": "http://127.0.0.1:31415/v1",
+    "protocol": "openai",
+    "image_request_mode": "openai",
+    "image_models": [],
+    "chat_models": [
+      "agnes-2.5-flash",
+      "auto"
+    ],
+    "video_models": [],
+    "ms_loras": [],
+    "primary": false,
+    "enabled": true
+  },
+  {
+    "id": "agnet",
+    "name": "Agnet",
+    "base_url": "https://apihub.agnes-ai.com/v1",
+    "protocol": "openai",
+    "image_request_mode": "openai",
+    "image_models": [
+      "agnes-image-2.5-flash"
+    ],
+    "chat_models": [
+      "agnes-2.5-flash",
+      "agnes-3.0-flash"
+    ],
     "video_models": [],
     "ms_loras": [],
     "primary": false,

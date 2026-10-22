@@ -55,7 +55,7 @@ async def poll_angle_cloud(req: _main.CloudPollRequest):
                         except Exception:
                             local_path = img_url
 
-                        record = {"timestamp": time.time() * 1000, "prompt": f"Resumed {task_id}", "images": [local_path], "type": "angle"}
+                        record = {"timestamp": time.time() * 1000, "prompt": f"Resumed {task_id}", "images": [local_path], "type": "angle", "user": _main.get_username_by_token("")}
                         _main.save_to_history(record)
                         if req.client_id:
                             await _main.manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)
@@ -89,7 +89,7 @@ async def generate_angle_cloud(req: _main.CloudGenRequest, token: str = ""):
     if token:
         _main.require_valid_token(token)
     base_url = 'https://api-inference.modelscope.cn/'
-    username = _main.get_username_by_token(token) if token else None
+    username = _main.get_username_by_token(token)
     clean_token = _main.sanitize_api_key((req.api_key or _main.MODELSCOPE_API_KEY).strip())
     if not clean_token:
         raise HTTPException(status_code=400, detail="未提供 ModelScope API Key")
@@ -150,7 +150,7 @@ async def generate_angle_cloud(req: _main.CloudGenRequest, token: str = ""):
                         except Exception:
                             local_path = img_url
 
-                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "angle"}
+                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "angle", "user": username}
                         _main.save_to_history(record)
                         if req.client_id:
                             await _main.manager.send_personal_message({"type": "cloud_status", "status": "SUCCEED", "task_id": task_id}, req.client_id)

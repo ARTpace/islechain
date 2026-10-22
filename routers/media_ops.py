@@ -13,6 +13,14 @@ import main as _main
 router = APIRouter()
 
 
+def _preview_cache_headers(path: str) -> dict:
+    # 预览文件名含原图路径、修改时间和尺寸的哈希，内容变了地址就变，可以长期缓存。
+    return {
+        "Cache-Control": "public, max-age=2592000, immutable",
+        "ETag": f'"{_main._etag_for(path)}"',
+    }
+
+
 @router.get("/api/media-preview")
 async def media_preview(url: str, w: int = 512):
     # ComfyUI 图片(如 /api/comfyui/view?filename=...)直接走 ComfyUI 代理缩略图
@@ -33,9 +41,9 @@ async def media_preview(url: str, w: int = 512):
     webp_path, png_path = _main.media_preview_cache_paths(path, width)
 
     if os.path.exists(webp_path):
-        return FileResponse(webp_path, media_type="image/webp")
+        return FileResponse(webp_path, media_type="image/webp", headers=_preview_cache_headers(webp_path))
     if os.path.exists(png_path):
-        return FileResponse(png_path, media_type="image/png")
+        return FileResponse(png_path, media_type="image/png", headers=_preview_cache_headers(png_path))
 
     try:
         os.makedirs(_main.MEDIA_PREVIEW_DIR, exist_ok=True)
@@ -57,13 +65,7 @@ async def media_preview(url: str, w: int = 512):
                 img.save(png_path, format="PNG", optimize=True)
                 return png_path, "image/png"
         saved_path, saved_type = await asyncio.to_thread(_save_preview)
-        # 浏览器缓存:文件名含 mtime+size 哈希,内容变了 key 就变,可以安全长缓存
-        etag = _main._etag_for(saved_path)
-        headers = {
-            "Cache-Control": "public, max-age=2592000, immutable",
-            "ETag": f'"{etag}"',
-        }
-        return FileResponse(saved_path, media_type=saved_type, headers=headers)
+        return FileResponse(saved_path, media_type=saved_type, headers=_preview_cache_headers(saved_path))
     except Exception as exc:
         raise HTTPException(status_code=415, detail=f"无法生成预览图:{exc}") from exc
 

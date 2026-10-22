@@ -100,9 +100,12 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
         if type:
             types = [t.strip() for t in type.split(',')]
             data = [item for item in data if item.get("type", "zimage") in types]
-        # 按用户过滤: 隔离多用户, 同时保留历史遗留的空 user 记录(避免升级后旧历史凭空消失)
-        if username:
-            data = [item for item in data if item.get("user") in (None, "", username)]
+        # 只返回当前登录用户自己的记录。没有用户标记的旧记录不对普通用户开放。
+        is_admin = _main.is_admin_by_token(token)
+        if not username:
+            data = []
+        elif not is_admin:
+            data = [item for item in data if item.get("user") == username]
         # Support image, text, audio and video outputs: keep records with images OR text OR audio OR videos
         data = [item for item in data if item.get("images") or item.get("text") or item.get("audio") or item.get("videos")]
 

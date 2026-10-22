@@ -82,6 +82,11 @@
             '    background: rgba(0,240,255,0.18);',
             '    box-shadow: 0 4px 12px rgba(0,240,255,0.15);',
             '}',
+            '.smart-prompt-btn .sp-switch { width: 28px; height: 16px; border-radius: 99px; background: rgba(255,255,255,0.16); position: relative; flex: none; }',
+            '.smart-prompt-btn .sp-switch i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #9aa8b8; transition: left .15s ease; }',
+            '.smart-prompt-btn.is-on { background: rgba(0,240,255,0.22); color: #00f0ff; border-color: #00f0ff; }',
+            '.smart-prompt-btn.is-on .sp-switch { background: #00f0ff; }',
+            '.smart-prompt-btn.is-on .sp-switch i { left: 14px; background: #041018; }',
 
             /* ---- smart-prompt-picker.css ---- */
             '.sp-picker-shell {',
@@ -495,11 +500,30 @@
                 document.documentElement.classList.contains('theme-dark');
         }
 
+        function paintToggle() {
+            if (!btn || !options.toggle) return;
+            var on = !!window.studioPresetInject;
+            btn.classList.toggle('is-on', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.title = on ? '预设已注入对话，再点关闭。长按仍可选择预设' : '打开后，对话会使用当前提示词预设。长按可选择预设';
+            if (typeof window.refreshChatPresetHint === 'function') window.refreshChatPresetHint();
+        }
+
+        function handleToggle() {
+            if (isLongPress) { isLongPress = false; return; }
+            window.studioPresetInject = !window.studioPresetInject;
+            try { localStorage.setItem('studio_preset_inject', window.studioPresetInject ? '1' : '0'); } catch (e) {}
+            paintToggle();
+        }
+
         function createButton() {
             var b = document.createElement('button');
             b.className = 'smart-prompt-btn';
-            b.title = '智能生成标签';
-            b.innerHTML = [
+            b.title = options.toggle ? '打开后，对话会使用当前提示词预设' : '智能生成标签';
+            b.innerHTML = options.toggle ? [
+                '<span class="sp-switch" aria-hidden="true"><i></i></span>',
+                '<span class="btn-text">' + escHtml(options.buttonText) + '</span>'
+            ].join('') : [
                 '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">',
                 '<path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>',
                 '<circle cx="12" cy="15" r="2"/>',
@@ -507,8 +531,7 @@
                 '<span class="btn-text">' + escHtml(options.buttonText) + '</span>'
             ].join('');
 
-            // 短按：生成
-            b.addEventListener('click', handleGenerate);
+            b.addEventListener('click', options.toggle ? handleToggle : handleGenerate);
 
             // 长按：弹出预设选择
             function startPress() {
@@ -662,10 +685,13 @@
                 var container = document.getElementById(containerId);
                 if (!container) { console.error('[SmartPrompt] 容器不存在:', containerId); return; }
                 options = Object.assign({}, DEFAULTS, opts);
+                options.toggle = !!opts.toggle || document.body.classList.contains('chat-layout');
+                try { window.studioPresetInject = localStorage.getItem('studio_preset_inject') === '1'; } catch (e) { window.studioPresetInject = false; }
                 // [2026-07-28] picker 设置的通道写入 window, 这里保持同步
                 if (opts.channel) window.localPromptChannel = opts.channel;
                 btn = createButton();
                 container.appendChild(btn);
+                paintToggle();
             },
             getButton: function() { return btn; },
             generate: function() { if (btn) handleGenerate(); },
@@ -710,10 +736,18 @@
                 } catch(e) {}
             }
             spPickerSelectedId = results[1].preset_id || 'default';
+            publishPickerState();
         } catch(e) {
             spPickerPresets = [{ id: 'default', name: '默认 Anima', description: '标准 Anima 标签生成' }];
             spPickerSelectedId = 'default';
+            publishPickerState();
         }
+    }
+
+    function publishPickerState() {
+        window.spPickerSelectedId = spPickerSelectedId;
+        window.spPickerPresets = spPickerPresets;
+        if (typeof window.refreshChatPresetHint === 'function') window.refreshChatPresetHint();
     }
 
     async function spPickerLoadProviders() {
@@ -1272,6 +1306,7 @@
         var preset = spPickerPresets.find(function(p) { return p.id === id; });
         var label = document.getElementById('spCurrentLabel');
         if (label && preset) label.textContent = preset.name;
+        publishPickerState();
         spPickerRender();  // 刷新选中态高亮
     }
 

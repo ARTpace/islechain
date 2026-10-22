@@ -210,6 +210,27 @@
     /* ============================================================
      *  Open / Close
      * ============================================================ */
+    function unwrapLightboxUrl(url) {
+        const raw = String(url || '');
+        try {
+            const parsed = new URL(raw, location.origin);
+            if (parsed.pathname === '/api/media-preview') {
+                const inner = parsed.searchParams.get('url') || '';
+                if (inner) return unwrapLightboxUrl(inner);
+            }
+            if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+        } catch (e) {}
+        return raw;
+    }
+
+    function locateLightboxImage(url) {
+        const target = unwrapLightboxUrl(url);
+        const images = getAllHistoryImages();
+        const index = images.findIndex(item => unwrapLightboxUrl(item) === target);
+        if (index >= 0) return { images, index };
+        return { images: [target], index: 0 };
+    }
+
     function openLightbox(url, imagesOrPrompt, startIndexOrPrompt, promptParam, allPrompts, isVideo) {
         if (!_config.lightbox) return;
 
@@ -278,16 +299,16 @@
                 }
                 global.ImageViewer.init(state.images, state.currentIndex, { prompts, onShow: onImageChange });
             } else {
-                state.images = getAllHistoryImages();
-                state.currentIndex = state.images.indexOf(url);
-                if (state.currentIndex === -1) state.currentIndex = 0;
+                const located = locateLightboxImage(url);
+                state.images = located.images;
+                state.currentIndex = located.index;
                 global.ImageViewer.init(state.images, state.currentIndex);
             }
         } else {
             state.currentPrompt = imagesOrPrompt || '';
-            state.images = getAllHistoryImages();
-            state.currentIndex = state.images.indexOf(Array.isArray(url) ? url[0] : url);
-            if (state.currentIndex === -1) state.currentIndex = 0;
+            const located = locateLightboxImage(Array.isArray(url) ? url[0] : url);
+            state.images = located.images;
+            state.currentIndex = located.index;
             global.ImageViewer.init(state.images, state.currentIndex);
         }
 

@@ -754,6 +754,12 @@
                     </svg>
                 </div>
 
+                <div class="nav-item" onclick="switchUI(this, 'chat-gen')" title="对话生图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span class="nav-text">对话生图</span>
+                </div>
                 <div class="nav-item" onclick="switchUI(this, 'online')" title="在线生图">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"></path>
@@ -775,12 +781,6 @@
                         <path d="m22 8-6 4 6 4V8Z"></path>
                     </svg>
                     <span class="nav-text">视频生成</span>
-                </div>
-                <div class="nav-item" onclick="switchUI(this, 'gpt-chat')" title="GPT 对话">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <span class="nav-text" data-i18n="nav.gpt">GPT 对话</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'canvas')" title="无限画布">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -859,6 +859,10 @@
             <div class="sidebar-bottom">
                 <!-- 分隔线 -->
                 <div style="width:32px;height:1px;background:var(--border);margin:8px auto;transition:background 0.3s;"></div>
+                <div class="nav-item" id="sidebar-account-btn" title="账号">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span class="nav-text" id="sidebar-account-name">账号</span>
+                </div>
                 <div class="nav-item" id="sidebar-settings-btn" title="设置">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     <span class="nav-text">设置</span>
@@ -868,7 +872,7 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261022e"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261022am"></iframe>
             <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261022002"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261022002"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261022002"></iframe>
@@ -881,13 +885,13 @@
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
             <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20261022002"></iframe>
             <iframe id="frame-poster" data-src="/static/app/poster.html?v=20261022002"></iframe>
+            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261022am"></iframe>
             <iframe id="frame-online" data-src="/static/online.html?v=20261022e"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
     <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261022e"></iframe>
-            <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=20261022002"></iframe>
             <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261022f"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html"></iframe>
-            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261022002"></iframe>
+            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261022s"></iframe>
             <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261022002"></iframe>
             <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20261022002"></iframe>
             <div class="nano-monitor" id="nano-monitor">
@@ -906,7 +910,7 @@
         </main>
     </div>
 
-    <script src="/static/modules/settings.js?v=20261022d"></script>
+    <script src="/static/modules/settings.js?v=20261022h"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -1214,17 +1218,12 @@
             const theme = window.StudioTheme ? window.StudioTheme.get() : 'dark';
             updateThemeIcon(theme);
 
-            // 非管理员隐藏设置按钮
-            if (typeof AuthManager !== 'undefined' && !AuthManager.isAdmin()) {
-                const settingsBtn = document.getElementById('sidebar-settings-btn');
-                if (settingsBtn) settingsBtn.style.display = 'none';
-            }
-
             // Restore last selected app
             const saved = localStorage.getItem('lastSelectedApp');
             if (saved) {
                 try {
-                    const { id, parentId } = JSON.parse(saved);
+                    let { id, parentId } = JSON.parse(saved);
+                    if (id === 'gpt-chat') id = 'chat-gen';
                     if (id) {
                         // If it was a comfyui child item
                         if (parentId === 'comfy') {

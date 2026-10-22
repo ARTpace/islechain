@@ -83,7 +83,7 @@ async def generate_cloud(req: _main.CloudGenRequest, token: str = ""):
                             print(f"Download error: {dl_e}")
                             local_path = img_url
 
-                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "cloud"}
+                        record = {"timestamp": time.time() * 1000, "prompt": req.prompt, "images": [local_path], "type": "cloud", "user": username}
                         _main.save_to_history(record)
                         try:
                             await _main.manager.broadcast_new_image(record)

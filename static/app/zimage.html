@@ -18,34 +18,34 @@
     </script>
     <script src="/static/modules/auth-token.js"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
-    <script src="/static/lucide.min.js"></script>
+    <script src="/static/lucide.min.js" defer></script>
     <script src="/static/theme.js?v=20261022c"></script>
-    <script src="/static/history-bulk-manager.js?v=20260720-4"></script>
-    <script src="/static/modules/interrogator.js"></script>
-    <script src="/static/modules/ref-image-manager.js"></script>
+    <script src="/static/history-bulk-manager.js?v=20260720-4" defer></script>
+    <script src="/static/modules/interrogator.js" defer></script>
+    <script src="/static/modules/ref-image-manager.js" defer></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
-    <script src="/static/modules/image-viewer.js?v=20260521006"></script>
-    <script src="/static/modules/gallery/bundle.js?v=20261022e"></script>
+    <script src="/static/modules/image-viewer.js?v=20261022ai"></script>
+    <script src="/static/modules/gallery/bundle.js?v=20261022ai"></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260628">
-    <script src="/static/app/anima-character-picker.js?v=20261022a"></script>
+    <script src="/static/app/anima-character-picker.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
-    <script src="/static/app/anima-artist-picker.js?v=20260619019"></script>
-    <script src="/static/modules/random-prompt.js?v=20260705-14"></script>
-    <script src="/prompt/static/prompt-module.js?v=20260728-4"></script>
+    <script src="/static/app/anima-artist-picker.js?v=20260619019" defer></script>
+    <script src="/static/modules/random-prompt.js?v=20260705-14" defer></script>
+    <script src="/prompt/static/prompt-module.js?v=20261022w" defer></script>
     <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
     <script src="/static/modules/lora-manager.js?v=20260723-meta9"></script>
-    <script src="/static/modules/prompt-tags.js?v=20260717001"></script>
-    <script src="/static/modules/prompt-translate-ui.js?v=20260629001"></script>
+    <script src="/static/modules/prompt-tags.js?v=20260717001" defer></script>
+    <script src="/static/modules/prompt-translate-ui.js?v=20260629001" defer></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20260628">
-    <script src="/static/app/preset-picker.js?v=20260629002"></script>
+    <script src="/static/app/preset-picker.js?v=20260629002" defer></script>
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20260723-v2">
-    <script src="/static/app/lora-picker.js?v=20260723-v2"></script>
+    <script src="/static/app/lora-picker.js?v=20260723-v2" defer></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
-    <script src="/static/app/style-preset-panel.js"></script>
+    <script src="/static/app/style-preset-panel.js" defer></script>
     <!-- smart-prompt-picker.js / smart-prompt-manager.js 已合并到 prompt-module.js -->
-    <script src="/static/js/prompt-translate.js?v=20260618001"></script>
-    <script src="/static/js/translate-queue.js?v=20260721001"></script>
-    <script src="/static/js/incremental-translator.js?v=20260721001"></script>
+    <script src="/static/js/prompt-translate.js?v=20260618001" defer></script>
+    <script src="/static/js/translate-queue.js?v=20260721001" defer></script>
+    <script src="/static/js/incremental-translator.js?v=20260721001" defer></script>
     <script src="/static/modules/generation-controls.js?v=20260629"></script>
     <style>
         :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #000000; }
@@ -120,7 +120,7 @@
             #lightboxPrompt { max-height:clamp(40px, 8vh, 80px); padding:8px 12px; }
             #lightboxImg { max-height:55vh; }
         }
-        .btn-render { background:rgba(0,0,0,0.06)!important; color:#000!important; transition:all 0.3s ease; border:1px solid rgba(0,0,0,0.1); }
+        .btn-render { background:rgba(0,0,0,0.06)!important; color:#000!important; transition:transform .15s ease; border:1px solid rgba(0,0,0,0.1); }
         .btn-render:hover { background:rgba(0,0,0,0.1)!important; transform:translateY(-1px); }
         .btn-render:disabled { background:#ccc!important; cursor:not-allowed; color:#666!important; border-color:transparent!important; }
         @keyframes btn-render-longpress-pulse {
@@ -155,8 +155,11 @@
             font-size: 10px;
             line-height: 1.2;
         }
+        html.studio-theme-dark .btn-render,
         body.studio-theme-dark .btn-render { background:rgba(0,240,255,0.1)!important; color:#00f0ff!important; border-color:rgba(0,240,255,0.2)!important; }
+        html.studio-theme-dark .btn-render:hover,
         body.studio-theme-dark .btn-render:hover { background:rgba(0,240,255,0.18)!important; }
+        html.studio-theme-dark .btn-render:disabled,
         body.studio-theme-dark .btn-render:disabled { background:#1a3050!important; color:#4a5a6e!important; border-color:transparent!important; }
         body.studio-theme-dark { --bg-base:#0a0e17; --text-main:#e0e7ef; }
         body.studio-theme-dark .console-card { background:#0d1520!important; border-color:rgba(0,240,255,0.12)!important; }
@@ -168,7 +171,7 @@
         body.studio-theme-dark .mode-btn.active { color:#00f0ff!important; }
         body.studio-theme-dark .mode-glider { background:rgba(0,240,255,0.1)!important; }
         /* 统一控件按钮样式 */
-        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:#f1f1f1; color:#333; transition:all 0.15s; white-space:nowrap; }
+        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:#f1f1f1; color:#333; white-space:nowrap; }
         .anima-ctrl:hover { background:#e5e5e5; }
         .anima-ctrl.active { background:#000; color:#fff; }
         .anima-ctrl.seed-locked { background:#000; color:#fff; }
@@ -180,11 +183,16 @@
         #modelSwitcher  > .anima-ctrl { width:auto; min-width:90px; justify-content:flex-start; }
         #engineSwitcher > .anima-ctrl > #engineText,
         #modelSwitcher  > .anima-ctrl > #modelText { flex:1; text-align:left; }
+        html.studio-theme-dark .anima-ctrl,
         body.studio-theme-dark .anima-ctrl { background:rgba(255,255,255,0.08); color:#c8d0dc; }
+        html.studio-theme-dark .anima-ctrl:hover,
         body.studio-theme-dark .anima-ctrl:hover { background:rgba(255,255,255,0.14); }
+        html.studio-theme-dark .anima-ctrl.active,
         body.studio-theme-dark .anima-ctrl.active { background:#00f0ff; color:#0a0e17; }
+        html.studio-theme-dark .anima-ctrl.seed-locked,
         body.studio-theme-dark .anima-ctrl.seed-locked { background:#00f0ff; color:#0a0e17; }
-        .anima-ctrl-input { height:32px; width:80px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; background:#f1f1f1; color:#333; outline:none; transition:all 0.15s; }
+        .anima-ctrl-input { height:32px; width:80px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; background:#f1f1f1; color:#333; outline:none; }
+        html.studio-theme-dark .anima-ctrl-input,
         body.studio-theme-dark .anima-ctrl-input { background:rgba(255,255,255,0.08); color:#c8d0dc; }
         body.studio-theme-dark .anima-ctrl-input::placeholder { color:#5a6a7e; }
         .anima-ctrl-wrap { position:relative; }
@@ -564,11 +572,80 @@
     .reverse-settings-btn.is-in-use { background: linear-gradient(135deg, #00b4d8, #0077b6); color:#fff; box-shadow: 0 0 0 1px rgba(0,180,216,0.4), 0 2px 8px rgba(0,180,216,0.25); }
 
 
+        body.chat-layout { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        body.chat-layout #chatThread { flex:1; min-height:0; overflow:auto; padding:28px 7vw 12px; display:flex; flex-direction:column; gap:18px; }
+        body.chat-layout header { flex:0 0 auto !important; max-height:52vh; overflow:auto; padding-top:8px; z-index:2; }
+        body.chat-layout .chat-drawer { position:relative; flex:0 0 auto; z-index:40; height:42px; overflow:hidden; background:#16181e; border-top:1px solid #2a2e38; transition:height .22s ease; }
+        body.chat-layout .chat-drawer.open { height:min(46vh, 520px); }
+        body.chat-layout .chat-drawer-tab { height:42px; width:100%; border:0; background:transparent; color:#d5d8e0; font-size:13px; font-weight:700; cursor:pointer; }
+        body.chat-layout .chat-drawer-body { height:calc(100% - 42px); overflow:auto; }
+        body.chat-layout .chat-drawer #toolbarFixed { position:relative; top:auto; }
+        body.chat-layout .chat-drawer main { position:relative; display:block; height:auto; min-height:0; overflow:visible; opacity:1; pointer-events:auto; }
+        .chat-empty { margin:auto; color:#8d93a1; font-size:14px; text-align:center; max-width:420px; }
+        .chat-row { display:flex; }
+        .chat-row.user { justify-content:flex-end; }
+        .chat-user { max-width:min(640px,80%); background:#2a3140; border-radius:16px 16px 4px 16px; padding:10px 12px; white-space:pre-wrap; font-size:14px; line-height:1.5; }
+        .chat-row:not(.user) { align-items:flex-start; }
+        .chat-stack { display:flex; flex-direction:column; align-items:center; max-width:min(680px,86%); }
+        .chat-stack:has(.chat-imgs img + img), .chat-stack:has(.chat-pending + .chat-pending) { width:min(680px,86%); }
+        .chat-asst { max-width:min(520px,72vw); background:transparent; border:0; padding:0; font-size:14px; line-height:1.6; }
+        .chat-asst:has(.chat-imgs img + img), .chat-asst:has(.chat-pending + .chat-pending) { width:100%; max-width:100%; }
+        .chat-reply { white-space:pre-wrap; }
+        .chat-prompt { margin-top:8px; }
+        .chat-prompt-bar { display:flex; gap:8px; justify-content:center; }
+        .chat-prompt-toggle, .chat-prompt-copy { position:relative; width:44px; height:44px; padding:0; border:0; border-radius:12px; background:transparent; color:#c5d0dc; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+        .chat-prompt-toggle:hover, .chat-prompt-copy:hover { background:rgba(255,255,255,.08); color:#e8eef6; }
+        .chat-prompt-toggle[data-tip]:hover::after, .chat-prompt-copy[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 6px); transform:translateX(-50%); padding:4px 8px; border-radius:6px; background:#0e1520; color:#e8eef6; font-size:12px; line-height:1.3; white-space:nowrap; pointer-events:none; border:1px solid #2c3b52; z-index:5; }
+        .chat-prompt-body { display:block; margin:8px 0 0; max-height:160px; overflow:auto; white-space:pre-wrap; font-size:12px; line-height:1.5; color:#c5d2e2; background:rgba(0,0,0,.22); border-radius:10px; padding:8px 10px; }
+        .chat-prompt-body[hidden] { display:none; }
+        .chat-imgs { display:flex; flex-wrap:nowrap; gap:8px; align-items:flex-start; margin-top:10px; width:100%; }
+        .chat-asst:not(:has(.chat-imgs img + img)):not(:has(.chat-pending + .chat-pending)) .chat-imgs { width:auto; }
+        .chat-asst img { width:min(300px,52vw); max-width:100%; height:auto; background:#121820; object-fit:contain; border-radius:12px; display:block; margin-top:10px; cursor:zoom-in; }
+        .chat-imgs img, .chat-imgs .chat-pending { flex:1 1 0; width:auto; min-width:0; max-width:none; margin-top:0; }
+        .chat-asst:not(:has(.chat-imgs img + img)):not(:has(.chat-pending + .chat-pending)) .chat-imgs img,
+        .chat-asst:not(:has(.chat-pending + .chat-pending)) .chat-imgs .chat-pending { flex:0 0 auto; width:min(300px,52vw); }
+        .chat-pending { position:relative; width:min(300px,52vw); border-radius:16px; overflow:hidden; background:#121820; border:1px solid #243044; }
+        .chat-pending .card-progress-pct { color:#e8eef6 !important; }
+        .chat-pending .card-progress-label { color:#9aa8b8 !important; }
+        body.chat-layout .chat-model-pick { height:32px; max-width:180px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#121820; color:inherit; font-size:11px; font-weight:700; padding:0 8px; }
+        .chat-topbar { display:none; }
+        body.chat-layout .chat-topbar { position:relative; flex:0 0 auto; display:flex; align-items:flex-end; gap:10px; padding:12px 18px 6px; z-index:6; }
+        html.engine-cloud #animaTagSwitcher,
+        html.engine-cloud #modelSection,
+        html.engine-cloud #animaControls,
+        html.engine-cloud #dynamicParams { display:none !important; }
+        html.engine-cloud #cloudModelWrap,
+        html.engine-cloud #cloudGenControls { display:flex !important; }
+        body.chat-layout .chat-top-btn { height:32px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:transparent; color:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+        body.chat-layout .chat-top-btn:hover { border-color:rgba(34,184,207,.7); }
+        body.chat-layout .chat-history { display:none; position:absolute; left:18px; top:calc(100% + 6px); width:min(380px, 78vw); max-height:min(420px, 60vh); overflow:auto; background:#161b24; border:1px solid #2a3548; border-radius:14px; box-shadow:0 18px 40px rgba(0,0,0,.4); padding:8px; z-index:30; }
+        body.chat-layout .chat-history.open { display:block; }
+        body.chat-layout .chat-history-empty { padding:18px 10px; color:#8d93a1; font-size:13px; text-align:center; }
+        body.chat-layout .chat-history-item { width:100%; display:flex; flex-direction:column; gap:4px; text-align:left; border:1px solid transparent; background:transparent; color:inherit; border-radius:10px; padding:8px 10px; cursor:pointer; }
+        body.chat-layout .chat-history-item:hover, body.chat-layout .chat-history-item.active { background:#1d2633; border-color:#2c3b52; }
+        body.chat-layout .chat-history-title { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        body.chat-layout .chat-history-sub { font-size:11px; color:#8d93a1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         </style>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
 </head>
 <body class="antialiased">
+    <script>
+        try {
+            if (document.documentElement.classList.contains('studio-theme-dark')) {
+                document.body.classList.add('studio-theme-dark', 'theme-dark');
+            }
+            if (new URLSearchParams(location.search).get('chat') === '1') document.body.classList.add('chat-layout');
+            if (localStorage.getItem('zimage_engine') === 'cloud') document.documentElement.classList.add('engine-cloud');
+        } catch (e) {}
+    </script>
+    <div id="chatTopbar" class="chat-topbar">
+        <div class="flex flex-col"><span class="text-[9px] font-bold text-gray-400 uppercase mb-1">对话</span><select id="chatProviderPick" class="chat-model-pick"></select></div>
+        <div class="flex flex-col"><span class="text-[9px] font-bold text-gray-400 uppercase mb-1">对话模型</span><select id="chatModelPick" class="chat-model-pick"></select></div>
+        <button type="button" id="chatNewBtn" class="chat-top-btn">新建对话</button>
+        <button type="button" id="chatHistoryBtn" class="chat-top-btn">历史对话</button>
+        <div id="chatHistory" class="chat-history"></div>
+    </div>
     <header class="pt-5 pb-4" style="flex-shrink:1; min-height:0; overflow-y:auto;">
         <div class="layout-container">
             <div class="console-card rounded-3xl p-1.5">
@@ -582,7 +659,7 @@
                     </div>
                     <div class="flex items-center gap-2 mb-2 prompt-row">
                         <div id="smartPromptContainer"></div>
-                        <div id="animaTagSwitcher" style="display:none;">
+                        <div id="animaTagSwitcher">
                             <button onclick="pickerOpen()" id="charPickerBtn" class="anima-ctrl anima-ctrl-split-left" style="border-radius:10px 0 0 10px;" title="角色选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="btn-text" id="charPickerBtnText"> 角色</span></button>
                             <button onclick="artistPickerOpen()" id="artistPickerBtn" class="anima-ctrl" style="border-radius:0 10px 10px 0;" title="画师选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg><span class="btn-text" id="artistPickerBtnText"> 画师</span></button>
                         </div>
@@ -605,7 +682,7 @@
                         <button onclick="toggleExtraNegative()" id="extraNegToggle" class="anima-ctrl" title="额外负面提示词" style="display:none;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span>负向</span>
                         </button>
-                        <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"></button>
+                        <button id="seedToggle" class="anima-ctrl" onclick="toggleSeedMode()" title="切换随机/固定种子"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></button>
                         <input id="seedInput" class="anima-ctrl-input" type="number" min="0" max="999999999999999" placeholder="" oninput="onSeedInput(this.value)">
                     </div>
                     <div class="flex gap-3 items-start">
@@ -710,9 +787,26 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 gen-row">
-                        <div id="animaControls" class="flex items-center gap-2"></div>
+                        <div id="animaControls" class="flex items-center gap-2">
+                            <div class="anima-ctrl-wrap">
+                                <button type="button" id="ratioBtn" class="anima-ctrl" onclick="if(!compactRatioToggle())toggleMenu('ratioMenu')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+                                    <span id="ratioText">9:16</span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            </div>
+                            <div class="anima-ctrl-wrap">
+                                <button type="button" id="resBtn" class="anima-ctrl" onclick="if(!compactResToggle())toggleMenu('resMenu')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                    <span id="resText">1K</span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            </div>
+                        </div>
                         <!-- 在线API 引擎：比例 + 质量 + 分辨率（质量紧邻分辨率左侧，与 COMFYUI 对齐） -->
                         <div id="cloudGenControls" class="flex items-center gap-2" style="display:none;">
+                            <button type="button" class="anima-ctrl"><span id="cloudRatioText">比例</span></button>
+                            <button type="button" class="anima-ctrl"><span id="cloudResText">分辨率</span></button>
                             <!-- 比例/质量/分辨率 由 cloudGenControlsHtml() 在 cloudInitPanel 中动态渲染 -->
                         </div>
                         <div class="anima-ctrl-wrap">
@@ -768,7 +862,53 @@
     </div>
 
     <script>
-        lucide.createIcons();
+        (function () {
+            function esc(value) {
+                return String(value == null ? '' : value).replace(/[&<>"]/g, function (ch) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+                });
+            }
+            try {
+                var ratio = (localStorage.getItem('anima_ratio_w') || '9') + ':' + (localStorage.getItem('anima_ratio_h') || '16');
+                var ratioText = document.getElementById('ratioText');
+                if (ratioText) ratioText.textContent = ratio;
+                var resText = document.getElementById('resText');
+                if (resText) resText.textContent = localStorage.getItem('anima_res') === '2' ? '2K' : '1K';
+                var names = {
+                    'text2image/z-image.json': 'Z-Image',
+                    'text2image/anima.json': 'ANIMA',
+                    'text2image/krea2-turbo.json': 'Krea2',
+                    'text2image/ideogram4-structured.json': 'Ideogram4',
+                    'text2image/ideogram4.json': 'Ideogram4',
+                    'text2image/boogu-base.json': 'Boogu',
+                    'text2image/boogu-turbo.json': 'Boogu'
+                };
+                var modelText = document.getElementById('modelText');
+                var workflow = localStorage.getItem('zimage_workflow') || '';
+                if (modelText && names[workflow]) modelText.textContent = names[workflow];
+                var engineText = document.getElementById('engineText');
+                if (engineText && localStorage.getItem('zimage_engine') === 'cloud') engineText.textContent = '在线API';
+                var providers = JSON.parse(localStorage.getItem('studio_chat_providers') || 'null');
+                var saved = JSON.parse(localStorage.getItem('studio_chat_target') || '{}');
+                var providerPick = document.getElementById('chatProviderPick');
+                var modelPick = document.getElementById('chatModelPick');
+                if (providerPick && Array.isArray(providers) && providers.length) {
+                    providerPick.innerHTML = providers.map(function (item) {
+                        return '<option value="' + esc(item.id) + '">' + esc(item.name || item.id) + '</option>';
+                    }).join('');
+                    var preferred = providers.filter(function (item) { return item.id === saved.provider; })[0] || providers[0];
+                    providerPick.value = preferred.id;
+                    if (modelPick) {
+                        modelPick.innerHTML = (preferred.models || []).map(function (model) {
+                            return '<option value="' + esc(model) + '">' + esc(model) + '</option>';
+                        }).join('');
+                        if (saved.model && (preferred.models || []).indexOf(saved.model) >= 0) modelPick.value = saved.model;
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <script>
 
         function generateUUID() {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) { try { return crypto.randomUUID(); } catch(e){} }
@@ -1308,24 +1448,35 @@
                 if (typeof LoraManager.updateVisibility === 'function') LoraManager.updateVisibility();
             }
         }
+        function applyBuiltinMeta(list, persist) {
+            if (!list || !list.length) return;
+            BUILTIN_WF_META = list;
+            if (persist) {
+                try { localStorage.setItem('zimage_wf_meta', JSON.stringify(list)); } catch (e) {}
+            }
+            _syncBuiltinMeta();
+            renderModelMenu();
+            _resyncAfterMeta();
+        }
         async function loadBuiltinWorkflowMeta() {
+            try {
+                const cached = JSON.parse(localStorage.getItem('zimage_wf_meta') || 'null');
+                if (Array.isArray(cached) && cached.length) applyBuiltinMeta(cached, false);
+            } catch (e) {}
             try {
                 const res = await fetch('/api/workflows/builtin');
                 const data = await res.json();
-                BUILTIN_WF_META = data.workflows || [];
+                applyBuiltinMeta(data.workflows || [], true);
             } catch (e) {
-                // 回退：硬编码列表（仅网络异常时兜底）
-                BUILTIN_WF_META = [
+                if (BUILTIN_WF_META.length) return;
+                applyBuiltinMeta([
                     {name:'text2image/z-image.json', title:'Z-Image', has_unet:true, model_folder:'z-image', model_folders:['z-image'], unet_name:''},
                     {name:'text2image/anima.json', title:'ANIMA', has_unet:true, model_folder:'anima', model_folders:['Anima'], unet_name:''},
                     {name:'text2image/krea2-turbo.json', title:'Krea2', has_unet:true, model_folder:'Krea2', model_folders:['Krea 2'], unet_name:''},
                     {name:'text2image/ideogram4-structured.json', title:'Ideogram4 Structured', has_unet:true, model_folder:'ideogram4', model_folders:['ideogram4'], unet_name:''},
                     {name:'text2image/boogu-base.json', title:'Boogu', has_unet:true, model_folder:'boogu', model_folders:['boogu'], unet_name:''},
-                ];
+                ], false);
             }
-            _syncBuiltinMeta();
-            renderModelMenu();
-            _resyncAfterMeta();
         }
         // 根据工作流文件名查找元数据
         function _wfMeta(name) {
@@ -1685,6 +1836,7 @@
         function switchEngine(mode) {
             currentEngine = mode;
             localStorage.setItem('zimage_engine', mode);
+            document.documentElement.classList.toggle('engine-cloud', mode === 'cloud');
             // 同步上拉菜单的按钮文本、图标
             const txt = document.getElementById('engineText');
             const icon = document.getElementById('engineIcon');
@@ -2106,15 +2258,35 @@
                     }
                 });
 
-                // input 事件触发 updatePromptTags（兼容原 oninput）
+                var promptSyncTimer = 0;
+                function schedulePromptSync() {
+                    if (el._composing) return;
+                    clearTimeout(promptSyncTimer);
+                    promptSyncTimer = setTimeout(function () {
+                        if (el._composing) return;
+                        if (typeof updatePromptTags === 'function') updatePromptTags();
+                        if (typeof syncPickerStatesFromPrompt === 'function') syncPickerStatesFromPrompt();
+                        if (typeof PromptTranslateUI !== 'undefined' && typeof PromptTranslateUI.updateVisibility === 'function') {
+                            PromptTranslateUI.updateVisibility();
+                        }
+                    }, 160);
+                }
+                window.schedulePromptSync = schedulePromptSync;
+                el.addEventListener('compositionstart', function () { el._composing = true; });
+                el.addEventListener('compositionend', function () {
+                    el._composing = false;
+                    schedulePromptSync();
+                });
+
+                // input 事件触发标签刷新。组词过程中不碰输入框，避免中文输入被拆成一字一字。
                 el.addEventListener('input', function () {
-                    // 只清理反引号；不要重建结构（chip 仍保留）
+                    if (el._composing) return;
                     var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
                     var n;
                     while ((n = walker.nextNode())) {
                         if (n.nodeValue.indexOf('`') >= 0) n.nodeValue = n.nodeValue.replace(/`/g, '');
                     }
-                    if (typeof updatePromptTags === 'function') updatePromptTags();
+                    schedulePromptSync();
                 });
 
                 // 强制粘贴为纯文本，避免富文本包在 <div>/<span> 里让 .value 读不到
@@ -2228,12 +2400,14 @@
 
         // === 主渲染逻辑 ===
         async function handleRender() {
+            const queuedPrompt = String(window.__chatRenderPrompt || '');
+            window.__chatRenderPrompt = '';
             // 生成前同步提示词 → 各选择器状态（确保粘贴的 LoRA 触发词能被检测到）
-            if (typeof syncPickerStatesFromPrompt === 'function') {
+            if (!queuedPrompt && typeof syncPickerStatesFromPrompt === 'function') {
                 syncPickerStatesFromPrompt();
             }
             // 方案功能：如果 🎲 开关已开启，每次生成前自动应用激活方案
-            if (typeof RandomPrompt !== 'undefined' && RandomPrompt.isRandomEnabled()) {
+            if (!queuedPrompt && typeof RandomPrompt !== 'undefined' && RandomPrompt.isRandomEnabled()) {
                 const randomResult = await RandomPrompt.applyAutoRandom();
                 if (randomResult && randomResult.positive) {
                     const promptEl = document.getElementById('prompt');
@@ -2247,10 +2421,10 @@
                 }
             }
             
-            const prompt = document.getElementById('prompt').value.trim();
+            const prompt = (queuedPrompt || document.getElementById('prompt').value).trim();
             if (!prompt) return alert("请输入提示词");
             // 在线API 引擎：走多协议在线分发器（/api/online-image）
-            if (currentEngine === 'cloud') return handleRenderCloud();
+            if (currentEngine === 'cloud') return handleRenderCloud(prompt);
             // 生成时剔除 LoRA 触发词：触发词用于提示词框显示，但不应送到 ComfyUI 作为文字提示
             let cleanPrompt = prompt;
             if (typeof loraState !== 'undefined' && typeof _loraCollectTriggerWords === 'function') {
@@ -2535,6 +2709,8 @@
                         engine: currentEngine,
                     }
                 };
+                window.__chatGenRecords = window.__chatGenRecords || [];
+                window.__chatGenRecords.unshift(record);
                 // 先把卡片渲染到展示区(不阻塞在历史保存之后)
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
                 CardProgress.update(placeholder, { status: 'complete' });
@@ -2545,6 +2721,13 @@
                     if (tempCard) {
                         tempCard.style.aspectRatio = _aspectRatio;
                         const _fullImg = tempCard.querySelector('img');
+                        if (_fullImg) {
+                            _fullImg.style.width = '100%';
+                            _fullImg.style.height = 'auto';
+                            _fullImg.style.aspectRatio = _aspectRatio;
+                            _fullImg.style.objectFit = 'contain';
+                            _fullImg.style.background = '#101820';
+                        }
                         if (_fullImg && localUrls[0]) {
                             const progress = placeholder.querySelector('.card-progress');
                             if (progress) progress.remove();
@@ -2591,6 +2774,7 @@
                     window.__autoGenNotifyError(e.message || '生成失败');
                 } else {
                     alert(e.message || "生成失败");
+                    window.dispatchEvent(new CustomEvent('studio-gen-failed'));
                 }
             } finally {
                 setTimeout(() => hideProgress(), 600);
@@ -2750,19 +2934,32 @@
             cloudBuildModelMenu();
         }
 
+        function applyCloudProviders(list, persist) {
+            _cloudProviders = list || [];
+            if (persist) {
+                try { localStorage.setItem('zimage_cloud_providers', JSON.stringify(_cloudProviders)); } catch (e) {}
+            }
+            if (!_cloudProviders.find(function (p) { return p.id === _cloudProviderId; }) && _cloudProviders.length) {
+                _cloudProviderId = _cloudProviders[0].id;
+            }
+            cloudBuildProviderMenu();
+            const picked = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
+            const label = document.getElementById('cloudProviderText');
+            if (label && picked) label.textContent = picked.name || picked.id;
+        }
         async function cloudLoadProviders() {
+            try {
+                const cached = JSON.parse(localStorage.getItem('zimage_cloud_providers') || 'null');
+                if (Array.isArray(cached) && cached.length) applyCloudProviders(cached, false);
+            } catch (e) {}
             try {
                 const res = await fetch('/api/providers');
                 if (!res.ok) return;
                 const data = await res.json();
                 const all = data.providers || [];
-                _cloudProviders = all.filter(function (p) {
+                applyCloudProviders(all.filter(function (p) {
                     return p.enabled && ((p.image_models && p.image_models.length > 0) || ['modelscope', 'jimeng'].indexOf(p.id) >= 0);
-                });
-                if (!_cloudProviders.find(function (p) { return p.id === _cloudProviderId; }) && _cloudProviders.length) {
-                    _cloudProviderId = _cloudProviders[0].id;
-                }
-                cloudBuildProviderMenu();
+                }), true);
                 await cloudRefreshModels();
             } catch (e) {
                 console.error('[cloud] 加载平台失败:', e);
@@ -2778,11 +2975,12 @@
                 const sm = localStorage.getItem('zimage_cloud_model');
                 if (sm) _cloudModel = sm;
             } catch (e) {}
+            const _cgc = document.getElementById('cloudGenControls');
+            if (_cgc) _cgc.innerHTML = cloudGenControlsHtml();
             await cloudLoadProviders();
             const p = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
             const t = document.getElementById('cloudProviderText');
             if (t && p) t.textContent = p.name || p.id;
-            const _cgc = document.getElementById('cloudGenControls');
             if (_cgc) _cgc.innerHTML = cloudGenControlsHtml();
         }
 
@@ -2794,9 +2992,9 @@
             }, 0);
         }, true);
 
-        async function handleRenderCloud() {
+        async function handleRenderCloud(explicitPrompt) {
             const promptEl = document.getElementById('prompt');
-            const prompt = ((promptEl && promptEl.value) || '').trim();
+            const prompt = String(explicitPrompt || ((promptEl && promptEl.value) || '')).trim();
             if (!prompt) { alert('请输入提示词'); return; }
             if (!_cloudProviderId) { alert('请先选择在线平台'); return; }
             startProgress();
@@ -2822,7 +3020,12 @@
                 let _simPct = 0;
                 _cloudSimTimer = setInterval(function () {
                     _simPct = Math.min(95, _simPct + Math.random() * 7 + 2);
-                    if (_pctEl) { _pctEl.style.visibility = 'visible'; _pctEl.textContent = Math.floor(_simPct) + '%'; }
+                    const _pctText = Math.floor(_simPct) + '%';
+                    if (_pctEl) { _pctEl.style.visibility = 'visible'; _pctEl.textContent = _pctText; }
+                    (window.__chatPendingCards || []).forEach(function (card) {
+                        const _chatPct = card && card.querySelector('.card-progress-pct');
+                        if (_chatPct) { _chatPct.style.visibility = 'visible'; _chatPct.textContent = _pctText; }
+                    });
                 }, 600);
             }
             try {
@@ -2853,14 +3056,30 @@
                 if (typeof CardProgress !== 'undefined') CardProgress.update(placeholder, { status: 'complete' });
                 const imgs = (data.images || []).filter(Boolean);
                 if (!imgs.length) throw new Error('未返回图片');
+                const _cloudGc = (typeof GenerationControls !== 'undefined' && GenerationControls.getState) ? GenerationControls.getState() : {};
+                const _cloudSz = (typeof getAnimaSize === 'function') ? getAnimaSize() : {};
                 const record = {
                     timestamp: data.timestamp || Date.now(),
                     prompt: prompt,
                     images: imgs,
                     type: 'zimage',
                     model: (_cloudProviderId || '') + (data.model ? ' · ' + data.model : ''),
-                    genParams: { engine: 'cloud', provider: _cloudProviderId, model: _cloudModel, size: size, quality: _cloudQuality }
+                    genParams: {
+                        engine: 'cloud',
+                        provider: _cloudProviderId,
+                        model: _cloudModel,
+                        size: size,
+                        width: _cloudSz.width,
+                        height: _cloudSz.height,
+                        ratioW: _cloudGc.ratioW,
+                        ratioH: _cloudGc.ratioH,
+                        resolution: _cloudGc.res,
+                        batchCount: _cloudGc.batchCount,
+                        quality: _cloudQuality
+                    }
                 };
+                window.__chatGenRecords = window.__chatGenRecords || [];
+                window.__chatGenRecords.unshift(record);
                 if (window.GalleryList) GalleryList.pushNewImage(record, { _skipRender: true });
                 if (placeholder.parentNode && window.GalleryCard && typeof window.GalleryCard.render === 'function') {
                     const tempContainer = document.createElement('div');
@@ -2869,6 +3088,13 @@
                     if (tempCard) {
                         tempCard.style.aspectRatio = _aspectRatio;
                         const _fullImg = tempCard.querySelector('img');
+                        if (_fullImg) {
+                            _fullImg.style.width = '100%';
+                            _fullImg.style.height = 'auto';
+                            _fullImg.style.aspectRatio = _aspectRatio;
+                            _fullImg.style.objectFit = 'contain';
+                            _fullImg.style.background = '#101820';
+                        }
                         if (_fullImg && imgs[0]) {
                             const progress = placeholder.querySelector('.card-progress');
                             if (progress) progress.remove();
@@ -2903,10 +3129,12 @@
                 if (btn) setLoading(false);
                 hideProgress();
                 alert(e.message || '生成失败');
+                window.dispatchEvent(new CustomEvent('studio-gen-failed'));
             }
         }
 
         // 初始化：若上次停留在线引擎，自动展开并加载平台
+        if (window.GenerationControls) GenerationControls.init();
         if (typeof currentEngine !== 'undefined' && currentEngine === 'cloud') {
             switchEngine('cloud');
         }
@@ -2915,8 +3143,9 @@
             const btn = document.getElementById('mainGenBtn');
             if (!btn) return;
             btn.disabled = !!isLoading;
+            const label = document.body.classList.contains('chat-layout') ? '发送' : '生成';
             if (isLoading) { btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="btn-text">处理中</span>'; }
-            else { btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400"></i><span class="btn-text">生成</span>'; }
+            else { btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400"></i><span id="btnText" class="btn-text">' + label + '</span>'; }
             try { if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons(); } catch(e) {}
         }
 
@@ -3236,6 +3465,7 @@
         const savedWf = (savedRaw && LEGACY_WF_MAP[savedRaw]) || savedRaw;
         if (savedWf && (savedWf.startsWith('text2image/') || LEGACY_WF_MAP[savedRaw])) switchWorkflow(savedWf);
         else updateParamsUI();
+        loadBuiltinWorkflowMeta();
 
         // ============================================================
         //  LoRA 管理器（已提取为独立模块 static/modules/lora-manager.js）
@@ -3468,14 +3698,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             const promptEl = document.getElementById('prompt');
             if (promptEl) {
-                // input 事件（打字/粘贴等）：立即同步，不加防抖
+                // 打字时的同步由 schedulePromptSync 合并，避免每个字都扫描角色库和重绘标签
                 promptEl.addEventListener('input', () => {
-                    if (typeof syncPickerStatesFromPrompt === 'function') {
-                        syncPickerStatesFromPrompt();
-                    }
-                    if (typeof PromptTranslateUI !== 'undefined' && typeof PromptTranslateUI.updateVisibility === 'function') {
-                        PromptTranslateUI.updateVisibility();
-                    }
+                    if (promptEl._composing) return;
+                    if (typeof window.schedulePromptSync === 'function') window.schedulePromptSync();
                 });
                 // 额外保底：paste 事件
                 promptEl.addEventListener('paste', () => {
@@ -3500,22 +3726,13 @@
             }
         });
 
-        window.onload = () => { 
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                try { lucide.createIcons(); } catch (e) {}
+            }
             if (typeof window.updatePromptTags === 'function') updatePromptTags();
-            spPickerInit(); 
-            spmInit(); 
-            
-            // 初始化生成参数控制
-            GenerationControls.init();
-
-            // 修正比例/分辨率显示与生成不一致：
-            // GenerationControls.init() 已从 localStorage 恢复上次保存的 ratio/res 到 _state，
-            // 但 init() 不会重绘参数 UI，而顶部脚本在 init 之前已用默认值(9:16)渲染了比例下拉框。
-            // 这里在 init 之后重新渲染参数 UI，使 ratioText/分辨率显示与 _state（即实际生成值）保持一致。
-            updateParamsUI();
-
-            // 从后端动态加载内置工作流元数据（驱动模型菜单 / 模型前缀 / LoRA 过滤）
-            loadBuiltinWorkflowMeta();
+            if (typeof spPickerInit === 'function') spPickerInit();
+            if (typeof spmInit === 'function') spmInit();
 
             // 初始化翻译 Toggle
             if (typeof PromptTranslateUI !== 'undefined') {
@@ -3723,7 +3940,7 @@
             // [已暂时停用] 时间轴功能暂不稳定，先不接入使用；保留模块与脚本，需要时取消下一行注释即可恢复。
             // if (window.GalleryTimeline) GalleryTimeline.attach({ container: '#masonry' });
 
-        };
+        });
     </script>
 <!-- ── 反推设置面板（悬浮模态：缩略图条 + 三视图无缝切换） ── -->
     <div id="reverseImageMount"></div>
@@ -3754,6 +3971,676 @@
                 if (typeof applyAssetToRef === 'function') applyAssetToRef(url, name);
             }
         });
+    </script>
+    <script>
+        if (new URLSearchParams(location.search).get('chat') === '1') {
+            document.body.classList.add('chat-layout');
+            const topbar = document.getElementById('chatTopbar');
+            const thread = document.createElement('div');
+            thread.id = 'chatThread';
+            if (topbar) topbar.after(thread);
+            else document.body.insertBefore(thread, document.body.firstChild);
+            const drawer = document.createElement('div');
+            drawer.className = 'chat-drawer';
+            drawer.innerHTML = '<button type="button" class="chat-drawer-tab">生成图</button><div class="chat-drawer-body"></div>';
+            const drawerBody = drawer.querySelector('.chat-drawer-body');
+            const toolbar = document.getElementById('toolbarFixed');
+            const gallery = document.querySelector('main');
+            function parkGalleryChrome(el) {
+                if (el && el.parentElement !== drawerBody) drawerBody.appendChild(el);
+            }
+            parkGalleryChrome(toolbar);
+            parkGalleryChrome(gallery);
+            parkGalleryChrome(document.querySelector('.history-bulk-toolbar'));
+            parkGalleryChrome(document.getElementById('galleryScrollToTop'));
+            document.body.appendChild(drawer);
+            new MutationObserver(() => {
+                parkGalleryChrome(document.querySelector('.history-bulk-toolbar'));
+                parkGalleryChrome(document.getElementById('galleryScrollToTop'));
+            }).observe(document.body, { childList: true });
+            drawer.querySelector('.chat-drawer-tab').onclick = () => {
+                const open = drawer.classList.toggle('open');
+                drawer.querySelector('.chat-drawer-tab').textContent = open ? '收起生成图' : '生成图';
+            };
+            const seen = new Set();
+            let armed = false;
+            let conversationId = '';
+            let chatBusy = false;
+            function chatUserId() {
+                try {
+                    const user = JSON.parse(localStorage.getItem('xy_auth_user') || 'null');
+                    if (user && user.username) return String(user.username);
+                } catch (e) {}
+                return 'anonymous';
+            }
+            const CID_KEY = 'studio_chat_cid:' + chatUserId();
+            function chatHeaders() {
+                return { 'Content-Type': 'application/json', 'X-User-ID': chatUserId() };
+            }
+            function rememberConversation(id) {
+                if (!id) return;
+                conversationId = id;
+                localStorage.setItem(CID_KEY, id);
+            }
+            const AGENT_GUIDE = '你是创作助手，用中文和用户聊天。只有用户明确要求画图、出图、改图或生成图片时，才在回复最后单独一行输出 IMAGE {"prompt":"给绘图模型的完整画面描述"}。不要输出代码块。普通聊天不要输出 IMAGE，也不要声称图片已经生成。模型、比例、角色、画师、参考图和 LoRA 由页面上的生图控制台决定，你只负责写出画面描述。';
+            const promptBox = document.getElementById('prompt');
+            if (promptBox) promptBox.dataset.placeholder = '和 AI 对话，Enter 发送。要出图时直接说';
+            const CHAT_PICK_KEY = 'studio_chat_target';
+            let chatProviders = [];
+            function savedChatTarget() {
+                try { return JSON.parse(localStorage.getItem(CHAT_PICK_KEY) || '{}'); } catch (e) { return {}; }
+            }
+            function fillChatModels() {
+                const providerPick = document.getElementById('chatProviderPick');
+                const modelPick = document.getElementById('chatModelPick');
+                if (!providerPick || !modelPick) return;
+                const current = chatProviders.find(item => item.id === providerPick.value) || chatProviders[0];
+                modelPick.innerHTML = (current?.models || []).map(model => '<option value="' + model.replace(/"/g, '&quot;') + '">' + model + '</option>').join('');
+                const saved = savedChatTarget();
+                if (current && saved.provider === current.id && (current.models || []).includes(saved.model)) modelPick.value = saved.model;
+            }
+            function rememberChatTarget() {
+                const providerPick = document.getElementById('chatProviderPick');
+                const modelPick = document.getElementById('chatModelPick');
+                if (!providerPick || !modelPick) return;
+                localStorage.setItem(CHAT_PICK_KEY, JSON.stringify({ provider: providerPick.value, model: modelPick.value }));
+            }
+            async function loadChatModels() {
+                const providerPick = document.getElementById('chatProviderPick');
+                if (!providerPick) return;
+                try {
+                    const data = await fetch('/api/config').then(res => res.json());
+                    const list = [];
+                    (data.api_providers || []).forEach(item => {
+                        if (item.enabled === false || !(item.chat_models || []).length) return;
+                        list.push({ id: item.id, name: item.name || item.id, models: item.chat_models, primary: !!item.primary });
+                    });
+                    if (!list.some(item => item.id === 'comfly') && data.has_api_key) {
+                        list.unshift({ id: 'comfly', name: '默认接口', models: data.chat_models || [data.chat_model].filter(Boolean), primary: false });
+                    }
+                    if (!list.some(item => item.id === 'modelscope') && data.has_ms_key && (data.ms_chat_models || []).length) {
+                        list.push({ id: 'modelscope', name: 'ModelScope', models: data.ms_chat_models, primary: false });
+                    }
+                    chatProviders = list;
+                    try { localStorage.setItem('studio_chat_providers', JSON.stringify(list)); } catch (e) {}
+                    const saved = savedChatTarget();
+                    const preferred = list.find(item => item.id === saved.provider) || list.find(item => item.primary) || list[0];
+                    providerPick.innerHTML = list.map(item => '<option value="' + item.id + '">' + item.name + '</option>').join('');
+                    if (preferred) providerPick.value = preferred.id;
+                    fillChatModels();
+                    rememberChatTarget();
+                } catch (e) {
+                    providerPick.innerHTML = '<option value="comfly">默认接口</option>';
+                }
+            }
+            document.getElementById('chatProviderPick')?.addEventListener('change', () => { fillChatModels(); rememberChatTarget(); });
+            document.getElementById('chatModelPick')?.addEventListener('change', rememberChatTarget);
+            loadChatModels();
+            function selectedChatPreset() {
+                const id = window.spPickerSelectedId || '';
+                if (!id || id === 'default') return null;
+                return (window.spPickerPresets || []).find(item => item.id === id) || { id, name: '当前预设' };
+            }
+            function chatSystemPrompt() {
+                if (!window.studioPresetInject) return AGENT_GUIDE;
+                const preset = (window.spPickerPresets || []).find(item => item.id === window.spPickerSelectedId);
+                const rules = preset && preset.system_prompt ? String(preset.system_prompt).trim() : '';
+                if (!rules) return AGENT_GUIDE;
+                return rules + '\n\n你同时在和用户对话。用中文简短回应。用户描述想画的画面时，按上面的预设规则写出完整绘图提示词，并在回复最后单独一行输出 IMAGE {"prompt":"完整提示词"}。不要使用代码块。普通闲聊不要输出 IMAGE，也不要声称图片已经生成。模型、比例、角色、画师、参考图和 LoRA 由页面上的生图控制台决定。';
+            }
+            window.refreshChatPresetHint = function () {
+                const preset = window.studioPresetInject ? selectedChatPreset() : null;
+                if (!promptBox) return;
+                promptBox.dataset.placeholder = preset
+                    ? '预设「' + preset.name + '」已注入。描述画面后发送，会按预设写提示词并出图'
+                    : '和 AI 对话，Enter 发送。打开「AI 生成」后才会注入当前提示词预设';
+                const empty = thread.querySelector('.chat-empty');
+                if (empty && !thread.querySelector('.chat-row')) paintEmpty();
+            };
+            function paintEmpty() {
+                const preset = window.studioPresetInject ? selectedChatPreset() : null;
+                const hint = preset
+                    ? '「AI 生成」已打开，当前预设「' + preset.name + '」会注入对话。在下面写下想要的画面，发送后会按这个预设写出提示词并出图。'
+                    : '这里和你配置的 AI 对话。打开「AI 生成」后，当前提示词预设才会注入对话。点「出图」则按当前提示词直接生成。';
+                if (!thread.querySelector('.chat-row')) thread.innerHTML = '<div class="chat-empty">' + hint + '</div>';
+            }
+            function scrollThread() { thread.scrollTop = thread.scrollHeight; }
+            function addUser(text) {
+                const empty = thread.querySelector('.chat-empty');
+                if (empty) empty.remove();
+                const row = document.createElement('div');
+                row.className = 'chat-row user';
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-user';
+                bubble.textContent = text;
+                row.appendChild(bubble);
+                thread.appendChild(row);
+                scrollThread();
+            }
+            function addAssistant() {
+                const empty = thread.querySelector('.chat-empty');
+                if (empty) empty.remove();
+                const row = document.createElement('div');
+                row.className = 'chat-row';
+                const stack = document.createElement('div');
+                stack.className = 'chat-stack';
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-asst';
+                stack.appendChild(bubble);
+                row.appendChild(stack);
+                thread.appendChild(row);
+                scrollThread();
+                return bubble;
+            }
+            function visibleReply(raw) {
+                return String(raw || '').replace(/\n?IMAGE\s*\{[\s\S]*\}\s*$/i, '').trim();
+            }
+            function splitChatReply(raw) {
+                const spec = readImageSpec(raw);
+                let reply = visibleReply(raw);
+                let prompt = spec && spec.prompt ? String(spec.prompt).trim() : '';
+                if (prompt && reply.includes(prompt)) reply = reply.replace(prompt, '');
+                const marked = reply.split(/\n\s*\*{3,}\s*\n/);
+                if (marked.length >= 2) {
+                    reply = marked[0];
+                    if (!prompt) prompt = marked.slice(1).join('\n\n').trim();
+                }
+                reply = reply.replace(/```[\s\S]*?```/g, '').replace(/\n?\*{3,}\s*$/g, '').trim();
+                if (!prompt) {
+                    const chunks = reply.split(/\n{2,}/);
+                    const last = (chunks[chunks.length - 1] || '').trim();
+                    if (chunks.length >= 2 && last.length > 180) {
+                        prompt = last;
+                        reply = chunks.slice(0, -1).join('\n\n').trim();
+                    }
+                }
+                return { reply, prompt };
+            }
+            function paintAssistant(bubble, raw) {
+                const parts = splitChatReply(raw);
+                Array.from(bubble.childNodes).forEach(node => {
+                    if (node.nodeType === 3) node.remove();
+                });
+                let replyEl = bubble.querySelector('.chat-reply');
+                if (!replyEl) {
+                    replyEl = document.createElement('div');
+                    replyEl.className = 'chat-reply';
+                    bubble.insertBefore(replyEl, bubble.firstChild);
+                }
+                replyEl.textContent = parts.reply || (parts.prompt ? '' : '…');
+                replyEl.style.display = replyEl.textContent ? '' : 'none';
+                if (!parts.prompt) {
+                    const box = chatActionBox(bubble);
+                    if (box && !bubble._genRecord) box.remove();
+                    return;
+                }
+                ensureChatActions(bubble, parts.prompt);
+            }
+            function conversationCopyText() {
+                const lines = [];
+                thread.querySelectorAll('.chat-row').forEach(row => {
+                    if (row.classList.contains('user')) {
+                        const text = (row.querySelector('.chat-user')?.innerText || '').trim();
+                        if (text) lines.push('用户：\n' + text);
+                        return;
+                    }
+                    const reply = (row.querySelector('.chat-reply')?.innerText || '').trim();
+                    const prompt = (row.querySelector('.chat-prompt-body')?.textContent || '').trim();
+                    if (reply) lines.push('助手：\n' + reply);
+                    if (prompt) lines.push('提示词：\n' + prompt);
+                });
+                return lines.join('\n\n');
+            }
+            const CHAT_PROMPT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            const CHAT_COPY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+            const CHAT_CHECK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+            function chatActionBox(bubble) {
+                const stack = bubble.parentElement;
+                return (stack && stack.querySelector(':scope > .chat-prompt')) || bubble.querySelector('.chat-prompt');
+            }
+            function ensureChatActions(bubble, promptText) {
+                let box = chatActionBox(bubble);
+                if (!box) {
+                    box = document.createElement('div');
+                    box.className = 'chat-prompt';
+                    box.innerHTML = '<div class="chat-prompt-bar"><button type="button" class="chat-prompt-toggle" data-tip="提示词" aria-label="提示词">' + CHAT_PROMPT_ICON + '</button><button type="button" class="chat-prompt-copy" data-tip="复制这次对话" aria-label="复制这次对话">' + CHAT_COPY_ICON + '</button></div><pre class="chat-prompt-body" hidden></pre>';
+                    const toggle = box.querySelector('.chat-prompt-toggle');
+                    const copyBtn = box.querySelector('.chat-prompt-copy');
+                    const body = box.querySelector('.chat-prompt-body');
+                    toggle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const text = (body.textContent || '').trim();
+                        const record = bubble._genRecord || chatRecordForBubble(bubble);
+                        const shown = record ? Object.assign({}, record) : { prompt: text };
+                        if (!shown.prompt) shown.prompt = text;
+                        if (window.GalleryActions && typeof GalleryActions.viewPrompt === 'function') {
+                            GalleryActions.viewPrompt(shown, e);
+                        } else if (window.PromptPanel) {
+                            PromptPanel.open({
+                                cn: shown.prompt,
+                                negative: shown.negative_prompt || '',
+                                genParams: shown.genParams || null,
+                                recordMeta: { type: shown.type, model: shown.model, seed: shown.seed },
+                                anchor: toggle
+                            });
+                        }
+                    });
+                    copyBtn.addEventListener('click', async () => {
+                        const text = conversationCopyText();
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            copyBtn.innerHTML = CHAT_CHECK_ICON;
+                            copyBtn.dataset.tip = '已复制';
+                        } catch (e) {
+                            copyBtn.dataset.tip = '复制失败';
+                        }
+                        setTimeout(() => {
+                            copyBtn.innerHTML = CHAT_COPY_ICON;
+                            copyBtn.dataset.tip = '复制这次对话';
+                        }, 1200);
+                    });
+                }
+                if (promptText) box.querySelector('.chat-prompt-body').textContent = promptText;
+                const stack = bubble.parentElement && bubble.parentElement.classList.contains('chat-stack') ? bubble.parentElement : bubble;
+                stack.appendChild(box);
+            }
+            function mediaPath(url) {
+                const raw = String(url || '');
+                try {
+                    const parsed = new URL(raw, location.origin);
+                    const inner = parsed.searchParams.get('url') || parsed.searchParams.get('filename') || '';
+                    if (inner && (parsed.pathname === '/api/media-preview' || parsed.pathname === '/api/comfyui/view')) return mediaPath(inner);
+                    return decodeURIComponent(parsed.pathname);
+                } catch (e) {
+                    return raw.split('?')[0];
+                }
+            }
+            function chatRecordForBubble(bubble) {
+                if (bubble._genRecord) return bubble._genRecord;
+                const paths = [...bubble.querySelectorAll('img')].map(img => mediaPath(img.getAttribute('data-original-src') || img.getAttribute('src') || '')).filter(Boolean);
+                const history = []
+                    .concat(window.__chatGenRecords || [])
+                    .concat((window.GalleryList && GalleryList.allHistory) || []);
+                if (!paths.length) return null;
+                return history.find(rec => (rec.images || []).some(url => paths.includes(mediaPath(url)))) || null;
+            }
+            function readImageSpec(raw) {
+                const match = String(raw || '').match(/IMAGE\s*(\{[\s\S]*\})\s*$/i);
+                if (!match) return null;
+                try {
+                    const spec = JSON.parse(match[1]);
+                    if (!spec.prompt) return null;
+                    return spec;
+                } catch (e) { return null; }
+            }
+            function markExistingImages() {
+                document.getElementById('masonry')?.querySelectorAll('img').forEach(img => {
+                    const src = img.currentSrc || img.src;
+                    if (src) seen.add(src);
+                });
+            }
+            function mirrorChatProgress() {
+                if (!window.CardProgress || CardProgress.__chatMirror) return;
+                const orig = CardProgress.update;
+                CardProgress.update = function (card, status) {
+                    orig(card, status);
+                    (window.__chatPendingCards || []).forEach(function (mirror) {
+                        if (mirror && mirror !== card && mirror.isConnected) orig(mirror, status);
+                    });
+                };
+                CardProgress.__chatMirror = true;
+            }
+            function chatBatchCount() {
+                const state = window.GenerationControls && GenerationControls.getState && GenerationControls.getState();
+                const n = Math.round(Number(state && state.batchCount) || 1);
+                return Math.min(4, Math.max(1, n));
+            }
+            function showPending(host) {
+                mirrorChatProgress();
+                const count = chatBatchCount();
+                const row = document.createElement('div');
+                row.className = 'chat-imgs';
+                const ratio = chatImageRatio();
+                const cards = [];
+                for (let i = 0; i < count; i++) {
+                    const box = document.createElement('div');
+                    box.className = 'chat-pending';
+                    box.dataset.pending = '1';
+                    box.style.aspectRatio = ratio;
+                    if (window.CardProgress) {
+                        box.innerHTML = CardProgress.HTML;
+                        CardProgress.update(box, { status: 'started' });
+                    } else {
+                        box.textContent = '正在生图';
+                    }
+                    row.appendChild(box);
+                    cards.push(box);
+                }
+                host.appendChild(row);
+                window.__chatPendingCards = cards;
+                scrollThread();
+            }
+            function bindZoom(img) {
+                img.style.cursor = 'zoom-in';
+                img.title = '查看大图';
+                img.addEventListener('click', () => {
+                    const src = img.getAttribute('data-original-src') || img.getAttribute('src') || img.src;
+                    if (src && typeof window.openLightbox === 'function') window.openLightbox(src);
+                });
+            }
+            function chatPreviewSrc(src) {
+                const raw = String(src || '');
+                if (!raw || raw.startsWith('data:') || raw.startsWith('blob:') || raw.includes('/api/media-preview')) return raw;
+                try {
+                    const parsed = new URL(raw, location.origin);
+                    if (parsed.pathname === '/api/comfyui/view') {
+                        if (!parsed.searchParams.get('w')) parsed.searchParams.set('w', '768');
+                        return parsed.pathname + '?' + parsed.searchParams.toString();
+                    }
+                    const path = decodeURIComponent(parsed.pathname);
+                    if (path.startsWith('/output/') || path.startsWith('/assets/')) {
+                        return '/api/media-preview?w=768&url=' + encodeURIComponent(path);
+                    }
+                } catch (e) {}
+                return raw;
+            }
+            async function rememberImage(src) {
+                if (!src) return;
+                if (!conversationId) {
+                    try {
+                        const created = await fetch('/api/conversations', {
+                            method: 'POST',
+                            headers: chatHeaders(),
+                            body: JSON.stringify({ title: '对话生图' })
+                        });
+                        if (created.ok) {
+                            const data = await created.json();
+                            rememberConversation(data.conversation && data.conversation.id);
+                        }
+                    } catch (e) {}
+                }
+                if (!conversationId) return;
+                fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/images', {
+                    method: 'POST',
+                    headers: chatHeaders(),
+                    body: JSON.stringify({ image_urls: [src] })
+                }).catch(() => {});
+            }
+            function chatImageRatio() {
+                if (typeof getAnimaSize !== 'function') return '1 / 1';
+                const size = getAnimaSize() || {};
+                const w = Number(size.width) || 1;
+                const h = Number(size.height) || 1;
+                return w + ' / ' + h;
+            }
+            function mountChatImage(parent, src, ratio) {
+                const img = document.createElement('img');
+                img.alt = '生成图';
+                img.decoding = 'async';
+                if (ratio) img.style.aspectRatio = ratio;
+                else img.addEventListener('load', function () {
+                    if (img.naturalWidth && img.naturalHeight) img.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+                }, { once: true });
+                img.setAttribute('data-original-src', src);
+                img.src = chatPreviewSrc(src);
+                bindZoom(img);
+                const slot = parent.querySelector(':scope > .chat-imgs [data-pending]');
+                if (slot) {
+                    slot.replaceWith(img);
+                    window.__chatPendingCards = (window.__chatPendingCards || []).filter(card => card !== slot && card.isConnected);
+                } else {
+                    let row = parent.querySelector(':scope > .chat-imgs');
+                    if (!row) {
+                        row = document.createElement('div');
+                        row.className = 'chat-imgs';
+                        parent.appendChild(row);
+                    }
+                    row.appendChild(img);
+                }
+                const record = chatRecordForBubble(parent);
+                if (record) parent._genRecord = record;
+                ensureChatActions(parent, (record && record.prompt) || '');
+                return img;
+            }
+            function addImage(src) {
+                if (!src || seen.has(src)) return;
+                seen.add(src);
+                const pending = thread.querySelector('[data-pending]');
+                const host = pending && pending.closest('.chat-asst');
+                mountChatImage(host || addAssistant(), src, chatImageRatio());
+                rememberImage(src);
+                scrollThread();
+            }
+            function renderSavedMessages(messages) {
+                thread.innerHTML = '';
+                (messages || []).forEach(msg => {
+                    if (msg.role === 'user') {
+                        addUser(msg.content || '');
+                        return;
+                    }
+                    if (msg.role !== 'assistant') return;
+                    const bubble = addAssistant();
+                    paintAssistant(bubble, msg.content || '');
+                    (msg.image_urls || []).forEach(src => {
+                        if (!src || seen.has(src)) return;
+                        seen.add(src);
+                        mountChatImage(bubble, src);
+                    });
+                });
+                if (!thread.querySelector('.chat-row')) paintEmpty();
+                else scrollThread();
+            }
+            function escapeChat(text) {
+                return String(text || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+            }
+            function startNewChat() {
+                conversationId = '';
+                localStorage.removeItem(CID_KEY);
+                seen.clear();
+                thread.innerHTML = '';
+                paintEmpty();
+                document.getElementById('chatHistory')?.classList.remove('open');
+            }
+            async function openHistory() {
+                const panel = document.getElementById('chatHistory');
+                if (!panel) return;
+                const open = panel.classList.toggle('open');
+                if (!open) return;
+                panel.innerHTML = '<div class="chat-history-empty">正在读取</div>';
+                try {
+                    const res = await fetch('/api/conversations', { headers: chatHeaders() });
+                    const data = res.ok ? await res.json() : { conversations: [] };
+                    const list = data.conversations || [];
+                    if (!list.length) {
+                        panel.innerHTML = '<div class="chat-history-empty">还没有历史对话</div>';
+                        return;
+                    }
+                    panel.innerHTML = list.map(item => '<button type="button" class="chat-history-item' + (item.id === conversationId ? ' active' : '') + '" data-cid="' + escapeChat(item.id) + '"><span class="chat-history-title">' + escapeChat(item.title || '新对话') + '</span><span class="chat-history-sub">' + escapeChat(splitChatReply(item.last_message || '').reply || visibleReply(item.last_message || '')) + '</span></button>').join('');
+                    panel.querySelectorAll('[data-cid]').forEach(btn => {
+                        btn.onclick = () => loadConversation(btn.getAttribute('data-cid'));
+                    });
+                } catch (e) {
+                    panel.innerHTML = '<div class="chat-history-empty">历史读取失败</div>';
+                }
+            }
+            async function loadConversation(id) {
+                if (!id) return;
+                const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: chatHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                const conv = data.conversation || {};
+                rememberConversation(conv.id || id);
+                seen.clear();
+                renderSavedMessages(conv.messages || []);
+                document.getElementById('chatHistory')?.classList.remove('open');
+            }
+            document.getElementById('chatNewBtn')?.addEventListener('click', startNewChat);
+            document.getElementById('chatHistoryBtn')?.addEventListener('click', openHistory);
+            async function restoreChat() {
+                const id = localStorage.getItem(CID_KEY);
+                if (!id) { paintEmpty(); return; }
+                try {
+                    const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: chatHeaders() });
+                    if (!res.ok) { paintEmpty(); return; }
+                    const data = await res.json();
+                    const conv = data.conversation || {};
+                    rememberConversation(conv.id || id);
+                    if (conv.title) document.getElementById('chatTitle')?.replaceChildren?.(document.createTextNode(conv.title));
+                    renderSavedMessages(conv.messages || []);
+                } catch (e) {
+                    paintEmpty();
+                }
+            }
+            async function drawWithConsole(spec) {
+                if (!promptBox) return;
+                window.__chatRenderPrompt = spec.prompt || '';
+                armed = true;
+                markExistingImages();
+                if (typeof handleRender === 'function') await handleRender();
+            }
+            async function sendChat() {
+                const text = ((promptBox && promptBox.value) || '').trim();
+                if (!text || chatBusy) return;
+                chatBusy = true;
+                const sendBtn = document.getElementById('mainGenBtn');
+                if (sendBtn) sendBtn.disabled = true;
+                promptBox.value = '';
+                promptBox.dispatchEvent(new Event('input', { bubbles: true }));
+                addUser(text);
+                const bubble = addAssistant();
+                bubble.textContent = '…';
+                let full = '';
+                try {
+                    const res = await fetch('/api/chat/stream', {
+                        method: 'POST',
+                        headers: chatHeaders(),
+                        body: JSON.stringify({
+                            conversation_id: conversationId,
+                            message: text,
+                            mode: 'chat',
+                            provider: document.getElementById('chatProviderPick')?.value || 'comfly',
+                            model: document.getElementById('chatProviderPick')?.value === 'modelscope' ? '' : (document.getElementById('chatModelPick')?.value || ''),
+                            ms_model: document.getElementById('chatProviderPick')?.value === 'modelscope' ? (document.getElementById('chatModelPick')?.value || '') : '',
+                            system_prompt: chatSystemPrompt()
+                        })
+                    });
+                    if (!res.ok) {
+                        let detail = '对话失败';
+                        try { detail = (await res.json()).detail || detail; } catch (e) {}
+                        const text = typeof detail === 'string' ? detail : '对话失败';
+                        const message = text.match(/"message"\s*:\s*"([^"]+)"/);
+                        throw new Error(message ? message[1] : text.slice(0, 180));
+                    }
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const events = buffer.split('\n\n');
+                        buffer = events.pop() || '';
+                        for (const eventText of events) {
+                            const line = eventText.split('\n').find(item => item.startsWith('data:'));
+                            if (!line) continue;
+                            const event = JSON.parse(line.slice(5).trim());
+                            if (event.type === 'meta' && event.conversation) rememberConversation(event.conversation.id || conversationId);
+                            if (event.type === 'delta') {
+                                full += event.delta || '';
+                                paintAssistant(bubble, full);
+                                scrollThread();
+                            }
+                            if (event.type === 'error') throw new Error(event.detail || '对话失败');
+                            if (event.type === 'done' && event.conversation) {
+                                rememberConversation(event.conversation.id || conversationId);
+                                const last = (event.conversation.messages || []).slice(-1)[0];
+                                if (last && last.content) full = last.content;
+                            }
+                        }
+                    }
+                    paintAssistant(bubble, full || '好的。');
+                    const spec = readImageSpec(full);
+                    if (spec) {
+                        const before = thread.querySelectorAll('.chat-imgs img').length;
+                        showPending(bubble);
+                        await drawWithConsole(spec);
+                        clearSparePending(before);
+                    }
+                } catch (err) {
+                    bubble.textContent = err.message || '对话失败';
+                } finally {
+                    chatBusy = false;
+                    if (sendBtn) sendBtn.disabled = false;
+                }
+            }
+            const genBtn = document.getElementById('mainGenBtn');
+            const genLabel = document.getElementById('btnText');
+            if (genLabel) genLabel.textContent = '发送';
+            if (genBtn) {
+                genBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    sendChat();
+                }, true);
+                const manual = document.createElement('button');
+                manual.type = 'button';
+                manual.className = 'h-8 px-3 anima-ctrl';
+                manual.title = '按当前提示词和参数直接出图';
+                manual.textContent = '出图';
+                manual.addEventListener('click', async () => {
+                    const text = ((promptBox && promptBox.value) || '').trim();
+                    if (!text) return;
+                    const bubble = addAssistant();
+                    bubble.textContent = '按当前设置直接出图';
+                    const before = thread.querySelectorAll('.chat-imgs img').length;
+                    showPending(bubble);
+                    armed = true;
+                    markExistingImages();
+                    if (typeof handleRender === 'function') await handleRender();
+                    clearSparePending(before);
+                });
+                genBtn.parentElement.insertBefore(manual, genBtn);
+            }
+            if (promptBox) {
+                promptBox.addEventListener('keydown', (e) => {
+                    if (e.isComposing || e.keyCode === 229) return;
+                    if (e.key !== 'Enter') return;
+                    if (e.shiftKey) {
+                        e.stopPropagation();
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sendChat();
+                }, true);
+            }
+            const masonry = document.getElementById('masonry');
+            if (masonry) {
+                new MutationObserver(() => {
+                    if (!armed) return;
+                    masonry.querySelectorAll('img').forEach(img => {
+                        const src = img.getAttribute('data-original-src') || img.currentSrc || img.src;
+                        if (src && !src.startsWith('data:')) addImage(src);
+                    });
+                }).observe(masonry, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+            }
+            function clearSparePending(beforeCount) {
+                if (thread.querySelectorAll('.chat-imgs img').length <= beforeCount) return;
+                thread.querySelectorAll('[data-pending]').forEach(node => node.remove());
+                window.__chatPendingCards = [];
+            }
+            window.addEventListener('studio-gen-failed', () => {
+                const cards = thread.querySelectorAll('[data-pending]');
+                cards.forEach(pending => {
+                    const label = pending.querySelector('.card-progress-label');
+                    if (label) label.textContent = '生图失败';
+                    else pending.textContent = '生图失败';
+                    pending.removeAttribute('data-pending');
+                });
+                window.__chatPendingCards = [];
+            });
+            restoreChat();
+        }
     </script>
 </body>
 </html>

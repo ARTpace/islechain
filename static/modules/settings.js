@@ -690,6 +690,13 @@ class SettingsUI {
                             </label>
                         </div>
                         <!-- 登录/退出 -->
+                        <button id="sys-switch-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;display:none;">
+                            <span class="sys-tile-txt">
+                                <span class="sys-tile-title">切换用户</span>
+                                <span class="sys-tile-sub">退出后登录另一个账号</span>
+                            </span>
+                            <span class="sys-tile-trail">切换</span>
+                        </button>
                         <button id="sys-auth-btn" class="sys-tile" style="--tile:#34d399;--tile2:#10b981;">
                             <span class="sys-tile-ico">
                                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -791,6 +798,7 @@ class SettingsUI {
     }
     
     bindEvents() {
+        this.bindAccountMenu();
         this.buttonEl.onclick = (e) => {
             e.stopPropagation();
             if (this.buttonEl.classList.contains('disabled')) return;
@@ -1208,24 +1216,87 @@ class SettingsUI {
         const trail = document.getElementById('sys-auth-trail');
         const tile = document.getElementById('sys-auth-btn');
         if (!label || !hint) return;
+        const switchBtn = document.getElementById('sys-switch-btn');
+        const accountName = document.getElementById('sidebar-account-name');
+        const accountBtn = document.getElementById('sidebar-account-btn');
         if (typeof AuthManager !== 'undefined' && AuthManager.isLoggedIn()) {
             const user = AuthManager.getUser();
             label.textContent = '退出登录';
             hint.textContent = this.escapeHtml(user.username);
             if (trail) trail.textContent = '退出';
             if (tile) tile.classList.add('sys-tile-danger');
+            if (switchBtn) switchBtn.style.display = '';
+            if (accountName) accountName.textContent = user.username || '账号';
+            if (accountBtn) accountBtn.title = '账号：' + (user.username || '');
         } else {
             label.textContent = '登录';
             hint.textContent = '未登录';
             if (trail) trail.textContent = '›';
             if (tile) tile.classList.remove('sys-tile-danger');
+            if (switchBtn) switchBtn.style.display = 'none';
+            if (accountName) accountName.textContent = '登录';
+            if (accountBtn) accountBtn.title = '登录';
+        }
+    }
+
+    bindAccountMenu() {
+        const btn = document.getElementById('sidebar-account-btn');
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        const menu = document.createElement('div');
+        menu.id = 'account-menu';
+        menu.style.cssText = 'display:none;position:fixed;z-index:1200;min-width:168px;padding:8px;border-radius:14px;border:1px solid var(--border);background:var(--sidebar-bg);box-shadow:0 16px 40px rgba(0,0,0,.28);';
+        menu.innerHTML = `
+            <div id="account-menu-name" style="padding:6px 8px 8px;font-size:12px;font-weight:800;color:var(--text);"></div>
+            <button type="button" id="account-switch-btn" style="width:100%;height:34px;border:0;border-radius:10px;background:transparent;color:var(--text);font-size:12px;font-weight:800;text-align:left;padding:0 8px;cursor:pointer;">切换用户</button>
+            <button type="button" id="account-logout-btn" style="width:100%;height:34px;border:0;border-radius:10px;background:transparent;color:#f87171;font-size:12px;font-weight:800;text-align:left;padding:0 8px;cursor:pointer;">退出登录</button>
+        `;
+        document.body.appendChild(menu);
+        const place = () => {
+            const rect = btn.getBoundingClientRect();
+            menu.style.left = (rect.right + 8) + 'px';
+            menu.style.top = Math.max(8, rect.bottom - 96) + 'px';
+        };
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AuthManager === 'undefined' || !AuthManager.isLoggedIn()) {
+                this.showLoginModal();
+                return;
+            }
+            const name = document.getElementById('account-menu-name');
+            const user = AuthManager.getUser();
+            if (name) name.textContent = user && user.username ? user.username : '已登录';
+            place();
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        });
+        document.getElementById('account-switch-btn').onclick = async (e) => {
+            e.stopPropagation();
+            await AuthManager.logout();
+            window.location.href = '/static/login.html';
+        };
+        document.getElementById('account-logout-btn').onclick = (e) => {
+            e.stopPropagation();
+            menu.style.display = 'none';
+            this.confirmLogout();
+        };
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target) && e.target !== btn) menu.style.display = 'none';
+        });
+        const sysSwitch = document.getElementById('sys-switch-btn');
+        if (sysSwitch) {
+            sysSwitch.onclick = async (e) => {
+                e.stopPropagation();
+                await AuthManager.logout();
+                window.location.href = '/static/login.html';
+            };
         }
     }
     
     updateSettingsButtonState() {
-        if (!AuthManager.isLoggedIn() || !AuthManager.isAdmin()) {
+        const loggedIn = AuthManager.isLoggedIn();
+        if (!loggedIn) {
             this.buttonEl.classList.add('disabled');
-            this.buttonEl.title = '需要管理员权限';
+            this.buttonEl.title = '请先登录';
             this.buttonEl.style.opacity = '0.4';
             this.buttonEl.style.cursor = 'not-allowed';
         } else {
@@ -1234,10 +1305,14 @@ class SettingsUI {
             this.buttonEl.style.opacity = '1';
             this.buttonEl.style.cursor = 'pointer';
         }
-        const usersBtn = document.getElementById('settings-users-btn');
-        if (usersBtn) {
-            usersBtn.style.display = AuthManager.isLoggedIn() && AuthManager.isAdmin() ? 'flex' : 'none';
-        }
+        const admin = loggedIn && AuthManager.isAdmin();
+        ['settings-api-btn', 'settings-comfyui-btn', 'comfy-start-control', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (!admin) el.style.display = 'none';
+            else if (id === 'settings-users-btn') el.style.display = 'flex';
+            else el.style.display = '';
+        });
     }
     
     escapeHtml(str) {

@@ -17,6 +17,33 @@
     // 当前正在加载的图片 URL（用于切图时丢弃过期加载）
     let _pendingPhaseUrl = null;
 
+    function unwrapMediaUrl(url) {
+        const raw = String(url || '');
+        try {
+            const parsed = new URL(raw, location.origin);
+            if (parsed.pathname === '/api/media-preview') {
+                const inner = parsed.searchParams.get('url') || '';
+                if (inner) return unwrapMediaUrl(inner);
+            }
+            if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+        } catch (e) {}
+        return raw;
+    }
+
+    function previewMediaUrl(url, width) {
+        const original = unwrapMediaUrl(url);
+        if (!original || original.startsWith('data:') || original.startsWith('blob:')) return original;
+        if (original.startsWith('/api/comfyui/view')) {
+            const parsed = new URL(original, location.origin);
+            parsed.searchParams.set('w', String(width));
+            return parsed.pathname + '?' + parsed.searchParams.toString();
+        }
+        if (original.startsWith('/output/') || original.startsWith('/assets/')) {
+            return '/api/media-preview?w=' + width + '&url=' + encodeURIComponent(original.split('?')[0]);
+        }
+        return original;
+    }
+
     function init(images, startIndex = 0, options = {}) {
         imageList = images;
         currentIndex = startIndex;
@@ -156,11 +183,11 @@
         img.style.transformOrigin = 'center center';
 
         // === 三层加载：768px(秒出) → 1536px(高清) → 原图(仅取尺寸) ===
-        const originalUrl = imageList[currentIndex];
+        const originalUrl = unwrapMediaUrl(imageList[currentIndex]);
         _pendingPhaseUrl = originalUrl;
 
         // Phase 1: 768px WebP 缩略图（预生成缓存命中，<1s 显示）
-        img.src = '/api/media-preview?w=768&url=' + encodeURIComponent(originalUrl);
+        img.src = previewMediaUrl(originalUrl, 768);
         img.onload = () => {
             if (originalWidth === 0 && _pendingPhaseUrl === originalUrl) {
                 originalWidth = img.naturalWidth;
@@ -176,7 +203,7 @@
         // 1536px 在 2x 屏幕 ≈ 768 物理像素，70vh 显示绰绰有余
         (function phase2() {
             const midImg = new Image();
-            const midUrl = '/api/media-preview?w=1536&url=' + encodeURIComponent(originalUrl);
+            const midUrl = previewMediaUrl(originalUrl, 1536);
             midImg.onload = () => {
                 if (_pendingPhaseUrl !== originalUrl) return;
                 const liveImg = document.getElementById('lightboxImg');
@@ -192,24 +219,6 @@
             };
             midImg.onerror = () => {}; // 静默失败，Phase1 缩略图保留
             midImg.src = midUrl;
-        })();
-
-        // Phase 3: 后台加载原图仅获取尺寸信息（不替换 img.src），供缩放计算使用
-        // 用户看到的始终是 1536px WebP（足够清晰，且 WebP 体积比 PNG 小 5-10 倍）
-        (function phase3() {
-            const fullImg = new Image();
-            fullImg.onload = () => {
-                if (_pendingPhaseUrl !== originalUrl) return;
-                // 原图尺寸（可能有更高分辨率）覆写，让 zoom 精度更准
-                originalWidth = fullImg.naturalWidth;
-                originalHeight = fullImg.naturalHeight;
-                if (res) {
-                    res.style.display = '';
-                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-                }
-            };
-            fullImg.onerror = () => {};
-            fullImg.src = originalUrl;
         })();
 
         // 切图后回调

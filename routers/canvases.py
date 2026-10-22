@@ -508,8 +508,7 @@ async def canvases(token: str = ""):
     username, user = find_user_by_token(token)
     is_admin = bool(user and user.get("is_admin", False)) if user else False
     if not is_admin and not username:
-        # 无 token 时返回所有画布（兼容新前端）
-        return {"canvases": list_canvases()}
+        return {"canvases": []}
     owner_filter = None if is_admin else username
     return {"canvases": list_canvases(owner_filter=owner_filter)}
 
@@ -520,7 +519,7 @@ async def trashed_canvases(token: str = ""):
     username, user = find_user_by_token(token)
     is_admin = bool(user and user.get("is_admin", False)) if user else False
     if not is_admin and not username:
-        return {"canvases": list_deleted_canvases(), "retention_days": 30}
+        return {"canvases": [], "retention_days": 30}
     owner_filter = None if is_admin else username
     return {"canvases": list_deleted_canvases(owner_filter=owner_filter), "retention_days": 30}
 

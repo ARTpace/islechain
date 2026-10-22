@@ -1856,7 +1856,11 @@
             syncEditor();
             providers.forEach(item => {
                 item.id = normalizeId(item.id);
-                item.protocol = ['openai', 'apimart'].includes(String(item.protocol || '').toLowerCase()) ? String(item.protocol).toLowerCase() : 'openai';
+                item.protocol = item.id === 'runninghub'
+                    ? 'runninghub'
+                    : item.id === 'volcengine'
+                        ? 'volcengine'
+                        : ['openai', 'apimart', 'gemini', 'volcengine', 'runninghub'].includes(String(item.protocol || '').toLowerCase()) ? String(item.protocol).toLowerCase() : (item.protocol || 'openai');
                 item.image_models = unique(item.image_models || []);
                 item.chat_models = unique(item.chat_models || []);
                 item.video_models = unique(item.video_models || []);
@@ -2416,6 +2420,7 @@
             if(!providerOnboardingCard) return;
             const guide = item ? ONBOARDING_GUIDES[item.id] : null;
             const visible = Boolean(guide);
+            const keyPlaceholder = item && item.has_key ? ('已保存 ' + (item.key_preview || '当前 Key')) : (guide ? guide.placeholder : '');
             providerOnboardingCard.hidden = !visible;
             if(!visible){ providerOnboardingCard.innerHTML = ''; return; }
             if(item.id === 'runninghub'){
@@ -2499,7 +2504,7 @@
                             <div class="onboarding-flow-arrow" aria-hidden="true"><span></span><b></b></div>
                             <label class="onboarding-row-field">
                                 <span>${escapeHtml(guide.keyName)}</span>
-                                <input type="password" form="apiForm" value="${escapeAttr(keyInput?.value || '')}" placeholder="${escapeAttr(guide.placeholder)}" oninput="syncOnboardingKeyInput('standard', this.value)">
+                                <input type="password" form="apiForm" value="${escapeAttr(keyInput?.value || '')}" placeholder="${escapeAttr(keyPlaceholder)}" oninput="syncOnboardingKeyInput('standard', this.value)">
                             </label>
                         </div>
                     </div>
