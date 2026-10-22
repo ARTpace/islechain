@@ -114,3 +114,6 @@ data/startup_env.log
 # 工具缓存
 .pytest_cache/
 .ruff_cache/
+
+# 翻译审计产物（tools/_translate_audit.py 生成，不入库）
+_translate_audit.json
