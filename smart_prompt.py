@@ -10,11 +10,17 @@ import urllib.error
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# 知识库路径
+# 知识库路径（随工程发布）
 KNOWLEDGE_DIR = Path(__file__).resolve().parent / "data"
 KNOWLEDGE_FILE = KNOWLEDGE_DIR / "anima-knowledge.txt"
 # API 平台配置路径
 API_PROVIDERS_FILE = Path(__file__).resolve().parent / "api_providers.json"
+import sys
+_ROOT = str(Path(__file__).resolve().parent)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from user_paths import user_data_dir
+_USER_DATA = Path(user_data_dir())
 
 # 默认配置
 DEFAULT_CONFIG = {
@@ -25,8 +31,15 @@ DEFAULT_CONFIG = {
     "max_tokens": 1024,
 }
 
+def _account_smart_config():
+    try:
+        import main as _m
+        return Path(_m.smart_prompt_config_path())
+    except Exception:
+        return _USER_DATA / "smart-prompt-config.json"
+
 # 配置文件路径
-CONFIG_FILE = KNOWLEDGE_DIR / "smart-prompt-config.json"
+CONFIG_FILE = _USER_DATA / "smart-prompt-config.json"
 
 
 def load_config() -> Dict[str, Any]:
@@ -35,7 +48,7 @@ def load_config() -> Dict[str, Any]:
     config = DEFAULT_CONFIG.copy()
     # 先读取用户选择的 provider
     selected_provider_id = ''
-    config_file = Path(__file__).resolve().parent / "data" / "smart-prompt-config.json"
+    config_file = _account_smart_config()
     try:
         if config_file.exists():
             with open(config_file, 'r', encoding='utf-8') as f:
@@ -58,7 +71,7 @@ def load_config() -> Dict[str, Any]:
                 # 回退：从 API/.env 文件读取
                 if not api_key:
                     try:
-                        api_env = Path(__file__).resolve().parent / "API" / ".env"
+                        api_env = _USER_DATA / "api.env"
                         if api_env.exists():
                             with open(api_env, 'r', encoding='utf-8-sig') as f:
                                 for line in f.read().splitlines():
@@ -305,7 +318,7 @@ def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = No
         if not api_key:
             # 回退从 API/.env 读取
             try:
-                api_env = Path(__file__).resolve().parent / "API" / ".env"
+                api_env = _USER_DATA / "api.env"
                 if api_env.exists():
                     with open(api_env, 'r', encoding='utf-8-sig') as f:
                         for line in f.read().splitlines():

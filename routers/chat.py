@@ -15,7 +15,7 @@ router = APIRouter()
 @router.post("/api/chat")
 async def chat(payload: _main.ChatRequest, request: Request, x_user_id: str = Header(default=""), token: str = ""):
     username = _main.get_username_by_token(token)
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     conversation = (
         _main.load_conversation(user_id, payload.conversation_id)
         if payload.conversation_id
@@ -97,7 +97,7 @@ async def chat_stream(payload: _main.ChatRequest, request: Request, x_user_id: s
     if payload.mode == "image":
         raise HTTPException(status_code=400, detail="图片模式请使用 /api/chat")
 
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     conversation = (
         _main.load_conversation(user_id, payload.conversation_id)
         if payload.conversation_id

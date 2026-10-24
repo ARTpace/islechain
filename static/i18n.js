@@ -978,13 +978,16 @@
     }
     function apply(root=document){
         root.querySelectorAll('[data-i18n]').forEach(el => {
-            el.textContent = t(el.dataset.i18n);
+            const value = dict[lang()]?.[el.dataset.i18n] || dict[DEFAULT_LANG]?.[el.dataset.i18n];
+            if (value) el.textContent = value;
         });
         root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-            el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+            const value = dict[lang()]?.[el.dataset.i18nPlaceholder] || dict[DEFAULT_LANG]?.[el.dataset.i18nPlaceholder];
+            if (value) el.setAttribute('placeholder', value);
         });
         root.querySelectorAll('[data-i18n-title]').forEach(el => {
-            el.setAttribute('title', t(el.dataset.i18nTitle));
+            const value = dict[lang()]?.[el.dataset.i18nTitle] || dict[DEFAULT_LANG]?.[el.dataset.i18nTitle];
+            if (value) el.setAttribute('title', value);
         });
         root.documentElement?.setAttribute('lang', lang() === 'en' ? 'en' : 'zh-CN');
         window.dispatchEvent(new CustomEvent('studio-lang-change', { detail:{ lang:lang() } }));

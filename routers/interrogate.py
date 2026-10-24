@@ -30,7 +30,9 @@ async def api_interrogate_stream(
       {"type":"error","message":"..."}
     """
     suffix = os.path.splitext(file.filename or "x.png")[1] or ".png"
-    tmp_path = os.path.join(_main.DATA_DIR, f".interrogate_{uuid.uuid4().hex}{suffix}")
+    tmp_dir = os.path.join(_main.USER_DATA_DIR, "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+    tmp_path = os.path.join(tmp_dir, f".interrogate_{uuid.uuid4().hex}{suffix}")
     content = await file.read()
     with open(tmp_path, 'wb') as f:
         f.write(content)

@@ -336,7 +336,8 @@
     }
 
     function handleOutsideClick(e) {
-        if (e.target.id === 'lightbox') closeLightbox();
+        if (e.target.closest('#lightboxImg, #lightboxVideo, #lightboxActions, #lightboxThumbnails, button, a, video')) return;
+        closeLightbox();
     }
 
     /* ============================================================

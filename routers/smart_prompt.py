@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/api/smart-prompt/config")
 async def get_smart_prompt_config():
     """获取智能提示词的 provider 选择"""
-    config_file = os.path.join(_main.BASE_DIR, "data", "smart-prompt-config.json")
+    config_file = _config_file()
     try:
         if os.path.exists(config_file):
             with open(config_file, 'r', encoding='utf-8') as f:
@@ -33,7 +33,7 @@ async def get_smart_prompt_config():
 @router.post("/api/smart-prompt/config")
 async def save_smart_prompt_config(payload: dict):
     """保存智能提示词的 provider 选择"""
-    config_file = os.path.join(_main.BASE_DIR, "data", "smart-prompt-config.json")
+    config_file = _config_file()
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     data = {}
     if os.path.exists(config_file):
@@ -127,16 +127,20 @@ async def _smart_prompt_comfyui_test(req: _main.SmartPromptRequest):
             "detail": f"ComfyUI 可达，工作流[{wf_rel}]可用{suffix}"}
 
 # === 提示词预设 CRUD ===
-SMART_PRESETS_DIR = os.path.join(_main.BASE_DIR, "data", "smart-prompt-presets")
-os.makedirs(SMART_PRESETS_DIR, exist_ok=True)
+def _presets_dir():
+    return _main.smart_presets_dir()
+
+def _config_file():
+    return _main.smart_prompt_config_path()
 
 def load_presets():
     presets = []
-    if os.path.exists(SMART_PRESETS_DIR):
-        for f in sorted(os.listdir(SMART_PRESETS_DIR)):
+    presets_dir = _presets_dir()
+    if os.path.exists(presets_dir):
+        for f in sorted(os.listdir(presets_dir)):
             if f.endswith('.json'):
                 try:
-                    with open(os.path.join(SMART_PRESETS_DIR, f), 'r', encoding='utf-8') as fh:
+                    with open(os.path.join(presets_dir, f), 'r', encoding='utf-8') as fh:
                         presets.append(json.load(fh))
                 except Exception:
                     pass
@@ -147,7 +151,7 @@ def save_preset(preset):
     if not pid:
         pid = 'preset-' + uuid.uuid4().hex[:8]
         preset['id'] = pid
-    path = os.path.join(SMART_PRESETS_DIR, f'{pid}.json')
+    path = os.path.join(_presets_dir(), f'{pid}.json')
     _main.atomic_write_json(path, preset, ensure_ascii=False, indent=2)
     return preset
 
@@ -182,19 +186,19 @@ async def update_preset(preset_id: str, payload: dict):
 
 @router.delete("/api/smart-prompt/presets/{preset_id}")
 async def delete_preset(preset_id: str):
-    path = os.path.join(SMART_PRESETS_DIR, f'{preset_id}.json')
+    path = os.path.join(_presets_dir(), f'{preset_id}.json')
     if os.path.exists(path):
         os.remove(path)
     return {"success": True}
 
 # === 提示词预设选择(文生图用) ===
-SMART_PRESET_SELECT_FILE = os.path.join(_main.BASE_DIR, "data", "smart-prompt-config.json")
 
 @router.get("/api/smart-prompt/selected-preset")
 async def get_selected_preset():
+    select_file = _config_file()
     try:
-        if os.path.exists(SMART_PRESET_SELECT_FILE):
-            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+        if os.path.exists(select_file):
+            with open(select_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return {"preset_id": data.get('preset_id', 'default')}
     except Exception:
@@ -203,16 +207,17 @@ async def get_selected_preset():
 
 @router.post("/api/smart-prompt/selected-preset")
 async def set_selected_preset(payload: dict):
-    os.makedirs(os.path.dirname(SMART_PRESET_SELECT_FILE), exist_ok=True)
+    select_file = _config_file()
+    os.makedirs(os.path.dirname(select_file), exist_ok=True)
     data = {}
-    if os.path.exists(SMART_PRESET_SELECT_FILE):
+    if os.path.exists(select_file):
         try:
-            with open(SMART_PRESET_SELECT_FILE, 'r', encoding='utf-8') as f:
+            with open(select_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except Exception:
             pass
     data['preset_id'] = payload.get('preset_id', 'default')
-    _main.atomic_write_json(SMART_PRESET_SELECT_FILE, data, ensure_ascii=False, indent=2)
+    _main.atomic_write_json(select_file, data, ensure_ascii=False, indent=2)
     # [FIX 2026-07-28] 同步到新模块 index.json。
     # 否则 new-module 生成路径里 generate() -> get_selected_preset_id() 读的是
     # prompt/presets/index.json 的 selected_preset_id，而本端点只写 data/smart-prompt-config.json，

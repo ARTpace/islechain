@@ -33,6 +33,10 @@ async def media_preview(url: str, w: int = 512):
         ctype = qs.get("type", ["output"])[0]
         return await _main.proxy_comfyui_view(filename=filename, subfolder=subfolder, type=ctype, w=w)
 
+    if url.startswith("/output/"):
+        _main.assert_account_media(url[len("/output/"):])
+    elif url.startswith("/assets/"):
+        _main.assert_account_media(url[len("/assets/"):])
     path = _main.output_file_from_url(url)
     if not path or not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="媒体文件不存在")

@@ -57,7 +57,17 @@ try:
     _log_lines.append(f"  CWD={os.getcwd()}")
     _log_lines.append(f"  httpx_version={httpx.__version__}")
     import platform; _log_lines.append(f"  platform={platform.platform()}")
-    _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    from user_paths import user_data_dir, migrate_project_user_data
+    _project_dir = os.path.dirname(os.path.abspath(__file__))
+    _user_home = user_data_dir()
+    try:
+        _moved = migrate_project_user_data(_project_dir, _user_home)
+        print(f"[art-canvas] 个人数据目录: {_user_home}")
+        if _moved:
+            print(f"[art-canvas] 已从工程目录迁出 {len(_moved)} 项个人数据")
+    except Exception as _migrate_exc:
+        print(f"[art-canvas] 个人数据迁移失败: {_migrate_exc}")
+    _log_dir = os.path.join(_user_home, "logs")
     os.makedirs(_log_dir, exist_ok=True)
     with open(os.path.join(_log_dir, "startup_env.log"), "w", encoding="utf-8") as _f:
         _f.write("\n".join(_log_lines))
@@ -148,6 +158,10 @@ OPENAI_ASYNC_IMAGE_INITIAL_POLL_DELAY = 10
 async def lifespan(app: FastAPI):
     global GLOBAL_LOOP
     GLOBAL_LOOP = asyncio.get_running_loop()
+    try:
+        await asyncio.to_thread(migrate_account_private_data)
+    except Exception as exc:
+        print(f"账号数据拆分失败: {exc}")
     # 启动时整理资产库
     try:
         await asyncio.to_thread(migrate_asset_library_into_dirs)
@@ -158,12 +172,18 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"修复双重扩展名素材失败: {exc}")
     print("Application startup complete.")
+    try:
+        import lan_sharing
+        await asyncio.to_thread(lan_sharing.sync_listeners)
+    except Exception as exc:
+        print(f"局域网共享启动失败: {exc}")
     yield
     print("Application shutting down.")
 
 app = FastAPI(lifespan=lifespan)
 
 REQUEST_TOKEN: ContextVar[str] = ContextVar("request_token", default="")
+LAN_VISITOR: ContextVar[bool] = ContextVar("lan_visitor", default=False)
 
 class RequestTokenMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -173,6 +193,8 @@ class RequestTokenMiddleware(BaseHTTPMiddleware):
             token = auth[7:].strip()
         if not token:
             token = (request.query_params.get("token") or "").strip()
+        if not token:
+            token = (request.cookies.get("xy_auth_token") or "").strip()
         handle = REQUEST_TOKEN.set(token)
         try:
             return await call_next(request)
@@ -180,6 +202,13 @@ class RequestTokenMiddleware(BaseHTTPMiddleware):
             REQUEST_TOKEN.reset(handle)
 
 app.add_middleware(RequestTokenMiddleware)
+
+class LanShareMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        import lan_sharing
+        return await lan_sharing.guard(request, call_next)
+
+app.add_middleware(LanShareMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -1020,14 +1049,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
 WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "text2image", "z-image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-INPUT_DIR = os.path.join(BASE_DIR, "input")
-HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
-API_ENV_FILE = os.path.join(BASE_DIR, "API", ".env")
+# 个人数据在系统用户目录；DATA_DIR 只放随工程发布的词库和风格包
+from user_paths import user_data_dir as _user_data_dir
+USER_DATA_DIR = _user_data_dir()
+OUTPUT_DIR = os.path.join(USER_DATA_DIR, "output")
+INPUT_DIR = os.path.join(USER_DATA_DIR, "input")
+HISTORY_FILE = os.path.join(USER_DATA_DIR, "history.json")
+API_ENV_FILE = os.path.join(USER_DATA_DIR, "api.env")
 DATA_DIR = os.path.join(BASE_DIR, "data")
-CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations")
-CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
-GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
+CONVERSATION_DIR = os.path.join(USER_DATA_DIR, "conversations")
+CANVAS_DIR = os.path.join(USER_DATA_DIR, "canvases")
+GLOBAL_CONFIG_FILE = os.path.join(USER_DATA_DIR, "global_config.json")
+THUMBNAIL_DIR = os.path.join(USER_DATA_DIR, "thumbnails")
+SMART_PRESETS_DIR = os.path.join(USER_DATA_DIR, "smart-prompt-presets")
+SMART_PROMPT_CONFIG_FILE = os.path.join(USER_DATA_DIR, "smart-prompt-config.json")
+LOG_DIR = os.path.join(USER_DATA_DIR, "logs")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 PROMPT_PRESETS_FILE = os.path.join(DATA_DIR, "prompt-presets.json")
 STATIC_PROMPT_TEMPLATE_MD = os.path.join(STATIC_DIR, "system-prompts", "infinite-canvas-prompt-templates.md")
@@ -1039,13 +1075,13 @@ OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 ASSET_LIBRARY_DIR = os.path.join(ASSETS_DIR, "library")
 LOCAL_UPLOAD_DIR = os.path.join(ASSETS_DIR, "uploads")
-ASSET_LIBRARY_PATH = os.path.join(DATA_DIR, "asset_library.json")
+ASSET_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "asset_library.json")
 PROMPT_LIBRARY_PATH = os.path.join(DATA_DIR, "prompt_libraries.json")
-SHARED_FOLDERS_FILE = os.path.join(DATA_DIR, "shared_folders.json")
-MEDIA_PREVIEW_DIR = os.path.join(DATA_DIR, "media_previews")
+SHARED_FOLDERS_FILE = os.path.join(USER_DATA_DIR, "shared_folders.json")
+MEDIA_PREVIEW_DIR = os.path.join(USER_DATA_DIR, "media_previews")
 LOCAL_IMAGE_IMPORT_MAX_BYTES = int(os.getenv("LOCAL_IMAGE_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
 LOCAL_IMAGE_IMPORT_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
-RUNNINGHUB_WORKFLOW_STORE_FILE = os.path.join(DATA_DIR, "runninghub_workflows.json")
+RUNNINGHUB_WORKFLOW_STORE_FILE = os.path.join(USER_DATA_DIR, "runninghub_workflows.json")
 SEED_UINT32_MAX = 4294967295
 
 # === history.json 进程内缓存 ===
@@ -1173,7 +1209,7 @@ NEXT_TASK_ID = 1
 
 # --- 账号认证配置 ---
 SUPER_ADMIN_USERNAME = "admin"
-USERS_FILE = os.path.join(BASE_DIR, "data", "users.json")
+USERS_FILE = os.path.join(USER_DATA_DIR, "users.json")
 
 def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -1252,9 +1288,7 @@ def find_user_by_token(token):
 # --- 用户文件隔离辅助函数 ---
 
 def get_username_by_token(token):
-    """根据 token 获取用户名,返回 None 表示未登录"""
-    if not token:
-        return None
+    """根据 token 获取用户名,返回 None 表示未登录。查询参数为空时，沿用本次请求的 Authorization。"""
     username, user = find_user_by_token(token)
     return username
 
@@ -1285,22 +1319,118 @@ def require_valid_token(token):
     return username
 
 def is_admin_by_token(token):
-    """根据 token 判断是否为管理员"""
-    if not token:
-        return False
+    """根据 token 判断是否为管理员。查询参数为空时，沿用本次请求的 Authorization。"""
     _, user = find_user_by_token(token)
     return bool(user and user.get("is_admin", False))
 
 def validate_canvas_owner(canvas, token):
-    """校验画布归属:管理员可操作所有画布,普通用户只能操作自己的画布。token 为空时跳过（兼容新前端）"""
+    """校验画布归属。管理员可操作所有画布，普通用户只能操作自己的画布。"""
+    token = (token or "").strip() or (REQUEST_TOKEN.get() or "").strip()
     if not token:
-        return
-    is_admin = is_admin_by_token(token)
-    if is_admin:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    if is_admin_by_token(token):
         return
     username = get_username_by_token(token)
     if not username or canvas.get("owner") != username:
         raise HTTPException(status_code=403, detail="无权操作此画布")
+
+def account_dirname(username=None) -> str:
+    """当前登录账号对应的目录名。不接受客户端自报的用户名。"""
+    if not username:
+        username = get_username_by_token("")
+    if not username:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    return safe_user_id(username, None)
+
+def account_data_dir(username=None) -> str:
+    path = os.path.join(USER_DATA_DIR, "accounts", account_dirname(username))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def user_prompt_dict_path() -> str:
+    return os.path.join(account_data_dir(), "user-prompt-dict.json")
+
+def asset_library_path() -> str:
+    return os.path.join(account_data_dir(), "asset_library.json")
+
+def smart_prompt_config_path() -> str:
+    return os.path.join(account_data_dir(), "smart-prompt-config.json")
+
+def smart_presets_dir() -> str:
+    path = os.path.join(account_data_dir(), "smart-prompt-presets")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def account_prompt_libraries_path() -> str:
+    return os.path.join(account_data_dir(), "prompt_libraries.json")
+
+def tts_voice_dir() -> str:
+    path = os.path.join(account_data_dir(), "tts_voices")
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.join(path, "characters"), exist_ok=True)
+    return path
+
+def assert_account_media(rel_path: str) -> None:
+    """生成图和参考图只允许本人访问。没有用户前缀的旧文件，登录后仍可打开。"""
+    username = get_username_by_token("")
+    if not username:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    if is_admin_by_token(""):
+        return
+    rel = (rel_path or "").replace("\\", "/").lstrip("/")
+    first = rel.split("/", 1)[0] if rel else ""
+    own = get_user_dirname(username)
+    known = {get_user_dirname(name) for name in load_users() if get_user_dirname(name)}
+    if first in known and first != own:
+        raise HTTPException(status_code=403, detail="无权查看此文件")
+
+def private_data_owner() -> str:
+    users = load_users()
+    for name, data in users.items():
+        if isinstance(data, dict) and data.get("is_admin"):
+            return name
+    return next(iter(users), "") if users else ""
+
+def migrate_account_private_data() -> None:
+    """把原先全站一份的个人创作数据交给管理员账号，其他账号从空目录开始。"""
+    owner = private_data_owner()
+    if not owner:
+        return
+    root = os.path.join(USER_DATA_DIR, "accounts", safe_user_id(owner, None))
+    os.makedirs(root, exist_ok=True)
+    for filename in ("user-prompt-dict.json", "smart-prompt-config.json", "asset_library.json"):
+        src = os.path.join(USER_DATA_DIR, filename)
+        dst = os.path.join(root, filename)
+        if os.path.isfile(src) and not os.path.exists(dst):
+            shutil.move(src, dst)
+    for dirname in ("smart-prompt-presets", "tts_voices"):
+        src = os.path.join(USER_DATA_DIR, dirname)
+        dst = os.path.join(root, dirname)
+        if os.path.isdir(src) and not os.path.exists(dst):
+            shutil.move(src, dst)
+    user_lib = os.path.join(root, "prompt_libraries.json")
+    if os.path.isfile(PROMPT_LIBRARY_PATH) and not os.path.isfile(user_lib):
+        try:
+            with open(PROMPT_LIBRARY_PATH, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            libs = data.get("libraries") if isinstance(data, dict) else []
+            system, personal = [], []
+            for lib in libs or []:
+                if isinstance(lib, dict) and (lib.get("id") == "system" or lib.get("system") is True):
+                    system.append(lib)
+                elif isinstance(lib, dict):
+                    personal.append(lib)
+            if personal:
+                atomic_write_json(user_lib, {
+                    "active_library_id": data.get("active_library_id") or "system",
+                    "libraries": personal,
+                }, ensure_ascii=False, indent=2)
+                data["libraries"] = system
+                if data.get("active_library_id") not in {lib.get("id") for lib in system}:
+                    data["active_library_id"] = "system"
+                atomic_write_json(PROMPT_LIBRARY_PATH, data, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            print(f"提示词库按账号拆分失败: {exc}")
 
 def get_user_dirname(username):
     """将用户名转换为安全的文件夹名"""
@@ -1468,7 +1598,7 @@ def public_provider(provider):
     env_key = provider_key_env(provider["id"])
     has_key = bool(os.getenv(env_key, "") or read_api_env_value(env_key))
     key_preview = ''
-    if has_key:
+    if has_key and not LAN_VISITOR.get():
         raw = os.getenv(env_key, "") or read_api_env_value(env_key)
         key_preview = raw[:4] + '••••' + raw[-4:] if len(raw) > 8 else '••••••••'
     return {
@@ -1664,6 +1794,7 @@ async def serve_output_file(path: str):
     clean_path = path.replace("\\", "/")
     if ".." in clean_path or clean_path.startswith("/"):
         raise HTTPException(status_code=404, detail="File not found")
+    assert_account_media(clean_path)
 
     full_path = os.path.abspath(os.path.join(OUTPUT_DIR, clean_path))
     output_root = os.path.abspath(OUTPUT_DIR)
@@ -1717,6 +1848,7 @@ async def serve_asset_file(path: str):
     clean_path = path.replace("\\", "/")
     if ".." in clean_path or clean_path.startswith("/"):
         raise HTTPException(status_code=404, detail="File not found")
+    assert_account_media(clean_path)
 
     full_path = os.path.abspath(os.path.join(INPUT_DIR, clean_path))
     input_root = os.path.abspath(INPUT_DIR)
@@ -3502,12 +3634,13 @@ def sort_asset_library_items(lib):
             items.sort(key=created_at_key, reverse=True)
 
 def load_asset_library():
-    if not os.path.exists(ASSET_LIBRARY_PATH):
+    path = asset_library_path()
+    if not os.path.exists(path):
         lib = default_asset_library()
         save_asset_library(lib)
         return lib
     try:
-        with open(ASSET_LIBRARY_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             lib = json.load(f)
     except Exception:
         lib = default_asset_library()
@@ -3517,8 +3650,9 @@ def save_asset_library(lib):
     lib = normalize_asset_library(lib)
     sort_asset_library_items(lib)
     lib["updated_at"] = now_ms()
-    os.makedirs(DATA_DIR, exist_ok=True)
-    atomic_write_json(ASSET_LIBRARY_PATH, lib, ensure_ascii=False, indent=2)
+    path = asset_library_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    atomic_write_json(path, lib, ensure_ascii=False, indent=2)
 
 def asset_library_media_kind(path: str, content_type: str = "") -> str:
     ext = os.path.splitext(path or "")[1].lower()
@@ -4523,8 +4657,15 @@ def find_asset_item_in_library(lib, item_id, library_id=""):
     return None
 
 def migrate_asset_library_into_dirs():
+    owner = private_data_owner()
+    if not owner:
+        return
+    path = os.path.join(USER_DATA_DIR, "accounts", safe_user_id(owner, None), "asset_library.json")
+    if not os.path.isfile(path):
+        return
     try:
-        lib = load_asset_library()
+        with open(path, "r", encoding="utf-8") as handle:
+            lib = normalize_asset_library(json.load(handle))
     except Exception as exc:
         print(f"资产库分组整理:加载失败 {exc}")
         return
@@ -4541,7 +4682,7 @@ def migrate_asset_library_into_dirs():
             cat_abs = os.path.join(ASSET_LIBRARY_DIR, cat_dir)
             os.makedirs(cat_abs, exist_ok=True)
     if changed:
-        save_asset_library(lib)
+        atomic_write_json(path, lib, ensure_ascii=False, indent=2)
 
 def get_primary_provider_id(providers=None):
     for p in (providers or load_api_providers()):
@@ -5313,27 +5454,71 @@ def normalize_prompt_libraries(data):
         active = "system" if any(lib["id"] == "system" for lib in libraries) else (libraries[0]["id"] if libraries else "system")
     return {"active_library_id": active, "libraries": libraries, "updated_at": int(data.get("updated_at") or now_ms())}
 
-def load_prompt_libraries():
+def _system_prompt_libraries():
     if not os.path.exists(PROMPT_LIBRARY_PATH):
-        data = default_prompt_libraries()
-        return save_prompt_libraries(data)
+        return normalize_prompt_libraries(default_prompt_libraries())
     try:
         with open(PROMPT_LIBRARY_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         data = default_prompt_libraries()
-    if not isinstance(data, dict):
-        data = default_prompt_libraries()
-    normalized = normalize_prompt_libraries(data)
-    if normalized.get("active_library_id") != data.get("active_library_id") or normalized.get("libraries") != data.get("libraries"):
-        return save_prompt_libraries(normalized)
+    normalized = normalize_prompt_libraries(data if isinstance(data, dict) else default_prompt_libraries())
+    normalized["libraries"] = [
+        lib for lib in normalized.get("libraries") or []
+        if lib.get("id") == "system" or lib.get("system") is True
+    ]
     return normalized
+
+def _account_prompt_libraries():
+    path = account_prompt_libraries_path()
+    if not os.path.isfile(path):
+        return [], "system"
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return [], "system"
+    if not isinstance(data, dict):
+        return [], "system"
+    libraries = [
+        lib for lib in (data.get("libraries") or [])
+        if isinstance(lib, dict) and lib.get("id") != "system" and lib.get("system") is not True
+    ]
+    return libraries, str(data.get("active_library_id") or "system")
+
+def load_prompt_libraries():
+    try:
+        personal, active = _account_prompt_libraries()
+    except HTTPException:
+        personal, active = [], "system"
+    system = _system_prompt_libraries()
+    merged = {
+        "active_library_id": active,
+        "libraries": (system.get("libraries") or []) + personal,
+        "updated_at": now_ms(),
+    }
+    return normalize_prompt_libraries(merged)
 
 def save_prompt_libraries(data):
     data = normalize_prompt_libraries(data)
     data["updated_at"] = now_ms()
-    os.makedirs(DATA_DIR, exist_ok=True)
-    atomic_write_json(PROMPT_LIBRARY_PATH, data, ensure_ascii=False, indent=2)
+    system = [lib for lib in data.get("libraries") or [] if lib.get("id") == "system" or lib.get("system") is True]
+    personal = [lib for lib in data.get("libraries") or [] if lib not in system]
+    if not system:
+        system = _system_prompt_libraries().get("libraries") or []
+    os.makedirs(os.path.dirname(PROMPT_LIBRARY_PATH), exist_ok=True)
+    atomic_write_json(PROMPT_LIBRARY_PATH, {
+        "active_library_id": "system",
+        "libraries": system,
+        "updated_at": data["updated_at"],
+    }, ensure_ascii=False, indent=2)
+    user_path = account_prompt_libraries_path()
+    os.makedirs(os.path.dirname(user_path), exist_ok=True)
+    atomic_write_json(user_path, {
+        "active_library_id": data.get("active_library_id") or "system",
+        "libraries": personal,
+        "updated_at": data["updated_at"],
+    }, ensure_ascii=False, indent=2)
     return data
 
 def public_prompt_libraries(data=None):
@@ -7332,14 +7517,8 @@ def _load_poster_styles():
 
 # ==================== TTS API 路由 ====================
 
-TTS_VOICE_DIR = os.path.join(DATA_DIR, "tts_voices")
-os.makedirs(TTS_VOICE_DIR, exist_ok=True)
-
-# 角色库子目录（新结构）
+TTS_VOICE_DIR = os.path.join(USER_DATA_DIR, "tts_voices")
 CHARACTERS_DIR = os.path.join(TTS_VOICE_DIR, "characters")
-os.makedirs(CHARACTERS_DIR, exist_ok=True)
-
-# 音色库索引文件(全局共享)
 VOICE_INDEX_FILE = os.path.join(TTS_VOICE_DIR, "voices.json")
 
 TTS_WORKFLOW_DIR = os.path.join(WORKFLOW_DIR, "TTS")
@@ -7362,13 +7541,14 @@ TTS_WORKFLOW_TEMPLATES = {
 AUDIO_EXTENSIONS = {'.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac'}
 
 def _scan_character_folders() -> dict:
-    """扫描角色文件夹，自动识别音频文件"""
+    """扫描当前账号的角色文件夹，自动识别音频文件"""
     voices = {}
-    if not os.path.exists(CHARACTERS_DIR):
+    characters_dir = os.path.join(tts_voice_dir(), "characters")
+    if not os.path.exists(characters_dir):
         return voices
-    
-    for folder_name in os.listdir(CHARACTERS_DIR):
-        folder_path = os.path.join(CHARACTERS_DIR, folder_name)
+
+    for folder_name in os.listdir(characters_dir):
+        folder_path = os.path.join(characters_dir, folder_name)
         if not os.path.isdir(folder_path):
             continue
         
@@ -7421,17 +7601,17 @@ def _load_voice_index() -> dict:
         return voices
     
     # 回退到旧的 voices.json
-    if not os.path.exists(VOICE_INDEX_FILE):
+    if not os.path.exists(os.path.join(tts_voice_dir(), "voices.json")):
         return {}
     try:
-        with open(VOICE_INDEX_FILE, 'r', encoding='utf-8') as f:
+        with open(os.path.join(tts_voice_dir(), "voices.json"), 'r', encoding='utf-8') as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return {}
 
 def _save_voice_index(index: dict):
-    """保存音色库索引(全局共享)"""
-    atomic_write_json(VOICE_INDEX_FILE, index, ensure_ascii=False, indent=2)
+    """保存当前账号的音色库索引"""
+    atomic_write_json(os.path.join(tts_voice_dir(), "voices.json"), index, ensure_ascii=False, indent=2)
 
 
 
@@ -8364,7 +8544,7 @@ async def _interrogate_via_vision(abs_path, mode, target_style, emit=None, provi
 # 且第二遍执行到本行时 routers 包仍半初始化 → AttributeError: no attribute 'routes'。
 # 必须先于下面这行 import 执行。
 # --- 翻译缓存 / 用户提示词词典（被 routers/translate.py、routers/prompt_dict.py 通过 _main 引用，需留在 main） ---
-TRANSLATE_CONFIG_FILE = os.path.join(BASE_DIR, "data", "translate-config.json")
+TRANSLATE_CONFIG_FILE = os.path.join(USER_DATA_DIR, "translate-config.json")
 
 # 翻译结果缓存: key="text||direction" → {result, ts}
 _TRANSLATE_CACHE = {}
@@ -8416,20 +8596,22 @@ def save_translate_config(cfg):
 
 # --- 用户提示词字典 ---
 
-USER_PROMPT_DICT_FILE = os.path.join(BASE_DIR, "data", "user-prompt-dict.json")
+USER_PROMPT_DICT_FILE = os.path.join(USER_DATA_DIR, "user-prompt-dict.json")
 
 def load_user_prompt_dict() -> dict:
-    if os.path.exists(USER_PROMPT_DICT_FILE):
+    path = user_prompt_dict_path()
+    if os.path.exists(path):
         try:
-            with open(USER_PROMPT_DICT_FILE, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception:
             pass
     return {"zh2en": {}, "en2zh": {}}
 
 def save_user_prompt_dict(data: dict):
-    os.makedirs(os.path.dirname(USER_PROMPT_DICT_FILE), exist_ok=True)
-    atomic_write_json(USER_PROMPT_DICT_FILE, data, ensure_ascii=False, indent=2)
+    path = user_prompt_dict_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    atomic_write_json(path, data, ensure_ascii=False, indent=2)
 
 # --- online 生成公共模型/助手（被 routers/canvas_tasks.py 等通过 _main 引用，需留在 main） ---
 async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
@@ -8557,22 +8739,14 @@ app.include_router(interrogate)
 app.include_router(online_gen)
 app.include_router(output_zip)
 app.include_router(user_assets)
+import lan_sharing
+app.include_router(lan_sharing.router)
 
 
 if __name__ == "__main__":
     import uvicorn
-    import socket
-
-    # Get local IP for LAN access
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception:
-        local_ip = "127.0.0.1"
 
     print("\n  Local:   http://127.0.0.1:7000")
-    print(f"  LAN:     http://{local_ip}:7000\n")
+    print("  局域网共享默认关闭，可在「设置 → 局域网共享」中开启。\n")
 
-    uvicorn.run(app, host="0.0.0.0", port=7000)
+    uvicorn.run(app, host="127.0.0.1", port=7000)

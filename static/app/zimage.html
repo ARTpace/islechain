@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>文生图 | ART AI</title>
     <script>
@@ -20,18 +20,18 @@
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js" defer></script>
     <script src="/static/theme.js?v=20261022c"></script>
-    <script src="/static/history-bulk-manager.js?v=20260720-4" defer></script>
+    <script src="/static/history-bulk-manager.js?v=20260720-4"></script>
     <script src="/static/modules/interrogator.js" defer></script>
     <script src="/static/modules/ref-image-manager.js" defer></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260614">
     <script src="/static/modules/image-viewer.js?v=20261022ai"></script>
-    <script src="/static/modules/gallery/bundle.js?v=20261022ai"></script>
+    <script src="/static/modules/gallery/bundle.js?v=20261023lb1"></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20260628">
     <script src="/static/app/anima-character-picker.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20260628">
     <script src="/static/app/anima-artist-picker.js?v=20260619019" defer></script>
     <script src="/static/modules/random-prompt.js?v=20260705-14" defer></script>
-    <script src="/prompt/static/prompt-module.js?v=20261022w" defer></script>
+    <script src="/prompt/static/prompt-module.js?v=20261023aiset" defer></script>
     <script src="/static/modules/card-progress.js?v=20260723-premium"></script>
     <script src="/static/modules/lora-manager.js?v=20260723-meta9"></script>
     <script src="/static/modules/prompt-tags.js?v=20260717001" defer></script>
@@ -337,6 +337,16 @@
         .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; padding:8px 12px; justify-content:space-between; }
         /* 紧凑模式：下拉变切换 */
         .compact-toggle .anima-ctrl-menu { display:none!important; }
+        .compact-toggle #unifiedModelMenu.force-open { display:block !important; }
+        #engineSection, #modelSection, #cloudModelWrap { display:none !important; }
+        #unifiedModelMenu { width:min(320px, calc(100vw - 24px)); min-width:0; max-width:min(320px, calc(100vw - 24px)); overflow:auto; z-index:220; box-sizing:border-box; }
+        #unifiedModelBtn { width:168px; min-width:168px; max-width:168px; justify-content:space-between; box-sizing:border-box; }
+        #unifiedModelText { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+        .compact-toggle #unifiedModelBtn { width:168px !important; min-width:168px !important; max-width:168px !important; }
+        #unifiedModelMenu .unified-model-group { position:sticky; top:0; z-index:1; margin:8px 2px 4px; padding:7px 10px; border-radius:8px; background:#e8f7fb; color:#0e7490; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; border-left:3px solid #06b6d4; }
+        #unifiedModelMenu .unified-model-group:first-child { margin-top:2px; }
+        body.studio-theme-dark #unifiedModelMenu .unified-model-group { background:#123044; color:#7dd3fc; border-left-color:#22d3ee; }
+        #unifiedModelMenu .anima-ctrl-menu-item > span:first-child { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .compact-toggle .anima-ctrl > svg:last-child { display:none; }
         .compact-toggle .anima-ctrl-wrap { position:static; }
         .compact-toggle .anima-ctrl { padding:0 8px!important; min-width:0; }
@@ -573,49 +583,67 @@
 
 
         body.chat-layout { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-        body.chat-layout #chatThread { flex:1; min-height:0; overflow:auto; padding:28px 7vw 12px; display:flex; flex-direction:column; gap:18px; }
-        body.chat-layout header { flex:0 0 auto !important; max-height:52vh; overflow:auto; padding-top:8px; z-index:2; }
-        body.chat-layout .chat-drawer { position:relative; flex:0 0 auto; z-index:40; height:42px; overflow:hidden; background:#16181e; border-top:1px solid #2a2e38; transition:height .22s ease; }
-        body.chat-layout .chat-drawer.open { height:min(46vh, 520px); }
-        body.chat-layout .chat-drawer-tab { height:42px; width:100%; border:0; background:transparent; color:#d5d8e0; font-size:13px; font-weight:700; cursor:pointer; }
-        body.chat-layout .chat-drawer-body { height:calc(100% - 42px); overflow:auto; }
-        body.chat-layout .chat-drawer #toolbarFixed { position:relative; top:auto; }
-        body.chat-layout .chat-drawer main { position:relative; display:block; height:auto; min-height:0; overflow:visible; opacity:1; pointer-events:auto; }
-        .chat-empty { margin:auto; color:#8d93a1; font-size:14px; text-align:center; max-width:420px; }
-        .chat-row { display:flex; }
+        body.chat-layout #chatTopbar { order:1; }
+        body.chat-layout #chatThread { order:2; flex:1; min-height:0; overflow:auto; padding:22px 72px 14px; display:flex; flex-direction:column; align-items:center; gap:14px; scrollbar-width:none !important; }
+        body.chat-layout #chatThread::-webkit-scrollbar { width:0 !important; height:0 !important; }
+        body.chat-layout header { order:3; flex:0 0 auto !important; max-height:46vh; overflow:auto; padding-top:8px; padding-left:72px; padding-right:72px; z-index:2; scrollbar-width:none !important; }
+        body.chat-layout header::-webkit-scrollbar { width:0 !important; height:0 !important; }
+        body.chat-layout > #toolbarFixed,
+        body.chat-layout > main { display:none !important; }
+        body.chat-layout .chat-drawer { position:fixed; top:0; right:0; bottom:0; z-index:60; width:min(720px,52vw); height:auto; display:flex; flex-direction:column; background:#12161e; border-left:1px solid #2a2e38; transform:translateX(100%); transition:transform .22s ease; overflow:hidden; }
+        body.chat-layout .chat-drawer.open { transform:translateX(0); box-shadow:-16px 0 40px rgba(0,0,0,.38); }
+        body.chat-layout .chat-drawer-body { flex:1; min-width:0; height:100%; display:flex; flex-direction:column; overflow:hidden; }
+        body.chat-layout .chat-drawer .layout-container { max-width:none; padding-left:12px; padding-right:12px; }
+        body.chat-layout .chat-drawer #toolbarFixed { display:none; }
+        body.chat-layout .chat-drawer .history-bulk-toolbar { position:relative; top:auto; order:-1; flex:0 0 auto; max-width:none; width:100%; margin:0; padding:10px 12px; z-index:5; flex-wrap:wrap; }
+        body.chat-layout .chat-drawer .history-search-wrap.is-open { width:min(280px, 46%); }
+        body.chat-layout .chat-drawer main { position:relative; display:block; flex:1; min-height:0; height:auto; overflow:auto; opacity:1; pointer-events:auto; scrollbar-width:none !important; }
+        body.chat-layout .chat-drawer main::-webkit-scrollbar { width:0 !important; height:0 !important; }
+        .chat-empty { margin:auto; color:#8d93a1; font-size:14px; text-align:center; max-width:640px; }
+        .chat-row { display:flex; width:min(1080px,100%); min-width:0; max-width:100%; }
         .chat-row.user { justify-content:flex-end; }
-        .chat-user { max-width:min(640px,80%); background:#2a3140; border-radius:16px 16px 4px 16px; padding:10px 12px; white-space:pre-wrap; font-size:14px; line-height:1.5; }
+        .chat-bubble-wrap { display:flex; flex-direction:column; align-items:flex-start; max-width:min(760px,100%); }
+        .chat-user { max-width:100%; background:#2a3140; border-radius:16px 16px 4px 16px; padding:10px 14px; white-space:pre-wrap; font-size:15px; line-height:1.6; }
+        .chat-time { margin-top:4px; font-size:11px; line-height:1.2; color:#8d93a1; }
         .chat-row:not(.user) { align-items:flex-start; }
-        .chat-stack { display:flex; flex-direction:column; align-items:center; max-width:min(680px,86%); }
-        .chat-stack:has(.chat-imgs img + img), .chat-stack:has(.chat-pending + .chat-pending) { width:min(680px,86%); }
-        .chat-asst { max-width:min(520px,72vw); background:transparent; border:0; padding:0; font-size:14px; line-height:1.6; }
-        .chat-asst:has(.chat-imgs img + img), .chat-asst:has(.chat-pending + .chat-pending) { width:100%; max-width:100%; }
+        .chat-stack { position:relative; display:flex; flex-direction:column; align-items:flex-start; width:100%; min-width:0; max-width:100%; }
+        .chat-asst { width:100%; min-width:0; max-width:100%; background:transparent; border:0; padding:0; font-size:15px; line-height:1.65; }
         .chat-reply { white-space:pre-wrap; }
-        .chat-prompt { margin-top:8px; }
-        .chat-prompt-bar { display:flex; gap:8px; justify-content:center; }
-        .chat-prompt-toggle, .chat-prompt-copy { position:relative; width:44px; height:44px; padding:0; border:0; border-radius:12px; background:transparent; color:#c5d0dc; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
-        .chat-prompt-toggle:hover, .chat-prompt-copy:hover { background:rgba(255,255,255,.08); color:#e8eef6; }
-        .chat-prompt-toggle[data-tip]:hover::after, .chat-prompt-copy[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 6px); transform:translateX(-50%); padding:4px 8px; border-radius:6px; background:#0e1520; color:#e8eef6; font-size:12px; line-height:1.3; white-space:nowrap; pointer-events:none; border:1px solid #2c3b52; z-index:5; }
+        .chat-prompt { position:absolute; right:0; bottom:0; z-index:4; margin:0; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+        .chat-row:hover > .chat-stack > .chat-prompt,
+        .chat-prompt:focus-within,
+        .chat-prompt.is-open { opacity:1; pointer-events:auto; }
+        .chat-prompt-bar { display:flex; gap:2px; justify-content:flex-end; padding:2px; border-radius:10px; background:rgba(14,18,26,.92); border:1px solid #2a3548; }
+        .chat-prompt-toggle, .chat-prompt-copy, .chat-prompt-delete { position:relative; width:32px; height:32px; padding:0; border:0; border-radius:8px; background:transparent; color:#c5d0dc; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+        .chat-prompt-toggle[hidden], .chat-prompt-copy[hidden], .chat-prompt-delete[hidden] { display:none !important; }
+        .chat-prompt-toggle:hover, .chat-prompt-copy:hover, .chat-prompt-delete:hover { background:rgba(255,255,255,.08); color:#e8eef6; }
+        .chat-prompt-delete:hover, .chat-prompt-delete.is-confirming { color:#fca5a5; }
+        .chat-prompt-toggle[data-tip]:hover::after, .chat-prompt-copy[data-tip]:hover::after, .chat-prompt-delete[data-tip]:hover::after { content:attr(data-tip); position:absolute; right:0; bottom:calc(100% + 6px); padding:4px 8px; border-radius:6px; background:#0e1520; color:#e8eef6; font-size:12px; line-height:1.3; white-space:nowrap; pointer-events:none; border:1px solid #2c3b52; z-index:5; }
         .chat-prompt-body { display:block; margin:8px 0 0; max-height:160px; overflow:auto; white-space:pre-wrap; font-size:12px; line-height:1.5; color:#c5d2e2; background:rgba(0,0,0,.22); border-radius:10px; padding:8px 10px; }
         .chat-prompt-body[hidden] { display:none; }
-        .chat-imgs { display:flex; flex-wrap:nowrap; gap:8px; align-items:flex-start; margin-top:10px; width:100%; }
-        .chat-asst:not(:has(.chat-imgs img + img)):not(:has(.chat-pending + .chat-pending)) .chat-imgs { width:auto; }
+        .chat-imgs { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; margin-top:10px; width:100%; min-width:0; max-width:100%; }
+        .chat-imgs:has(> :only-child) { width:auto; }
         .chat-asst img { width:min(300px,52vw); max-width:100%; height:auto; background:#121820; object-fit:contain; border-radius:12px; display:block; margin-top:10px; cursor:zoom-in; }
-        .chat-imgs img, .chat-imgs .chat-pending { flex:1 1 0; width:auto; min-width:0; max-width:none; margin-top:0; }
-        .chat-asst:not(:has(.chat-imgs img + img)):not(:has(.chat-pending + .chat-pending)) .chat-imgs img,
-        .chat-asst:not(:has(.chat-pending + .chat-pending)) .chat-imgs .chat-pending { flex:0 0 auto; width:min(300px,52vw); }
+        .chat-imgs img, .chat-imgs .chat-pending { flex:0 0 auto; width:min(240px, calc((100% - 24px) / 4)); max-width:240px; min-width:0; margin-top:0; height:auto; }
+        .chat-imgs > img:only-child,
+        .chat-imgs > .chat-pending:only-child { width:min(300px,34vw); max-width:300px; }
         .chat-pending { position:relative; width:min(300px,52vw); border-radius:16px; overflow:hidden; background:#121820; border:1px solid #243044; }
         .chat-pending .card-progress-pct { color:#e8eef6 !important; }
-        .chat-pending .card-progress-label { color:#9aa8b8 !important; }
-        body.chat-layout .chat-model-pick { height:32px; max-width:180px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#121820; color:inherit; font-size:11px; font-weight:700; padding:0 8px; }
+        .chat-gen-fail { margin-top:4px; font-size:13px; line-height:1.4; color:#f87171; }
+        body.chat-layout .chat-model-pick { height:32px; max-width:280px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#121820; color:inherit; font-size:12px; font-weight:700; padding:0 10px; }
         .chat-topbar { display:none; }
-        body.chat-layout .chat-topbar { position:relative; flex:0 0 auto; display:flex; align-items:flex-end; gap:10px; padding:12px 18px 6px; z-index:6; }
+        body.chat-layout .chat-topbar { position:relative; flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:12px 18px 6px; z-index:70; }
+        body.chat-layout .chat-icon-btn { display:inline-flex; align-items:center; gap:6px; padding:0 10px; }
+        body.chat-layout .chat-gallery-btn { margin-left:auto; width:32px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+        body.chat-layout .chat-gallery-btn.active { border-color:rgba(34,184,207,.7); color:#22d3ee; }
         html.engine-cloud #animaTagSwitcher,
         html.engine-cloud #modelSection,
         html.engine-cloud #animaControls,
         html.engine-cloud #dynamicParams { display:none !important; }
         html.engine-cloud #cloudModelWrap,
         html.engine-cloud #cloudGenControls { display:flex !important; }
+        html #engineSection, html #modelSection, html.engine-cloud #cloudModelWrap { display:none !important; }
+        html.engine-cloud #unifiedModelSettingsBtn { display:none !important; }
         body.chat-layout .chat-top-btn { height:32px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:transparent; color:inherit; font-size:12px; font-weight:700; cursor:pointer; }
         body.chat-layout .chat-top-btn:hover { border-color:rgba(34,184,207,.7); }
         body.chat-layout .chat-history { display:none; position:absolute; left:18px; top:calc(100% + 6px); width:min(380px, 78vw); max-height:min(420px, 60vh); overflow:auto; background:#161b24; border:1px solid #2a3548; border-radius:14px; box-shadow:0 18px 40px rgba(0,0,0,.4); padding:8px; z-index:30; }
@@ -625,6 +653,42 @@
         body.chat-layout .chat-history-item:hover, body.chat-layout .chat-history-item.active { background:#1d2633; border-color:#2c3b52; }
         body.chat-layout .chat-history-title { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         body.chat-layout .chat-history-sub { font-size:11px; color:#8d93a1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        body.chat-layout header .layout-container { max-width:none; padding-left:0; padding-right:0; }
+        @media (max-width: 1100px) {
+            body.chat-layout #chatThread,
+            body.chat-layout header { padding-left:24px; padding-right:24px; }
+        }
+        @media (max-width: 760px) {
+            body.chat-layout { padding-bottom:env(safe-area-inset-bottom); }
+            body.chat-layout #chatThread { padding:12px 12px 10px; gap:12px; }
+            body.chat-layout header { padding:6px 12px calc(8px + env(safe-area-inset-bottom)); max-height:48vh; }
+            body.chat-layout .chat-topbar { padding:10px 12px 4px; gap:6px; }
+            body.chat-layout .chat-model-pick { flex:1; min-width:0; max-width:none; height:36px; }
+            body.chat-layout .chat-top-btn { height:36px; }
+            body.chat-layout .chat-icon-btn span { display:none; }
+            body.chat-layout .chat-icon-btn { width:36px; padding:0; justify-content:center; }
+            body.chat-layout .chat-history { left:12px; right:12px; width:auto; }
+            body.chat-layout .console-card { border-radius:16px; }
+            body.chat-layout .bg-gray-50\/50 { padding:10px !important; }
+            body.chat-layout #prompt { font-size:16px !important; min-height:64px !important; }
+            body.chat-layout .prompt-row { flex-wrap:wrap; }
+            body.chat-layout .control-bar { flex-wrap:wrap !important; overflow:visible; gap:8px !important; padding:8px 0 0 !important; }
+            body.chat-layout .control-bar > .ctrl-top-row,
+            body.chat-layout .gen-row { width:100%; min-width:0; flex-wrap:wrap !important; margin-left:0; justify-content:flex-start; gap:8px !important; }
+            body.chat-layout #unifiedModelWrap { flex:1 1 160px; min-width:0; max-width:100%; }
+            body.chat-layout #unifiedModelWrap > .flex { flex:1; min-width:0; }
+            body.chat-layout #unifiedModelBtn,
+            body.chat-layout .compact-toggle #unifiedModelBtn { width:100% !important; min-width:0 !important; max-width:none !important; }
+            body.chat-layout .gen-row #mainGenBtn { min-width:0 !important; flex:1 1 72px; height:36px; }
+            body.chat-layout .chat-prompt { position:static; opacity:1; pointer-events:auto; margin-top:6px; }
+            body.chat-layout .chat-imgs img,
+            body.chat-layout .chat-imgs .chat-pending { width:calc((100% - 8px) / 2); max-width:none; }
+            body.chat-layout .chat-imgs > img:only-child,
+            body.chat-layout .chat-imgs > .chat-pending:only-child { width:min(100%, 420px); max-width:100%; }
+            body.chat-layout .chat-drawer { width:100%; }
+            body.chat-layout .chat-user,
+            body.chat-layout .chat-reply { font-size:15px; }
+        }
         </style>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
@@ -640,17 +704,17 @@
         } catch (e) {}
     </script>
     <div id="chatTopbar" class="chat-topbar">
-        <div class="flex flex-col"><span class="text-[9px] font-bold text-gray-400 uppercase mb-1">对话</span><select id="chatProviderPick" class="chat-model-pick"></select></div>
-        <div class="flex flex-col"><span class="text-[9px] font-bold text-gray-400 uppercase mb-1">对话模型</span><select id="chatModelPick" class="chat-model-pick"></select></div>
-        <button type="button" id="chatNewBtn" class="chat-top-btn">新建对话</button>
-        <button type="button" id="chatHistoryBtn" class="chat-top-btn">历史对话</button>
+        <select id="chatTargetPick" class="chat-model-pick" title="对话模型" aria-label="对话模型"></select>
+        <button type="button" id="chatNewBtn" class="chat-top-btn chat-icon-btn" title="新建对话" aria-label="新建对话"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>新建</span></button>
+        <button type="button" id="chatHistoryBtn" class="chat-top-btn chat-icon-btn" title="历史对话" aria-label="历史对话"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg><span>历史</span></button>
+        <button type="button" id="chatGalleryBtn" class="chat-top-btn chat-gallery-btn" title="生成图" aria-label="生成图"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
         <div id="chatHistory" class="chat-history"></div>
     </div>
     <header class="pt-5 pb-4" style="flex-shrink:1; min-height:0; overflow-y:auto;">
         <div class="layout-container">
             <div class="console-card rounded-3xl p-1.5">
                 <div class="bg-gray-50/50 rounded-[22px] p-4">
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex justify-between items-center mb-6" style="display:none" aria-hidden="true">
                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">统一创作控制台</span>
                         <div id="statusDot" class="flex items-center gap-2">
                             <span id="statusText" class="text-[9px] font-bold text-gray-500 uppercase">系统就绪</span>
@@ -721,7 +785,22 @@
                 </div>
                 <div class="flex flex-col md:flex-row items-center justify-between p-4 px-6 gap-6 control-bar">
                     <div class="flex items-center gap-8 ctrl-top-row">
-                        <div class="flex flex-col">
+                        <div id="unifiedModelWrap" class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold text-gray-400 whitespace-nowrap leading-none">模型</span>
+                            <div class="flex items-center gap-1">
+                                <div class="anima-ctrl-wrap">
+                                    <button type="button" onclick="toggleUnifiedModelMenu(event)" id="unifiedModelBtn" class="anima-ctrl">
+                                        <span id="unifiedModelText">模型</span>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div id="unifiedModelMenu" class="anima-ctrl-menu"></div>
+                                </div>
+                                <button id="unifiedModelSettingsBtn" onclick="openModelPicker()" class="anima-ctrl" style="padding:0 8px;" title="模型设置">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col" id="engineSection">
                             <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">引擎来源</span>
                             <div class="anima-ctrl-wrap" id="engineSwitcher">
                                 <button onclick="if(!compactEngineToggle())toggleMenu('engineMenu')" id="engineBtn" class="anima-ctrl">
@@ -890,20 +969,16 @@
                 if (engineText && localStorage.getItem('zimage_engine') === 'cloud') engineText.textContent = '在线API';
                 var providers = JSON.parse(localStorage.getItem('studio_chat_providers') || 'null');
                 var saved = JSON.parse(localStorage.getItem('studio_chat_target') || '{}');
-                var providerPick = document.getElementById('chatProviderPick');
-                var modelPick = document.getElementById('chatModelPick');
-                if (providerPick && Array.isArray(providers) && providers.length) {
-                    providerPick.innerHTML = providers.map(function (item) {
-                        return '<option value="' + esc(item.id) + '">' + esc(item.name || item.id) + '</option>';
+                var targetPick = document.getElementById('chatTargetPick');
+                if (targetPick && Array.isArray(providers) && providers.length) {
+                    targetPick.innerHTML = providers.map(function (item) {
+                        var models = item.models || [];
+                        return '<optgroup label="' + esc(item.name || item.id) + '">' + models.map(function (model) {
+                            return '<option value="' + esc(item.id) + '\t' + esc(model) + '">' + esc((item.name || item.id) + ' · ' + model) + '</option>';
+                        }).join('') + '</optgroup>';
                     }).join('');
-                    var preferred = providers.filter(function (item) { return item.id === saved.provider; })[0] || providers[0];
-                    providerPick.value = preferred.id;
-                    if (modelPick) {
-                        modelPick.innerHTML = (preferred.models || []).map(function (model) {
-                            return '<option value="' + esc(model) + '">' + esc(model) + '</option>';
-                        }).join('');
-                        if (saved.model && (preferred.models || []).indexOf(saved.model) >= 0) modelPick.value = saved.model;
-                    }
+                    var wanted = (saved.provider || '') + '\t' + (saved.model || '');
+                    if ([].some.call(targetPick.options, function (opt) { return opt.value === wanted; })) targetPick.value = wanted;
                 }
             } catch (e) {}
         })();
@@ -1509,6 +1584,7 @@
             // —— 避免选 UNET 模型 / 从历史载入工作流时把按钮文本覆盖成具体名
             const txt = document.getElementById('modelText');
             if (txt) txt.textContent = getCurrentModelMode();
+            updateUnifiedModelLabel();
             const items = document.querySelectorAll('#modelMenu .anima-ctrl-menu-item');
             items.forEach(it => {
                 const isOn = it.getAttribute('data-model-key') === name;
@@ -1871,6 +1947,8 @@
             // 刷新顶部按钮可见性（角色/画师/LoRA/负面提示词等按 local/cloud 引擎统一显隐）
             updateParamsUI();
             if (typeof updateLoraSwitcherVisibility === 'function') updateLoraSwitcherVisibility();
+            updateUnifiedModelLabel();
+            renderUnifiedModelMenu();
         }
 
         // === 引擎上拉菜单 ===
@@ -2773,7 +2851,7 @@
                 if (window.__autoGenNotifyError) {
                     window.__autoGenNotifyError(e.message || '生成失败');
                 } else {
-                    alert(e.message || "生成失败");
+                    if (!document.body.classList.contains('chat-layout')) alert(e.message || "生成失败");
                     window.dispatchEvent(new CustomEvent('studio-gen-failed'));
                 }
             } finally {
@@ -2825,6 +2903,151 @@
             return out;
         }
 
+        function escMenuText(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+            });
+        }
+        function updateUnifiedModelLabel() {
+            const el = document.getElementById('unifiedModelText');
+            if (el) el.textContent = currentEngine === 'cloud' ? (_cloudModel || '模型') : (getCurrentModelMode() || '模型');
+        }
+        function localWorkflowItems() {
+            const seenTitles = new Set();
+            const items = [];
+            for (const m of (BUILTIN_WF_META || [])) {
+                if (!m.has_unet) continue;
+                if (!String(m.name || '').startsWith('text2image/')) continue;
+                if (seenTitles.has(m.title)) continue;
+                seenTitles.add(m.title);
+                items.push(m);
+            }
+            return items;
+        }
+        function modelsForProvider(p) {
+            if (!p) return [];
+            if (p.id === _cloudProviderId && _cloudModels && _cloudModels.length) return _cloudModels.slice();
+            if (p.image_models && p.image_models.length) return p.image_models.slice();
+            if (p.id === 'modelscope') return ['默认模型'];
+            if (p.id === 'jimeng') return ['jimeng-图片2.1', 'jimeng-图片3.0'];
+            return [];
+        }
+        function closeUnifiedModelMenu() {
+            const menu = document.getElementById('unifiedModelMenu');
+            if (!menu) return;
+            menu.classList.remove('force-open');
+            menu.style.display = 'none';
+        }
+        function placeUnifiedModelMenu() {
+            const menu = document.getElementById('unifiedModelMenu');
+            const btn = document.getElementById('unifiedModelBtn');
+            if (!menu || !btn) return;
+            if (menu.parentElement !== document.body) document.body.appendChild(menu);
+            const r = btn.getBoundingClientRect();
+            const gap = 8;
+            const margin = 12;
+            const width = Math.min(320, window.innerWidth - margin * 2);
+            let left = r.left;
+            if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width;
+            if (left < margin) left = margin;
+            const spaceAbove = Math.max(0, r.top - gap - margin);
+            const spaceBelow = Math.max(0, window.innerHeight - r.bottom - gap - margin);
+            const openUp = spaceAbove >= spaceBelow;
+            const maxH = Math.max(80, Math.min(openUp ? spaceAbove : spaceBelow, window.innerHeight - margin * 2));
+            menu.style.position = 'fixed';
+            menu.style.left = left + 'px';
+            menu.style.width = width + 'px';
+            menu.style.right = 'auto';
+            menu.style.maxHeight = maxH + 'px';
+            menu.style.zIndex = '220';
+            if (openUp) {
+                menu.style.top = 'auto';
+                menu.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+            } else {
+                menu.style.bottom = 'auto';
+                menu.style.top = (r.bottom + gap) + 'px';
+            }
+        }
+        function renderUnifiedModelMenu() {
+            const menu = document.getElementById('unifiedModelMenu');
+            if (!menu) return;
+            const parts = [];
+            localWorkflowItems().forEach(function (m, i) {
+                if (i === 0) parts.push('<div class="unified-model-group">COMFYUI</div>');
+                const isBoogu = String(m.name).indexOf('boogu') >= 0;
+                const key = isBoogu ? 'Boogu' : m.name;
+                const on = currentEngine !== 'cloud' && (isBoogu
+                    ? String(currentWorkflow || '').toLowerCase().indexOf('boogu') >= 0
+                    : currentWorkflow === m.name);
+                parts.push('<div class="anima-ctrl-menu-item' + (on ? ' active' : '') + '" data-kind="local" data-key="' + escMenuText(key) + '"><span>' + escMenuText(m.title) + '</span><span class="chk" style="opacity:' + (on ? 1 : 0) + '">✓</span></div>');
+            });
+            (_cloudProviders || []).forEach(function (p) {
+                const models = modelsForProvider(p);
+                parts.push('<div class="unified-model-group">' + escMenuText(p.name || p.id) + '</div>');
+                if (!models.length) {
+                    parts.push('<div class="anima-ctrl-menu-item" style="opacity:.5"><span>暂无模型</span></div>');
+                    return;
+                }
+                models.forEach(function (model) {
+                    const on = currentEngine === 'cloud' && p.id === _cloudProviderId && model === _cloudModel;
+                    parts.push('<div class="anima-ctrl-menu-item' + (on ? ' active' : '') + '" data-kind="cloud" data-provider="' + escMenuText(p.id) + '" data-model="' + escMenuText(model) + '"><span>' + escMenuText(model) + '</span><span class="chk" style="opacity:' + (on ? 1 : 0) + '">✓</span></div>');
+                });
+            });
+            menu.innerHTML = parts.join('') || '<div class="anima-ctrl-menu-item" style="opacity:.5"><span>暂无模型</span></div>';
+            menu.querySelectorAll('[data-kind]').forEach(function (el) {
+                el.onclick = function (ev) {
+                    ev.stopPropagation();
+                    pickUnifiedModel(el.getAttribute('data-kind'), el.getAttribute('data-key') || el.getAttribute('data-provider'), el.getAttribute('data-model'));
+                };
+            });
+        }
+        function toggleUnifiedModelMenu(ev) {
+            if (ev) ev.stopPropagation();
+            const menu = document.getElementById('unifiedModelMenu');
+            if (!menu) return;
+            const open = menu.classList.contains('force-open');
+            if (typeof closeAllMenus === 'function') closeAllMenus();
+            if (open) { closeUnifiedModelMenu(); return; }
+            renderUnifiedModelMenu();
+            menu.classList.add('force-open');
+            menu.style.display = 'block';
+            placeUnifiedModelMenu();
+        }
+        window.addEventListener('resize', function () {
+            const menu = document.getElementById('unifiedModelMenu');
+            if (menu && menu.classList.contains('force-open')) placeUnifiedModelMenu();
+        });
+        window.addEventListener('scroll', function (e) {
+            if (e.target && e.target.id === 'unifiedModelMenu') return;
+            const menu = document.getElementById('unifiedModelMenu');
+            if (menu && menu.classList.contains('force-open')) placeUnifiedModelMenu();
+        }, true);
+        function pickUnifiedModel(kind, a, b) {
+            if (kind === 'local') {
+                if (currentEngine !== 'local') selectEngine('local');
+                if (a === 'Boogu') selectBoogu();
+                else selectModel(a);
+            } else {
+                try {
+                    localStorage.setItem('zimage_cloud_provider', a || '');
+                    localStorage.setItem('zimage_cloud_model', b || '');
+                } catch (e) {}
+                _cloudProviderId = a || '';
+                _cloudModel = b || '';
+                if (currentEngine !== 'cloud') selectEngine('cloud');
+                else {
+                    cloudSetProvider(a);
+                    if (b) cloudSetModel(b);
+                }
+            }
+            closeUnifiedModelMenu();
+            updateUnifiedModelLabel();
+        }
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && (e.target.closest('#unifiedModelWrap') || e.target.closest('#unifiedModelMenu'))) return;
+            closeUnifiedModelMenu();
+        });
+
         function cloudBuildProviderMenu() {
             const menu = document.getElementById('cloudProviderMenu');
             if (!menu) return;
@@ -2870,6 +3093,7 @@
             const t = document.getElementById('cloudModelText');
             if (t) t.textContent = m || '模型';
             cloudBuildModelMenu();
+            updateUnifiedModelLabel();
             const menu = document.getElementById('cloudModelMenu');
             if (menu) { menu.style.display = 'none'; }
             try { localStorage.setItem('zimage_cloud_model', m || ''); } catch (e) {}
@@ -2932,6 +3156,8 @@
             const mt = document.getElementById('cloudModelText');
             if (mt) mt.textContent = _cloudModel || '模型';
             cloudBuildModelMenu();
+            updateUnifiedModelLabel();
+            renderUnifiedModelMenu();
         }
 
         function applyCloudProviders(list, persist) {
@@ -2946,6 +3172,7 @@
             const picked = _cloudProviders.find(function (x) { return x.id === _cloudProviderId; });
             const label = document.getElementById('cloudProviderText');
             if (label && picked) label.textContent = picked.name || picked.id;
+            renderUnifiedModelMenu();
         }
         async function cloudLoadProviders() {
             try {
@@ -2968,7 +3195,7 @@
 
         async function cloudInitPanel() {
             // 统一菜单开关：把 cloud 菜单注册到 GenerationControls，复用通用 toggleMenu / closeAllMenus
-            GenerationControls.setMenuIds(['batchCountMenu','modelMenu','engineMenu','ratioMenu','resMenu','qualityMenu','booguQualityMenu','cloudProviderMenu','cloudModelMenu','cloudRatioMenu','cloudQualityMenu','cloudResMenu']);
+            GenerationControls.setMenuIds(['batchCountMenu','modelMenu','engineMenu','ratioMenu','resMenu','qualityMenu','booguQualityMenu','cloudProviderMenu','cloudModelMenu','cloudRatioMenu','cloudQualityMenu','cloudResMenu','unifiedModelMenu']);
             try {
                 const sp = localStorage.getItem('zimage_cloud_provider');
                 if (sp) _cloudProviderId = sp;
@@ -3128,7 +3355,7 @@
                 if (placeholder.parentNode) placeholder.remove();
                 if (btn) setLoading(false);
                 hideProgress();
-                alert(e.message || '生成失败');
+                if (!document.body.classList.contains('chat-layout')) alert(e.message || '生成失败');
                 window.dispatchEvent(new CustomEvent('studio-gen-failed'));
             }
         }
@@ -3137,6 +3364,9 @@
         if (window.GenerationControls) GenerationControls.init();
         if (typeof currentEngine !== 'undefined' && currentEngine === 'cloud') {
             switchEngine('cloud');
+        } else {
+            cloudLoadProviders();
+            updateUnifiedModelLabel();
         }
 
         function setLoading(isLoading) {
@@ -3982,12 +4212,18 @@
             else document.body.insertBefore(thread, document.body.firstChild);
             const drawer = document.createElement('div');
             drawer.className = 'chat-drawer';
-            drawer.innerHTML = '<button type="button" class="chat-drawer-tab">生成图</button><div class="chat-drawer-body"></div>';
+            drawer.innerHTML = '<div class="chat-drawer-body"></div>';
             const drawerBody = drawer.querySelector('.chat-drawer-body');
             const toolbar = document.getElementById('toolbarFixed');
             const gallery = document.querySelector('main');
             function parkGalleryChrome(el) {
-                if (el && el.parentElement !== drawerBody) drawerBody.appendChild(el);
+                if (!el) return;
+                const pinTop = el.classList && el.classList.contains('history-bulk-toolbar');
+                if (pinTop) {
+                    if (el.parentElement !== drawerBody || drawerBody.firstElementChild !== el) drawerBody.insertBefore(el, drawerBody.firstChild);
+                    return;
+                }
+                if (el.parentElement !== drawerBody) drawerBody.appendChild(el);
             }
             parkGalleryChrome(toolbar);
             parkGalleryChrome(gallery);
@@ -3998,9 +4234,18 @@
                 parkGalleryChrome(document.querySelector('.history-bulk-toolbar'));
                 parkGalleryChrome(document.getElementById('galleryScrollToTop'));
             }).observe(document.body, { childList: true });
-            drawer.querySelector('.chat-drawer-tab').onclick = () => {
+            const galleryBtn = document.getElementById('chatGalleryBtn');
+            function placeDrawer() {
+                drawer.style.top = (topbar ? topbar.offsetHeight : 0) + 'px';
+            }
+            placeDrawer();
+            window.addEventListener('resize', placeDrawer);
+            if (galleryBtn) galleryBtn.onclick = () => {
                 const open = drawer.classList.toggle('open');
-                drawer.querySelector('.chat-drawer-tab').textContent = open ? '收起生成图' : '生成图';
+                galleryBtn.classList.toggle('active', open);
+                galleryBtn.title = open ? '收起生成图' : '生成图';
+                galleryBtn.setAttribute('aria-label', galleryBtn.title);
+                placeDrawer();
             };
             const seen = new Set();
             let armed = false;
@@ -4030,24 +4275,36 @@
             function savedChatTarget() {
                 try { return JSON.parse(localStorage.getItem(CHAT_PICK_KEY) || '{}'); } catch (e) { return {}; }
             }
-            function fillChatModels() {
-                const providerPick = document.getElementById('chatProviderPick');
-                const modelPick = document.getElementById('chatModelPick');
-                if (!providerPick || !modelPick) return;
-                const current = chatProviders.find(item => item.id === providerPick.value) || chatProviders[0];
-                modelPick.innerHTML = (current?.models || []).map(model => '<option value="' + model.replace(/"/g, '&quot;') + '">' + model + '</option>').join('');
+            function chatTargetValue(providerId, model) {
+                return String(providerId || '') + '\t' + String(model || '');
+            }
+            function readChatTarget() {
+                const raw = document.getElementById('chatTargetPick')?.value || '';
+                const splitAt = raw.indexOf('\t');
+                if (splitAt < 0) return { provider: raw || 'comfly', model: '' };
+                return { provider: raw.slice(0, splitAt) || 'comfly', model: raw.slice(splitAt + 1) };
+            }
+            function renderChatTarget(list) {
+                const pick = document.getElementById('chatTargetPick');
+                if (!pick) return;
                 const saved = savedChatTarget();
-                if (current && saved.provider === current.id && (current.models || []).includes(saved.model)) modelPick.value = saved.model;
+                const escAttr = value => String(value == null ? '' : value).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+                pick.innerHTML = (list || []).map(item => {
+                    const models = item.models || [];
+                    const options = models.map(model => '<option value="' + escAttr(chatTargetValue(item.id, model)) + '">' + escAttr((item.name || item.id) + ' · ' + model) + '</option>').join('');
+                    return '<optgroup label="' + escAttr(item.name || item.id) + '">' + options + '</optgroup>';
+                }).join('');
+                const wanted = chatTargetValue(saved.provider, saved.model);
+                if ([...pick.options].some(opt => opt.value === wanted)) pick.value = wanted;
             }
             function rememberChatTarget() {
-                const providerPick = document.getElementById('chatProviderPick');
-                const modelPick = document.getElementById('chatModelPick');
-                if (!providerPick || !modelPick) return;
-                localStorage.setItem(CHAT_PICK_KEY, JSON.stringify({ provider: providerPick.value, model: modelPick.value }));
+                const target = readChatTarget();
+                if (!target.provider) return;
+                localStorage.setItem(CHAT_PICK_KEY, JSON.stringify(target));
             }
             async function loadChatModels() {
-                const providerPick = document.getElementById('chatProviderPick');
-                if (!providerPick) return;
+                const pick = document.getElementById('chatTargetPick');
+                if (!pick) return;
                 try {
                     const data = await fetch('/api/config').then(res => res.json());
                     const list = [];
@@ -4064,17 +4321,17 @@
                     chatProviders = list;
                     try { localStorage.setItem('studio_chat_providers', JSON.stringify(list)); } catch (e) {}
                     const saved = savedChatTarget();
-                    const preferred = list.find(item => item.id === saved.provider) || list.find(item => item.primary) || list[0];
-                    providerPick.innerHTML = list.map(item => '<option value="' + item.id + '">' + item.name + '</option>').join('');
-                    if (preferred) providerPick.value = preferred.id;
-                    fillChatModels();
+                    if (!saved.provider) {
+                        const preferred = list.find(item => item.primary) || list[0];
+                        if (preferred) localStorage.setItem(CHAT_PICK_KEY, JSON.stringify({ provider: preferred.id, model: (preferred.models || [])[0] || '' }));
+                    }
+                    renderChatTarget(list);
                     rememberChatTarget();
                 } catch (e) {
-                    providerPick.innerHTML = '<option value="comfly">默认接口</option>';
+                    pick.innerHTML = '<option value="comfly\t">默认接口</option>';
                 }
             }
-            document.getElementById('chatProviderPick')?.addEventListener('change', () => { fillChatModels(); rememberChatTarget(); });
-            document.getElementById('chatModelPick')?.addEventListener('change', rememberChatTarget);
+            document.getElementById('chatTargetPick')?.addEventListener('change', rememberChatTarget);
             loadChatModels();
             function selectedChatPreset() {
                 const id = window.spPickerSelectedId || '';
@@ -4083,7 +4340,9 @@
             }
             function chatSystemPrompt() {
                 if (!window.studioPresetInject) return AGENT_GUIDE;
-                const preset = (window.spPickerPresets || []).find(item => item.id === window.spPickerSelectedId);
+                let settingId = '';
+                try { settingId = localStorage.getItem('studio_ai_setting') || ''; } catch (e) {}
+                const preset = (window.spPickerPresets || []).find(item => item.id === (settingId || window.spPickerSelectedId));
                 const rules = preset && preset.system_prompt ? String(preset.system_prompt).trim() : '';
                 if (!rules) return AGENT_GUIDE;
                 return rules + '\n\n你同时在和用户对话。用中文简短回应。用户描述想画的画面时，按上面的预设规则写出完整绘图提示词，并在回复最后单独一行输出 IMAGE {"prompt":"完整提示词"}。不要使用代码块。普通闲聊不要输出 IMAGE，也不要声称图片已经生成。模型、比例、角色、画师、参考图和 LoRA 由页面上的生图控制台决定。';
@@ -4093,42 +4352,75 @@
                 if (!promptBox) return;
                 promptBox.dataset.placeholder = preset
                     ? '预设「' + preset.name + '」已注入。描述画面后发送，会按预设写提示词并出图'
-                    : '和 AI 对话，Enter 发送。打开「AI 生成」后才会注入当前提示词预设';
+                    : '和 AI 对话，Enter 发送。AI设定默认无设定，用模型自己';
                 const empty = thread.querySelector('.chat-empty');
                 if (empty && !thread.querySelector('.chat-row')) paintEmpty();
             };
             function paintEmpty() {
                 const preset = window.studioPresetInject ? selectedChatPreset() : null;
                 const hint = preset
-                    ? '「AI 生成」已打开，当前预设「' + preset.name + '」会注入对话。在下面写下想要的画面，发送后会按这个预设写出提示词并出图。'
-                    : '这里和你配置的 AI 对话。打开「AI 生成」后，当前提示词预设才会注入对话。点「出图」则按当前提示词直接生成。';
+                    ? 'AI设定正在使用「' + preset.name + '」。在下面写下想要的画面，发送后会按这个预设写出提示词并出图。'
+                    : '这里和你配置的 AI 对话。AI设定默认是无设定，用模型自己。点「出图」则按当前提示词直接生成。';
                 if (!thread.querySelector('.chat-row')) thread.innerHTML = '<div class="chat-empty">' + hint + '</div>';
             }
-            function scrollThread() { thread.scrollTop = thread.scrollHeight; }
-            function addUser(text) {
+            function scrollThread() {
+                const go = () => { thread.scrollTop = thread.scrollHeight; };
+                go();
+                requestAnimationFrame(() => requestAnimationFrame(go));
+            }
+            function formatChatTime(ts) {
+                const date = new Date(Number(ts) || Date.now());
+                if (Number.isNaN(date.getTime())) return '';
+                const pad = n => String(n).padStart(2, '0');
+                const hm = pad(date.getHours()) + ':' + pad(date.getMinutes());
+                if (date.toDateString() === new Date().toDateString()) return hm;
+                return (date.getMonth() + 1) + '-' + date.getDate() + ' ' + hm;
+            }
+            function stampChatTime(host, ts) {
+                if (!host) return;
+                let el = host.querySelector(':scope > .chat-time');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'chat-time';
+                    host.appendChild(el);
+                }
+                const when = Number(ts) || Date.now();
+                el.dataset.ts = String(when);
+                el.textContent = formatChatTime(when);
+            }
+            function addUser(text, msgId, ts) {
                 const empty = thread.querySelector('.chat-empty');
                 if (empty) empty.remove();
                 const row = document.createElement('div');
                 row.className = 'chat-row user';
+                if (msgId) row.dataset.msgId = msgId;
+                const wrap = document.createElement('div');
+                wrap.className = 'chat-bubble-wrap';
                 const bubble = document.createElement('div');
                 bubble.className = 'chat-user';
                 bubble.textContent = text;
-                row.appendChild(bubble);
+                wrap.appendChild(bubble);
+                row.appendChild(wrap);
+                stampChatTime(wrap, ts || Date.now());
                 thread.appendChild(row);
                 scrollThread();
+                return row;
             }
-            function addAssistant() {
+            function addAssistant(msgId, ts) {
                 const empty = thread.querySelector('.chat-empty');
                 if (empty) empty.remove();
                 const row = document.createElement('div');
                 row.className = 'chat-row';
+                if (msgId) row.dataset.msgId = msgId;
                 const stack = document.createElement('div');
                 stack.className = 'chat-stack';
                 const bubble = document.createElement('div');
                 bubble.className = 'chat-asst';
                 stack.appendChild(bubble);
                 row.appendChild(stack);
+                stampChatTime(stack, ts || Date.now());
                 thread.appendChild(row);
+                ensureChatActions(bubble, '');
                 scrollThread();
                 return bubble;
             }
@@ -4169,11 +4461,6 @@
                 }
                 replyEl.textContent = parts.reply || (parts.prompt ? '' : '…');
                 replyEl.style.display = replyEl.textContent ? '' : 'none';
-                if (!parts.prompt) {
-                    const box = chatActionBox(bubble);
-                    if (box && !bubble._genRecord) box.remove();
-                    return;
-                }
                 ensureChatActions(bubble, parts.prompt);
             }
             function conversationCopyText() {
@@ -4191,25 +4478,68 @@
                 });
                 return lines.join('\n\n');
             }
-            const CHAT_PROMPT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-            const CHAT_COPY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-            const CHAT_CHECK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+            const CHAT_PROMPT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            const CHAT_COPY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+            const CHAT_CHECK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+            const CHAT_DELETE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
             function chatActionBox(bubble) {
                 const stack = bubble.parentElement;
                 return (stack && stack.querySelector(':scope > .chat-prompt')) || bubble.querySelector('.chat-prompt');
+            }
+            function turnCopyText(bubble) {
+                const row = bubble.closest('.chat-row');
+                const lines = [];
+                const prev = row && row.previousElementSibling;
+                if (prev && prev.classList.contains('user')) {
+                    const text = (prev.querySelector('.chat-user')?.innerText || '').trim();
+                    if (text) lines.push('用户：\n' + text);
+                }
+                const reply = (bubble.querySelector('.chat-reply')?.innerText || '').trim();
+                const prompt = (chatActionBox(bubble)?.querySelector('.chat-prompt-body')?.textContent || '').trim();
+                if (reply) lines.push('助手：\n' + reply);
+                if (prompt) lines.push('提示词：\n' + prompt);
+                return lines.join('\n\n');
+            }
+            function syncPromptAction(box) {
+                const toggle = box.querySelector('.chat-prompt-toggle');
+                const body = box.querySelector('.chat-prompt-body');
+                if (toggle) toggle.hidden = !(body && body.textContent.trim());
+            }
+            async function deleteChatTurn(bubble) {
+                const row = bubble.closest('.chat-row');
+                if (!row) return;
+                const prev = row.previousElementSibling;
+                const userRow = prev && prev.classList.contains('user') ? prev : null;
+                const ids = [row.dataset.msgId, userRow && userRow.dataset.msgId].filter(Boolean);
+                if (conversationId && ids.length) {
+                    const res = await fetch('/api/conversations/' + encodeURIComponent(conversationId) + '/messages/delete', {
+                        method: 'POST',
+                        headers: chatHeaders(),
+                        body: JSON.stringify({ message_ids: ids })
+                    });
+                    if (!res.ok) return;
+                }
+                if (window.PromptPanel) PromptPanel.close();
+                row.remove();
+                if (userRow) userRow.remove();
+                if (!thread.querySelector('.chat-row')) paintEmpty();
             }
             function ensureChatActions(bubble, promptText) {
                 let box = chatActionBox(bubble);
                 if (!box) {
                     box = document.createElement('div');
                     box.className = 'chat-prompt';
-                    box.innerHTML = '<div class="chat-prompt-bar"><button type="button" class="chat-prompt-toggle" data-tip="提示词" aria-label="提示词">' + CHAT_PROMPT_ICON + '</button><button type="button" class="chat-prompt-copy" data-tip="复制这次对话" aria-label="复制这次对话">' + CHAT_COPY_ICON + '</button></div><pre class="chat-prompt-body" hidden></pre>';
+                    box.innerHTML = '<div class="chat-prompt-bar"><button type="button" class="chat-prompt-toggle" data-tip="提示词" aria-label="提示词" hidden>' + CHAT_PROMPT_ICON + '</button><button type="button" class="chat-prompt-copy" data-tip="复制这次对话" aria-label="复制这次对话">' + CHAT_COPY_ICON + '</button><button type="button" class="chat-prompt-delete" data-tip="删除这次对话" aria-label="删除这次对话">' + CHAT_DELETE_ICON + '</button></div><pre class="chat-prompt-body" hidden></pre>';
                     const toggle = box.querySelector('.chat-prompt-toggle');
                     const copyBtn = box.querySelector('.chat-prompt-copy');
+                    const deleteBtn = box.querySelector('.chat-prompt-delete');
                     const body = box.querySelector('.chat-prompt-body');
+                    box.querySelectorAll('button').forEach(btn => btn.addEventListener('mousedown', (e) => e.preventDefault()));
                     toggle.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const text = (body.textContent || '').trim();
+                        if (!text) return;
+                        box.classList.add('is-open');
                         const record = bubble._genRecord || chatRecordForBubble(bubble);
                         const shown = record ? Object.assign({}, record) : { prompt: text };
                         if (!shown.prompt) shown.prompt = text;
@@ -4225,13 +4555,14 @@
                             });
                         }
                     });
-                    copyBtn.addEventListener('click', async () => {
-                        const text = conversationCopyText();
+                    copyBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const text = turnCopyText(bubble);
                         try {
                             await navigator.clipboard.writeText(text);
                             copyBtn.innerHTML = CHAT_CHECK_ICON;
                             copyBtn.dataset.tip = '已复制';
-                        } catch (e) {
+                        } catch (err) {
                             copyBtn.dataset.tip = '复制失败';
                         }
                         setTimeout(() => {
@@ -4239,11 +4570,31 @@
                             copyBtn.dataset.tip = '复制这次对话';
                         }, 1200);
                     });
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (!deleteBtn.classList.contains('is-confirming')) {
+                            deleteBtn.classList.add('is-confirming');
+                            deleteBtn.dataset.tip = '再点一次删除';
+                            clearTimeout(deleteBtn._confirmTimer);
+                            deleteBtn._confirmTimer = setTimeout(() => {
+                                deleteBtn.classList.remove('is-confirming');
+                                deleteBtn.dataset.tip = '删除这次对话';
+                            }, 3000);
+                            return;
+                        }
+                        clearTimeout(deleteBtn._confirmTimer);
+                        deleteChatTurn(bubble);
+                    });
                 }
                 if (promptText) box.querySelector('.chat-prompt-body').textContent = promptText;
+                syncPromptAction(box);
                 const stack = bubble.parentElement && bubble.parentElement.classList.contains('chat-stack') ? bubble.parentElement : bubble;
                 stack.appendChild(box);
             }
+            document.addEventListener('click', () => {
+                if (window.PromptPanel && PromptPanel.isOpen()) return;
+                thread.querySelectorAll('.chat-prompt.is-open').forEach(box => box.classList.remove('is-open'));
+            });
             function mediaPath(url) {
                 const raw = String(url || '');
                 try {
@@ -4273,10 +4624,16 @@
                     return spec;
                 } catch (e) { return null; }
             }
+            function imageKey(imgOrSrc) {
+                const src = typeof imgOrSrc === 'string'
+                    ? imgOrSrc
+                    : (imgOrSrc.getAttribute('data-original-src') || imgOrSrc.currentSrc || imgOrSrc.src || '');
+                return mediaPath(src) || src;
+            }
             function markExistingImages() {
                 document.getElementById('masonry')?.querySelectorAll('img').forEach(img => {
-                    const src = img.currentSrc || img.src;
-                    if (src) seen.add(src);
+                    const key = imageKey(img);
+                    if (key && !key.startsWith('data:')) seen.add(key);
                 });
             }
             function mirrorChatProgress() {
@@ -4403,8 +4760,9 @@
                 return img;
             }
             function addImage(src) {
-                if (!src || seen.has(src)) return;
-                seen.add(src);
+                const key = imageKey(src);
+                if (!key || key.startsWith('data:') || seen.has(key)) return;
+                seen.add(key);
                 const pending = thread.querySelector('[data-pending]');
                 const host = pending && pending.closest('.chat-asst');
                 mountChatImage(host || addAssistant(), src, chatImageRatio());
@@ -4415,20 +4773,26 @@
                 thread.innerHTML = '';
                 (messages || []).forEach(msg => {
                     if (msg.role === 'user') {
-                        addUser(msg.content || '');
+                        addUser(msg.content || '', msg.id, msg.created_at);
                         return;
                     }
                     if (msg.role !== 'assistant') return;
-                    const bubble = addAssistant();
+                    const bubble = addAssistant(msg.id, msg.created_at);
                     paintAssistant(bubble, msg.content || '');
                     (msg.image_urls || []).forEach(src => {
-                        if (!src || seen.has(src)) return;
-                        seen.add(src);
+                        const key = imageKey(src);
+                        if (!key || seen.has(key)) return;
+                        seen.add(key);
                         mountChatImage(bubble, src);
                     });
                 });
                 if (!thread.querySelector('.chat-row')) paintEmpty();
-                else scrollThread();
+                else {
+                    thread.querySelectorAll('img').forEach(img => {
+                        if (!img.complete) img.addEventListener('load', scrollThread, { once: true });
+                    });
+                    scrollThread();
+                }
             }
             function escapeChat(text) {
                 return String(text || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -4437,6 +4801,7 @@
                 conversationId = '';
                 localStorage.removeItem(CID_KEY);
                 seen.clear();
+                markExistingImages();
                 thread.innerHTML = '';
                 paintEmpty();
                 document.getElementById('chatHistory')?.classList.remove('open');
@@ -4446,6 +4811,8 @@
                 if (!panel) return;
                 const open = panel.classList.toggle('open');
                 if (!open) return;
+                const historyBtn = document.getElementById('chatHistoryBtn');
+                if (historyBtn) panel.style.left = historyBtn.offsetLeft + 'px';
                 panel.innerHTML = '<div class="chat-history-empty">正在读取</div>';
                 try {
                     const res = await fetch('/api/conversations', { headers: chatHeaders() });
@@ -4472,6 +4839,7 @@
                 rememberConversation(conv.id || id);
                 seen.clear();
                 renderSavedMessages(conv.messages || []);
+                markExistingImages();
                 document.getElementById('chatHistory')?.classList.remove('open');
             }
             document.getElementById('chatNewBtn')?.addEventListener('click', startNewChat);
@@ -4506,7 +4874,7 @@
                 if (sendBtn) sendBtn.disabled = true;
                 promptBox.value = '';
                 promptBox.dispatchEvent(new Event('input', { bubbles: true }));
-                addUser(text);
+                const userRow = addUser(text);
                 const bubble = addAssistant();
                 bubble.textContent = '…';
                 let full = '';
@@ -4518,9 +4886,9 @@
                             conversation_id: conversationId,
                             message: text,
                             mode: 'chat',
-                            provider: document.getElementById('chatProviderPick')?.value || 'comfly',
-                            model: document.getElementById('chatProviderPick')?.value === 'modelscope' ? '' : (document.getElementById('chatModelPick')?.value || ''),
-                            ms_model: document.getElementById('chatProviderPick')?.value === 'modelscope' ? (document.getElementById('chatModelPick')?.value || '') : '',
+                            provider: readChatTarget().provider || 'comfly',
+                            model: readChatTarget().provider === 'modelscope' ? '' : readChatTarget().model,
+                            ms_model: readChatTarget().provider === 'modelscope' ? readChatTarget().model : '',
                             system_prompt: chatSystemPrompt()
                         })
                     });
@@ -4544,7 +4912,12 @@
                             const line = eventText.split('\n').find(item => item.startsWith('data:'));
                             if (!line) continue;
                             const event = JSON.parse(line.slice(5).trim());
-                            if (event.type === 'meta' && event.conversation) rememberConversation(event.conversation.id || conversationId);
+                            if (event.type === 'meta' && event.conversation) {
+                                rememberConversation(event.conversation.id || conversationId);
+                                const savedUser = [...(event.conversation.messages || [])].reverse().find(item => item.role === 'user');
+                                if (savedUser && savedUser.id) userRow.dataset.msgId = savedUser.id;
+                                if (savedUser && savedUser.created_at) stampChatTime(userRow.querySelector('.chat-bubble-wrap'), savedUser.created_at);
+                            }
                             if (event.type === 'delta') {
                                 full += event.delta || '';
                                 paintAssistant(bubble, full);
@@ -4555,6 +4928,8 @@
                                 rememberConversation(event.conversation.id || conversationId);
                                 const last = (event.conversation.messages || []).slice(-1)[0];
                                 if (last && last.content) full = last.content;
+                                if (last && last.id) bubble.closest('.chat-row').dataset.msgId = last.id;
+                                if (last && last.created_at) stampChatTime(bubble.parentElement, last.created_at);
                             }
                         }
                     }
@@ -4630,14 +5005,25 @@
                 window.__chatPendingCards = [];
             }
             window.addEventListener('studio-gen-failed', () => {
-                const cards = thread.querySelectorAll('[data-pending]');
-                cards.forEach(pending => {
-                    const label = pending.querySelector('.card-progress-label');
-                    if (label) label.textContent = '生图失败';
-                    else pending.textContent = '生图失败';
-                    pending.removeAttribute('data-pending');
+                const hosts = new Set();
+                thread.querySelectorAll('[data-pending]').forEach(pending => {
+                    const host = pending.closest('.chat-asst');
+                    if (host) hosts.add(host);
+                    const row = pending.parentElement;
+                    pending.remove();
+                    if (row && row.classList.contains('chat-imgs') && !row.querySelector('img, [data-pending]')) row.remove();
                 });
                 window.__chatPendingCards = [];
+                hosts.forEach(host => {
+                    if (host.querySelector('img')) return;
+                    let note = host.querySelector('.chat-gen-fail');
+                    if (!note) {
+                        note = document.createElement('div');
+                        note.className = 'chat-gen-fail';
+                        host.appendChild(note);
+                    }
+                    note.textContent = '生成失败';
+                });
             });
             restoreChat();
         }

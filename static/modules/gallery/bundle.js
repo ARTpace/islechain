@@ -662,6 +662,17 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     const Base = NS.Base;
     if (!Base) { console.error('[Favorites] 缺少 GalleryDisplay.Base'); return; }
 
+    function accountStorageKey(base) {
+        var name = 'anonymous';
+        try {
+            var user = JSON.parse(localStorage.getItem('xy_auth_user') || 'null');
+            if (user && user.username) name = String(user.username);
+        } catch (e) {}
+        var suffix = ':' + name;
+        var key = String(base || 'gallery_favorites');
+        return key.endsWith(suffix) ? key : key + suffix;
+    }
+
     const Favorites = {
         _config: null,
         _initialized: false,
@@ -673,6 +684,8 @@ body.nsfw-only-mode .date-separator { display: none !important; }
                 storageKey: 'gallery_favorites',
                 filterStorageKey: 'gallery_fav_mode',
             }, config);
+            this._config.storageKey = accountStorageKey(this._config.storageKey);
+            this._config.filterStorageKey = accountStorageKey(this._config.filterStorageKey);
 
             this._loadFromStorage();
             this._restoreFilterMode();
@@ -692,6 +705,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
             try {
                 // 迁移旧 key 'zimage_favorites' → 新 key 'gallery_favorites'
                 const legacy = Base.storage.get('zimage_favorites');
+                const shared = Base.storage.get('gallery_favorites');
                 if (legacy) {
                     const cur = Base.storage.get(this._config.storageKey, '[]');
                     if (cur === '[]' || !cur) {
@@ -699,6 +713,13 @@ body.nsfw-only-mode .date-separator { display: none !important; }
                         console.log('[Favorites] 已迁移 zimage_favorites → ' + this._config.storageKey);
                     }
                     Base.storage.remove('zimage_favorites');
+                }
+                if (shared && this._config.storageKey !== 'gallery_favorites') {
+                    const cur = Base.storage.get(this._config.storageKey, '[]');
+                    if (cur === '[]' || !cur) {
+                        Base.storage.set(this._config.storageKey, shared);
+                    }
+                    Base.storage.remove('gallery_favorites');
                 }
                 const raw = Base.storage.get(this._config.storageKey, '[]');
                 const arr = JSON.parse(raw) || [];
@@ -1659,7 +1680,8 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     }
 
     function handleOutsideClick(e) {
-        if (e.target.id === 'lightbox') closeLightbox();
+        if (e.target.closest('#lightboxImg, #lightboxVideo, #lightboxActions, #lightboxThumbnails, button, a, video')) return;
+        closeLightbox();
     }
 
     /* ============================================================
@@ -2475,17 +2497,39 @@ body.studio-theme-dark .lightbox-thumb.active {
         var prevVis = box.style.visibility;
         box.style.visibility = 'hidden';
         var r = anchor.getBoundingClientRect();
-        var bw = box.offsetWidth;
-        var bh = box.offsetHeight;
         var vw = window.innerWidth;
         var vh = window.innerHeight;
         var gap = 12;
+        var limitTop = 8;
+        var limitBottom = vh - 8;
+        var thread = document.getElementById('chatThread');
+        if (thread && thread.contains(anchor)) {
+            var tr = thread.getBoundingClientRect();
+            limitTop = Math.max(8, tr.top + 8);
+            limitBottom = Math.min(vh - 8, tr.bottom - 8);
+        }
+        var avail = Math.max(160, limitBottom - limitTop);
+        box.style.maxHeight = avail + 'px';
+        var bw = box.offsetWidth;
+        var bh = box.offsetHeight;
         var left = r.right + gap;
         if (left + bw > vw - 8) left = r.left - bw - gap;
         if (left < 8) left = Math.max(8, Math.min((vw - bw) / 2, vw - bw - 8));
-        var top = r.top;
-        if (top + bh > vh - 8) top = vh - bh - 8;
-        if (top < 8) top = 8;
+        var spaceBelow = limitBottom - (r.bottom + gap);
+        var spaceAbove = (r.top - gap) - limitTop;
+        var top;
+        if (bh <= spaceBelow) top = r.bottom + gap;
+        else if (bh <= spaceAbove) top = r.top - gap - bh;
+        else if (spaceAbove >= spaceBelow) {
+            box.style.maxHeight = Math.max(160, spaceAbove) + 'px';
+            bh = box.offsetHeight;
+            top = Math.max(limitTop, r.top - gap - bh);
+        } else {
+            box.style.maxHeight = Math.max(160, spaceBelow) + 'px';
+            top = r.bottom + gap;
+        }
+        if (top < limitTop) top = limitTop;
+        if (top + box.offsetHeight > limitBottom) top = Math.max(limitTop, limitBottom - box.offsetHeight);
         box.style.left = left + 'px';
         box.style.top = top + 'px';
         box.style.visibility = prevVis;

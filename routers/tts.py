@@ -485,7 +485,7 @@ async def save_tts_voice(
         raise HTTPException(status_code=400, detail="音色名称不能为空")
 
     # 保存音频文件到分类目录
-    category_dir = os.path.join(_main.TTS_VOICE_DIR, "audio", category)
+    category_dir = os.path.join(_main.tts_voice_dir(), "audio", category)
     os.makedirs(category_dir, exist_ok=True)
 
     ext = os.path.splitext(file.filename or "voice.wav")[1] or ".wav"
@@ -519,7 +519,7 @@ async def import_tts_voices(
 ):
     """批量导入音色(全局共享)"""
     # 创建分类目录
-    category_dir = os.path.join(_main.TTS_VOICE_DIR, "audio", category)
+    category_dir = os.path.join(_main.tts_voice_dir(), "audio", category)
     os.makedirs(category_dir, exist_ok=True)
 
     if not os.path.exists(source_dir):
@@ -645,8 +645,8 @@ async def get_tts_voice_file(filename: str):
     if ".." in filename or filename.startswith("/") or filename.startswith("\\"):
         raise HTTPException(status_code=400, detail="非法路径")
     # filename 现在是 audio/category/file 格式
-    file_path = os.path.abspath(os.path.join(_main.TTS_VOICE_DIR, filename))
-    voice_dir_abs = os.path.abspath(_main.TTS_VOICE_DIR)
+    file_path = os.path.abspath(os.path.join(_main.tts_voice_dir(), filename))
+    voice_dir_abs = os.path.abspath(_main.tts_voice_dir())
     if not file_path.startswith(voice_dir_abs + os.sep) and file_path != voice_dir_abs:
         raise HTTPException(status_code=403, detail="禁止访问目录外文件")
     if not os.path.exists(file_path):
@@ -673,7 +673,7 @@ async def delete_tts_voice(voice_name: str):
         raise HTTPException(status_code=404, detail="音色不存在")
 
     # 删除音频文件
-    file_path = os.path.join(_main.TTS_VOICE_DIR, entry.get("file", ""))
+    file_path = os.path.join(_main.tts_voice_dir(), entry.get("file", ""))
     if os.path.exists(file_path):
         os.remove(file_path)
 
@@ -715,7 +715,7 @@ async def tts_asr(
         raise HTTPException(status_code=400, detail="音频文件太小")
 
     # 保存临时文件
-    tmp_path = os.path.join(_main.TTS_VOICE_DIR, f"_asr_{int(time.time())}.wav")
+    tmp_path = os.path.join(_main.tts_voice_dir(), f"_asr_{int(time.time())}.wav")
     try:
         with open(tmp_path, 'wb') as f:
             f.write(content)

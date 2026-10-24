@@ -11,7 +11,8 @@ router = APIRouter()
 
 # --- 认证相关配置 ---
 SUPER_ADMIN_USERNAME = "admin"
-USERS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "users.json")
+from user_paths import user_data_dir
+USERS_FILE = os.path.join(user_data_dir(), "users.json")
 
 
 # --- Pydantic 模型 ---

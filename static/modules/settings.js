@@ -301,6 +301,52 @@ class SettingsUI {
                 border-color: color-mix(in srgb, #f87171 60%, var(--border));
                 box-shadow: 0 6px 18px rgba(248,113,113,0.22);
             }
+            #settings-panel .settings-split { display:flex; width:100%; height:100%; min-height:0; flex:1; }
+            #settings-panel .settings-side { width:340px; flex:0 0 340px; display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--border); background:var(--sidebar-bg); }
+            #settings-panel .settings-side-scroll { flex:1; overflow:auto; padding:0 16px 20px; display:flex; flex-direction:column; gap:12px; }
+            #settings-panel .set-card.is-on { border-color:var(--sc, var(--accent)); box-shadow:0 0 0 1px var(--sc, var(--accent)); }
+            #settings-comfyui-btn .comfy-card-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+            #settings-comfyui-btn #comfy-status-dot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex-shrink:0; display:inline-block; }
+            #settings-comfyui-btn #comfy-start-btn { height:32px; padding:0 12px; border-radius:10px; border:none; background:var(--accent); color:var(--bg); font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; }
+            #settings-comfyui-btn #comfy-log-btn { width:32px; height:32px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+            #settings-detail { position:relative; flex:1; min-width:0; background:var(--stage-bg, #0b1220); }
+            #settings-look-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #0b1220); }
+            #settings-look-pane[hidden] { display:none !important; }
+            #settings-look-pane .look-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+            #settings-look-pane .look-block, #settings-look-pane .look-scale-row, #settings-look-pane .sys-tile { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #0f172a)); box-shadow:none; }
+            #settings-look-pane .look-block { display:flex; flex-direction:column; justify-content:center; gap:12px; }
+            #settings-look-pane .look-label { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+            #settings-look-pane [data-look-theme] { flex:1; height:36px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:13px; font-weight:800; cursor:pointer; }
+            #settings-look-pane #look-accent-row { display:flex; gap:12px; align-items:center; }
+            #settings-look-pane .look-scale-row { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; font-weight:800; color:var(--text); }
+            #settings-look-pane #look-scale { height:36px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); font-size:13px; font-weight:700; padding:0 10px; }
+            #settings-users-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #0b1220); }
+            #settings-users-pane[hidden] { display:none !important; }
+            #settings-users-pane .users-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+            #settings-users-pane .user-card { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #0f172a)); display:flex; flex-direction:column; justify-content:center; gap:12px; }
+            #settings-users-pane .user-card-main { display:flex; align-items:center; gap:12px; }
+            #settings-users-pane .user-card-actions { display:flex; gap:8px; }
+            #settings-users-pane .user-card-actions button, #settings-users-pane .user-reset-row button { height:32px; padding:0 12px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:12px; font-weight:700; cursor:pointer; }
+            #settings-users-pane .user-delete-btn { border-color:#ef4444 !important; color:#ef4444 !important; }
+            #settings-users-pane .user-reset-row { display:flex; gap:8px; }
+            #settings-users-pane .user-reset-row input { flex:1; height:32px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); padding:0 10px; font-size:13px; }
+            #settings-detail iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; filter:none; transform:none; pointer-events:auto; }
+            #settings-panel .settings-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
+            #settings-panel .settings-top { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); }
+            #settings-panel .settings-top h2 { margin:0; font-size:16px; font-weight:800; color:var(--text); }
+            #settings-panel .settings-body { display:grid; grid-template-columns:196px minmax(0,1fr); flex:1; min-height:0; }
+            #settings-panel .settings-nav { display:flex; flex-direction:column; gap:4px; padding:14px 12px; border-right:1px solid var(--border); overflow:auto; }
+            #settings-panel .settings-nav button { height:36px; border:0; border-radius:10px; background:transparent; color:var(--muted); text-align:left; padding:0 12px; font-size:13px; font-weight:700; cursor:pointer; }
+            #settings-panel .settings-nav button.is-on { background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--text); }
+            #settings-panel .settings-main { min-width:0; min-height:0; overflow:auto; padding:22px 24px 28px; display:flex; flex-direction:column; gap:14px; }
+            #settings-panel .settings-pane { display:flex; flex-direction:column; gap:14px; }
+            #settings-panel .settings-pane[hidden] { display:none !important; }
+            #settings-panel .settings-pane-title { font-size:22px; font-weight:800; color:var(--text); }
+            #settings-panel .settings-pane-sub { margin-top:4px; color:var(--muted); font-size:13px; }
+            #settings-panel .settings-frame-host { position:relative; flex:1; min-height:420px; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--stage-bg); }
+            #settings-panel .settings-frame-host[hidden] { display:none !important; }
+            #settings-panel iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; filter:none; transform:none; pointer-events:auto; }
+            #settings-panel .settings-stack { display:flex; flex-direction:column; gap:12px; max-width:560px; }
         `;
         document.head.appendChild(style);
 
@@ -518,209 +564,102 @@ class SettingsUI {
         panel.id = 'settings-panel';
         panel.style.cssText = `
             position: fixed;
-            bottom: 80px;
-            left: 20px;
+            inset: 16px;
+            width: auto;
+            height: auto;
             z-index: 999;
-            width: min(340px, calc(100vw - 40px));
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
             background: var(--sidebar-bg);
             border: 1px solid var(--border);
-            border-radius: 22px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-            padding: 22px;
+            border-radius: 18px;
+            box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
+            padding: 0;
             display: none;
+            flex-direction: column;
             opacity: 0;
-            transform: translateY(16px) scale(0.97);
-            transition: opacity 0.22s ease, transform 0.22s ease;
+            overflow: hidden;
+            transition: opacity 0.22s ease;
         `;
-        
         panel.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div class="settings-split">
+            <aside class="settings-side">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 16px 14px;">
                 <h2 style="margin:0;font-size:16px;font-weight:700;color:var(--text);">设置</h2>
                 <button id="settings-close-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;" title="关闭">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
-            
-            <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="settings-side-scroll">
                 <button id="settings-api-btn" class="set-card" style="--sc:#00b4d8;--sc2:#00f0ff;">
-                    <span class="set-card-ico">
-                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                        </svg>
-                    </span>
-                    <span class="set-card-body">
-                        <span class="set-card-title">API 设置</span>
-                        <span class="set-card-sub">配置 API Key 和模型参数</span>
-                    </span>
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">API 设置</span><span class="set-card-sub">配置 API Key 和模型参数</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-                
-                <button id="settings-comfyui-btn" class="set-card" style="--sc:#8b5cf6;--sc2:#c084fc;">
-                    <span class="set-card-ico">
-                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                        </svg>
-                    </span>
-                    <span class="set-card-body">
-                        <span class="set-card-title">ComfyUI 设置</span>
-                        <span class="set-card-sub">管理工作流和节点配置</span>
-                    </span>
+                <button id="settings-lan-btn" class="set-card" style="--sc:#84cc16;--sc2:#d9f99d;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">局域网共享</span><span class="set-card-sub">让同一局域网的人访问本机</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-
-                <!-- ComfyUI 启动/停止控制（统一样式卡片） -->
-                <div id="comfy-start-control" class="sys-tile" style="--tile:#06b6d4;--tile2:#22d3ee;cursor:default;flex-direction:column;align-items:stretch;gap:0;padding:0;min-height:auto;">
-                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;">
-                        <div id="comfy-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--faint);flex-shrink:0;"></div>
-                        <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;">ComfyUI</span>
-                        <span id="comfy-status-text" style="font-size:11px;font-weight:700;color:var(--muted);">检查中...</span>
-                    </div>
-                    <div style="display:flex;gap:6px;padding:0 14px 12px;">
-                        <button id="comfy-start-btn" style="flex:1;height:34px;border-radius:10px;border:none;background:var(--accent);color:var(--bg);font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            <span>启动</span>
+                <div id="settings-comfyui-btn" class="set-card" style="--sc:#8b5cf6;--sc2:#c084fc;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">ComfyUI</span><span class="set-card-sub" style="display:flex;align-items:center;gap:6px;"><span id="comfy-status-dot"></span><span id="comfy-status-text">检查中...</span></span></span>
+                    <span class="comfy-card-actions">
+                        <button id="comfy-start-btn" type="button" title="启动 ComfyUI">
+                            <svg data-role="icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span data-role="label">启动</span>
                         </button>
-                        <button id="comfy-stop-btn" style="flex:1;height:34px;border-radius:10px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-                            <span>停止</span>
+                        <button id="comfy-log-btn" type="button" title="查看日志">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                         </button>
-                        <button id="comfy-log-btn" title="查看日志" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                        </button>
-                    </div>
+                    </span>
                 </div>
-
-                <!-- ComfyUI 日志面板 (默认隐藏，点击日志按钮展开) -->
-                <div id="comfy-log-panel" style="display:none;width:100%;flex-direction:column;gap:6px;padding:0 16px 10px;">
+                <div id="comfy-log-panel" style="display:none;width:100%;flex-direction:column;gap:6px;">
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <span style="font-size:11px;color:var(--muted);flex:1;font-family:ui-monospace,monospace;" id="comfy-log-path">logs/comfyui-…log</span>
-                        <button id="comfy-log-refresh" title="刷新" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                        </button>
-                        <button id="comfy-log-clear" title="清空" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                        </button>
-                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
-                            <input type="checkbox" id="comfy-log-auto" checked style="cursor:pointer;">自动
-                        </label>
+                        <span id="comfy-log-path" style="font-size:11px;color:var(--muted);flex:1;font-family:ui-monospace,monospace;">logs/comfyui-…log</span>
+                        <button id="comfy-log-refresh" title="刷新" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">↻</button>
+                        <button id="comfy-log-clear" title="清空" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">清</button>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><input type="checkbox" id="comfy-log-auto" checked>自动</label>
                     </div>
-                    <pre id="comfy-log-content" style="margin:0;padding:10px;background:#0a1628;color:#a7f3d0;border-radius:8px;font-size:10.5px;font-family:ui-monospace,Consolas,monospace;line-height:1.45;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-all;border:1px solid rgba(16,185,129,0.2);">(加载中...)</pre>
+                    <pre id="comfy-log-content" style="margin:0;padding:10px;background:#0a1628;color:#a7f3d0;border-radius:8px;font-size:10.5px;max-height:160px;overflow:auto;white-space:pre-wrap;">(加载中...)</pre>
                 </div>
-
                 <button id="settings-users-btn" class="set-card" style="--sc:#f59e0b;--sc2:#fbbf24;display:none;">
-                    <span class="set-card-ico">
-                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                    </span>
-                    <span class="set-card-body">
-                        <span class="set-card-title">用户管理</span>
-                        <span class="set-card-sub">管理用户和重置密码</span>
-                    </span>
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">用户管理</span><span class="set-card-sub">管理用户和重置密码</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-
-                <!-- 系统设置（统一样式容器） -->
-                <div class="set-card" style="--sc:#6366f1;--sc2:#818cf8;cursor:default;overflow:hidden;flex-direction:column;align-items:stretch;gap:0;padding:0;min-height:auto;">
-                    <!-- 头部 -->
-                    <div style="display:flex;align-items:center;gap:13px;padding:11px 14px 6px;">
-                        <span class="set-card-ico">
-                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="3"></circle>
-                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l-.06-.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                            </svg>
-                        </span>
-                        <span class="set-card-body">
-                            <span class="set-card-title">系统设置</span>
-                            <span class="set-card-sub">外观、账号与服务</span>
-                        </span>
-                    </div>
-                    <!-- 分割线 -->
-                    <div style="height:1px;background:var(--border);margin:0 14px;opacity:0.5;"></div>
-                    <!-- 功能行 -->
-                    <div style="display:flex;flex-direction:column;padding:8px 10px 12px;gap:8px;" id="sys-settings-rows">
-                        <div id="look-settings-card" style="display:flex;flex-direction:column;gap:10px;padding:8px;border-radius:14px;border:1px solid var(--border);background:color-mix(in srgb, var(--accent) 6%, transparent);">
-                            <div style="font-size:12px;font-weight:800;color:var(--text);">外观</div>
-                            <div style="display:flex;gap:6px;" id="look-theme-row">
-                                <button type="button" data-look-theme="light" style="flex:1;height:32px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:800;cursor:pointer;">浅色</button>
-                                <button type="button" data-look-theme="dark" style="flex:1;height:32px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:800;cursor:pointer;">深色</button>
+                <button id="settings-look-btn" class="set-card" type="button" style="--sc:#a78bfa;--sc2:#c4b5fd;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">界面外观</span><span class="set-card-sub">主题、扫描线、强调色和缩放</span></span>
+                    <span class="set-card-arrow">›</span>
+                </button>
+                <button id="sys-auth-btn" class="set-card" type="button" style="--sc:#34d399;--sc2:#10b981;"><span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="set-card-body"><span class="set-card-title" id="sys-auth-label">登录</span><span id="sys-auth-hint" class="set-card-sub">未登录</span></span><span class="set-card-arrow" id="sys-auth-trail">›</span></button>
+                <button id="sys-restart-btn" class="set-card" type="button" style="--sc:#fb923c;--sc2:#f97316;"><span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></span><span class="set-card-body"><span class="set-card-title">重启服务</span><span class="set-card-sub">立即重启生效</span></span><span class="set-card-arrow">›</span></button>
+            </div>
+            </aside>
+            <div id="settings-detail">
+                <div id="settings-look-pane" hidden>
+                    <div class="look-pane-grid">
+                        <div class="look-block">
+                            <div class="look-label">主题</div>
+                            <div style="display:flex;gap:8px;" id="look-theme-row">
+                                <button type="button" data-look-theme="light">浅色</button>
+                                <button type="button" data-look-theme="dark">深色</button>
                             </div>
-                            <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#22d3ee;--tile2:#06b6d4;">
-                                <span class="sys-tile-txt">
-                                    <span class="sys-tile-title">背景扫描线</span>
-                                    <span id="look-scan-status" class="sys-tile-sub">关闭</span>
-                                </span>
-                                <span class="sys-tile-trail" id="look-scan-trail">关</span>
-                            </button>
-                            <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;">
-                                <span class="sys-tile-ico">
-                                    <svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                                    <svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
-                                </span>
-                                <span class="sys-tile-txt">
-                                    <span class="sys-tile-title">锁定侧边栏</span>
-                                    <span id="sys-lock-status" class="sys-tile-sub">关闭</span>
-                                </span>
-                                <span class="sys-tile-trail" id="sys-lock-trail">关</span>
-                            </button>
-                            <div>
-                                <div style="font-size:11px;font-weight:800;color:var(--muted);margin-bottom:6px;">强调色</div>
-                                <div id="look-accent-row" style="display:flex;gap:8px;">
-                                    <button type="button" data-look-accent="" title="默认" style="width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891B2,#7C3AED,#D97706,#059669,#E11D48,#0891B2);cursor:pointer;"></button>
-                                    <button type="button" data-look-accent="cyan" title="青" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#06B6D4;cursor:pointer;"></button>
-                                    <button type="button" data-look-accent="violet" title="紫" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#A78BFA;cursor:pointer;"></button>
-                                    <button type="button" data-look-accent="amber" title="琥珀" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#FBBF24;cursor:pointer;"></button>
-                                    <button type="button" data-look-accent="emerald" title="绿" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#34D399;cursor:pointer;"></button>
-                                    <button type="button" data-look-accent="rose" title="玫红" style="width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:#FB7185;cursor:pointer;"></button>
-                                </div>
-                            </div>
-                            <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--text);">
-                                <span>界面缩放</span>
-                                <select id="look-scale" style="height:30px;border-radius:8px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);font-size:12px;font-weight:700;padding:0 8px;"></select>
-                            </label>
                         </div>
-                        <!-- 登录/退出 -->
-                        <button id="sys-switch-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;display:none;">
-                            <span class="sys-tile-txt">
-                                <span class="sys-tile-title">切换用户</span>
-                                <span class="sys-tile-sub">退出后登录另一个账号</span>
-                            </span>
-                            <span class="sys-tile-trail">切换</span>
-                        </button>
-                        <button id="sys-auth-btn" class="sys-tile" style="--tile:#34d399;--tile2:#10b981;">
-                            <span class="sys-tile-ico">
-                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            </span>
-                            <span class="sys-tile-txt">
-                                <span class="sys-tile-title" id="sys-auth-label">登录</span>
-                                <span id="sys-auth-hint" class="sys-tile-sub">未登录</span>
-                            </span>
-                            <span class="sys-tile-trail" id="sys-auth-trail">›</span>
-                        </button>
-                        <!-- 重启服务 -->
-                        <button id="sys-restart-btn" class="sys-tile" style="--tile:#fb923c;--tile2:#f97316;">
-                            <span class="sys-tile-ico">
-                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-                            </span>
-                            <span class="sys-tile-txt">
-                                <span class="sys-tile-title">重启服务</span>
-                                <span class="sys-tile-sub">立即重启生效</span>
-                            </span>
-                            <span class="sys-tile-trail">›</span>
-                        </button>
+                        <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#22d3ee;--tile2:#06b6d4;"><span class="sys-tile-txt"><span class="sys-tile-title">背景扫描线</span><span id="look-scan-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="look-scan-trail">关</span></button>
+                        <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;"><span class="sys-tile-ico"><svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg></span><span class="sys-tile-txt"><span class="sys-tile-title">锁定侧边栏</span><span id="sys-lock-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="sys-lock-trail">关</span></button>
+                        <div class="look-block">
+                            <div class="look-label">强调色</div>
+                            <div id="look-accent-row"><button type="button" data-look-accent="" title="默认" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891B2,#7C3AED,#D97706,#059669,#E11D48,#0891B2);cursor:pointer;"></button><button type="button" data-look-accent="cyan" title="青" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#06B6D4;cursor:pointer;"></button><button type="button" data-look-accent="violet" title="紫" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#A78BFA;cursor:pointer;"></button><button type="button" data-look-accent="amber" title="琥珀" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#FBBF24;cursor:pointer;"></button><button type="button" data-look-accent="emerald" title="绿" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#34D399;cursor:pointer;"></button><button type="button" data-look-accent="rose" title="玫红" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#FB7185;cursor:pointer;"></button></div>
+                        </div>
+                        <label class="look-scale-row"><span>界面缩放</span><select id="look-scale"></select></label>
                     </div>
+                </div>
+                <div id="settings-users-pane" hidden>
+                    <div class="users-pane-grid" id="settings-users-grid"></div>
+                </div>
+            </div>
+            </div>
         `;
-
         document.body.appendChild(panel);
         this.panelEl = panel;
     }
@@ -826,21 +765,17 @@ class SettingsUI {
         }
         
         document.getElementById('settings-close-btn').onclick = () => this.hidePanel();
-        
-        document.getElementById('settings-api-btn').onclick = () => {
-            this.switchToSettings('api-settings');
-        };
-        
-        document.getElementById('settings-comfyui-btn').onclick = () => {
-            this.switchToSettings('comfyui-settings');
-        };
+        const apiBtn = document.getElementById('settings-api-btn');
+        const lanBtn = document.getElementById('settings-lan-btn');
+        const comfyBtn = document.getElementById('settings-comfyui-btn');
+        if (apiBtn) apiBtn.onclick = (e) => { e.stopPropagation(); this.showSection('api'); };
+        if (lanBtn) lanBtn.onclick = (e) => { e.stopPropagation(); this.showSection('lan'); };
+        if (comfyBtn) comfyBtn.onclick = (e) => { e.stopPropagation(); this.showSection('comfy'); };
+        const lookBtn = document.getElementById('settings-look-btn');
+        if (lookBtn) lookBtn.onclick = (e) => { e.stopPropagation(); this.showSection('look'); };
         
         const usersBtn = document.getElementById('settings-users-btn');
-        if (usersBtn) {
-            usersBtn.onclick = () => {
-                this.showUsersPanel();
-            };
-        }
+        if (usersBtn) usersBtn.onclick = (e) => { e.stopPropagation(); this.showSection('users'); };
         
         document.addEventListener('click', (e) => {
             if (this.panelVisible && 
@@ -883,9 +818,10 @@ class SettingsUI {
         }
         this.bindLookSettings();
         if (sysAuthBtn) {
-            sysAuthBtn.onclick = () => {
+            sysAuthBtn.onclick = async () => {
                 if (AuthManager.isLoggedIn()) {
-                    this.confirmLogout();
+                    await AuthManager.logout();
+                    window.location.href = '/static/login.html';
                 } else {
                     this.showLoginModal();
                 }
@@ -1002,51 +938,90 @@ class SettingsUI {
     showPanel() {
         this.backdropEl.style.opacity = '1';
         this.backdropEl.style.pointerEvents = 'auto';
-        this.panelEl.style.display = 'block';
-        requestAnimationFrame(() => {
-            this.panelEl.style.opacity = '1';
-            this.panelEl.style.transform = 'translateY(0) scale(1)';
-        });
+        this.panelEl.style.display = 'flex';
+        this.panelEl.style.opacity = '1';
         this.panelVisible = true;
-        // 同步系统设置卡片内所有状态
         this.updateSysSettingsState();
+        const preferred = this.currentSection || 'api';
+        this.showSection(preferred === 'translate' ? 'api' : preferred);
     }
 
     hidePanel() {
         this.backdropEl.style.opacity = '0';
         this.backdropEl.style.pointerEvents = 'none';
         this.panelEl.style.opacity = '0';
-        this.panelEl.style.transform = 'translateY(16px) scale(0.97)';
-        setTimeout(() => {
-            this.panelEl.style.display = 'none';
-        }, 220);
+        setTimeout(() => { if (!this.panelVisible) this.panelEl.style.display = 'none'; }, 220);
         this.panelVisible = false;
     }
-    
-    switchToSettings(id) {
-        this.hidePanel();
-        
-        const target = document.getElementById('frame-' + id);
-        if (!target) {
-            console.error('Settings iframe not found: frame-' + id);
+
+    showSection(name) {
+        this.currentSection = name;
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-users-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const on = (name === 'api' && id === 'settings-api-btn')
+                || (name === 'lan' && id === 'settings-lan-btn')
+                || (name === 'comfy' && id === 'settings-comfyui-btn')
+                || (name === 'look' && id === 'settings-look-btn')
+                || (name === 'users' && id === 'settings-users-btn');
+            btn.classList.toggle('is-on', on);
+        });
+        const lookPane = document.getElementById('settings-look-pane');
+        const usersPane = document.getElementById('settings-users-pane');
+        const hideEmbedded = () => {
+            const host = document.getElementById('settings-detail');
+            if (host) host.querySelectorAll('iframe').forEach(frame => frame.classList.remove('settings-embedded'));
+        };
+        if (name === 'look') {
+            hideEmbedded();
+            if (usersPane) usersPane.hidden = true;
+            if (lookPane) lookPane.hidden = false;
             return;
         }
-        
-        document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => {
-            n.classList.remove('active', 'submenu-active', 'has-active-child');
-        });
-        
-        target.classList.add('active');
-        if (!target.src) target.src = target.dataset.src;
-        
-        if (typeof syncThemeToFrame === 'function') {
-            syncThemeToFrame(target);
+        if (name === 'users') {
+            hideEmbedded();
+            if (lookPane) lookPane.hidden = true;
+            if (usersPane) usersPane.hidden = false;
+            this.showUserList();
+            return;
         }
-        
-        localStorage.setItem('lastSelectedApp', JSON.stringify({ id: id, parentId: null }));
+        if (lookPane) lookPane.hidden = true;
+        if (usersPane) usersPane.hidden = true;
+        if (name === 'api' || name === 'lan') this.mountSettingsFrame('api-settings', name);
+        if (name === 'comfy') this.mountSettingsFrame('comfyui-settings');
     }
-    
+
+    mountSettingsFrame(id, section) {
+        const target = document.getElementById('frame-' + id);
+        const host = document.getElementById('settings-detail');
+        if (!target || !host) return;
+        if (id === 'api-settings') this._apiSection = section;
+        const firstPlace = target.parentElement !== host;
+        host.querySelectorAll('iframe').forEach(frame => {
+            if (frame !== target) frame.classList.remove('settings-embedded');
+        });
+        if (firstPlace) host.appendChild(target);
+        target.classList.add('settings-embedded');
+        target.classList.remove('active');
+        const base = target.dataset.src || '';
+        const needsLoad = !target.getAttribute('src') || target.src.includes('embed=1');
+        if (needsLoad) {
+            target.addEventListener('load', () => {
+                if (id === 'api-settings') this.applyFrameSection(target, this._apiSection);
+            }, { once: true });
+            target.src = base;
+        } else if (id === 'api-settings') {
+            this.applyFrameSection(target, section);
+        }
+        if (typeof syncThemeToFrame === 'function') syncThemeToFrame(target);
+    }
+
+    applyFrameSection(target, section) {
+        const page = target.contentWindow;
+        if (!page || typeof page.applySettingsSection !== 'function') return;
+        try { page.applySettingsSection(section === 'translate' || section === 'lan' ? section : ''); } catch (e) {}
+    }
+
     // --- 登录相关 ---
     
     showLoginModal() {
@@ -1216,16 +1191,14 @@ class SettingsUI {
         const trail = document.getElementById('sys-auth-trail');
         const tile = document.getElementById('sys-auth-btn');
         if (!label || !hint) return;
-        const switchBtn = document.getElementById('sys-switch-btn');
         const accountName = document.getElementById('sidebar-account-name');
         const accountBtn = document.getElementById('sidebar-account-btn');
         if (typeof AuthManager !== 'undefined' && AuthManager.isLoggedIn()) {
             const user = AuthManager.getUser();
-            label.textContent = '退出登录';
+            label.textContent = '切换用户';
             hint.textContent = this.escapeHtml(user.username);
-            if (trail) trail.textContent = '退出';
-            if (tile) tile.classList.add('sys-tile-danger');
-            if (switchBtn) switchBtn.style.display = '';
+            if (trail) trail.textContent = '切换';
+            if (tile) tile.classList.remove('sys-tile-danger');
             if (accountName) accountName.textContent = user.username || '账号';
             if (accountBtn) accountBtn.title = '账号：' + (user.username || '');
         } else {
@@ -1233,7 +1206,6 @@ class SettingsUI {
             hint.textContent = '未登录';
             if (trail) trail.textContent = '›';
             if (tile) tile.classList.remove('sys-tile-danger');
-            if (switchBtn) switchBtn.style.display = 'none';
             if (accountName) accountName.textContent = '登录';
             if (accountBtn) accountBtn.title = '登录';
         }
@@ -1282,14 +1254,6 @@ class SettingsUI {
         document.addEventListener('click', (e) => {
             if (!menu.contains(e.target) && e.target !== btn) menu.style.display = 'none';
         });
-        const sysSwitch = document.getElementById('sys-switch-btn');
-        if (sysSwitch) {
-            sysSwitch.onclick = async (e) => {
-                e.stopPropagation();
-                await AuthManager.logout();
-                window.location.href = '/static/login.html';
-            };
-        }
     }
     
     updateSettingsButtonState() {
@@ -1306,7 +1270,7 @@ class SettingsUI {
             this.buttonEl.style.cursor = 'pointer';
         }
         const admin = loggedIn && AuthManager.isAdmin();
-        ['settings-api-btn', 'settings-comfyui-btn', 'comfy-start-control', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (!admin) el.style.display = 'none';
@@ -1322,13 +1286,17 @@ class SettingsUI {
     }
 
     showUsersPanel() {
-        this.hidePanel();
-        this.showUserList();
+        this.showSection('users');
     }
 
     async showUserList() {
+        const grid = document.getElementById('settings-users-grid');
+        if (!grid) return;
         const token = AuthManager.getToken();
-        if (!token) return;
+        if (!token) {
+            grid.innerHTML = '<div class="user-card">请先登录</div>';
+            return;
+        }
         let users = [];
         try {
             const resp = await fetch('/api/auth/admin/users?token=' + encodeURIComponent(token));
@@ -1336,69 +1304,99 @@ class SettingsUI {
             const data = await resp.json();
             users = data.users || [];
         } catch (e) {
-            console.error(e);
+            grid.innerHTML = '<div class="user-card">' + this.escapeHtml(e.message || '获取用户列表失败') + '</div>';
             return;
         }
-        const overlay = document.createElement('div');
-        overlay.id = 'users-panel-overlay';
-        overlay.style.cssText = `
-            position: fixed; inset: 0; z-index: 2000;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-        `;
-        const box = document.createElement('div');
-        box.style.cssText = `
-            width: 360px; max-height: 500px; overflow-y: auto;
-            background: var(--sidebar-bg); border: 1px solid var(--border);
-            border-radius: 20px; padding: 24px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-        `;
-        let html = `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-                <h2 style="margin:0;font-size:16px;font-weight:700;color:var(--text);">用户管理</h2>
-                <button id="users-panel-close" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-        `;
         const currentUser = AuthManager.getUser() || {};
-        users.forEach(u => {
+        if (!users.length) {
+            grid.innerHTML = '<div class="user-card">还没有用户</div>';
+            return;
+        }
+        grid.innerHTML = users.map(u => {
             const isSelf = u.username === currentUser.username;
             const canDelete = !u.is_admin;
-            html += `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00b4d8,#00f0ff);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0a1628;flex-shrink:0;">${this.escapeHtml(u.username.charAt(0).toUpperCase())}</div>
-                        <span style="font-size:14px;font-weight:600;color:var(--text);">${this.escapeHtml(u.username)}</span>
-                        ${isSelf ? '<span style="font-size:11px;color:var(--muted);background:var(--monitor-bg);padding:2px 8px;border-radius:8px;">当前</span>' : ''}
-                        ${u.is_admin ? '<span style="font-size:11px;color:var(--muted);background:rgba(251,191,36,0.15);padding:2px 8px;border-radius:8px;">管理员</span>' : ''}
+            const name = this.escapeHtml(u.username);
+            return `
+                <div class="user-card" data-username="${name}">
+                    <div class="user-card-main">
+                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0a1628;flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
+                        <div style="min-width:0;">
+                            <div style="font-size:14px;font-weight:700;color:var(--text);">${name}</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px;">${isSelf ? '当前账号' : ''}${isSelf && u.is_admin ? ' · ' : ''}${u.is_admin ? '管理员' : (isSelf ? '' : '普通用户')}</div>
+                        </div>
                     </div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="user-reset-btn" data-username="${this.escapeHtml(u.username)}" style="height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;">重置密码</button>
-                        ${canDelete ? `<button class="user-delete-btn" data-username="${this.escapeHtml(u.username)}" style="height:32px;padding:0 14px;border-radius:8px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;">删除</button>` : ''}
+                    <div class="user-card-actions">
+                        <button type="button" class="user-reset-btn">重置密码</button>
+                        ${canDelete ? '<button type="button" class="user-delete-btn">删除</button>' : ''}
                     </div>
+                    <div class="user-reset-row" hidden>
+                        <input type="password" placeholder="输入新密码" autocomplete="new-password">
+                        <button type="button" class="user-reset-save">确认</button>
+                    </div>
+                    <div class="user-card-error" style="display:none;color:#ef4444;font-size:12px;"></div>
                 </div>
             `;
-        });
-        box.innerHTML = html;
-        overlay.appendChild(box);
-        document.body.appendChild(overlay);
-
-        document.getElementById('users-panel-close').onclick = () => overlay.remove();
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-        overlay.querySelectorAll('.user-reset-btn').forEach(btn => {
-            btn.onclick = () => {
-                const username = btn.dataset.username;
-                this.showResetPasswordModal(username, overlay);
+        }).join('');
+        grid.querySelectorAll('.user-card').forEach(card => {
+            const username = card.dataset.username;
+            const error = card.querySelector('.user-card-error');
+            const showCardError = (message) => {
+                error.textContent = message;
+                error.style.display = message ? 'block' : 'none';
             };
-        });
-
-        overlay.querySelectorAll('.user-delete-btn').forEach(btn => {
-            btn.onclick = () => {
-                const username = btn.dataset.username;
-                this.showDeleteConfirmModal(username, overlay);
+            card.querySelector('.user-reset-btn').onclick = () => {
+                const row = card.querySelector('.user-reset-row');
+                row.hidden = !row.hidden;
             };
+            card.querySelector('.user-reset-save').onclick = async () => {
+                const newPwd = card.querySelector('.user-reset-row input').value;
+                if (!newPwd) {
+                    showCardError('请输入新密码');
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/auth/admin/reset-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: AuthManager.getToken(), username, new_password: newPwd })
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        throw new Error(err.detail || '重置失败');
+                    }
+                    card.querySelector('.user-reset-row').hidden = true;
+                    card.querySelector('.user-reset-row input').value = '';
+                    showCardError('');
+                    this.showToast('密码已重置');
+                } catch (e) {
+                    showCardError(e.message);
+                }
+            };
+            const deleteBtn = card.querySelector('.user-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.onclick = async () => {
+                    if (deleteBtn.dataset.confirm !== '1') {
+                        deleteBtn.dataset.confirm = '1';
+                        deleteBtn.textContent = '确认删除';
+                        return;
+                    }
+                    try {
+                        const resp = await fetch('/api/auth/admin/delete-user', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: AuthManager.getToken(), username })
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || '删除失败');
+                        }
+                        this.showToast('账号已删除');
+                        this.showUserList();
+                    } catch (e) {
+                        showCardError(e.message);
+                    }
+                };
+            }
         });
     }
 
@@ -1518,7 +1516,6 @@ class ComfyProcessManager {
         this.pollTimer = null;
         this.logPollTimer = null;
         this.startBtn = document.getElementById('comfy-start-btn');
-        this.stopBtn = document.getElementById('comfy-stop-btn');
         this.statusDot = document.getElementById('comfy-status-dot');
         this.statusText = document.getElementById('comfy-status-text');
         this.logBtn = document.getElementById('comfy-log-btn');
@@ -1531,6 +1528,7 @@ class ComfyProcessManager {
         this.initialized = false;
         this.logOpen = false;
         this.lastLogSize = 0;
+        this.mode = 'stopped';
     }
 
     init() {
@@ -1539,15 +1537,19 @@ class ComfyProcessManager {
 
         // 绑定按钮事件
         if (this.startBtn) {
-            this.startBtn.onclick = () => this.startComfy();
-        }
-        if (this.stopBtn) {
-            this.stopBtn.onclick = () => this.stopComfy();
+            this.startBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (this.mode === 'stopped') this.startComfy();
+                else this.stopComfy();
+            };
         }
 
         // 绑定日志面板
         if (this.logBtn) {
-            this.logBtn.onclick = () => this.toggleLogPanel();
+            this.logBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.toggleLogPanel();
+            };
         }
         if (this.logRefresh) {
             this.logRefresh.onclick = () => this.refreshLog();
@@ -1648,9 +1650,32 @@ class ComfyProcessManager {
     updateUI(data) {
         const isRunning = data.running === true;
         const isReachable = data.reachable === true;
+        this.mode = isReachable ? 'running' : (isRunning ? 'starting' : 'stopped');
 
-        if (this.startBtn) this.startBtn.style.display = isRunning ? 'none' : 'flex';
-        if (this.stopBtn) this.stopBtn.style.display = isRunning ? 'flex' : 'none';
+        if (this.startBtn) {
+            const label = this.startBtn.querySelector('[data-role="label"]');
+            const icon = this.startBtn.querySelector('[data-role="icon"]');
+            this.startBtn.style.display = 'flex';
+            if (this.mode === 'running') {
+                if (label) label.textContent = '运行中';
+                this.startBtn.title = '点击关闭 ComfyUI';
+                this.startBtn.style.background = '#059669';
+                this.startBtn.style.color = '#ecfdf5';
+                if (icon) icon.innerHTML = '<rect x="5" y="5" width="14" height="14" rx="2"/>';
+            } else if (this.mode === 'starting') {
+                if (label) label.textContent = '启动中';
+                this.startBtn.title = '正在启动，点击可关闭';
+                this.startBtn.style.background = '#d97706';
+                this.startBtn.style.color = '#fffbeb';
+                if (icon) icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+            } else {
+                if (label) label.textContent = '启动';
+                this.startBtn.title = '启动 ComfyUI';
+                this.startBtn.style.background = 'var(--accent)';
+                this.startBtn.style.color = 'var(--bg)';
+                if (icon) icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+            }
+        }
 
         if (this.statusDot) {
             if (isReachable) {
@@ -1673,6 +1698,7 @@ class ComfyProcessManager {
     }
 
     async startComfy() {
+        if (this.mode !== 'stopped') return;
         if (this.startBtn) { this.startBtn.disabled = true; this.startBtn.style.opacity = '0.5'; }
         try {
             const resp = await fetch('/api/comfyui/start', { method: 'POST' });
@@ -1709,7 +1735,7 @@ class ComfyProcessManager {
     }
 
     async stopComfy() {
-        if (this.stopBtn) { this.stopBtn.disabled = true; this.stopBtn.style.opacity = '0.5'; }
+        if (this.startBtn) { this.startBtn.disabled = true; this.startBtn.style.opacity = '0.5'; }
         try {
             const resp = await fetch('/api/comfyui/stop', { method: 'POST' });
             if (!resp.ok) {
@@ -1721,7 +1747,7 @@ class ComfyProcessManager {
         } catch (e) {
             alert('停止失败: ' + e.message);
         } finally {
-            if (this.stopBtn) { this.stopBtn.disabled = false; this.stopBtn.style.opacity = '1'; }
+            if (this.startBtn) { this.startBtn.disabled = false; this.startBtn.style.opacity = '1'; }
         }
     }
 }

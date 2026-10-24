@@ -1,7 +1,0 @@
-{
-  "provider_id": "agnes::agnes-2.0-flash",
-  "preset_id": "preset-mqw2nd1o",
-  "channel": "api",
-  "comfyui_workflow": "提示词/文生提示词.json",
-  "comfyui_model": "Qwen3.5-9B-Q4_0.gguf"
-}

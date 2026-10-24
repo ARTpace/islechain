@@ -13,13 +13,16 @@
                     document.documentElement.classList.add('studio-theme-dark');
                     document.documentElement.classList.add('theme-dark');
                 }
+                if(location.search.indexOf('embed=1') >= 0) document.documentElement.classList.add('embed');
+                if(window.parent !== window) document.documentElement.classList.add('in-settings');
+                document.documentElement.classList.add('provider-home');
             } catch(e) {}
         })();
     </script>
     <script src="/static/vendor/tailwindcss-cdn.js?v=20260725"></script>
     <script src="/static/lucide.min.js?v=20260520001"></script>
     <script src="/static/theme.js?v=20260516-theme-sync"></script>
-    <script src="/static/i18n.js?v=20260515-image-editor-i18n"></script>
+    <script src="/static/i18n.js?v=20261023set7"></script>
     <link rel="stylesheet" href="/static/theme.css?v=20260514-api-lora-i18n">
     <style>
         :root { --bg:#020617; --panel:#0F172A; --soft:#1E293B; --line:#334155; --line-strong:#475569; --text:#F8FAFC; --muted:#94A3B8; --faint:#64748B; --accent:#00FFFF; --accent-glow:#00B4D8; --neon-cyan:#00FFFF; --neon-blue:#0080FF; }
@@ -34,6 +37,12 @@
         *::-webkit-scrollbar-thumb:hover { background-color:rgba(0, 255, 255, 0.5) !important; }
         *::-webkit-scrollbar-corner { background:transparent !important; }
         button { font-family:inherit; cursor:pointer; border:0; background:transparent; color:inherit; }
+        html.embed .page { padding:16px 16px 40px; }
+        html.embed .page-head { display:none; }
+        html.embed .translate-side-group,
+        html.embed .lan-side-group { display:none !important; }
+        html.embed.focus-section .sidebar { display:none; }
+        html.embed.focus-section .layout { grid-template-columns:minmax(0,1fr); }
         .page { min-height:100vh; padding:40px 32px 80px; background: radial-gradient(ellipse at top, rgba(0, 255, 255, 0.03) 0%, transparent 50%), var(--bg); }
         .wrap { max-width:1100px; margin:0 auto; }
         .page-head { padding:0 4px 28px; display:flex; justify-content:space-between; align-items:end; gap:24px; flex-wrap:wrap; }
@@ -299,6 +308,46 @@
         body.show-jimeng #probeAsyncBtn,
         body.show-jimeng .image-request-mode-wrap { display:none !important; }
         @media (max-width:860px) { .page{padding:24px 16px 60px}.layout{grid-template-columns:1fr;gap:28px}.sidebar{position:static}.form,.model-grid{grid-template-columns:1fr}.models-toolbar{align-items:flex-start;flex-direction:column}.models-toolbar-actions{width:100%;justify-content:flex-end}.lora-row{grid-template-columns:1fr}.lora-row .icon-btn{width:100%;} }
+        html.in-settings, html.in-settings body { height:100%; overflow:hidden; }
+        html.in-settings .page { height:100%; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:14px 14px 12px; }
+        html.in-settings .wrap, html.provider-home .wrap { max-width:none; width:100%; margin:0; align-self:stretch; flex:1; height:100%; min-height:0; display:flex; flex-direction:column; }
+        html.in-settings .page-head { flex:0 0 auto; padding:0 2px 10px; }
+        html.in-settings .page-head .title { font-size:20px; }
+        html.in-settings .page-head .sub { margin-top:4px; }
+        html.in-settings .layout { flex:1; min-height:0; grid-template-columns:228px minmax(0,1fr); gap:12px; align-items:stretch; }
+        html.in-settings .sidebar { position:static; top:auto; max-height:none; height:100%; overflow:auto; padding:12px; }
+        html.in-settings .layout > .content { height:100%; min-height:0; overflow:auto; gap:12px; padding-right:2px; }
+        html.in-settings .content-head { padding:14px 16px; }
+        html.in-settings .block { padding:14px 16px; }
+        html.in-settings .form { grid-template-columns:1fr 1fr; }
+        @media (max-width:560px) {
+            html.in-settings, html.in-settings body { height:auto; overflow:auto; }
+            html.in-settings .page, html.in-settings .wrap { height:auto; overflow:visible; display:block; }
+            html.in-settings .layout { grid-template-columns:1fr; }
+            html.in-settings .sidebar, html.in-settings .layout > .content { height:auto; overflow:visible; }
+        }
+        html.provider-home .layout, html.in-settings.provider-home .layout { grid-template-columns:minmax(0,1fr); }
+        html.provider-home .layout > main { display:none !important; }
+        html.provider-home .sidebar, html.in-settings.provider-home .sidebar { height:100%; overflow:auto; background:transparent; border:0; padding:0 2px 8px; box-shadow:none; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; align-content:start; }
+        html.provider-home .side-section-title, html.provider-home .provider-list, html.provider-home .cli-quick-group { grid-column:1 / -1; }
+        html.provider-home .provider-list, html.provider-home .cli-quick-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; border:0; margin:0; padding:0; }
+        html.provider-home .provider-card, html.provider-home .add-btn, html.provider-home .api-link-btn, html.provider-home .cli-quick-btn { min-height:112px; border:1px solid var(--line); background:var(--panel); border-radius:16px; padding:16px 18px; align-items:center; justify-content:flex-start; text-align:left; }
+        html.provider-home .provider-card:hover, html.provider-home .add-btn:hover, html.provider-home .api-link-btn:hover, html.provider-home .cli-quick-btn:hover { border-color:var(--accent,#00f0ff); transform:translateY(-1px); }
+        html.provider-home .add-btn, html.provider-home .api-link-btn,
+        html.studio-theme-dark.provider-home .api-link-btn,
+        html.provider-home body.studio-theme-dark .api-link-btn { width:100%; background:var(--panel); color:var(--text); border-color:var(--line); box-shadow:none; }
+        html.provider-home .api-link-btn:hover,
+        html.studio-theme-dark.provider-home .api-link-btn:hover { background:var(--soft); color:var(--text); border-color:var(--accent,#00f0ff); }
+        html.provider-home .sidebar > .add-btn, html.provider-home .sidebar > .api-link-btn { display:inline-flex; }
+        html.provider-home .cli-quick-group { display:flex; flex-direction:column; gap:10px; border:0; padding-top:4px; }
+        html.provider-open .sidebar { display:none; }
+        html.provider-open .layout, html.in-settings.provider-open .layout { grid-template-columns:minmax(0,1fr); }
+        #providerBackBtn { height:30px; margin:0; padding:0 10px; border-radius:9px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-size:12px; font-weight:800; }
+        #providerBackBtn[hidden] { display:none !important; }
+        html.in-settings .page-head .title,
+        html.in-settings .page-head .sub { display:none !important; }
+        html.in-settings:not(.show-back) .page-head { display:none !important; }
+        html.in-settings.show-back .page-head { padding:0 2px 10px; }
         /* 新手引导卡（INF 风格：标题 + 步骤面板 + 来源按钮 + 箭头 + Key 输入） */
         .provider-onboarding-card { display:flex; flex-direction:column; gap:14px; padding:20px 24px; border:1px solid var(--line-strong); border-radius:16px; background:linear-gradient(135deg, var(--panel), var(--soft)); }
         body.show-ms .provider-onboarding-card[hidden],
@@ -499,8 +548,10 @@
         .recommend-content { display:none; }
         .recommend-inline-card { display:flex !important; border:0; background:none; padding:0; }
         /* 翻译内容面板 - hidden 优先级高于 .content 的 display:flex */
-        #translateContent[hidden] { display:none !important; }
-        #translateContent:not([hidden]) { display:flex; }
+        #translateContent[hidden],
+        #lanContent[hidden] { display:none !important; }
+        #translateContent:not([hidden]),
+        #lanContent:not([hidden]) { display:flex; }
         /* 空占位以避免重复定义 */
         
     </style>
@@ -511,6 +562,7 @@
         <div class="wrap">
             <header class="page-head">
                 <div>
+                    <button id="providerBackBtn" type="button" hidden onclick="showProviderHome()">‹ 返回平台</button>
                     <div class="title" data-i18n="api.title">API 设置</div>
                     <div class="sub" data-i18n="api.subtitle">管理平台地址、模型列表和 Key。Key 写入后端 env，页面不会回显完整内容。</div>
                 </div>
@@ -532,9 +584,13 @@
                             <div class="cli-quick-note">需要先安装 CLI 文件夹中的依赖。</div>
                         </div>
                     </div>
-                    <div class="cli-quick-group" style="margin-top:4px;">
+                    <div class="cli-quick-group translate-side-group" style="margin-top:4px;">
                         <div class="side-section-title">翻译设置</div>
                         <button class="cli-quick-btn" type="button" onclick="selectTranslate()" id="translateSideBtn"><i data-lucide="languages" class="w-3.5 h-3.5"></i><span>翻译配置</span></button>
+                    </div>
+                    <div class="cli-quick-group lan-side-group" style="margin-top:4px;">
+                        <div class="side-section-title">局域网</div>
+                        <button class="cli-quick-btn" type="button" onclick="selectLan()" id="lanSideBtn"><i data-lucide="wifi" class="w-3.5 h-3.5"></i><span>局域网共享</span></button>
                     </div>
                 </aside>
 
@@ -858,6 +914,34 @@
                 </div>
 
             </main>
+            <main id="lanContent" class="content" hidden>
+                <div class="content-head">
+                    <div>
+                        <div class="editor-title">局域网共享</div>
+                        <div class="editor-sub">默认只允许本机使用。打开后，局域网里的人用下面的地址打开，自己注册账号后即可登录。</div>
+                    </div>
+                </div>
+                <section class="block">
+                    <div class="form" style="grid-template-columns:1fr;gap:14px;">
+                        <label class="field" style="flex-direction:row;align-items:center;gap:10px;">
+                            <input id="lanEnabled" type="checkbox">
+                            <span class="label" style="margin:0;">允许局域网访问</span>
+                        </label>
+                        <p id="lanStatus" class="hint" style="margin:0;">正在读取共享状态…</p>
+                        <label class="field">
+                            <span class="label">分享端口</span>
+                            <div class="field-frame"><input id="lanPort" type="number" min="1" max="65535" value="7001"></div>
+                        </label>
+                        <p class="hint" style="margin:0;">只在可信局域网打开。访问走 HTTP。连不上时，在 Windows 防火墙里允许 ArtCanvas 使用专用网络。</p>
+                        <div><button class="action-btn save-btn" type="button" onclick="saveLanSettings()">保存</button></div>
+                        <div id="lanAddresses" class="hint" style="margin:0;"></div>
+                        <div>
+                            <div class="label">访问设备</div>
+                            <div id="lanClients" class="hint">还没有设备访问。</div>
+                        </div>
+                    </div>
+                </section>
+            </main>
             <main id="translateContent" class="content" hidden>
                 <div class="content-head">
                     <div>
@@ -1117,6 +1201,7 @@
         let providers = [];
         let selectedId = '';
         let selectedTranslate = false;
+        let selectedLan = false;
         const providerList = document.getElementById('providerList');
         const editorTitle = document.getElementById('editorTitle');
         const statusEl = document.getElementById('status');
@@ -1730,30 +1815,139 @@
         function selectProvider(id){
             syncEditor();
             selectedTranslate = false;
+            selectedLan = false;
+            selectedLan = false;
             selectedId = id;
             renderEditor();
             toggleTranslateContent();
             updateTranslateSideBtn();
+            updatePickerMode();
         }
         function selectTranslate(){
             selectedTranslate = true;
+            selectedLan = false;
             selectedId = '';
             renderProviderList();
             toggleTranslateContent();
             updateTranslateSideBtn();
-            // 加载翻译配置
             if(typeof loadTranslateConfig === 'function') loadTranslateConfig();
+            updatePickerMode();
+        }
+        function selectLan(){
+            selectedLan = true;
+            selectedTranslate = false;
+            selectedId = '';
+            renderProviderList();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+            loadLanSettings();
+            updatePickerMode();
+        }
+        function showProviderHome(){
+            if(typeof syncEditor === 'function') syncEditor();
+            selectedTranslate = false;
+            selectedLan = false;
+            selectedId = '';
+            renderProviderList();
+            toggleTranslateContent();
+            updateTranslateSideBtn();
+            updatePickerMode();
+        }
+        function updatePickerMode(){
+            const open = !!(selectedId || selectedTranslate || selectedLan);
+            const providerOpen = !!selectedId && !selectedTranslate && !selectedLan;
+            document.documentElement.classList.toggle('provider-home', !open);
+            document.documentElement.classList.toggle('provider-open', open);
+            document.documentElement.classList.toggle('show-back', providerOpen);
+            const back = document.getElementById('providerBackBtn');
+            if(back) back.hidden = !providerOpen;
         }
         function toggleTranslateContent(){
             const mains = document.querySelectorAll('.layout > main');
             const content = mains[0];
             const translateContent = document.getElementById('translateContent');
-            if(content) content.style.display = selectedTranslate ? 'none' : '';
+            const lanContent = document.getElementById('lanContent');
+            if(content) content.style.display = (selectedTranslate || selectedLan) ? 'none' : '';
             if(translateContent) translateContent.hidden = !selectedTranslate;
+            if(lanContent) lanContent.hidden = !selectedLan;
+            document.documentElement.classList.toggle('focus-section', !!(selectedTranslate || selectedLan));
         }
+        function showProviderEditor(){
+            showProviderHome();
+        }
+        window.showProviderEditor = showProviderEditor;
+        window.applySettingsSection = function(section){
+            window.__settingsSection = section || '';
+            if(!window.__providersReady) return;
+            if(section === 'lan') selectLan();
+            else if(section === 'translate') selectTranslate();
+            else showProviderEditor();
+        };
         function updateTranslateSideBtn(){
             const btn = document.getElementById('translateSideBtn');
+            const lanBtn = document.getElementById('lanSideBtn');
             if(btn) btn.classList.toggle('active', !!selectedTranslate);
+            if(lanBtn) lanBtn.classList.toggle('active', !!selectedLan);
+        }
+        async function loadLanSettings(){
+            const status = document.getElementById('lanStatus');
+            try {
+                const response = await fetch('/api/lan/settings', {cache:'no-store'});
+                const data = await response.json();
+                if(!response.ok) throw new Error(data.detail || '读取失败');
+                renderLan(data);
+                await loadLanClients();
+            } catch (error) {
+                if(status) status.textContent = error.message || '读取共享状态失败';
+            }
+        }
+        function renderLan(data){
+            const enabled = document.getElementById('lanEnabled');
+            const port = document.getElementById('lanPort');
+            const status = document.getElementById('lanStatus');
+            const addresses = document.getElementById('lanAddresses');
+            if(enabled) enabled.checked = !!data.enabled;
+            if(port) port.value = data.sharingPort || 7001;
+            if(status) status.textContent = data.error || (data.available ? '局域网共享已开启' : (data.enabled ? '共享已保存，但当前没有可用地址' : '局域网共享已关闭，只有本机可以访问'));
+            if(addresses){
+                const links = (data.addresses || []).map(url => '<div><a href="' + url + '" target="_blank">' + url + '</a></div>').join('');
+                addresses.innerHTML = links || '打开并保存后，这里会显示可以发给局域网其他人的地址。';
+            }
+        }
+        async function loadLanClients(){
+            const box = document.getElementById('lanClients');
+            if(!box) return;
+            const response = await fetch('/api/lan/clients', {cache:'no-store'});
+            const data = await response.json();
+            const rows = data.clients || [];
+            if(!rows.length){ box.textContent = '还没有设备访问。'; return; }
+            box.innerHTML = rows.map(item => {
+                const names = (item.usernames || []).filter(Boolean).join('、');
+                const state = item.blocked ? '已禁用' : (item.online ? '在线' : '离线');
+                return '<div style="display:flex;gap:12px;align-items:center;margin:8px 0;">' +
+                    '<span>' + item.ip + (names ? ' · ' + names : '') + ' · ' + state + '</span>' +
+                    '<button type="button" class="ghost-btn" onclick="toggleLanClient(\'' + item.ip + '\',' + (!item.blocked) + ')">' + (item.blocked ? '解除' : '禁用') + '</button></div>';
+            }).join('');
+        }
+        async function toggleLanClient(ip, blocked){
+            await fetch('/api/lan/clients', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip, blocked})});
+            loadLanClients();
+        }
+        async function saveLanSettings(){
+            const status = document.getElementById('lanStatus');
+            const payload = {
+                enabled: document.getElementById('lanEnabled').checked,
+                sharingPort: Number(document.getElementById('lanPort').value)
+            };
+            try {
+                const response = await fetch('/api/lan/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+                const data = await response.json();
+                if(!response.ok) throw new Error(data.detail || '保存失败');
+                renderLan(data);
+                if(status && !data.error) status.textContent = data.available ? '共享设置已保存' : status.textContent;
+            } catch (error) {
+                if(status) status.textContent = error.message || '保存失败';
+            }
         }
         function addProvider(){
             syncEditor();
@@ -1762,10 +1956,12 @@
             while(providers.some(item => item.id === id)) id = `custom-api-${index++}`;
             providers.push({id, name:tr('api.newProvider'), base_url:'https://', protocol:'openai', enabled:true, primary:false, image_models:[], chat_models:[], video_models:[], has_key:false, key_preview:''});
             selectedTranslate = false;
+            selectedLan = false;
             selectedId = id;
             renderEditor();
             toggleTranslateContent();
             updateTranslateSideBtn();
+            updatePickerMode();
         }
         function addCliProvider(cliType){
             syncEditor();
@@ -1775,10 +1971,12 @@
             const existing = providers.find(p => p.protocol === proto);
             if(existing){
                 selectedTranslate = false;
+            selectedLan = false;
                 selectedId = existing.id;
                 renderEditor();
                 toggleTranslateContent();
                 updateTranslateSideBtn();
+                updatePickerMode();
                 return;
             }
             let id = cliType;
@@ -1790,10 +1988,12 @@
                 image_models:[], chat_models:[], video_models:[], has_key:false, key_preview:''
             });
             selectedTranslate = false;
+            selectedLan = false;
             selectedId = id;
             renderEditor();
             toggleTranslateContent();
             updateTranslateSideBtn();
+            updatePickerMode();
         }
         function openRecommendApi(){
             if(typeof renderRecommendApi === 'function'){
@@ -1811,10 +2011,12 @@
             if(providers.length <= 1){ alert(tr('api.keepOne')); return; }
             providers = providers.filter(p => p.id !== item.id);
             selectedTranslate = false;
-            selectedId = providers[0]?.id || '';
-            renderEditor();
+            selectedLan = false;
+            selectedId = '';
+            renderProviderList();
             toggleTranslateContent();
             updateTranslateSideBtn();
+            updatePickerMode();
             saveProviders();
         }
         function addModel(kind){
@@ -1843,10 +2045,12 @@
                 const data = await fetch('/api/providers').then(r => r.json());
                 providers = data.providers || [];
                 selectedTranslate = false;
-                selectedId = sortedProviders()[0]?.id || '';
-                renderEditor();
+                selectedLan = false;
+                selectedId = '';
+                renderProviderList();
                 toggleTranslateContent();
                 updateTranslateSideBtn();
+                updatePickerMode();
                 setStatus('');
             } catch(err) {
                 setStatus(tr('api.loadFailed'));
@@ -1900,8 +2104,9 @@
                 if(!res.ok) throw new Error((await res.json()).detail || tr('api.saveFailed'));
                 const data = await res.json();
                 providers = data.providers || providers;
-                selectedId = provider()?.id || providers[0]?.id || '';
-                renderEditor();
+                selectedId = provider()?.id || '';
+                if(selectedId) renderEditor();
+                updatePickerMode();
                 setStatus(tr('api.saved'));
                 // 广播变更，画布等其他 iframe 立即重新拉取最新平台/模型列表
                 try { new BroadcastChannel('studio-api').postMessage({ type:'providers-changed' }); } catch(e) {}
@@ -2316,6 +2521,7 @@
                 item.protocol = protocol || item.protocol;
             }
             selectedTranslate = false;
+            selectedLan = false;
             selectedId = item.id;
             // 临时保存 key 让 syncEditor 拿到
             item.api_key = apiKey;
@@ -2340,11 +2546,13 @@
                 item = providers[providers.length-1];
             }
             selectedTranslate = false;
+            selectedLan = false;
             selectedId = item.id;
             renderEditor();
             closeRecommendApi();
             toggleTranslateContent();
             updateTranslateSideBtn();
+            updatePickerMode();
             setStatus(`已切换到「${name}」配置`);
         }
         function closeRecommendApi(){
@@ -2759,7 +2967,16 @@
         window.onload = () => {
             if(window.StudioTheme) window.StudioTheme.apply();
             if(window.StudioI18n) window.StudioI18n.apply();
-            loadProviders().then(() => loadTranslateConfig());
+            const embedParams = new URLSearchParams(location.search);
+            if(embedParams.get('embed') === '1') document.documentElement.classList.add('embed');
+            const querySection = embedParams.get('section') || '';
+            if(querySection) window.__settingsSection = querySection;
+            else if(window.__settingsSection == null) window.__settingsSection = '';
+            loadProviders().then(() => {
+                window.__providersReady = true;
+                loadTranslateConfig();
+                if(typeof applySettingsSection === 'function') applySettingsSection(window.__settingsSection);
+            });
             // 平台名输入时实时预览生成的 ID
             if(nameInput) nameInput.addEventListener('input', updateIdPreview);
             // 协议下拉切换时更新 body class

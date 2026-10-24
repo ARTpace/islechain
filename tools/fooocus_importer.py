@@ -52,8 +52,12 @@ TOOLS_DIR = Path(__file__).resolve().parent
 ART_CANVAS_DIR = TOOLS_DIR.parent
 DATA_DIR = ART_CANVAS_DIR / "data"
 TARGET_FILE = DATA_DIR / "style-presets.json"
-THUMBS_DIR = DATA_DIR / "thumbnails"
-BACKUP_DIR = DATA_DIR / "backups"
+if str(ART_CANVAS_DIR) not in sys.path:
+    sys.path.insert(0, str(ART_CANVAS_DIR))
+from user_paths import user_data_dir
+_USER_DATA = Path(user_data_dir())
+THUMBS_DIR = _USER_DATA / "thumbnails"
+BACKUP_DIR = _USER_DATA / "backups"
 
 # 缩略图存放子目录（避免污染其他缩略图）
 FOOOCUS_THUMBS_DIR = THUMBS_DIR  # 直接放 thumbnails 下

@@ -21,9 +21,22 @@ from typing import Optional, Dict, Any
 MODULE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = MODULE_DIR.parent
 
+import sys
+_ROOT = str(MODULE_DIR.parent)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from user_paths import user_data_dir
+_USER_DATA = Path(user_data_dir())
+
 API_PROVIDERS_PATH = PROJECT_DIR / "api_providers.json"
-CONFIG_PATH = PROJECT_DIR / "data" / "smart-prompt-config.json"
-ENV_FILE_PATH = PROJECT_DIR / "API" / ".env"
+ENV_FILE_PATH = _USER_DATA / "api.env"
+
+def smart_config_path() -> Path:
+    try:
+        import main as _m
+        return Path(_m.smart_prompt_config_path())
+    except Exception:
+        return _USER_DATA / "smart-prompt-config.json"
 
 # ── 默认值 ────────────────────────────────────────────────────────────
 DEFAULT_CONFIG = {
@@ -80,8 +93,8 @@ def _resolve_target_provider_id(preset_provider_id: Optional[str]) -> Optional[s
         return preset_provider_id
     # 其次全局配置
     try:
-        if CONFIG_PATH.exists():
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        if smart_config_path().exists():
+            with open(smart_config_path(), 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 pid = data.get("provider_id", "")
                 if pid:
@@ -181,8 +194,8 @@ def _resolve_api_key(pid: str) -> str:
 def get_selected_provider_id() -> str:
     """获取全局配置中选中的 provider_id"""
     try:
-        if CONFIG_PATH.exists():
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        if smart_config_path().exists():
+            with open(smart_config_path(), 'r', encoding='utf-8') as f:
                 return json.load(f).get("provider_id", "")
     except Exception:
         pass
@@ -191,14 +204,14 @@ def get_selected_provider_id() -> str:
 
 def set_selected_provider_id(provider_id: str):
     """保存全局选中的 provider_id"""
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    smart_config_path().parent.mkdir(parents=True, exist_ok=True)
     data = {}
-    if CONFIG_PATH.exists():
+    if smart_config_path().exists():
         try:
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            with open(smart_config_path(), 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except Exception:
             pass
     data["provider_id"] = provider_id
-    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+    with open(smart_config_path(), 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

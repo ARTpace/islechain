@@ -1,8 +1,8 @@
 [
   {
-    "id": "ai",
-    "name": "商汤AI",
-    "base_url": "https://token.sensenova.cn/v1",
+    "id": "modelscope-2",
+    "name": "ModelScope",
+    "base_url": "https://api-inference.modelscope.cn/v1",
     "protocol": "openai",
     "image_request_mode": "openai",
     "image_models": [

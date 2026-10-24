@@ -404,17 +404,39 @@
         var prevVis = box.style.visibility;
         box.style.visibility = 'hidden';
         var r = anchor.getBoundingClientRect();
-        var bw = box.offsetWidth;
-        var bh = box.offsetHeight;
         var vw = window.innerWidth;
         var vh = window.innerHeight;
         var gap = 12;
+        var limitTop = 8;
+        var limitBottom = vh - 8;
+        var thread = document.getElementById('chatThread');
+        if (thread && thread.contains(anchor)) {
+            var tr = thread.getBoundingClientRect();
+            limitTop = Math.max(8, tr.top + 8);
+            limitBottom = Math.min(vh - 8, tr.bottom - 8);
+        }
+        var avail = Math.max(160, limitBottom - limitTop);
+        box.style.maxHeight = avail + 'px';
+        var bw = box.offsetWidth;
+        var bh = box.offsetHeight;
         var left = r.right + gap;
         if (left + bw > vw - 8) left = r.left - bw - gap;
         if (left < 8) left = Math.max(8, Math.min((vw - bw) / 2, vw - bw - 8));
-        var top = r.top;
-        if (top + bh > vh - 8) top = vh - bh - 8;
-        if (top < 8) top = 8;
+        var spaceBelow = limitBottom - (r.bottom + gap);
+        var spaceAbove = (r.top - gap) - limitTop;
+        var top;
+        if (bh <= spaceBelow) top = r.bottom + gap;
+        else if (bh <= spaceAbove) top = r.top - gap - bh;
+        else if (spaceAbove >= spaceBelow) {
+            box.style.maxHeight = Math.max(160, spaceAbove) + 'px';
+            bh = box.offsetHeight;
+            top = Math.max(limitTop, r.top - gap - bh);
+        } else {
+            box.style.maxHeight = Math.max(160, spaceBelow) + 'px';
+            top = r.bottom + gap;
+        }
+        if (top < limitTop) top = limitTop;
+        if (top + box.offsetHeight > limitBottom) top = Math.max(limitTop, limitBottom - box.offsetHeight);
         box.style.left = left + 'px';
         box.style.top = top + 'px';
         box.style.visibility = prevVis;

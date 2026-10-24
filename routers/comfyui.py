@@ -229,7 +229,23 @@ async def stop_comfyui_process():
                         except:
                             pass
             except ImportError:
-                pass
+                if os.name == "nt":
+                    try:
+                        out = subprocess.check_output(["netstat", "-ano", "-p", "tcp"], text=True, errors="replace")
+                    except Exception:
+                        out = ""
+                    for line in out.splitlines():
+                        parts = line.split()
+                        if len(parts) < 5 or parts[3] != "LISTENING" or not parts[1].endswith(f":{port}"):
+                            continue
+                        try:
+                            pid = int(parts[4])
+                        except ValueError:
+                            continue
+                        if pid <= 0:
+                            continue
+                        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], check=False)
+                        killed.append(f"port:{port} pid:{pid}")
         except:
             pass
 

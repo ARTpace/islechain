@@ -111,9 +111,24 @@ data/backups/
 # 运行时诊断输出
 data/startup_env.log
 
+# 个人数据（已迁到系统用户目录；这里防止再被放回工程）
+data/asset_library.json
+data/user-prompt-dict.json
+data/translate-config.json
+data/smart-prompt-config.json
+data/smart-prompt-presets/
+global_config.json
+
 # 工具缓存
 .pytest_cache/
 .ruff_cache/
 
 # 翻译审计产物（tools/_translate_audit.py 生成，不入库）
 _translate_audit.json
+
+# 桌面安装包构建产物
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/sidecar-server/
+desktop/src-tauri/gen/
+

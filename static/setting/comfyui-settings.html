@@ -13,6 +13,8 @@
                     document.documentElement.classList.add('studio-theme-dark');
                     document.documentElement.classList.add('theme-dark');
                 }
+                if(location.search.indexOf('embed=1') >= 0) document.documentElement.classList.add('embed');
+                if(window.parent !== window) document.documentElement.classList.add('in-settings');
             } catch(e) {}
         })();
     </script>
@@ -25,6 +27,8 @@
         body.studio-theme-dark, html.studio-theme-dark body { --bg:#020617; --panel:#0F172A; --soft:#1E293B; --line:#334155; --line-strong:#475569; --text:#F8FAFC; --muted:#94A3B8; --faint:#64748B; --accent:#00FFFF; --accent-glow:#00B4D8; }
         * { box-sizing:border-box; }
         body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:'Fira Code',Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+        html.embed .page { padding:16px 16px 40px; }
+        html.embed .page-head { display:none; }
         button { font-family:inherit; cursor:pointer; border:0; background:transparent; color:inherit; }
         .page { min-height:100vh; padding:32px 24px 80px; background: radial-gradient(ellipse at top, rgba(0, 255, 255, 0.03) 0%, transparent 50%), var(--bg); }
         .wrap { max-width:1280px; margin:0 auto; }
@@ -48,6 +52,10 @@
         .workflow-meta { margin-top:1px; color:var(--faint); font-size:10px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .builtin-badge { font-size:9px; font-weight:900; letter-spacing:.06em; padding:2px 6px; border-radius:5px; background:var(--soft); color:var(--muted); flex:0 0 auto; margin-left:auto; }
         .workflow-card.active .builtin-badge { background:var(--panel); color:var(--muted); }
+        .param-row { display:flex; align-items:center; gap:6px; min-height:32px; }
+        .param-icons { display:flex; flex-direction:row; align-items:center; gap:6px; flex:0 0 auto; }
+        .side-icon-btn { width:32px; height:32px; border-radius:9px; border:1px solid var(--line); background:var(--panel); color:var(--text); display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; padding:0; }
+        .side-icon-btn:hover { border-color:var(--accent); color:var(--accent); }
         .upload-btn { width:100%; height:36px; border:1px dashed var(--line-strong); border-radius:10px; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:11.5px; font-weight:800; transition:all .15s ease; }
         .upload-btn:hover { color:var(--text); border-color:var(--faint); background:var(--soft); }
         /* Center editor */
@@ -232,8 +240,8 @@
         .mini-delete:hover { background:var(--soft); color:#dc2626; }
         .mini-textarea { width:100%; min-height:92px; resize:vertical; border:1px solid var(--line); border-radius:10px; background:var(--soft); color:var(--text); outline:none; padding:8px; font-size:12px; font-weight:650; line-height:1.45; user-select:text; }
         .mini-input { width:100%; height:32px; border:1px solid var(--line); border-radius:9px; background:var(--soft); color:var(--text); outline:none; padding:0 9px; font-size:12px; font-weight:650; user-select:text; }
-        .mini-image-drop { min-height:120px; border:1px dashed var(--line-strong); border-radius:10px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--muted); background:var(--soft); font-size:11px; font-weight:800; cursor:pointer; }
-        .mini-image-drop img { width:100%; max-height:170px; object-fit:contain; border-radius:9px; display:block; }
+        .mini-image-drop { min-height:32px; border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:flex-start; gap:8px; padding:0 8px; text-align:left; color:var(--muted); background:var(--panel); font-size:11px; font-weight:800; cursor:pointer; }
+        .mini-image-drop img { width:24px; height:24px; max-height:24px; object-fit:cover; border-radius:6px; display:block; }
         .mini-settings-list { display:flex; flex-direction:column; gap:8px; max-height:230px; overflow:auto; }
         .mini-result img { width:100%; border-radius:9px; display:block; cursor:zoom-in; }
         .image-lightbox { position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; padding:36px; background:rgba(15,23,42,.42); backdrop-filter:blur(16px); }
@@ -245,6 +253,20 @@
         .mini-port.out { right:-5px; }
         .mini-run { margin-top:10px; }
         @media (max-width:1100px) { .layout { grid-template-columns:1fr; } .sidebar, .preview { position:static; } }
+        html.in-settings, html.in-settings body { height:100%; overflow:hidden; }
+        html.in-settings .page { height:100%; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:16px 16px 12px; }
+        html.in-settings .wrap { max-width:none; width:100%; margin:0; height:100%; min-height:0; display:flex; flex-direction:column; }
+        html.in-settings .page-head { display:none !important; }
+        html.in-settings .layout { flex:1; min-height:0; grid-template-columns:320px minmax(0,1fr); gap:14px; align-items:stretch; }
+        html.in-settings .sidebar { position:static; top:auto; max-height:none; height:100%; overflow:auto; }
+        html.in-settings .content { height:100%; min-height:0; overflow:auto; }
+        html.in-settings .graph-svg-wrap { height:min(420px, 48vh); }
+        @media (max-width:760px) {
+            html.in-settings, html.in-settings body { height:auto; overflow:auto; }
+            html.in-settings .page, html.in-settings .wrap { height:auto; overflow:visible; display:block; }
+            html.in-settings .layout { grid-template-columns:1fr; }
+            html.in-settings .sidebar, html.in-settings .content { height:auto; overflow:visible; }
+        }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260512-comfyui">
 </head>
@@ -263,32 +285,29 @@
                 <aside class="sidebar">
                     <div class="side-card">
                         <div class="side-title">ComfyUI 后端地址</div>
-                        <div id="comfyInstancesList" style="display:flex;flex-direction:column;gap:6px"></div>
-                        <button class="upload-btn" type="button" onclick="addComfyInstance()">
-                            <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>添加后端</span>
-                        </button>
-                        <div style="display:flex;gap:6px">
-                            <button class="upload-btn" type="button" onclick="saveComfyInstances()" style="flex:1;border-style:solid;background:var(--panel);color:var(--text);border-color:var(--text)">
-                                <i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存</span>
-                            </button>
+                        <div class="param-row">
+                            <div class="param-icons">
+                                <button class="side-icon-btn" type="button" title="添加后端" onclick="addComfyInstance()"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                                <button class="side-icon-btn" type="button" title="保存" onclick="saveComfyInstances()"><i data-lucide="save" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                            <div id="comfyInstancesList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"></div>
                         </div>
-                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">格式：<span style="font-family:ui-monospace,Menlo,monospace">host:port</span>（如 <span style="font-family:ui-monospace,Menlo,monospace">127.0.0.1:8188</span>）</div>
+                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">格式：<span style="font-family:ui-monospace,Menlo,monospace">host:port</span></div>
                     </div>
                     <div class="side-card">
                         <div class="side-title">ComfyUI 本地路径</div>
-                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">用于扫描本地 LoRA 文件夹（如 <span style="font-family:ui-monospace,Menlo,monospace">H:\ComfyUI</span>）</div>
-                        <input id="comfyBasePath" type="text" placeholder="留空则不扫描本地文件夹" style="width:100%;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line)'">
-                        <button class="upload-btn" type="button" onclick="saveComfyBasePath()" style="border-style:solid;background:var(--panel);color:var(--text);border-color:var(--text)">
-                            <i data-lucide="save" class="w-3.5 h-3.5"></i><span>保存路径</span>
-                        </button>
+                        <div class="param-row">
+                            <button class="side-icon-btn" type="button" title="保存路径" onclick="saveComfyBasePath()"><i data-lucide="save" class="w-3.5 h-3.5"></i></button>
+                            <input id="comfyBasePath" type="text" placeholder="留空则不扫描本地 LoRA" title="用于扫描本地 LoRA 文件夹" style="flex:1;min-width:0;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line)'">
+                        </div>
                     </div>
 
                     <div class="side-card">
                         <div class="side-title" data-i18n="comfy.workflowList">工作流列表</div>
-                        <div id="workflowList" class="workflow-list"></div>
-                        <button class="upload-btn" type="button" onclick="document.getElementById('uploadInput').click()">
-                            <i data-lucide="upload" class="w-3.5 h-3.5"></i><span data-i18n="comfy.uploadWorkflow">上传工作流</span>
-                        </button>
+                        <div class="param-row">
+                            <button class="side-icon-btn" type="button" title="上传工作流" onclick="document.getElementById('uploadInput').click()"><i data-lucide="upload" class="w-3.5 h-3.5"></i></button>
+                            <div id="workflowList" class="workflow-list" style="flex:1;min-width:0;max-height:160px"></div>
+                        </div>
                         <input id="uploadInput" type="file" accept="application/json" style="display:none" onchange="onUpload(event)">
                     </div>
 
@@ -302,16 +321,12 @@
 
                     <div class="side-card">
                         <div class="side-title">缓存管理</div>
-                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">缩略图缓存存储在服务端，清理后会重新生成</div>
-                        <div id="cacheInfo" style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--soft);border-radius:8px;min-height:40px">
-                            <div style="font-size:10px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em">缓存状态</div>
-                            <div id="cacheSize" style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">--</div>
-                            <div id="cacheCount" style="font-size:10.5px;color:var(--muted);font-weight:600"></div>
-                        </div>
-                        <div style="display:flex;gap:6px">
-                            <button class="upload-btn" type="button" onclick="clearMediaCache()" style="flex:1;border-style:solid;background:var(--panel);color:var(--text);border-color:var(--text)">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>清理缓存</span>
-                            </button>
+                        <div class="param-row">
+                            <button class="side-icon-btn" type="button" title="清理缓存" onclick="clearMediaCache()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            <div id="cacheInfo" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--soft);border-radius:8px;min-height:32px">
+                                <div id="cacheSize" style="font-size:16px;font-weight:900;color:var(--accent);line-height:1">--</div>
+                                <div id="cacheCount" style="font-size:10.5px;color:var(--muted);font-weight:600"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -584,9 +599,9 @@
             const el = document.getElementById('comfyInstancesList');
             if(!el) return;
             el.innerHTML = comfyInstances.map((addr, i) => `
-                <div style="display:flex;align-items:center;gap:6px;padding:4px;border:1px solid var(--line);border-radius:9px;background:var(--soft)">
-                    <span style="width:18px;text-align:center;font-size:10.5px;color:var(--faint);font-weight:800">${i + 1}</span>
-                    <input class="small-input" type="text" value="${escapeAttr(addr)}" placeholder="host:port" oninput="updateComfyInstance(${i}, this.value)" style="flex:1;height:28px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace">
+                <div style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border:1px solid var(--line);border-radius:8px;background:var(--soft)">
+                    <span style="width:14px;text-align:center;font-size:10.5px;color:var(--faint);font-weight:800;flex:0 0 auto">${i + 1}</span>
+                    <input class="small-input" type="text" value="${escapeAttr(addr)}" placeholder="host:port" oninput="updateComfyInstance(${i}, this.value)" style="flex:1;min-width:0;height:24px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace">
                     <button class="opt-del" type="button" onclick="removeComfyInstance(${i})" title="删除"><i data-lucide="x" class="w-3 h-3"></i></button>
                 </div>
             `).join('');
@@ -1433,7 +1448,7 @@
             const v = previewValues[f.id] ?? f.default ?? (f.type==='boolean'?false:(f.type==='number'||f.type==='slider'?0:''));
             if(f.type === 'image'){
                 const displayUrl = previewImageUrls[f.id] || (typeof v === 'string' && /^(\/|https?:|blob:|data:)/.test(v) ? v : '');
-                return `<div class="pfield">${label}<div class="mini-image-drop" onclick="pickImage('${f.id}')">${displayUrl ? `<img src="${escapeAttr(displayUrl)}">` : tr('comfy.clickUploadImage')}</div></div>`;
+                return `<div class="pfield">${label}<div class="mini-image-drop" onclick="pickImage('${f.id}')"><span class="side-icon-btn"><i data-lucide="image-plus" class="w-3.5 h-3.5"></i></span>${displayUrl ? `<img src="${escapeAttr(displayUrl)}">` : `<span>${tr('comfy.clickUploadImage')}</span>`}</div></div>`;
             }
             if(f.type === 'textarea'){
                 return `<div class="pfield">${label}<textarea class="mini-textarea" oninput="setPreviewValue('${f.id}',this.value)">${escapeHtml(v)}</textarea></div>`;

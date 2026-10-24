@@ -20,7 +20,12 @@ TOOLS_DIR = Path(__file__).resolve().parent
 ART_CANVAS_DIR = TOOLS_DIR.parent
 DATA_DIR = ART_CANVAS_DIR / "data"
 TARGET_FILE = DATA_DIR / "style-presets.json"
-THUMBS_DIR = DATA_DIR / "thumbnails"
+import sys
+_project = str(ART_CANVAS_DIR.parent)
+if _project not in sys.path:
+    sys.path.insert(0, _project)
+from user_paths import user_data_dir
+THUMBS_DIR = Path(user_data_dir()) / "thumbnails"
 CONFIG_FILE = DATA_DIR / "dedupe-config.json"
 
 DEFAULT_BACKUP_KEEP = 5

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话生图</title>
+<script src="/static/modules/auth-token.js"></script>
+<script src="/static/js/theme.js?v=20261022e"></script>
+<style>
+:root { --bg:#10141c; --card:#1a2230; --line:#2a3548; --text:#e7eef8; --muted:#8ea0b8; --accent:#22b8cf; }
+html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+.page { height:100%; display:flex; flex-direction:column; }
+.top { display:flex; justify-content:space-between; align-items:center; padding:16px 22px 0; }
+.title { font-size:14px; font-weight:700; }
+.sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.ghost { height:30px; padding:0 12px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer; }
+.thread { flex:1; overflow:auto; padding:22px 8vw 12px; display:flex; flex-direction:column; gap:16px; }
+.empty { margin:auto; color:var(--muted); font-size:14px; }
+.row { display:flex; }
+.row.user { justify-content:flex-end; }
+.bubble { max-width:min(680px,82%); font-size:14px; line-height:1.6; white-space:pre-wrap; }
+.user .bubble { background:#19b5d1; color:#042027; border-radius:16px 16px 4px 16px; padding:10px 14px; }
+.asst .bubble { background:#1b2636; border:1px solid #2c3b52; border-radius:16px 16px 16px 4px; padding:10px 14px; }
+.asst img { display:block; margin-top:10px; max-width:min(440px,70vw); border-radius:12px; }
+.dock { padding:0 8vw 18px; }
+.composer { border:1px solid #2c4d66; border-radius:22px; background:#121a26; padding:12px; }
+textarea { width:100%; min-height:52px; max-height:140px; border:0; resize:none; outline:none; background:transparent; color:var(--text); font:14px/1.5 inherit; }
+.bar { display:flex; justify-content:flex-end; }
+.send { width:36px; height:36px; border:0; border-radius:50%; background:var(--accent); color:#042027; font-weight:800; cursor:pointer; }
+.send:disabled { opacity:.45; }
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="top">
+        <div><div class="title" id="chatTitle">新对话</div><div class="sub">先理解你的需求，需要时再生成图片</div></div>
+        <button id="newChat" class="ghost" type="button">新对话</button>
+    </div>
+    <div id="thread" class="thread"><div class="empty">聊创作、改图，或直接说你想看到什么</div></div>
+    <div class="dock">
+        <form id="composer" class="composer">
+            <textarea id="input" placeholder="输入消息，Enter 发送"></textarea>
+            <div class="bar"><button id="send" class="send" type="submit">↑</button></div>
+        </form>
+    </div>
+</div>
+<script>
+const SIZES = { '1:1':[1024,1024], '3:4':[768,1024], '16:9':[1280,720], '9:16':[720,1280] };
+const GUIDE = '你是创作助手。用中文直接回答用户。只有当用户明确想要看到一张新图、改图或补图时，才在回复最后单独一行输出 IMAGE {"prompt":"给绘图模型的完整画面描述","ratio":"1:1"}。ratio 只能是 1:1、3:4、16:9、9:16。普通问答不要输出 IMAGE。不要向用户解释这一行。';
+let conversationId = '';
+let workflow = null;
+let busy = false;
+const thread = document.getElementById('thread');
+const input = document.getElementById('input');
+
+function scrollBottom() { thread.scrollTop = thread.scrollHeight; }
+function addRow(role, text) {
+    const empty = thread.querySelector('.empty');
+    if (empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = 'row ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text || '';
+    row.appendChild(bubble);
+    thread.appendChild(row);
+    scrollBottom();
+    return bubble;
+}
+function visibleText(raw) {
+    return String(raw || '').replace(/\n?IMAGE\s*\{[\s\S]*\}\s*$/i, '').trim();
+}
+function readImageSpec(raw) {
+    const match = String(raw || '').match(/IMAGE\s*(\{[\s\S]*\})\s*$/i);
+    if (!match) return null;
+    try {
+        const spec = JSON.parse(match[1]);
+        if (!spec.prompt) return null;
+        if (!SIZES[spec.ratio]) spec.ratio = '1:1';
+        return spec;
+    } catch (e) { return null; }
+}
+async function ensureWorkflow() {
+    if (workflow) return workflow;
+    const res = await fetch('/api/workflows/' + encodeURIComponent('text2image/z-image.json'));
+    if (!res.ok) throw new Error('文生图工作流加载失败');
+    const data = await res.json();
+    workflow = data.workflow || data;
+    return workflow;
+}
+async function draw(spec) {
+    const wf = JSON.parse(JSON.stringify(await ensureWorkflow()));
+    const [w, h] = SIZES[spec.ratio] || SIZES['1:1'];
+    if (wf['23'] && wf['23'].inputs) wf['23'].inputs.text = spec.prompt;
+    if (wf['144'] && wf['144'].inputs) {
+        wf['144'].inputs.width = w;
+        wf['144'].inputs.height = h;
+        wf['144'].inputs.batch_size = 1;
+    }
+    const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: spec.prompt, width: w, height: h, type: 'zimage', feature: 'zimage', client_id: 'studio-chat', workflow_data: wf })
+    });
+    if (!res.ok) throw new Error((await res.text()).slice(0, 160) || '生图失败');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return (data.images || []).filter(Boolean);
+}
+async function send(message) {
+    const bubble = addRow('assistant', '');
+    const res = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            conversation_id: conversationId,
+            message: GUIDE + '\n\n用户说：' + message,
+            mode: 'chat'
+        })
+    });
+    if (!res.ok) throw new Error('对话失败');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let full = '';
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+        for (const eventText of events) {
+            const line = eventText.split('\n').find(item => item.startsWith('data:'));
+            if (!line) continue;
+            const event = JSON.parse(line.slice(5).trim());
+            if (event.type === 'meta' && event.conversation) {
+                conversationId = event.conversation.id || conversationId;
+                if (event.conversation.title) document.getElementById('chatTitle').textContent = event.conversation.title;
+            }
+            if (event.type === 'delta') {
+                full += event.delta || '';
+                bubble.textContent = visibleText(full) || '…';
+                scrollBottom();
+            }
+            if (event.type === 'error') throw new Error(event.detail || '对话失败');
+            if (event.type === 'done' && event.conversation) {
+                conversationId = event.conversation.id || conversationId;
+                const last = (event.conversation.messages || []).slice(-1)[0];
+                if (last && last.content) full = last.content;
+            }
+        }
+    }
+    bubble.textContent = visibleText(full) || '好的。';
+    const spec = readImageSpec(full);
+    if (!spec) return;
+    const note = document.createElement('div');
+    note.textContent = '正在按你的需求生成图片…';
+    note.style.color = '#8ec9d6';
+    note.style.marginTop = '8px';
+    bubble.appendChild(note);
+    const images = await draw(spec);
+    note.remove();
+    images.forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '生成图';
+        bubble.appendChild(img);
+    });
+    scrollBottom();
+}
+
+document.getElementById('newChat').onclick = () => {
+    conversationId = '';
+    document.getElementById('chatTitle').textContent = '新对话';
+    thread.innerHTML = '<div class="empty">聊创作、改图，或直接说你想看到什么</div>';
+};
+input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('composer').requestSubmit();
+    }
+});
+document.getElementById('composer').onsubmit = async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message || busy) return;
+    busy = true;
+    document.getElementById('send').disabled = true;
+    input.value = '';
+    addRow('user', message);
+    try { await send(message); }
+    catch (err) { addRow('assistant', err.message || '请求失败'); }
+    finally {
+        busy = false;
+        document.getElementById('send').disabled = false;
+    }
+};
+</script>
+</body>
+</html>

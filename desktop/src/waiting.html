@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ArtCanvas</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #10141c; color: #e8edf5; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+    main { height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+    h1 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: 0.04em; }
+    p { margin: 0; color: #9aa6b8; font-size: 14px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 12px #3ddc97; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="dot"></div>
+    <h1>ArtCanvas</h1>
+    <p id="status">正在启动本地服务…</p>
+  </main>
+  <script>
+    const status = document.getElementById('status');
+    async function tick() {
+      try {
+        const error = await window.__TAURI__.core.invoke('backend_startup_error');
+        if (error) { status.textContent = error; return; }
+      } catch (e) {}
+      setTimeout(tick, 800);
+    }
+    tick();
+  </script>
+</body>
+</html>

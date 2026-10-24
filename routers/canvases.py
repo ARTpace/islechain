@@ -15,18 +15,20 @@ from pydantic import BaseModel
 # 实例化 APIRouter
 router = APIRouter()
 
-# 静态变量与路径常量定义
+# 静态变量与路径常量定义。个人数据跟 main 一样走系统用户目录。
+from user_paths import user_data_dir
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+USER_DATA_DIR = user_data_dir()
 DATA_DIR = os.path.join(BASE_DIR, "data")
-CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
-CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-INPUT_DIR = os.path.join(BASE_DIR, "input")
+CANVAS_DIR = os.path.join(USER_DATA_DIR, "canvases")
+CONVERSATION_DIR = os.path.join(USER_DATA_DIR, "conversations")
+OUTPUT_DIR = os.path.join(USER_DATA_DIR, "output")
+INPUT_DIR = os.path.join(USER_DATA_DIR, "input")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
-HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
-ASSET_LIBRARY_PATH = os.path.join(DATA_DIR, "asset_library.json")
-MEDIA_PREVIEW_DIR = os.path.join(DATA_DIR, "media_previews")
+HISTORY_FILE = os.path.join(USER_DATA_DIR, "history.json")
+ASSET_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "asset_library.json")
+MEDIA_PREVIEW_DIR = os.path.join(USER_DATA_DIR, "media_previews")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 # 线程锁定义
@@ -497,6 +499,11 @@ def delete_media_preview_cache(path: str) -> int:
     return removed
 
 
+def _owned_canvas(canvas_id):
+    canvas = load_canvas(canvas_id)
+    _get_main_deps()["validate_canvas_owner"](canvas, "")
+    return canvas
+
 # ----------------------------------------------------------------------
 # 路由函数定义
 # ----------------------------------------------------------------------
@@ -537,7 +544,7 @@ async def create_canvas(payload: CanvasCreateRequest, token: str = ""):
 async def get_canvas(canvas_id: str, token: str = ""):
     deps = _get_main_deps()
     validate_canvas_owner = deps["validate_canvas_owner"]
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     validate_canvas_owner(canvas, token)
     return {"canvas": canvas}
 
@@ -545,7 +552,7 @@ async def get_canvas(canvas_id: str, token: str = ""):
 async def update_canvas(canvas_id: str, payload: CanvasSaveRequest, token: str = ""):
     deps = _get_main_deps()
     validate_canvas_owner = deps["validate_canvas_owner"]
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     validate_canvas_owner(canvas, token)
     canvas["title"] = (payload.title or canvas.get("title") or "未命名画布")[:80]
     canvas["icon"] = (payload.icon or canvas.get("icon") or "layers")[:32]
@@ -585,7 +592,7 @@ async def delete_canvas_log(canvas_id: str, payload: DeleteCanvasLogRequest, tok
 
     def remove_log_record():
         with CANVAS_LOCK:
-            canvas = load_canvas(canvas_id)
+            canvas = _owned_canvas(canvas_id)
             validate_canvas_owner(canvas, token)
             current_updated_at = int(canvas.get("updated_at") or 0)
             if payload.base_updated_at and current_updated_at and int(payload.base_updated_at) < current_updated_at:
@@ -680,7 +687,7 @@ async def purge_canvas(canvas_id: str, token: str = ""):
 
 @router.get("/api/canvases/{canvas_id}/files")
 async def list_canvas_files(canvas_id: str):
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     canvas_output_dir = get_canvas_output_dir(canvas)
     if not os.path.exists(canvas_output_dir):
         return {"files": []}
@@ -707,7 +714,7 @@ async def create_asset_folder(canvas_id: str):
     """创建或确认画布资产文件夹存在"""
     deps = _get_main_deps()
     get_user_dirname = deps["get_user_dirname"]
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     os.makedirs(asset_dir, exist_ok=True)
     folder_name = canvas.get("output_folder", "")
@@ -718,7 +725,7 @@ async def create_asset_folder(canvas_id: str):
 @router.get("/api/canvases/{canvas_id}/assets")
 async def list_assets(canvas_id: str):
     """获取画布资产文件列表(含用户级资产,互通在线生图保存的文件)"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
 
     seen = set()
@@ -764,7 +771,7 @@ async def list_assets(canvas_id: str):
 @router.post("/api/canvases/{canvas_id}/assets/upload")
 async def upload_assets(canvas_id: str, files: List[UploadFile] = File(...)):
     """上传图片到画布资产文件夹"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     os.makedirs(asset_dir, exist_ok=True)
 
@@ -788,7 +795,7 @@ async def upload_assets(canvas_id: str, files: List[UploadFile] = File(...)):
 @router.post("/api/canvases/{canvas_id}/assets/copy-from-canvas")
 async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
     """从画布的 Output 节点复制图片到资产文件夹"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     os.makedirs(asset_dir, exist_ok=True)
 
@@ -816,13 +823,13 @@ async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
 
 @router.get("/api/canvases/{canvas_id}/meta")
 async def get_canvas_meta(canvas_id: str):
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
 
 @router.post("/api/canvases/{canvas_id}/meta")
 async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
     """更新画布元数据（标题/图标/颜色等）"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     if not payload:
         return {"meta": {}}
     if payload.title is not None:
@@ -839,7 +846,7 @@ async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
 @router.post("/api/canvases/{canvas_id}/touch")
 async def touch_canvas(canvas_id: str):
     """更新画布最后打开时间"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     canvas["updated_at"] = int(time.time())
     save_canvas(canvas)
     return {"touched": True}
@@ -847,7 +854,7 @@ async def touch_canvas(canvas_id: str):
 @router.post("/api/canvases/{canvas_id}/assets/delete")
 async def delete_asset(canvas_id: str, payload: dict = None):
     """删除资产文件夹中的指定文件"""
-    canvas = load_canvas(canvas_id)
+    canvas = _owned_canvas(canvas_id)
     asset_dir = get_canvas_asset_dir(canvas)
     filename = (payload or {}).get("filename", "")
     if not filename:

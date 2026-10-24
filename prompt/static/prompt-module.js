@@ -87,6 +87,15 @@
             '.smart-prompt-btn.is-on { background: rgba(0,240,255,0.22); color: #00f0ff; border-color: #00f0ff; }',
             '.smart-prompt-btn.is-on .sp-switch { background: #00f0ff; }',
             '.smart-prompt-btn.is-on .sp-switch i { left: 14px; background: #041018; }',
+            '#smartPromptContainer { position: relative; }',
+            '.smart-prompt-btn .sp-ai-name { opacity: .72; font-weight: 800; }',
+            '.smart-prompt-btn .btn-text { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }',
+            '.sp-ai-drawer { position: fixed; z-index: 80; width: min(340px, calc(100vw - 24px)); max-height: min(320px, 46vh); overflow: auto; padding: 8px; border-radius: 16px; border: 1px solid rgba(0,240,255,.22); background: #121820; box-shadow: 0 -16px 40px rgba(0,0,0,.45); transform-origin: bottom left; transform: translateY(8px) scaleY(.92); opacity: 0; pointer-events: none; transition: transform .18s ease, opacity .18s ease; }',
+            '.sp-ai-drawer.open { transform: none; opacity: 1; pointer-events: auto; }',
+            '.sp-ai-drawer button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; margin: 0 0 6px; padding: 8px 12px; border-radius: 12px; border: 1px solid transparent; background: rgba(255,255,255,.04); color: #e8eef6; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }',
+            '.sp-ai-drawer button span { color: #8d93a1; font-size: 11px; font-weight: 600; }',
+            '.sp-ai-drawer button.is-on { border-color: #00f0ff; background: rgba(0,240,255,.12); color: #00f0ff; }',
+            '.sp-ai-drawer .sp-ai-manage { justify-content: center; color: #9aa8b8; background: transparent; border-style: dashed; border-color: rgba(255,255,255,.14); }',
 
             /* ---- smart-prompt-picker.css ---- */
             '.sp-picker-shell {',
@@ -500,20 +509,87 @@
                 document.documentElement.classList.contains('theme-dark');
         }
 
+        var AI_SET_KEY = 'studio_ai_setting';
+        var drawer = null;
+
+        function savedAiSetting() {
+            try { return localStorage.getItem(AI_SET_KEY) || ''; } catch (e) { return ''; }
+        }
+
+        function currentAiPreset() {
+            var id = savedAiSetting();
+            if (!id) return null;
+            return (window.spPickerPresets || []).find(function(item) { return item.id === id; }) || null;
+        }
+
         function paintToggle() {
             if (!btn || !options.toggle) return;
-            var on = !!window.studioPresetInject;
+            var preset = currentAiPreset();
+            var on = !!preset;
+            window.studioPresetInject = on;
+            if (on) window.spPickerSelectedId = preset.id;
             btn.classList.toggle('is-on', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-            btn.title = on ? '预设已注入对话，再点关闭。长按仍可选择预设' : '打开后，对话会使用当前提示词预设。长按可选择预设';
+            var text = btn.querySelector('.btn-text');
+            if (text) text.textContent = preset ? (preset.name || '未命名预设') : '无设定';
+            btn.title = preset ? ('AI设定：' + (preset.name || '未命名预设')) : 'AI设定：无设定，用模型自己';
             if (typeof window.refreshChatPresetHint === 'function') window.refreshChatPresetHint();
         }
 
-        function handleToggle() {
-            if (isLongPress) { isLongPress = false; return; }
-            window.studioPresetInject = !window.studioPresetInject;
-            try { localStorage.setItem('studio_preset_inject', window.studioPresetInject ? '1' : '0'); } catch (e) {}
+        function placeDrawer() {
+            if (!drawer || !btn) return;
+            var rect = btn.getBoundingClientRect();
+            var width = Math.min(340, window.innerWidth - 24);
+            var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+            drawer.style.width = width + 'px';
+            drawer.style.left = left + 'px';
+            drawer.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
+        }
+
+        function renderDrawer() {
+            if (!drawer) return;
+            var current = savedAiSetting();
+            var presets = window.spPickerPresets || [];
+            var html = '<button type="button" data-ai-id="" class="' + (current ? '' : 'is-on') + '"><b>无设定</b><span>用模型自己</span></button>';
+            presets.forEach(function(item) {
+                if (!item || !item.id || item.id === 'default') return;
+                html += '<button type="button" data-ai-id="' + escHtml(item.id) + '" class="' + (item.id === current ? 'is-on' : '') + '"><b>' + escHtml(item.name || item.id) + '</b>' + (item.description ? '<span>' + escHtml(item.description) + '</span>' : '') + '</button>';
+            });
+            if (presets.filter(function(item) { return item && item.id && item.id !== 'default'; }).length === 0) {
+                html += '<button type="button" disabled><b>还没有预设</b><span>可先去管理里新建</span></button>';
+            }
+            html += '<button type="button" class="sp-ai-manage" data-ai-manage="1">管理预设</button>';
+            drawer.innerHTML = html;
+        }
+
+        function closeDrawer() {
+            if (drawer) drawer.classList.remove('open');
+        }
+
+        function openDrawer() {
+            var load = window.spPickerLoadPresets ? window.spPickerLoadPresets() : Promise.resolve();
+            load.then(function() {
+                renderDrawer();
+                placeDrawer();
+                drawer.classList.add('open');
+                paintToggle();
+            });
+        }
+
+        function chooseAiSetting(id) {
+            var preset = (window.spPickerPresets || []).find(function(item) { return item.id === id; });
+            try { localStorage.setItem(AI_SET_KEY, preset ? preset.id : ''); } catch (e) {}
+            if (preset) window.spPickerSelectedId = preset.id;
+            window.studioPresetInject = !!preset;
             paintToggle();
+            renderDrawer();
+            closeDrawer();
+        }
+
+        function handleToggle(e) {
+            if (e) e.stopPropagation();
+            if (drawer && drawer.classList.contains('open')) closeDrawer();
+            else openDrawer();
         }
 
         function createButton() {
@@ -521,8 +597,9 @@
             b.className = 'smart-prompt-btn';
             b.title = options.toggle ? '打开后，对话会使用当前提示词预设' : '智能生成标签';
             b.innerHTML = options.toggle ? [
-                '<span class="sp-switch" aria-hidden="true"><i></i></span>',
-                '<span class="btn-text">' + escHtml(options.buttonText) + '</span>'
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>',
+                '<span class="sp-ai-name">AI设定</span>',
+                '<span class="btn-text">无设定</span>'
             ].join('') : [
                 '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">',
                 '<path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>',
@@ -532,6 +609,29 @@
             ].join('');
 
             b.addEventListener('click', options.toggle ? handleToggle : handleGenerate);
+            if (options.toggle) {
+                drawer = document.createElement('div');
+                drawer.className = 'sp-ai-drawer';
+                drawer.addEventListener('click', function(e) {
+                    var manage = e.target.closest('[data-ai-manage]');
+                    if (manage) {
+                        closeDrawer();
+                        if (typeof window.spmOpen === 'function') window.spmOpen();
+                        return;
+                    }
+                    var item = e.target.closest('[data-ai-id]');
+                    if (!item || item.disabled) return;
+                    chooseAiSetting(item.getAttribute('data-ai-id') || '');
+                });
+                document.body.appendChild(drawer);
+                document.addEventListener('click', function(e) {
+                    if (!drawer.classList.contains('open')) return;
+                    if (e.target === b || b.contains(e.target) || drawer.contains(e.target)) return;
+                    closeDrawer();
+                });
+                window.addEventListener('resize', function() { if (drawer.classList.contains('open')) placeDrawer(); });
+                return b;
+            }
 
             // 长按：弹出预设选择
             function startPress() {
@@ -686,12 +786,24 @@
                 if (!container) { console.error('[SmartPrompt] 容器不存在:', containerId); return; }
                 options = Object.assign({}, DEFAULTS, opts);
                 options.toggle = !!opts.toggle || document.body.classList.contains('chat-layout');
-                try { window.studioPresetInject = localStorage.getItem('studio_preset_inject') === '1'; } catch (e) { window.studioPresetInject = false; }
+                if (options.toggle) {
+                    window.studioPresetInject = false;
+                } else {
+                    try { window.studioPresetInject = localStorage.getItem('studio_preset_inject') === '1'; } catch (e) { window.studioPresetInject = false; }
+                }
                 // [2026-07-28] picker 设置的通道写入 window, 这里保持同步
                 if (opts.channel) window.localPromptChannel = opts.channel;
                 btn = createButton();
                 container.appendChild(btn);
                 paintToggle();
+                if (options.toggle && window.spPickerLoadPresets) {
+                    window.spPickerLoadPresets().then(function() {
+                        if (savedAiSetting() && !currentAiPreset()) {
+                            try { localStorage.setItem(AI_SET_KEY, ''); } catch (e) {}
+                        }
+                        paintToggle();
+                    });
+                }
             },
             getButton: function() { return btn; },
             generate: function() { if (btn) handleGenerate(); },

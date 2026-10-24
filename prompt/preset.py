@@ -15,6 +15,7 @@ preset.py — 预设管理
 """
 
 import json
+import os
 import uuid
 import shutil
 from pathlib import Path
@@ -24,10 +25,15 @@ from typing import Optional, List, Dict, Any
 MODULE_DIR = Path(__file__).resolve().parent
 PRESETS_DIR = MODULE_DIR / "presets"
 INDEX_PATH = PRESETS_DIR / "index.json"
-# 旧版预设目录（用于首次自动迁移）
-OLD_PRESETS_DIR = MODULE_DIR.parent / "data" / "smart-prompt-presets"
-# 旧版 config 文件（preset_id 在此，迁移后不再使用）
-OLD_CONFIG_PATH = MODULE_DIR.parent / "data" / "smart-prompt-config.json"
+# 旧版预设目录（用于首次自动迁移）。个人预设在系统用户目录。
+import sys
+_ROOT = str(MODULE_DIR.parent)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from user_paths import user_data_dir
+_USER_DATA = Path(user_data_dir())
+OLD_PRESETS_DIR = _USER_DATA / "smart-prompt-presets"
+OLD_CONFIG_PATH = _USER_DATA / "smart-prompt-config.json"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -418,13 +424,37 @@ def reorder_presets(preset_ids: List[str]):
 
 
 def get_selected_preset_id() -> str:
-    """获取当前选中的预设 ID"""
+    """获取当前账号选中的预设 ID"""
+    try:
+        import main as _m
+        path = _m.smart_prompt_config_path()
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                chosen = json.load(handle).get("preset_id") or ""
+            if chosen:
+                return chosen
+    except Exception:
+        pass
     index = _read_index()
     return index.get("selected_preset_id", "")
 
 
 def set_selected_preset_id(preset_id: str):
-    """设置当前选中的预设 ID"""
+    """把当前选中的预设记在账号自己的配置里"""
+    try:
+        import main as _m
+        path = _m.smart_prompt_config_path()
+        data = {}
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+                if isinstance(loaded, dict):
+                    data = loaded
+        data["preset_id"] = preset_id
+        _m.atomic_write_json(path, data, ensure_ascii=False, indent=2)
+        return
+    except Exception:
+        pass
     index = _read_index()
     index["selected_preset_id"] = preset_id
     _write_index(index)

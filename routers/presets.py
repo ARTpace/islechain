@@ -111,7 +111,7 @@ async def api_get_thumbnail(filename: str):
     # 安全校验:只允许字母数字下划线和点
     if not re.match(r'^[a-zA-Z0-9_.-]+$', filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
-    thumb_path = os.path.join(_main.DATA_DIR, "thumbnails", filename)
+    thumb_path = os.path.join(_main.THUMBNAIL_DIR, filename)
     if not os.path.exists(thumb_path):
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     # 根据扩展名返回正确的 content-type

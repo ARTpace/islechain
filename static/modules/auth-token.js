@@ -1,10 +1,16 @@
 (function() {
     var AUTH_TOKEN = null;
 
+    function syncAuthCookie() {
+        if (!AUTH_TOKEN) return;
+        document.cookie = 'xy_auth_token=' + encodeURIComponent(AUTH_TOKEN) + '; Path=/; SameSite=Lax; Max-Age=2592000';
+    }
+
     function refreshToken() {
         if (!AUTH_TOKEN) {
             try { AUTH_TOKEN = localStorage.getItem('xy_auth_token') || null; } catch (e) {}
         }
+        syncAuthCookie();
     }
 
     // 1) URL 参数优先
@@ -20,6 +26,7 @@
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'auth-token' && e.data.token) {
             AUTH_TOKEN = e.data.token;
+            syncAuthCookie();
         }
     });
 

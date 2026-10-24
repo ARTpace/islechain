@@ -123,22 +123,22 @@ async def canvas_llm(payload: _main.CanvasLLMRequest):
 
 @router.get("/api/conversations")
 async def conversations(request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     return {"user_id": user_id, "conversations": _main.list_conversations(user_id)}
 
 @router.post("/api/conversations")
 async def create_conversation(payload: _main.ConversationCreateRequest, request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     return {"conversation": _main.new_conversation(user_id, payload.title)}
 
 @router.get("/api/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     return {"conversation": _main.load_conversation(user_id, conversation_id)}
 
 @router.delete("/api/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     path = _main.conversation_path(user_id, conversation_id)
     if os.path.exists(path):
         os.remove(path)
@@ -153,7 +153,7 @@ class ConversationTurnRequest(BaseModel):
 
 @router.post("/api/conversations/{conversation_id}/turn")
 async def append_conversation_turn(conversation_id: str, payload: ConversationTurnRequest, request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     conversation = _main.load_conversation(user_id, conversation_id)
     now = _main.now_ms()
     messages = conversation.setdefault("messages", [])
@@ -171,7 +171,7 @@ async def append_conversation_turn(conversation_id: str, payload: ConversationTu
 
 @router.post("/api/conversations/{conversation_id}/images")
 async def attach_conversation_images(conversation_id: str, payload: ConversationImagesRequest, request: Request, x_user_id: str = Header(default="")):
-    user_id = _main.safe_user_id(x_user_id, request)
+    user_id = _main.account_dirname()
     conversation = _main.load_conversation(user_id, conversation_id)
     target = next((item for item in reversed(conversation.get("messages") or []) if item.get("role") == "assistant"), None)
     if target is None:
@@ -184,3 +184,17 @@ async def attach_conversation_images(conversation_id: str, payload: Conversation
     conversation["updated_at"] = _main.now_ms()
     _main.save_conversation(user_id, conversation)
     return {"ok": True, "image_urls": urls}
+
+class ConversationDeleteMessagesRequest(BaseModel):
+    message_ids: List[str] = []
+
+@router.post("/api/conversations/{conversation_id}/messages/delete")
+async def delete_conversation_messages(conversation_id: str, payload: ConversationDeleteMessagesRequest, request: Request, x_user_id: str = Header(default="")):
+    user_id = _main.account_dirname()
+    conversation = _main.load_conversation(user_id, conversation_id)
+    remove = {item for item in payload.message_ids if item}
+    if remove:
+        conversation["messages"] = [item for item in (conversation.get("messages") or []) if item.get("id") not in remove]
+        conversation["updated_at"] = _main.now_ms()
+        _main.save_conversation(user_id, conversation)
+    return {"ok": True}

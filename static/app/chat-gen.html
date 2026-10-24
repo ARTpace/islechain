@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话生图</title>
+<script src="/static/modules/auth-token.js"></script>
+<script src="/static/js/theme.js?v=20261022e"></script>
+<style>
+:root { --bg:#14161c; --panel:#1c1f27; --line:#2a2e38; --text:#ece7df; --muted:#8d93a1; --mine:#2a3140; --accent:#3d8f86; }
+html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+.page { height:100%; display:flex; flex-direction:column; }
+.thread { flex:1; overflow:auto; padding:28px 8vw 18px; display:flex; flex-direction:column; gap:22px; }
+.empty { margin:auto; color:var(--muted); font-size:14px; letter-spacing:.04em; }
+.row { display:flex; }
+.row.user { justify-content:flex-end; }
+.bubble { max-width:min(640px, 78%); }
+.user .bubble { background:var(--mine); border-radius:18px 18px 6px 18px; padding:10px 12px; }
+.user .text { font-size:14px; line-height:1.55; white-space:pre-wrap; }
+.refs { display:flex; gap:8px; justify-content:flex-end; margin-bottom:8px; }
+.refs img { width:92px; height:92px; object-fit:cover; border-radius:10px; }
+.asst .label { font-size:12px; color:var(--muted); margin:8px 0 6px; }
+.asst img.result { max-width:min(420px, 70vw); border-radius:12px; display:block; background:#0e1014; }
+.ops { display:flex; gap:8px; margin-top:8px; }
+.ops button, .bar button, .chip { border:1px solid var(--line); background:#232733; color:var(--text); border-radius:999px; height:30px; padding:0 10px; font-size:12px; cursor:pointer; }
+.ops button:hover, .chip:hover { border-color:#4b5568; }
+.pending { width:220px; height:280px; border:1px dashed #3d4a55; border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:13px; }
+.err { color:#f0a8a8; font-size:13px; }
+.dock { padding:0 8vw 18px; }
+.composer { background:#23262f; border:1px solid #343846; border-radius:22px; padding:10px 12px 8px; }
+.composer textarea { width:100%; min-height:44px; max-height:140px; resize:none; border:0; outline:none; background:transparent; color:var(--text); font:14px/1.5 inherit; }
+.rowbar { display:flex; align-items:center; gap:8px; }
+.rowbar .grow { flex:1; }
+.send { width:34px; height:34px; border-radius:50%; border:0; background:var(--accent); color:#071412; font-weight:800; cursor:pointer; }
+.send:disabled { opacity:.45; cursor:default; }
+.chip.active { background:var(--accent); color:#071412; border-color:transparent; }
+.file { display:none; }
+</style>
+</head>
+<body>
+<div class="page">
+    <div id="thread" class="thread"><div class="empty">描述你想要的画面，回车发送</div></div>
+    <div class="dock">
+        <form id="composer" class="composer">
+            <div id="refstrip" class="refs"></div>
+            <textarea id="prompt" placeholder="发送消息"></textarea>
+            <div class="rowbar">
+                <button type="button" id="addRef" class="chip" title="参考图">＋</button>
+                <input id="file" class="file" type="file" accept="image/*" multiple>
+                <button type="button" class="chip ratio" data-ratio="1:1">1:1</button>
+                <button type="button" class="chip ratio active" data-ratio="3:4">3:4</button>
+                <button type="button" class="chip ratio" data-ratio="16:9">16:9</button>
+                <button type="button" class="chip ratio" data-ratio="9:16">9:16</button>
+                <span class="grow"></span>
+                <button id="send" class="send" type="submit" title="发送">↑</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+const SIZES = { '1:1':[1024,1024], '3:4':[768,1024], '16:9':[1280,720], '9:16':[720,1280] };
+const thread = document.getElementById('thread');
+const promptEl = document.getElementById('prompt');
+const sendBtn = document.getElementById('send');
+let ratio = '3:4';
+let refs = [];
+let busy = false;
+let workflow = null;
+
+function userName() {
+    try {
+        const u = JSON.parse(localStorage.getItem('xy_auth_user') || 'null');
+        return (u && (u.username || u.name)) || 'guest';
+    } catch (e) { return 'guest'; }
+}
+function storeKey() { return 'chat_gen_thread:' + userName(); }
+function loadThread() {
+    try { return JSON.parse(localStorage.getItem(storeKey()) || '[]'); } catch (e) { return []; }
+}
+function saveThread(items) {
+    try { localStorage.setItem(storeKey(), JSON.stringify(items.slice(-40))); } catch (e) {}
+}
+
+function render(items) {
+    thread.innerHTML = '';
+    if (!items.length) {
+        thread.innerHTML = '<div class="empty">描述你想要的画面，回车发送</div>';
+        return;
+    }
+    items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'row ' + (item.role === 'user' ? 'user' : 'asst');
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        if (item.role === 'user') {
+            if (item.refs && item.refs.length) {
+                const strip = document.createElement('div');
+                strip.className = 'refs';
+                item.refs.forEach(src => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    strip.appendChild(img);
+                });
+                bubble.appendChild(strip);
+            }
+            const text = document.createElement('div');
+            text.className = 'text';
+            text.textContent = item.text || '';
+            bubble.appendChild(text);
+        } else if (item.pending) {
+            bubble.innerHTML = '<div class="pending">正在生成 ' + item.ratio + '</div>';
+        } else if (item.error) {
+            bubble.innerHTML = '<div class="err">' + item.error + '</div>';
+        } else {
+            (item.images || []).forEach(src => {
+                const img = document.createElement('img');
+                img.className = 'result';
+                img.src = src;
+                bubble.appendChild(img);
+            });
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = '图片已生成';
+            bubble.appendChild(label);
+            const ops = document.createElement('div');
+            ops.className = 'ops';
+            const again = document.createElement('button');
+            again.type = 'button';
+            again.textContent = '用此提示再画';
+            again.onclick = () => { promptEl.value = item.prompt || ''; promptEl.focus(); };
+            ops.appendChild(again);
+            bubble.appendChild(ops);
+        }
+        row.appendChild(bubble);
+        thread.appendChild(row);
+    });
+    thread.scrollTop = thread.scrollHeight;
+}
+
+async function ensureWorkflow() {
+    if (workflow) return workflow;
+    const res = await fetch('/api/workflows/' + encodeURIComponent('text2image/z-image.json'));
+    if (!res.ok) throw new Error('工作流加载失败');
+    const data = await res.json();
+    workflow = data.workflow || data;
+    return workflow;
+}
+
+async function generate(text) {
+    const wf = JSON.parse(JSON.stringify(await ensureWorkflow()));
+    const [w, h] = SIZES[ratio];
+    const seed = Math.floor(Math.random() * 1e15);
+    if (wf['23'] && wf['23'].inputs) wf['23'].inputs.text = text;
+    if (wf['144'] && wf['144'].inputs) {
+        wf['144'].inputs.width = w;
+        wf['144'].inputs.height = h;
+        wf['144'].inputs.batch_size = 1;
+    }
+    if (wf['22'] && wf['22'].inputs) wf['22'].inputs.seed = seed;
+    const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            prompt: text,
+            width: w,
+            height: h,
+            type: 'zimage',
+            feature: 'zimage',
+            client_id: 'chat-gen-' + userName(),
+            workflow_data: wf
+        })
+    });
+    if (!res.ok) throw new Error((await res.text()).slice(0, 180) || '生成失败');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const images = (data.images || []).filter(Boolean);
+    if (!images.length) throw new Error('没有返回图片');
+    return images;
+}
+
+document.querySelectorAll('.ratio').forEach(btn => {
+    btn.onclick = () => {
+        ratio = btn.dataset.ratio;
+        document.querySelectorAll('.ratio').forEach(b => b.classList.toggle('active', b === btn));
+    };
+});
+document.getElementById('addRef').onclick = () => document.getElementById('file').click();
+document.getElementById('file').onchange = () => {
+    refs = [];
+    const strip = document.getElementById('refstrip');
+    strip.innerHTML = '';
+    [...document.getElementById('file').files].slice(0, 4).forEach(file => {
+        const url = URL.createObjectURL(file);
+        refs.push(url);
+        const img = document.createElement('img');
+        img.src = url;
+        strip.appendChild(img);
+    });
+};
+promptEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('composer').requestSubmit();
+    }
+});
+document.getElementById('composer').onsubmit = async (e) => {
+    e.preventDefault();
+    const text = promptEl.value.trim();
+    if (!text || busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+    const items = loadThread();
+    items.push({ role: 'user', text, refs: refs.slice(), ratio });
+    items.push({ role: 'assistant', pending: true, ratio, prompt: text });
+    saveThread(items);
+    render(items);
+    promptEl.value = '';
+    refs = [];
+    document.getElementById('refstrip').innerHTML = '';
+    document.getElementById('file').value = '';
+    try {
+        const images = await generate(text);
+        const next = loadThread();
+        next.pop();
+        next.push({ role: 'assistant', images, prompt: text, ratio });
+        saveThread(next);
+        render(next);
+    } catch (err) {
+        const next = loadThread();
+        next.pop();
+        next.push({ role: 'assistant', error: err.message || '生成失败', prompt: text });
+        saveThread(next);
+        render(next);
+    } finally {
+        busy = false;
+        sendBtn.disabled = false;
+    }
+};
+render(loadThread());
+</script>
+</body>
+</html>

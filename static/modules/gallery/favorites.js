@@ -9,6 +9,17 @@
     const Base = NS.Base;
     if (!Base) { console.error('[Favorites] 缺少 GalleryDisplay.Base'); return; }
 
+    function accountStorageKey(base) {
+        var name = 'anonymous';
+        try {
+            var user = JSON.parse(localStorage.getItem('xy_auth_user') || 'null');
+            if (user && user.username) name = String(user.username);
+        } catch (e) {}
+        var suffix = ':' + name;
+        var key = String(base || 'gallery_favorites');
+        return key.endsWith(suffix) ? key : key + suffix;
+    }
+
     const Favorites = {
         _config: null,
         _initialized: false,
@@ -20,6 +31,8 @@
                 storageKey: 'gallery_favorites',
                 filterStorageKey: 'gallery_fav_mode',
             }, config);
+            this._config.storageKey = accountStorageKey(this._config.storageKey);
+            this._config.filterStorageKey = accountStorageKey(this._config.filterStorageKey);
 
             this._loadFromStorage();
             this._restoreFilterMode();
@@ -39,6 +52,7 @@
             try {
                 // 迁移旧 key 'zimage_favorites' → 新 key 'gallery_favorites'
                 const legacy = Base.storage.get('zimage_favorites');
+                const shared = Base.storage.get('gallery_favorites');
                 if (legacy) {
                     const cur = Base.storage.get(this._config.storageKey, '[]');
                     if (cur === '[]' || !cur) {
@@ -46,6 +60,13 @@
                         console.log('[Favorites] 已迁移 zimage_favorites → ' + this._config.storageKey);
                     }
                     Base.storage.remove('zimage_favorites');
+                }
+                if (shared && this._config.storageKey !== 'gallery_favorites') {
+                    const cur = Base.storage.get(this._config.storageKey, '[]');
+                    if (cur === '[]' || !cur) {
+                        Base.storage.set(this._config.storageKey, shared);
+                    }
+                    Base.storage.remove('gallery_favorites');
                 }
                 const raw = Base.storage.get(this._config.storageKey, '[]');
                 const arr = JSON.parse(raw) || [];

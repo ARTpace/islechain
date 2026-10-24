@@ -1,0 +1,13 @@
+{
+  "name": "art-canvas-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ArtCanvas 桌面安装包（Tauri + NSIS）",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3"
+  }
+}
