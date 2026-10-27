@@ -139,13 +139,13 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
     function getThemeColors() {
         const dark = isDarkTheme();
         return {
-            bg: dark ? '#0d1520' : '#fff',
-            bgSoft: dark ? '#141c2b' : '#f8f9fa',
-            text: dark ? '#e0e7ef' : '#1a1a1a',
-            textSub: dark ? '#666' : '#999',
+            bg: dark ? '#141414' : '#fcfcfb',
+            bgSoft: dark ? '#1b1b1a' : '#f9f8f6',
+            text: dark ? '#ebe9e4' : '#1a1a1a',
+            textSub: dark ? '#666666' : '#999999',
             border: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
             shadow: dark ? '0 20px 60px rgba(0,0,0,0.5)' : '0 20px 60px rgba(0,0,0,0.3)',
-            accent: '#00b4d8',
+            accent: '#06b6d4',
             success: '#10b981',
             danger: '#ef4444'
         };
@@ -168,8 +168,8 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:10px;
             font-size:12px;font-weight:600;z-index:10001;transform:translateX(120%);
             transition:transform 0.3s ease;
-            background:${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#00b4d8'};
-            color:#fff;
+            background:${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#06b6d4'};
+            color:#fcfcfb;
         `;
         toast.textContent = message;
         document.body.appendChild(toast);
@@ -299,10 +299,10 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             style.id = 'random-prompt-anim-style';
             style.textContent = `
                 @keyframes rp-long-press-pulse {
-                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,180,216,0); }
-                    40% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(0,180,216,0.2); }
-                    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(0,180,216,0.1); }
-                    100% { transform: scale(1.12); box-shadow: 0 0 0 14px rgba(0,180,216,0); }
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+                    40% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(6, 182, 212, 0.2); }
+                    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(6, 182, 212, 0.1); }
+                    100% { transform: scale(1.12); box-shadow: 0 0 0 14px rgba(6, 182, 212, 0); }
                 }
                 @keyframes rp-long-press-fill {
                     0% { transform: rotate(0deg); }
@@ -318,7 +318,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
                     position: absolute;
                     inset: -4px;
                     border-radius: 14px;
-                    border: 2px solid rgba(0,180,216,0.4);
+                    border: 2px solid rgba(6, 182, 212, 0.4);
                     animation: rp-long-press-pulse 0.6s ease-out infinite;
                     pointer-events: none;
                 }
@@ -414,11 +414,11 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
         if (!btn) return;
         const dark = isDarkTheme();
         // 色子正面颜色：暗色主题用浅灰，亮色主题用深灰
-        const faceBase = dark ? '#b8c4d6' : '#555';
+        const faceBase = dark ? '#cbcac1' : '#555555';
         if (randomEnabled) {
-            btn.style.background = 'rgba(0,180,216,0.3)';
-            btn.style.borderColor = 'rgba(0,180,216,0.45)';
-            btn.style.color = '#00b4d8';
+            btn.style.background = 'rgba(6, 182, 212, 0.3)';
+            btn.style.borderColor = 'rgba(6, 182, 212, 0.45)';
+            btn.style.color = '#06b6d4';
             btn.title = '随机已开启（点击关闭，长按管理方案）';
         } else {
             // 采用 .anima-ctrl 统一的淡色底 + 圆角样式
@@ -657,7 +657,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
                 width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;
                 font-size:15px;font-weight:800;
                 background:${s.running ? colors.danger : colors.accent};
-                color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;
+                color:#fcfcfb;display:flex;align-items:center;justify-content:center;gap:8px;
             ">
                 ${s.running
                     ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 停止`
@@ -1207,13 +1207,13 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             ">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                     <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
-                        ${isActive ? `<span style="width:20px;height:20px;border-radius:50%;background:${colors.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">✓</span>` : `<span style="width:20px;height:20px;border-radius:50%;border:2px solid ${colors.border};flex-shrink:0;"></span>`}
+                        ${isActive ? `<span style="width:20px;height:20px;border-radius:50%;background:${colors.accent};color:#fcfcfb;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">✓</span>` : `<span style="width:20px;height:20px;border-radius:50%;border:2px solid ${colors.border};flex-shrink:0;"></span>`}
                         <div style="font-size:15px;font-weight:700;color:${isActive ? colors.accent : colors.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;">
                         <button class="plan-edit-btn" data-name="${escapeHtml(name)}" style="
                             width:34px;height:34px;border-radius:10px;border:none;
-                            background:rgba(0,180,216,0.1);color:${colors.accent};cursor:pointer;
+                            background:rgba(6, 182, 212, 0.1);color:${colors.accent};cursor:pointer;
                             display:flex;align-items:center;justify-content:center;padding:0;
                         " title="编辑">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -1292,7 +1292,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             <div id="ai-gen-error" style="display:none;color:${colors.danger};font-size:12px;margin-top:8px;"></div>
             <button id="ai-gen-submit" style="
                 width:100%;margin-top:14px;padding:12px;border-radius:12px;border:none;cursor:pointer;
-                background:${colors.accent};color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;
+                background:${colors.accent};color:#fcfcfb;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;
             ">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5L19 9.5 13.5 11 12 16l-1.5-5L5 9.5 10.5 8z"/></svg>
                 开始生成
@@ -1461,7 +1461,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             </div>
             <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;gap:8px;justify-content:flex-end;">
                 <button id="editor-cancel" style="padding:10px 20px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};">取消</button>
-                <button id="editor-save" style="padding:10px 20px;border-radius:10px;border:none;background:${colors.accent};cursor:pointer;font-size:12px;font-weight:700;color:#fff;">保存方案</button>
+                <button id="editor-save" style="padding:10px 20px;border-radius:10px;border:none;background:${colors.accent};cursor:pointer;font-size:12px;font-weight:700;color:#fcfcfb;">保存方案</button>
             </div>
         `;
 
@@ -1496,7 +1496,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
     //  渲染一个大类（含分组）
     // ─────────────────────────────────────────────
     // 分组颜色预设
-    const GROUP_COLORS = ['#00b4d8','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6366f1','#14b8a6'];
+    const GROUP_COLORS = ['#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6366f1','#06b6d4'];
 
     // 可选比例
     const RATIO_OPTIONS = ['1:1','4:3','3:4','16:9','9:16','3:2','2:3','21:9'];
@@ -1550,7 +1550,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
                     width:38px;height:22px;border-radius:11px;cursor:pointer;transition:all 0.2s;flex-shrink:0;
                     background:${enabled ? gColor : colors.border};position:relative;
                 ">
-                    <div style="position:absolute;top:2px;left:${enabled ? '18px' : '2px'};width:18px;height:18px;background:#fff;border-radius:50%;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+                    <div style="position:absolute;top:2px;left:${enabled ? '18px' : '2px'};width:18px;height:18px;background:#fcfcfb;border-radius:50%;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
                 </div>
                 <div class="group-color-dot" data-plan-key="${planKey}" data-g-idx="${gIdx}" title="点击换色" style="
                     width:14px;height:14px;border-radius:50%;background:${gColor};cursor:pointer;flex-shrink:0;
@@ -1908,7 +1908,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
                 <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;justify-content:flex-end;">
                     <button id="ratio-picker-confirm" style="
                         padding:10px 24px;border-radius:10px;border:none;
-                        background:${colors.accent};color:#fff;cursor:pointer;font-size:13px;font-weight:700;
+                        background:${colors.accent};color:#fcfcfb;cursor:pointer;font-size:13px;font-weight:700;
                     ">确认</button>
                 </div>
             `;
@@ -1974,7 +1974,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             </div>
             <div style="padding:12px 20px;border-top:1px solid ${colors.border};display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
                 <button id="text-edit-cancel" style="padding:9px 20px;border-radius:10px;border:1px solid ${colors.border};background:transparent;cursor:pointer;font-size:12px;font-weight:700;color:${colors.text};">取消</button>
-                <button id="text-edit-confirm" style="padding:9px 24px;border-radius:10px;border:none;background:${colors.accent};color:#fff;cursor:pointer;font-size:12px;font-weight:700;">保存</button>
+                <button id="text-edit-confirm" style="padding:9px 24px;border-radius:10px;border:none;background:${colors.accent};color:#fcfcfb;cursor:pointer;font-size:12px;font-weight:700;">保存</button>
             </div>
         `;
 

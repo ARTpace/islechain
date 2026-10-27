@@ -60,6 +60,7 @@ _SUBROUTERS = (
     "online_gen",
     "output_zip",
     "user_assets",
+    "training",
 )
 
 __all__ = list(_SUBROUTERS)

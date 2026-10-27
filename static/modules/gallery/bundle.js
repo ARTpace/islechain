@@ -104,10 +104,10 @@
                 document.body.appendChild(el);
             }
             const colors = {
-                success: { bg: '#10b981', fg: '#fff' },
-                info:    { bg: '#111827', fg: '#fff' },
-                warn:    { bg: '#f59e0b', fg: '#fff' },
-                error:   { bg: '#ef4444', fg: '#fff' }
+                success: { bg: '#10b981', fg: '#fcfcfb' },
+                info:    { bg: '#181817', fg: '#fcfcfb' },
+                warn:    { bg: '#f59e0b', fg: '#fcfcfb' },
+                error:   { bg: '#ef4444', fg: '#fcfcfb' }
             };
             const c = colors[type] || colors.info;
             el.style.background = c.bg;
@@ -534,7 +534,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     background: rgba(0,0,0,0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    color: #fff;
+    color: #fcfcfb;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -843,7 +843,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
         // 开启过滤后强制懒加载图片（兼容原行为）
         _triggerLazyLoad() {
             setTimeout(() => {
-                document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy"]').forEach(img => {
+                document.querySelectorAll('.masonry-item[data-fav="1"] img[loading="lazy" decoding="async"]').forEach(img => {
                     if (!img.complete) { const src = img.src; img.src = ''; img.src = src; }
                 });
             }, 50);
@@ -1903,7 +1903,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 11px;
     background: rgba(255,255,255,0.12);
-    color: #e2e8f0;
+    color: #eceae5;
     border: 1px solid rgba(255,255,255,0.18);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
@@ -1911,9 +1911,9 @@ body.nsfw-only-mode .date-separator { display: none !important; }
     cursor: pointer;
     padding: 0;
 }
-.lb-icon-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.lb-icon-btn:hover { background: rgba(255,255,255,0.22); color: #fcfcfb; }
 .lb-icon-btn:active { transform: scale(0.94); }
-.lb-icon-btn.active { background: rgba(0,180,216,0.35); color: #fff; border-color: rgba(0,180,216,0.6); }
+.lb-icon-btn.active { background: rgba(6, 182, 212, 0.35); color: #fcfcfb; border-color: rgba(6, 182, 212, 0.6); }
 /* 提示词悬浮面板的样式已迁移到 prompt-panel.js（通用组件） */
 #lightboxThumbnails {
     gap: 8px;
@@ -1942,8 +1942,8 @@ body.nsfw-only-mode .date-separator { display: none !important; }
 .lightbox-thumb:hover { opacity: 0.8; }
 .lightbox-thumb.active {
     opacity: 1;
-    border-color: #00b4d8;
-    box-shadow: 0 0 12px rgba(0,180,216,0.5);
+    border-color: #06b6d4;
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
 }
 .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -1951,9 +1951,9 @@ body.nsfw-only-mode .date-separator { display: none !important; }
 .masonry-grid { column-count:2; column-gap:12px; }
 .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
 .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
-.masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+.masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
 body.studio-theme-dark .masonry-grid .date-separator .sep-line { background:rgba(255,255,255,0.08); }
-body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80; }
+body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#6e6d66; }
 @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
 @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
 @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
@@ -1964,9 +1964,9 @@ body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80;
 @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
 @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
 @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
-.masonry-item { border-radius:24px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.5s cubic-bezier(0.4,0,0.2,1); position:relative; break-inside:avoid; margin-bottom:12px; }
-.masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,0.08); }
-body.studio-theme-dark .masonry-item { background:#0d1520; border-color:rgba(0,240,255,0.1); }
+.masonry-item { border-radius:24px; overflow:hidden; background:#eeeeee; border:1px solid #f6f6f4; transition:transform .16s ease, box-shadow .16s ease; position:relative; break-inside:avoid; margin-bottom:12px; }
+.masonry-item:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(0,0,0,0.08); }
+body.studio-theme-dark .masonry-item { background:var(--ui-soft, #252b38); border-color:var(--ui-line, #343b4c); }
 body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,255,0.06); }
 
 /* === NSFW 相关样式已迁移到 nsfw-filter.js === */
@@ -1985,18 +1985,18 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 /* === 图片收藏星标：确保白色背景上可见 === */
 .img-fav-btn {
     background: rgba(0,0,0,0.5) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
 }
 .img-fav-btn.is-fav {
     background: rgba(245,158,11,0.85) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
     opacity: 1 !important;
 }
 
 /* === 多图删除按钮 === */
 .img-del-btn {
     background: rgba(220,38,38,0.8) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
 }
 .img-del-btn.is-confirming {
     background: #dc2626 !important;
@@ -2017,7 +2017,7 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 }
 .gallery-action-btn {
     background: rgba(0,0,0,0.45) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
@@ -2090,7 +2090,6 @@ body.studio-theme-dark .lightbox-thumb.active {
 
 
 ;/* ---- prompt-panel.js ---- */
-
 /*!
  * PromptPanel — 通用「图片信息」悬浮查看组件（富信息版）
  * ----------------------------------------------------------------
@@ -2142,13 +2141,13 @@ body.studio-theme-dark .lightbox-thumb.active {
     width: min(92vw, 600px);
     max-height: 75vh;
     display: flex; flex-direction: column;
-    background: rgba(15,23,42,0.72);
+    background: rgba(23, 23, 22, 0.72);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    color: #f1f5f9;
+    color: #f6f6f4;
     overflow: hidden;
     animation: pp-pop 0.16s ease-out;
 }
@@ -2170,13 +2169,13 @@ body.studio-theme-dark .lightbox-thumb.active {
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 9px;
     background: rgba(255,255,255,0.1);
-    color: #e2e8f0; border: none;
+    color: #eceae5; border: none;
     transition: background .15s ease, color .15s ease, transform .15s ease;
     cursor: pointer; padding: 0;
 }
-.pp-btn:hover { background: rgba(0,180,216,0.45); color: #fff; }
+.pp-btn:hover { background: rgba(6, 182, 212, 0.45); color: #fcfcfb; }
 .pp-btn:active { transform: scale(0.92); }
-.pp-btn.copied { background: rgba(34,197,94,0.5); color: #fff; }
+.pp-btn.copied { background: rgba(34,197,94,0.5); color: #fcfcfb; }
 
 /* ---- 分区通用 ---- */
 .pp-section { border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -2196,7 +2195,7 @@ body.studio-theme-dark .lightbox-thumb.active {
     color: rgba(255,255,255,0.4); border: none;
     cursor: pointer; padding: 0; transition: all .15s ease;
 }
-.pp-sec-copy:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.pp-sec-copy:hover { background: rgba(255,255,255,0.1); color: #fcfcfb; }
 
 /* ---- 标签行（含复制按钮） ---- */
 .pp-tags-row {
@@ -2210,8 +2209,8 @@ body.studio-theme-dark .lightbox-thumb.active {
 .pp-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
 .pp-tag {
     font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
-    background: rgba(0,180,216,0.2); color: #7dd3fc;
-    border: 1px solid rgba(0,180,216,0.3);
+    background: rgba(6, 182, 212, 0.2); color: #00f0ff;
+    border: 1px solid rgba(6, 182, 212, 0.3);
     user-select: none; white-space: nowrap; line-height: 1.4;
 }
 .pp-tag.pp-tag-warm { background: rgba(251,146,60,0.18); color: #fdba74; border-color: rgba(251,146,60,0.3); }
@@ -2233,30 +2232,31 @@ body.studio-theme-dark .lightbox-thumb.active {
 
 /* ---- 元数据网格 ---- */
 .pp-meta-grid {
-    display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 14px 12px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px 16px; padding: 4px 14px 14px;
 }
 .pp-meta-item {
-    display: inline-flex; align-items: center; gap: 5px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0;
     font-size: 11.5px; font-weight: 600;
-    padding: 5px 10px; border-radius: 8px;
-    background: rgba(59,130,246,0.15); color: #93c5fd;
-    border: 1px solid rgba(59,130,246,0.22);
-    user-select: all; white-space: nowrap;
+    padding: 9px 0; color: inherit;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    user-select: all;
 }
 .pp-meta-key { opacity: 0.65; font-weight: 500; }
-.pp-meta-val { opacity: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pp-meta-val { text-align: right; overflow-wrap: anywhere; min-width: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pp-meta-key { flex-shrink: 0; }
+@media (max-width: 420px) { .pp-meta-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- 滚动条（深色主题） ---- */
 .pp-content,
-.pp-body { scrollbar-width: thin; scrollbar-color: rgba(71,85,105,0.6) transparent; }
+.pp-body { scrollbar-width: thin; scrollbar-color: rgba(89, 88, 81, 0.6) transparent; }
 .pp-content::-webkit-scrollbar,
 .pp-body::-webkit-scrollbar { width: 6px; }
 .pp-content::-webkit-scrollbar-track,
 .pp-body::-webkit-scrollbar-track { background: transparent; }
 .pp-content::-webkit-scrollbar-thumb,
-.pp-body::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.6); border-radius: 6px; }
+.pp-body::-webkit-scrollbar-thumb { background: rgba(89, 88, 81, 0.6); border-radius: 6px; }
 .pp-content::-webkit-scrollbar-thumb:hover,
-.pp-body::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.85); border-radius: 6px; }
+.pp-body::-webkit-scrollbar-thumb:hover { background: rgba(125, 124, 116, 0.85); border-radius: 6px; }
 `;
 
     /* ============================ 图标 ============================ */
@@ -2302,48 +2302,60 @@ body.studio-theme-dark .lightbox-thumb.active {
 
     /* ============================ 构建内容 HTML ============================ */
 
-    /** 将 genParams / meta 对象 + record 字段展平为统一元数据键值对 */
+    /** 统一入口：新增模型/API 复用字段别名；不把页面类型当成真实模型。 */
     function buildMetaDict(recordMeta, genParams, extra) {
-        var d = {};
-        // genParams 展平
-        if (genParams && typeof genParams === 'object') {
-            var gp = genParams;
-            if (gp.cfg != null) d['CFG'] = gp.cfg;
-            if (gp.cfg_scale != null) d['CFGSCALE'] = gp.cfg_scale;
-            if (gp.steps != null) d['步骤'] = gp.steps;
-            if (gp.sampler != null || gp.sampler_name != null) d['采样曲'] = gp.sampler || gp.sampler_name;
-            if (gp.scheduler) d['调度器'] = gp.scheduler;
-            if (gp.seed != null) d['种子'] = gp.seed;
-            if (gp['耗时'] != null) d['耗时'] = gp['耗时'];   // litevideo 记录生成总耗时（点击→完成）
-            // litevideo 导演台整条/手动成片：为避免“耗时”被误以为是单段时间，这里用“本批耗时”
-            if (gp['本批耗时'] != null && !d['耗时']) d['本批耗时'] = gp['本批耗时'];
-            if (gp.width != null) d['宽度'] = gp.width;
-            if (gp.height != null) d['身高'] = gp.height;
-            if (gp.batchCount != null) d['批次数'] = gp.batchCount;
-            if (gp.resolution != null) d['分辨率档'] = ['标清','高清'][gp.resolution] || gp.resolution;
-            if (gp.ratioW && gp.ratioH) d['比例'] = gp.ratioW + ':' + gp.ratioH;
-            if (gp.workflow) d['工作流'] = gp.workflow.split('/').pop().replace('.json','');
-            if (gp.loras && gp.loras.length) {
-                d['LoRA'] = gp.loras.map(function(l){ return (l.name||'').split('/')[0] + (l.strength!=null? '('+l.strength+')':''); }).join(', ');
+        var data = Object.assign({}, recordMeta || {}, genParams || {}, extra || {});
+        var used = new Set();
+        function pick(names) {
+            names.forEach(function(k) { used.add(k); });
+            for (var k of names) {
+                if (data[k] != null && data[k] !== '') return data[k];
             }
-            // 兜底：把未知字段也展进去（排除已处理的和复杂对象）
-            var _skip = {cfg:1,cfg_scale:1,steps:1,sampler:1,sampler_name:1,scheduler:1,seed:1,width:1,height:1,batchCount:1,resolution:1,ratioW:1,ratioH:1,workflow:1,loras:1};
-            for (var k in gp) {
-                if (_skip[k] || typeof gp[k] === 'object' || Array.isArray(gp[k])) continue;
-                if (!(k in d)) d[k] = gp[k];
-            }
+            return null;
         }
-        // record 级别的字段
-        if (recordMeta && typeof recordMeta === 'object') {
-            if (recordMeta.model && !d['模型']) d['模型'] = recordMeta.model;
-            if (recordMeta.type && !d['类型']) d['类型'] = recordMeta.type;
-            if (recordMeta.seed != null && !d['种子']) d['种子'] = recordMeta.seed;
-        }
-        // 调用方额外传入的 meta
-        if (extra && typeof extra === 'object') {
-            for (var k2 in extra) { if (!(k2 in d)) d[k2] = extra[k2]; }
-        }
-        return d;
+        var workflow = pick(['workflow', '工作流']);
+        var model = pick(['model_name', 'modelName', 'model', '模型']);
+        var type = pick(['mode', 'generation_mode', 'type', '类型']);
+        var engine = pick(['engine', 'source', '来源']);
+        var provider = pick(['provider_name', 'provider', 'api_provider', '服务商']);
+        var width = pick(['width', '宽度']), height = pick(['height', '高度', '身高']);
+        var size = pick(['size', '尺寸']);
+        var rw = pick(['ratioW']), rh = pick(['ratioH']);
+        var ratio = pick(['aspect_ratio', 'aspectRatio', 'ratio', '比例']);
+        var generic = /^(zimage|klein|image|text2image|image-edit)$/i;
+        if ((!model || generic.test(model)) && workflow) model = String(workflow).split(/[\\/]/).pop().replace(/\.json$/i, '');
+        if (model && generic.test(model)) model = null;
+        var modes = {text2image:'文生图', txt2img:'文生图', t2i:'文生图', 'image-edit':'图生图', img2img:'图生图', i2i:'图生图', edit:'图生图', zimage:'文生图', klein:'图生图'};
+        if (!type && workflow) type = String(workflow).split(/[\\/]/)[0];
+        var d = {
+            '模型': model || '未记录',
+            '来源': engine === 'local' ? '本地 ComfyUI' : engine === 'cloud' || engine === 'api' ? '在线 API' : engine || '未记录',
+            '生成模式': modes[type] || type || '未记录',
+            '尺寸': width && height ? width + ' × ' + height : size || '未记录'
+        };
+        if (provider) d['服务商'] = typeof provider === 'object' ? provider.name || provider.id || '未记录' : provider;
+        if (ratio || (rw && rh)) d['比例'] = ratio || rw + ':' + rh;
+        var fields = [
+            ['种子',['seed','种子']], ['步数',['steps','num_inference_steps','步骤','步数']],
+            ['引导系数',['cfg','cfg_scale','guidance','guidance_scale','CFG','CFGSCALE']],
+            ['采样器',['sampler','sampler_name','采样器','采样曲']], ['调度器',['scheduler','调度器']],
+            ['重绘强度',['denoise','strength','重绘强度']], ['批次数',['batchCount','batch_size','batch_count','批次数']],
+            ['分辨率档',['resolution','分辨率档']]
+        ];
+        fields.forEach(function(field) { var value = pick(field[1]); if (value != null) d[field[0]] = value; });
+        var durationMs = pick(['generation_time_ms']);
+        var duration = pick(['duration','elapsed','生成时长','耗时','本批耗时']);
+        d['生成时长'] = durationMs != null ? (Number(durationMs) / 1000).toFixed(1) + ' 秒（含排队）' : duration != null ? (typeof duration === 'number' ? duration + ' 秒' : duration) : '未记录';
+        if (workflow) d['工作流'] = String(workflow).split(/[\\/]/).pop().replace(/\.json$/i, '');
+        var loras = pick(['loras','LoRA']);
+        if (Array.isArray(loras) && loras.length) d['LoRA'] = loras.map(function(l) { return (l.name || '').split(/[\\/]/).pop() + (l.strength != null ? ' (' + l.strength + ')' : ''); }).join(', ');
+        else if (typeof loras === 'string' && loras) d['LoRA'] = loras;
+        // ponytail: 未知标量保留在折叠区，无需为每种 API 增加渲染分支。
+        var additional = {};
+        Object.keys(data).sort().forEach(function(k) {
+            if (!used.has(k) && data[k] != null && typeof data[k] !== 'object' && data[k] !== '') additional[k] = data[k];
+        });
+        return {fields: d, additional: additional};
     }
 
     /** 构建 tags 数组（用于顶部标签行） */
@@ -2371,8 +2383,9 @@ body.studio-theme-dark .lightbox-thumb.active {
         var cn = (typeof _rawCn === 'string') ? _rawCn.trim() : '';
         var _rawNeg = opts.negative || '';
         var neg = (typeof _rawNeg === 'string') ? _rawNeg.trim() : '';
-        var metaDict = buildMetaDict(opts.recordMeta, opts.genParams, opts.meta);
-        var tagItems = buildTagsArray(opts.tags, opts.recordType, opts.recordModel, (opts.genParams && opts.genParams.workflow));
+        var normalized = buildMetaDict(Object.assign({}, opts.recordMeta, {model: opts.recordModel || (opts.recordMeta || {}).model, type: opts.recordType || (opts.recordMeta || {}).type}), opts.genParams, opts.meta);
+        var metaDict = normalized.fields;
+        var tagItems = buildTagsArray([], null, metaDict['模型'] === '未记录' ? null : metaDict['模型'], null);
         var hasMeta = Object.keys(metaDict).length > 0;
 
         var html = '';
@@ -2423,7 +2436,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         // ====== 元数据区 ======
         if (hasMeta) {
             html += '<div class="pp-section">';
-            html += '<div class="pp-sec-head"><span class="pp-sec-title">其他元数据</span></div>';
+            html += '<div class="pp-sec-head"><span class="pp-sec-title">生成信息</span></div>';
             html += '<div class="pp-meta-grid">';
             var keys = Object.keys(metaDict);
             for (var mi = 0; mi < keys.length; mi++) {
@@ -2432,6 +2445,12 @@ body.studio-theme-dark .lightbox-thumb.active {
             html += '</div></div>';
         }
 
+        var extraKeys = Object.keys(normalized.additional);
+        if (extraKeys.length) {
+            html += '<details class="pp-section"><summary class="pp-sec-head">其他参数</summary><div class="pp-meta-grid">';
+            extraKeys.forEach(function(k) { html += '<span class="pp-meta-item"><span class="pp-meta-key">' + escHtml(k) + '</span><span class="pp-meta-val">' + escHtml(String(normalized.additional[k])) + '</span></span>'; });
+            html += '</div></details>';
+        }
         return html;
     }
 
@@ -2664,7 +2683,6 @@ body.studio-theme-dark .lightbox-thumb.active {
         inject();
     }
 })(window);
-
 
 ;/* ---- actions.js ---- */
 
@@ -3020,7 +3038,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             const orig = btn.innerHTML;
             btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="20 6 9 17 4 12"/></svg>';
             btn.style.background = '#10b981';
-            btn.style.color = '#fff';
+            btn.style.color = '#fcfcfb';
             setTimeout(() => {
                 btn.innerHTML = orig;
                 btn.style.background = '';
@@ -3112,7 +3130,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             const orig = btn.innerHTML;
             btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="20 6 9 17 4 12"/></svg>';
             btn.style.background = '#6366f1';
-            btn.style.color = '#fff';
+            btn.style.color = '#fcfcfb';
             setTimeout(() => {
                 btn.innerHTML = orig;
                 btn.style.background = '';
@@ -3910,7 +3928,7 @@ body.studio-theme-dark .lightbox-thumb.active {
             '.gallery-sound.show{opacity:1;pointer-events:auto;}',
             '.gallery-sound:hover{transform:scale(1.12)}',
             '.gallery-sound:active{transform:scale(0.9)}',
-            '.masonry-item.gallery-selected{outline:3px solid #38bdf8;outline-offset:-3px;border-radius:8px;}'
+            '.masonry-item.gallery-selected{outline:3px solid #00f0ff;outline-offset:-3px;border-radius:8px;}'
         ].join('\n');
         (document.head || document.documentElement).appendChild(style);
     })();
@@ -3920,7 +3938,7 @@ body.studio-theme-dark .lightbox-thumb.active {
 
     // 悬浮按钮统一内联样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示。
     // 提升为模块级常量，供 render（放大镜/收藏/查看提示词按钮）与 buildVideoHTML（声音按钮）共用。
-    var BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+    var BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fcfcfb;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
 
     // 收藏按钮 22x22 星星 SVG
     // 注意：无论是否已收藏，统一使用空心 SVG；CSS 通过 .is-fav 切换填充
@@ -4115,7 +4133,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         card.dataset.favImages = JSON.stringify(mediaForFav.map(u => favSet.has(u) ? 1 : 0));
 
         // 三个悬浮按钮统一样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示
-        // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
+        // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fcfcfb;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
         // 注：BTN_INLINE 已提升为模块级常量（见文件顶部），供 render 与 buildVideoHTML 共用
         const SVG_22 = ' xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"';
 
@@ -4178,7 +4196,7 @@ body.studio-theme-dark .lightbox-thumb.active {
                 // [Bugfix] 改用内联 style + .model-badge 已有 CSS，不再依赖 Tailwind 预编译类
                 // 旧的 `bg-black/60 backdrop-blur text-[9px]` 是 Tailwind v3 类，
                 // 预编译的 tailwind.min.css 不一定包含，导致徽标透明看不见。
-                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fff;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
+                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fcfcfb;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
             }
         } else if (typeof features.modelBadge === 'string' && features.modelBadge) {
             badgeHTML = `<div class="model-badge absolute bottom-3 right-3 z-10"><img src="${features.modelBadge}" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>`;
@@ -4217,6 +4235,11 @@ body.studio-theme-dark .lightbox-thumb.active {
             ${batchHTML}
             ${nsfwBadge}
             `;
+        if (!isVideo && features.download && record.images?.[0]) {
+            mountDownloadAction(card, record.images[0]);
+            const badge = card.querySelector('.model-badge');
+            if (badge) badge.style.right = '56px';
+        }
 
         // 右键菜单
         if (features.contextMenu) {
@@ -4325,7 +4348,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         const eager = !!opts.eagerFirstImage;
         // eager 时首图用 loading="eager" fetchpriority="high"（避免 Edge lazy placeholder 替换）
         // 其它图仍 lazy
-        const ldAttr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+        const ldAttr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
         const imgs = (record.images || []).filter(Boolean);
         const favSet = global.__galleryFavorites || new Set();
         if (imgs.length <= 1) {
@@ -4336,14 +4359,14 @@ body.studio-theme-dark .lightbox-thumb.active {
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
             return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u, i) {
-                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                 return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('') + '</div>';
         } else if (imgs.length === 3) {
             return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
                 '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
                 '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
-                    const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                    const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                     return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
                 }).join('') + '</div>' +
             '</div>';
@@ -4353,7 +4376,7 @@ body.studio-theme-dark .lightbox-thumb.active {
                 var overlay = isLast
                     ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                 return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
             return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
@@ -4390,8 +4413,8 @@ body.studio-theme-dark .lightbox-thumb.active {
                       parseAspectRatio(record.params && record.params.aspect_ratio) ||
                       parseAspectRatio(record.aspect_ratio) || 0;
         const arCSS = arNum > 0 ? arNum.toFixed(4) : '16/9';
-        return '<div class="relative group" style="background:#000;">' +
-            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:' + arCSS + ';" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||' + arCSS + ').toFixed(4)" onerror="' + onerror + '">' +
+        return '<div class="relative group" style="background:#0b0b0a;">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#0b0b0a; aspect-ratio:' + arCSS + ';" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||' + arCSS + ').toFixed(4)" onerror="' + onerror + '">' +
             '</video>' +
             favBtn +
             soundHTML +
@@ -4435,16 +4458,21 @@ body.studio-theme-dark .lightbox-thumb.active {
      */
     function thumbUrl(url, w) {
         w = w || 512;
-        var raw = String(url || '');
+        const raw = String(url || '');
         if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
-        // ComfyUI 代理：直接给 w 参数让后端返回 WebP 缩略图（秒出，不再加载原图）
-        if (raw.indexOf('/api/comfyui/view') === 0) {
-            var q = raw.split('?')[1] || '';
-            return '/api/comfyui/view?w=' + w + (q ? '&' + q : '');
-        }
-        if (!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
-        if (!/\.(png|jpe?g|webp|gif|bmp|avif)(\?|#|$)/i.test(raw)) return raw;
-        return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(raw);
+        try {
+            const parsed = new URL(raw, global.location.origin);
+            if (parsed.origin !== global.location.origin) return raw;
+            if (parsed.pathname === '/api/comfyui/view') {
+                parsed.searchParams.set('w', String(w));
+                return parsed.pathname + '?' + parsed.searchParams.toString();
+            }
+            if (parsed.pathname === '/api/media-preview') return raw;
+            const path = decodeURIComponent(parsed.pathname);
+            if (!path.startsWith('/output/') && !path.startsWith('/assets/')) return raw;
+            if (!/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path)) return raw;
+            return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(path);
+        } catch (_) { return raw; }
     }
 
     // NSFW 提示词关键词检测（保守黑名单，匹配单词边界或紧邻分隔符）
@@ -4462,7 +4490,54 @@ body.studio-theme-dark .lightbox-thumb.active {
         return NSFW_PATTERNS.some(re => re.test(p));
     }
 
-    global.GalleryCard = { render, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };
+    /** 对话缩略图复用普通卡片的图标、尺寸、阴影及收藏同步。 */
+    function mountDownloadAction(host, imageUrl) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gallery-download';
+        button.title = '下载原图';
+        button.setAttribute('aria-label', button.title);
+        button.style.cssText = BTN_INLINE + 'right:8px;bottom:8px;width:44px;height:44px;';
+        button.innerHTML = ICONS.download;
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const filename = imageUrl.split(/[?#]/)[0].split('/').pop();
+            global.GalleryActions.downloadImage(imageUrl, filename, event);
+        });
+        host.appendChild(button);
+    }
+
+    function mountImageActions(host, getRecord, imageUrl) {
+        const info = document.createElement('button');
+        info.type = 'button';
+        info.className = 'gallery-vpfab show';
+        info.title = '查看图片信息';
+        info.setAttribute('aria-label', info.title);
+        info.style.cssText = BTN_INLINE + 'left:12px;bottom:12px;';
+        info.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+        info.addEventListener('click', event => {
+            event.stopPropagation();
+            global.GalleryActions.viewPrompt(getRecord(), event);
+        });
+        const fav = document.createElement('button');
+        fav.type = 'button';
+        fav.className = 'gallery-fav show';
+        fav.title = '收藏';
+        fav.setAttribute('aria-label', fav.title);
+        fav.dataset.favUrl = imageUrl;
+        fav.style.cssText = BTN_INLINE + 'right:12px;top:12px;';
+        fav.innerHTML = FAV_OUT_SVG;
+        fav.classList.toggle('is-fav', !!global.__galleryFavorites?.has(imageUrl));
+        fav.addEventListener('click', event => {
+            event.stopPropagation();
+            global.GalleryDisplay.Favorites.toggle(imageUrl);
+        });
+        host.appendChild(info);
+        host.appendChild(fav);
+        mountDownloadAction(host, imageUrl);
+    }
+
+    global.GalleryCard = { render, thumbUrl, mountImageActions, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };
 
     // 点击卡片外空白区域：取消所有选中描边（蓝色高亮）
     // 仅绑定一次；批量选择模式与预设选择浮层内不干涉
@@ -4505,7 +4580,7 @@ body.studio-theme-dark .lightbox-thumb.active {
         document.addEventListener('click', () => hide());
         document.addEventListener('contextmenu', (e) => {
             // 如果是图片卡片上的右键，不关闭（让 card.js 的处理接管）
-            if (e.target.closest('.masonry-item')) return;
+            if (e.target.closest('.masonry-item, .chat-image-card')) return;
             hide();
         });
         return menuEl;
@@ -4588,7 +4663,15 @@ body.studio-theme-dark .lightbox-thumb.active {
                 }
 
                 hide();
-                if (action === '__view__') {
+                if (action === '__region__') {
+                    currentFeatures.regionEdit(currentRecord);
+                } else if (action === '__edit__') {
+                    currentFeatures.editImage(currentRecord);
+                } else if (action === '__extract__') {
+                    currentFeatures.extractPrompt(currentRecord);
+                } else if (action === '__view__' && currentFeatures.viewImage) {
+                    currentFeatures.viewImage(currentRecord);
+                } else if (action === '__view__') {
                     // 查看大图：触发卡片的 click 事件打开 lightbox
                     const card = document.querySelector(`#history-${currentRecord.timestamp}`);
                     if (card) card.click();
@@ -4659,6 +4742,9 @@ body.studio-theme-dark .lightbox-thumb.active {
     function buildItems(record, features) {
         const items = [];
         items.push({ label: '查看大图', action: '__view__', icon: _SVG.magnify });
+        if (features.regionEdit) items.push({ label:'局部修改图片', action:'__region__', icon:_SVG.pencil });
+        if (features.editImage) items.push({ label:'改这张图片', action:'__edit__', icon:_SVG.pencil });
+        if (features.extractPrompt) items.push({ label: '提取图片提示词', action: '__extract__', icon: _SVG.pencil });
         if (features.openFolder)  items.push({ label: '打开文件夹', action: 'openImageFolder', icon: _SVG.folder });
         if (features.usePrompt)   items.push({ label: '载入提示词', action: 'usePrompt',       icon: _SVG.pencil });
         if (features.copyPrompt)  items.push({ label: '复制提示词', action: 'copyPrompt',      icon: _SVG.copy });
@@ -4925,10 +5011,10 @@ body.studio-theme-dark .lightbox-thumb.active {
         '  padding: 16px 0 12px; margin: 0; cursor: pointer; scroll-margin-top: 10px;',
         '  border-radius: 8px; transition: background .15s ease;',
         '}',
-        '.tl-enabled .date-separator:hover { background: rgba(0,180,216,0.07); }',
+        '.tl-enabled .date-separator:hover { background: rgba(6, 182, 212, 0.07); }',
         '.tl-enabled .date-separator .sep-line { display: none; }',
         '.tl-enabled .date-separator .sep-label {',
-        '  font-size: 11px; font-weight: 800; color: #0ea5b7; text-transform: uppercase;',
+        '  font-size: 11px; font-weight: 800; color: #06b6d4; text-transform: uppercase;',
         '  letter-spacing: 0.06em; white-space: nowrap; background: rgba(0,240,255,0.08);',
         '  padding: 3px 11px; border-radius: 999px;',
         '}',
@@ -4951,18 +5037,18 @@ body.studio-theme-dark .lightbox-thumb.active {
         '}',
         '.tl-nav-item {',
         '  position: relative; width: var(--tl-dot, 13px); height: var(--tl-dot, 13px); flex: 0 0 auto; padding: 0; border-radius: 50%;',
-        '  border: 2px solid #fff; background: #00f0ff; box-shadow: 0 0 0 2px rgba(0,240,255,0.28);',
+        '  border: 2px solid #fcfcfb; background: #00f0ff; box-shadow: 0 0 0 2px rgba(0,240,255,0.28);',
         '  cursor: pointer; pointer-events: auto;',
         '  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;',
         '}',
-        '.tl-nav-item:hover { transform: scale(1.45); background: #00e5ff; box-shadow: 0 0 0 4px rgba(0,180,216,0.22); }',
-        '.tl-nav-item.is-active { background: #00e5ff; box-shadow: 0 0 0 4px rgba(0,180,216,0.34); transform: scale(1.3); }',
-        '.tl-nav-item.is-loading { animation: tl-pulse 0.9s ease-in-out infinite; background: #36c5d6; }',
-        '@keyframes tl-pulse { 0%,100% { box-shadow: 0 0 0 2px rgba(0,180,216,0.28); } 50% { box-shadow: 0 0 0 7px rgba(0,180,216,0.05); } }',
+        '.tl-nav-item:hover { transform: scale(1.45); background: #00f0ff; box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.22); }',
+        '.tl-nav-item.is-active { background: #00f0ff; box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.34); transform: scale(1.3); }',
+        '.tl-nav-item.is-loading { animation: tl-pulse 0.9s ease-in-out infinite; background: #00f0ff; }',
+        '@keyframes tl-pulse { 0%,100% { box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.28); } 50% { box-shadow: 0 0 0 7px rgba(6, 182, 212, 0.05); } }',
         '.tl-nav-item::after {',
         '  content: attr(data-label); position: absolute; left: 100%; margin-left: 9px; top: 50%;',
         '  transform: translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 800;',
-        '  letter-spacing: 0.04em; color: #0ea5b7; background: rgba(0,240,255,0.12);',
+        '  letter-spacing: 0.04em; color: #06b6d4; background: rgba(0,240,255,0.12);',
         '  padding: 3px 9px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .15s ease;',
         '}',
         '.tl-nav-item:hover::after { opacity: 1; }',
@@ -4972,11 +5058,11 @@ body.studio-theme-dark .lightbox-thumb.active {
         '  background: linear-gradient(180deg, rgba(0,240,255,0) 0%, rgba(0,240,255,0.5) 5%, rgba(0,240,255,0.5) 95%, rgba(0,240,255,0) 100%);',
         '}',
         'body.theme-dark .tl-enabled .date-separator .sep-label, body.studio-theme-dark .tl-enabled .date-separator .sep-label {',
-        '  color: #67e8f9; background: rgba(0,240,255,0.12);',
+        '  color: #00f0ff; background: rgba(0,240,255,0.12);',
         '}',
-        'body.theme-dark .tl-enabled .date-separator:hover, body.studio-theme-dark .tl-enabled .date-separator:hover { background: rgba(0,180,216,0.1); }',
-        'body.theme-dark .tl-nav-item, body.studio-theme-dark .tl-nav-item { border-color: #0b1220; }',
-        'body.theme-dark .tl-nav-item::after, body.studio-theme-dark .tl-nav-item::after { color: #67e8f9; background: rgba(0,240,255,0.14); }'
+        'body.theme-dark .tl-enabled .date-separator:hover, body.studio-theme-dark .tl-enabled .date-separator:hover { background: rgba(6, 182, 212, 0.1); }',
+        'body.theme-dark .tl-nav-item, body.studio-theme-dark .tl-nav-item { border-color: #121211; }',
+        'body.theme-dark .tl-nav-item::after, body.studio-theme-dark .tl-nav-item::after { color: #00f0ff; background: rgba(0,240,255,0.14); }'
     ].join('\n');
 
     function injectCss() {

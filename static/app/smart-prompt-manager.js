@@ -197,7 +197,7 @@ function spmInit() {
                 </div>
             </div>
             <div class="spm-foot">
-                <div style="flex:1;font-size:10px;color:#999;">编辑后自动保存</div>
+                <div style="flex:1;font-size:10px;color:#999999;">编辑后自动保存</div>
             </div>
         </div>`;
     document.body.appendChild(shell);

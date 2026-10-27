@@ -188,7 +188,7 @@ async function gaoqingxiufuExecute(node, refs, prompt, promptId) {
                 "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
                 "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
                 "scale_to_side": "longest", "scale_to_length": Number(node.gqSize || 1536),
-                "background_color": "#000000", "image": ["46", 0]
+                "background_color": "#0b0b0a", "image": ["46", 0]
             },
             "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
             "_meta": { "title": "图层工具：按宽高比缩放_V2" }

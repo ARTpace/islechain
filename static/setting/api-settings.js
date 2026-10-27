@@ -475,7 +475,7 @@ async function createRhThumbnailDataUrl(file){
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = '#fcfcfb';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         return canvas.toDataURL('image/jpeg', 0.78);
@@ -1846,7 +1846,7 @@ async function probeAsync(){
             protocolInput.dispatchEvent(new Event('change'));
         }
         const rawJson = JSON.stringify(data.raw, null, 2);
-        const color = isAsync ? '#15803d' : data.ok === null ? '#b45309' : '#64748b';
+        const color = isAsync ? '#15803d' : data.ok === null ? '#b45309' : '#7d7c74';
         const icon = isAsync ? '✓' : '⚠';
         const proto = isAsync ? 'APIMart 异步' : 'OpenAI 兼容';
         showVerifyResult(`

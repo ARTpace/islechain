@@ -1,0 +1,524 @@
+/* =====================================================================
+   studio-ui.css — ART AI 统一设计系统 v3「高定」
+   响应式（桌面 / 平板 / 移动）+ 深浅双主题（统一切换）
+   ---------------------------------------------------------------------
+   v3 铁律（10 条，全部编码进本文件，34 个界面共享继承）：
+   1  去边框    —— 1%~3% 微明度分层代替描边；浅色 #f7f6f4/#fbfaf9，
+                   暗色 #0b0b0a/#151515/#1a1a19/#20201e；禁纯黑 #0b0b0a。
+   2  输入框    —— 聚焦不加 outline，改「双环 box-shadow」造咬合感。
+   3  暗色补偿  —— 字重全降 40（400→360 / 700→660），防白字发胖。
+   4  流式打字  —— 单字 90ms，blur(6px)→清晰，ease cubic-bezier(.215,.61,.355,1)，
+                   相邻字错开 30ms 晕开。
+   5  行内图标  —— vertical-align:-0.125em 对齐中心。
+   6  数字防抖  —— tabular-nums 锁等宽。
+   7  丝滑折叠  —— 免 JS 算高，Grid 0fr→1fr 过渡。
+   8  防孤字    —— 正文 text-wrap:pretty。
+   9  动效性格  —— 拖拽用过阻尼弹簧(1200/80) 零回弹；点赞/对勾用欠阻尼(380/18) 微弹。
+   10 反馈自熄  —— 复制对勾 2.5s 后自动淡出恢复。
+   ---------------------------------------------------------------------
+   契约约定：
+   - 组件类全部 opt-in（须带 .ui-* 类），不污染未接管元素。
+   - 颜色统一引用 var(--ui-*)；浅色为默认，深色由 .studio-theme-dark 触发，
+     与现有 theme.js（StudioTheme.set / studio_accent / studio-look-change）完全对齐。
+   - 动效全部带 prefers-reduced-motion 降级。
+   ===================================================================== */
+
+/* ---------- 浅色主题（默认）：暖中性，靠明度分层，不靠描边 ---------- */
+:root {
+  /* 明度阶梯（相邻级差 1%~3%） */
+  --ui-bg: #f7f6f4;          /* 页面底 */
+  --ui-panel: #fbfaf9;       /* 卡片/面板（最亮层） */
+  --ui-soft: #f5f5f3;        /* 内嵌区（次层） */
+  --ui-line: #eeede9;        /* 分隔线（克制使用） */
+  --ui-line-strong: #e7e5de; /* 需要边界的控件 */
+  --ui-edge: transparent;    /* 去边框：默认透明，占位不塌陷 */
+
+  --ui-text: #1a1a19;
+  --ui-muted: #828178;
+  --ui-faint: #9e9c93;
+  --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
+  --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
+
+  /* 强调色沿用品牌青（theme.js 的 5 套 accent 仍可覆盖 --accent） */
+  --ui-accent: #0e7490;
+  --ui-accent-glow: #0891b2;
+  --ui-accent-ink: #fbfaf9;
+  --ui-accent-soft: rgba(14, 116, 144, .10);
+
+  /* 层级阴影（替代描边的主要手段） */
+  --ui-shadow: 0 1px 2px rgba(24, 24, 23, .04), 0 8px 24px rgba(24, 24, 23, .05);
+  --ui-shadow-strong: 0 2px 4px rgba(24, 24, 23, .05), 0 16px 40px rgba(24, 24, 23, .09);
+  --ui-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .7);
+
+  /* 字重（浅色基准） */
+  --ui-fw-regular: 400;
+  --ui-fw-medium: 500;
+  --ui-fw-semibold: 600;
+  --ui-fw-bold: 700;
+
+  /* 圆角 / 节奏 */
+  --ui-r-xs: 8px;
+  --ui-r-sm: 12px;
+  --ui-r: 16px;
+  --ui-r-lg: 22px;
+  --ui-r-pill: 999px;
+
+  /* 动效性格（铁律 9） */
+  --ui-ease: cubic-bezier(.4, 0, .2, 1);
+  --ui-ease-spring: cubic-bezier(.16, 1, .3, 1);   /* 过阻尼弹簧 1200/80 · 零回弹 */
+  --ui-ease-bounce: cubic-bezier(.34, 1.56, .64, 1); /* 欠阻尼 380/18 · 微弹 */
+  --ui-ease-type: cubic-bezier(.215, .61, .355, 1); /* 打字专用 */
+  --ui-t-fast: .15s;
+  --ui-t: .22s;
+  --ui-t-slow: .38s;
+
+  --ui-gap: clamp(10px, 1.5vw, 16px);
+  --ui-pad: clamp(14px, 2.2vw, 22px);
+}
+
+/* ---------- 深色主题：暖近黑（禁纯黑），字重整体降 40 ---------- */
+html.studio-theme-dark,
+body.studio-theme-dark,
+html.studio-theme-dark body,
+body.theme-dark {
+  --ui-bg: #14161c;
+  --ui-panel: #1c202a;
+  --ui-soft: #252b38;
+  --ui-line: #343b4c;
+  --ui-line-strong: #445066;
+  --ui-edge: transparent;
+
+  --ui-text: #f6f6f4;
+  --ui-muted: #9f9d94;
+  --ui-faint: #86857c;
+  --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
+  --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
+
+  --ui-accent: #00f0ff;
+  --ui-accent-glow: #06b6d4;
+  --ui-accent-ink: #10100f;
+  --ui-accent-soft: rgba(0, 240, 255, .12);
+
+  --ui-shadow: 0 1px 2px rgba(0, 0, 0, .42), 0 10px 30px rgba(0, 0, 0, .34);
+  --ui-shadow-strong: 0 2px 6px rgba(0, 0, 0, .5), 0 20px 48px rgba(0, 0, 0, .44);
+  --ui-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .04);
+
+  /* 铁律 3：暗色字重全降 40 */
+  --ui-fw-regular: 360;
+  --ui-fw-medium: 460;
+  --ui-fw-semibold: 560;
+  --ui-fw-bold: 660;
+}
+
+/* =====================================================================
+   铁律 3：暗色字重补偿（全局覆盖显式字重声明）
+   ===================================================================== */
+html.studio-theme-dark body :where(h1, h2, h3, h4, h5, h6) { font-weight: var(--ui-fw-semibold); }
+html.studio-theme-dark body :where(strong, b, th) { font-weight: var(--ui-fw-bold); }
+html.studio-theme-dark body :where(label, legend, .muted, .subtitle) { font-weight: var(--ui-fw-medium); }
+html.studio-theme-dark body :where(.font-black) { font-weight: 660 !important; }
+html.studio-theme-dark body :where(.font-bold) { font-weight: 660 !important; }
+html.studio-theme-dark body :where(.font-semibold) { font-weight: 560 !important; }
+html.studio-theme-dark body :where(.font-medium) { font-weight: 460 !important; }
+
+/* =====================================================================
+   铁律 2：输入框聚焦 = 双环 box-shadow 咬合感（不加 outline）
+   ===================================================================== */
+:where(input, textarea, select, [contenteditable]):focus,
+:where(input, textarea, select, [contenteditable]):focus-visible {
+  outline: none !important;
+  border-color: var(--ui-line-strong);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 42%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 13%, transparent);
+  transition: border-color var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease);
+}
+/* 非输入元素仍保留可见焦点环（无障碍） */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* =====================================================================
+   铁律 5 / 6 / 8：行内图标对齐、等宽数字、防孤字
+   ===================================================================== */
+:where(p, li, td, dd, dt, label, figcaption, blockquote) > svg,
+.ui-inline-icon,
+svg[data-lucide] { vertical-align: -0.125em; }
+
+.ui-num,
+[data-num],
+.tabular,
+:where(input[type="number"], input[type="date"], input[type="time"], time, .tabular-nums) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+body, p, li, dd, dt, blockquote,
+.bubble, .bubble-text, .msg, .message, .prose {
+  text-wrap: pretty;
+}
+
+/* =====================================================================
+   铁律 7：丝滑折叠（免 JS 算高，Grid 0fr→1fr）
+   ===================================================================== */
+.ui-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--ui-t-slow) var(--ui-ease-spring);
+}
+.ui-collapse > .ui-collapse-inner { overflow: hidden; min-height: 0; }
+.ui-collapse.is-open,
+.ui-collapse[open] { grid-template-rows: 1fr; }
+
+/* =====================================================================
+   响应式布局工具类
+   ===================================================================== */
+.ui-container {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: var(--ui-pad);
+  box-sizing: border-box;
+}
+.ui-row { display: flex; flex-wrap: wrap; gap: var(--ui-gap); align-items: stretch; }
+.ui-row.middle { align-items: center; }
+.ui-row.center { justify-content: center; }
+.ui-row.between { justify-content: space-between; }
+.ui-row.nowrap { flex-wrap: nowrap; }
+.ui-stack { display: flex; flex-direction: column; gap: var(--ui-gap); }
+
+.ui-grid {
+  display: grid;
+  gap: var(--ui-gap);
+  grid-template-columns: repeat(var(--ui-cols, 1), minmax(0, 1fr));
+}
+.ui-grid.c2 { --ui-cols: 2; }
+.ui-grid.c3 { --ui-cols: 3; }
+.ui-grid.c4 { --ui-cols: 4; }
+.ui-grid.auto { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+@media (max-width: 1024px) {
+  .ui-grid.c4 { --ui-cols: 2; }
+  .ui-grid.c3 { --ui-cols: 2; }
+}
+@media (max-width: 640px) {
+  .ui-grid.c2, .ui-grid.c3, .ui-grid.c4 { --ui-cols: 1; }
+  .ui-row.nowrap { flex-wrap: wrap; }
+}
+
+.ui-hide-mobile { display: initial; }
+.ui-show-mobile { display: none !important; }
+@media (max-width: 640px) {
+  .ui-hide-mobile { display: none !important; }
+  .ui-show-mobile { display: initial !important; }
+}
+.ui-hide-tablet { display: initial; }
+.ui-show-tablet { display: none !important; }
+@media (min-width: 641px) and (max-width: 1024px) {
+  .ui-hide-tablet { display: none !important; }
+  .ui-show-tablet { display: initial !important; }
+}
+
+.ui-pad { padding: var(--ui-pad); box-sizing: border-box; }
+.ui-gap { gap: var(--ui-gap); }
+.ui-fluid { font-size: clamp(14px, .9vw + 10px, 18px); }
+.ui-img-fluid { max-width: 100%; height: auto; display: block; }
+.ui-scroll { overflow: auto; }
+.ui-page {
+  display: flex; flex-direction: column; min-height: 100%;
+  background: var(--ui-bg); color: var(--ui-text);
+}
+.ui-drawer { display: flex; gap: var(--ui-gap); align-items: stretch; }
+@media (max-width: 640px) { .ui-drawer { flex-direction: column; } }
+
+/* 暗色滚动条 */
+html.studio-theme-dark ::-webkit-scrollbar,
+body.studio-theme-dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.studio-theme-dark ::-webkit-scrollbar-thumb,
+body.studio-theme-dark ::-webkit-scrollbar-thumb {
+  background: var(--ui-line-strong); border-radius: 999px;
+}
+html.studio-theme-dark ::-webkit-scrollbar-track,
+body.studio-theme-dark ::-webkit-scrollbar-track { background: transparent; }
+
+/* =====================================================================
+   主题感知组件（opt-in）
+   ===================================================================== */
+
+/* 表面 / 卡片：铁律 1 —— 无描边，靠明度分层 + 阴影 */
+.ui-surface,
+.ui-card {
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-edge);          /* 占位透明，不塌陷 */
+  border-radius: var(--ui-r);
+  box-shadow: var(--ui-shadow);
+  transition: box-shadow var(--ui-t-fast) var(--ui-ease),
+              transform var(--ui-t-fast) var(--ui-ease),
+              background var(--ui-t-fast) var(--ui-ease);
+}
+.ui-card:hover,
+.ui-surface:hover { box-shadow: var(--ui-shadow-strong); }
+/* 需要边界时显式开启 */
+.ui-edged { border-color: var(--ui-line) !important; }
+
+/* 文本输入 */
+.ui-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  background: var(--ui-soft);
+  border: 1px solid transparent;              /* 去边框：靠底色分层 */
+  border-radius: var(--ui-r-sm);
+  color: var(--ui-text);
+  font-size: 14px;
+  font-weight: var(--ui-fw-regular);
+  box-sizing: border-box;
+  transition: border-color var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease),
+              background var(--ui-t-fast) var(--ui-ease);
+}
+.ui-input::placeholder { color: var(--ui-faint); }
+.ui-input:hover { background: color-mix(in srgb, var(--ui-soft) 70%, var(--ui-panel)); }
+textarea.ui-input { height: auto; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+
+/* 按钮：基础 / 主操作 / 幽灵 */
+.ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 16px;
+  border-radius: var(--ui-r-sm);
+  border: 1px solid transparent;
+  background: var(--ui-soft);
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: var(--ui-fw-semibold);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background var(--ui-t-fast) var(--ui-ease),
+              color var(--ui-t-fast) var(--ui-ease),
+              transform var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease);
+}
+.ui-btn:hover { background: color-mix(in srgb, var(--ui-soft) 60%, var(--ui-panel)); }
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+.ui-btn-primary {
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  font-weight: var(--ui-fw-bold);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+}
+.ui-btn-primary:hover {
+  background: color-mix(in srgb, var(--ui-accent) 88%, var(--ui-accent-ink));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ui-accent) 26%, transparent);
+  transform: translateY(-1px);
+}
+
+.ui-btn-ghost { background: transparent; color: var(--ui-muted); }
+.ui-btn-ghost:hover { background: var(--ui-soft); color: var(--ui-text); }
+
+/* 图标按钮 */
+.ui-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--ui-r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ui-muted);
+  cursor: pointer;
+  transition: background var(--ui-t-fast) var(--ui-ease),
+              color var(--ui-t-fast) var(--ui-ease);
+}
+.ui-icon-btn:hover { color: var(--ui-accent); background: var(--ui-soft); }
+.ui-icon-btn svg { width: 18px; height: 18px; vertical-align: middle; }
+
+/* 分段控件 */
+.ui-seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--ui-soft);
+  border-radius: var(--ui-r-pill);
+  flex-wrap: wrap;
+}
+.ui-seg button {
+  height: 34px; padding: 0 14px;
+  border: 0; border-radius: var(--ui-r-pill);
+  background: transparent; color: var(--ui-muted);
+  font-size: 12px; font-weight: var(--ui-fw-semibold);
+  cursor: pointer;
+  transition: all var(--ui-t-fast) var(--ui-ease);
+}
+.ui-seg button:hover { color: var(--ui-text); }
+.ui-seg button.active {
+  background: var(--ui-panel); color: var(--ui-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .14);
+}
+
+/* 开关 */
+.ui-switch {
+  position: relative; display: inline-flex; align-items: center;
+  width: 44px; height: 24px; flex: 0 0 auto;
+}
+.ui-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ui-switch .track {
+  position: absolute; inset: 0;
+  background: var(--ui-line-strong);
+  border-radius: var(--ui-r-pill);
+  transition: background var(--ui-t) var(--ui-ease);
+}
+.ui-switch .thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ui-panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
+  transition: transform var(--ui-t) var(--ui-ease-bounce); /* 铁律 9：微弹 */
+}
+.ui-switch input:checked + .track { background: var(--ui-accent); }
+.ui-switch input:checked + .track .thumb { transform: translateX(20px); }
+.ui-switch input:focus-visible + .track { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+/* 药丸徽标 */
+.ui-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: var(--ui-r-pill);
+  font-size: 11px; font-weight: var(--ui-fw-bold); letter-spacing: .04em;
+  background: var(--ui-accent-soft); color: var(--ui-accent);
+}
+
+/* 状态点（呼吸） */
+.ui-status-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 60%, transparent);
+  animation: uiPulse 2s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+
+/* 标签页 */
+.ui-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--ui-line); }
+.ui-tab {
+  padding: 10px 14px; border: 0; background: transparent;
+  color: var(--ui-muted);
+  font-size: 13px; font-weight: var(--ui-fw-semibold);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: color var(--ui-t-fast) var(--ui-ease), border-color var(--ui-t-fast) var(--ui-ease);
+}
+.ui-tab:hover { color: var(--ui-text); }
+.ui-tab.active { color: var(--ui-accent); border-bottom-color: var(--ui-accent); }
+
+/* 表格 */
+.ui-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ui-table th, .ui-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--ui-line); }
+.ui-table th { color: var(--ui-muted); font-weight: var(--ui-fw-semibold); background: var(--ui-soft); }
+.ui-table tbody tr:hover { background: var(--ui-soft); }
+
+/* 分隔线 / 文字层级 */
+.ui-divider { height: 1px; background: var(--ui-line); border: 0; margin: var(--ui-gap) 0; }
+.ui-text { color: var(--ui-text); }
+.ui-muted { color: var(--ui-muted); }
+.ui-faint { color: var(--ui-faint); }
+.ui-accent { color: var(--ui-accent); }
+
+/* =====================================================================
+   铁律 4：流式打字（单字 90ms，blur(6px)→清晰，相邻字错开 30ms）
+   由 ui-refine.js 为每个字符输出 .ui-ch 并写入 --d 延迟变量
+   ===================================================================== */
+.ui-ch {
+  display: inline-block;
+  white-space: pre;
+  animation: uiCharIn 90ms var(--ui-ease-type) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes uiCharIn {
+  from { filter: blur(6px); opacity: .28; }
+  to   { filter: blur(0);   opacity: 1; }
+}
+/* 打字中的光标 */
+.ui-caret {
+  display: inline-block; width: 2px; height: 1em;
+  vertical-align: -0.125em;
+  background: var(--ui-accent);
+  margin-left: 2px;
+  animation: uiCaret 1s steps(2, end) infinite;
+}
+@keyframes uiCaret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+/* =====================================================================
+   铁律 9：动效性格
+   ===================================================================== */
+/* 过阻尼弹簧（1200/80）：拖拽 / 位置变化，零回弹 */
+.ui-spring { transition-timing-function: var(--ui-ease-spring); }
+/* 欠阻尼（380/18）：点赞 / 对勾 / 确认，微弹 */
+.ui-bounce { transition-timing-function: var(--ui-ease-bounce); }
+.ui-pop { animation: uiPop 380ms var(--ui-ease-bounce) both; }
+@keyframes uiPop {
+  0%   { transform: scale(.86); opacity: .4; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* =====================================================================
+   铁律 10：反馈自熄（复制对勾 2.5s 后自动淡出恢复）
+   ===================================================================== */
+.ui-copy-state { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.ui-copy-state .ui-copy-done {
+  animation: uiCopyFade 2.5s var(--ui-ease) forwards;
+}
+@keyframes uiCopyFade {
+  0%, 68%   { opacity: 1; transform: scale(1); }
+  100%      { opacity: 0; transform: scale(.92); }
+}
+
+/* =====================================================================
+   动效工具类
+   ===================================================================== */
+.ui-fade-in { animation: uiFadeIn var(--ui-t) var(--ui-ease) both; }
+.ui-shimmer { position: relative; overflow: hidden; }
+.ui-shimmer::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%,
+    color-mix(in srgb, var(--ui-accent) 14%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: uiShimmer 1.4s ease-in-out infinite;
+}
+.ui-pulse { animation: uiPulse 2s ease-in-out infinite; }
+.ui-breathe { animation: uiBreathe 2.4s ease-in-out infinite; }
+
+@keyframes uiFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes uiShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes uiPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ui-accent) 0%, transparent); }
+}
+@keyframes uiBreathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* =====================================================================
+   设置面板抛光（scoped 到 settings.js 注入节点，零 JS 改动）
+   ===================================================================== */
+#login-modal input:focus {
+  border-color: var(--ui-line-strong) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 42%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 13%, transparent) !important;
+  outline: none !important;
+}
+#login-submit-btn:hover { filter: brightness(1.04); transform: translateY(-1px); }
+#login-register-btn:hover { background: var(--ui-accent-soft) !important; }
+#account-menu button:hover,
+#account-menu a:hover { background: var(--ui-accent-soft) !important; }
+.field-frame:focus-within {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 38%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 11%, transparent);
+}
+
+/* =====================================================================
+   无障碍降级
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .ui-fade-in, .ui-shimmer::after, .ui-pulse, .ui-breathe,
+  .ui-ch, .ui-pop, .ui-copy-state .ui-copy-done { animation: none !important; }
+  * { scroll-behavior: auto !important; }
+  .ui-ch { filter: none !important; opacity: 1 !important; }
+}

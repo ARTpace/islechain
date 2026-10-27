@@ -61,24 +61,7 @@ async def translate_with_ai(text: str, from_lang: str, to_lang: str, provider_id
     base_url = (provider.get("base_url") or "").strip()
     if not base_url:
         raise Exception("provider 未配置 base_url")
-    # 读取 API Key
-    env_key = f"{provider_id.upper()}_API_KEY"
-    api_key = os.environ.get(env_key, "").strip()
-    if not api_key:
-        try:
-            api_env = os.path.join(_main.BASE_DIR, "API", ".env")
-            if os.path.exists(api_env):
-                with open(api_env, 'r', encoding='utf-8-sig') as f:
-                    for line in f.read().splitlines():
-                        line = line.strip()
-                        if not line or line.startswith('#') or '=' not in line:
-                            continue
-                        k, v = line.split('=', 1)
-                        if k.strip().upper() == env_key.upper():
-                            api_key = v.strip().strip('"').strip("'")
-                            break
-        except Exception:
-            pass
+    api_key = _main.get_provider_api_key(provider_id)
     if not api_key:
         raise Exception("未配置 API Key")
     if not model:
@@ -89,10 +72,7 @@ async def translate_with_ai(text: str, from_lang: str, to_lang: str, provider_id
     to_name = lang_names.get(to_lang, to_lang)
     # 构建翻译 prompt,明确指定源语言和目标语言
     prompt = f"将以下{from_name}文本翻译成{to_name},只输出翻译结果,不要任何解释:\n\n{text}"
-    if base_url.endswith('/v1'):
-        url = f"{base_url}/chat/completions"
-    else:
-        url = f"{base_url}/v1/chat/completions"
+    url = _main.api_root(base_url) + "/chat/completions"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {_main.sanitize_api_key(api_key)}"}
     body = {
         "model": model,
@@ -164,8 +144,12 @@ def _clean_translate_response(resp: dict) -> dict:
     return {k: v for k, v in resp.items() if not k.startswith('_')}
 
 @router.post("/api/translate/test")
-async def test_translate():
-    cfg = _main.load_translate_config()
+async def test_translate(payload: dict = None):
+    cfg = dict(_main.load_translate_config())
+    # 测试当前表单，不改写已保存配置；空密钥沿用已保存值。
+    for key in ("provider_type", "baidu_app_id", "baidu_secret_key", "ai_provider_id", "ai_model", "ai_prompt_template"):
+        if payload and key in payload and (key != "baidu_secret_key" or payload[key]):
+            cfg[key] = payload[key]
     test_text = "一只粉色头发的女孩在夕阳下的海滩上微笑,穿着白色连衣裙"
     try:
         if cfg.get("provider_type") == "baidu":

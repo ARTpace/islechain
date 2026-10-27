@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
+    <script src="/static/modules/model-visibility.js?v=20261024004"></script>
     <title>图像编辑</title>
-    <script src="/static/modules/auth-token.js?v=20260525001"></script>
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20260521039">
-    <script src="/static/lucide.min.js?v=20260521039"></script>
-    <script src="/static/theme.js?v=20260521039"></script>
-    <script src="/static/modules/image-viewer.js?v=20260521006"></script>
-    <script src="/static/modules/image-editor.js?v=20260526006"></script>
+    <script src="/static/modules/auth-token.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
+    <script src="/static/lucide.min.js?v=20261024001"></script>
+    <script src="/static/theme.js?v=20261024bar"></script>
+    <script src="/static/modules/image-viewer.js?v=20261024001"></script>
+    <script src="/static/modules/image-editor.js?v=20261024001"></script>
     <style>
-        :root { --accent: #00b4d8; --bg: #f0f4fa; --card: #ffffff; --easing: cubic-bezier(0.4, 0, 0.2, 1); }
+        :root { --accent: #06b6d4; --bg: #f7f7f5; --card: #fbfaf9; --easing: cubic-bezier(0.4, 0, 0.2, 1); }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
         *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
         *::-webkit-scrollbar-thumb { background-color:#d8d8d8!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
@@ -21,30 +22,30 @@
         * { scrollbar-width:thin!important; scrollbar-color:#d8d8d8 transparent!important; }
         body { background-color: var(--bg); font-family: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--accent); -webkit-font-smoothing: antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
         .container-box { max-width: 1280px; width:100%; margin: 0 auto; padding: 0 40px; margin-top: 50px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
-        .nano-input { background: var(--card); border: 1px solid #eef0f2; transition: all 0.3s var(--easing); }
-        .nano-input:focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
-        .upload-item { background: var(--card); border: 1px dashed #e2e8f0; transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
-        .upload-item:hover { border-color: #000; background: #fff; transform: translateY(-2px); }
-        .upload-item.drag-over { border-style: solid; border-color: #000; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .nano-input { background: var(--card); border: 1px solid #f5f5f3; transition: all 0.3s var(--easing); }
+        .nano-input:focus { border-color: #0b0b0a; box-shadow: 0 0 0 1px #0b0b0a; }
+        .upload-item { background: var(--card); border: 1px dashed #eeede9; transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
+        .upload-item:hover { border-color: #0b0b0a; background: #fbfaf9; transform: translateY(-2px); }
+        .upload-item.drag-over { border-style: solid; border-color: #0b0b0a; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); }
         .preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.5s var(--easing); }
-        .glass-btn { background: #111827; transition: all 0.3s var(--easing); }
-        .glass-btn:hover { background: #000; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+        .glass-btn { background: #181817; transition: all 0.3s var(--easing); }
+        .glass-btn:hover { background: #0b0b0a; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1); }
         .glass-btn:active { transform: scale(0.98); }
-        .glass-btn:disabled { background: #666; cursor: not-allowed; opacity: 0.5; }
-        .engine-panel { background: #fff; border: 1px solid #edf0f3; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .engine-label { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
-        .engine-switch { background: #f8fafc; border: 1px solid #edf2f7; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
+        .glass-btn:disabled { background: #666666; cursor: not-allowed; opacity: 0.5; }
+        .engine-panel { background: #fbfaf9; border: 1px solid #f5f5f3; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .engine-label { display: flex; align-items: center; gap: 6px; color: #9f9d95; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+        .engine-switch { background: #f9f9f7; border: 1px solid #f6f6f4; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
         /* 提供商切换器:只有 2 个选项,用 2 列 */
         .provider-switch { grid-template-columns: 1fr 1fr !important; }
         /* 模型区:4 个模型一行(桌面),1fr 1fr 1fr 1fr */
         #modelSwitch { grid-template-columns: repeat(4, 1fr) !important; }
-        .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
-        .engine-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
-        .engine-btn:not(.active):hover { color: #111827; background: rgba(0,0,0,.04); }
+        .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #86857c; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
+        .engine-btn.active { background: #fbfaf9; color: #181817; box-shadow: 0 1px 3px rgba(23, 23, 22, .08); }
+        .engine-btn:not(.active):hover { color: #181817; background: rgba(0, 0, 0, .04); }
         .masonry-grid { column-count:2; column-gap:12px; }
         .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
-        .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
-        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+        .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0, 0, 0, 0.08); }
+        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
         @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
         @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
@@ -54,23 +55,23 @@
         @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
         @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
-        .masonry-item { border-radius:24px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
-        .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,0.08); }
+        .masonry-item { border-radius:24px; overflow:hidden; background:#eeeeee; border:1px solid #f7f7f5; transition:all 0.5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
+        .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0, 0, 0, 0.08); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes b-loading { 0%{transform:scale(1);background:#000} 50%{transform:scale(1.15);background:#444} 100%{transform:scale(1);background:#000} }
+        @keyframes b-loading { 0%{transform:scale(1);background:#0b0b0a} 50%{transform:scale(1.15);background:#444444} 100%{transform:scale(1);background:#0b0b0a} }
         .loading-box { width: 10px; height: 10px; animation: b-loading 1s infinite var(--easing); }
         
         .gallery-lightbox:hover #lightboxPrevBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
         .gallery-lightbox:hover #lightboxNextBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
         
         body.studio-theme-dark .engine-panel {
-            background: #0d1520 !important;
-            border-color: #1a2a3a !important;
+            background: #151515 !important;
+            border-color: #20201e !important;
         }
         
         body.studio-theme-dark .engine-switch {
-            background: #080c14 !important;
-            border-color: #1a2a3a !important;
+            background: #0b0b0a !important;
+            border-color: #20201e !important;
         }
         
         body.studio-theme-dark .engine-btn.active {
@@ -80,7 +81,7 @@
         }
         
         body.studio-theme-dark .engine-btn:not(.active) {
-            color: #6a8fa8 !important;
+            color: #9f9d94 !important;
         }
         
         body.studio-theme-dark .engine-btn:not(.active):hover {
@@ -89,7 +90,7 @@
         }
         
         body.studio-theme-dark .engine-label {
-            color: #00d9ff !important;
+            color: #00f0ff !important;
         }
         
         /* 槽位序号角标:图1/图2 (Krea2 双图模式) 或 主图/参考图 */
@@ -98,7 +99,7 @@
             top: 8px;
             left: 8px;
             background: rgba(0, 0, 0, 0.62);
-            color: #fff;
+            color: #fbfaf9;
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
@@ -109,54 +110,54 @@
         }
 
         body.studio-theme-dark .upload-item {
-            background: #0d1520 !important;
-            border-color: #1a2a3a !important;
+            background: #151515 !important;
+            border-color: #20201e !important;
         }
         
         body.studio-theme-dark .upload-item:hover {
-            border-color: #00d9ff !important;
-            background: rgba(0, 212, 255, 0.05) !important;
+            border-color: #00f0ff !important;
+            background: rgba(0, 240, 255, 0.05) !important;
         }
         
         body.studio-theme-dark #localParams .bg-white {
-            background: #0d1520 !important;
-            border-color: #1a2a3a !important;
+            background: #151515 !important;
+            border-color: #20201e !important;
         }
         
         body.studio-theme-dark #toolbarFixed {
-            background: rgba(10, 14, 23, 0.95) !important;
-            border-color: rgba(240, 255, 255, 0.08) !important;
+            background: rgba(14, 14, 13, 0.95) !important;
+            border-color: rgba(250, 249, 247, 0.08) !important;
         }
         body.studio-theme-dark .masonry-item {
-            background: #0d1520 !important;
-            border-color: #1a2a3a !important;
+            background: #151515 !important;
+            border-color: #20201e !important;
         }
         body.studio-theme-dark .masonry-grid .date-separator .sep-line {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
         }
         body.studio-theme-dark .masonry-grid .date-separator .sep-label {
-            color: #4a6a80;
+            color: #86857c;
         }
         body.studio-theme-dark #loadMoreTrigger {
-            color: #4a6a80;
+            color: #86857c;
         }
         
         body.studio-theme-dark #imgCount {
             background: rgba(0, 240, 255, 0.15) !important;
-            color: #00d9ff !important;
+            color: #00f0ff !important;
         }
         
         .toggle-switch {
             position: relative;
             width: 44px;
             height: 24px;
-            background: #e2e8f0;
+            background: #eeede9;
             border-radius: 999px;
             cursor: pointer;
             transition: all 0.3s var(--easing);
         }
         .toggle-switch.active {
-            background: #00b4d8;
+            background: #06b6d4;
         }
         .toggle-switch::after {
             content: '';
@@ -165,10 +166,10 @@
             left: 2px;
             width: 20px;
             height: 20px;
-            background: #fff;
+            background: #fbfaf9;
             border-radius: 50%;
             transition: all 0.3s var(--easing);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
         .toggle-switch.active::after {
             left: 22px;
@@ -178,16 +179,16 @@
         .history-strip { display:flex; gap:6px; overflow-x:auto; padding:4px 0; scrollbar-width:thin; }
         .history-strip::-webkit-scrollbar { height:4px!important; }
         .history-strip::-webkit-scrollbar-thumb { background:#d8d8d8!important; border-radius:4px!important; }
-        .history-item { flex:0 0 auto; width:56px; height:56px; border-radius:10px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all .2s; position:relative; background:#f1f5f9; }
-        .history-item:hover { border-color:#00b4d8; transform:scale(1.08); }
-        .history-item.active { border-color:#111827; box-shadow:0 0 0 2px rgba(17,24,39,.15); }
+        .history-item { flex:0 0 auto; width:56px; height:56px; border-radius:10px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all .2s; position:relative; background:#f7f7f5; }
+        .history-item:hover { border-color:#06b6d4; transform:scale(1.08); }
+        .history-item.active { border-color:#181817; box-shadow:0 0 0 2px rgba(24, 24, 23, .15); }
         .history-item img { width:100%; height:100%; object-fit:cover; }
-        .history-item .hist-idx { position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:900; color:#fff; background:rgba(0,0,0,.55); border-radius:4px; padding:0 3px; line-height:14px; }
-        .history-item .hist-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(220,38,38,.85); color:#fff; font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; cursor:pointer; border:none; line-height:16px; padding:0; }
+        .history-item .hist-idx { position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:900; color:#fbfaf9; background:rgba(0, 0, 0, .55); border-radius:4px; padding:0 3px; line-height:14px; }
+        .history-item .hist-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(220, 38, 38, .85); color:#fbfaf9; font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; cursor:pointer; border:none; line-height:16px; padding:0; }
         .history-item:hover .hist-del { display:flex; }
-        body.studio-theme-dark .history-item { background:#1a2a3a; border-color:transparent; }
-        body.studio-theme-dark .history-item:hover { border-color:#00d9ff; }
-        body.studio-theme-dark .history-item.active { border-color:#00f0ff; box-shadow:0 0 0 2px rgba(0,240,255,.2); }
+        body.studio-theme-dark .history-item { background:#20201e; border-color:transparent; }
+        body.studio-theme-dark .history-item:hover { border-color:#00f0ff; }
+        body.studio-theme-dark .history-item.active { border-color:#00f0ff; box-shadow:0 0 0 2px rgba(0, 240, 255, .2); }
 
         /* ====== 响应式布局 ====== */
 
@@ -245,17 +246,93 @@
             .gen-btn { padding:10px 0 !important; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
+    <link rel="stylesheet" href="/static/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261025unified">
     <script src="/static/history-bulk-manager.js"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
-    <script src="/static/modules/gallery/actions.js?v=20260611"></script>
-    <script src="/static/modules/gallery/list.js?v=20260611"></script>
-    <script src="/static/modules/gallery/card.js?v=20260611"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
-    <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
+    <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/list.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/card.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/display.js?v=20261024001"></script>
+
+    <!-- ===== studio-ui 统一响应式 + 双主题（scoped，外层 chrome token 化） ===== -->
+    <style id="ui-responsive">
+        /* chrome 颜色 token 化：浅色用 token 默认值；深色由页面既有 body.studio-theme-dark 块接管 */
+        body {
+            background-color: var(--ui-bg);
+            color: var(--ui-text);
+        }
+        .nano-input {
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line);
+        }
+        .nano-input:focus {
+            border-color: var(--ui-accent);
+            box-shadow: 0 0 0 1px var(--ui-accent);
+        }
+        .upload-item {
+            background: var(--ui-panel);
+            border: 1px dashed var(--ui-line);
+        }
+        .upload-item:hover {
+            border-color: var(--ui-accent);
+            background: var(--ui-accent-soft);
+        }
+        .engine-panel {
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line);
+        }
+        .engine-label { color: var(--ui-faint); }
+        .engine-switch {
+            background: var(--ui-soft);
+            border: 1px solid var(--ui-line);
+        }
+        .engine-btn { color: var(--ui-muted); }
+        .engine-btn.active {
+            background: var(--ui-panel);
+            color: var(--ui-text);
+            box-shadow: 0 1px 3px var(--ui-shadow);
+        }
+        .engine-btn:not(.active):hover {
+            color: var(--ui-text);
+            background: var(--ui-soft);
+        }
+        .masonry-item {
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line);
+        }
+        .masonry-grid .date-separator .sep-line { background: var(--ui-line); }
+        .masonry-grid .date-separator .sep-label {
+            color: var(--ui-faint);
+        }
+        .toggle-switch { background: var(--ui-line-strong); }
+        .toggle-switch.active { background: var(--ui-accent); }
+        .toggle-switch::after {
+            background: var(--ui-accent-ink);
+        }
+        .history-item { background: var(--ui-soft); }
+        .history-item.active {
+            border-color: var(--ui-accent);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 20%, transparent);
+        }
+
+        /* 桌面/平板 -> 移动 的额外安全兜底（页面已有完整响应式，这里只补 chrome 流式） */
+        @media (max-width: 1024px) {
+            .container-box { max-width: 100%; }
+        }
+        @media (max-width: 640px) {
+            .container-box { padding: 0 14px; }
+            .nano-input { font-size: 16px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+    </style>
+    <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
 </head>
 
 <body class="antialiased transition-colors duration-300">
@@ -270,6 +347,8 @@
                 <span class="text-[10px] font-bold text-gray-400 uppercase">模型</span>
                 <div id="modelSwitch" class="engine-switch" style="min-width:300px">
                     <button onclick="toggleModel('klein')" id="btnModelKlein" class="engine-btn active">FLUX Klein</button>
+                    <button onclick="toggleModel('moss')" id="btnModelMoss" class="engine-btn" title="基于主图重绘，默认重绘强度 0.65，不使用第二张参考图">MOSS 重绘</button>
+                    <button onclick="toggleModel('qwen21')" id="btnModelQwen21" class="engine-btn">Qwen 2.1</button>
                     <button onclick="toggleModel('qwen')" id="btnModelQwen" class="engine-btn">Qwen Edit</button>
                     <button onclick="toggleModel('boogu')" id="btnModelBoogu" class="engine-btn">Boogu Edit</button>
                     <button onclick="toggleModel('krea2')" id="btnModelKrea2" class="engine-btn">Krea2 Edit</button>
@@ -354,7 +433,7 @@
         </section>
 
         <!-- 工具栏吸顶 -->
-        <div id="toolbarFixed" class="sticky top-0 z-30 backdrop-blur-sm border-b border-gray-100" style="flex-shrink:0; background:rgba(255,255,255,0.95);">
+        <div id="toolbarFixed" class="sticky top-0 z-30 backdrop-blur-sm border-b border-gray-100" style="flex-shrink:0; background:rgba(255, 255, 255, 0.95);">
             <div style="max-width:1280px;margin:0 auto;padding:8px 40px;">
                 <div id="toolbarPlaceholder"></div>
             </div>
@@ -376,19 +455,7 @@
 
         
         /** 保存到用户 output 文件夹 */
-        async function saveToUserOutput(comfyUrl, featureName) {
-            try {
-                const u = new URL(comfyUrl, window.location.origin);
-                const fn = u.searchParams.get('filename') || '';
-                const sf = u.searchParams.get('subfolder') || '';
-                const tp = u.searchParams.get('type') || 'output';
-                if (!fn) return comfyUrl;
-                const res = await fetch(`/api/comfyui/save-to-output?filename=${encodeURIComponent(fn)}&subfolder=${encodeURIComponent(sf)}&type=${encodeURIComponent(tp)}&feature=${encodeURIComponent(featureName)}`);
-                if (!res.ok) return comfyUrl;
-                const data = await res.json();
-                return data.url || comfyUrl;
-            } catch (e) { return comfyUrl; }
-        }
+        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -811,6 +878,30 @@
                     workflowData["34"]["inputs"]["prompt"] = prompt;   // 单图 prompt 在节点34(CR Prompt Text), 节点28 链接读取
                     workflowData["8"]["inputs"]["seed"] = seed;
                 }
+            } else if (model === 'moss') {
+                workflowData["23"].inputs.text = prompt;
+                workflowData["22"].inputs.seed = seed;
+                workflowData["14"].inputs.image = uploadedImages[0];
+                if (scaleEnabled) {
+                    workflowData["11"].inputs.largest_size = size;
+                } else {
+                    delete workflowData["11"];
+                    workflowData["15"].inputs.pixels = ["14", 0];
+                }
+            } else if (model === 'qwen21') {
+                workflowData["23"].inputs.text = prompt;
+                workflowData["22"].inputs.seed = seed;
+                workflowData["14"].inputs.image = uploadedImages[0];
+                if (scaleEnabled) {
+                    workflowData["11"].inputs.largest_size = size;
+                } else {
+                    delete workflowData["11"];
+                    workflowData["6"].inputs["images.image_1"] = ["14", 0];
+                }
+                if (uploadedImages[1] && !ignoreRef) {
+                    workflowData["15"] = { class_type: 'LoadImage', inputs: { image: uploadedImages[1] } };
+                    workflowData["6"].inputs["images.image_2"] = ["15", 0];
+                }
             } else if (model === 'qwen') {
                 workflowData["55"]["inputs"]["text"] = prompt;
                 workflowData["20"]["inputs"]["seed"] = seed;
@@ -862,6 +953,8 @@
         }
 
         async function handleGenerate() {
+            applyModelVisibility();
+            if (!activeModels.length) return alert('请先在设置 → ComfyUI → 模型中启用要显示的模型');
             const prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) return alert("请输入提示词");
             if (!uploadedImages[0]) return alert("请上传主图");
@@ -880,7 +973,7 @@
             var btn = document.getElementById('genBtn');
             var ws = null;
             btn.disabled = true;
-            btn.style.backgroundColor = '#333';
+            btn.style.backgroundColor = '#333333';
             btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span>处理中...</span>';
             lucide.createIcons();
 
@@ -991,7 +1084,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     workflow_data: workflowData,
-                    type: model === 'qwen' ? 'qwen_edit' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein_edit')),
+                    type: (model === 'qwen' || model === 'qwen21') ? 'qwen_edit' : (model === 'moss' ? 'moss_img2img' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein_edit'))),
+                    params: (model === 'qwen21' || model === 'moss') ? { '22': { seed: workflowData['22'].inputs.seed } } : {},
                     feature: '图片编辑',
                     client_id: CLIENT_ID,
                     width: genW, height: genH,
@@ -1121,6 +1215,8 @@
         const WORKFLOW_FILES = {
             klein: 'image-edit/klein-image-edit.json',
             qwen:  'image-edit/qwen-image-edit-2511.json',
+            qwen21: 'image-edit/qwen-image-2.1.json',
+            moss: 'image-edit/moss-image-sft.json',
             boogu: 'image-edit/boogu-image-edit.json',
             krea2: 'image-edit/krea2-image-edit.json',
             krea2_dual: 'image-edit/krea2-two_image-edit.json'
@@ -1207,6 +1303,7 @@
 
 
         function toggleModel(model) {
+            if (!ModelVisibility.isVisible('edit:' + model)) return;
             var idx = activeModels.indexOf(model);
             if (idx >= 0) {
                 // 至少保留一个选中
@@ -1216,7 +1313,7 @@
                 activeModels.push(model);
             }
             // 更新 UI
-            ['klein', 'qwen', 'boogu', 'krea2'].forEach(function(m) {
+            ['klein', 'qwen', 'qwen21', 'moss', 'boogu', 'krea2'].forEach(function(m) {
                 document.getElementById('btnModel' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', activeModels.indexOf(m) >= 0);
             });
             // 兼容旧代码:WORKFLOW_CONFIG 指向第一个选中的(已废弃, 留空操作)
@@ -1224,8 +1321,23 @@
             refreshSlotLabels();
         }
 
+        function applyModelVisibility() {
+            const visible = Object.keys(ModelVisibility.editModels).filter(model => ModelVisibility.isVisible('edit:' + model));
+            activeModels = activeModels.filter(model => visible.includes(model));
+            if (!activeModels.length && visible.length) activeModels = [visible[0]];
+            Object.keys(ModelVisibility.editModels).forEach(model => {
+                const button = document.getElementById('btnModel' + model.charAt(0).toUpperCase() + model.slice(1));
+                if (!button) return;
+                button.style.display = visible.includes(model) ? '' : 'none';
+                button.classList.toggle('active', activeModels.includes(model));
+            });
+            refreshSlotLabels();
+        }
+        ModelVisibility.subscribe(applyModelVisibility);
+
         window.onload = async () => {
             await loadImageEditWorkflows();
+            applyModelVisibility();
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);

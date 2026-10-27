@@ -14,9 +14,9 @@
                 max-width: 100%;
                 border-radius: 24px;
                 overflow: hidden;
-                background: rgba(241,245,249,.72);
-                border: 1px solid rgba(15,23,42,.08);
-                box-shadow: 0 30px 90px rgba(15,23,42,.18);
+                background: rgba(246, 246, 244, .72);
+                border: 1px solid rgba(23, 23, 22, .08);
+                box-shadow: 0 30px 90px rgba(23, 23, 22, .18);
                 cursor: grab;
                 user-select: none;
                 touch-action: none;
@@ -38,8 +38,8 @@
             html.theme-dark .studio-preview-frame,
             body.theme-dark .studio-preview-frame,
             .theme-dark .studio-preview-frame {
-                background: #020617;
-                border-color: rgba(148,163,184,.24);
+                background: #0b0b0a;
+                border-color: rgba(161, 159, 151, .24);
                 box-shadow: 0 30px 90px rgba(0,0,0,.45);
             }
         `;

@@ -46,7 +46,7 @@
         fixedSeed: 0,
         ratioW: 9,
         ratioH: 16,
-        res: 1,               // 1 = 1K, 2 = 2K
+        res: 1,               // 1 = 1K, 2 = 2K, 3 = 3K, 4 = 4K
         batchCount: 1,
     };
 
@@ -158,7 +158,7 @@
      * @returns {{ width: number, height: number }}
      */
     function getSize() {
-        const baseSize = _state.res === 2 ? 2048 : 1024;
+        const baseSize = ({ 1: 1024, 2: 2048, 3: 3072, 4: 4096 })[_state.res] || 1024;
         const ratio = _state.ratioW / _state.ratioH;
         let w, h;
         if (ratio > 1) {
@@ -231,7 +231,8 @@
     function selectRes(res) {
         _state.res = res;
         localStorage.setItem('anima_res', res);
-        document.getElementById('resText').textContent = res + 'K';
+        const label = document.getElementById('resText');
+        if (label) label.textContent = res + 'K';
         _onSetActiveMenuItem('resMenu', 'res-key', String(res));
         _onCloseMenus();
     }

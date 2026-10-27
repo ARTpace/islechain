@@ -530,10 +530,19 @@ function loraPickerInit() {
         if (p && p.contains(e.target)) return;
     });
 
-    // 点击遮罩关闭
+    // 点击遮罩关闭；抽屉模式只点在面板外才关
     shell.addEventListener('click', (e) => {
-        if (e.target === shell) loraPickerClose();
+        if (e.target === shell && !shell.classList.contains('prompt-embedded') && !shell.classList.contains('is-drawer')) loraPickerClose();
     });
+    document.addEventListener('click', (e) => {
+        if (!shell.classList.contains('is-open') || !shell.classList.contains('is-drawer')) return;
+        if (loraPickerIgnoreClick) return;
+        if (e.composedPath().includes(shell)) return;
+        if (e.target.closest && e.target.closest('#loraBtn')) return;
+        loraPickerClose();
+    });
+    window.addEventListener('resize', loraPickerPlaceDrawerIfOpen);
+    window.addEventListener('scroll', loraPickerPlaceDrawerIfOpen, true);
 
     // ESC 关闭
     document.addEventListener('keydown', (e) => {
@@ -543,8 +552,58 @@ function loraPickerInit() {
     });
 }
 
+let loraPickerIgnoreClick = false;
+let loraPickerClosing = false;
+
+function loraPickerUseDrawer() {
+    return !!document.getElementById('loraBtn');
+}
+
+function loraPickerPlaceDrawer(animate) {
+    const shell = document.getElementById('loraPickerShell');
+    const anchor = document.querySelector('.console-card') || document.getElementById('loraBtn');
+    if (!shell || !anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const up = document.body.classList.contains('chat-layout');
+    const left = Math.max(12, Math.round(rect.left));
+    const width = Math.max(280, Math.min(Math.round(rect.width), window.innerWidth - left - 12));
+    shell.classList.add('is-drawer');
+    shell.classList.toggle('is-up', up);
+    shell.style.left = left + 'px';
+    shell.style.width = width + 'px';
+    shell.style.right = 'auto';
+    let maxH;
+    if (up) {
+        const bottom = Math.round(window.innerHeight - rect.top + 8);
+        maxH = Math.max(160, Math.min(520, rect.top - 16));
+        shell.style.top = 'auto';
+        shell.style.bottom = bottom + 'px';
+    } else {
+        const top = Math.round(rect.bottom + 8);
+        maxH = Math.max(240, Math.min(560, window.innerHeight - top - 12));
+        shell.style.bottom = 'auto';
+        shell.style.top = top + 'px';
+    }
+    if (animate) {
+        shell.style.height = '0px';
+        requestAnimationFrame(() => { shell.style.height = maxH + 'px'; });
+    } else if (shell.classList.contains('is-open')) {
+        shell.style.height = maxH + 'px';
+    }
+}
+
+function loraPickerPlaceDrawerIfOpen() {
+    const shell = document.getElementById('loraPickerShell');
+    if (shell && shell.classList.contains('is-drawer') && shell.classList.contains('is-open')) loraPickerPlaceDrawer(false);
+}
+
 // ── 打开选择器 ─────────────────────────────────────────────────────
 async function loraPickerOpen(callback) {
+    const existing = document.getElementById('loraPickerShell');
+    if (existing && !existing.classList.contains('prompt-embedded') && existing.classList.contains('is-open') && loraPickerUseDrawer()) {
+        loraPickerClose();
+        return;
+    }
     loraPickerInit();
     loraPickerCallback = callback;
     loraPickerSearch = '';
@@ -581,8 +640,28 @@ async function loraPickerOpen(callback) {
     }
 
     document.getElementById('loraPickerSearch').value = '';
-    document.getElementById('loraPickerShell').classList.add('is-open');
-    document.body.style.overflow = 'hidden';
+    const shell = document.getElementById('loraPickerShell');
+    const drawer = loraPickerUseDrawer();
+    if (shell.classList.contains('prompt-embedded')) {
+        shell.classList.remove('is-drawer');
+        shell.classList.add('is-open');
+    } else if (drawer) {
+        shell.classList.add('is-open');
+        loraPickerPlaceDrawer(true);
+        document.body.style.overflow = '';
+        loraPickerIgnoreClick = true;
+        setTimeout(() => { loraPickerIgnoreClick = false; }, 0);
+    } else {
+        shell.classList.remove('is-drawer');
+        shell.style.height = '';
+        shell.style.top = '';
+        shell.style.left = '';
+        shell.style.width = '';
+        shell.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+    const loraBtn = document.getElementById('loraBtn');
+    if (loraBtn) loraBtn.classList.add('active');
 
     // 同步排序/锁定顺序 + 尺寸按钮
     loraPickerFrozenOrder = loraPickerBuildFrozenOrder();
@@ -602,6 +681,8 @@ async function loraPickerOpen(callback) {
 
 // ── 关闭选择器 ─────────────────────────────────────────────────────
 function loraPickerClose() {
+    const shell = document.getElementById('loraPickerShell');
+    if (!shell || !shell.classList.contains('is-open') || loraPickerClosing) return;
     if (loraPickerCallback) {
         // 记录使用统计（供“最近使用”排序）
         loraPickerRecordUsage(loraPickerSelected);
@@ -609,10 +690,28 @@ function loraPickerClose() {
     }
     // 清空锁定顺序，下次打开时重新计算
     loraPickerFrozenOrder = null;
-    document.getElementById('loraPickerShell').classList.remove('is-open');
     document.body.style.overflow = '';
     loraPickerCallback = null;
     loraPickerOnSelectionChange = null;
+    const loraBtn = document.getElementById('loraBtn');
+    if (loraBtn) loraBtn.classList.remove('active');
+    if (shell.classList.contains('is-drawer')) {
+        loraPickerClosing = true;
+        shell.style.height = '0px';
+        const finish = () => {
+            if (!loraPickerClosing) return;
+            loraPickerClosing = false;
+            shell.classList.remove('is-open');
+        };
+        shell.addEventListener('transitionend', function onEnd(ev) {
+            if (ev.propertyName !== 'height') return;
+            shell.removeEventListener('transitionend', onEnd);
+            finish();
+        });
+        setTimeout(finish, 340);
+    } else {
+        shell.classList.remove('is-open');
+    }
     // 关闭后刷新主界面按钮高亮状态
     if (typeof window.updatePickerButtonsHighlight === 'function') {
         window.updatePickerButtonsHighlight();

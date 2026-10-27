@@ -34,7 +34,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 11px;
     background: rgba(255,255,255,0.12);
-    color: #e2e8f0;
+    color: #eceae5;
     border: 1px solid rgba(255,255,255,0.18);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
@@ -42,9 +42,9 @@
     cursor: pointer;
     padding: 0;
 }
-.lb-icon-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.lb-icon-btn:hover { background: rgba(255,255,255,0.22); color: #fcfcfb; }
 .lb-icon-btn:active { transform: scale(0.94); }
-.lb-icon-btn.active { background: rgba(0,180,216,0.35); color: #fff; border-color: rgba(0,180,216,0.6); }
+.lb-icon-btn.active { background: rgba(6, 182, 212, 0.35); color: #fcfcfb; border-color: rgba(6, 182, 212, 0.6); }
 /* 提示词悬浮面板的样式已迁移到 prompt-panel.js（通用组件） */
 #lightboxThumbnails {
     gap: 8px;
@@ -73,8 +73,8 @@
 .lightbox-thumb:hover { opacity: 0.8; }
 .lightbox-thumb.active {
     opacity: 1;
-    border-color: #00b4d8;
-    box-shadow: 0 0 12px rgba(0,180,216,0.5);
+    border-color: #06b6d4;
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
 }
 .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -82,9 +82,9 @@
 .masonry-grid { column-count:2; column-gap:12px; }
 .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
 .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
-.masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+.masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
 body.studio-theme-dark .masonry-grid .date-separator .sep-line { background:rgba(255,255,255,0.08); }
-body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80; }
+body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#6e6d66; }
 @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
 @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
 @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
@@ -95,9 +95,9 @@ body.studio-theme-dark .masonry-grid .date-separator .sep-label { color:#4a6a80;
 @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
 @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
 @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
-.masonry-item { border-radius:24px; overflow:hidden; background:#eee; border:1px solid #f1f5f9; transition:all 0.5s cubic-bezier(0.4,0,0.2,1); position:relative; break-inside:avoid; margin-bottom:12px; }
-.masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,0.08); }
-body.studio-theme-dark .masonry-item { background:#0d1520; border-color:rgba(0,240,255,0.1); }
+.masonry-item { border-radius:24px; overflow:hidden; background:#eeeeee; border:1px solid #f6f6f4; transition:transform .16s ease, box-shadow .16s ease; position:relative; break-inside:avoid; margin-bottom:12px; }
+.masonry-item:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(0,0,0,0.08); }
+body.studio-theme-dark .masonry-item { background:var(--ui-soft, #252b38); border-color:var(--ui-line, #343b4c); }
 body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,255,0.06); }
 
 /* === NSFW 相关样式已迁移到 nsfw-filter.js === */
@@ -116,18 +116,18 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 /* === 图片收藏星标：确保白色背景上可见 === */
 .img-fav-btn {
     background: rgba(0,0,0,0.5) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
 }
 .img-fav-btn.is-fav {
     background: rgba(245,158,11,0.85) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
     opacity: 1 !important;
 }
 
 /* === 多图删除按钮 === */
 .img-del-btn {
     background: rgba(220,38,38,0.8) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
 }
 .img-del-btn.is-confirming {
     background: #dc2626 !important;
@@ -148,7 +148,7 @@ body.studio-theme-dark .masonry-item:hover { box-shadow:0 20px 40px rgba(0,240,2
 }
 .gallery-action-btn {
     background: rgba(0,0,0,0.45) !important;
-    color: #fff !important;
+    color: #fcfcfb !important;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }

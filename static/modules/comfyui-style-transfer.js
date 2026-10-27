@@ -336,7 +336,7 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
                 "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
                 "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
                 "scale_to_side": "longest", "scale_to_length": scaleSize,
-                "background_color": "#000000", "image": ["20", 0]
+                "background_color": "#0b0b0a", "image": ["20", 0]
             },
             "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
             "_meta": { "title": "图层工具：按宽高比缩放 V2" }
@@ -346,7 +346,7 @@ async function styleTransferExecute(node, refs, prompt, promptId) {
                 "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
                 "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8",
                 "scale_to_side": "longest", "scale_to_length": scaleSize,
-                "background_color": "#000000", "image": ["21", 0]
+                "background_color": "#0b0b0a", "image": ["21", 0]
             },
             "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
             "_meta": { "title": "图层工具：按宽高比缩放 V2" }

@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary, #1a1a2e);
+  background: var(--bg-primary, #1c1c1b);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -12,7 +12,7 @@
 /* === 头部 === */
 .preset-header {
   padding: 12px;
-  border-bottom: 1px solid var(--border-color, #2a2a4a);
+  border-bottom: 1px solid var(--border-color, #30302c);
   flex-shrink: 0;
 }
 
@@ -27,15 +27,15 @@
   padding: 8px 12px;
   border: none;
   border-radius: 6px;
-  background: var(--bg-secondary, #252547);
-  color: var(--text-secondary, #a0a0c0);
+  background: var(--bg-secondary, #292926);
+  color: var(--text-secondary, #a4a29a);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .preset-tab:hover {
-  background: var(--bg-hover, #2f2f55);
+  background: var(--bg-hover, #393934);
 }
 
 .preset-tab.active {
@@ -51,10 +51,10 @@
 .preset-search {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid var(--border-color, #2a2a4a);
+  border: 1px solid var(--border-color, #30302c);
   border-radius: 6px;
-  background: var(--bg-secondary, #252547);
-  color: var(--text-primary, #e0e0f0);
+  background: var(--bg-secondary, #292926);
+  color: var(--text-primary, #ebe9e4);
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
@@ -65,22 +65,22 @@
 }
 
 .preset-search::placeholder {
-  color: var(--text-muted, #6060a0);
+  color: var(--text-muted, #7c7b73);
 }
 
 .preset-lang-btn {
   padding: 8px 12px;
-  border: 1px solid var(--border-color, #2a2a4a);
+  border: 1px solid var(--border-color, #30302c);
   border-radius: 6px;
-  background: var(--bg-secondary, #252547);
-  color: var(--text-secondary, #a0a0c0);
+  background: var(--bg-secondary, #292926);
+  color: var(--text-secondary, #a4a29a);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .preset-lang-btn:hover {
-  background: var(--bg-hover, #2f2f55);
+  background: var(--bg-hover, #393934);
 }
 
 /* === 列表区域 === */
@@ -99,7 +99,7 @@
 }
 
 .preset-body::-webkit-scrollbar-thumb {
-  background: var(--border-color, #2a2a4a);
+  background: var(--border-color, #30302c);
   border-radius: 3px;
 }
 
@@ -120,12 +120,12 @@
 }
 
 .preset-cat-header:hover {
-  background: var(--bg-hover, #2f2f55);
+  background: var(--bg-hover, #393934);
 }
 
 .preset-cat-icon {
   font-size: 10px;
-  color: var(--text-muted, #6060a0);
+  color: var(--text-muted, #7c7b73);
   width: 12px;
 }
 
@@ -143,13 +143,13 @@
   flex: 1;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary, #e0e0f0);
+  color: var(--text-primary, #ebe9e4);
 }
 
 .preset-cat-count {
   font-size: 11px;
-  color: var(--text-muted, #6060a0);
-  background: var(--bg-secondary, #252547);
+  color: var(--text-muted, #7c7b73);
+  background: var(--bg-secondary, #292926);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -162,7 +162,7 @@
 .preset-sub-name {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted, #6060a0);
+  color: var(--text-muted, #7c7b73);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 6px 12px;
@@ -184,7 +184,7 @@
 }
 
 .preset-item:hover {
-  background: var(--bg-hover, #2f2f55);
+  background: var(--bg-hover, #393934);
 }
 
 .preset-item:active {
@@ -206,7 +206,7 @@
 
 .preset-item-label {
   font-size: 13px;
-  color: var(--text-primary, #e0e0f0);
+  color: var(--text-primary, #ebe9e4);
   line-height: 1.4;
 }
 
@@ -221,7 +221,7 @@
 
 .preset-item-desc {
   font-size: 11px;
-  color: var(--text-muted, #6060a0);
+  color: var(--text-muted, #7c7b73);
   margin-top: 4px;
   padding-left: 16px;
 }
@@ -234,8 +234,8 @@
   display: flex;
   gap: 4px;
   z-index: 10;
-  background: var(--bg-primary, #1a1a2e);
-  border: 1px solid var(--border-color, #2a2a4a);
+  background: var(--bg-primary, #1c1c1b);
+  border: 1px solid var(--border-color, #30302c);
   border-radius: 6px;
   padding: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -257,8 +257,8 @@
   padding: 6px 10px;
   border: none;
   border-radius: 4px;
-  background: var(--bg-secondary, #252547);
-  color: var(--text-primary, #e0e0f0);
+  background: var(--bg-secondary, #292926);
+  color: var(--text-primary, #ebe9e4);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
@@ -274,6 +274,6 @@
 .preset-empty {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-muted, #6060a0);
+  color: var(--text-muted, #7c7b73);
   font-size: 13px;
 }

@@ -506,7 +506,7 @@ const ZOOM_PREVIEW_NODE_MAX_SCALE = 1.15;
 const LTX_DIRECTOR_WORKFLOW = 'LTXDirectorv2-API.json';
 const LTX_DIRECTOR_WF_NODE = '46';
 const LTX_DIRECTOR_SEED_NODE = '94:28';
-const LTX_SEGMENT_COLORS = ['#e07b3a', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b'];
+const LTX_SEGMENT_COLORS = ['#e07b3a', '#06b6d4', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b'];
 const CANVAS_EMOJIS = ['layers','sparkles','image','palette','wand-2','star','heart','rocket','flame','moon','cloud','leaf','gem','compass','pin','flag','bookmark','crown'];
 function renderCanvasIcon(icon, size = 14) {
     // 旧的默认 emoji 或空值都映射为 layers
@@ -4262,10 +4262,10 @@ function renderEditTextCanvas(){
         if(selected){
             ctx.setLineDash([7, 5]);
             ctx.lineWidth = 1.5;
-            ctx.strokeStyle = 'rgba(15,23,42,.72)';
+            ctx.strokeStyle = 'rgba(23, 23, 22, .72)';
             ctx.strokeRect(box.x, box.y, box.w, box.h);
             ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(15,23,42,.92)';
+            ctx.fillStyle = 'rgba(23, 23, 22, .92)';
             ctx.beginPath();
             ctx.arc(item.x + box.w / 2 - box.pad, item.y - box.h / 2 + box.pad, 3.5, 0, Math.PI * 2);
             ctx.fill();
@@ -5117,7 +5117,7 @@ function refreshGridSplitPreview(){
     const drawGuideLine = (x1, y1, x2, y2) => {
         ctx.save();
         ctx.lineWidth = lineWidth + 2;
-        ctx.strokeStyle = 'rgba(2,6,23,0.72)';
+        ctx.strokeStyle = 'rgba(11, 11, 10, 0.72)';
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = 'rgba(255,255,255,0.92)';
@@ -5650,7 +5650,7 @@ async function applyImageOutpaint(){
     canvasEl.width = outW;
     canvasEl.height = outH;
     const ctx = canvasEl.getContext('2d');
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#fcfcfb';
     ctx.fillRect(0, 0, outW, outH);
     ctx.drawImage(img, dx, dy, img.naturalWidth, img.naturalHeight);
     const blob = await new Promise(resolve => canvasEl.toBlob(resolve, 'image/png'));

@@ -17,12 +17,12 @@ const PromptTags = (function() {
     const TAG_SPLITTER = /[，,、；;]/;
     const PREVIEW_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">' +
-        '<rect width="180" height="180" fill="#1f2235"/>' +
-        '<g fill="none" stroke="#3b3f5a" stroke-width="1.5">' +
+        '<rect width="180" height="180" fill="#232321"/>' +
+        '<g fill="none" stroke="#44443f" stroke-width="1.5">' +
         '<circle cx="90" cy="75" r="22"/>' +
         '<path d="M55 130 Q90 100 125 130"/>' +
         '</g>' +
-        '<text x="90" y="160" fill="#525a78" font-family="sans-serif" font-size="11" text-anchor="middle">无缩略图</text>' +
+        '<text x="90" y="160" fill="#63625b" font-family="sans-serif" font-size="11" text-anchor="middle">无缩略图</text>' +
         '</svg>'
     );
 
@@ -272,7 +272,7 @@ const PromptTags = (function() {
         if (type === 'artist') {
             if (typeof ANIMA_ARTIST_DB === 'undefined' || !ANIMA_ARTIST_DB.length) return '';
             const item = ANIMA_ARTIST_DB.find(a => a.name && a.name.toLowerCase() === name.toLowerCase());
-            return (item && item.image_url) ? item.image_url : '';
+            return item && item.name ? '/api/animadex/artist-thumb?name=' + encodeURIComponent(item.name) : '';
         }
         if (type === 'char') {
             if (typeof ANIMA_CHAR_DB === 'undefined' || !ANIMA_CHAR_DB.length) return '';
@@ -308,7 +308,7 @@ const PromptTags = (function() {
         if (animaTagPreviewEl) return animaTagPreviewEl;
         const el = document.createElement('div');
         el.id = 'animaTagPreview';
-        el.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(15,20,35,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);pointer-events:none;';
+        el.style.cssText = 'position:absolute;z-index:9999;opacity:0;transform:translate(-50%,8px);transition:opacity 0.15s;background:rgba(20, 20, 20, 0.92);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,0.5);pointer-events:none;';
         el.onmouseenter = () => { _previewHovered = true; cancelHidePreview(); };
         el.onmouseleave = () => { _previewHovered = false; hidePreview(); };
         document.body.appendChild(el);
@@ -351,19 +351,19 @@ const PromptTags = (function() {
                     ' oninput="PromptTags.onLoraStrength(this,' + idx + ')"' +
                     '/>' +
                     '</div>' +
-                    '<span class="lora-preview-strength-val" style="font-size:10px;font-weight:900;color:#e0e7ef;background:rgba(255,140,50,0.18);padding:2px 6px;border-radius:6px;min-width:32px;text-align:center;flex-shrink:0;">' + s.toFixed(2) + '</span>' +
+                    '<span class="lora-preview-strength-val" style="font-size:10px;font-weight:900;color:#ebe9e4;background:rgba(255,140,50,0.18);padding:2px 6px;border-radius:6px;min-width:32px;text-align:center;flex-shrink:0;">' + s.toFixed(2) + '</span>' +
                     '</div>';
             }
         }
 
         el.innerHTML =
-            '<div style="font-size:10px;font-weight:700;color:' + (type === 'artist' ? '#00b4d8' : type === 'lora' ? '#ff8c32' : '#a855f7') + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;padding:0 4px;">' + label + '</div>' +
-            '<div style="position:relative;width:' + imgWidth + 'px;height:' + imgHeight + 'px;border-radius:8px;overflow:hidden;background:#1f2235;">' +
+            '<div style="font-size:10px;font-weight:700;color:' + (type === 'artist' ? '#06b6d4' : type === 'lora' ? '#ff8c32' : '#a855f7') + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;padding:0 4px;">' + label + '</div>' +
+            '<div style="position:relative;width:' + imgWidth + 'px;height:' + imgHeight + 'px;border-radius:8px;overflow:hidden;background:#232321;">' +
             (url
                 ? '<img src="' + url + '" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="this.onerror=null;this.src=\'' + PREVIEW_SVG + '\';this.style.objectFit=\'contain\';this.style.opacity=\'0.55\';"/>'
                 : '<img src="' + PREVIEW_SVG + '" style="width:100%;height:100%;object-fit:contain;opacity:0.7;display:block;"/>') +
             '</div>' +
-            '<div style="font-size:12px;font-weight:600;color:#e0e7ef;padding:6px 4px 2px;text-align:center;max-width:' + imgWidth + 'px;word-break:break-word;">' + safeName + '</div>' +
+            '<div style="font-size:12px;font-weight:600;color:#ebe9e4;padding:6px 4px 2px;text-align:center;max-width:' + imgWidth + 'px;word-break:break-word;">' + safeName + '</div>' +
             strengthHtml;
 
         const rect = tagEl.getBoundingClientRect();
@@ -595,22 +595,22 @@ const PromptTags = (function() {
                 const isKnownArtist = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB && ANIMA_ARTIST_DB.length > 0)
                     ? ANIMA_ARTIST_DB.some(a => (a.name || '').toLowerCase() === nameLower) : false;
                 if (isKnownArtist) {
-                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(0,180,216,0.3);color:#fff;border:1px solid rgba(0,180,216,0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="artist" data-tag-name="' + name.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(6, 182, 212, 0.3);color:#fcfcfb;border:1px solid rgba(6, 182, 212, 0.4);cursor:grab;">@' + name + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
                 } else {
                     // @xxx 不匹配画师时当作普通标签，不再是 LoRA 标签
-                    html += '<span class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:#e0e7ef;border:1px solid rgba(255,255,255,0.15);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                    html += '<span class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:#ebe9e4;border:1px solid rgba(255,255,255,0.15);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
                 }
             } else if (charNames.has(lowerPart)) {
-                html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fff;border:1px solid rgba(168,85,247,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                html += '<span class="prompt-tag-anima prompt-tag-drag" ' + dd + ' data-tag-type="char" data-tag-name="' + part.replace(/"/g, '&quot;') + '" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.3);color:#fcfcfb;border:1px solid rgba(168,85,247,0.4);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
             } else if (isLoraFallbackTag(lowerPart)) {
                 // LoRA 显示名匹配 → 不再渲染为 LoRA 标签，当普通标签
                 const lbl = lowerPart.replace(/[<>]/g, '');
-                html += '<span class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:#e0e7ef;border:1px solid rgba(255,255,255,0.15);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
+                html += '<span class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:#ebe9e4;border:1px solid rgba(255,255,255,0.15);cursor:grab;">' + part + '<button onclick="event.stopPropagation();PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button></span>';
             } else {
                 const { display, original } = resolveDisplay(part);
                 const safeDisplay = display.replace(/</g, '&lt;');
                 const titleHtml = original ? (original.replace(/</g, '&lt;') + ' / ' + display) : part.replace(/</g, '&lt;');
-                const color = original ? '#e0e7ef' : (hasChinese(part) ? '#e0e7ef' : '#9aa3b2');
+                const color = original ? '#ebe9e4' : (hasChinese(part) ? '#ebe9e4' : '#a3a199');
                 html += '<span title="' + titleHtml + '" class="prompt-tag-drag" ' + dd + ' style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.1);color:' + color + ';border:1px solid rgba(255,255,255,0.15);cursor:grab;">' +
                     '<span>' + safeDisplay + '</span>' +
                     '<button onclick="PromptTags.removeTag(\'' + safePart + '\')" style="margin-left:2px;background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1;opacity:0.7;">&times;</button>' +

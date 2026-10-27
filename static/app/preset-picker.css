@@ -8,17 +8,17 @@
     padding: 10px 12px;
     border-radius: 8px;
     cursor: pointer;
-    color: #999;
+    color: #999999;
     font-size: 13px;
     transition: all 0.15s;
 }
 .preset-picker-cat:hover {
-    background: rgba(255,255,255,0.05);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fbfaf9;
 }
 .preset-picker-cat.active {
-    background: rgba(0,180,216,0.15);
-    color: #00b4d8;
+    background: rgba(6, 182, 212, 0.15);
+    color: #06b6d4;
     font-weight: 600;
 }
 .preset-picker-cat .count {
@@ -34,18 +34,18 @@
     padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
-    color: #999;
+    color: #999999;
     font-size: 12px;
     transition: all 0.15s;
     white-space: nowrap;
 }
 .preset-picker-subcat:hover {
-    background: rgba(255,255,255,0.05);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fbfaf9;
 }
 .preset-picker-subcat.active {
-    background: rgba(0,180,216,0.15);
-    color: #00b4d8;
+    background: rgba(6, 182, 212, 0.15);
+    color: #06b6d4;
     font-weight: 600;
 }
 .preset-picker-subcat .count {
@@ -59,7 +59,7 @@
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
     border: 2px solid transparent;
     transition: all 0.2s ease;
     padding: 12px;
@@ -68,13 +68,13 @@
     flex-direction: column;
 }
 .preset-picker-card:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
 }
 .preset-picker-card.selected {
-    background: rgba(0,180,216,0.1);
-    border-color: #00b4d8;
+    background: rgba(6, 182, 212, 0.1);
+    border-color: #06b6d4;
 }
 
 /* 卡片顶部 */
@@ -93,8 +93,8 @@
 }
 .preset-picker-card-tag {
     font-size: 10px;
-    color: #00b4d8;
-    background: rgba(0,180,216,0.15);
+    color: #06b6d4;
+    background: rgba(6, 182, 212, 0.15);
     padding: 2px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -106,7 +106,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #00b4d8;
+    background: #06b6d4;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -123,8 +123,71 @@
 .preset-picker-card-name {
     font-size: 13px;
     font-weight: 600;
-    color: #fff;
+    color: #fbfaf9;
     margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 风格卡片：分类在缩略图顶部，名称和提示词在底部 */
+.preset-picker-card-style {
+    padding: 0;
+    min-height: 0;
+    aspect-ratio: 1;
+    background: rgba(255, 255, 255, 0.05);
+}
+.preset-style-thumb {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.preset-style-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.preset-picker-card-style .preset-picker-card-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 6px 6px 18px;
+    align-items: flex-start;
+    background: linear-gradient(rgba(0, 0, 0, 0.58), transparent);
+    pointer-events: none;
+}
+.preset-picker-card-style .preset-picker-card-tag {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.42);
+}
+.preset-style-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    padding: 20px 8px 7px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+    pointer-events: none;
+}
+.preset-picker-card-style .preset-picker-card-name {
+    margin: 0;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.3;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.preset-style-prompt {
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.84);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -133,7 +196,7 @@
 /* 卡片提示词 */
 .preset-picker-card-prompt {
     font-size: 11px;
-    color: #666;
+    color: #666666;
     line-height: 1.4;
     overflow: hidden;
     display: -webkit-box;
@@ -171,6 +234,11 @@
 @media (min-width: 1024px) and (max-width: 1439px) {
     .preset-picker-card { width: calc(20% - 8px); }
 }
+.preset-picker-card-style { padding: 0; min-height: 0; }
+@media (max-width: 639px) {
+    .preset-picker-card-style { padding: 0; min-height: 0; }
+}
+
 /* 大屏 PC：6 列 */
 @media (min-width: 1440px) {
     .preset-picker-card { width: calc(16.666% - 9px); }
@@ -256,7 +324,7 @@ body:not(.studio-theme-dark):not(.theme-dark) .preset-picker-card-prompt {
    Modal Light Theme Overrides (JS generates dark inline styles)
    ======================================================================== */
 body:not(.studio-theme-dark):not(.theme-dark) #presetPickerModal > div {
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+    background: linear-gradient(180deg, #f9f9f7 0%, #fbfaf9 100%) !important;
     border-color: oklch(85% 0.01 280 / 0.5) !important;
     box-shadow: 0 4px 40px oklch(0% 0 0 / 0.1) !important;
 }

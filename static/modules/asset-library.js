@@ -31,11 +31,11 @@
 
   // ───────────────────────────── CSS（自包含，匹配资源库页面视觉，含暗色主题）─────────────────────────────
   var CSS = [
-    ".ap-overlay { position:fixed; inset:0; z-index:60; background:rgba(15,23,42,.6); display:none; align-items:center; justify-content:center; padding:24px; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s ease, visibility .2s ease; backdrop-filter:blur(4px); }",
+    ".ap-overlay { position:fixed; inset:0; z-index:60; background:rgba(23, 23, 22, .6); display:none; align-items:center; justify-content:center; padding:24px; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s ease, visibility .2s ease; backdrop-filter:blur(4px); }",
     ".ap-overlay.open { display:flex; opacity:1; visibility:visible; pointer-events:auto; }",
-    ".ap-panel { --card:#fff; --line:#e2e8f0; --line-2:#cbd5e1; --soft:#f1f4f8; --soft-2:#e8edf4; --text:#111827; --muted:#64748b; --faint:#94a3b8; --strong:#111827; --strong-text:#fff; --danger:#dc2626; --shadow:rgba(15,23,42,.06); width:min(1040px, 96vw); height:min(84vh, 880px); background:var(--card); border-radius:18px; border:1px solid var(--line); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 28px 64px rgba(15,23,42,.35); transform:translateY(10px) scale(.98); opacity:0; transition:transform .26s cubic-bezier(.2,.8,.2,1), opacity .26s ease; }",
+    ".ap-panel { --card:#fcfcfb; --line:#eceae5; --line-2:#dcdad1; --soft:#f6f6f4; --soft-2:#f0efec; --text:#181817; --muted:#7d7c74; --faint:#a19f97; --strong:#181817; --strong-text:#fcfcfb; --danger:#dc2626; --shadow:rgba(23, 23, 22, .06); width:min(1040px, 96vw); height:min(84vh, 880px); background:var(--card); border-radius:18px; border:1px solid var(--line); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 28px 64px rgba(23, 23, 22, .35); transform:translateY(10px) scale(.98); opacity:0; transition:transform .26s cubic-bezier(.2,.8,.2,1), opacity .26s ease; }",
     ".ap-overlay.open .ap-panel { transform:translateY(0) scale(1); opacity:1; }",
-    "body.theme-dark .ap-panel, body.studio-theme-dark .ap-panel, html.theme-dark .ap-panel { --card:#11141a; --line:#262d3a; --line-2:#475569; --soft:#171b24; --soft-2:#202633; --text:#e8e8ea; --muted:#9aa6b8; --faint:#64748b; --strong:#00f0ff; --strong-text:#10141d; --danger:#f87171; --shadow:rgba(0,0,0,.3); border-color:rgba(255,255,255,.06); }",
+    "body.theme-dark .ap-panel, body.studio-theme-dark .ap-panel, html.theme-dark .ap-panel { --card:#141414; --line:#2d2d2a; --line-2:#595851; --soft:#1b1b1a; --soft-2:#262623; --text:#edebe7; --muted:#a6a59c; --faint:#7d7c74; --strong:#00f0ff; --strong-text:#141414; --danger:#f87171; --shadow:rgba(0,0,0,.3); border-color:rgba(255,255,255,.06); }",
     ".ap-head { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line); }",
     ".ap-title { display:inline-flex; align-items:center; gap:8px; font-size:15px; font-weight:900; color:var(--text); }",
     ".ap-title svg { width:16px; height:16px; }",
@@ -70,7 +70,7 @@
     ".ap-card.selected { border-color:var(--strong); box-shadow:0 0 0 1px var(--strong); }",
     ".ap-thumb { width:100%; min-height:120px; display:flex; align-items:center; justify-content:center; background:var(--soft); overflow:hidden; }",
     ".ap-thumb img { width:100%; height:auto; display:block; }",
-    ".ap-thumb video { width:100%; height:auto; aspect-ratio:16/9; max-height:380px; object-fit:cover; background:#000; display:block; }",
+    ".ap-thumb video { width:100%; height:auto; aspect-ratio:16/9; max-height:380px; object-fit:cover; background:#0b0b0a; display:block; }",
     ".ap-thumb audio { width:100%; padding:8px; box-sizing:border-box; background:var(--soft); }",
     ".ap-card-body { padding:8px; }",
     ".ap-name { font-size:11px; font-weight:900; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
@@ -78,16 +78,16 @@
     ".ap-card--image .ap-thumb { min-height:0; }",
     ".ap-card--image .ap-badge { display:none; }",
     ".ap-card--image { border-radius:10px; }",
-    ".ap-card--video .ap-thumb { min-height:0; background:#000; }",
-    ".ap-card--video .ap-thumb video { width:100%; height:auto; aspect-ratio:16/9; object-fit:contain; max-height:320px; background:#000; display:block; }",
+    ".ap-card--video .ap-thumb { min-height:0; background:#0b0b0a; }",
+    ".ap-card--video .ap-thumb video { width:100%; height:auto; aspect-ratio:16/9; object-fit:contain; max-height:320px; background:#0b0b0a; display:block; }",
     ".ap-card--video .ap-card-body { display:none; }",
-    ".ap-sound { position:absolute; right:8px; bottom:8px; z-index:5; width:30px; height:30px; border:0; border-radius:50%; background:rgba(15,23,42,.55); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity .14s ease, background .14s ease; }",
+    ".ap-sound { position:absolute; right:8px; bottom:8px; z-index:5; width:30px; height:30px; border:0; border-radius:50%; background:rgba(23, 23, 22, .55); color:#fcfcfb; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity .14s ease, background .14s ease; }",
     ".ap-card:hover .ap-sound { opacity:1; }",
-    ".ap-sound:hover { background:rgba(15,23,42,.8); }",
+    ".ap-sound:hover { background:rgba(23, 23, 22, .8); }",
     "body.theme-dark .ap-sound { background:rgba(0,0,0,.6); }",
-    ".ap-badge { position:absolute; left:8px; bottom:8px; z-index:3; font-size:10px; font-weight:900; padding:2px 7px; border-radius:999px; background:rgba(15,23,42,.62); color:#fff; pointer-events:none; }",
+    ".ap-badge { position:absolute; left:8px; bottom:8px; z-index:3; font-size:10px; font-weight:900; padding:2px 7px; border-radius:999px; background:rgba(23, 23, 22, .62); color:#fcfcfb; pointer-events:none; }",
     "body.theme-dark .ap-badge, body.studio-theme-dark .ap-badge { background:rgba(0,0,0,.6); }",
-    ".ap-del { position:absolute; right:8px; top:8px; z-index:4; width:24px; height:24px; border:0; border-radius:50%; background:rgba(15,23,42,.55); color:#fff; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .14s ease, background .14s ease; cursor:pointer; }",
+    ".ap-del { position:absolute; right:8px; top:8px; z-index:4; width:24px; height:24px; border:0; border-radius:50%; background:rgba(23, 23, 22, .55); color:#fcfcfb; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .14s ease, background .14s ease; cursor:pointer; }",
     ".ap-card:hover .ap-del { opacity:1; }",
     ".ap-del:hover { background:var(--danger); }",
     "body.theme-dark .ap-del, body.studio-theme-dark .ap-del { background:rgba(0,0,0,.6); }",
@@ -369,7 +369,7 @@
       if (isVideo) {
         // 视频卡片：和历史展示区一致 —— 悬停播放（默认静音）、无进度条、不显示名称、右下角音量键（默认关闭）
         card += '<div class="ap-thumb">' +
-          '<video class="ap-video-el" src="' + u + '" data-original-src="' + u + '" muted loop playsinline preload="metadata" style="display:block;width:100%;height:auto;object-fit:contain;background:#000;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)"></video>' +
+          '<video class="ap-video-el" src="' + u + '" data-original-src="' + u + '" muted loop playsinline preload="metadata" style="display:block;width:100%;height:auto;object-fit:contain;background:#0b0b0a;" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||16/9).toFixed(4)"></video>' +
           '<button class="ap-sound" title="声音开关" aria-label="声音开关" onclick="event.stopPropagation();assetLibraryToggleSound(this)">' + SOUND_OFF_SVG + '</button>' +
           '</div>';
         // 视频卡片不输出 .ap-card-body（名称），由 CSS .ap-card--video .ap-card-body 兜底隐藏
@@ -423,6 +423,7 @@
       })
       .catch(function (err) {
         if (grid) grid.innerHTML = '<div class="ap-empty"><span>加载失败: ' + escHtml(err.message || '') + '</span></div>';
+        if (silent) return null;
         throw err;
       });
   }

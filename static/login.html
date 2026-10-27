@@ -1,16 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-studio-scale="off">
 <head>
     <meta charset="UTF-8">
     <title>登录 - ART AI</title>
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <script src="/static/js/theme.js"></script>
     <style>
         body { 
             margin: 0; 
             overflow: hidden; 
-            background-color: #060d1a; 
+            background-color: #0c0c0c; 
             font-family: 'Inter', -apple-system, sans-serif;
         }
-        canvas { display: block; }
+        canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
         
         #promptText {
             position: absolute;
@@ -54,9 +56,9 @@
             50% { opacity: 0; }
         }
         @keyframes textFlicker {
-            0% { color: rgba(0, 200, 240, 0.35); text-shadow: 0 0 20px rgba(0, 200, 240, 0.3), 0 0 60px rgba(0, 200, 240, 0.1); }
+            0% { color: rgba(6, 182, 212, 0.35); text-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1); }
             4% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
-            6% { color: rgba(0, 200, 240, 0.35); text-shadow: 0 0 20px rgba(0, 200, 240, 0.3), 0 0 60px rgba(0, 200, 240, 0.1); }
+            6% { color: rgba(6, 182, 212, 0.35); text-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1); }
             9% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
             100% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
         }
@@ -66,7 +68,7 @@
             left: 0;
             width: 100%;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(0, 220, 255, 0.15), transparent);
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.15), transparent);
             animation: scanMove 4s linear infinite;
             pointer-events: none;
         }
@@ -86,21 +88,21 @@
             z-index: 10;
             width: 310px;
             padding: 40px;
-            background: rgba(0, 30, 50, 0.45);
+            background: rgba(23, 23, 23, 0.45);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border-radius: 28px;
-            border: 1px solid rgba(0, 200, 240, 0.12);
-            box-shadow: 0 0 20px rgba(0, 200, 240, 0.15), 0 0 50px rgba(0, 200, 240, 0.1), 0 0 100px rgba(0, 200, 240, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.12);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 50px rgba(6, 182, 212, 0.1), 0 0 100px rgba(6, 182, 212, 0.05);
         }
         
         #loginForm.visible {
             opacity: 1;
             visibility: visible;
             transform: translate(-50%, -50%);
-            outline: 2px solid rgba(0, 220, 255, 0.5);
+            outline: 2px solid rgba(0, 240, 255, 0.5);
             outline-offset: 2px;
-            box-shadow: 0 0 20px rgba(0, 200, 240, 0.15), 0 0 50px rgba(0, 200, 240, 0.1), 0 0 100px rgba(0, 200, 240, 0.05), 0 0 30px rgba(0, 220, 255, 0.2);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 50px rgba(6, 182, 212, 0.1), 0 0 100px rgba(6, 182, 212, 0.05), 0 0 30px rgba(0, 240, 255, 0.2);
         }
 
         .form-group {
@@ -108,7 +110,7 @@
         }
         .form-group label {
             display: block;
-            color: rgba(0, 200, 240, 0.4);
+            color: rgba(6, 182, 212, 0.4);
             font-size: 10px;
             letter-spacing: 3px;
             margin-bottom: 8px;
@@ -119,19 +121,19 @@
             padding: 10px 0;
             background: transparent;
             border: none;
-            border-bottom: 1px solid rgba(0, 200, 240, 0.15);
-            color: #b0e8ff;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+            color: #e7e5de;
             font-size: 14px;
             outline: none;
             box-sizing: border-box;
         }
         .form-group input::placeholder {
-            color: rgba(0, 200, 240, 0.15);
+            color: rgba(6, 182, 212, 0.15);
         }
         .form-group .input-line {
             display: block;
             height: 1px;
-            background: #00c8f0;
+            background: #06b6d4;
             width: 0;
             transition: width 0.5s ease;
         }
@@ -155,10 +157,10 @@
         .btn-row .btn-action {
             flex: 1;
             height: 44px;
-            border: 1px solid rgba(0, 200, 240, 0.2);
+            border: 1px solid rgba(6, 182, 212, 0.2);
             border-radius: 50px;
             background: transparent;
-            color: rgba(0, 200, 240, 0.6);
+            color: rgba(6, 182, 212, 0.6);
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 4px;
@@ -167,11 +169,11 @@
         }
         .btn-action:hover {
             border: none;
-            background: linear-gradient(135deg, #00c8f0, #0891b2);
-            color: #fff;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: #fbfaf9;
             font-weight: 800;
             letter-spacing: 4px;
-            box-shadow: 0 0 20px rgba(0, 200, 240, 0.25);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
         }
         .btn-row .btn-action:active {
             transform: scale(0.96);
@@ -181,9 +183,24 @@
             position: absolute;
             top: 40px;
             right: 40px;
-            color: rgba(0, 200, 240, 0.15);
+            color: rgba(6, 182, 212, 0.15);
             font-size: 10px;
             font-family: monospace;
+        }
+    </style>
+    <style id="ui-responsive">
+        /* 登录页响应式 + 防横向滚动 */
+        html, body { overflow-x: hidden; }
+        #loginForm {
+            width: min(310px, 90vw);
+            padding: clamp(20px, 5vw, 40px);
+            box-sizing: border-box;
+        }
+        @media (max-width: 640px) {
+            #promptText { font-size: 18px; letter-spacing: 4px; width: 90%; text-align: center; }
+            .timestamp { top: 16px; right: 16px; }
+            .btn-row .btn-action { height: 44px; }
+            #loginForm { width: min(340px, 92vw); }
         }
     </style>
 </head>
@@ -231,16 +248,41 @@ var loginError = document.getElementById('loginError');
 var usernameInput = document.getElementById('username');
 var passwordInput = document.getElementById('password');
 
-var width, height;
+var width, height, dpr = 1;
 var innerParticles = [], outerParticles = [], rays = [];
+// 基础量（实际数量按视口面积与实测帧率自适应缩放）
+var innerBase = 1500, outerBase = 4000;
 var innerCount = 1500, outerCount = 4000;
 var mouseThreshold = 220;
 var isHovering = false;
 var noiseTimer = 0, prevBreath = 0, radarAngle = 0;
-var stars = [], STAR_COUNT = 2500, focalLength = 350;
+var stars = [], STAR_COUNT = 2500, starBase = 2500, focalLength = 350;
+// —— 性能自适应：帧率封顶 + 掉帧自动降级 ——
+var quality = 1;                       // 1 → 0.5 逐级降级
+var frameInterval = 1000 / 45;         // 目标 ~45fps
+var lastFrame = 0, slowFrames = 0;
+var radarGrad = null, radarGradR = 0;  // 雷达渐变缓存（仅 resize 时重建）
+var glowSprite = null;                 // 粒子发光 sprite（替代逐粒子 shadowBlur）
 var starSpeed = 2, targetSpeed = 2;
 var mouseX = 0, mouseY = 0;
 var scrollSpeedFactor = 1;
+
+/* 粒子发光 sprite：预渲染一次，替代每个粒子的 shadowBlur（性能提升数量级） */
+function getGlowSprite() {
+    if (glowSprite) return glowSprite;
+    var s = 64;
+    var c = document.createElement('canvas');
+    c.width = s; c.height = s;
+    var g = c.getContext('2d');
+    var grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grd.addColorStop(0, 'rgba(150, 230, 250, 0.85)');
+    grd.addColorStop(0.28, 'rgba(90, 205, 240, 0.42)');
+    grd.addColorStop(1, 'rgba(0, 180, 216, 0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, s, s);
+    glowSprite = c;
+    return glowSprite;
+}
 
 function updateTimer() {
     var now = new Date();
@@ -362,7 +404,7 @@ Ray.prototype.draw = function() {
     var grad = ctx.createLinearGradient(headX, headY, tailX, tailY);
     grad.addColorStop(0, 'rgba(100, 230, 255, ' + alpha + ')');
     grad.addColorStop(0.4, 'rgba(0, 210, 245, ' + alpha * 0.5 + ')');
-    grad.addColorStop(1, 'rgba(0, 200, 240, 0)');
+    grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
     ctx.beginPath();
     ctx.moveTo(headX, headY);
     ctx.lineTo(tailX, tailY);
@@ -428,12 +470,12 @@ Star3D.prototype.draw = function(ctx, speed) {
     var g = Math.round(190 + this.brightness * 50);
     var b = Math.round(220 + this.brightness * 35);
     if (this.psize > 1.8) {
-        ctx.beginPath();
-        ctx.arc(this.sx, this.sy, this.psize * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + (this.alpha * 0.15) + ')';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = 'rgba(' + r + ', ' + g + ', ' + b + ', 0.4)';
-        ctx.fill();
+        // 用预渲染 sprite 替代逐粒子 shadowBlur（原本 5500 次/帧 → 0 次）
+        var gs = getGlowSprite();
+        var gr = this.psize * 3.4;
+        ctx.globalAlpha = Math.min(1, this.alpha * 0.55);
+        ctx.drawImage(gs, this.sx - gr / 2, this.sy - gr / 2, gr, gr);
+        ctx.globalAlpha = 1;
     }
     ctx.shadowBlur = 0;
     ctx.beginPath();
@@ -450,8 +492,23 @@ window.addEventListener('wheel', function(e) {
 }, { passive: false });
 
 function init() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
+    // 用 clientWidth/Height（排除滚动条），DPR 渲染但封顶 1.5，避免高分屏像素爆炸
+    width = document.documentElement.clientWidth || window.innerWidth;
+    height = document.documentElement.clientHeight || window.innerHeight;
+    dpr = Math.min(1.5, Math.max(1, window.devicePixelRatio || 1));
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 绘制坐标仍按 CSS px
+
+    // 数量自适应：视口越大适度减少，保证每帧总对象数在预算内
+    var area = width * height;
+    var budget = Math.max(0.7, Math.min(1.35, 900000 / Math.max(1, area)));
+    STAR_COUNT = Math.max(600, Math.round(starBase * budget * quality));
+    innerCount = Math.max(300, Math.round(innerBase * budget * quality));
+    outerCount = Math.max(800, Math.round(outerBase * budget * quality));
+
+    lastFrame = 0;
+    radarGrad = null;   // 渐变随尺寸变化失效
     innerParticles = [];
     outerParticles = [];
     rays = [];
@@ -490,9 +547,9 @@ function drawCore(breath) {
     var size = 18 + breath * 8;
     var cx = width / 2, cy = height / 2;
     ctx.save();
-    ctx.shadowBlur = 50 * breath;
-    ctx.shadowColor = 'rgba(0, 200, 240, 0.7)';
-    ctx.fillStyle = 'rgba(0, 200, 240, 0.35)';
+    ctx.shadowBlur = quality > 0.7 ? 34 * breath : 0;
+    ctx.shadowColor = 'rgba(6, 182, 212, 0.7)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
     ctx.beginPath();
     ctx.moveTo(cx, cy - size);
     ctx.lineTo(cx + size * 0.7, cy);
@@ -511,12 +568,17 @@ function drawRadar() {
     var beamAngle = 0.25;
     ctx.save();
 
-    var grad = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
-    grad.addColorStop(0, 'rgba(0, 200, 240, 0)');
-    grad.addColorStop(0.7, 'rgba(0, 200, 240, 0)');
-    grad.addColorStop(0.85, 'rgba(0, 210, 245, 0.02)');
-    grad.addColorStop(0.95, 'rgba(0, 220, 255, 0.06)');
-    grad.addColorStop(1, 'rgba(0, 220, 255, 0.12)');
+    // 渐变缓存：颜色固定，仅尺寸变化时重建（省每帧 createRadialGradient）
+    if (!radarGrad || radarGradR !== r) {
+        radarGrad = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
+        radarGrad.addColorStop(0, 'rgba(6, 182, 212, 0)');
+        radarGrad.addColorStop(0.7, 'rgba(6, 182, 212, 0)');
+        radarGrad.addColorStop(0.85, 'rgba(6, 182, 212, 0.02)');
+        radarGrad.addColorStop(0.95, 'rgba(0, 240, 255, 0.06)');
+        radarGrad.addColorStop(1, 'rgba(0, 240, 255, 0.12)');
+        radarGradR = r;
+    }
+    var grad = radarGrad;
 
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -526,18 +588,18 @@ function drawRadar() {
     ctx.fill();
 
     var lineLen = r * 1.1;
-    ctx.shadowBlur = 25;
-    ctx.shadowColor = 'rgba(0, 230, 255, 0.8)';
-    ctx.strokeStyle = 'rgba(100, 240, 255, 0.7)';
+    ctx.shadowBlur = quality > 0.7 ? 18 : 0;
+    ctx.shadowColor = 'rgba(0, 240, 255, 0.8)';
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.7)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(radarAngle) * r * 0.6, cy + Math.sin(radarAngle) * r * 0.6);
     ctx.lineTo(cx + Math.cos(radarAngle) * lineLen, cy + Math.sin(radarAngle) * lineLen);
     ctx.stroke();
 
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = 'rgba(0, 220, 255, 0.5)';
-    ctx.strokeStyle = 'rgba(0, 220, 255, 0.15)';
+    ctx.shadowBlur = quality > 0.7 ? 8 : 0;
+    ctx.shadowColor = 'rgba(0, 240, 255, 0.5)';
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
     ctx.lineWidth = 0.5;
     ctx.setLineDash([6, 8]);
     ctx.beginPath();
@@ -626,7 +688,21 @@ registerBtn.onclick = doRegister;
 usernameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
 passwordInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
 
-function animate() {
+function animate(now) {
+    // 帧率封顶 + 掉帧自动降级（连续变慢则减半对象量并关闭阴影）
+    if (!now) now = performance.now();
+    if (lastFrame && now - lastFrame < frameInterval) {
+        requestAnimationFrame(animate);
+        return;
+    }
+    var dt = lastFrame ? now - lastFrame : 16.7;
+    lastFrame = now;
+    if (dt > frameInterval * 1.8) {
+        slowFrames++;
+        if (slowFrames > 24 && quality > 0.5) { quality = 0.5; slowFrames = 0; init(); }
+    } else if (slowFrames > 0) {
+        slowFrames--;
+    }
     starSpeed += (targetSpeed * scrollSpeedFactor - starSpeed) * 0.05;
     ctx.fillStyle = 'rgba(6, 13, 26, ' + (0.25 - Math.min(1, starSpeed / 8) * 0.15) + ')';
     ctx.fillRect(0, 0, width, height);

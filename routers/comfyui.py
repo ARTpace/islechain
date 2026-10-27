@@ -393,6 +393,32 @@ async def proxy_comfyui_queue():
         return Response(content=resp.content, media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI queue 请求失败: {str(e)}")
+@router.post("/cancel-task")
+async def cancel_comfyui_task(request: Request):
+    """仅取消指定客户端的指定任务，绝不清空整个队列。"""
+    target = _main.COMFYUI_ADDRESS
+    if not target:
+        raise HTTPException(status_code=503, detail="未配置 ComfyUI 地址")
+    body = await request.json()
+    pid, client_id = body.get("prompt_id"), body.get("client_id")
+    if not pid or not client_id:
+        raise HTTPException(status_code=400, detail="缺少任务标识")
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(f"http://{target}/queue")
+        response.raise_for_status()
+        queue = response.json()
+        def owned(item):
+            return len(item) > 3 and item[1] == pid and item[3].get("client_id") == client_id
+
+        if not any(owned(item) for item in queue.get("queue_running", []) + queue.get("queue_pending", [])):
+            return {"success": True, "detail": "任务已结束或不属于此客户端"}
+        # 先移除排队项，再定向中断，覆盖排队项刚开始执行的竞态。
+        response = await client.post(f"http://{target}/queue", json={"delete": [pid]})
+        response.raise_for_status()
+        response = await client.post(f"http://{target}/interrupt", json={"prompt_id": pid})
+        response.raise_for_status()
+    return {"success": True, "prompt_id": pid}
+
 @router.post("/prompt")
 async def proxy_comfyui_prompt(request: Request):
     """代理提交 ComfyUI 任务"""

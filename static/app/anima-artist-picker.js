@@ -22,10 +22,11 @@ let artistPickerFrozenOrder = null;
 function artistPickerBuildFrozenOrder() {
     let list = ANIMA_ARTIST_DB.slice();
     const sort = document.getElementById('artistPickerSort')?.value || 'post_count';
+    const asc = document.getElementById('artistPickerSort')?.dataset.asc === '1';
     if (artistPickerCategory !== 'history' && sort === 'name') {
-        list.sort((a, b) => a.name.localeCompare(b.name));
+        list.sort((a, b) => asc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
     } else if (artistPickerCategory !== 'history') {
-        list.sort((a, b) => b.post_count - a.post_count);
+        list.sort((a, b) => asc ? a.post_count - b.post_count : b.post_count - a.post_count);
     }
     if (artistPickerSelected.length > 0) {
         const _selSet = new Set(artistPickerSelected);
@@ -51,9 +52,19 @@ const ARTIST_CATEGORIES = [
 // 画师数据
 let ANIMA_ARTIST_DB = [];
 
-// 图片URL(使用mooshieblob CDN)
+// 原图床 cdn.mooshieblob.com 已失效。缩略图改由本机接口取该画师的一张作品预览。
 function artistPickerImgUrl(item) {
-    return item.image_url || '';
+    const name = (item && item.name) || '';
+    if (!name) return '';
+    return '/api/animadex/artist-thumb?name=' + encodeURIComponent(name);
+}
+
+function artistPickerImgError(img) {
+    if (!img || img.dataset.fb === 'done') return;
+    if (img.naturalWidth > 0) return;
+    img.dataset.fb = 'done';
+    img.style.display = 'none';
+    if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
 }
 
 // 加载画师数据
@@ -111,15 +122,11 @@ function artistPickerSetCategory(cat) {
 }
 
 // 渲染网格
-function artistPickerRenderGrid() {
-    // 用锁定顺序作为源(点击不会重排),未设置时回退到 ANIMA_ARTIST_DB
+function artistPickerFiltered() {
     let list = artistPickerFrozenOrder ? artistPickerFrozenOrder.slice() : [...ANIMA_ARTIST_DB];
-
-    // 特殊分类:收藏 / 历史
     if (artistPickerCategory === 'favorites') {
         list = list.filter(a => artistPickerFavorites.includes(a.name));
     } else if (artistPickerCategory === 'history') {
-        // 按历史顺序排序(最近在前)
         list = artistPickerHistory
             .map(name => ANIMA_ARTIST_DB.find(a => a.name === name))
             .filter(Boolean);
@@ -133,21 +140,14 @@ function artistPickerRenderGrid() {
         const [min, max] = ranges[artistPickerCategory] || [0, Infinity];
         list = list.filter(a => a.post_count >= min && a.post_count < max);
     }
-
-    // 搜索过滤
     const q = (document.getElementById('artistPickerSearch')?.value || '').toLowerCase();
-    if (q) {
-        list = list.filter(a => a.name.toLowerCase().includes(q));
-    }
+    if (q) list = list.filter(a => a.name.toLowerCase().includes(q));
+    if (artistPickerShowSelected) list = list.filter(a => artistPickerSelected.includes(a.name));
+    return list;
+}
 
-    // 只看已选
-    if (artistPickerShowSelected) {
-        list = list.filter(a => artistPickerSelected.includes(a.name));
-    }
-
-    // 排序和已选置顶已由 artistPickerFrozenOrder 提供,filter 中不再重排
-    // (避免点击后置顶失效)
-
+function artistPickerRenderGrid() {
+    const list = artistPickerFiltered();
     const total = list.length;
     const totalPages = Math.max(1, Math.ceil(total / ARTIST_PICKER_PAGE_SIZE));
     if (artistPickerPage > totalPages) artistPickerPage = totalPages;
@@ -172,14 +172,14 @@ function artistPickerRenderGrid() {
             const danbooruUrl = 'https://safebooru.org/index.php?page=post&s=list&tags=' + encodeURIComponent(a.name.replace(/ /g, '_'));
             const safeName = a.name.replace(/"/g, '&quot;').replace(/'/g, "\\'");
             return '<div class="artist-picker-card' + (sel ? ' selected' : '') + '" onclick="artistPickerToggle(\'' + safeName + '\')">' +
-                '<img src="' + imgUrl + '" alt="' + safeName + '" title="' + safeName + '" loading="lazy" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\'">' +
+                '<img src="' + imgUrl + '" alt="' + safeName + '" title="' + safeName + '" loading="lazy" onerror="artistPickerImgError(this)">' +
                 '<div class="artist-picker-avatar" style="display: none;">' + a.name.charAt(0).toUpperCase() + '</div>' +
                 '<div class="artist-picker-info">' +
                 '<div class="artist-picker-name" title="' + a.name.replace(/"/g, '&quot;') + '">' + a.name + '</div>' +
                 '<div class="artist-picker-count" title="' + a.post_count.toLocaleString() + ' 作品投稿">' + a.post_count.toLocaleString() + ' 作品</div>' +
                 '</div>' +
                 '<div class="artist-picker-link" title="在 Safebooru 查看该画师作品" onclick="event.stopPropagation(); window.open(\'' + danbooruUrl + '\', \'_blank\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div>' +
-                '<div class="artist-picker-fav" title="' + (isFav ? '取消收藏' : '收藏此画师') + '" onclick="artistPickerToggleFav(\'' + safeName + '\', event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="' + (isFav ? '#00b4d8' : 'none') + '" stroke="' + (isFav ? '#00b4d8' : 'rgba(255,255,255,0.6)') + '" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></div>' +
+                '<div class="artist-picker-fav" title="' + (isFav ? '取消收藏' : '收藏此画师') + '" onclick="artistPickerToggleFav(\'' + safeName + '\', event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="' + (isFav ? '#06b6d4' : 'none') + '" stroke="' + (isFav ? '#06b6d4' : 'rgba(255,255,255,0.6)') + '" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></div>' +
                 '<div class="artist-picker-check">' + (sel ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div>' +
                 '</div>';
         }).join('') + '</div>';
@@ -198,7 +198,7 @@ function artistPickerRenderGrid() {
             else if (artistPickerPage <= 4) p = i + 1;
             else if (artistPickerPage >= totalPages - 3) p = totalPages - 6 + i;
             else p = artistPickerPage - 3 + i;
-            return '<button onclick="artistPickerGoPage(' + p + ')" style="padding: 6px 10px; border: 1px solid ' + (p === artistPickerPage ? '#00b4d8' : 'rgba(255,255,255,0.1)') + '; border-radius: 6px; font-size: 12px; cursor: pointer; background: ' + (p === artistPickerPage ? 'rgba(0,180,216,0.2)' : 'rgba(255,255,255,0.05)') + '; color: ' + (p === artistPickerPage ? '#00b4d8' : '#ccc') + '; margin: 0 2px;">' + p + '</button>';
+            return '<button onclick="artistPickerGoPage(' + p + ')" style="padding: 6px 10px; border: 1px solid ' + (p === artistPickerPage ? '#06b6d4' : 'rgba(255,255,255,0.1)') + '; border-radius: 6px; font-size: 12px; cursor: pointer; background: ' + (p === artistPickerPage ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.05)') + '; color: ' + (p === artistPickerPage ? '#06b6d4' : '#cccccc') + '; margin: 0 2px;">' + p + '</button>';
         }).join('');
     }
 }
@@ -228,7 +228,11 @@ function artistPickerGoPage(p) { artistPickerPage = p; artistPickerRenderGrid();
 function artistPickerPrevPage() { if (artistPickerPage > 1) { artistPickerPage--; artistPickerRenderGrid(); } }
 function artistPickerNextPage() { artistPickerPage++; artistPickerRenderGrid(); }
 function artistPickerShowSelectedOnly() { artistPickerShowSelected = !artistPickerShowSelected; artistPickerRenderGrid(); }
-function artistPickerCopySelected() { navigator.clipboard.writeText(artistPickerSelected.join(', ')).then(() => alert('已复制')); }
+function artistPickerCopySelected() {
+    const text = artistPickerSelected.join(', ');
+    const done = () => { if (typeof pickerShowToast === 'function') pickerShowToast('已复制 ' + artistPickerSelected.length + ' 个画师', 'info'); };
+    navigator.clipboard.writeText(text).then(done, done);
+}
 function artistPickerClearAll() { artistPickerSelected = []; document.getElementById('artistPickerSelectedCount').textContent = 0; const _sumElClear = document.getElementById('artistPickerSelectedSummary'); if (_sumElClear) _sumElClear.textContent = '已选 0 个画师'; artistPickerRenderGrid(); }
 
 function artistPickerApply() {
@@ -251,30 +255,28 @@ function artistPickerApply() {
         // 更新 prompt 输入框:保留角色标签,替换画师标签
         const promptInput = document.getElementById('prompt');
         if (promptInput) {
-            const current = promptInput.value.trim();
-            const parts = current.split(',').map(p => p.trim()).filter(p => p);
-            // 1) 先把“上次应用写入的画师 token”全部移除（只移除已知画师，保留 LoRA 触发词）
-            const lastSetLower = new Set([...artistPickerLastAppliedTokens].map(s => s.toLowerCase()));
-            const knownNames = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB) ?
-                new Set(ANIMA_ARTIST_DB.map(a => a.name.toLowerCase())) : new Set();
-            const partsAfterRemove = parts.filter(t => {
-                if (!lastSetLower.has(t.toLowerCase())) return true;
-                // 即使在 lastApplied 中，如果是 LoRA 触发词（不在画师库中）也要保留
-                const n = t.replace(/^@/, '').replace(/^by /, '').toLowerCase();
-                return !knownNames.has(n);
-            });
-            // 2) 保留：角色标签 + LoRA 触发词（@/by 开头但不在画师库中的）
-            const charAndLoraParts = partsAfterRemove.filter(p => {
-                if (!p.startsWith('@') && !p.startsWith('by ')) return true; // 普通标签
-                const n = p.replace(/^@/, '').replace(/^by /, '').toLowerCase();
-                return !knownNames.has(n); // 不是已知画师 → LoRA 触发词，保留
-            });
-            // 3) 合并：角色/LoRA 标签 + 新的画师标签
             const artistParts = artistPickerSelected.map(a => '@' + a);
-            // 4) 记录本次写入的画师 token
+            if (typeof window.applyPromptTokensAtCaret === 'function') {
+                window.applyPromptTokensAtCaret(artistPickerLastAppliedTokens, artistParts);
+            } else {
+                const current = promptInput.value.trim();
+                const parts = current.split(',').map(p => p.trim()).filter(p => p);
+                const lastSetLower = new Set([...artistPickerLastAppliedTokens].map(s => s.toLowerCase()));
+                const knownNames = (typeof ANIMA_ARTIST_DB !== 'undefined' && ANIMA_ARTIST_DB) ?
+                    new Set(ANIMA_ARTIST_DB.map(a => a.name.toLowerCase())) : new Set();
+                const partsAfterRemove = parts.filter(t => {
+                    if (!lastSetLower.has(t.toLowerCase())) return true;
+                    const n = t.replace(/^@/, '').replace(/^by /, '').toLowerCase();
+                    return !knownNames.has(n);
+                });
+                const charAndLoraParts = partsAfterRemove.filter(p => {
+                    if (!p.startsWith('@') && !p.startsWith('by ')) return true;
+                    const n = p.replace(/^@/, '').replace(/^by /, '').toLowerCase();
+                    return !knownNames.has(n);
+                });
+                promptInput.value = [...charAndLoraParts, ...artistParts].filter(p => p).join(', ');
+            }
             artistPickerLastAppliedTokens = new Set(artistParts.map(t => t.toLowerCase()));
-            const allParts = [...charAndLoraParts, ...artistParts];
-            promptInput.value = allParts.filter(p => p).join(', ');
         }
     }
     // 更新标签预览
@@ -317,20 +319,7 @@ function artistPickerInvertSelection() {
 }
 
 function artistPickerGetFilteredList() {
-    // 获取当前筛选结果中的所有画师名称
-    const list = [];
-    const items = document.querySelectorAll('.artist-picker-card');
-    items.forEach(item => {
-        // 从 onclick 属性中提取名称
-        const onclick = item.getAttribute('onclick');
-        if (onclick) {
-            const match = onclick.match(/artistPickerToggle\('(.+?)'\)/);
-            if (match) {
-                list.push(match[1]);
-            }
-        }
-    });
-    return list;
+    return artistPickerFiltered().map(a => a.name);
 }
 
 function artistPickerUpdateUI() {
@@ -424,32 +413,30 @@ function artistPickerOpen(callback) {
 
 // 初始化
 function artistPickerInit() {
-    artistPickerLoadData();
-
     if (!document.getElementById('artistPickerModal')) {
         const modalHTML = `
         <div id="artistPickerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 1240px; height: 720px; background: linear-gradient(180deg, #0d1b2a 0%, #1b2838 100%); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 1px solid rgba(0,180,216,0.15);">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 1240px; height: 720px; background: linear-gradient(180deg, #191918 0%, #262623 100%); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 1px solid rgba(6, 182, 212, 0.15);">
                 <!-- 顶部工具栏 -->
                 <div style="display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
                     <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
                         <div style="position: relative; flex: 1; max-width: 280px;">
-                            <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #666;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                            <input id="artistPickerSearch" type="text" placeholder="搜索画师..." style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 13px; color: #fff; outline: none; box-sizing: border-box;">
+                            <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #666666;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            <input id="artistPickerSearch" type="text" placeholder="搜索画师..." style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 13px; color: #fcfcfb; outline: none; box-sizing: border-box;">
                         </div>
-                        <select id="artistPickerSort" style="padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; outline: none;">
+                        <select id="artistPickerSort" style="padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fcfcfb; outline: none;">
                             <option value="post_count">按热度 (高→低)</option>
                             <option value="name">按名称 (A→Z)</option>
                         </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button onclick="artistPickerSelectAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">全选</button>
-                        <button onclick="artistPickerInvertSelection()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">反选</button>
-                        <button onclick="artistPickerClearAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">清空</button>
+                        <button onclick="artistPickerSelectAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #cccccc; cursor: pointer;">全选</button>
+                        <button onclick="artistPickerInvertSelection()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #cccccc; cursor: pointer;">反选</button>
+                        <button onclick="artistPickerClearAll()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #cccccc; cursor: pointer;">清空</button>
                         <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
-                        <button onclick="artistPickerCopySelected()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">复制已选</button>
-                        <button onclick="artistPickerShowSelectedOnly()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer;">只看已选</button>
-                        <button onclick="artistPickerClose()" style="padding: 6px 10px; background: none; border: none; cursor: pointer; font-size: 20px; color: #666;">&times;</button>
+                        <button onclick="artistPickerCopySelected()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #cccccc; cursor: pointer;">复制已选</button>
+                        <button onclick="artistPickerShowSelectedOnly()" style="padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #cccccc; cursor: pointer;">只看已选</button>
+                        <button onclick="artistPickerClose()" style="padding: 6px 10px; background: none; border: none; cursor: pointer; font-size: 20px; color: #666666;">&times;</button>
                     </div>
                 </div>
 
@@ -458,12 +445,12 @@ function artistPickerInit() {
                     <!-- 左侧分类 -->
                     <div style="width: 180px; border-right: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; background: rgba(0,0,0,0.2);">
                         <div style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-                            <div style="font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 1px;">分类浏览</div>
+                            <div style="font-size: 11px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 1px;">分类浏览</div>
                         </div>
                         <div id="artistPickerCategories" style="flex: 1; overflow-y: auto; padding: 8px;"></div>
                         <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
-                            <div style="font-size: 10px; color: #666; margin-bottom: 4px;">已选择</div>
-                            <div style="font-size: 18px; font-weight: 700; color: #00b4d8;" id="artistPickerSelectedCount">0</div>
+                            <div style="font-size: 10px; color: #666666; margin-bottom: 4px;">已选择</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #06b6d4;" id="artistPickerSelectedCount">0</div>
                         </div>
                     </div>
 
@@ -473,11 +460,11 @@ function artistPickerInit() {
 
                         <!-- 分页 -->
                         <div style="padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
-                            <span id="artistPickerPageInfo" style="font-size: 12px; color: #666;"></span>
+                            <span id="artistPickerPageInfo" style="font-size: 12px; color: #666666;"></span>
                             <div style="display: flex; gap: 4px; align-items: center;">
-                                <button id="artistPickerPrevBtn" onclick="artistPickerPrevPage()" style="padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 12px; cursor: pointer; color: #ccc;">上一页</button>
+                                <button id="artistPickerPrevBtn" onclick="artistPickerPrevPage()" style="padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 12px; cursor: pointer; color: #cccccc;">上一页</button>
                                 <div id="artistPickerPages"></div>
-                                <button id="artistPickerNextBtn" onclick="artistPickerNextPage()" style="padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 12px; cursor: pointer; color: #ccc;">下一页</button>
+                                <button id="artistPickerNextBtn" onclick="artistPickerNextPage()" style="padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 12px; cursor: pointer; color: #cccccc;">下一页</button>
                             </div>
                         </div>
                     </div>
@@ -485,8 +472,8 @@ function artistPickerInit() {
 
                 <!-- 底部操作栏 -->
                 <div style="padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.3); flex-shrink: 0;">
-                    <div id="artistPickerSelectedSummary" style="font-size: 12px; color: #888;">已选 0 个画师</div>
-                    <button onclick="artistPickerClose()" style="padding: 10px 24px; background: linear-gradient(135deg, #00b4d8, #0077b6); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;">关闭并应用</button>
+                    <div id="artistPickerSelectedSummary" style="font-size: 12px; color: #888888;">已选 0 个画师</div>
+                    <button onclick="artistPickerClose()" style="padding: 10px 24px; background: linear-gradient(135deg, #06b6d4, #0e7490); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; color: #fcfcfb; cursor: pointer;">关闭并应用</button>
                 </div>
             </div>
         </div>`;

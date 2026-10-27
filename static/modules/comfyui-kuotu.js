@@ -65,7 +65,7 @@ async function kuotuExecute(node, refs, prompt, promptId) {
     };
 
     if (scaleEnabled) {
-        workflowData["131"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": scaleSize, "background_color": "#000000", "image": ["108", 0], "mask": ["108", 1] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
+        workflowData["131"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": scaleSize, "background_color": "#0b0b0a", "image": ["108", 0], "mask": ["108", 1] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
     } else {
         // 关闭缩放时，添加 GetImageSize 从 pad 输出获取尺寸
         workflowData["132"] = { "inputs": { "image": ["108", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } };

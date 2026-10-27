@@ -30,6 +30,91 @@
         return raw;
     }
 
+    function readSize(bytes, offset, size, little) {
+        let value = 0;
+        for (let i = 0; i < size; i++) {
+            const shift = little ? i * 8 : (size - 1 - i) * 8;
+            value += bytes[offset + i] * (2 ** shift);
+        }
+        return value;
+    }
+
+    function sniffImageSize(bytes) {
+        if (bytes.length >= 24 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
+            return { w: readSize(bytes, 16, 4, false), h: readSize(bytes, 20, 4, false) };
+        }
+        if (bytes.length >= 10 && bytes[0] === 71 && bytes[1] === 73 && bytes[2] === 70) {
+            return { w: readSize(bytes, 6, 2, true), h: readSize(bytes, 8, 2, true) };
+        }
+        if (bytes.length >= 30 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70 && bytes[8] === 87 && bytes[9] === 69 && bytes[10] === 66 && bytes[11] === 80) {
+            const tag = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+            if (tag === 'VP8X') {
+                return {
+                    w: 1 + bytes[24] + bytes[25] * 256 + bytes[26] * 65536,
+                    h: 1 + bytes[27] + bytes[28] * 256 + bytes[29] * 65536
+                };
+            }
+            if (tag === 'VP8 ') {
+                return { w: readSize(bytes, 26, 2, true) & 0x3fff, h: readSize(bytes, 28, 2, true) & 0x3fff };
+            }
+            if (tag === 'VP8L') {
+                const bits = readSize(bytes, 21, 4, true);
+                return { w: (bits & 0x3fff) + 1, h: ((bits >> 14) & 0x3fff) + 1 };
+            }
+        }
+        if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+            let offset = 2;
+            while (offset + 8 < bytes.length) {
+                if (bytes[offset] !== 0xff) { offset++; continue; }
+                const marker = bytes[offset + 1];
+                const length = readSize(bytes, offset + 2, 2, false);
+                if (length < 2) break;
+                const sof = (marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb);
+                if (sof) return { w: readSize(bytes, offset + 7, 2, false), h: readSize(bytes, offset + 5, 2, false) };
+                offset += 2 + length;
+            }
+        }
+        return null;
+    }
+
+    function probeWithImage(url) {
+        return new Promise(resolve => {
+            const probe = new Image();
+            probe.onload = () => resolve(probe.naturalWidth ? { w: probe.naturalWidth, h: probe.naturalHeight } : null);
+            probe.onerror = () => resolve(null);
+            probe.src = url;
+        });
+    }
+
+    async function probeFileSize(url) {
+        if (!url) return null;
+        if (url.startsWith('blob:')) return probeWithImage(url);
+        try {
+            const resp = await fetch(url, { headers: { Range: 'bytes=0-262143' } });
+            if (!resp.ok && resp.status !== 206) throw new Error('size');
+            const reader = resp.body && resp.body.getReader ? resp.body.getReader() : null;
+            const chunks = [];
+            let got = 0;
+            if (reader) {
+                while (got < 262144) {
+                    const step = await reader.read();
+                    if (step.done) break;
+                    chunks.push(step.value);
+                    got += step.value.length;
+                }
+                if (reader.cancel) reader.cancel().catch(() => {});
+            } else {
+                chunks.push(new Uint8Array(await resp.arrayBuffer()));
+            }
+            const bytes = new Uint8Array(got || chunks.reduce((sum, part) => sum + part.length, 0));
+            let offset = 0;
+            chunks.forEach(part => { bytes.set(part, offset); offset += part.length; });
+            const size = sniffImageSize(bytes);
+            if (size && size.w && size.h) return size;
+        } catch (e) {}
+        return probeWithImage(url);
+    }
+
     function previewMediaUrl(url, width) {
         const original = unwrapMediaUrl(url);
         if (!original || original.startsWith('data:') || original.startsWith('blob:')) return original;
@@ -182,25 +267,23 @@
         img.style.transform = 'scale(1)';
         img.style.transformOrigin = 'center center';
 
-        // === 三层加载：768px(秒出) → 1536px(高清) → 原图(仅取尺寸) ===
+        // 画面用 1536px 预览，尺寸文字读原文件，避免把预览宽高当成成图尺寸。
         const originalUrl = unwrapMediaUrl(imageList[currentIndex]);
         _pendingPhaseUrl = originalUrl;
+        const paintFileSize = (size) => {
+            if (!size || _pendingPhaseUrl !== originalUrl || !res) return;
+            res.style.display = '';
+            res.textContent = size.w + '×' + size.h + ' (' + (currentIndex + 1) + '/' + imageList.length + ')';
+        };
 
-        // Phase 1: 768px WebP 缩略图（预生成缓存命中，<1s 显示）
         img.src = previewMediaUrl(originalUrl, 768);
         img.onload = () => {
             if (originalWidth === 0 && _pendingPhaseUrl === originalUrl) {
                 originalWidth = img.naturalWidth;
                 originalHeight = img.naturalHeight;
-                if (res) {
-                    res.style.display = '';
-                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-                }
             }
         };
 
-        // Phase 2: 1536px WebP 高清图后台预取，加载完成后替换 img.src
-        // 1536px 在 2x 屏幕 ≈ 768 物理像素，70vh 显示绰绰有余
         (function phase2() {
             const midImg = new Image();
             const midUrl = previewMediaUrl(originalUrl, 1536);
@@ -211,15 +294,13 @@
                 liveImg.src = midUrl;
                 originalWidth = midImg.naturalWidth;
                 originalHeight = midImg.naturalHeight;
-                if (res) {
-                    res.style.display = '';
-                    res.textContent = `${originalWidth}×${originalHeight} (${currentIndex + 1}/${imageList.length})`;
-                }
                 applyZoom();
             };
-            midImg.onerror = () => {}; // 静默失败，Phase1 缩略图保留
+            midImg.onerror = () => {};
             midImg.src = midUrl;
         })();
+
+        probeFileSize(originalUrl).then(paintFileSize);
 
         // 切图后回调
         if (onShowCallback) {

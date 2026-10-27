@@ -6,21 +6,21 @@
 
 /* ==================== 基础变量 ==================== */
 :root {
-    --accent: #00d4ff;
+    --accent: #00f0ff;
     --accent-glow: #00f0ff;
     --accent-purple: #b44aff;
-    --bg-dark: #0a0e17;
-    --bg-card: #0d1520;
-    --bg-soft: #1a2a3a;
-    --border: #1a2a3a;
-    --border-light: rgba(0, 212, 255, 0.15);
-    --text-main: #e0e7ef;
-    --text-muted: #6a8fa8;
-    --text-faint: #94a3b8;
+    --bg-dark: #0b0b0a;
+    --bg-card: #151515;
+    --bg-soft: #20201e;
+    --border: #20201e;
+    --border-light: rgba(0, 240, 255, 0.15);
+    --text-main: #f6f6f4;
+    --text-muted: #9f9d94;
+    --text-faint: #9f9d94;
     --success: #00ff88;
     --warning: #ff8800;
     --error: #ff4444;
-    --shadow: rgba(0, 212, 255, 0.15);
+    --shadow: rgba(0, 240, 255, 0.15);
     --easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -51,7 +51,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #1a2a3a;
+    background-color: #20201e;
     border: 3px solid transparent;
     border-right-width: 5px;
     background-clip: padding-box;
@@ -59,7 +59,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: #2a3a4a;
+    background-color: #3e3e39;
 }
 
 /* ==================== 布局 ==================== */
@@ -151,7 +151,7 @@ input:focus,
 textarea:focus,
 select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1);
 }
 
 input::placeholder,
@@ -190,19 +190,19 @@ select option {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #0088ff);
-    color: #fff;
-    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+    background: linear-gradient(135deg, var(--accent), #0891b2);
+    color: #fbfaf9;
+    box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
 }
 
 .btn-accent {
     background: linear-gradient(135deg, var(--accent-purple), #8800ff);
-    color: #fff;
+    color: #fbfaf9;
     box-shadow: 0 4px 15px rgba(180, 74, 255, 0.3);
 }
 
@@ -215,12 +215,12 @@ select option {
     background: linear-gradient(135deg, var(--accent), var(--accent-glow));
     color: var(--bg-dark);
     border: none;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), 0 0 30px rgba(0, 212, 255, 0.15);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), 0 0 30px rgba(0, 240, 255, 0.15);
 }
 
 .btn-glow:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
 }
 
 /* ==================== 上传区域 ==================== */
@@ -237,13 +237,13 @@ select option {
 
 .upload-zone:hover {
     border-color: var(--accent);
-    background: rgba(0, 180, 216, 0.05);
+    background: rgba(6, 182, 212, 0.05);
 }
 
 .upload-zone.dragover,
 .upload-zone.drag-over {
     border-color: var(--accent);
-    background: rgba(0, 180, 216, 0.08);
+    background: rgba(6, 182, 212, 0.08);
 }
 
 .upload-icon {
@@ -291,7 +291,7 @@ select option {
     background: linear-gradient(90deg, var(--accent), var(--accent-glow));
     width: 0%;
     transition: width 0.3s ease;
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
 }
 
 .progress-text,
@@ -349,7 +349,7 @@ select option {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: rgba(10, 10, 15, 0.88);
+    background: rgba(11, 11, 10, 0.88);
     backdrop-filter: blur(20px);
     padding: 12px 20px;
     border-radius: 12px;
@@ -431,7 +431,7 @@ select option {
     top: 20px;
     right: 30px;
     font-size: 2.5rem;
-    color: #fff;
+    color: #fbfaf9;
     cursor: pointer;
     transition: transform 0.3s ease;
     user-select: none;
@@ -464,7 +464,7 @@ select option {
 
 /* ==================== Hero区域 ==================== */
 .hero-section {
-    background: rgba(26, 26, 46, 0.6);
+    background: rgba(28, 28, 27, 0.6);
     border: 1px solid var(--border-light);
     border-radius: 16px;
     padding: 30px;
@@ -478,8 +478,8 @@ select option {
 
 .hero-badge {
     display: inline-block;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(180, 74, 255, 0.2));
-    border: 1px solid rgba(0, 212, 255, 0.3);
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(180, 74, 255, 0.2));
+    border: 1px solid rgba(0, 240, 255, 0.3);
     border-radius: 20px;
     padding: 6px 16px;
     font-size: 0.85rem;
@@ -506,8 +506,8 @@ select option {
 /* ==================== 提示框 ==================== */
 .model-hint,
 .hint-box {
-    background: rgba(0, 212, 255, 0.06);
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    background: rgba(0, 240, 255, 0.06);
+    border: 1px solid rgba(0, 240, 255, 0.15);
     border-radius: 10px;
     padding: 12px 16px;
     margin-top: 12px;
@@ -524,8 +524,8 @@ input[type="range"] {
     background: var(--bg-soft);
     outline: none;
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(0, 212, 255, 0.3), inset 0 0 3px rgba(0, 212, 255, 0.2);
-    border: 1px solid rgba(0, 212, 255, 0.2);
+    box-shadow: 0 0 6px rgba(0, 240, 255, 0.3), inset 0 0 3px rgba(0, 240, 255, 0.2);
+    border: 1px solid rgba(0, 240, 255, 0.2);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -537,11 +537,11 @@ input[type="range"]::-webkit-slider-thumb {
     background: linear-gradient(135deg, var(--accent), var(--accent-purple));
     cursor: pointer;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.9);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.9);
 }
 
 /* ==================== 主内容区 ==================== */
@@ -566,9 +566,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .resizer {
     width: 8px;
     background: linear-gradient(180deg, 
-        rgba(0, 212, 255, 0.3) 0%, 
+        rgba(0, 240, 255, 0.3) 0%, 
         rgba(180, 74, 255, 0.3) 50%,
-        rgba(0, 212, 255, 0.3) 100%);
+        rgba(0, 240, 255, 0.3) 100%);
     cursor: col-resize;
     margin: 0 5px;
     border-radius: 4px;
@@ -581,10 +581,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .resizer:hover {
     background: linear-gradient(180deg, 
-        rgba(0, 212, 255, 0.6) 0%, 
+        rgba(0, 240, 255, 0.6) 0%, 
         rgba(180, 74, 255, 0.6) 50%,
-        rgba(0, 212, 255, 0.6) 100%);
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        rgba(0, 240, 255, 0.6) 100%);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
     width: 10px;
     margin: 0 4px;
 }
@@ -738,7 +738,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* ==================== 高级组件 ==================== */
 .glass-panel {
-    background: rgba(13, 21, 32, 0.6);
+    background: rgba(21, 21, 21, 0.6);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border-light);
     border-radius: 24px;
@@ -762,7 +762,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .upload-slot:hover {
     border-color: var(--accent);
-    background: rgba(0, 212, 255, 0.05);
+    background: rgba(0, 240, 255, 0.05);
 }
 
 .upload-slot img {
@@ -794,10 +794,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
     left: 2px;
     width: 18px;
     height: 18px;
-    background: #fff;
+    background: #fbfaf9;
     border-radius: 50%;
     transition: all 0.3s var(--easing);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .toggle-switch.active::after {
@@ -838,7 +838,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .engine-btn:not(.active):hover {
     color: var(--text-main);
-    background: rgba(0, 212, 255, 0.08);
+    background: rgba(0, 240, 255, 0.08);
 }
 
 .result-frame {

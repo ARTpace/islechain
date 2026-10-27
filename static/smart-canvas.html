@@ -16,12 +16,25 @@
             } catch(e) {}
         })();
     </script>
-    <script src="/static/vendor/js/lucide.js?v=2026.06.12.1780315750"></script>
-    <script src="/static/js/theme.js?v=2026.06.12.1780927239"></script>
-    <script src="/static/js/touch-mouse.js?v=20260726"></script>
-    <script src="/static/js/i18n.js?v=2026.06.12.1780927239"></script>
-    <link rel="stylesheet" href="/static/css/smart-canvas.css?v=20260726">
-    <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20260618001">
+    <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
+    <script src="/static/js/theme.js?v=20261024001"></script>
+    <script src="/static/js/touch-mouse.js?v=20261024001"></script>
+    <script src="/static/js/i18n.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/css/smart-canvas.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20261024001">
+    <style id="ui-responsive">
+        /* 外壳响应式：防横向滚动 + 移动端堆叠 */
+        html, body { overflow-x: hidden; }
+        .shell, #world, .composer, .create-menu, .asset-panel { min-width: 0; }
+        .create-menu-grid { flex-wrap: wrap; }
+        @media (max-width: 640px) {
+            .create-menu { width: 100% !important; max-width: 100% !important; }
+            .create-menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            .asset-panel { width: 100% !important; max-width: 100% !important; }
+            .composer-card { min-width: 0; }
+        }
+    </style>
 </head>
 <body>
     <div id="shell" class="shell">
@@ -431,7 +444,7 @@
                     </div>
                 </div>
                 <div class="image-edit-actions">
-                    <span id="imageEditZoomLabel" style="color:#94a3b8;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
+                    <span id="imageEditZoomLabel" style="color:#9f9d95;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
                     <div id="videoFrameTools" class="video-frame-tools" style="display:none">
                         <button class="image-edit-btn secondary" type="button" onclick="exportVideoFrame('first')"><i data-lucide="skip-back" class="w-4 h-4"></i><span>导出首帧</span></button>
                         <button class="image-edit-btn primary" type="button" onclick="exportVideoFrame('current')"><i data-lucide="image-down" class="w-4 h-4"></i><span>导出当前帧</span></button>
@@ -445,6 +458,6 @@
         <div id="toast" class="toast"></div>
         <div id="mentionPreview" class="mention-preview"><img alt="preview"></div>
     </div>
-    <script src="/static/js/smart-canvas.js?v=20260726"></script>
+    <script src="/static/js/smart-canvas.js?v=20261024001"></script>
 </body>
 </html>

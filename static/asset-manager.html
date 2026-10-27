@@ -15,10 +15,25 @@
             } catch(e) {}
         })();
     </script>
-    <script src="/static/vendor/js/lucide.js?v=2026.06.12.1780315750"></script>
-    <script src="/static/js/theme.js?v=2026.06.12.1780927239"></script>
-    <link rel="stylesheet" href="/static/css/theme.css?v=2026.06.12.1780315750">
-    <link rel="stylesheet" href="/static/css/asset-manager.css?v=2026.06.12.1781488862">
+    <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
+    <script src="/static/js/theme.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/css/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/asset-manager.css?v=20261024001">
+    <style id="ui-responsive">
+        /* 外壳响应式：防横向滚动 + 移动端堆叠 */
+        html, body { overflow-x: hidden; }
+        .asset-page, .asset-page-head, .asset-tabs, .asset-manager-root { min-width: 0; }
+        @media (max-width: 1024px) {
+            .asset-tabs { flex-wrap: wrap; }
+        }
+        @media (max-width: 640px) {
+            .asset-page-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .asset-head-actions { flex-wrap: wrap; width: 100%; }
+            .asset-tabs { overflow-x: auto; flex-wrap: nowrap; }
+            .asset-manager-root { min-width: 0; }
+        }
+    </style>
 </head>
 <body>
     <div class="asset-page">
@@ -50,7 +65,7 @@
     </div>
 
     <input id="assetUploadInput" type="file" accept="image/*,video/*,audio/*,.json,.zip,application/json,application/zip" multiple hidden>
-    <script src="/static/js/asset-manager.js?v=2026.06.12.1781488862"></script>
+    <script src="/static/js/asset-manager.js?v=20261024001"></script>
     <script>
         (function(){
             function updateIcon(theme) {

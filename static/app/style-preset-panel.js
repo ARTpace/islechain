@@ -88,6 +88,9 @@ function _stylePresetRenderBody() {
     const body = document.getElementById('stylePresetBody');
     if (!body) return;
 
+    if (!body._presetThumbnails) body._presetThumbnails = createPresetThumbnailLoader(body);
+    body._presetThumbnails.reset();
+
     const cats = stylePresetsData.categories || [];
     const filtered = _stylePresetFilter(cats);
 
@@ -130,6 +133,7 @@ function _stylePresetRenderBody() {
             </div>
         `;
     }).join('');
+    body._presetThumbnails.watch();
 }
 
 function _stylePresetFilter(cats) {
@@ -152,7 +156,7 @@ function _stylePresetFilter(cats) {
 
 function _stylePresetRenderItem(preset) {
     const thumbHtml = preset.thumbnail 
-        ? `<div class="style-preset-item-thumb"><img src="${preset.thumbnail}" alt="${preset.name || ''}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>`
+        ? `<div class="style-preset-item-thumb"><img data-preset-src="${String(preset.thumbnail).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" alt="${preset.name || ''}" onerror="this.parentElement.style.display='none'" /></div>`
         : '';
     return `
         <div class="style-preset-item" data-preset='${JSON.stringify(preset).replace(/'/g, "&#39;")}'>

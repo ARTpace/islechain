@@ -34,11 +34,11 @@ const PromptTranslateUI = (function() {
             .prompt-translate-corner[data-state="loading"] svg { animation:ptui-spin 0.6s linear infinite; }
             .prompt-translate-corner[data-state="ok"] { color:#16a34a!important; }
             .prompt-translate-corner[data-state="fail"] { color:#dc2626!important; }
-            .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#2563eb!important; }
+            .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#0e7490!important; }
             .prompt-translate-corner[data-lang="en"]:not([data-state]) { color:#ea580c!important; }
-            body.studio-theme-dark .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#60a5fa!important; }
+            body.studio-theme-dark .prompt-translate-corner[data-lang="cn"]:not([data-state]) { color:#00f0ff!important; }
             body.studio-theme-dark .prompt-translate-corner[data-lang="en"]:not([data-state]) { color:#fb923c!important; }
-            .prompt-translate-corner:hover { background:rgba(0,180,216,0.12) !important; color:#00b4d8 !important; }
+            .prompt-translate-corner:hover { background:rgba(6, 182, 212, 0.12) !important; color:#06b6d4 !important; }
             body.studio-theme-dark .prompt-translate-corner:hover { background:rgba(0,240,255,0.12) !important; color:#00f0ff !important; }
             @keyframes ptui-spin { to { transform: rotate(360deg); } }
         `;

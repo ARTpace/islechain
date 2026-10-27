@@ -23,19 +23,19 @@ function injectMsGenNodeCSS() {
     style.id = 'msgen-node-styles';
     style.textContent = `
         .ms-model-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-        .ms-model-tabs button { height:30px; border-radius:999px; padding:0 12px; color:#64748b; border:1px solid #edf2f7; background:#f8fafc; font-size:10px; font-weight:700; }
-        .ms-model-tabs button.active { background:#111827; color:#fff; border-color:#111827; }
+        .ms-model-tabs button { height:30px; border-radius:999px; padding:0 12px; color:#7d7c74; border:1px solid #f4f4f2; background:#faf9f7; font-size:10px; font-weight:700; }
+        .ms-model-tabs button.active { background:#181817; color:#fcfcfb; border-color:#181817; }
         .ms-content { min-height:60px; }
         .ms-controls { display:flex; flex-direction:column; gap:8px; }
-        .ms-w-input,.ms-h-input { background:#fff; border:1px solid #edf2f7; border-radius:8px; padding:4px 8px; font-size:11px; width:80px; }
+        .ms-w-input,.ms-h-input { background:#fcfcfb; border:1px solid #f4f4f2; border-radius:8px; padding:4px 8px; font-size:11px; width:80px; }
         .ms-w-input:disabled,.ms-h-input:disabled { opacity:.5; cursor:not-allowed; }
         .fit-check,.lora-check { display:flex; align-items:center; gap:6px; cursor:pointer; }
         .gen-settings-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         .gen-settings-row__field { flex:1; min-width:0; }
-        .setting-title { font-size:11px; font-weight:700; color:#475569; }
-        .setting-check { display:flex; align-items:center; gap:6px; cursor:pointer; padding:6px 10px; border-radius:8px; background:#f8fafc; border:1px solid #edf2f7; }
-        .gen-btn { height:40px; width:100%; border-radius:16px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; }
-        .gen-btn:disabled { background:#e5e7eb; color:#94a3b8; cursor:not-allowed; }
+        .setting-title { font-size:11px; font-weight:700; color:#595851; }
+        .setting-check { display:flex; align-items:center; gap:6px; cursor:pointer; padding:6px 10px; border-radius:8px; background:#faf9f7; border:1px solid #f4f4f2; }
+        .gen-btn { height:40px; width:100%; border-radius:16px; background:#181817; color:#fcfcfb; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; }
+        .gen-btn:disabled { background:#eceae5; color:#a19f97; cursor:not-allowed; }
         .gen-btn.running i { color:#facc15; fill:#facc15; animation:zapPulse .8s ease-in-out infinite; }
         .gen-cascade-btn { height:40px; width:100%; border-radius:16px; background:var(--strong); color:var(--strong-text); display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; transition:all .15s ease; border:none; cursor:pointer; }
         .gen-cascade-btn:hover { filter:brightness(1.1); }

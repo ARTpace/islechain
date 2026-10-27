@@ -68,7 +68,7 @@ async function kleinExecute(node, refs, prompt, promptId) {
 
     // 缩放最长边: 仅在开启时添加缩放节点
     if (scaleEnabled) {
-        workflowData["33"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": size, "background_color": "#000000", "image": ["8", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
+        workflowData["33"] = { "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "letterbox", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": size, "background_color": "#0b0b0a", "image": ["8", 0] }, "class_type": "LayerUtility: ImageScaleByAspectRatio V2", "_meta": { "title": "图层工具：按宽高比缩放_V2" } };
     }
 
     const params = {

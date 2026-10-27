@@ -146,6 +146,7 @@ manager = ConnectionManager()
 GLOBAL_LOOP = None
 CANVAS_TASKS: Dict[str, Dict[str, Any]] = {}
 CANVAS_TASK_LOCK = Lock()
+APP_BOOT_ID = uuid.uuid4().hex
 AI_IMAGE_TASKS = {}  # {task_id: {status, result, updated_at, ...}}
 AI_IMAGE_TASK_LOCK = Lock()
 IMAGE_REQUEST_MODES = {"openai", "openai-json", "openai-video-proxy", "openai-responses", "openai-async-image"}
@@ -1577,17 +1578,34 @@ def provider_key_env(provider_id):
     """生成提供商 API Key 的环境变量名"""
     return f"{provider_id.upper()}_API_KEY"
 
+def clean_model_labels(raw, models):
+    if not isinstance(raw, dict):
+        return {}
+    allowed = {str(model).strip() for model in (models or []) if str(model).strip()}
+    labels = {}
+    for key, value in raw.items():
+        model = str(key or "").strip()
+        name = str(value or "").strip()[:40]
+        if model in allowed and name:
+            labels[model] = name
+    return labels
+
 def normalize_provider(data):
     """规范化提供商数据"""
+    image_models = data.get("image_models") or []
+    chat_models = data.get("chat_models") or []
+    video_models = data.get("video_models") or []
     return {
         "id": data.get("id", "").strip(),
         "name": data.get("name", "").strip(),
         "base_url": data.get("base_url", "").strip(),
         "protocol": data.get("protocol", "openai"),
+        "model_capabilities": data.get("model_capabilities") or {},
         "image_request_mode": normalize_image_request_mode(data.get("image_request_mode", "")),
-        "image_models": data.get("image_models") or [],
-        "chat_models": data.get("chat_models") or [],
-        "video_models": data.get("video_models") or [],
+        "image_models": image_models,
+        "chat_models": chat_models,
+        "video_models": video_models,
+        "model_labels": clean_model_labels(data.get("model_labels"), list(image_models) + list(chat_models) + list(video_models)),
         "ms_loras": data.get("ms_loras") or [],
         "primary": bool(data.get("primary", False)),
         "enabled": bool(data.get("enabled", True)),
@@ -1606,10 +1624,12 @@ def public_provider(provider):
         "name": provider["name"],
         "base_url": provider["base_url"],
         "protocol": provider["protocol"],
+        "model_capabilities": provider.get("model_capabilities") or {},
         "image_request_mode": normalize_image_request_mode(provider.get("image_request_mode", "")),
-        "image_models": provider["image_models"],
+        "image_models": provider["image_models"] or (["gpt-image-2"] if provider_protocol(provider) == "codex" else []),
         "chat_models": provider["chat_models"],
         "video_models": provider.get("video_models") or [],
+        "model_labels": provider.get("model_labels") or {},
         "ms_loras": provider.get("ms_loras") or [],
         "primary": provider["primary"],
         "enabled": provider["enabled"],
@@ -1899,6 +1919,8 @@ class GenerateRequest(BaseModel):
     canvas_id: str = ""  # 新增:画布ID,可选
     extra_pnginfo: Optional[Dict[str, Any]] = None  # ComfyUI extra_pnginfo,用于 GJJ_MultiImageLoader 等节点
     feature: str = ""  # 输出子目录(zimage/anima/krea2)
+    conversation_id: str = ""
+    message_id: str = ""
 
 class WorkflowField(BaseModel):
     id: str = ""
@@ -1945,6 +1967,7 @@ class AIReference(BaseModel):
     name: str = ""
 
 class OnlineImageRequest(BaseModel):
+    generation_params: Dict[str, Any] = Field(default_factory=dict)
     prompt: str = Field(min_length=1, max_length=4000)
     model: str = ""
     size: str = "1024x1024"
@@ -1954,6 +1977,8 @@ class OnlineImageRequest(BaseModel):
     image_request_mode: str = ""
     reference_images: List[AIReference] = []
     feature: str = ""  # 落盘子目录与画廊类型, 如 "zimage" 表示并入文生图画廊; 留空保持默认 online
+    conversation_id: str = ""
+    message_id: str = ""
 
 class OnlineVideoRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
@@ -2291,7 +2316,7 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
         subfolder_parts.append(date_folder)
         subfolder = "/".join(subfolder_parts)
         # 缩略图放到后台生成，避免 4 张图都压完才把地址返回给页面
-        threading.Thread(target=_prewarm_thumbnails, args=(local_path, (600, 768)), daemon=True).start()
+        threading.Thread(target=_prewarm_thumbnails, args=(local_path, (768, 600)), daemon=True).start()
         return build_output_url(canvas, filename, username, subfolder=subfolder)
     except Exception as e:
         print(f"下载图片失败: {e}")
@@ -2445,6 +2470,36 @@ def save_conversation(user_id, conversation):
         path = conversation_path(user_id, conversation["id"])
         atomic_write_json(path, conversation, ensure_ascii=False, indent=2)
 
+def finish_chat_generation(conversation_id, message_id, images=None, error="", user_id=""):
+    """把已经完成的生图写回对话。页面关掉后，后台任务仍能把图挂上。"""
+    conversation_id = str(conversation_id or "").strip()
+    message_id = str(message_id or "").strip()
+    if not conversation_id or not message_id:
+        return
+    if not user_id:
+        try:
+            user_id = account_dirname()
+        except Exception:
+            return
+    try:
+        conversation = load_conversation(user_id, conversation_id)
+    except Exception:
+        return
+    message = next((item for item in conversation.get("messages") or [] if item.get("id") == message_id), None)
+    if not message:
+        return
+    urls = message.setdefault("image_urls", [])
+    for url in images or []:
+        if url and url not in urls:
+            urls.append(url)
+    message.pop("pending_generation", None)
+    if error and not urls:
+        message["generation_error"] = str(error)[:300]
+    else:
+        message.pop("generation_error", None)
+    conversation["updated_at"] = now_ms()
+    save_conversation(user_id, conversation)
+
 def new_conversation(user_id, title="新对话"):
     timestamp = now_ms()
     conversation = {
@@ -2464,7 +2519,26 @@ def load_conversation(user_id, conversation_id):
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+_conversation_list_cache = {}
+
+
 def list_conversations(user_id):
+    directory = user_dir(user_id)
+    signature = []
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            if not entry.name.endswith(".json"):
+                continue
+            try:
+                stat = entry.stat()
+                if entry.is_file():
+                    signature.append((entry.name, stat.st_mtime_ns, stat.st_size))
+            except FileNotFoundError:
+                continue  # 删除历史对话时，目录可能正被另一请求更新。
+    signature = tuple(sorted(signature))
+    cached = _conversation_list_cache.get(directory)
+    if cached and cached[0] == signature:
+        return cached[1]
     records = []
     for filename in os.listdir(user_dir(user_id)):
         if not filename.endswith(".json"):
@@ -2484,7 +2558,12 @@ def list_conversations(user_id):
             "updated_at": data.get("updated_at", 0),
             "last_message": (last_message or {}).get("content", ""),
         })
-    return sorted(records, key=lambda item: item["updated_at"], reverse=True)
+    records.sort(key=lambda item: item["updated_at"], reverse=True)
+    # ponytail: 仅缓存摘要，文件变更自动失效；限制账户数量避免无限增长。
+    if len(_conversation_list_cache) >= 32:
+        _conversation_list_cache.pop(next(iter(_conversation_list_cache)))
+    _conversation_list_cache[directory] = (signature, records)
+    return records
 
 def canvas_path(canvas_id):
     cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", canvas_id or "")
@@ -2598,6 +2677,9 @@ def display_title(text):
     title = re.sub(r"\s+", " ", text or "").strip()
     return title[:24] or "新对话"
 
+from tools.api_compat import api_root, models_endpoint, model_items, is_cloudflare
+
+
 def resolve_chat_provider(provider: str, model: str, ms_model: str):
     if provider == "modelscope":
         if not MODELSCOPE_API_KEY:
@@ -2616,7 +2698,7 @@ def resolve_chat_provider(provider: str, model: str, ms_model: str):
                 raise HTTPException(status_code=400, detail=f"提供商 {p.get('name', provider)} 未配置请求地址")
             if not api_key:
                 raise HTTPException(status_code=400, detail=f"提供商 {p.get('name', provider)} 未配置 API Key")
-            base = base_url + "/v1" if not base_url.endswith("/v1") else base_url
+            base = api_root(base_url)
             hdrs = {"Authorization": f"Bearer {sanitize_api_key(api_key)}", "Content-Type": "application/json"}
             mdl = selected_model(model, p["chat_models"][0] if p["chat_models"] else "")
             return base, hdrs, mdl
@@ -2638,7 +2720,7 @@ def selected_model(requested, fallback):
     model = (requested or fallback).strip()
     if not model:
         raise HTTPException(status_code=400, detail="模型名称不能为空")
-    if len(model) > 120 or not re.fullmatch(r"[a-zA-Z0-9_.:/+-]+", model):
+    if len(model) > 120 or not re.fullmatch(r"[a-zA-Z0-9_@.:/+-]+", model):
         raise HTTPException(status_code=400, detail=f"模型名称不合法:{model}")
     return model
 
@@ -2869,9 +2951,10 @@ def _resolve_image_provider(provider_id, protocol_hint=None):
         "id": prov["id"],
         "name": prov.get("name", provider_id),
         "protocol": proto,
+        "model_capabilities": prov.get("model_capabilities") or {},
         "base_url": base_url,
         "api_key": api_key,
-        "image_models": prov.get("image_models") or [],
+        "image_models": prov.get("image_models") or (["gpt-image-2"] if proto == "codex" else []),
         "video_models": prov.get("video_models") or [],
         "chat_models": prov.get("chat_models") or [],
     }
@@ -2966,11 +3049,16 @@ async def _gen_modelscope(client, base_url, api_key, model, prompt, size, qualit
     if width and height:
         payload["width"] = width
         payload["height"] = height
-    ref_urls = [ref.get("url", "") for ref in (refs or [])[:4] if isinstance(ref, dict) and ref.get("url")]
+    ref_urls = [ref for ref in (refs or [])[:4] if isinstance(ref, dict) and ref.get("url")]
     if ref_urls:
-        # 本地路径转为 data URL（ModelScope 无法访问本地 /output/ 路径）
         converted = []
-        for url in ref_urls:
+        for ref in ref_urls:
+            part = reference_file_part(ref)
+            if part:
+                _filename, data, mime = part
+                converted.append(f"data:{mime};base64,{base64.b64encode(data).decode()}")
+                continue
+            url = ref.get("url", "")
             if url.startswith("/output/") or url.startswith("/assets/"):
                 try:
                     data_url = reference_to_data_url({"url": url})
@@ -2979,8 +3067,10 @@ async def _gen_modelscope(client, base_url, api_key, model, prompt, size, qualit
                         continue
                 except Exception:
                     pass
-            converted.append(url)
-        payload["image_url"] = converted
+            if url:
+                converted.append(url)
+        if converted:
+            payload["image_url"] = converted
     headers = {
         "Authorization": f"Bearer {clean_token}",
         "Content-Type": "application/json",
@@ -3107,6 +3197,83 @@ async def _post_image_form(client, url, headers, data, files, timeout):
             return resp
     return resp
 
+def agnes_size_ratio(size):
+    text = str(size or "").strip()
+    upper = text.upper()
+    if upper in ("1K", "2K", "3K", "4K"):
+        return upper, "1:1"
+    ratios = {
+        "1:1": 1, "3:4": 3 / 4, "4:3": 4 / 3, "16:9": 16 / 9,
+        "9:16": 9 / 16, "2:3": 2 / 3, "3:2": 3 / 2, "21:9": 21 / 9,
+    }
+    if "x" not in text.lower():
+        return "1K", "1:1"
+    width_text, height_text = text.lower().split("x", 1)
+    try:
+        width, height = int(float(width_text)), int(float(height_text))
+    except ValueError:
+        return "1K", "1:1"
+    if width <= 0 or height <= 0:
+        return "1K", "1:1"
+    target = width / height
+    ratio = min(ratios, key=lambda key: abs(ratios[key] - target))
+    longest = max(width, height)
+    if longest >= 3600:
+        tier = "4K"
+    elif longest >= 2800:
+        tier = "3K"
+    elif longest >= 1800:
+        tier = "2K"
+    else:
+        tier = "1K"
+    return tier, ratio
+
+
+async def _gen_agnes_image(client, base_url, api_key, model, prompt, size, refs):
+    """Agnes 图生图走 /v1/images/generations，参考图放在 extra_body.image。"""
+    tier, ratio = agnes_size_ratio(size)
+    extra = {"response_format": "url"}
+    images = []
+    for ref in (refs or [])[:4]:
+        part = reference_file_part(ref)
+        if part:
+            _name, data, mime = part
+            images.append("data:%s;base64,%s" % (mime, base64.b64encode(data).decode()))
+            continue
+        url = ref.get("url", "") if isinstance(ref, dict) else ""
+        if url:
+            images.append(url)
+    if images:
+        extra["image"] = images
+    body = {
+        "model": model,
+        "prompt": prompt,
+        "size": tier,
+        "ratio": ratio,
+        "extra_body": extra,
+    }
+    resp = await _post_image_json(
+        client,
+        f"{base_url.rstrip('/')}/v1/images/generations",
+        _openai_headers(base_url, api_key),
+        body,
+        httpx.Timeout(connect=30.0, read=180.0, write=120.0, pool=30.0),
+    )
+    if resp.status_code >= 400:
+        text = resp.text or ""
+        if "queue is full" in text.lower():
+            detail = "生图排队已满，请稍后再试。"
+        else:
+            message = re.search(r'"message"\s*:\s*"([^"]+)"', text)
+            detail = (message.group(1) if message else text)[:180] or "Agnes 生图失败"
+        raise HTTPException(status_code=502, detail=detail)
+    try:
+        raw = resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Agnes 返回无效响应")
+    return extract_image(raw), raw
+
+
 async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quality, refs, is_grok=False):
     """OpenAI /v1/images/generations or /edits, also Grok via /v1/messages."""
     hdrs = _openai_headers(base_url, api_key)
@@ -3144,21 +3311,17 @@ async def _gen_openai_sync(client, base_url, api_key, model, prompt, size, quali
             result = await wait_for_image_task_v2(client, task_id, tasks_base=base.replace("/v1",""), key=api_key)
             return extract_image(result), result
         raise HTTPException(status_code=502, detail="Grok 接口未返回图片结果")
-    
+
+    if str(model or "").lower().startswith("agnes-image") or "agnes-ai" in base.lower():
+        return await _gen_agnes_image(client, base, api_key, model, prompt, size, refs)
+
     # Standard OpenAI
     if refs:
-        files, opened = [], []
-        try:
-            for ref in refs[:4]:
-                path = output_file_from_url(ref.get("url", ""))
-                if not path: continue
-                fh = open(path, "rb"); opened.append(fh)
-                ct = content_type_for_path(path)
-                files.append(("image", (os.path.basename(path), fh, ct)))
-            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
-            resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, httpx.Timeout(connect=30.0, read=180.0, write=60.0, pool=30.0))
-        finally:
-            for fh in opened: fh.close()
+        files = reference_upload_files(refs)
+        if not files:
+            raise HTTPException(status_code=400, detail="参考图无法读取，请重新选择图片后再试。")
+        data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
+        resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, httpx.Timeout(connect=30.0, read=180.0, write=60.0, pool=30.0))
     else:
         resp = await _post_image_json(client, f"{base}/v1/images/generations", _openai_headers(base_url, api_key), {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, httpx.Timeout(connect=30.0, read=120.0, write=60.0, pool=30.0))
     
@@ -3192,22 +3355,82 @@ async def _gen_gemini(client, base_url, api_key, model, prompt, size, quality, r
     return extract_image_from_chat(raw), raw
 
 
+async def _gen_webai2api(client, prov, model, prompt, size, refs, generation_params=None, on_progress=None):
+    from tools.webai_gateway import image_results
+    content = [{"type": "text", "text": prompt}]
+    for ref in refs:
+        content.append({"type": "image_url", "image_url": {"url": reference_to_data_url(ref)}})
+    body = {"model": model, "messages": [{"role": "user", "content": content}], "stream": False, "n": 1}
+    # 网页端按比例选择，像素尺寸仅作提示；不传不受支持的采样器、种子等参数。
+    if re.fullmatch(r"\d+x\d+", size or ""):
+        import math
+        width, height = map(int, size.split("x"))
+        if width > 0 and height > 0:
+            divisor = math.gcd(width, height)
+            body["ratio"] = f"{width // divisor}:{height // divisor}"
+    metadata = prov.get("model_capabilities", {}).get(model, {})
+    capabilities = metadata.get('generation_params') or {}
+    if capabilities.get('source') == 'website':
+        # 直接调用 API、历史重试也要读取网关最新能力，不能只信前端缓存。
+        response = await client.get(prov['base_url'] + '/v1/models',
+            headers=_openai_headers(prov['base_url'], prov['api_key']), timeout=90.0)
+        response.raise_for_status()
+        from tools.webai_gateway import model_catalog
+        metadata = model_catalog(response.json().get('data', [])).get(model, {})
+        capabilities = metadata.get('generation_params') or {}
+        if capabilities.get('source') != 'website':
+            raise HTTPException(status_code=400, detail='未获取当前模型的参数，请刷新模型后重试')
+        body.pop('ratio', None)
+    policy = metadata.get('image_policy', 'optional')
+    if policy in ('forbidden', 'none') and refs:
+        raise HTTPException(status_code=400, detail='该网页模型不支持参考图，请移除参考图或切换模型')
+    if policy == 'required' and not refs:
+        raise HTTPException(status_code=400, detail='该网页模型需要至少一张参考图')
+    if metadata.get('available') is False:
+        raise HTTPException(status_code=400, detail='上游当前未开放该模型')
+    from tools.webai_gateway import validate_generation_params
+    try:
+        params = validate_generation_params(capabilities, generation_params or {}, len(refs))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if params:
+        body['params'] = params
+        body.update(params)
+        body['n'] = params.get('count', 1)
+    if on_progress:
+        from tools.webai_gateway import read_progress_stream
+        body.update(stream=True, progress=True)
+        async with client.stream('POST', prov['base_url'] + '/v1/chat/completions',
+                headers=_openai_headers(prov['base_url'], prov['api_key']), json=body,
+                timeout=httpx.Timeout(900.0, connect=20.0)) as response:
+            response.raise_for_status()
+            try:
+                raw = await read_progress_stream(response, on_progress)
+            except ValueError as exc:
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+    else:
+        response = await client.post(prov['base_url'] + '/v1/chat/completions',
+            headers=_openai_headers(prov['base_url'], prov['api_key']), json=body,
+            timeout=httpx.Timeout(900.0, connect=20.0))
+        response.raise_for_status()
+        raw = response.json()
+    images = image_results(raw, prov["base_url"])
+    if not images:
+        raise HTTPException(status_code=502, detail="网页模型没有返回图片，请检查登录状态、平台额度或更换生图模型")
+    raw["_webai_images"] = images
+    return images[0], raw
+
+
 async def _gen_apimart(client, base_url, api_key, model, prompt, size, quality, refs):
     """APIMart async: POST -> poll GET /v1/images/tasks/{task_id}."""
     hdrs = _openai_headers(base_url, api_key)
     base = base_url.rstrip("/")
     if refs:
-        files, opened = [], []
-        try:
-            for ref in refs[:4]:
-                path = output_file_from_url(ref.get("url",""))
-                if not path: continue
-                fh = open(path,"rb"); opened.append(fh)
-                files.append(("image",(os.path.basename(path),fh,content_type_for_path(path))))
-            data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
-            resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, None)
-        finally:
-            for fh in opened: fh.close()
+        files = reference_upload_files(refs)
+        if not files:
+            raise HTTPException(status_code=400, detail="参考图无法读取，请重新选择图片后再试。")
+        data = {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png"}
+        resp = await _post_image_form(client, f"{base}/v1/images/edits", _openai_headers(base_url, api_key, multipart=True), data, files, None)
     else:
         resp = await _post_image_json(client, f"{base}/v1/images/generations", hdrs, {"model":model,"prompt":prompt,"size":size,"quality":quality,"output_format":"png","n":1}, None)
     resp.raise_for_status()
@@ -3305,7 +3528,7 @@ async def wait_for_image_task_v2(client, task_id, tasks_base=None, key=None):
     raise HTTPException(status_code=504, detail=f"生图任务超时,task_id={task_id}")
 
 
-async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai", provider_id="", provider=None, image_request_mode="openai"):
+async def generate_ai_image(prompt, size, quality, model, reference_images=None, protocol="openai", provider_id="", provider=None, image_request_mode="openai", generation_params=None, on_progress=None):
     """Multi-protocol online image generation dispatcher.
     
     Supported: openai (with modes: openai-json, openai-responses, openai-async-image), 
@@ -3318,11 +3541,23 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     
     prov = provider or _resolve_image_provider(provider_id, protocol)
     actual_proto = provider_protocol(prov) if isinstance(prov, dict) else (protocol or PROTOCOL_OPENAI)
+
+    if actual_proto == "codex":
+        from tools.codex_image import generate_image
+        parts = [await asyncio.to_thread(reference_file_part, ref) for ref in refs]
+        if any(part is None for part in parts):
+            raise HTTPException(status_code=400, detail="Codex 参考图请先上传到本机，暂不支持外部图片 URL。")
+        try:
+            return await generate_image(prompt, size, quality, model, parts)
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
     
     async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
         # ModelScope 专用（使用 async task API，与 OpenAI 标准不同）
         if str(provider_id).lower() == "modelscope" or str(prov.get("id", "")).lower() == "modelscope":
             return await _gen_modelscope(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
+        if actual_proto == "webai2api":
+            return await _gen_webai2api(client, prov, model, prompt, size, refs, generation_params, on_progress)
         if actual_proto == PROTOCOL_GEMINI:
             return await _gen_gemini(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
         elif actual_proto == PROTOCOL_APIMART:
@@ -3350,7 +3585,7 @@ def upstream_message_from_record(item):
     refs = item.get("attachments") or []
     if refs and role == "user":
         content = [{"type": "text", "text": item.get("content", "")}]
-        for ref in refs[:4]:
+        for ref in refs:
             url = reference_to_data_url(ref)
             if url:
                 content.append({"type": "image_url", "image_url": {"url": url}})
@@ -3474,6 +3709,64 @@ def content_type_for_path(path):
     if ext == ".txt":
         return "text/plain"
     return "application/octet-stream"
+
+def reference_file_part(ref):
+    """把参考图变成可上传的文件。支持本机 /output 路径和对话里的 data URL。"""
+    url = ""
+    name = ""
+    if isinstance(ref, dict):
+        url = str(ref.get("url") or "")
+        name = str(ref.get("name") or "")
+    else:
+        url = str(ref or "")
+    path = output_file_from_url(url)
+    if path:
+        with open(path, "rb") as handle:
+            data = handle.read()
+        return _cap_reference_image(os.path.basename(path), data, content_type_for_path(path))
+    if not url.startswith("data:"):
+        return None
+    header, _, payload = url.partition(",")
+    mime = "image/png"
+    if header.startswith("data:") and ";" in header:
+        mime = header[5:].split(";", 1)[0] or mime
+    try:
+        data = base64.b64decode(payload)
+    except Exception:
+        return None
+    if not data:
+        return None
+    ext = {"image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp", "image/gif": "gif"}.get(mime, "png")
+    filename = os.path.basename(name) if name else f"reference.{ext}"
+    if "." not in filename:
+        filename = f"{filename}.{ext}"
+    return _cap_reference_image(filename, data, mime)
+
+
+def _cap_reference_image(filename, data, mime, max_edge=1536):
+    try:
+        img = ImageOps.exif_transpose(Image.open(BytesIO(data)))
+        img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        stem = os.path.splitext(filename)[0] or "reference"
+        return f"{stem}.jpg", buf.getvalue(), "image/jpeg"
+    except Exception:
+        return filename, data, mime
+
+
+def reference_upload_files(refs):
+    files = []
+    for ref in (refs or [])[:4]:
+        part = reference_file_part(ref)
+        if not part:
+            continue
+        filename, data, mime = part
+        files.append(("image", (filename, BytesIO(data), mime)))
+    return files
+
 
 def output_file_from_url(url):
     if isinstance(url, dict):
@@ -3762,15 +4055,11 @@ def media_preview_cache_paths(path: str, width: int):
         os.path.join(MEDIA_PREVIEW_DIR, f"{key}.png"),
     )
 
-def _prewarm_thumbnails(local_path: str, widths=(600, 768)):
-    """为本地图片同步预生成 WebP 缩略图缓存(与 /api/media-preview 共用缓存键)。
+_PREVIEW_LOCKS = tuple(threading.Lock() for _ in range(32))
 
-    关键: 同步执行,可在 worker 线程(asyncio.to_thread)里安全调用,无需事件循环。
-    生成流程(_run_comfy_generate_sync → download_image)走的就是 worker 线程,
-    之前用 asyncio.create_task 触发的预生成因"无运行中的事件循环"而静默失败,
-    导致画廊首刷永远缓存未命中、每次都现场读原图+缩放。这里改为同步预生成,
-    保证 /api/generate 返回前 768/600 的 WebP 已落盘,前端首刷直接命中、秒出。
-    """
+
+def _prewarm_thumbnails(local_path: str, widths=(768, 600)):
+    """后台预热与首次预览请求共用锁、缓存和原图解码；缓存文件原子发布。"""
     try:
         from PIL import Image, ImageOps
         if not local_path or not os.path.isfile(local_path):
@@ -3779,17 +4068,34 @@ def _prewarm_thumbnails(local_path: str, widths=(600, 768)):
         if ext in ('.mp4', '.webm', '.mov', '.mkv', '.avi'):
             return
         os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
-        for w_target in widths:
-            webp_path, _ = media_preview_cache_paths(local_path, w_target)
-            if os.path.exists(webp_path):
-                continue
-            with Image.open(local_path) as src:
+        with _PREVIEW_LOCKS[hash(os.path.abspath(local_path)) % len(_PREVIEW_LOCKS)]:
+            missing = []
+            for width in dict.fromkeys(widths):
+                webp_path, png_path = media_preview_cache_paths(local_path, width)
+                if not os.path.exists(webp_path) and not os.path.exists(png_path):
+                    missing.append((width, webp_path))
+            if not missing:
+                return
+            with Image.open(local_path) as source:
+                src = source
                 src = ImageOps.exif_transpose(src)
                 has_alpha = src.mode in ("RGBA", "LA") or (src.mode == "P" and "transparency" in src.info)
-                if src.width > w_target:
-                    src.thumbnail((w_target, w_target), Image.BILINEAR)
-                out = src.convert("RGBA" if has_alpha else "RGB")
-                out.save(webp_path, format="WEBP", quality=88)
+                for w_target, webp_path in missing:
+                    out = src.copy()
+                    out.thumbnail((w_target, w_target), Image.BILINEAR)
+                    out = out.convert("RGBA" if has_alpha else "RGB")
+                    temporary = webp_path + '.' + uuid.uuid4().hex + '.tmp'
+                    try:
+                        try:
+                            out.save(temporary, format="WEBP", quality=88, method=2)
+                            target = webp_path
+                        except Exception:
+                            out.save(temporary, format="PNG")
+                            target = os.path.splitext(webp_path)[0] + '.png'
+                        os.replace(temporary, target)
+                    finally:
+                        if os.path.exists(temporary):
+                            os.remove(temporary)
     except Exception as e:
         print(f"[prewarm-thumb] failed {os.path.basename(local_path or '')}: {e}")
 
@@ -5556,7 +5862,7 @@ MODELSCOPE_DEFAULT_IMAGE_MODELS = [
 ]
 JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro", "5.0", "4.7", "4.6", "4.5", "4.1", "4.0", "3.1", "3.0"]
 JIMENG_DEFAULT_VIDEO_MODELS = ["VideoGen-720p", "VideoGen-1080p", "VideoGen-4K"]
-CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "$imagegen"]
+CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2"]
 GEMINI_CLI_DEFAULT_IMAGE_MODELS = ["imagen-3", "imagen-3-2k", "Nano-Banana", "$imagegen"]
 RUNNINGHUB_DEFAULT_IMAGE_MODELS = [
     "Tongyi-MAI/Z-Image-Turbo",
@@ -6873,6 +7179,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
             "video_urls": video_urls
         }
         save_to_history(result)
+        finish_chat_generation(getattr(req, "conversation_id", ""), getattr(req, "message_id", ""), local_urls)
         # Broadcast if there are images, audio OR text output
         # 但ps.json和ps_send.json工作流不广播,由前端自行处理
         if GLOBAL_LOOP and (local_urls or audio_urls or output_text) and req.workflow_json not in ('ps.json', 'ps_send.json'):
@@ -6880,6 +7187,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
         return result
 
     except Exception as e:
+        finish_chat_generation(getattr(req, "conversation_id", ""), getattr(req, "message_id", ""), error=str(e))
         return {"images": [], "audio": [], "videos": [], "video_urls": [], "error": str(e)}
     finally:
         if prompt_id:
@@ -6906,9 +7214,9 @@ async def run_canvas_comfy_task(task_id: str, req: GenerateRequest, token: str =
         result = await asyncio.to_thread(_run_comfy_generate_sync, req, token)
         with CANVAS_TASK_LOCK:
             CANVAS_TASKS[task_id].update({
-                "status": "succeeded",
+                "status": "failed" if result.get("error") else "succeeded",
                 "result": result,
-                "error": "",
+                "error": result.get("error") or "",
                 "updated_at": time.time(),
             })
     except Exception as exc:
@@ -7075,6 +7383,7 @@ class ApiProviderPayload(BaseModel):
     image_models: List[str] = []
     chat_models: List[str] = []
     video_models: List[str] = []
+    model_labels: Dict[str, str] = {}
     primary: bool = False
     enabled: bool = True
 
@@ -7083,7 +7392,7 @@ class TestConnectionPayload(BaseModel):
     api_key: str = ""
     provider_id: str = ""
 
-async def fetch_models_from_upstream(base_url: str, api_key: str):
+async def fetch_models_from_upstream(base_url: str, api_key: str, refresh: bool = False, model: str = ""):
     """从 OpenAI 兼容 /v1/models 端点拉取模型"""
     base_url = (base_url or "").strip().rstrip("/")
     if not base_url:
@@ -7096,7 +7405,10 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
 
-    url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+    url = models_endpoint(base_url)
+    if refresh:
+        from urllib.parse import urlencode
+        url += ("&" if "?" in url else "?") + urlencode({"refresh": "true", "model": model})
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -7107,15 +7419,19 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
             if resp.status_code >= 400:
                 raise HTTPException(status_code=resp.status_code, detail=f"上游 /v1/models 失败:{resp.text[:300]}")
             raw = resp.json()
+            if is_cloudflare(api_root(base_url)):
+                collected = model_items(raw, cloudflare=True)
+                pages = int((raw.get("result_info") or {}).get("total_pages") or 1)
+                for page in range(2, pages + 1):
+                    next_resp = await client.get(url + f"&page={page}", headers={
+                        "Authorization": f"Bearer {sanitize_api_key(api_key)}", "Accept": "application/json"})
+                    next_resp.raise_for_status()
+                    collected.extend(model_items(next_resp.json(), cloudflare=True))
+                raw = {"data": collected}
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"请求上游模型列表失败:{e}")
 
-    # 兼容多种返回结构
-    items = raw.get("data") if isinstance(raw, dict) else None
-    if not items and isinstance(raw, dict):
-        items = raw.get("models") or raw.get("list") or []
-    if not isinstance(items, list):
-        items = []
+    items = model_items(raw)
 
     ids = []
     for it in items:
@@ -7128,8 +7444,13 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
 
     ids = sorted(set(ids))
 
-    # 分类规则
+    from tools.webai_gateway import model_catalog
+    capabilities = model_catalog(items)
+    # 优先使用上游声明的类型，兼容没有类型的普通 OpenAI 平台。
     def classify(mid):
+        explicit = capabilities.get(mid, {}).get("type")
+        if explicit:
+            return explicit
         lc = mid.lower()
         video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
         if any(k in lc for k in video_keys):
@@ -7145,6 +7466,7 @@ async def fetch_models_from_upstream(base_url: str, api_key: str):
 
     return {
         "total": len(ids),
+        "model_capabilities": capabilities,
         "image_models": grouped["image"],
         "chat_models": grouped["chat"],
         "video_models": grouped["video"],
@@ -7173,7 +7495,7 @@ for _wd in BUILTIN_WORKFLOW_DIRS:
 
 def update_env_values(updates):
     """更新 .env 文件中的配置值"""
-    env_path = os.path.join(os.path.dirname(__file__), "API", ".env")
+    env_path = API_ENV_FILE
     try:
         env_lines = []
         if os.path.exists(env_path):
@@ -8614,20 +8936,27 @@ def save_user_prompt_dict(data: dict):
     atomic_write_json(path, data, ensure_ascii=False, indent=2)
 
 # --- online 生成公共模型/助手（被 routers/canvas_tasks.py 等通过 _main 引用，需留在 main） ---
-async def build_online_image_result(payload: OnlineImageRequest, username: str = None):
+async def build_online_image_result(payload: OnlineImageRequest, username: str = None, on_progress=None):
     provider_id = payload.provider_id or "comfly"
     prov = _resolve_image_provider(provider_id)
     model = selected_model(payload.model, (prov["image_models"] or [IMAGE_MODEL])[0])
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     mode = normalize_image_request_mode(payload.image_request_mode or prov.get("image_request_mode", "openai"))
-    print(f"[online-image] provider={provider_id} model={model} key={prov.get('api_key','')[:16]}... size={payload.size} mode={mode}")
+    print(f"[online-image] provider={provider_id} model={model} size={payload.size} mode={mode}")
+    if on_progress:
+        on_progress({'source': 'local', 'stage': 'awaiting_provider', 'progress': None})
     try:
-        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode)
+        image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode, generation_params=payload.generation_params, on_progress=on_progress)
+        if on_progress:
+            on_progress({'source': 'local', 'stage': 'saving', 'progress': None})
         # 组织子文件夹: {feature}/{日期} (feature 留空时回退 online/{日期})
         date_str = time.strftime("%Y-%m-%d", time.localtime())
         feature = (payload.feature or "").strip()
         subfolder = f"{feature}/{date_str}" if feature else f"online/{date_str}"
         local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
+        local_images = [local_url]
+        for extra_image in raw.get("_webai_images", [])[1:]:
+            local_images.append(await save_ai_image_to_output(extra_image, prefix="online_", username=username, subfolder=subfolder))
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
         friendly = None
@@ -8637,6 +8966,8 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
             friendly = f"该模型不支持当前分辨率:最长边超过 {limit}px。请把图片分辨率调低(例如换到 2K 或更小),或更换支持高分辨率的模型。"
         elif "Invalid size" in text or "invalid_value" in text:
             friendly = f"该模型不支持当前尺寸:{payload.size}。请尝试更换分辨率或模型。"
+        elif "queue is full" in text.lower():
+            friendly = "生图排队已满，请稍后再试。"
         elif "rate limit" in text.lower() or "429" in text:
             friendly = "请求过于频繁,已被上游限流,请稍后再试。"
         elif "Authentication failed" in text or "valid ModelScope token" in text or "Unauthorized" in text or "invalid api key" in text.lower():
@@ -8658,7 +8989,7 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         raise HTTPException(status_code=getattr(exc, "status_code", 500), detail=str(detail)) from exc
     return {
         "prompt": payload.prompt,
-        "images": [local_url],
+        "images": local_images,
         "timestamp": time.time() * 1000,
         "type": feature if feature else "online",
         "model": model,
@@ -8694,6 +9025,7 @@ from routers import ms_generate
 from routers import canvas_comfy, proxy_download, workflows_legacy, animadex
 from routers import media_ops, ideogram4, restart, interrogate
 from routers import online_gen, output_zip, user_assets
+from routers import training
 
 app.include_router(auth)
 app.include_router(canvases)
@@ -8739,8 +9071,14 @@ app.include_router(interrogate)
 app.include_router(online_gen)
 app.include_router(output_zip)
 app.include_router(user_assets)
+app.include_router(training)
 import lan_sharing
 app.include_router(lan_sharing.router)
+from feature_access import router as feature_access_router
+app.include_router(feature_access_router)
+
+from generation_data import install as install_generation_data
+install_generation_data(app)
 
 
 if __name__ == "__main__":

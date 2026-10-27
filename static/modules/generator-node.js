@@ -26,12 +26,12 @@ function injectGeneratorNodeCSS() {
         .gen-settings { display:flex; flex-direction:column; gap:8px; }
         .gen-settings-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         .gen-count-row { display:flex; align-items:center; gap:4px; }
-        .gen-stepper { display:flex; align-items:center; gap:2px; background:#f8fafc; border:1px solid #edf2f7; border-radius:999px; padding:2px; }
-        .gen-step-btn { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:#64748b; cursor:pointer; }
-        .gen-step-btn:hover { background:#edf2f7; color:#111827; }
-        .gen-count-input { width:32px; height:24px; border:none; background:transparent; text-align:center; font-size:11px; font-weight:700; color:#111827; outline:none; }
-        .gen-btn { height:40px; width:100%; border-radius:16px; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; }
-        .gen-btn:disabled { background:#e5e7eb; color:#94a3b8; cursor:not-allowed; }
+        .gen-stepper { display:flex; align-items:center; gap:2px; background:#faf9f7; border:1px solid #f4f4f2; border-radius:999px; padding:2px; }
+        .gen-step-btn { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:#7d7c74; cursor:pointer; }
+        .gen-step-btn:hover { background:#f4f4f2; color:#181817; }
+        .gen-count-input { width:32px; height:24px; border:none; background:transparent; text-align:center; font-size:11px; font-weight:700; color:#181817; outline:none; }
+        .gen-btn { height:40px; width:100%; border-radius:16px; background:#181817; color:#fcfcfb; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; }
+        .gen-btn:disabled { background:#eceae5; color:#a19f97; cursor:not-allowed; }
         .gen-btn.running i { color:#facc15; fill:#facc15; animation:zapPulse .8s ease-in-out infinite; }
         .gen-cascade-btn { height:40px; width:100%; border-radius:16px; background:var(--strong); color:var(--strong-text); display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.12em; transition:all .15s ease; border:none; cursor:pointer; }
         .gen-cascade-btn:hover { filter:brightness(1.1); }

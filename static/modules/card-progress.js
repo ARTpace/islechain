@@ -91,13 +91,13 @@ const CardProgress = (function() {
     // ─────────────────────────────────────────────
     //  启动计时器
     // ─────────────────────────────────────────────
-    function startTimer(card, prefix) {
+    function startTimer(card, prefix, startedAt) {
         clearTimer(card);
-        const start = Date.now();
+        const start = Number.isFinite(startedAt) ? startedAt : Date.now();
         const state = { timer: null, start };
         const els = getEls(card);
         if (els.pct) els.pct.style.visibility = 'visible';
-        if (els.label) els.label.textContent = prefix + ' ' + formatElapsed(0);
+        if (els.label) els.label.textContent = prefix + ' ' + formatElapsed(Math.max(0, Date.now() - start));
         state.timer = setInterval(() => {
             const elapsed = Date.now() - start;
             const l = card.querySelector('.card-progress-label');
@@ -114,7 +114,18 @@ const CardProgress = (function() {
         const els = getEls(card);
         if (!els.label) return;
 
-        if (status.status === 'started' || status.status === 'executing') {
+        if (status.status === 'online') {
+            startTimer(card, status.label || '等待 API 返回', status.startedAt);
+            const hasProgress = typeof status.progress === 'number' && Number.isFinite(status.progress) && status.progress >= 0 && status.progress <= 100;
+            if (els.pct) {
+                els.pct.textContent = hasProgress ? Math.round(status.progress) + '%' : '…';
+                els.pct.style.visibility = hasProgress ? 'visible' : 'hidden';
+            }
+        } else if (status.status === 'failed') {
+            clearTimer(card);
+            if (els.pct) els.pct.style.visibility = 'hidden';
+            els.label.textContent = '任务已结束';
+        } else if (status.status === 'started' || status.status === 'executing') {
             if (els.pct) els.pct.style.visibility = 'visible';
             // 首次(started)才把百分比置为 0%；后续 executing 不覆盖采样进度
             if (status.status === 'started' && els.pct) els.pct.textContent = '0%';
@@ -171,9 +182,9 @@ const CardProgress = (function() {
             <div style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
                 <div class="pg-ring-outer" style="position:absolute;inset:0;border:4px solid transparent;border-top-color:#6366f1;border-right-color:rgba(99,102,241,0.30);border-bottom-color:rgba(99,102,241,0.15);border-left-color:rgba(99,102,241,0.30);border-radius:50%;animation:cp-glow-spin 1s linear infinite;"></div>
                 <div class="pg-ring-inner" style="position:absolute;inset:8px;border:2px solid transparent;border-top-color:rgba(99,102,241,0.35);border-right-color:rgba(99,102,241,0.12);border-radius:50%;animation:cp-glow-spin 0.7s linear infinite reverse;"></div>
-                <span class="card-progress-pct" style="position:absolute;font-size:15px;font-weight:800;color:#4b5563;letter-spacing:-0.01em;">0%</span>
+                <span class="card-progress-pct" style="position:absolute;font-size:15px;font-weight:800;color:#595851;letter-spacing:-0.01em;">0%</span>
             </div>
-            <span class="card-progress-label" style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.02em;">排队中...</span>
+            <span class="card-progress-label" style="font-size:11px;font-weight:700;color:#a3a199;letter-spacing:0.02em;">排队中...</span>
         </div>
     `;
 
@@ -202,6 +213,37 @@ const CardProgress = (function() {
         };
     }
 
+    async function imageReady(image, placeholder) {
+        update(placeholder, { status: 'online', label: '加载图片预览', progress: null });
+        image.loading = 'eager';
+        image.decoding = 'async';
+        image.fetchPriority = 'high';
+        const loaded = () => new Promise((resolve, reject) => {
+            const clean = () => { image.removeEventListener('load', onload); image.removeEventListener('error', onerror); };
+            const onload = () => { clean(); image.naturalWidth ? resolve() : reject(new Error('图片预览为空')); };
+            const onerror = () => { clean(); reject(new Error('图片预览加载失败')); };
+            image.addEventListener('load', onload);
+            image.addEventListener('error', onerror);
+            if (image.complete) image.naturalWidth ? onload() : onerror();
+        });
+        try {
+            try {
+                await loaded();
+            } catch (error) {
+                const original = image.getAttribute('data-original-src');
+                if (!original || image.src === new URL(original, location.href).href) throw error;
+                image.src = original;
+                await loaded();
+            }
+            if (typeof image.decode === 'function') {
+                try { await image.decode(); } catch (error) { if (!image.naturalWidth) throw error; }
+            }
+            return image;
+        } finally {
+            clearTimer(placeholder);
+        }
+    }
+
     // 模块加载时立即注入 keyframes，确保 HTML 模板使用前动画已就绪
     injectStyles();
     // ─────────────────────────────────────────────
@@ -216,8 +258,10 @@ const CardProgress = (function() {
 
         /** 更新已有进度卡片的状态 */
         update,
+        imageReady,
 
         /** 在容器上创建新的进度卡片，返回 { update, destroy, getElement } */
         attach
     };
 })();
+window.CardProgress = CardProgress;

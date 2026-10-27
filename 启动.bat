@@ -7,9 +7,17 @@ echo.
 
 set PROJECT_DIR=%~dp0
 set PYTHON_EXE=python
+REM Prefer the same installed Python as start.bat, rather than PATH order.
+if exist "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
 
 echo Python: %PYTHON_EXE%
-%PYTHON_EXE% --version
+"%PYTHON_EXE%" --version
+"%PYTHON_EXE%" -c "import requests, fastapi, uvicorn" >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: Missing server dependencies. Previous server has not been stopped.
+    pause
+    exit /b 1
+)
 echo.
 
 cd /d "%PROJECT_DIR%"

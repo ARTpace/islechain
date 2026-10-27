@@ -35,7 +35,7 @@
             '.gallery-sound.show{opacity:1;pointer-events:auto;}',
             '.gallery-sound:hover{transform:scale(1.12)}',
             '.gallery-sound:active{transform:scale(0.9)}',
-            '.masonry-item.gallery-selected{outline:3px solid #38bdf8;outline-offset:-3px;border-radius:8px;}'
+            '.masonry-item.gallery-selected{outline:3px solid #00f0ff;outline-offset:-3px;border-radius:8px;}'
         ].join('\n');
         (document.head || document.documentElement).appendChild(style);
     })();
@@ -45,7 +45,7 @@
 
     // 悬浮按钮统一内联样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示。
     // 提升为模块级常量，供 render（放大镜/收藏/查看提示词按钮）与 buildVideoHTML（声音按钮）共用。
-    var BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
+    var BTN_INLINE = 'position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fcfcfb;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95));';
 
     // 收藏按钮 22x22 星星 SVG
     // 注意：无论是否已收藏，统一使用空心 SVG；CSS 通过 .is-fav 切换填充
@@ -240,7 +240,7 @@
         card.dataset.favImages = JSON.stringify(mediaForFav.map(u => favSet.has(u) ? 1 : 0));
 
         // 三个悬浮按钮统一样式（透明底 + 白色图标 + drop-shadow 深色光晕），hover 显示
-        // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
+        // 统一内联模板：position:absolute;z-index:20;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fcfcfb;cursor:pointer;filter:drop-shadow(0 0 5px rgba(0,0,0,.85)) drop-shadow(0 3px 8px rgba(0,0,0,.95))
         // 注：BTN_INLINE 已提升为模块级常量（见文件顶部），供 render 与 buildVideoHTML 共用
         const SVG_22 = ' xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"';
 
@@ -303,7 +303,7 @@
                 // [Bugfix] 改用内联 style + .model-badge 已有 CSS，不再依赖 Tailwind 预编译类
                 // 旧的 `bg-black/60 backdrop-blur text-[9px]` 是 Tailwind v3 类，
                 // 预编译的 tailwind.min.css 不一定包含，导致徽标透明看不见。
-                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fff;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
+                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fcfcfb;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
             }
         } else if (typeof features.modelBadge === 'string' && features.modelBadge) {
             badgeHTML = `<div class="model-badge absolute bottom-3 right-3 z-10"><img src="${features.modelBadge}" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>`;
@@ -342,6 +342,11 @@
             ${batchHTML}
             ${nsfwBadge}
             `;
+        if (!isVideo && features.download && record.images?.[0]) {
+            mountDownloadAction(card, record.images[0]);
+            const badge = card.querySelector('.model-badge');
+            if (badge) badge.style.right = '56px';
+        }
 
         // 右键菜单
         if (features.contextMenu) {
@@ -450,7 +455,7 @@
         const eager = !!opts.eagerFirstImage;
         // eager 时首图用 loading="eager" fetchpriority="high"（避免 Edge lazy placeholder 替换）
         // 其它图仍 lazy
-        const ldAttr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+        const ldAttr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
         const imgs = (record.images || []).filter(Boolean);
         const favSet = global.__galleryFavorites || new Set();
         if (imgs.length <= 1) {
@@ -461,14 +466,14 @@
         // 多图：使用flex布局，自适应高度
         if (imgs.length === 2) {
             return '<div class="flex gap-0.5" style="height:auto;">' + imgs.slice(0, 2).map(function(u, i) {
-                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                 return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('') + '</div>';
         } else if (imgs.length === 3) {
             return '<div class="flex flex-col gap-0.5" style="height:auto;">' +
                 '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full"' + ldAttr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(imgs[0], favSet.has(imgs[0])) : '') + '</div>' +
                 '<div class="flex gap-0.5">' + imgs.slice(1, 3).map(function(u) {
-                    const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                    const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                     return '<div class="flex-1 relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full h-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
                 }).join('') + '</div>' +
             '</div>';
@@ -478,7 +483,7 @@
                 var overlay = isLast
                     ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 4) + '</div>'
                     : '';
-                const attr = eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"';
+                const attr = (eager ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"';
                 return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 768) + '" data-original-src="' + u + '" class="w-full"' + attr + ' onerror="' + onerror + '" style="display:block; object-fit:contain;">' + overlay + (features.favorite ? imgFavBtnHTML(u, favSet.has(u)) : '') + '</div>';
             }).join('');
             return '<div class="grid grid-cols-2 gap-0.5" style="height:auto;">' + cells + '</div>';
@@ -515,8 +520,8 @@
                       parseAspectRatio(record.params && record.params.aspect_ratio) ||
                       parseAspectRatio(record.aspect_ratio) || 0;
         const arCSS = arNum > 0 ? arNum.toFixed(4) : '16/9';
-        return '<div class="relative group" style="background:#000;">' +
-            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#000; aspect-ratio:' + arCSS + ';" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||' + arCSS + ').toFixed(4)" onerror="' + onerror + '">' +
+        return '<div class="relative group" style="background:#0b0b0a;">' +
+            '<video src="' + src + '" data-original-src="' + src + '" class="w-full" muted loop playsinline preload="metadata" style="display:block; object-fit:contain; background:#0b0b0a; aspect-ratio:' + arCSS + ';" onloadedmetadata="this.style.aspectRatio=(this.videoWidth/this.videoHeight||' + arCSS + ').toFixed(4)" onerror="' + onerror + '">' +
             '</video>' +
             favBtn +
             soundHTML +
@@ -560,16 +565,21 @@
      */
     function thumbUrl(url, w) {
         w = w || 512;
-        var raw = String(url || '');
+        const raw = String(url || '');
         if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
-        // ComfyUI 代理：直接给 w 参数让后端返回 WebP 缩略图（秒出，不再加载原图）
-        if (raw.indexOf('/api/comfyui/view') === 0) {
-            var q = raw.split('?')[1] || '';
-            return '/api/comfyui/view?w=' + w + (q ? '&' + q : '');
-        }
-        if (!raw.startsWith('/output/') && !raw.startsWith('/assets/')) return raw;
-        if (!/\.(png|jpe?g|webp|gif|bmp|avif)(\?|#|$)/i.test(raw)) return raw;
-        return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(raw);
+        try {
+            const parsed = new URL(raw, global.location.origin);
+            if (parsed.origin !== global.location.origin) return raw;
+            if (parsed.pathname === '/api/comfyui/view') {
+                parsed.searchParams.set('w', String(w));
+                return parsed.pathname + '?' + parsed.searchParams.toString();
+            }
+            if (parsed.pathname === '/api/media-preview') return raw;
+            const path = decodeURIComponent(parsed.pathname);
+            if (!path.startsWith('/output/') && !path.startsWith('/assets/')) return raw;
+            if (!/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path)) return raw;
+            return '/api/media-preview?w=' + w + '&url=' + encodeURIComponent(path);
+        } catch (_) { return raw; }
     }
 
     // NSFW 提示词关键词检测（保守黑名单，匹配单词边界或紧邻分隔符）
@@ -587,7 +597,54 @@
         return NSFW_PATTERNS.some(re => re.test(p));
     }
 
-    global.GalleryCard = { render, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };
+    /** 对话缩略图复用普通卡片的图标、尺寸、阴影及收藏同步。 */
+    function mountDownloadAction(host, imageUrl) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gallery-download';
+        button.title = '下载原图';
+        button.setAttribute('aria-label', button.title);
+        button.style.cssText = BTN_INLINE + 'right:8px;bottom:8px;width:44px;height:44px;';
+        button.innerHTML = ICONS.download;
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const filename = imageUrl.split(/[?#]/)[0].split('/').pop();
+            global.GalleryActions.downloadImage(imageUrl, filename, event);
+        });
+        host.appendChild(button);
+    }
+
+    function mountImageActions(host, getRecord, imageUrl) {
+        const info = document.createElement('button');
+        info.type = 'button';
+        info.className = 'gallery-vpfab show';
+        info.title = '查看图片信息';
+        info.setAttribute('aria-label', info.title);
+        info.style.cssText = BTN_INLINE + 'left:12px;bottom:12px;';
+        info.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+        info.addEventListener('click', event => {
+            event.stopPropagation();
+            global.GalleryActions.viewPrompt(getRecord(), event);
+        });
+        const fav = document.createElement('button');
+        fav.type = 'button';
+        fav.className = 'gallery-fav show';
+        fav.title = '收藏';
+        fav.setAttribute('aria-label', fav.title);
+        fav.dataset.favUrl = imageUrl;
+        fav.style.cssText = BTN_INLINE + 'right:12px;top:12px;';
+        fav.innerHTML = FAV_OUT_SVG;
+        fav.classList.toggle('is-fav', !!global.__galleryFavorites?.has(imageUrl));
+        fav.addEventListener('click', event => {
+            event.stopPropagation();
+            global.GalleryDisplay.Favorites.toggle(imageUrl);
+        });
+        host.appendChild(info);
+        host.appendChild(fav);
+        mountDownloadAction(host, imageUrl);
+    }
+
+    global.GalleryCard = { render, thumbUrl, mountImageActions, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };
 
     // 点击卡片外空白区域：取消所有选中描边（蓝色高亮）
     // 仅绑定一次；批量选择模式与预设选择浮层内不干涉

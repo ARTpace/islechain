@@ -39,13 +39,19 @@ async def query_image_task(payload: _main.ImageTaskQueryRequest):
     else:
         raise HTTPException(status_code=400, detail=f"不支持的 provider: {provider_id}")
 
-async def run_canvas_image_task(task_id: str, payload: _main.OnlineImageRequest, username: str = None):
+async def run_canvas_image_task(task_id: str, payload: _main.OnlineImageRequest, username: str = None, user_id: str = ""):
     with _main.CANVAS_TASK_LOCK:
         if task_id in _main.CANVAS_TASKS:
             _main.CANVAS_TASKS[task_id]["status"] = "running"
             _main.CANVAS_TASKS[task_id]["updated_at"] = time.time()
+    def on_progress(progress):
+        with _main.CANVAS_TASK_LOCK:
+            task = _main.CANVAS_TASKS.get(task_id)
+            if task and task['status'] == 'running':
+                task['progress'] = progress
+                task['updated_at'] = time.time()
     try:
-        result = await _main.build_online_image_result(payload, username=username)
+        result = await _main.build_online_image_result(payload, username=username, on_progress=on_progress)
         with _main.CANVAS_TASK_LOCK:
             _main.CANVAS_TASKS[task_id].update({
                 "status": "succeeded",
@@ -53,9 +59,11 @@ async def run_canvas_image_task(task_id: str, payload: _main.OnlineImageRequest,
                 "error": "",
                 "updated_at": time.time(),
             })
+        _main.finish_chat_generation(payload.conversation_id, payload.message_id, (result or {}).get("images") or [], user_id=user_id)
     except Exception as exc:
         detail = getattr(exc, "detail", None) or str(exc)
         status_code = getattr(exc, "status_code", 500)
+        _main.finish_chat_generation(payload.conversation_id, payload.message_id, error=str(detail), user_id=user_id)
         with _main.CANVAS_TASK_LOCK:
             _main.CANVAS_TASKS[task_id].update({
                 "status": "failed",
@@ -68,17 +76,22 @@ async def run_canvas_image_task(task_id: str, payload: _main.OnlineImageRequest,
 async def create_canvas_image_task(payload: _main.OnlineImageRequest, token: str = ""):
     task_id = f"canvas_img_{uuid.uuid4().hex}"
     username = _main.require_valid_token(token) if token else None
+    try:
+        user_id = _main.account_dirname()
+    except Exception:
+        user_id = ""
     with _main.CANVAS_TASK_LOCK:
         _main.CANVAS_TASKS[task_id] = {
             "id": task_id,
             "type": "online-image",
             "status": "queued",
+            "progress": {"source": "local", "stage": "queued", "progress": None},
             "created_at": time.time(),
             "updated_at": time.time(),
             "result": None,
             "error": "",
         }
-    asyncio.create_task(run_canvas_image_task(task_id, payload, username=username))
+    asyncio.create_task(run_canvas_image_task(task_id, payload, username=username, user_id=user_id))
     return {"task_id": task_id, "status": "queued"}
 
 @router.get("/api/canvas-image-tasks/{task_id}")
@@ -87,6 +100,7 @@ async def get_canvas_image_task(task_id: str):
         task = dict(_main.CANVAS_TASKS.get(task_id) or {})
     if not task:
         raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
+    task['elapsed_ms'] = max(0, round(((task.get('updated_at') if task['status'] in ('succeeded', 'failed') else time.time()) - task['created_at']) * 1000))
     return task
 
 # --- Canvas LLM ---
@@ -122,9 +136,15 @@ async def canvas_llm(payload: _main.CanvasLLMRequest):
 # --- 对话管理 ---
 
 @router.get("/api/conversations")
-async def conversations(request: Request, x_user_id: str = Header(default="")):
+async def conversations(request: Request, x_user_id: str = Header(default=""), offset: int = 0, limit: int = None):
     user_id = _main.account_dirname()
-    return {"user_id": user_id, "conversations": _main.list_conversations(user_id)}
+    records = _main.list_conversations(user_id)
+    # ponytail: 不传分页参数的旧客户端仍返回完整列表。
+    if limit is None:
+        return {"user_id": user_id, "conversations": records}
+    offset, limit = max(0, offset), max(1, min(100, limit))
+    return {"user_id": user_id, "conversations": records[offset:offset + limit],
+            "has_more": offset + limit < len(records), "total": len(records)}
 
 @router.post("/api/conversations")
 async def create_conversation(payload: _main.ConversationCreateRequest, request: Request, x_user_id: str = Header(default="")):
@@ -134,7 +154,7 @@ async def create_conversation(payload: _main.ConversationCreateRequest, request:
 @router.get("/api/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
     user_id = _main.account_dirname()
-    return {"conversation": _main.load_conversation(user_id, conversation_id)}
+    return {"conversation": _main.load_conversation(user_id, conversation_id), "boot_id": _main.APP_BOOT_ID}
 
 @router.delete("/api/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str, request: Request, x_user_id: str = Header(default="")):
@@ -146,6 +166,28 @@ async def delete_conversation(conversation_id: str, request: Request, x_user_id:
 
 class ConversationImagesRequest(BaseModel):
     image_urls: List[str] = []
+
+class ConversationPendingRequest(BaseModel):
+    message_id: str = ""
+    clear: bool = False
+
+@router.post("/api/conversations/{conversation_id}/pending")
+async def mark_conversation_pending(conversation_id: str, payload: ConversationPendingRequest, request: Request, x_user_id: str = Header(default="")):
+    user_id = _main.account_dirname()
+    conversation = _main.load_conversation(user_id, conversation_id)
+    message = next((item for item in conversation.get("messages") or [] if item.get("id") == payload.message_id), None)
+    if message is None:
+        raise HTTPException(status_code=404, detail="找不到这条对话消息")
+    if payload.clear:
+        message.pop("pending_generation", None)
+        if not message.get("image_urls"):
+            message["generation_error"] = "生成已中断"
+    else:
+        message.pop("generation_error", None)
+        message["pending_generation"] = {"boot_id": _main.APP_BOOT_ID, "started_at": _main.now_ms()}
+    conversation["updated_at"] = _main.now_ms()
+    _main.save_conversation(user_id, conversation)
+    return {"ok": True, "boot_id": _main.APP_BOOT_ID}
 
 class ConversationTurnRequest(BaseModel):
     user: str = ""

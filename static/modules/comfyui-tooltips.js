@@ -24,8 +24,8 @@
             .comfy-mode-tooltip {
                 position: fixed;
                 z-index: 999999;
-                background: rgba(15, 23, 42, 0.92);
-                color: #fff;
+                background: rgba(23, 23, 22, 0.92);
+                color: #fcfcfb;
                 font-size: 13px;
                 line-height: 1.6;
                 padding: 8px 14px;

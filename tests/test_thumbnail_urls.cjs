@@ -1,0 +1,16 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const source = fs.readFileSync('static/modules/gallery/card.js', 'utf8');
+const start = source.indexOf('    function thumbUrl(');
+const end = source.indexOf('    // NSFW', start);
+const context = { URL, global: { location: { origin: 'http://localhost:7000' } } };
+vm.runInNewContext(source.slice(start, end), context);
+const thumb = context.thumbUrl;
+assert.equal(thumb('/output/a.png', 768), thumb('http://localhost:7000/output/a.png', 768));
+assert.equal(thumb('/api/comfyui/view?filename=a.png&w=300', 768), '/api/comfyui/view?filename=a.png&w=768');
+assert.equal(thumb('https://other.example/output/a.png', 768), 'https://other.example/output/a.png');
+assert.equal(thumb('data:image/png;base64,abc'), 'data:image/png;base64,abc');
+assert.equal(thumb('/api/media-preview?w=768&url=x'), '/api/media-preview?w=768&url=x');
+assert.equal(new URL(thumb('/output/a%20b.png'), 'http://localhost:7000').searchParams.get('url'), '/output/a b.png');
+console.log('Shared thumbnail URLs preserve originals, origin boundaries and cache keys');

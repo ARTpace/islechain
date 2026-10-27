@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "unet_name": "Krea2\\krea2_turbo_int8_convrot.safetensors",
+      "unet_name": "Krea2\\sinoxeditKrea2Uncen_v10Int8Convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",

@@ -114,32 +114,32 @@ function injectImageNodeCSS() {
         .image-node { width:260px; position: relative; }
         .image-node .node-body { min-height:0; }
         .image-node.has-image .node-body { cursor:move; }
-        .image-node img { display:block; width:100%; max-height:260px; object-fit:contain; border-radius:16px; background:#f8fafc; }
+        .image-node img { display:block; width:100%; max-height:260px; object-fit:contain; border-radius:16px; background:#faf9f7; }
         .node.sized.image-node .node-body { display:flex; flex-direction:column; gap:8px; }
         .node.sized.image-node img { flex:1; min-height:0; height:100%; max-height:none; }
         .image-caption { flex:0 0 auto; }
-        .blank-image { height:190px; border:1px dashed #cbd5e1; border-radius:16px; background:#f8fafc; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#94a3b8; cursor:pointer; transition:all .2s var(--ease); }
+        .blank-image { height:190px; border:1px dashed #dcdad1; border-radius:16px; background:#faf9f7; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#a19f97; cursor:pointer; transition:all .2s var(--ease); }
         .node.sized .blank-image { height:100%; min-height:72px; }
-        .blank-image:hover,.blank-image.drag-over { border-color:#111827; color:#111827; background:#fff; }
-        .image-edit-modal { position:absolute; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
+        .blank-image:hover,.blank-image.drag-over { border-color:#181817; color:#181817; background:#fcfcfb; }
+        .image-edit-modal { position:absolute; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(250, 249, 247, .42); backdrop-filter:blur(18px); }
         .image-edit-modal.open { display:flex; }
-        .image-edit-panel { width:min(1480px, calc(100vw - 36px)); height:min(980px, calc(100vh - 36px)); border-radius:22px; background:#fff; border:1px solid #e8edf3; box-shadow:0 30px 90px rgba(15,23,42,.22); padding:14px; display:flex; flex-direction:column; gap:10px; }
+        .image-edit-panel { width:min(1480px, calc(100vw - 36px)); height:min(980px, calc(100vh - 36px)); border-radius:22px; background:#fcfcfb; border:1px solid #f0efec; box-shadow:0 30px 90px rgba(23, 23, 22, .22); padding:14px; display:flex; flex-direction:column; gap:10px; }
         .image-edit-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .image-edit-title { font-size:13px; font-weight:900; color:#111827; }
-        .image-edit-sub { margin-top:3px; color:#94a3b8; font-size:11px; font-weight:600; }
-        .image-edit-stage { min-height:320px; max-height:68vh; border-radius:20px; background:#f8fafc; border:1px solid #edf2f7; display:flex; align-items:center; justify-content:center; overflow:auto; padding:16px; }
+        .image-edit-title { font-size:13px; font-weight:900; color:#181817; }
+        .image-edit-sub { margin-top:3px; color:#a19f97; font-size:11px; font-weight:600; }
+        .image-edit-stage { min-height:320px; max-height:68vh; border-radius:20px; background:#faf9f7; border:1px solid #f4f4f2; display:flex; align-items:center; justify-content:center; overflow:auto; padding:16px; }
         .crop-canvas { position:relative; display:inline-block; line-height:0; user-select:none; }
-        .crop-canvas img { display:block; max-width:min(820px, calc(100vw - 108px)); max-height:62vh; border-radius:14px; background:#f8fafc; }
-        .crop-box { position:absolute; left:10%; top:10%; width:80%; height:80%; border:2px solid #f8fafc; box-shadow:0 0 0 9999px rgba(15,23,42,.48), 0 12px 30px rgba(15,23,42,.2); border-radius:10px; cursor:move; }
-        .crop-handle { position:absolute; right:-7px; bottom:-7px; width:18px; height:18px; border-radius:999px; background:#fff; border:2px solid #111827; cursor:nwse-resize; }
+        .crop-canvas img { display:block; max-width:min(820px, calc(100vw - 108px)); max-height:62vh; border-radius:14px; background:#faf9f7; }
+        .crop-box { position:absolute; left:10%; top:10%; width:80%; height:80%; border:2px solid #faf9f7; box-shadow:0 0 0 9999px rgba(23, 23, 22, .48), 0 12px 30px rgba(23, 23, 22, .2); border-radius:10px; cursor:move; }
+        .crop-handle { position:absolute; right:-7px; bottom:-7px; width:18px; height:18px; border-radius:999px; background:#fcfcfb; border:2px solid #181817; cursor:nwse-resize; }
         .image-edit-actions { display:flex; justify-content:flex-end; gap:8px; }
         .image-edit-btn { height:38px; border-radius:999px; padding:0 14px; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11px; font-weight:800; }
         .image-edit-btn.secondary { background:var(--soft); color:var(--muted); border:1px solid var(--line); }
         .image-edit-btn.secondary:hover { background:var(--soft-2); color:var(--text); }
         .image-edit-btn.primary { background:var(--strong); color:var(--strong-text); }
-        .editor-tab.active { background:#0891b2; color:#fff; }
-        .editor-tab:not(.active) { background:#f0f9ff; color:#0891b2; border:1px solid #cffafe; }
-        .editor-tab:hover:not(.active) { background:#e0f2fe; }
+        .editor-tab.active { background:#0891b2; color:#fcfcfb; }
+        .editor-tab:not(.active) { background:#f8f7f5; color:#0891b2; border:1px solid #f1f1ed; }
+        .editor-tab:hover:not(.active) { background:#f2f1ee; }
         #maskOverlay { touch-action:none; }
         .mask-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.5; pointer-events:none; border-radius:16px; }
         .image-container { position:relative; width:100%; height:100%; }
@@ -149,21 +149,21 @@ function injectImageNodeCSS() {
         .image-edit-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px; border-radius:12px; background:var(--soft); border:1px solid var(--line); }
         .image-edit-tools label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--muted); }
         .image-edit-tools input[type="range"] { width:100px; }
-        .image-edit-tools input[type="color"] { width:40px; height:28px; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; }
+        .image-edit-tools input[type="color"] { width:40px; height:28px; border:1px solid #eceae5; border-radius:6px; cursor:pointer; }
         .image-edit-tools button { height:28px; padding:0 12px; border-radius:999px; display:flex; align-items:center; gap:6px; font-size:10px; font-weight:800; }
         .edit-draw-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
         .crop-canvas.brush-mode .edit-draw-canvas,
         .crop-canvas.grid-mode .edit-draw-canvas { pointer-events:auto; }
-        .grid-gap-control { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#475569; }
+        .grid-gap-control { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#595851; }
         .grid-gap-value { min-width:36px; text-align:center; font-size:10px; font-weight:900; color:#0891b2; }
-        .image-edit-zoom-label { color:#94a3b8; font-size:11px; font-weight:800; padding:0 4px; margin-right:auto; cursor:pointer; user-select:none; }
-        .menu-btn { width:100%; height:38px; border-radius:12px; display:flex; align-items:center; gap:9px; padding:0 10px; color:#475569; font-size:12px; font-weight:700; }
-        .menu-btn:hover { background:#f8fafc; color:#111827; }
-        .create-menu { position:absolute; z-index:40; display:none; width:190px; padding:8px; border-radius:18px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 20px 50px rgba(15,23,42,.14); backdrop-filter:blur(16px); }
+        .image-edit-zoom-label { color:#a19f97; font-size:11px; font-weight:800; padding:0 4px; margin-right:auto; cursor:pointer; user-select:none; }
+        .menu-btn { width:100%; height:38px; border-radius:12px; display:flex; align-items:center; gap:9px; padding:0 10px; color:#595851; font-size:12px; font-weight:700; }
+        .menu-btn:hover { background:#faf9f7; color:#181817; }
+        .create-menu { position:absolute; z-index:40; display:none; width:190px; padding:8px; border-radius:18px; background:rgba(255,255,255,.96); border:1px solid #f0efec; box-shadow:0 20px 50px rgba(23, 23, 22, .14); backdrop-filter:blur(16px); }
         .create-menu.open { display:block; }
         .image-preview-wrap { position:relative; }
-        .image-preview-wrap.drag-over img { outline:2px solid #111827; outline-offset:2px; background:#fff; }
-        .image-edit-stage { flex:1; min-height:0; border-radius:20px; background:#f8fafc; border:1px solid #edf2f7; overflow:auto; }
+        .image-preview-wrap.drag-over img { outline:2px solid #181817; outline-offset:2px; background:#fcfcfb; }
+        .image-edit-stage { flex:1; min-height:0; border-radius:20px; background:#faf9f7; border:1px solid #f4f4f2; overflow:auto; }
         .image-edit-stage-inner { min-width:100%; min-height:100%; width:max-content; height:max-content; display:flex; align-items:center; justify-content:center; padding:18px; box-sizing:border-box; margin:auto; }
         .image-edit-stage.overflow-x .image-edit-stage-inner { justify-content:flex-start; }
         .image-edit-stage.overflow-y .image-edit-stage-inner { align-items:flex-start; }
@@ -941,9 +941,9 @@ function switchEditorMode(mode) {
     [cropTab, maskTab, brushTab, gridTab].forEach(tab => {
         if (tab) {
             tab.classList.remove('active');
-            tab.style.background = '#f0f9ff';
+            tab.style.background = '#f8f7f5';
             tab.style.color = '#0891b2';
-            tab.style.border = '1px solid #cffafe';
+            tab.style.border = '1px solid #f1f1ed';
         }
     });
     
@@ -967,7 +967,7 @@ function switchEditorMode(mode) {
         if (cropTab) {
             cropTab.classList.add('active');
             cropTab.style.background = '#0891b2';
-            cropTab.style.color = '#fff';
+            cropTab.style.color = '#fcfcfb';
             cropTab.style.border = 'none';
         }
         if (cropBox) cropBox.style.display = 'block';
@@ -984,7 +984,7 @@ function switchEditorMode(mode) {
         if (maskTab) {
             maskTab.classList.add('active');
             maskTab.style.background = '#0891b2';
-            maskTab.style.color = '#fff';
+            maskTab.style.color = '#fcfcfb';
             maskTab.style.border = 'none';
         }
         if (maskOverlay) maskOverlay.style.display = 'block';
@@ -1018,7 +1018,7 @@ function switchEditorMode(mode) {
         if (brushTab) {
             brushTab.classList.add('active');
             brushTab.style.background = '#0891b2';
-            brushTab.style.color = '#fff';
+            brushTab.style.color = '#fcfcfb';
             brushTab.style.border = 'none';
         }
         if (editDrawCanvas) {
@@ -1041,7 +1041,7 @@ function switchEditorMode(mode) {
         if (gridTab) {
             gridTab.classList.add('active');
             gridTab.style.background = '#0891b2';
-            gridTab.style.color = '#fff';
+            gridTab.style.color = '#fcfcfb';
             gridTab.style.border = 'none';
         }
         if (editDrawCanvas) {
@@ -1096,7 +1096,7 @@ function initMaskCanvas() {
         maskState.lastX = (e.clientX - rect.left) * scaleX;
         maskState.lastY = (e.clientY - rect.top) * scaleY;
         
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.6)';
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.6)';
         ctx.beginPath();
         ctx.arc(maskState.lastX, maskState.lastY, maskState.brushSize / 2, 0, Math.PI * 2);
         ctx.fill();
@@ -1115,7 +1115,7 @@ function initMaskCanvas() {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
         
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
         ctx.lineWidth = maskState.brushSize;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -1165,7 +1165,7 @@ function beginMaskDraw(event) {
     maskState.lastY = event.clientY - rect.top;
     
     const ctx = overlay.getContext('2d');
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.6)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.6)';
     ctx.beginPath();
     ctx.arc(maskState.lastX, maskState.lastY, maskState.brushSize / 2, 0, Math.PI * 2);
     ctx.fill();
@@ -1181,7 +1181,7 @@ function drawMask(event) {
     const y = event.clientY - rect.top;
     
     const ctx = overlay.getContext('2d');
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
     ctx.lineWidth = maskState.brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -1220,7 +1220,7 @@ function fillMask() {
     pushMaskHistory();
     const overlay = document.getElementById('maskOverlay');
     const ctx = overlay.getContext('2d');
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.6)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.6)';
     ctx.fillRect(0, 0, overlay.width, overlay.height);
     syncMaskHistoryButtons();
 }
@@ -1711,7 +1711,7 @@ function drawMarkFlag(x, y) {
     ctx.translate(x, y);
     
     // 旗杆
-    ctx.strokeStyle = 'rgba(2,6,23,0.72)';
+    ctx.strokeStyle = 'rgba(11, 11, 10, 0.72)';
     ctx.lineWidth = size / 10;
     ctx.beginPath();
     ctx.moveTo(0, -size);
@@ -1862,7 +1862,7 @@ function refreshGridSplitPreview() {
     const drawGuideLine = (x1, y1, x2, y2) => {
         ctx.save();
         ctx.lineWidth = lineWidth + 2;
-        ctx.strokeStyle = 'rgba(2,6,23,0.72)';
+        ctx.strokeStyle = 'rgba(11, 11, 10, 0.72)';
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = 'rgba(255,255,255,0.92)';

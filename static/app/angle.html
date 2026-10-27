@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D 视角变换</title>
-    <script src="/static/modules/auth-token.js?v=20260525001"></script>
+    <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20260521039">
-    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <script src="/static/theme.js?v=20261024bar"></script>
     <style>
         * {
             margin: 0;
@@ -17,62 +18,62 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: #f8f8fa;
-            color: #1a1a2e;
+            background: #f9f8f6;
+            color: #1c1c1b;
             min-height: 100vh;
         }
 
         body.studio-theme-dark {
-            background: #0a0e17;
-            color: #e0e7ef;
+            background: #0b0b0a;
+            color: #f6f6f4;
         }
 
         body.studio-theme-dark .panel {
-            background: #0d1520;
-            border-color: #1a2a3a;
+            background: #151515;
+            border-color: #20201e;
         }
 
         body.studio-theme-dark .upload-area {
-            background: #0d1520;
-            border-color: #1a2a3a;
+            background: #151515;
+            border-color: #20201e;
         }
 
         body.studio-theme-dark .upload-area:hover {
-            border-color: #00b4d8;
-            background: rgba(0, 180, 216, 0.1);
+            border-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.1);
         }
 
         body.studio-theme-dark .param-input,
         body.studio-theme-dark .prompt-textarea {
-            background: #0d1520;
-            border-color: #1a2a3a;
-            color: #e0e7ef;
+            background: #151515;
+            border-color: #20201e;
+            color: #f6f6f4;
         }
 
         body.studio-theme-dark .preview-container {
-            border-color: #1a2a3a;
+            border-color: #20201e;
         }
 
         body.studio-theme-dark .viewer-container {
-            border-color: #1a2a3a;
+            border-color: #20201e;
         }
 
         body.studio-theme-dark .quick-prompt-btn {
-            background: rgba(0, 180, 216, 0.1);
-            border-color: rgba(0, 180, 216, 0.3);
-            color: #00d9ff;
+            background: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: #00f0ff;
         }
 
         body.studio-theme-dark .status-bar {
-            background: rgba(0, 212, 255, 0.1);
+            background: rgba(0, 240, 255, 0.1);
         }
 
         body.studio-theme-dark .prompt-hint {
-            color: #6a8fa8;
+            color: #9f9d94;
         }
 
         body.studio-theme-dark .output-placeholder {
-            color: #6a8fa8;
+            color: #9f9d94;
         }
 
         .app-container {
@@ -92,7 +93,7 @@
             width: 28px;
             height: 28px;
             flex-shrink: 0;
-            filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.5));
+            filter: drop-shadow(0 0 4px rgba(0, 240, 255, 0.5));
         }
 
         .app-title {
@@ -104,7 +105,7 @@
         .app-title span {
             font-size: 1.25rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #00b4d8, #00f0ff);
+            background: linear-gradient(135deg, #06b6d4, #00f0ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -115,7 +116,7 @@
             align-items: center;
             gap: 6px;
             padding: 4px 12px;
-            background: #e8f8f5;
+            background: #f7f7f5;
             border-radius: 20px;
             font-size: 0.75rem;
             font-weight: 600;
@@ -142,24 +143,24 @@
         }
 
         .panel {
-            background: #ffffff;
+            background: #fbfaf9;
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-            border: 1px solid #e5e7eb;
+            border: 1px solid #eeede9;
         }
 
         .panel-header {
             font-size: 0.75rem;
             font-weight: 700;
-            color: #9ca3af;
+            color: #a19f97;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             margin-bottom: 16px;
         }
 
         .upload-area {
-            border: 2px dashed #e5e7eb;
+            border: 2px dashed #eeede9;
             border-radius: 12px;
             padding: 32px;
             text-align: center;
@@ -170,31 +171,31 @@
         }
 
         .upload-area:hover {
-            border-color: #00b4d8;
-            background: #f0f9ff;
+            border-color: #06b6d4;
+            background: #f8f8f6;
         }
 
         .upload-area.dragover {
-            border-color: #00d9ff;
-            background: #e0f7ff;
+            border-color: #00f0ff;
+            background: #f6f6f4;
             transform: scale(1.01);
         }
 
         .upload-icon {
             font-size: 2.5rem;
             margin-bottom: 12px;
-            color: #00d9ff;
+            color: #00f0ff;
         }
 
         .upload-text {
             font-size: 0.9rem;
             font-weight: 600;
-            color: #4b5563;
+            color: #5e5d56;
         }
 
         .upload-hint {
             font-size: 0.8rem;
-            color: #9ca3af;
+            color: #a19f97;
             margin-top: 8px;
         }
 
@@ -207,7 +208,7 @@
             margin-bottom: 20px;
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #eeede9;
         }
 
         .preview-container.active {
@@ -228,11 +229,11 @@
         .viewer-container {
             width: 100%;
             height: 550px;
-            background: #0f0c29;
+            background: #101010;
             border-radius: 12px;
             overflow: hidden;
             position: relative;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #eeede9;
         }
 
         #viewer-canvas {
@@ -249,12 +250,12 @@
             padding: 10px 12px;
             border-radius: 10px;
             min-width: 200px;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.3);
             z-index: 10;
         }
 
         .viewer-overlay h3 {
-            color: #00d9ff;
+            color: #00f0ff;
             margin-bottom: 8px;
             font-size: 0.7rem;
             font-weight: 700;
@@ -269,9 +270,9 @@
         }
 
         .viewer-btn {
-            background: rgba(0, 212, 255, 0.2);
-            border: 1px solid rgba(0, 212, 255, 0.4);
-            color: #00d9ff;
+            background: rgba(0, 240, 255, 0.2);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: #00f0ff;
             padding: 6px 10px;
             border-radius: 6px;
             cursor: pointer;
@@ -281,7 +282,7 @@
         }
 
         .viewer-btn:hover {
-            background: rgba(0, 212, 255, 0.3);
+            background: rgba(0, 240, 255, 0.3);
             transform: translateY(-1px);
         }
 
@@ -294,7 +295,7 @@
             border-radius: 8px;
             font-family: 'Courier New', monospace;
             font-size: 0.65rem;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.3);
             z-index: 10;
             color: #c0c0c0;
         }
@@ -338,9 +339,9 @@
 
         .apply-prompt-btn {
             margin-top: 6px;
-            background: linear-gradient(135deg, #00b4d8, #00f0ff);
+            background: linear-gradient(135deg, #06b6d4, #00f0ff);
             border: none;
-            color: #0a1628;
+            color: #141414;
             padding: 6px 10px;
             border-radius: 6px;
             cursor: pointer;
@@ -352,7 +353,7 @@
 
         .apply-prompt-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 240, 255, 0.4);
         }
 
         .viewer-help {
@@ -363,13 +364,13 @@
             backdrop-filter: blur(8px);
             padding: 8px 10px;
             border-radius: 10px;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.3);
             z-index: 10;
             max-width: 180px;
         }
 
         .viewer-help h4 {
-            color: #00d9ff;
+            color: #00f0ff;
             margin-bottom: 6px;
             font-size: 0.65rem;
             font-weight: 700;
@@ -391,7 +392,7 @@
 
         .viewer-help li:before {
             content: "•";
-            color: #00d9ff;
+            color: #00f0ff;
             position: absolute;
             left: 0;
             font-weight: bold;
@@ -404,7 +405,7 @@
         .param-label {
             font-size: 0.7rem;
             font-weight: 700;
-            color: #9ca3af;
+            color: #a19f97;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 8px;
@@ -412,20 +413,20 @@
 
         .param-input {
             width: 100%;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            background: #faf9f7;
+            border: 1px solid #eeede9;
             border-radius: 8px;
             padding: 10px 12px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: #1a1a2e;
+            color: #1c1c1b;
             transition: all 0.3s;
         }
 
         .param-input:focus {
             outline: none;
-            border-color: #00d9ff;
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+            border-color: #00f0ff;
+            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1);
         }
 
         .prompt-section {
@@ -435,13 +436,13 @@
         .prompt-textarea {
             width: 100%;
             min-height: 100px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            background: #faf9f7;
+            border: 1px solid #eeede9;
             border-radius: 12px;
             padding: 14px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: #1a1a2e;
+            color: #1c1c1b;
             font-family: 'Segoe UI', sans-serif;
             resize: vertical;
             transition: all 0.3s;
@@ -449,13 +450,13 @@
 
         .prompt-textarea:focus {
             outline: none;
-            border-color: #00d9ff;
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+            border-color: #00f0ff;
+            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1);
         }
 
         .prompt-hint {
             font-size: 0.75rem;
-            color: #9ca3af;
+            color: #a19f97;
             margin-top: 6px;
         }
 
@@ -467,8 +468,8 @@
         }
 
         .quick-prompt-btn {
-            background: #f0f9ff;
-            border: 1px solid #e0f2fe;
+            background: #f8f8f6;
+            border: 1px solid #f4f4f2;
             color: #0891b2;
             padding: 6px 12px;
             border-radius: 20px;
@@ -479,15 +480,15 @@
         }
 
         .quick-prompt-btn:hover {
-            background: #e0f7ff;
-            border-color: #00d9ff;
+            background: #f6f6f4;
+            border-color: #00f0ff;
             transform: translateY(-1px);
         }
 
         .generate-btn {
             width: 100%;
-            background: linear-gradient(135deg, #00b4d8, #00f0ff);
-            color: #0a1628;
+            background: linear-gradient(135deg, #06b6d4, #00f0ff);
+            color: #141414;
             border: none;
             border-radius: 12px;
             padding: 16px;
@@ -497,12 +498,12 @@
             letter-spacing: 0.05em;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), 0 0 30px rgba(0, 212, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), 0 0 30px rgba(0, 240, 255, 0.15);
         }
 
         .generate-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.3);
         }
 
         .generate-btn:disabled {
@@ -528,7 +529,7 @@
 
         .output-placeholder {
             text-align: center;
-            color: #9ca3af;
+            color: #a19f97;
             padding: 80px 20px;
         }
 
@@ -556,9 +557,9 @@
         }
 
         .download-btn {
-            background: linear-gradient(135deg, #00b4d8, #00f0ff);
+            background: linear-gradient(135deg, #06b6d4, #00f0ff);
             border: none;
-            color: #0a1628;
+            color: #141414;
             padding: 12px 24px;
             border-radius: 10px;
             cursor: pointer;
@@ -574,13 +575,13 @@
 
         .download-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 240, 255, 0.4);
         }
 
         .status-bar {
             padding: 12px;
             border-radius: 10px;
-            background: #f3f4f6;
+            background: #f7f7f5;
             display: none;
         }
 
@@ -590,7 +591,7 @@
 
         .status-message {
             font-size: 0.85rem;
-            color: #4b5563;
+            color: #5e5d56;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -600,7 +601,7 @@
         .progress-container {
             width: 100%;
             height: 6px;
-            background: #e5e7eb;
+            background: #eeede9;
             border-radius: 3px;
             overflow: hidden;
             display: none;
@@ -612,7 +613,7 @@
 
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #00b4d8, #00f0ff);
+            background: linear-gradient(90deg, #06b6d4, #00f0ff);
             width: 0%;
             transition: width 0.3s;
             border-radius: 3px;
@@ -620,7 +621,7 @@
 
         .progress-text {
             font-size: 0.75rem;
-            color: #9ca3af;
+            color: #a19f97;
             margin-top: 6px;
             text-align: center;
         }
@@ -629,9 +630,9 @@
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 2px solid rgba(0, 180, 216, 0.3);
+            border: 2px solid rgba(6, 182, 212, 0.3);
             border-radius: 50%;
-            border-top-color: #00b4d8;
+            border-top-color: #06b6d4;
             animation: spin 1s linear infinite;
         }
 
@@ -665,14 +666,14 @@
             top: 20px;
             right: 30px;
             font-size: 2rem;
-            color: #fff;
+            color: #fbfaf9;
             cursor: pointer;
             transition: transform 0.3s;
         }
 
         .image-preview-close:hover {
             transform: scale(1.2);
-            color: #00d9ff;
+            color: #00f0ff;
         }
 
         @keyframes pulse {
@@ -697,7 +698,7 @@
         .load-more-trigger {
             padding: 48px 20px;
             text-align: center;
-            color: #9ca3af;
+            color: #a19f97;
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
@@ -717,18 +718,118 @@
         }
 
         body.studio-theme-dark .load-more-trigger {
-            color: #4a5568;
+            color: #5e5d56;
         }
     </style>
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
-    <script src="/static/modules/gallery/actions.js?v=20260611"></script>
-    <script src="/static/modules/gallery/list.js?v=20260611"></script>
-    <script src="/static/modules/gallery/card.js?v=20260611"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
-    <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261025unified">
+    <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
+    <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/list.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/card.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/display.js?v=20261024001"></script>
+
+    <!-- ===== studio-ui 统一响应式 + 双主题（scoped，外层 chrome token 化） ===== -->
+    <style id="ui-responsive">
+        /* chrome 颜色 token 化：浅色用 token 默认值，深色随 .studio-theme-dark 自动翻转 */
+        body {
+            background: var(--ui-bg);
+            color: var(--ui-text);
+        }
+        .app-title span {
+            background: linear-gradient(135deg, var(--ui-accent-glow), var(--ui-accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+        .panel {
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line);
+            box-shadow: var(--ui-shadow);
+        }
+        .panel-header { color: var(--ui-faint); }
+        .upload-area {
+            background: var(--ui-soft);
+            border: 2px dashed var(--ui-line-strong);
+        }
+        .upload-area:hover {
+            border-color: var(--ui-accent);
+            background: var(--ui-accent-soft);
+        }
+        .upload-text { color: var(--ui-muted); }
+        .upload-hint { color: var(--ui-faint); }
+        .param-input,
+        .prompt-textarea {
+            background: var(--ui-soft);
+            border: 1px solid var(--ui-line-strong);
+            color: var(--ui-text);
+        }
+        .param-input:focus,
+        .prompt-textarea:focus {
+            border-color: var(--ui-accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 18%, transparent);
+        }
+        .prompt-hint { color: var(--ui-faint); }
+        .quick-prompt-btn {
+            background: var(--ui-accent-soft);
+            border: 1px solid color-mix(in srgb, var(--ui-accent) 30%, transparent);
+            color: var(--ui-accent);
+        }
+        .quick-prompt-btn:hover {
+            background: var(--ui-soft);
+            border-color: var(--ui-accent);
+        }
+        .generate-btn,
+        .download-btn,
+        .apply-prompt-btn {
+            background: linear-gradient(135deg, var(--ui-accent-glow), var(--ui-accent));
+            color: var(--ui-accent-ink);
+        }
+        .status-bar { background: var(--ui-soft); }
+        .status-message { color: var(--ui-muted); }
+        .output-placeholder { color: var(--ui-faint); }
+        .progress-container { background: var(--ui-line); }
+        .progress-bar {
+            background: linear-gradient(90deg, var(--ui-accent-glow), var(--ui-accent));
+        }
+        .progress-text { color: var(--ui-faint); }
+        .loading-spinner {
+            border: 2px solid color-mix(in srgb, var(--ui-accent) 30%, transparent);
+            border-top-color: var(--ui-accent);
+        }
+        .image-preview-close:hover { color: var(--ui-accent); }
+
+        /* 响应式：顶层容器流式 + 防止横向溢出 */
+        .app-container { width: 100%; box-sizing: border-box; }
+        body { overflow-x: hidden; }
+
+        @media (max-width: 1024px) {
+            .app-container { padding: 16px 18px; }
+            .panel { padding: 20px; }
+        }
+
+        @media (max-width: 640px) {
+            .app-container { padding: 12px 14px; }
+            header { flex-wrap: wrap; gap: 8px; }
+            .panel { padding: 16px; }
+            .viewer-container { height: 360px; }
+            .param-input,
+            .prompt-textarea { font-size: 16px; } /* 防止 iOS 聚焦缩放 */
+            .viewer-overlay,
+            .viewer-info,
+            .viewer-prompt,
+            .viewer-help {
+                max-width: calc(100% - 20px);
+                font-size: .62rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; }
+        }
+    </style>
+    <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
 </head>
 <body>
     <div class="app-container">
@@ -776,15 +877,15 @@
 
                         <div class="viewer-info">
                             <div class="viewer-info-row">
-                                <span style="color: #00d9ff;">位置:</span>
+                                <span style="color: #00f0ff;">位置:</span>
                                 <span id="viewerCameraPos">X: 0.00, Y: 0.00, Z: 0.00</span>
                             </div>
                             <div class="viewer-info-row">
-                                <span style="color: #00d9ff;">角度:</span>
+                                <span style="color: #00f0ff;">角度:</span>
                                 <span id="viewerViewAngle">H: 0.00°, V: 0.00°</span>
                             </div>
                             <div class="viewer-info-row">
-                                <span style="color: #00d9ff;">距离:</span>
+                                <span style="color: #00f0ff;">距离:</span>
                                 <span id="viewerDistance">0.00</span>
                             </div>
                         </div>
@@ -811,7 +912,7 @@
                     <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
                         <label class="toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:6px">
                             <input type="checkbox" id="scaleEnabledToggle" style="cursor:pointer">
-                            <span style="font-size:12px;color:#94a3b8">开启后将图片缩放到指定尺寸</span>
+                            <span style="font-size:12px;color:#9f9d95">开启后将图片缩放到指定尺寸</span>
                         </label>
                     </div>
                     <div id="scaleSizeRow" style="display:none">
@@ -867,14 +968,14 @@
                     🚀 生成
                 </button>
 
-                <div id="progressInline" style="display: none; margin-top: 16px; padding: 16px 20px; background: linear-gradient(135deg, rgba(0, 180, 216, 0.06), rgba(0, 240, 255, 0.04)); border-radius: 14px; border: 1px solid rgba(0, 212, 255, 0.15);">
+                <div id="progressInline" style="display: none; margin-top: 16px; padding: 16px 20px; background: linear-gradient(135deg, rgba(6, 182, 212, 0.06), rgba(0, 240, 255, 0.04)); border-radius: 14px; border: 1px solid rgba(0, 240, 255, 0.15);">
                     <div style="display: flex; align-items: center; gap: 14px;">
-                        <div style="flex: 1; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; position: relative;">
-                            <div id="progressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #00b4d8, #00f0ff); border-radius: 999px; transition: width 0.3s ease; position: relative; box-shadow: 0 0 12px rgba(0, 212, 255, 0.6), 0 0 4px rgba(0, 240, 255, 0.4);"></div>
+                        <div style="flex: 1; height: 10px; background: #eeede9; border-radius: 999px; overflow: hidden; position: relative;">
+                            <div id="progressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #06b6d4, #00f0ff); border-radius: 999px; transition: width 0.3s ease; position: relative; box-shadow: 0 0 12px rgba(0, 240, 255, 0.6), 0 0 4px rgba(0, 240, 255, 0.4);"></div>
                         </div>
-                        <span id="progressPercent" style="font-size: 13px; font-weight: 700; color: #00b4d8; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0%</span>
+                        <span id="progressPercent" style="font-size: 13px; font-weight: 700; color: #06b6d4; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0%</span>
                     </div>
-                    <div id="progressStatus" style="margin-top: 8px; font-size: 10px; font-weight: 600; color: #9ca3af; letter-spacing: 0.02em;">准备中...</div>
+                    <div id="progressStatus" style="margin-top: 8px; font-size: 10px; font-weight: 600; color: #a19f97; letter-spacing: 0.02em;">准备中...</div>
                 </div>
 
                 <div class="status-bar" id="statusBar">
@@ -896,9 +997,9 @@
         </div>
     </div>
 
-    <script src="/static/modules/image-viewer.js?v=20260522001"></script>
-    <script src="/static/three.min.js?v=20260521001"></script>
-    <script src="/static/OrbitControls.js?v=20260521001"></script>
+    <script src="/static/modules/image-viewer.js?v=20261024001"></script>
+    <script src="/static/three.min.js?v=20261024001"></script>
+    <script src="/static/OrbitControls.js?v=20261024001"></script>
 
     <script>
         // 自动检测访问来源：localhost/127.0.0.1 使用直连模式，局域网使用代理模式
@@ -997,7 +1098,7 @@
                     "_meta": { "title": "TextEncodeQwenImageEditPlus (Positive)" }
                 },
                 "11": {
-                    "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "crop", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": 1024, "background_color": "#000000", "image": ["14", 0] },
+                    "inputs": { "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1, "fit": "crop", "method": "lanczos", "round_to_multiple": "8", "scale_to_side": "longest", "scale_to_length": 1024, "background_color": "#0b0b0a", "image": ["14", 0] },
                     "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
                     "_meta": { "title": "图层工具：按宽高比缩放 V2" }
                 },
@@ -1058,19 +1159,7 @@
 
         
         /** 保存到用户 output 文件夹 */
-        async function saveToUserOutput(comfyUrl, featureName) {
-            try {
-                const u = new URL(comfyUrl, window.location.origin);
-                const fn = u.searchParams.get('filename') || '';
-                const sf = u.searchParams.get('subfolder') || '';
-                const tp = u.searchParams.get('type') || 'output';
-                if (!fn) return comfyUrl;
-                const res = await fetch(`/api/comfyui/save-to-output?filename=${encodeURIComponent(fn)}&subfolder=${encodeURIComponent(sf)}&type=${encodeURIComponent(tp)}&feature=${encodeURIComponent(featureName)}`);
-                if (!res.ok) return comfyUrl;
-                const data = await res.json();
-                return data.url || comfyUrl;
-            } catch (e) { return comfyUrl; }
-        }
+        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);

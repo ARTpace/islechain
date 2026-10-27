@@ -18,10 +18,11 @@ async def codex_status():
     if not exe:
         return {"installed": False, "logged_in": False, "message": "未找到 OpenAI Codex CLI，请先安装。"}
     try:
-        proc = await asyncio.create_subprocess_exec(exe, "whoami", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = await asyncio.create_subprocess_exec(exe, "login", "status", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
-        logged_in = proc.returncode == 0 and bool(stdout.strip())
-        return {"installed": True, "logged_in": logged_in, "message": stdout.decode("utf-8", errors="replace").strip() or "已安装"}
+        logged_in = proc.returncode == 0
+        message = (stdout + stderr).decode("utf-8", errors="replace").strip()
+        return {"installed": True, "logged_in": logged_in, "message": message or "已安装"}
     except Exception as e:
         return {"installed": True, "logged_in": False, "message": f"检测失败: {e}"}
 

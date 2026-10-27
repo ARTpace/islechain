@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>模型训练 · ART AI</title>
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261025">
+    <link rel="stylesheet" href="/static/css/training.css?v=20261025">
+    <script src="/static/theme.js?v=20261024bar"></script>
+    <script src="/static/modules/auth-token.js?v=20261024001"></script>
+    <script src="/static/modules/training.js?v=20261025" defer></script>
+</head>
+<body>
+<main class="training-shell">
+    <header class="training-header"><div><span class="eyebrow">LORA WORKSPACE</span><h1>模型训练</h1><p>素材、参数与进度在这里管理，训练由独立的 Kohya-LoRA Tool 执行。</p></div><div class="header-actions"><span id="connectionStatus" class="status-chip">未连接</span><button id="connectBtn">检测连接</button><button id="launchBtn">启动训练器</button></div></header>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <details id="connectionPanel" class="surface connection" open>
+        <summary>训练器连接 <span id="connectionHint">首次使用请先配置</span></summary>
+        <p class="muted">在训练器左侧打开「外部 Agent · MCP」，开启本机接口。需要创建项目或训练时，再开启「允许修改配置、下载和控制训练」。将复制的通用配置粘贴到下方，或手动填写地址与密钥。</p>
+        <label>粘贴 MCP 配置（支持通用 JSON / Codex TOML）<textarea id="pasteConfig" rows="2" autocomplete="off" spellcheck="false" placeholder="只在本机解析；导入后立即清空"></textarea></label>
+        <div class="form-grid"><label>接口地址<input id="trainerUrl" value="http://127.0.0.1:19366/mcp" spellcheck="false"></label><label>连接密钥<input id="trainerToken" type="password" autocomplete="new-password" placeholder="留空保留已保存密钥"></label><label class="wide">便携版目录<input id="installDir" spellcheck="false" placeholder="H:\AI-Tools\Kohya-LoRA-Tool"></label></div>
+        <div class="button-row"><button id="parseConfigBtn">解析粘贴配置</button><button id="saveConnectionBtn" class="primary">保存并连接</button><a href="https://github.com/l1934332574-maker/Kohya-LoRA-Tool/blob/main/docs/MCP.md" target="_blank" rel="noopener noreferrer">连接说明 ↗</a></div>
+    </details>
+    <div class="workspace-grid">
+        <aside class="surface projects"><div class="section-heading"><h2>训练项目</h2><button id="refreshProjectsBtn" disabled>刷新</button></div><div id="projectList" class="project-list"><p class="empty">连接训练器后显示已有项目</p></div>
+            <details><summary>新建项目</summary><form id="createProjectForm"><label>项目名称<input id="newProjectName" required maxlength="80" placeholder="例如：我的角色"></label><label>训练模板<select id="projectTemplate" required><option value="">连接后读取可用模板</option></select></label><label>训练目标<select id="trainingType"><option value="character">角色</option><option value="style">画风</option><option value="concept">概念 / 物品</option></select></label><button type="submit" class="primary" id="createProjectBtn" disabled>创建项目</button></form></details>
+        </aside>
+        <section class="surface project-workspace"><div class="section-heading"><div><h2 id="projectTitle">选择训练项目</h2><p id="projectSubtitle" class="muted">复用训练器的实际模板和参数，不猜测模型支持范围。</p></div><button id="reloadProjectBtn" disabled>重新读取</button></div>
+            <div id="projectEditor" hidden>
+                <form id="projectForm"><div class="form-grid" id="commonFields"></div><details><summary>高级配置</summary><p class="muted">保存时只提交修改字段，并检查配置版本。引擎专用参数以训练器校验为准。</p><textarea id="advancedConfig" rows="10" spellcheck="false" aria-label="项目高级配置 JSON"></textarea></details><div class="button-row"><button id="saveProjectBtn" class="primary" type="submit">保存参数</button><span id="dirtyHint" class="muted">未修改</span></div></form>
+                <div class="task-actions"><button data-operation="inspect_dataset">检查素材</button><button data-operation="prepare_training">训练预检</button><button data-operation="list_models">模型状态</button><button data-operation="prepare_data">预处理 / 打标</button><button data-operation="start_training" class="primary">开始训练</button><button data-operation="resume_training">从快照续训</button><button data-operation="training_history">训练历史</button><button data-operation="get_diagnostics">诊断信息</button></div>
+                <details><summary>环境与模型准备</summary><p class="muted">以下操作可能下载依赖或模型。使用训练器原有安装流程，不修改 ComfyUI 环境。</p><div class="button-row"><button data-setup="prerequisites">检查 / 安装基础环境</button><button data-setup="engine">检查 / 安装当前引擎</button></div><label>模型组件 key<input id="downloadModelKey" placeholder="从“模型状态”返回的 key 中选择填写" spellcheck="false"></label><button id="downloadModelBtn">下载指定组件</button></details>
+            </div>
+            <div class="result-head"><h3 id="resultTitle">环境信息</h3><button id="clearResultBtn">清空显示</button></div><pre id="resultPanel" class="result-panel">连接后显示显卡、引擎安装状态和接口权限。</pre>
+        </section>
+    </div>
+    <section class="surface task-panel"><div class="section-heading"><div><h2>当前任务 <span id="taskStatus" class="muted">无任务</span></h2><p id="taskTitle" class="muted">关闭页面不会停止训练；再次连接会尝试恢复当前任务。</p></div><div class="button-row"><button id="taskRefreshBtn" disabled>刷新状态</button><button id="samplesBtn" disabled>采样文件</button><button id="cancelTaskBtn" disabled>请求停止</button></div></div><progress id="taskProgress" hidden aria-label="训练进度"></progress>
+        <div id="reviewPanel" class="review-panel" hidden><strong>素材已准备好，训练引擎尚未开始执行</strong><p>请检查素材和标签；统计完整不代表标签内容正确。</p><button id="inspectReviewBtn">检查当前任务素材</button><label class="review-check"><input type="checkbox" id="reviewConfirmed">我已检查素材与标签，确认继续训练</label><button id="continueTaskBtn" class="primary" disabled>确认并继续训练</button></div>
+        <pre id="taskLogs" class="task-logs" aria-label="训练日志">等待任务</pre>
+    </section>
+    <p class="footer-note">训练与生图共用显卡，训练前请结束 ComfyUI 正在执行的任务，并在需要时释放显存。当前接入不会自动停止 ComfyUI。</p>
+</main>
+</body></html>

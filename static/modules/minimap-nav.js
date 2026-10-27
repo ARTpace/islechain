@@ -26,14 +26,14 @@ function injectMinimapCSS() {
   style.id = id;
   style.textContent = `
     .minimap { position:absolute; right:22px; bottom:22px; z-index:24; width:188px; height:126px; padding:8px; border-radius:16px; background:var(--panel); border:1px solid var(--line); box-shadow:0 16px 42px var(--shadow); backdrop-filter:blur(16px); overflow:hidden; pointer-events:auto; cursor:crosshair; }
-    .minimap-content { position:relative; width:100%; height:100%; border-radius:10px; background:rgba(148,163,184,.08); overflow:hidden; }
-    .minimap-node { position:absolute; border-radius:3px; background:rgba(15,23,42,.64); border:1px solid rgba(255,255,255,.32); min-width:2px; min-height:2px; }
-    .minimap-node.selected { background:#111827; box-shadow:0 0 0 1px rgba(255,255,255,.7); }
-    .minimap-viewport { position:absolute; border:1.5px solid #111827; background:rgba(17,24,39,.08); border-radius:5px; box-shadow:0 0 0 1px rgba(255,255,255,.75); pointer-events:none; }
+    .minimap-content { position:relative; width:100%; height:100%; border-radius:10px; background:rgba(161, 159, 151, .08); overflow:hidden; }
+    .minimap-node { position:absolute; border-radius:3px; background:rgba(23, 23, 22, .64); border:1px solid rgba(255,255,255,.32); min-width:2px; min-height:2px; }
+    .minimap-node.selected { background:#181817; box-shadow:0 0 0 1px rgba(255,255,255,.7); }
+    .minimap-viewport { position:absolute; border:1.5px solid #181817; background:rgba(24, 24, 23, .08); border-radius:5px; box-shadow:0 0 0 1px rgba(255,255,255,.75); pointer-events:none; }
     .minimap-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; pointer-events:none; }
-    body.theme-dark .minimap-node { background:rgba(248,250,252,.7); border-color:rgba(15,23,42,.35); }
-    body.theme-dark .minimap-node.selected { background:#fff; box-shadow:0 0 0 1px rgba(15,23,42,.8); }
-    body.theme-dark .minimap-viewport { border-color:#f8fafc; background:rgba(248,250,252,.1); box-shadow:0 0 0 1px rgba(15,23,42,.8); }
+    body.theme-dark .minimap-node { background:rgba(250, 249, 247, .7); border-color:rgba(23, 23, 22, .35); }
+    body.theme-dark .minimap-node.selected { background:#fcfcfb; box-shadow:0 0 0 1px rgba(23, 23, 22, .8); }
+    body.theme-dark .minimap-viewport { border-color:#faf9f7; background:rgba(250, 249, 247, .1); box-shadow:0 0 0 1px rgba(23, 23, 22, .8); }
   `;
   document.head.appendChild(style);
 }

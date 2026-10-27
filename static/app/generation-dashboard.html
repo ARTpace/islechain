@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生成数据</title><script src="/static/theme.js?v=20261024bar"></script><script src="/static/modules/auth-token.js?v=20261024001"></script>
+<link rel="stylesheet" href="/static/generation-dashboard.css"><script src="/static/generation-dashboard.js" defer></script></head>
+<body><main>
+<header><div><span class="eyebrow">CREATION ANALYTICS</span><h1>生成数据<span class="dot"></span></h1><p id="scope">每一次生成，都有据可查。</p></div><div class="actions"><span id="updated" aria-live="polite"></span><button id="refresh">刷新</button><button id="export">导出 CSV</button></div></header>
+<section class="metrics" aria-label="生成总览" id="metrics"></section>
+<form id="filters" class="panel filters"><div class="quick"><strong>筛选记录</strong><button type="button" data-days="1">今日</button><button type="button" data-days="7" class="selected">近 7 天</button><button type="button" data-days="30">近 30 天</button><button type="button" data-days="0">全部</button></div>
+<div class="fields"><label>开始日期<input type="date" id="start"></label><label>结束日期<input type="date" id="end"></label><label id="user-field">用户<select id="user"><option value="">全部用户</option></select></label><label>生成类型<select id="kind"><option value="">全部类型</option></select></label><label>模型 / 工作流<select id="model"><option value="">全部模型</option></select></label><label>平台<select id="provider"><option value="">全部平台</option></select></label><label>状态<select id="status"><option value="">全部状态</option><option value="succeeded">成功</option><option value="failed">失败</option><option value="running">进行中</option><option value="interrupted">结果未知</option></select></label><button class="primary" type="submit">查询</button></div></form>
+<p id="message" role="status"></p>
+<div class="analysis"><section class="panel"><div class="section-heading"><h2>生成趋势</h2><span>每日任务 · UTC+8</span></div><div id="trend" class="trend"></div><div class="legend"><i class="success"></i>成功<i class="failure"></i>失败<i class="pending"></i>进行中 / 未知</div></section><section class="panel"><div class="section-heading"><h2>模型用量</h2><span>按任务数排序 · 前 20 项</span></div><div id="models" class="rank"></div></section></div>
+<section class="panel"><div class="section-heading"><h2>用户用量</h2><span>当前筛选范围 · 前 20 项</span></div><div id="users" class="user-grid"></div></section>
+<section class="panel records"><div class="section-heading"><h2>生成明细</h2><span id="total"></span></div><div class="table-scroll"><table><thead><tr><th>生成时间</th><th>用户</th><th>类型 / 平台</th><th>模型 / 工作流</th><th>状态</th><th>耗时</th><th>产物数</th><th>参数</th></tr></thead><tbody id="records"></tbody></table></div><footer><span id="paging"></span><div><button id="prev">上一页</button><button id="next">下一页</button></div></footer></section>
+<p class="note">统计从数据模块启用后开始，按任务计数，产物数单独累计；删除历史作品不会删除统计。耗时包含排队、生成与保存，不是上游纯推理时间。服务重启后的未完成任务标记为“结果未知”，不计入成功率。局域网用户需访问同一台工具服务；独立运行的工具与浏览器直连上游不在统计范围内。</p>
+</main><dialog id="detail"><div class="section-heading"><h2>任务详情</h2><button id="close-detail">关闭</button></div><pre id="detail-content"></pre></dialog></body></html>

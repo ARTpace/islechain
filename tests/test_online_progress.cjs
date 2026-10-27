@@ -1,0 +1,43 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('static/app/zimage.html', 'utf8');
+for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+    if (!/\bsrc\s*=/.test(m[1]) && !/type\s*=\s*["'](?:module|application\/json)/.test(m[1])) new Function(m[2]);
+}
+const elements = Object.fromEntries(['.card-progress-label','.card-progress-pct','.pg-ring-outer','.pg-ring-inner'].map(key=>[key,{style:{},textContent:''}]));
+const card = {querySelector:selector=>elements[selector]};
+let cleared = 0;
+const cardContext = {window:{},document:{getElementById:()=>({})},Date:{now:()=>15000},setInterval:()=>1,clearInterval:()=>cleared++};
+vm.createContext(cardContext);
+vm.runInContext(fs.readFileSync('static/modules/card-progress.js','utf8'),cardContext);
+const progress = cardContext.window.CardProgress;
+progress.update(card,{status:'online',label:'网站生成中',progress:37,startedAt:5000});
+assert.equal(elements['.card-progress-pct'].textContent,'37%');
+assert.equal(elements['.card-progress-label'].textContent,'网站生成中 10s');
+progress.update(card,{status:'online',label:'等待 API 返回',progress:null,startedAt:5000});
+assert.equal(elements['.card-progress-pct'].style.visibility,'hidden');
+assert.equal(elements['.card-progress-label'].textContent,'等待 API 返回 10s');
+progress.update(card,{status:'failed'});
+assert(cleared>=2);
+const updates=[];
+const calls=[];
+const context = {CardProgress:{update:(el,state)=>updates.push(state)},setTimeout:fn=>{queueMicrotask(fn);return 1;},clearTimeout:()=>{},DOMException,encodeURIComponent};
+vm.createContext(context);
+vm.runInContext(html.slice(html.indexOf('        function cloudReportProgress('),html.indexOf('        async function handleRenderCloud(')),context);
+(async()=>{
+    const responses=[{task_id:'t'},{status:'running',progress:{source:'website',stage:'running',progress:37}},{status:'running',progress:{source:'website',stage:'archiving',progress:null}},{status:'succeeded',result:{images:['saved.png']}}];
+    context.fetch=async (url,options)=>{calls.push({url,options});return {ok:true,json:async()=>responses.shift()};};
+    const result=await context.cloudRunOnlineTask({model:'test'},card,5000);
+    assert.equal(result.images[0],'saved.png');
+    assert.equal(calls.filter(call=>call.options?.method==='POST').length,1);
+    assert.equal(updates[0].progress,37);
+    assert.equal(updates[1].label,'网站保存中');
+    assert.equal(updates[1].progress,null);
+    let count=0;
+    context.fetch=async()=>({ok:true,json:async()=>++count===1?{task_id:'failed'}:{status:'failed',error:'网站任务失败'}});
+    await assert.rejects(()=>context.cloudRunOnlineTask({},card,5000),/网站任务失败/);
+    assert.equal(count,2);
+    assert(!html.includes('_cloudSimTimer')&&!html.includes('_simPct'));
+    console.log('真实进度、未知百分比、连续耗时与单次任务轮询检查通过');
+})().catch(error=>{console.error(error);process.exitCode=1;});

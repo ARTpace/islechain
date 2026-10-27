@@ -19,7 +19,7 @@
         document.addEventListener('click', () => hide());
         document.addEventListener('contextmenu', (e) => {
             // 如果是图片卡片上的右键，不关闭（让 card.js 的处理接管）
-            if (e.target.closest('.masonry-item')) return;
+            if (e.target.closest('.masonry-item, .chat-image-card')) return;
             hide();
         });
         return menuEl;
@@ -102,7 +102,15 @@
                 }
 
                 hide();
-                if (action === '__view__') {
+                if (action === '__region__') {
+                    currentFeatures.regionEdit(currentRecord);
+                } else if (action === '__edit__') {
+                    currentFeatures.editImage(currentRecord);
+                } else if (action === '__extract__') {
+                    currentFeatures.extractPrompt(currentRecord);
+                } else if (action === '__view__' && currentFeatures.viewImage) {
+                    currentFeatures.viewImage(currentRecord);
+                } else if (action === '__view__') {
                     // 查看大图：触发卡片的 click 事件打开 lightbox
                     const card = document.querySelector(`#history-${currentRecord.timestamp}`);
                     if (card) card.click();
@@ -173,6 +181,9 @@
     function buildItems(record, features) {
         const items = [];
         items.push({ label: '查看大图', action: '__view__', icon: _SVG.magnify });
+        if (features.regionEdit) items.push({ label:'局部修改图片', action:'__region__', icon:_SVG.pencil });
+        if (features.editImage) items.push({ label:'改这张图片', action:'__edit__', icon:_SVG.pencil });
+        if (features.extractPrompt) items.push({ label: '提取图片提示词', action: '__extract__', icon: _SVG.pencil });
         if (features.openFolder)  items.push({ label: '打开文件夹', action: 'openImageFolder', icon: _SVG.folder });
         if (features.usePrompt)   items.push({ label: '载入提示词', action: 'usePrompt',       icon: _SVG.pencil });
         if (features.copyPrompt)  items.push({ label: '复制提示词', action: 'copyPrompt',      icon: _SVG.copy });

@@ -75,7 +75,7 @@ async function qwenEditExecute(node, refs, prompt, promptId) {
                 "aspect_ratio": "original", "proportional_width": 1, "proportional_height": 1,
                 "fit": "crop", "method": "lanczos", "round_to_multiple": "8",
                 "scale_to_side": "longest", "scale_to_length": Number(node.qeSize || 1024),
-                "background_color": "#000000", "image": ["14", 0]
+                "background_color": "#0b0b0a", "image": ["14", 0]
             },
             "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
             "_meta": { "title": "图层工具：按宽高比缩放 V2" }

@@ -9,12 +9,12 @@
 /* 删除按钮"待确认"态：变红 + 抖动 + 阴影 */
 .gallery-action-btn.is-confirming {
     background: #dc2626 !important;
-    color: #fff !important;
+    color: #fbfaf9 !important;
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35), 0 4px 12px rgba(220, 38, 38, 0.45) !important;
     animation: galleryDeleteShake 0.4s ease-in-out infinite alternate;
 }
 .gallery-action-btn.is-confirming svg {
-    color: #fff;
+    color: #fbfaf9;
 }
 @keyframes galleryDeleteShake {
     from { transform: translateX(0); }
@@ -35,13 +35,13 @@
     padding: 4px;
     display: none;
     font-size: 13px;
-    color: #1f2937;
+    color: #282825;
 }
 body.studio-theme-dark .gallery-context-menu,
 html.studio-theme-dark .gallery-context-menu {
-    background: rgba(17, 24, 39, 0.72);
+    background: rgba(24, 24, 23, 0.72);
     border-color: rgba(255, 255, 255, 0.12);
-    color: #e5e7eb;
+    color: #eeede9;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .gallery-context-item {
@@ -76,7 +76,7 @@ html.studio-theme-dark .gallery-context-divider {
 body.studio-theme-dark .gallery-context-item.gallery-context-confirming,
 html.studio-theme-dark .gallery-context-item.gallery-context-confirming {
     background: #dc2626 !important;
-    color: #fff !important;
+    color: #fbfaf9 !important;
 }
 .gallery-context-item.gallery-context-confirming:hover,
 body.studio-theme-dark .gallery-context-item.gallery-context-confirming:hover,
@@ -98,4 +98,46 @@ html.studio-theme-dark .gallery-context-item.gallery-context-confirming:hover {
 @keyframes galleryFadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
+}
+
+/* 生图、对话共用浮层表面；只统一外观，不改变各面板定位和尺寸。 */
+html body :is(.anima-ctrl-menu, .chat-history, #chatModelMenu, #chatAdvancedPanel, .preset-dropdown-menu, .ratio-dropdown-menu, .res-dropdown-menu) {
+    border:1px solid var(--ui-line, #343b4c) !important;
+    border-radius:14px;
+    background:color-mix(in srgb, var(--ui-panel, #20242e) 86%, transparent) !important;
+    backdrop-filter:blur(24px) saturate(130%) !important;
+    -webkit-backdrop-filter:blur(24px) saturate(130%) !important;
+    box-shadow:0 12px 32px #0002;
+    color:var(--ui-text, #f6f6f4);
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+}
+@supports not (backdrop-filter:blur(1px)) {
+    html body :is(.anima-ctrl-menu, .chat-history, #chatModelMenu, #chatAdvancedPanel, .preset-dropdown-menu, .ratio-dropdown-menu, .res-dropdown-menu) {
+        background:var(--ui-panel, #20242e) !important;
+    }
+}
+html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+    opacity:0 !important;
+    pointer-events:none !important;
+}
+html body :is(.chat-image-card, .masonry-item):is(:hover, :focus-within) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+    opacity:1 !important;
+    pointer-events:auto !important;
+}
+html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download):focus-visible {
+    outline:2px solid var(--ui-accent, #06b6d4);
+    outline-offset:2px;
+    border-radius:8px;
+}
+@media (hover:none) {
+    html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+        opacity:1 !important;
+        pointer-events:auto !important;
+    }
+}
+.chat-history-more { justify-content:center; color:var(--ui-accent, #06b6d4); }
+.chat-history-more:disabled { opacity:.55; cursor:wait; }
+@media (prefers-reduced-motion:reduce) {
+    html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound) { transition:none; }
 }

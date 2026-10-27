@@ -18,57 +18,81 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/static/theme.js?v=20260516-theme-sync"></script>
-    <script src="/static/i18n.js?v=20260512-pages"></script>
-    <script src="/static/image-preview.js?v=20260516"></script>
-    <script src="/static/history-bulk-manager.js?v=20260517"></script>
-    <script src="/static/modules/image-editor.js?v=20260526005"></script>
+    <script src="/static/theme.js?v=20261024bar"></script>
+    <script src="/static/i18n.js?v=20261024001"></script>
+    <script src="/static/image-preview.js?v=20261024001"></script>
+    <script src="/static/history-bulk-manager.js?v=20261024001"></script>
+    <script src="/static/modules/image-editor.js?v=20261024001"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
-        :root { --accent:#111827; --bg:#f9fafb; --card:#fff; --easing:cubic-bezier(0.4,0,0.2,1); }
+        :root { --accent:var(--ui-text); --bg:var(--ui-bg); --card:var(--ui-panel); --easing:cubic-bezier(0.4,0,0.2,1); }
         body { background:var(--bg); font-family:'Inter',-apple-system,sans-serif; color:var(--accent); -webkit-font-smoothing:antialiased; }
         .container-box { max-width:1280px; margin:0 auto; padding:0 40px; margin-top:50px; }
-        .nano-input { background:var(--card); border:1px solid #eef0f2; transition:all .3s var(--easing); }
-        .nano-input:focus { border-color:#000; box-shadow:0 0 0 1px #000; }
-        .upload-item { background:var(--card); border:1px dashed #e2e8f0; transition:all .4s var(--easing); position:relative; overflow:hidden; }
-        .upload-item:hover,.upload-item.drag-over { border-color:#000; transform:translateY(-2px); }
+        .nano-input { background:var(--card); border:1px solid #f5f5f3; transition:all .3s var(--easing); }
+        .nano-input:focus { border-color:#0b0b0a; box-shadow:0 0 0 1px #0b0b0a; }
+        .upload-item { background:var(--card); border:1px dashed #eeede9; transition:all .4s var(--easing); position:relative; overflow:hidden; }
+        .upload-item:hover,.upload-item.drag-over { border-color:#0b0b0a; transform:translateY(-2px); }
         .preview-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; animation:fadeIn .5s var(--easing); }
-        .glass-btn { background:#111827; transition:all .3s var(--easing); }
-        .glass-btn:hover { background:#000; transform:translateY(-1px); box-shadow:0 12px 24px rgba(0,0,0,.1); }
-        .result-frame { background:#fff; border-radius:32px; border:1px solid #f1f5f9; box-shadow:0 2px 15px rgba(0,0,0,.02); }
-        .tool-panel { background:#fff; border:1px solid #edf0f3; border-radius:24px; padding:12px; display:flex; flex-direction:column; gap:10px; }
-        .model-pill { background:#f8fafc; border:1px solid #edf2f7; border-radius:999px; padding:3px; display:grid; grid-template-columns:1fr 1fr; gap:2px; }
-        .model-option { border-radius:999px; height:34px; display:flex; align-items:center; justify-content:center; gap:6px; color:#64748b; font-size:10px; font-weight:600; letter-spacing:.02em; transition:all .25s var(--easing); }
-        .model-option.active { background:#fff; color:#111827; box-shadow:0 1px 3px rgba(15,23,42,.08); }
-        .control-panel { background:#fff; border:1px solid #edf0f3; border-radius:24px; padding:12px; display:flex; flex-direction:column; gap:10px; }
-        .control-label { display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:10px; font-weight:600; letter-spacing:.04em; }
+        .glass-btn { background:#181817; transition:all .3s var(--easing); }
+        .glass-btn:hover { background:#0b0b0a; transform:translateY(-1px); box-shadow:0 12px 24px rgba(0, 0, 0, .1); }
+        .result-frame { background:#fbfaf9; border-radius:32px; border:1px solid #f7f7f5; box-shadow:0 2px 15px rgba(0, 0, 0, .02); }
+        .tool-panel { background:#fbfaf9; border:1px solid #f5f5f3; border-radius:24px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+        .model-pill { background:#f9f9f7; border:1px solid #f6f6f4; border-radius:999px; padding:3px; display:grid; grid-template-columns:1fr 1fr; gap:2px; }
+        .model-option { border-radius:999px; height:34px; display:flex; align-items:center; justify-content:center; gap:6px; color:#86857c; font-size:10px; font-weight:600; letter-spacing:.02em; transition:all .25s var(--easing); }
+        .model-option.active { background:#fbfaf9; color:#181817; box-shadow:0 1px 3px rgba(23, 23, 22, .08); }
+        .control-panel { background:#fbfaf9; border:1px solid #f5f5f3; border-radius:24px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+        .control-label { display:flex; align-items:center; gap:6px; color:#9f9d95; font-size:10px; font-weight:600; letter-spacing:.04em; }
         .size-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; align-items:start; }
         .size-field { min-width:0; display:flex; flex-direction:column; gap:6px; }
-        .size-select,.size-custom { width:100%; height:34px; border:1px solid #edf2f7; border-radius:14px; background:#f8fafc; color:#111827; outline:none; padding:0 10px; font-size:11px; font-weight:700; }
+        .size-select,.size-custom { width:100%; height:34px; border:1px solid #f6f6f4; border-radius:14px; background:#f9f9f7; color:#181817; outline:none; padding:0 10px; font-size:11px; font-weight:700; }
         .size-select:disabled { opacity:.55; cursor:not-allowed; }
-        .size-custom { display:none; background:#fff; }
+        .size-custom { display:none; background:#fbfaf9; }
         .size-field.custom .size-custom { display:block; }
         .size-pair { display:none; grid-template-columns:1fr 1fr; gap:6px; }
         .size-field.custom .size-pair { display:grid; }
         .size-pair .size-custom { display:block; }
         .size-pair.with-fit { grid-template-columns:1fr 1fr auto; align-items:center; }
-        .size-fit-btn { height:34px; border:1px solid #edf2f7; border-radius:14px; background:#fff; color:#111827; padding:0 10px; font-size:10px; font-weight:800; white-space:nowrap; }
+        .size-fit-btn { height:34px; border:1px solid #f6f6f4; border-radius:14px; background:#fbfaf9; color:#181817; padding:0 10px; font-size:10px; font-weight:800; white-space:nowrap; }
         .size-fit-btn:disabled { opacity:.45; cursor:not-allowed; }
         .masonry-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
         @media (min-width:768px){ .masonry-grid{ grid-template-columns:repeat(4,1fr); } }
         @media (max-width:640px){ .size-row{ grid-template-columns:1fr; } }
-        .masonry-item { aspect-ratio:1/1; border-radius:24px; overflow:hidden; background:#fff; border:1px solid #f1f5f9; transition:all .5s var(--easing); }
-        .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0,0,0,.08); }
-        .gallery-lightbox { background:rgba(255,255,255,.99); backdrop-filter:blur(22px) saturate(1.05); }
+        .masonry-item { aspect-ratio:1/1; border-radius:24px; overflow:hidden; background:#fbfaf9; border:1px solid #f7f7f5; transition:all .5s var(--easing); }
+        .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0, 0, 0, .08); }
+        .gallery-lightbox { background:rgba(255, 255, 255, .99); backdrop-filter:blur(22px) saturate(1.05); }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20260510-studio-pages-blue-dark10">
+    <link rel="stylesheet" href="/static/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
     <style>
         html:not(.studio-theme-dark) body:not(.studio-theme-dark) #lightbox.gallery-lightbox {
-            background: rgba(255,255,255,.99) !important;
+            background: rgba(255, 255, 255, .99) !important;
             backdrop-filter: blur(22px) saturate(1.05) !important;
             -webkit-backdrop-filter: blur(22px) saturate(1.05) !important;
         }
+    </style>
+    <style id="ui-responsive">
+        /* === 统一响应式（与 studio-ui.css 断点对齐） === */
+        .container-box { width:100%; max-width:100%; box-sizing:border-box; padding-inline:clamp(16px, 4vw, 40px); }
+        @media (max-width:640px) { .container-box { padding:16px 14px; margin-top:24px; } }
+
+        /* 深色主题：把硬编码浅色 chrome 映射到契约 token，保证双主题一致 */
+        html.studio-theme-dark body { background:var(--ui-bg); color:var(--ui-text); }
+        html.studio-theme-dark .nano-input { background:var(--ui-panel); border-color:var(--ui-line); }
+        html.studio-theme-dark .nano-input:focus { border-color:var(--ui-accent); box-shadow:0 0 0 1px var(--ui-accent); }
+        html.studio-theme-dark .upload-item { background:var(--ui-panel); border-color:var(--ui-line); }
+        html.studio-theme-dark .upload-item:hover, html.studio-theme-dark .upload-item.drag-over { border-color:var(--ui-accent); }
+        html.studio-theme-dark .result-frame { background:var(--ui-panel); border-color:var(--ui-line); box-shadow:var(--ui-shadow); }
+        html.studio-theme-dark .tool-panel, html.studio-theme-dark .control-panel { background:var(--ui-panel); border-color:var(--ui-line); }
+        html.studio-theme-dark .model-pill { background:var(--ui-soft); border-color:var(--ui-line); }
+        html.studio-theme-dark .model-option { color:var(--ui-muted); }
+        html.studio-theme-dark .model-option.active { background:var(--ui-panel); color:var(--ui-text); box-shadow:0 1px 3px var(--ui-shadow); }
+        html.studio-theme-dark .control-label { color:var(--ui-muted); }
+        html.studio-theme-dark .size-select, html.studio-theme-dark .size-custom, html.studio-theme-dark .size-fit-btn { background:var(--ui-soft); border-color:var(--ui-line); color:var(--ui-text); }
+        html.studio-theme-dark .masonry-item { background:var(--ui-panel); border-color:var(--ui-line); }
+        html.studio-theme-dark .glass-btn { background:var(--ui-panel); color:var(--ui-text); border:1px solid var(--ui-line); }
+        html.studio-theme-dark .glass-btn:hover { background:var(--ui-soft); box-shadow:0 12px 24px var(--ui-shadow); }
+        html.studio-theme-dark .gallery-lightbox { background:var(--ui-bg) !important; }
     </style>
 </head>
 <body>

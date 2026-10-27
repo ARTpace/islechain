@@ -142,10 +142,10 @@ const PICKER_PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">' +
 
 
-    '<rect width="180" height="180" fill="#1f2235"/>' +
+    '<rect width="180" height="180" fill="#232321"/>' +
 
 
-    '<g fill="none" stroke="#3b3f5a" stroke-width="1.5">' +
+    '<g fill="none" stroke="#44443f" stroke-width="1.5">' +
 
 
     '<circle cx="90" cy="75" r="22"/>' +
@@ -157,7 +157,7 @@ const PICKER_PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     '</g>' +
 
 
-    '<text x="90" y="160" fill="#525a78" font-family="sans-serif" font-size="11" text-anchor="middle">无缩略图</text>' +
+    '<text x="90" y="160" fill="#63625b" font-family="sans-serif" font-size="11" text-anchor="middle">无缩略图</text>' +
 
 
     '</svg>'
@@ -220,7 +220,7 @@ function pickerShowToast(msg, type) {
         el.style.cssText = 'position:absolute;top:18px;left:50%;transform:translateX(-50%) translateY(-12px);' +
 
 
-            'padding:9px 18px;border-radius:22px;font-size:12px;font-weight:600;color:#fff;' +
+            'padding:9px 18px;border-radius:22px;font-size:12px;font-weight:600;color:#fcfcfb;' +
 
 
             'box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:10000;opacity:0;pointer-events:none;' +
@@ -250,7 +250,7 @@ function pickerShowToast(msg, type) {
                         'rgba(74,222,128,0.95)';
 
 
-    el.style.color = type === 'warn' || type === 'error' ? '#fff' : '#0a1628';
+    el.style.color = type === 'warn' || type === 'error' ? '#fcfcfb' : '#141414';
 
 
     requestAnimationFrame(() => {
@@ -1466,7 +1466,7 @@ function pickerRenderGrid() {
             else p = pickerPage - 3 + i;
 
 
-            return '<button onclick="pickerGoPage(' + p + ')" style="padding: 6px 10px; border: 1px solid ' + (p === pickerPage ? '#4ade80' : 'rgba(255,255,255,0.1)') + '; border-radius: 6px; font-size: 12px; cursor: pointer; background: ' + (p === pickerPage ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.05)') + '; color: ' + (p === pickerPage ? '#4ade80' : '#ccc') + '; margin: 0 2px;">' + p + '</button>';
+            return '<button onclick="pickerGoPage(' + p + ')" style="padding: 6px 10px; border: 1px solid ' + (p === pickerPage ? '#4ade80' : 'rgba(255,255,255,0.1)') + '; border-radius: 6px; font-size: 12px; cursor: pointer; background: ' + (p === pickerPage ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.05)') + '; color: ' + (p === pickerPage ? '#4ade80' : '#cccccc') + '; margin: 0 2px;">' + p + '</button>';
 
 
         }).join('');
@@ -1586,7 +1586,7 @@ function pickerDetailOpen(name) {
                 <div class="pd-label">特征标签（点击单个复制）</div>
 
 
-                <div class="pd-tags">${tagsHtml || '<span style="color:#666">暂无标签数据</span>'}</div>
+                <div class="pd-tags">${tagsHtml || '<span style="color:#666666">暂无标签数据</span>'}</div>
 
 
             </div>
@@ -2005,35 +2005,32 @@ function pickerApply() {
     } else {
         const promptInput = document.getElementById('prompt');
         if (promptInput) {
-            const current = promptInput.value.trim();
-            const parts = current.split(',').map(p => p.trim()).filter(p => p);
-            // 1) 先把"上次应用写入的 token"全部移除（实现取消选择时同步删除）
-            //    同时当应用模式变化时也清空旧模式写入的 token，避免残留
-            const lastSetLower = new Set([...pickerLastAppliedTokens].map(s => s.toLowerCase()));
-            const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
-            // 2) 新写入的 token 来自当前 applyText
             const newApplyTokens = applyText.split(',').map(s => s.trim()).filter(Boolean);
-            // 3) 记录本次写入的 token 集合（去重 + 保留大小写原值）
             const seen = new Set();
             const orderedApplyParts = [];
             newApplyTokens.forEach(t => {
                 const tl = t.toLowerCase();
                 if (!seen.has(tl)) { seen.add(tl); orderedApplyParts.push(t); }
             });
+            if (typeof window.applyPromptTokensAtCaret === 'function') {
+                window.applyPromptTokensAtCaret(pickerLastAppliedTokens, orderedApplyParts);
+            } else {
+                const current = promptInput.value.trim();
+                const parts = current.split(',').map(p => p.trim()).filter(p => p);
+                const lastSetLower = new Set([...pickerLastAppliedTokens].map(s => s.toLowerCase()));
+                const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
+                const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
+                const preservedParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by '));
+                const mergeSeen = new Set();
+                const finalParts = [];
+                [...preservedParts, ...orderedApplyParts, ...artistParts].forEach(t => {
+                    const tl = t.toLowerCase();
+                    if (!mergeSeen.has(tl)) { mergeSeen.add(tl); finalParts.push(t); }
+                });
+                promptInput.value = finalParts.filter(p => p).join(', ');
+            }
             pickerLastAppliedTokens = new Set(orderedApplyParts.map(t => t.toLowerCase()));
             pickerLastAppliedMode = pickerApplyModeType;
-            // 4) 拼回：保留所有非角色 token（如 unreal engine 5 / amazing quality 等普通提示词），
-            //    再追加本次选中的角色 token，末尾附加画师 token（保持原有的角色+画师拼接顺序）
-            const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
-            const preservedParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by '));
-            // 去重合并（大小写不敏感，保留先出现的原值）
-            const mergeSeen = new Set();
-            const finalParts = [];
-            [...preservedParts, ...orderedApplyParts, ...artistParts].forEach(t => {
-                const tl = t.toLowerCase();
-                if (!mergeSeen.has(tl)) { mergeSeen.add(tl); finalParts.push(t); }
-            });
-            promptInput.value = finalParts.filter(p => p).join(', ');
         }
     }
 
@@ -2045,6 +2042,14 @@ function pickerApply() {
 
 
 function pickerOpen(callback) {
+    if ((!ANIMA_CHAR_DB || !ANIMA_CHAR_DB.length) && !pickerOpen._loading) {
+        pickerOpen._loading = true;
+        Promise.resolve(pickerLoadData()).finally(() => {
+            pickerOpen._loading = false;
+            pickerOpen(callback);
+        });
+        return;
+    }
     pickerCallback = callback || null;
 
     const promptInput = document.getElementById('prompt');
@@ -2165,16 +2170,7 @@ function pickerClearSelection() {
 }
 
 function pickerGetFilteredList() {
-    // 获取当前筛选结果中的所有角色名称
-    const list = [];
-    const items = document.querySelectorAll('.picker-char-card');
-    items.forEach(item => {
-        const name = item.dataset.name;
-        if (name) {
-            list.push(name);
-        }
-    });
-    return list;
+    return pickerFilterChars().map(c => c.name);
 }
 
 function pickerUpdateUI() {
@@ -2230,9 +2226,6 @@ function pickerClose() {
 
 
 function pickerInit() {
-
-
-    pickerLoadData();
 
 
 
@@ -2413,9 +2406,9 @@ function pickerInit() {
 
 
                         <span id="pickerSelectedCount" class="picker-selected-count">已选 0</span>
-                        <button onclick="pickerSelectAll()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:8px;">全选</button>
-                        <button onclick="pickerInvertSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:4px;">反选</button>
-                        <button onclick="pickerClearSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;cursor:pointer;font-size:10px;margin-left:4px;">清空</button>
+                        <button onclick="pickerSelectAll()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#cccccc;cursor:pointer;font-size:10px;margin-left:8px;">全选</button>
+                        <button onclick="pickerInvertSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#cccccc;cursor:pointer;font-size:10px;margin-left:4px;">反选</button>
+                        <button onclick="pickerClearSelection()" style="padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#cccccc;cursor:pointer;font-size:10px;margin-left:4px;">清空</button>
 
 
                         <div id="pickerSelectedChips" class="picker-selected-chips"></div>

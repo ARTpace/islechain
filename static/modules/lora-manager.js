@@ -510,20 +510,23 @@ const LoraManager = (function() {
         if (!promptEl) return;
         const newTriggerWords = collectTriggerWords(selectedArr);
         const newSet = new Set(newTriggerWords);
-        const splitFn = window.splitPrompt || function(v) { return v.split(/,\s*/).filter(Boolean); };
-
-        if (_activeTriggerWords.size > 0) {
-            const parts = splitFn(promptEl.value);
-            const filtered = parts.filter(p => !_activeTriggerWords.has(p.toLowerCase()));
-            promptEl.value = filtered.join(', ');
-        }
-        if (newTriggerWords.length > 0) {
-            const currentParts = splitFn(promptEl.value);
-            const currentLowerSet = new Set(currentParts.map(p => p.toLowerCase()));
-            const toAdd = newTriggerWords.filter(t => !currentLowerSet.has(t.toLowerCase()));
-            if (toAdd.length > 0) {
-                const cur = promptEl.value.trim();
-                promptEl.value = cur ? cur + ', ' + toAdd.join(', ') : toAdd.join(', ');
+        if (typeof window.applyPromptTokensAtCaret === 'function') {
+            window.applyPromptTokensAtCaret(_activeTriggerWords, newTriggerWords);
+        } else {
+            const splitFn = window.splitPrompt || function(v) { return v.split(/,\s*/).filter(Boolean); };
+            if (_activeTriggerWords.size > 0) {
+                const parts = splitFn(promptEl.value);
+                const filtered = parts.filter(p => !_activeTriggerWords.has(p.toLowerCase()));
+                promptEl.value = filtered.join(', ');
+            }
+            if (newTriggerWords.length > 0) {
+                const currentParts = splitFn(promptEl.value);
+                const currentLowerSet = new Set(currentParts.map(p => p.toLowerCase()));
+                const toAdd = newTriggerWords.filter(t => !currentLowerSet.has(t.toLowerCase()));
+                if (toAdd.length > 0) {
+                    const cur = promptEl.value.trim();
+                    promptEl.value = cur ? cur + ', ' + toAdd.join(', ') : toAdd.join(', ');
+                }
             }
         }
         _activeTriggerWords = newSet;
@@ -536,7 +539,7 @@ const LoraManager = (function() {
     // ─────────────────────────────────────────────
     function togglePanel() {
         if (typeof window.loraPickerOpen === 'function') {
-            window.loraPickerOpen(function(selected) {
+            return window.loraPickerOpen(function(selected) {
                 state.active = selected;
                 saveConfig();
                 updateVisibility();
@@ -568,14 +571,14 @@ const LoraManager = (function() {
     // ─────────────────────────────────────────────
     //  工作流注入
     // ─────────────────────────────────────────────
-    function injectNodes(workflow) {
+    function injectNodes(workflow, activeLoras = state.active) {
         if (!workflow) return;
         // 清理之前注入的动态节点 (ID >= LORA_NODE_BASE)
         for (const key of Object.keys(workflow)) {
             if (parseInt(key) >= LORA_NODE_BASE) delete workflow[key];
         }
 
-        const validLoras = state.active.filter(l => l.name);
+        const validLoras = activeLoras.filter(l => l.name);
         if (validLoras.length === 0) return;
 
         let nextNodeId = LORA_NODE_BASE;

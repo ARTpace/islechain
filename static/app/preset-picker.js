@@ -20,6 +20,8 @@ let presetPickerData = { categories: [] };
 let _presetI18nMap = null; // i18n 映射缓存
 // 上次写入提示词的预设 tokens 快照（用于识别「取消选择」时该删除哪些 token）
 let presetPickerLastAppliedTokens = new Set();
+let presetStyleSubject = '';
+let presetStyleExpanded = '';
 
 // 加载 i18n 映射
 function _loadPresetI18n() {
@@ -53,10 +55,17 @@ let presetPickerFrozenOrder = null;
 // 按当前 sort 对全部预设排序，再把已选 pin 到前面
 function presetPickerBuildFrozenOrder() {
     let list = _flatIndex.filter(p => p._type === _presetMode);
+    const asc = document.getElementById('presetPickerSort')?.dataset.asc === '1';
     if (presetPickerSort === 'name') {
-        list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+        list = [...list].sort((a, b) => asc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
     } else if (presetPickerSort === 'category') {
-        list = [...list].sort((a, b) => a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name));
+        list = [...list].sort((a, b) => {
+            const cmp = a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name);
+            return asc ? cmp : -cmp;
+        });
+    } else {
+        list = [...list];
+        if (asc) list.reverse();
     }
     if (presetPickerSelected.length > 0) {
         const _selSet = new Set(presetPickerSelected.map(s => s.category_id + ':' + s.id));
@@ -322,6 +331,8 @@ function presetPickerRenderGrid() {
     const totalEl = document.getElementById('presetPickerTotalCount');
     if (totalEl) totalEl.textContent = '共 ' + _vsList.length + ' 个预设';
 
+    if (!grid._presetThumbnails) grid._presetThumbnails = createPresetThumbnailLoader(grid);
+    grid._presetThumbnails.reset();
     // 直接清空网格
     grid.innerHTML = '';
 
@@ -355,22 +366,28 @@ function _vsAppendBatch(grid) {
             ? cnName + '<br><span style="font-size:9px;opacity:0.7;font-weight:400;">' + p.prompt + '</span>'
             : p.prompt;
         const card = document.createElement('div');
-        card.className = 'preset-picker-card' + (sel ? ' selected' : '');
+        card.className = 'preset-picker-card' + (isStyle ? ' preset-picker-card-style' : '') + (sel ? ' selected' : '');
         // 使用 addEventListener 替代内联 onclick，避免 ID 含特殊字符时 JS 解析失败
         card.addEventListener('click', () => presetPickerToggle(p.id, p.category_id));
 
-        let inner = '<div class="preset-picker-card-top"><div class="preset-picker-card-cats">' + catTags + '</div><div class="preset-picker-card-check">' + (sel ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div></div>';
-
-        // 风格卡片：显示缩略图
-        if (isStyle && p.thumbnail) {
-            inner += '<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:6px;background:rgba(255,255,255,0.05);"><img src="' + p.thumbnail + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></div>';
+        const cardTop = '<div class="preset-picker-card-top"><div class="preset-picker-card-cats">' + catTags + '</div><div class="preset-picker-card-check">' + (sel ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : '') + '</div></div>';
+        let inner;
+        if (isStyle) {
+            const styleName = cnName || p.name || '';
+            const thumb = p.thumbnail
+                ? '<img class="preset-style-img" data-preset-src="' + String(p.thumbnail).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" alt="" onerror="this.remove()">'
+                : '';
+            inner = '<div class="preset-style-thumb">' + thumb + cardTop
+                + '<div class="preset-style-caption"><div class="preset-picker-card-name">' + styleName + '</div>'
+                + '<div class="preset-style-prompt" title="' + String(p.prompt || '').replace(/"/g, '&quot;') + '">' + (p.prompt || '') + '</div></div></div>';
+        } else {
+            inner = cardTop + '<div class="preset-picker-card-name" title="' + String(p.prompt || '').replace(/"/g, '&quot;') + '">' + displayName + '</div>';
         }
-
-        inner += '<div class="preset-picker-card-name" title="' + p.prompt.replace(/"/g, '&quot;') + '">' + displayName + '</div>';
         card.innerHTML = inner;
         wrapper.appendChild(card);
     });
     grid.appendChild(wrapper);
+    grid._presetThumbnails.watch();
     _vsRendered = end;
 
     const pageInfoEl = document.getElementById('presetPickerPageInfo');
@@ -395,7 +412,11 @@ function presetPickerGoPage(p) { }
 function presetPickerPrevPage() { }
 function presetPickerNextPage() { }
 function presetPickerShowSelectedOnly() { presetPickerShowSelected = !presetPickerShowSelected; presetPickerRenderGrid(); }
-function presetPickerCopySelected() { navigator.clipboard.writeText(presetPickerSelected.map(p => p.prompt).join(', ')).then(() => alert('已复制')); }
+function presetPickerCopySelected() {
+    const text = presetPickerSelected.map(p => p.prompt).join(', ');
+    const done = () => { if (typeof pickerShowToast === 'function') pickerShowToast('已复制 ' + presetPickerSelected.length + ' 个预设', 'info'); };
+    navigator.clipboard.writeText(text).then(done, done);
+}
 // === 批量选择功能 ===
 function presetPickerSelectAll() {
     // 获取当前筛选结果中的所有预设
@@ -459,17 +480,22 @@ function presetPickerApply() {
     if (!promptInput) return;
 
     if (_presetMode === 'style') {
-        // 风格模式：用选中的风格预设提示词替换
         const currentPrompt = promptInput.value.trim();
-        // {subject} = 用户输入的主题
-        let subject = currentPrompt.replace(/\{subject\}/gi, '').trim();
-        if (!subject) subject = 'subject';
-        // {prompt} = 用户已有的提示词
-        let existingPrompt = currentPrompt;
+        const subject = (presetStyleExpanded && currentPrompt === presetStyleExpanded)
+            ? presetStyleSubject
+            : currentPrompt.replace(/\{subject\}/gi, '').trim();
+        const fillSubject = (text) => {
+            if (subject) return text.replace(/\{(?:subject|prompt)\}/gi, subject);
+            return text
+                .replace(/\{(?:subject|prompt)\}\s*,\s*/gi, '')
+                .replace(/\s*\{(?:subject|prompt)\}/gi, '')
+                .replace(/\s{2,}/g, ' ')
+                .replace(/^\s*,\s*/, '')
+                .trim();
+        };
 
         const stylePrompts = presetPickerSelected.map(p => {
             let text = (p.prompt || '').trim();
-            // 如果 prompt 是 JSON，把所有字段转成逗号分隔的提示词
             if (text.startsWith('{') && !text.startsWith('{subject}') && !text.startsWith('{prompt}')) {
                 try {
                     const obj = JSON.parse(text);
@@ -487,43 +513,41 @@ function presetPickerApply() {
                     }
                 } catch(e) {}
             }
-            // 替换占位符
-            text = text.replace(/\{subject\}/gi, subject);
-            text = text.replace(/\{prompt\}/gi, existingPrompt);
-            return text;
+            return fillSubject(text);
         }).filter(Boolean);
         if (stylePrompts.length > 0) {
-            promptInput.value = stylePrompts.join(', ');
+            presetStyleSubject = subject;
+            presetStyleExpanded = stylePrompts.join(', ');
+            promptInput.value = presetStyleExpanded;
+        } else if (presetStyleExpanded && currentPrompt === presetStyleExpanded) {
+            presetStyleExpanded = '';
+            promptInput.value = presetStyleSubject;
         }
     } else {
         // 标签模式：合并到现有提示词
         const current = promptInput.value.trim();
         const parts = current.split(',').map(p => p.trim()).filter(p => p);
-        // 1) 先把"上次应用写入的 token"全部移除（实现取消选择时同步删除）
         const lastSet = presetPickerLastAppliedTokens || new Set();
-        const lastSetLower = new Set([...lastSet].map(s => s.toLowerCase()));
-        const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
-        // 2) 重新分类：非预设 token（角色/普通词 + 画师）保持不动
-        //    注：上次应用的预设 token 已在步骤 1 通过 presetPickerLastAppliedTokens 精确移除，
-        //        此处不再用 isPresetNameToken（含中文即排除）做模糊过滤，避免误杀用户原有的中文提示词
-        const charParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !p.startsWith('['));
-        const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
-        // 3) 收集当前选中的预设 token（用 prompt 优先；name 作为 fallback）
         const newPresetTokens = presetPickerSelected.map(p => {
             return (p.prompt || p.name || p.id || '').trim();
         }).filter(Boolean);
-        // 4) 组装最终结果，并按当前选择顺序排列（去重）
         const seen = new Set();
         const orderedPresetParts = [];
         newPresetTokens.forEach(t => {
             const tl = t.toLowerCase();
             if (!seen.has(tl)) { seen.add(tl); orderedPresetParts.push(t); }
         });
-        // 5) 写回：把"当前选中的预设 token"快照记到 presetPickerLastAppliedTokens
-        //    下次应用时这些就是应该被识别为「预设写入」的 token
+        if (typeof window.applyPromptTokensAtCaret === 'function') {
+            window.applyPromptTokensAtCaret(lastSet, orderedPresetParts);
+        } else {
+            const lastSetLower = new Set([...lastSet].map(s => s.toLowerCase()));
+            const partsAfterRemove = parts.filter(t => !lastSetLower.has(t.toLowerCase()));
+            const charParts = partsAfterRemove.filter(p => !p.startsWith('@') && !p.startsWith('by ') && !p.startsWith('['));
+            const artistParts = partsAfterRemove.filter(p => p.startsWith('@') || p.startsWith('by '));
+            const allParts = [...charParts, ...orderedPresetParts, ...artistParts];
+            promptInput.value = allParts.filter(p => p).join(', ');
+        }
         presetPickerLastAppliedTokens = new Set(orderedPresetParts.map(t => t.toLowerCase()));
-        const allParts = [...charParts, ...orderedPresetParts, ...artistParts];
-        promptInput.value = allParts.filter(p => p).join(', ');
     }
 
     if (typeof updatePromptTags === 'function') updatePromptTags();
@@ -542,7 +566,7 @@ function presetPickerSortChanged() {
 function presetPickerRefresh() {
     const btn = document.getElementById('presetPickerRefreshBtn');
     if (btn) {
-        btn.style.color = '#00b4d8';
+        btn.style.color = '#06b6d4';
         btn.style.pointerEvents = 'none';
     }
     // 清除本地缓存
@@ -821,36 +845,35 @@ function _presetSwitchMode(mode) {
 }
 
 function presetPickerInit() {
-    presetPickerLoadData();
-
     if (!document.getElementById('presetPickerModal')) {
         const modalHTML = `
         <div id="presetPickerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 960px; height: 680px; background: linear-gradient(180deg, #0d1b2a 0%, #1b2838 100%); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 1px solid rgba(0,180,216,0.15);">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 960px; height: 680px; background: linear-gradient(180deg, #191918 0%, #262623 100%); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 1px solid rgba(6, 182, 212, 0.15);">
                 <!-- 顶部 Tab 切换 -->
                 <div style="display: flex; padding: 12px 20px 0; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
-                    <div class="preset-mode-tab active" data-mode="tag" onclick="_presetSwitchMode('tag')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🏷️ 标签</div>
-                    <div class="preset-mode-tab" data-mode="style" onclick="_presetSwitchMode('style')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🎨 风格</div>
+                    <div class="preset-mode-tab active" data-mode="tag" onclick="_presetSwitchMode('tag')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🏷️ 标签</div>
+                    <div class="preset-mode-tab" data-mode="style" onclick="_presetSwitchMode('style')" style="padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🎨 风格</div>
                 </div>
                 <!-- 顶部工具栏 -->
                 <div id="presetPickerToolbar" style="display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;">
                     <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
-                        <span id="presetPickerTitle" style="font-size: 14px; font-weight: 700; color: #fff;">标签</span>
-                        <span id="presetPickerTotalCount" style="font-size: 12px; color: #666;"></span>
+                        <span id="presetPickerTitle" style="font-size: 14px; font-weight: 700; color: #fcfcfb;">标签</span>
+                        <span id="presetPickerTotalCount" style="font-size: 12px; color: #666666;"></span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input id="presetPickerSearch" type="text" placeholder="搜索预设..." oninput="_presetPickerSearchInput()" style="width: 180px; height: 32px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0 12px; font-size: 12px; color: #fff; outline: none;">
-                        <select id="presetPickerSort" onchange="presetPickerSortChanged()" style="height: 32px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0 8px; font-size: 12px; color: #fff; outline: none;">
+                        <input id="presetPickerSearch" type="text" placeholder="搜索预设..." oninput="_presetPickerSearchInput()" style="width: 180px; height: 32px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0 12px; font-size: 12px; color: #fcfcfb; outline: none;">
+                        <select id="presetPickerSort" onchange="presetPickerSortChanged()" style="height: 32px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0 8px; font-size: 12px; color: #fcfcfb; outline: none;">
+                            <option value="heat">按热度</option>
                             <option value="name">按名称</option>
                             <option value="category">按分类</option>
                         </select>
-                        <button onclick="presetPickerShowSelectedOnly()" id="presetPickerShowSelBtn" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">已选 (<span id="presetPickerSelectedCount">0</span>)</button>
-                        <button onclick="presetPickerSelectAll()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">全选</button>
-                        <button onclick="presetPickerInvertSelection()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fff; cursor: pointer;">反选</button>
-                        <button onclick="presetPickerCopySelected()" id="presetPickerCopyBtn" style="height: 32px; padding: 0 12px; background: rgba(0,180,216,0.2); border: 1px solid rgba(0,180,216,0.3); border-radius: 8px; font-size: 12px; color: #00b4d8; cursor: pointer;">复制</button>
+                        <button onclick="presetPickerShowSelectedOnly()" id="presetPickerShowSelBtn" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fcfcfb; cursor: pointer;">已选 (<span id="presetPickerSelectedCount">0</span>)</button>
+                        <button onclick="presetPickerSelectAll()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fcfcfb; cursor: pointer;">全选</button>
+                        <button onclick="presetPickerInvertSelection()" style="height: 32px; padding: 0 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; color: #fcfcfb; cursor: pointer;">反选</button>
+                        <button onclick="presetPickerCopySelected()" id="presetPickerCopyBtn" style="height: 32px; padding: 0 12px; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 8px; font-size: 12px; color: #06b6d4; cursor: pointer;">复制</button>
                         <button onclick="presetPickerClearAll()" id="presetPickerClearBtn" style="height: 32px; padding: 0 12px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 12px; color: #ef4444; cursor: pointer;">清空</button>
-                        <button onclick="presetPickerRefresh()" id="presetPickerRefreshBtn" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="刷新预设">↻</button>
-                        <button onclick="presetPickerClose()" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="关闭并应用">&times;</button>
+                        <button onclick="presetPickerRefresh()" id="presetPickerRefreshBtn" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="刷新预设">↻</button>
+                        <button onclick="presetPickerClose()" style="height: 32px; width: 32px; padding: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 16px; color: #999999; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="关闭并应用">&times;</button>
                     </div>
                 </div>
                 <!-- 主体 -->
@@ -869,8 +892,8 @@ function presetPickerInit() {
                 </div>
                 <!-- 底部分页 -->
                 <div id="presetPickerFooter" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
-                    <span id="presetPickerPageInfo" style="font-size: 12px; color: #666;"></span>
-                    <span style="font-size: 12px; color: #666;">↓ 滚动加载更多</span>
+                    <span id="presetPickerPageInfo" style="font-size: 12px; color: #666666;"></span>
+                    <span style="font-size: 12px; color: #666666;">↓ 滚动加载更多</span>
                 </div>
             </div>
         </div>`;
@@ -878,7 +901,7 @@ function presetPickerInit() {
 
         // Tab 样式
         const style = document.createElement('style');
-        style.textContent = ".preset-mode-tab.active { color: #00b4d8 !important; border-bottom-color: #00b4d8 !important; } .preset-mode-tab:hover { color: #fff !important; }";
+        style.textContent = ".preset-mode-tab.active { color: #06b6d4 !important; border-bottom-color: #06b6d4 !important; } .preset-mode-tab:hover { color: #fcfcfb !important; }";
         document.head.appendChild(style);
 
         // 点击遮罩关闭（与 LoRA 选择器一致）

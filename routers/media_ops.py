@@ -54,12 +54,12 @@ async def media_preview(url: str, w: int = 512):
         if _main.is_video_preview_file(path):
             img = await asyncio.to_thread(_main.generate_video_preview_image, path, width)
         else:
-            def _process_image():
-                with Image.open(path) as source:
-                    img = ImageOps.exif_transpose(source)
-                    img.thumbnail((width, width), Image.BILINEAR)
-                    return img.convert("RGBA" if _main.image_has_alpha(img) else "RGB")
-            img = await asyncio.to_thread(_process_image)
+            await asyncio.to_thread(_main._prewarm_thumbnails, path, (width,))
+            if os.path.exists(webp_path):
+                return FileResponse(webp_path, media_type="image/webp", headers=_preview_cache_headers(webp_path))
+            if os.path.exists(png_path):
+                return FileResponse(png_path, media_type="image/png", headers=_preview_cache_headers(png_path))
+            raise HTTPException(status_code=415, detail="无法生成图片预览")
 
         def _save_preview():
             try:

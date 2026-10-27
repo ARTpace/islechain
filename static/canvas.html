@@ -16,12 +16,30 @@
             } catch(e) {}
         })();
     </script>
-    <script src="/static/vendor/js/lucide.js?v=2026.06.12.1780315750"></script>
-    <script src="/static/js/theme.js?v=2026.06.12.1780927239"></script>
-    <script src="/static/js/touch-mouse.js?v=20260726"></script>
-    <script src="/static/js/i18n.js?v=2026.06.12.1780927239"></script>
-    <link rel="stylesheet" href="/static/css/canvas.css?v=20261022f">
-    <link rel="stylesheet" href="/static/css/theme.css?v=20260726">
+    <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
+    <script src="/static/js/theme.js?v=20261024001"></script>
+    <script src="/static/js/touch-mouse.js?v=20261024001"></script>
+    <script src="/static/js/i18n.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/css/canvas.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/theme.css?v=20261024001">
+    <style id="ui-responsive">
+        /* 外壳响应式：防横向滚动 + 移动端堆叠 */
+        html, body { overflow-x: hidden; }
+        .shell, .topbar, .panel, .board { min-width: 0; }
+        .topbar { flex-wrap: wrap; gap: 8px; }
+        .panel { flex-wrap: wrap; }
+        .toolbar-items { flex-wrap: wrap; }
+        @media (max-width: 1024px) {
+            .topbar { padding: 10px 12px; }
+        }
+        @media (max-width: 640px) {
+            .topbar { flex-direction: column; align-items: stretch; }
+            .toolbar-items { gap: 6px; }
+            .canvas-asset-panel { width: 100% !important; max-width: 100% !important; }
+            .board { min-width: 0; }
+        }
+    </style>
 </head>
 <body>
     <div id="shell" class="shell no-canvas">
@@ -328,7 +346,7 @@
                     </div>
                 </div>
                 <div class="image-edit-actions">
-                    <span id="imageEditZoomLabel" style="color:#94a3b8;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
+                    <span id="imageEditZoomLabel" style="color:#9f9d95;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
                     <button class="image-edit-btn secondary" type="button" onclick="resetCropBox()"><i data-lucide="rotate-ccw" class="w-4 h-4"></i><span data-i18n="canvas.reset">重置</span></button>
                     <button class="image-edit-btn secondary" type="button" onclick="closeImageEditor()" data-i18n="common.cancel">取消</button>
                     <button id="imageEditApplyBtn" class="image-edit-btn primary" type="button" onclick="applyImageEdit()"><i data-lucide="crop" class="w-4 h-4"></i><span data-i18n="canvas.applyCrop">应用裁剪</span></button>
@@ -350,7 +368,7 @@
         </div>
     </div>
 
-    <script src="/static/js/ltx-director-timeline.js?v=20260726"></script>
-    <script src="/static/js/canvas.js?v=20261022f"></script>
+    <script src="/static/js/ltx-director-timeline.js?v=20261024001"></script>
+    <script src="/static/js/canvas.js?v=20261024001"></script>
 </body>
 </html>

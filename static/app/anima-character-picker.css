@@ -1052,7 +1052,7 @@
 }
 .pd-action-primary:hover {
     background: var(--picker-accent);
-    color: #fff;
+    color: #fbfaf9;
 }
 .pd-meta {
     font-size: 11px;
@@ -1158,7 +1158,7 @@
 body:not(.studio-theme-dark):not(.theme-dark) {
     --picker-bg:           oklch(98% 0.002 280);
     --picker-bg-2:         oklch(95% 0.008 280);
-    --picker-surface:      #ffffff;
+    --picker-surface:      #fbfaf9;
     --picker-surface-hi:   oklch(92% 0.01 280);
     --picker-line:         oklch(78% 0.01 280 / 0.6);
     --picker-line-hi:      oklch(55% 0.01 280 / 0.7);
@@ -1181,7 +1181,7 @@ body:not(.studio-theme-dark):not(.theme-dark) .picker-shell {
     background: oklch(0% 0 0 / 0.3);
 }
 body:not(.studio-theme-dark):not(.theme-dark) .picker-window {
-    background: linear-gradient(165deg, #ffffff 0%, oklch(95% 0.008 280) 100%);
+    background: linear-gradient(165deg, #fbfaf9 0%, oklch(95% 0.008 280) 100%);
     border-color: oklch(85% 0.01 280 / 0.6);
     box-shadow: 0 4px 40px oklch(0% 0 0 / 0.12);
 }
@@ -1215,6 +1215,6 @@ body:not(.studio-theme-dark):not(.theme-dark) .picker-footer {
     background: oklch(97% 0.003 280);
 }
 body:not(.studio-theme-dark):not(.theme-dark) .picker-dd-menu {
-    background: #ffffff;
+    background: #fbfaf9;
     box-shadow: 0 4px 24px oklch(0% 0 0 / 0.12);
 }

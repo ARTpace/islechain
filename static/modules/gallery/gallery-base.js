@@ -100,10 +100,10 @@
                 document.body.appendChild(el);
             }
             const colors = {
-                success: { bg: '#10b981', fg: '#fff' },
-                info:    { bg: '#111827', fg: '#fff' },
-                warn:    { bg: '#f59e0b', fg: '#fff' },
-                error:   { bg: '#ef4444', fg: '#fff' }
+                success: { bg: '#10b981', fg: '#fcfcfb' },
+                info:    { bg: '#181817', fg: '#fcfcfb' },
+                warn:    { bg: '#f59e0b', fg: '#fcfcfb' },
+                error:   { bg: '#ef4444', fg: '#fcfcfb' }
             };
             const c = colors[type] || colors.info;
             el.style.background = c.bg;

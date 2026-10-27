@@ -49,13 +49,13 @@
     width: min(92vw, 600px);
     max-height: 75vh;
     display: flex; flex-direction: column;
-    background: rgba(15,23,42,0.72);
+    background: rgba(23, 23, 22, 0.72);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    color: #f1f5f9;
+    color: #f6f6f4;
     overflow: hidden;
     animation: pp-pop 0.16s ease-out;
 }
@@ -77,13 +77,13 @@
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: 9px;
     background: rgba(255,255,255,0.1);
-    color: #e2e8f0; border: none;
+    color: #eceae5; border: none;
     transition: background .15s ease, color .15s ease, transform .15s ease;
     cursor: pointer; padding: 0;
 }
-.pp-btn:hover { background: rgba(0,180,216,0.45); color: #fff; }
+.pp-btn:hover { background: rgba(6, 182, 212, 0.45); color: #fcfcfb; }
 .pp-btn:active { transform: scale(0.92); }
-.pp-btn.copied { background: rgba(34,197,94,0.5); color: #fff; }
+.pp-btn.copied { background: rgba(34,197,94,0.5); color: #fcfcfb; }
 
 /* ---- 分区通用 ---- */
 .pp-section { border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -103,7 +103,7 @@
     color: rgba(255,255,255,0.4); border: none;
     cursor: pointer; padding: 0; transition: all .15s ease;
 }
-.pp-sec-copy:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.pp-sec-copy:hover { background: rgba(255,255,255,0.1); color: #fcfcfb; }
 
 /* ---- 标签行（含复制按钮） ---- */
 .pp-tags-row {
@@ -117,8 +117,8 @@
 .pp-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
 .pp-tag {
     font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
-    background: rgba(0,180,216,0.2); color: #7dd3fc;
-    border: 1px solid rgba(0,180,216,0.3);
+    background: rgba(6, 182, 212, 0.2); color: #00f0ff;
+    border: 1px solid rgba(6, 182, 212, 0.3);
     user-select: none; white-space: nowrap; line-height: 1.4;
 }
 .pp-tag.pp-tag-warm { background: rgba(251,146,60,0.18); color: #fdba74; border-color: rgba(251,146,60,0.3); }
@@ -140,30 +140,31 @@
 
 /* ---- 元数据网格 ---- */
 .pp-meta-grid {
-    display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 14px 12px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px 16px; padding: 4px 14px 14px;
 }
 .pp-meta-item {
-    display: inline-flex; align-items: center; gap: 5px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0;
     font-size: 11.5px; font-weight: 600;
-    padding: 5px 10px; border-radius: 8px;
-    background: rgba(59,130,246,0.15); color: #93c5fd;
-    border: 1px solid rgba(59,130,246,0.22);
-    user-select: all; white-space: nowrap;
+    padding: 9px 0; color: inherit;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    user-select: all;
 }
 .pp-meta-key { opacity: 0.65; font-weight: 500; }
-.pp-meta-val { opacity: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pp-meta-val { text-align: right; overflow-wrap: anywhere; min-width: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pp-meta-key { flex-shrink: 0; }
+@media (max-width: 420px) { .pp-meta-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- 滚动条（深色主题） ---- */
 .pp-content,
-.pp-body { scrollbar-width: thin; scrollbar-color: rgba(71,85,105,0.6) transparent; }
+.pp-body { scrollbar-width: thin; scrollbar-color: rgba(89, 88, 81, 0.6) transparent; }
 .pp-content::-webkit-scrollbar,
 .pp-body::-webkit-scrollbar { width: 6px; }
 .pp-content::-webkit-scrollbar-track,
 .pp-body::-webkit-scrollbar-track { background: transparent; }
 .pp-content::-webkit-scrollbar-thumb,
-.pp-body::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.6); border-radius: 6px; }
+.pp-body::-webkit-scrollbar-thumb { background: rgba(89, 88, 81, 0.6); border-radius: 6px; }
 .pp-content::-webkit-scrollbar-thumb:hover,
-.pp-body::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.85); border-radius: 6px; }
+.pp-body::-webkit-scrollbar-thumb:hover { background: rgba(125, 124, 116, 0.85); border-radius: 6px; }
 `;
 
     /* ============================ 图标 ============================ */
@@ -209,48 +210,60 @@
 
     /* ============================ 构建内容 HTML ============================ */
 
-    /** 将 genParams / meta 对象 + record 字段展平为统一元数据键值对 */
+    /** 统一入口：新增模型/API 复用字段别名；不把页面类型当成真实模型。 */
     function buildMetaDict(recordMeta, genParams, extra) {
-        var d = {};
-        // genParams 展平
-        if (genParams && typeof genParams === 'object') {
-            var gp = genParams;
-            if (gp.cfg != null) d['CFG'] = gp.cfg;
-            if (gp.cfg_scale != null) d['CFGSCALE'] = gp.cfg_scale;
-            if (gp.steps != null) d['步骤'] = gp.steps;
-            if (gp.sampler != null || gp.sampler_name != null) d['采样曲'] = gp.sampler || gp.sampler_name;
-            if (gp.scheduler) d['调度器'] = gp.scheduler;
-            if (gp.seed != null) d['种子'] = gp.seed;
-            if (gp['耗时'] != null) d['耗时'] = gp['耗时'];   // litevideo 记录生成总耗时（点击→完成）
-            // litevideo 导演台整条/手动成片：为避免“耗时”被误以为是单段时间，这里用“本批耗时”
-            if (gp['本批耗时'] != null && !d['耗时']) d['本批耗时'] = gp['本批耗时'];
-            if (gp.width != null) d['宽度'] = gp.width;
-            if (gp.height != null) d['身高'] = gp.height;
-            if (gp.batchCount != null) d['批次数'] = gp.batchCount;
-            if (gp.resolution != null) d['分辨率档'] = ['标清','高清'][gp.resolution] || gp.resolution;
-            if (gp.ratioW && gp.ratioH) d['比例'] = gp.ratioW + ':' + gp.ratioH;
-            if (gp.workflow) d['工作流'] = gp.workflow.split('/').pop().replace('.json','');
-            if (gp.loras && gp.loras.length) {
-                d['LoRA'] = gp.loras.map(function(l){ return (l.name||'').split('/')[0] + (l.strength!=null? '('+l.strength+')':''); }).join(', ');
+        var data = Object.assign({}, recordMeta || {}, genParams || {}, extra || {});
+        var used = new Set();
+        function pick(names) {
+            names.forEach(function(k) { used.add(k); });
+            for (var k of names) {
+                if (data[k] != null && data[k] !== '') return data[k];
             }
-            // 兜底：把未知字段也展进去（排除已处理的和复杂对象）
-            var _skip = {cfg:1,cfg_scale:1,steps:1,sampler:1,sampler_name:1,scheduler:1,seed:1,width:1,height:1,batchCount:1,resolution:1,ratioW:1,ratioH:1,workflow:1,loras:1};
-            for (var k in gp) {
-                if (_skip[k] || typeof gp[k] === 'object' || Array.isArray(gp[k])) continue;
-                if (!(k in d)) d[k] = gp[k];
-            }
+            return null;
         }
-        // record 级别的字段
-        if (recordMeta && typeof recordMeta === 'object') {
-            if (recordMeta.model && !d['模型']) d['模型'] = recordMeta.model;
-            if (recordMeta.type && !d['类型']) d['类型'] = recordMeta.type;
-            if (recordMeta.seed != null && !d['种子']) d['种子'] = recordMeta.seed;
-        }
-        // 调用方额外传入的 meta
-        if (extra && typeof extra === 'object') {
-            for (var k2 in extra) { if (!(k2 in d)) d[k2] = extra[k2]; }
-        }
-        return d;
+        var workflow = pick(['workflow', '工作流']);
+        var model = pick(['model_name', 'modelName', 'model', '模型']);
+        var type = pick(['mode', 'generation_mode', 'type', '类型']);
+        var engine = pick(['engine', 'source', '来源']);
+        var provider = pick(['provider_name', 'provider', 'api_provider', '服务商']);
+        var width = pick(['width', '宽度']), height = pick(['height', '高度', '身高']);
+        var size = pick(['size', '尺寸']);
+        var rw = pick(['ratioW']), rh = pick(['ratioH']);
+        var ratio = pick(['aspect_ratio', 'aspectRatio', 'ratio', '比例']);
+        var generic = /^(zimage|klein|image|text2image|image-edit)$/i;
+        if ((!model || generic.test(model)) && workflow) model = String(workflow).split(/[\\/]/).pop().replace(/\.json$/i, '');
+        if (model && generic.test(model)) model = null;
+        var modes = {text2image:'文生图', txt2img:'文生图', t2i:'文生图', 'image-edit':'图生图', img2img:'图生图', i2i:'图生图', edit:'图生图', zimage:'文生图', klein:'图生图'};
+        if (!type && workflow) type = String(workflow).split(/[\\/]/)[0];
+        var d = {
+            '模型': model || '未记录',
+            '来源': engine === 'local' ? '本地 ComfyUI' : engine === 'cloud' || engine === 'api' ? '在线 API' : engine || '未记录',
+            '生成模式': modes[type] || type || '未记录',
+            '尺寸': width && height ? width + ' × ' + height : size || '未记录'
+        };
+        if (provider) d['服务商'] = typeof provider === 'object' ? provider.name || provider.id || '未记录' : provider;
+        if (ratio || (rw && rh)) d['比例'] = ratio || rw + ':' + rh;
+        var fields = [
+            ['种子',['seed','种子']], ['步数',['steps','num_inference_steps','步骤','步数']],
+            ['引导系数',['cfg','cfg_scale','guidance','guidance_scale','CFG','CFGSCALE']],
+            ['采样器',['sampler','sampler_name','采样器','采样曲']], ['调度器',['scheduler','调度器']],
+            ['重绘强度',['denoise','strength','重绘强度']], ['批次数',['batchCount','batch_size','batch_count','批次数']],
+            ['分辨率档',['resolution','分辨率档']]
+        ];
+        fields.forEach(function(field) { var value = pick(field[1]); if (value != null) d[field[0]] = value; });
+        var durationMs = pick(['generation_time_ms']);
+        var duration = pick(['duration','elapsed','生成时长','耗时','本批耗时']);
+        d['生成时长'] = durationMs != null ? (Number(durationMs) / 1000).toFixed(1) + ' 秒（含排队）' : duration != null ? (typeof duration === 'number' ? duration + ' 秒' : duration) : '未记录';
+        if (workflow) d['工作流'] = String(workflow).split(/[\\/]/).pop().replace(/\.json$/i, '');
+        var loras = pick(['loras','LoRA']);
+        if (Array.isArray(loras) && loras.length) d['LoRA'] = loras.map(function(l) { return (l.name || '').split(/[\\/]/).pop() + (l.strength != null ? ' (' + l.strength + ')' : ''); }).join(', ');
+        else if (typeof loras === 'string' && loras) d['LoRA'] = loras;
+        // ponytail: 未知标量保留在折叠区，无需为每种 API 增加渲染分支。
+        var additional = {};
+        Object.keys(data).sort().forEach(function(k) {
+            if (!used.has(k) && data[k] != null && typeof data[k] !== 'object' && data[k] !== '') additional[k] = data[k];
+        });
+        return {fields: d, additional: additional};
     }
 
     /** 构建 tags 数组（用于顶部标签行） */
@@ -278,8 +291,9 @@
         var cn = (typeof _rawCn === 'string') ? _rawCn.trim() : '';
         var _rawNeg = opts.negative || '';
         var neg = (typeof _rawNeg === 'string') ? _rawNeg.trim() : '';
-        var metaDict = buildMetaDict(opts.recordMeta, opts.genParams, opts.meta);
-        var tagItems = buildTagsArray(opts.tags, opts.recordType, opts.recordModel, (opts.genParams && opts.genParams.workflow));
+        var normalized = buildMetaDict(Object.assign({}, opts.recordMeta, {model: opts.recordModel || (opts.recordMeta || {}).model, type: opts.recordType || (opts.recordMeta || {}).type}), opts.genParams, opts.meta);
+        var metaDict = normalized.fields;
+        var tagItems = buildTagsArray([], null, metaDict['模型'] === '未记录' ? null : metaDict['模型'], null);
         var hasMeta = Object.keys(metaDict).length > 0;
 
         var html = '';
@@ -330,7 +344,7 @@
         // ====== 元数据区 ======
         if (hasMeta) {
             html += '<div class="pp-section">';
-            html += '<div class="pp-sec-head"><span class="pp-sec-title">其他元数据</span></div>';
+            html += '<div class="pp-sec-head"><span class="pp-sec-title">生成信息</span></div>';
             html += '<div class="pp-meta-grid">';
             var keys = Object.keys(metaDict);
             for (var mi = 0; mi < keys.length; mi++) {
@@ -339,6 +353,12 @@
             html += '</div></div>';
         }
 
+        var extraKeys = Object.keys(normalized.additional);
+        if (extraKeys.length) {
+            html += '<details class="pp-section"><summary class="pp-sec-head">其他参数</summary><div class="pp-meta-grid">';
+            extraKeys.forEach(function(k) { html += '<span class="pp-meta-item"><span class="pp-meta-key">' + escHtml(k) + '</span><span class="pp-meta-val">' + escHtml(String(normalized.additional[k])) + '</span></span>'; });
+            html += '</div></details>';
+        }
         return html;
     }
 

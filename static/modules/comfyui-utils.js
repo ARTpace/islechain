@@ -48,7 +48,7 @@ window.runComfyUpscale = runComfyUpscale;
  * @param {string} featureName - 功能文件夹名 (如 '抠图', '图片编辑', '3D视角')
  * @returns {string} 本地图片 URL (如 /output/admin/抠图/2026-06-10/xxx.png)
  */
-async function saveToUserOutput(comfyImageUrl, featureName) {
+async function saveToUserOutput(comfyImageUrl, featureName, withToken = false) {
     try {
         // 从 ComfyUI URL 提取参数
         const url = new URL(comfyImageUrl, window.location.origin);
@@ -57,7 +57,8 @@ async function saveToUserOutput(comfyImageUrl, featureName) {
         const type = url.searchParams.get('type') || 'output';
         if (!filename) return comfyImageUrl;
 
-        const saveUrl = `/api/comfyui/save-to-output?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=${encodeURIComponent(type)}&feature=${encodeURIComponent(featureName)}`;
+        let saveUrl = `/api/comfyui/save-to-output?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=${encodeURIComponent(type)}&feature=${encodeURIComponent(featureName)}`;
+        if (withToken) saveUrl += '&token=' + encodeURIComponent(localStorage.getItem('xy_auth_token') || '');
         const res = await fetch(saveUrl);
         if (!res.ok) return comfyImageUrl;
         const data = await res.json();
@@ -68,3 +69,5 @@ async function saveToUserOutput(comfyImageUrl, featureName) {
     }
 }
 window.saveToUserOutput = saveToUserOutput;
+// 保留独立引用，供需要携带登录令牌的页面兼容包装调用。
+window.ComfyOutput = { save: saveToUserOutput };

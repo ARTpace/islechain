@@ -58,7 +58,7 @@ function spPickerRender() {
     const currentMode = (typeof getCurrentModelMode === 'function') ? getCurrentModelMode() : '';
     const filtered = spPickerPresets.filter(p => !p.model_mode || p.model_mode === 'all' || p.model_mode === currentMode);
     if (!filtered.length) {
-        body.innerHTML = '<div style="text-align:center;padding:24px;color:#999;font-size:12px;">当前模型没有匹配的预设<br>请到管理器中创建</div>';
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:#999999;font-size:12px;">当前模型没有匹配的预设<br>请到管理器中创建</div>';
         return;
     }
     body.innerHTML = filtered.map(p => {

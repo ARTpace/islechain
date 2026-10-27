@@ -85,7 +85,7 @@
   },
   "44": {
     "inputs": {
-      "unet_name": "anima\\anima_baseV10.safetensors",
+      "unet_name": "anima\\anima_turboV11.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",

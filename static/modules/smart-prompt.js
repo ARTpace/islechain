@@ -78,7 +78,7 @@ const SmartPrompt = (function() {
                 display:inline-flex;align-items:center;gap:6px;
                 height:32px;padding:0 14px;border-radius:10px;
                 font-size:11px;font-weight:700;cursor:pointer;
-                background:rgba(0,0,0,0.06);color:#000;
+                background:rgba(0,0,0,0.06);color:#0b0b0a;
                 border:1px solid rgba(0,0,0,0.1);
                 transition:all 0.2s;white-space:nowrap;flex-shrink:0;
             }

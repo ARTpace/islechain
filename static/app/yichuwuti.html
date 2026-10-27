@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>万物移除工具</title>
-    <script src="/static/modules/auth-token.js?v=20260525001"></script>
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20260521024">
-    <script src="/static/lucide.min.js?v=20260521024"></script>
-    <script src="/static/theme.js?v=20260521024"></script>
-    <link rel="stylesheet" href="/static/theme.css?v=20260511-cyberpunk-cyan">
-    <script src="/static/modules/yichuwuti-image-viewer.js?v=20260521003"></script>
+    <script src="/static/modules/auth-token.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
+    <script src="/static/lucide.min.js?v=20261024001"></script>
+    <script src="/static/theme.js?v=20261024bar"></script>
+    <link rel="stylesheet" href="/static/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <script src="/static/modules/yichuwuti-image-viewer.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261024008">
     <style>
-        :root { --bg-base: #f0f4fa; --text-main: #0a1628; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #00b4d8; }
+        :root { --bg-base: #f7f7f5; --text-main: #141414; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
         *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
         *::-webkit-scrollbar-thumb { background-color: #d8d8d8 !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
@@ -21,36 +23,32 @@
         * { scrollbar-width: thin !important; scrollbar-color: #d8d8d8 transparent !important; }
         body { background-color: var(--bg-base); font-family: "Inter", -apple-system, "PingFang SC", sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
         .layout-container { max-width: var(--max-w); margin: 0 auto; padding: 0 40px; }
-        .console-card { background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02); }
-        .theme-dark .console-card { background: #0d1520; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
-        .theme-dark .bg-gray-50\/50 { background: rgba(13, 21, 32, 0.5) !important; }
-        .theme-dark .bg-white { background: #0d1520 !important; }
+        .console-card { background: var(--ui-panel); border: 1px solid var(--ui-line); box-shadow: var(--ui-shadow); }
+        .theme-dark .console-card { background: #151515; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        .theme-dark .bg-gray-50\/50 { background: rgba(20, 20, 20, 0.5) !important; }
+        .theme-dark .bg-white { background: #151515 !important; }
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
-        .theme-dark .text-gray-700 { color: #c8d6e5 !important; }
-        .theme-dark .bg-gray-100 { background: #1a2a3a !important; }
-        .upload-zone { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px dashed rgba(128, 128, 128, 0.3); border-radius: 16px; text-align: center; cursor: pointer; transition: 0.3s; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
-        .upload-zone:hover { border-color: var(--accent); background: rgba(0, 180, 216, 0.05); }
-        .upload-zone.dragover { border-color: var(--accent); background: rgba(0, 180, 216, 0.08); }
+        .theme-dark .text-gray-700 { color: #e3e1d9 !important; }
+        .theme-dark .bg-gray-100 { background: #20201e !important; }
+        .upload-zone { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         .upload-zone.hidden { display: none !important; }
-        .theme-dark .upload-zone { border-color: rgba(255, 255, 255, 0.15); }
-        .theme-dark .upload-zone:hover { border-color: var(--accent); background: rgba(0, 240, 255, 0.08); }
         .preview-image { max-width: 100%; max-height: 300px; border-radius: 16px; display: none; margin-top: 15px; object-fit: contain; }
         .preview-image.active { display: block; }
-        .btn-render { background: #000; color: #fff; transition: all 0.3s ease; }
-        .btn-render:hover { transform: translateY(-1px); background: #222; }
-        .btn-render:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-render { background: #0b0b0a; color: #fbfaf9; transition: all 0.3s ease; }
+        .btn-render:hover { transform: translateY(-1px); background: #222222; }
+        .btn-render:disabled { background: #cccccc; cursor: not-allowed; }
         input::-webkit-inner-spin-button { display: none; }
         
         .btn-remove-glow {
-            background: linear-gradient(135deg, #00c9a7, #00b4d8);
-            color: #fff;
+            background: linear-gradient(135deg, #06b6d4, #06b6d4);
+            color: #fbfaf9;
             border: none;
-            box-shadow: 0 0 15px rgba(0, 201, 167, 0.3), 0 0 30px rgba(0, 180, 216, 0.15);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), 0 0 30px rgba(6, 182, 212, 0.15);
             transition: all 0.3s ease;
         }
         .btn-remove-glow:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(0, 201, 167, 0.5), 0 0 40px rgba(0, 180, 216, 0.3);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3);
         }
         .btn-remove-glow:disabled {
             opacity: 0.5;
@@ -61,7 +59,7 @@
         
         .canvas-container {
             position: relative;
-            background: rgba(15, 12, 41, 0.05);
+            background: rgba(16, 16, 16, 0.05);
             border-radius: 16px;
             overflow: hidden;
             min-height: 500px;
@@ -70,7 +68,7 @@
             justify-content: center;
         }
         .theme-dark .canvas-container {
-            background: rgba(15, 12, 41, 0.4);
+            background: rgba(16, 16, 16, 0.4);
         }
         .canvas-wrapper {
             position: relative;
@@ -108,15 +106,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(0, 180, 216, 0.03);
-            border: 2px dashed rgba(0, 180, 216, 0.3);
+            background: rgba(6, 182, 212, 0.03);
+            border: 2px dashed rgba(6, 182, 212, 0.3);
             border-radius: 16px;
             cursor: pointer;
             transition: all 0.3s;
         }
         .upload-overlay:hover {
-            background: rgba(0, 180, 216, 0.06);
-            border-color: #00b4d8;
+            background: rgba(6, 182, 212, 0.06);
+            border-color: #06b6d4;
         }
         .upload-overlay.hidden {
             display: none;
@@ -127,15 +125,15 @@
         }
         .upload-text {
             font-size: 1.1rem;
-            color: #666;
+            color: var(--ui-muted);
             margin-bottom: 8px;
         }
         .theme-dark .upload-text {
-            color: #aaa;
+            color: #aaaaaa;
         }
         .upload-hint {
             font-size: 0.85rem;
-            color: #999;
+            color: var(--ui-faint);
         }
         .slider-container {
             display: flex;
@@ -147,7 +145,7 @@
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(0, 180, 216, 0.2);
+            background: rgba(6, 182, 212, 0.2);
             border-radius: 3px;
             outline: none;
         }
@@ -155,7 +153,7 @@
             -webkit-appearance: none;
             width: 16px;
             height: 16px;
-            background: linear-gradient(135deg, #00b4d8, #00f0ff);
+            background: linear-gradient(135deg, #06b6d4, #00f0ff);
             border-radius: 50%;
             cursor: pointer;
         }
@@ -188,13 +186,13 @@
         }
         .progress-bar {
             height: 8px;
-            background: rgba(0, 180, 216, 0.1);
+            background: rgba(6, 182, 212, 0.1);
             border-radius: 4px;
             overflow: hidden;
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #00b4d8, #00f0ff);
+            background: linear-gradient(90deg, #06b6d4, #00f0ff);
             width: 0%;
             transition: width 0.3s;
         }
@@ -202,11 +200,11 @@
             text-align: center;
             margin-top: 8px;
             font-size: 0.85rem;
-            color: #666;
+            color: var(--ui-muted);
             font-weight: 600;
         }
         .theme-dark .progress-text {
-            color: #aaa;
+            color: #aaaaaa;
         }
         .result-section {
             margin-top: 20px;
@@ -217,13 +215,13 @@
             gap: 15px;
         }
         .result-item {
-            background: rgba(0,0,0,0.03);
+            background: var(--ui-soft);
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid rgba(0, 180, 216, 0.1);
+            border: 1px solid var(--ui-line);
         }
         .theme-dark .result-item {
-            background: #111d2a;
+            background: #151515;
             border-color: rgba(0, 240, 255, 0.08);
         }
         .result-item img {
@@ -239,12 +237,12 @@
             padding: 10px;
             text-align: center;
             font-size: 0.85rem;
-            color: #666;
-            background: rgba(0,0,0,0.02);
+            color: var(--ui-muted);
+            background: var(--ui-soft);
         }
         .theme-dark .result-item .result-label {
-            color: #aaa;
-            background: rgba(0,0,0,0.2);
+            color: #aaaaaa;
+            background: rgba(0, 0, 0, 0.2);
         }
         .result-item .result-actions {
             padding: 10px;
@@ -258,7 +256,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -270,11 +268,11 @@
             max-height: 90%;
             object-fit: contain;
             border-radius: 8px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
         }
         .btn-secondary {
             padding: 8px 16px;
-            border: 1px solid rgba(0, 180, 216, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.3);
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.85rem;
@@ -284,12 +282,12 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
-            background: rgba(0, 180, 216, 0.05);
+            background: rgba(6, 182, 212, 0.05);
             color: #0891b2;
         }
         .btn-secondary:hover {
-            background: rgba(0, 180, 216, 0.1);
-            border-color: #00b4d8;
+            background: rgba(6, 182, 212, 0.1);
+            border-color: #06b6d4;
         }
         .theme-dark .btn-secondary {
             background: rgba(0, 240, 255, 0.05);
@@ -303,27 +301,49 @@
         .image-size-info {
             text-align: center;
             padding: 8px;
-            background: rgba(0, 180, 216, 0.05);
+            background: rgba(6, 182, 212, 0.05);
             border-radius: 8px;
             margin-top: 10px;
             font-size: 0.85rem;
-            color: #666;
+            color: var(--ui-muted);
         }
         .theme-dark .image-size-info {
             background: rgba(0, 240, 255, 0.05);
-            color: #aaa;
+            color: #aaaaaa;
         }
     </style>
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20260611">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261025unified">
     <script src="/static/history-bulk-manager.js"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20260728-1"></script>
-    <script src="/static/modules/gallery/actions.js?v=20260611"></script>
-    <script src="/static/modules/gallery/list.js?v=20260611"></script>
-    <script src="/static/modules/gallery/card.js?v=20260611"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20260611"></script>
-    <script src="/static/modules/gallery/display.js?v=20260619"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
+    <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/list.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/card.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/display.js?v=20261024001"></script>
+<style id="ui-responsive">
+/* 响应式底座：避免横向溢出；flex/grid 子项允许收缩 */
+body { overflow-x: hidden; }
+.layout-container, .container-box { width: 100%; }
+.layout-container > *, .container-box > * { min-width: 0; }
+/* 工具栏/按钮行自动换行；画布容器宽度自适应 */
+@media (max-width: 1024px) {
+  .flex.flex-col.md\:flex-row { flex-direction: column !important; align-items: stretch !important; }
+  .flex.flex-col.md\:flex-row > * { min-width: 0; }
+  .canvas-container { min-height: 360px; }
+}
+@media (max-width: 640px) {
+  .layout-container { padding: 0 16px; }
+  .console-card .rounded-\[22px\] { padding: 16px !important; }
+  .flex.items-center.gap-8, .flex.items-center.gap-6 { flex-wrap: wrap !important; }
+  .slider-container { width: 100% !important; }
+  .btn-render, .btn-wr-glow, .btn-rmbg-glow, .btn-text-glow, .btn-2d-glow, .btn-cg-glow,
+  .btn-remove-glow, .btn-glow, .btn-secondary { width: 100% !important; }
+}
+img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-width: 100%; height: auto; }
+</style>
+    <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -363,7 +383,7 @@
                         <div class="flex items-center gap-3">
                             <span class="text-[16px] font-bold text-gray-400 uppercase">颜色:</span>
                             <div class="color-picker-wrapper">
-                                <input type="color" id="brushColor" value="#ffffff" onchange="updateBrushColor(this.value)">
+                                <input type="color" id="brushColor" value="#fbfaf9" onchange="updateBrushColor(this.value)">
                             </div>
                         </div>
                     </div>
@@ -407,19 +427,7 @@
 
         
         /** 保存到用户 output 文件夹 */
-        async function saveToUserOutput(comfyUrl, featureName) {
-            try {
-                const u = new URL(comfyUrl, window.location.origin);
-                const fn = u.searchParams.get('filename') || '';
-                const sf = u.searchParams.get('subfolder') || '';
-                const tp = u.searchParams.get('type') || 'output';
-                if (!fn) return comfyUrl;
-                const res = await fetch(`/api/comfyui/save-to-output?filename=${encodeURIComponent(fn)}&subfolder=${encodeURIComponent(sf)}&type=${encodeURIComponent(tp)}&feature=${encodeURIComponent(featureName)}`);
-                if (!res.ok) return comfyUrl;
-                const data = await res.json();
-                return data.url || comfyUrl;
-            } catch (e) { return comfyUrl; }
-        }
+        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 const r = Math.random() * 16 | 0;

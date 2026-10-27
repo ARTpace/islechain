@@ -191,12 +191,12 @@ class SettingsUI {
         const style = document.createElement('style');
         style.textContent = `
             #login-btn.logged-in {
-                box-shadow: 0 0 8px var(--accent-glow, #06B6D4), 0 0 20px var(--accent-glow, #06B6D4), 0 4px 20px var(--monitor-shadow, rgba(0,180,216,0.15));
+                box-shadow: 0 0 8px var(--accent-glow, #06b6d4), 0 0 20px var(--accent-glow, #06b6d4), 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15));
                 animation: breatheGlow 2s ease-in-out infinite;
             }
             @keyframes breatheGlow {
-                0%, 100% { box-shadow: 0 0 6px var(--accent-glow, #06B6D4), 0 0 14px var(--accent-glow, #06B6D4), 0 4px 20px var(--monitor-shadow, rgba(0,180,216,0.15)); }
-                50% { box-shadow: 0 0 12px var(--accent-glow, #06B6D4), 0 0 30px var(--accent-glow, #06B6D4), 0 4px 20px var(--monitor-shadow, rgba(0,180,216,0.15)); }
+                0%, 100% { box-shadow: 0 0 6px var(--accent-glow, #06b6d4), 0 0 14px var(--accent-glow, #06b6d4), 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15)); }
+                50% { box-shadow: 0 0 12px var(--accent-glow, #06b6d4), 0 0 30px var(--accent-glow, #06b6d4), 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15)); }
             }
             /* 系统设置 - 手机 App 风格功能按钮 */
             /* ===== 统一 Tile 样式（顶部入口 & 系统功能共用）===== */
@@ -206,8 +206,8 @@ class SettingsUI {
                 min-height: 58px;
                 border-radius: 16px;
                 border: 1px solid var(--border);
-                background: rgba(120, 130, 150, 0.10);
-                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 14%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #0ea5e9)) 4%, transparent));
+                background: rgba(140, 139, 130, 0.10);
+                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 14%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #06b6d4)) 4%, transparent));
                 color: var(--text);
                 cursor: pointer;
                 display: flex;
@@ -220,14 +220,14 @@ class SettingsUI {
             }
             .sys-tile:hover,
             .set-card:hover {
-                border-color: color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 45%, var(--border));
-                box-shadow: 0 6px 18px color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 22%, transparent);
+                border-color: color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 45%, var(--border));
+                box-shadow: 0 6px 18px color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 22%, transparent);
             }
             .sys-tile:active,
             .set-card:active {
                 transform: scale(0.97);
-                background: rgba(120, 130, 150, 0.16);
-                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 22%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #0ea5e9)) 10%, transparent));
+                background: rgba(140, 139, 130, 0.16);
+                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 22%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #06b6d4)) 10%, transparent));
             }
 
             /* 统一图标容器 */
@@ -236,13 +236,13 @@ class SettingsUI {
                 width: 41px;
                 height: 41px;
                 border-radius: 13px;
-                background: linear-gradient(135deg, var(--tile, var(--sc, #38bdf8)), var(--tile2, var(--sc2, #0ea5e9)));
+                background: linear-gradient(135deg, var(--tile, var(--sc, #00f0ff)), var(--tile2, var(--sc2, #06b6d4)));
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
-                color: #fff;
-                box-shadow: 0 4px 14px color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 28%, transparent);
+                color: #fcfcfb;
+                box-shadow: 0 4px 14px color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 28%, transparent);
             }
 
             /* 统一文字区域 */
@@ -287,8 +287,8 @@ class SettingsUI {
             }
             .sys-tile:hover .sys-tile-trail,
             .set-card:hover .set-card-arrow {
-                color: var(--tile, var(--sc, #38bdf8));
-                background: color-mix(in srgb, var(--tile, var(--sc, #38bdf8)) 12%, transparent);
+                color: var(--tile, var(--sc, #00f0ff));
+                background: color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 12%, transparent);
             }
 
 
@@ -308,29 +308,98 @@ class SettingsUI {
             #settings-comfyui-btn .comfy-card-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
             #settings-comfyui-btn #comfy-status-dot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex-shrink:0; display:inline-block; }
             #settings-comfyui-btn #comfy-start-btn { height:32px; padding:0 12px; border-radius:10px; border:none; background:var(--accent); color:var(--bg); font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; }
-            #settings-comfyui-btn #comfy-log-btn { width:32px; height:32px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; }
-            #settings-detail { position:relative; flex:1; min-width:0; background:var(--stage-bg, #0b1220); }
-            #settings-look-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #0b1220); }
+            #settings-comfyui-btn #comfy-log-btn, #settings-comfyui-btn #comfy-models-btn { width:32px; height:32px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+            #settings-comfyui-btn #comfy-models-btn { width:40px; font-size:11px; }
+            #settings-comfyui-btn #comfy-models-btn:disabled { opacity:.45; cursor:default; }
+            #settings-detail { position:relative; flex:1; min-width:0; background:var(--stage-bg, #121211); }
+            #settings-look-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #121211); }
             #settings-look-pane[hidden] { display:none !important; }
             #settings-look-pane .look-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
-            #settings-look-pane .look-block, #settings-look-pane .look-scale-row, #settings-look-pane .sys-tile { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #0f172a)); box-shadow:none; }
+            #settings-look-pane .look-block, #settings-look-pane .look-scale-row, #settings-look-pane .sys-tile { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #171716)); box-shadow:none; }
             #settings-look-pane .look-block { display:flex; flex-direction:column; justify-content:center; gap:12px; }
             #settings-look-pane .look-label { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
             #settings-look-pane [data-look-theme] { flex:1; height:36px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:13px; font-weight:800; cursor:pointer; }
-            #settings-look-pane #look-accent-row { display:flex; gap:12px; align-items:center; }
+            #settings-look-pane #look-accent-row, #settings-look-pane #look-palette-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+            #settings-look-pane .look-swatch, #settings-look-pane #look-palette-custom { width:32px; height:32px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; background:transparent; }
+            #settings-look-pane #look-palette-preview { display:flex; height:22px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
             #settings-look-pane .look-scale-row { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; font-weight:800; color:var(--text); }
             #settings-look-pane #look-scale { height:36px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); font-size:13px; font-weight:700; padding:0 10px; }
-            #settings-users-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #0b1220); }
+            #settings-users-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #121211); }
             #settings-users-pane[hidden] { display:none !important; }
             #settings-users-pane .users-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
-            #settings-users-pane .user-card { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #0f172a)); display:flex; flex-direction:column; justify-content:center; gap:12px; }
+            #settings-users-pane .user-card { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #171716)); display:flex; flex-direction:column; justify-content:center; gap:12px; }
             #settings-users-pane .user-card-main { display:flex; align-items:center; gap:12px; }
             #settings-users-pane .user-card-actions { display:flex; gap:8px; }
             #settings-users-pane .user-card-actions button, #settings-users-pane .user-reset-row button { height:32px; padding:0 12px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:12px; font-weight:700; cursor:pointer; }
             #settings-users-pane .user-delete-btn { border-color:#ef4444 !important; color:#ef4444 !important; }
             #settings-users-pane .user-reset-row { display:flex; gap:8px; }
             #settings-users-pane .user-reset-row input { flex:1; height:32px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); padding:0 10px; font-size:13px; }
-            #settings-detail iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; filter:none; transform:none; pointer-events:auto; }
+            #settings-comfy-models-pane { position:absolute; inset:0; overflow:auto; padding:22px 24px 28px; background:var(--stage-bg, #121211); display:flex; flex-direction:column; gap:16px; }
+            #settings-comfy-models-pane[hidden] { display:none !important; }
+            #settings-comfy-models-pane .comfy-models-title { font-size:22px; font-weight:800; color:var(--text); }
+            #settings-comfy-models-pane .comfy-models-sub { margin-top:4px; color:var(--muted); font-size:13px; }
+            #settings-comfy-models-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; align-content:start; }
+            #settings-modules-pane { position:absolute; inset:0; overflow:auto; padding:14px 16px 16px; background:var(--stage-bg, #121211); display:flex; flex-direction:column; gap:10px; }
+            #settings-modules-pane[hidden] { display:none !important; }
+            #settings-modules-pane .comfy-models-title { font-size:18px; line-height:1.2; }
+            #settings-modules-pane .comfy-models-sub { margin-top:2px; font-size:12px; }
+            #settings-modules-list { display:flex; flex-direction:column; gap:10px; }
+            .module-group { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 310px), 1fr)); gap:8px; }
+            .module-group-title { grid-column:1 / -1; font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--muted); }
+            .module-row { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:0 8px 0 10px; border:1px solid var(--border); border-radius:10px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #171716)); color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; }
+            .module-row > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .module-switch { position:relative; width:44px; height:24px; flex:0 0 auto; border-radius:999px; border:1px solid #6e6e68; background:#2a2a28; }
+            .module-switch::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#d4d4ce; transition:transform .15s ease; }
+            .module-switch input { position:absolute; inset:0; margin:0; opacity:0; cursor:pointer; }
+            .module-row:has(input:checked) { color:var(--text); border-color:rgba(0, 240, 255, .55); }
+            .module-switch:has(input:checked) { background:#00f0ff; border-color:#00f0ff; }
+            .module-switch:has(input:checked)::after { transform:translateX(20px); background:#0b0b0a; }
+            .module-switch:has(input:disabled) { cursor:default; opacity:.5; }
+            .module-toggle-label { display:grid; justify-items:center; gap:4px; padding:7px 0; font-size:10px; cursor:pointer; }
+            .module-toggle-pair { display:flex; gap:12px; flex-shrink:0; }
+            .module-order-controls { display:grid; gap:2px; margin-left:2px; }
+            .module-order-controls button { width:24px; height:22px; padding:0; border:1px solid var(--border); border-radius:5px; background:transparent; color:var(--text); font-size:13px; cursor:pointer; }
+            .module-order-controls button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+            .module-order-controls button:disabled { opacity:.25; cursor:default; }
+            .module-select-label { display:flex; align-items:center; gap:7px; min-width:0; cursor:pointer; }
+            .module-select-label input,.module-bulk input,.module-group-title input { accent-color:var(--accent); margin:0; flex-shrink:0; }
+            .module-select-label span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .module-group-title label { display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
+            .module-bulk { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--sidebar-bg); font-size:12px; }
+            .module-bulk label,.module-bulk-target { display:flex; align-items:center; gap:7px; }
+            .module-bulk button { padding:5px 9px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; font:inherit; }
+            .module-bulk button:hover:not(:disabled) { border-color:var(--accent); }
+            .module-bulk button:disabled { opacity:.35; cursor:default; }
+            .module-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:16px; }
+            .module-group { grid-template-columns:minmax(0,1fr); min-width:0; padding:8px; border:1px solid var(--border); border-radius:12px; }
+            .module-group-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; }
+            .module-group-level { font-size:11px; font-weight:500; letter-spacing:normal; }
+            .module-groups .module-row > .module-name { min-width:0; }
+            .module-groups .module-toggle-pair { margin-left:auto; }
+            @media(max-width:700px) { .module-groups { grid-template-columns:minmax(0,1fr); } }
+            .module-row { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr) auto; min-height:52px; gap:6px; padding:3px 6px 3px 2px; touch-action:pan-y; transition:transform .18s ease; }
+            .module-row.is-selected { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--sidebar-bg)); }
+            .module-row.is-dragging { z-index:3; opacity:.95; box-shadow:0 8px 22px #0005; border-color:var(--accent); transition:none; cursor:grabbing; }
+            .module-row.drop-before { box-shadow:0 -3px 0 var(--accent); }
+            .module-row.drop-after { box-shadow:0 3px 0 var(--accent); }
+            .module-name { min-width:0; overflow:hidden; }
+            .module-select-label { min-height:44px; gap:6px; }
+            .module-select-label input,.module-bulk input,.module-group-title input { width:22px; height:22px; }
+            .module-toggle-label { min-height:44px; justify-content:center; }
+            .module-group-title label { min-height:48px; }
+            .module-order-controls { display:flex; }
+            .module-drag { width:44px; min-height:44px; border:1px solid var(--border); border-radius:8px; color:var(--text); background:transparent; touch-action:none; cursor:grab; font-size:24px; }
+            .module-bulk { position:sticky; bottom:0; z-index:2; box-shadow:0 -6px 20px #0002; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+            .module-bulk button,.module-bulk label { min-height:44px; }
+            .module-bulk-target { flex-wrap:wrap; }
+            @media(prefers-reduced-motion:reduce) { .module-row { transition:none; } }
+            .module-touch-hint { color:var(--muted); font-size:12px; margin:0; }
+            @media(max-width:600px) {
+                .module-toggle-pair { gap:10px; margin-left:auto; }
+                .module-toggle-pair { gap:6px; }
+                .module-bulk { gap:6px 12px; }
+            }
+            #settings-detail iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; visibility:visible; filter:none; transform:none; pointer-events:auto; }
             #settings-panel .settings-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
             #settings-panel .settings-top { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); }
             #settings-panel .settings-top h2 { margin:0; font-size:16px; font-weight:800; color:var(--text); }
@@ -345,7 +414,7 @@ class SettingsUI {
             #settings-panel .settings-pane-sub { margin-top:4px; color:var(--muted); font-size:13px; }
             #settings-panel .settings-frame-host { position:relative; flex:1; min-height:420px; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--stage-bg); }
             #settings-panel .settings-frame-host[hidden] { display:none !important; }
-            #settings-panel iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; filter:none; transform:none; pointer-events:auto; }
+            #settings-panel iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; visibility:visible; filter:none; transform:none; pointer-events:auto; }
             #settings-panel .settings-stack { display:flex; flex-direction:column; gap:12px; max-width:560px; }
         `;
         document.head.appendChild(style);
@@ -388,11 +457,11 @@ class SettingsUI {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: var(--monitor-bg, rgba(0, 180, 216, 0.1));
+            background: var(--monitor-bg, rgba(6, 182, 212, 0.1));
             backdrop-filter: blur(12px);
-            border: 1px solid var(--monitor-border, rgba(0, 180, 216, 0.3));
-            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15));
-            color: var(--text, #0a1628);
+            border: 1px solid var(--monitor-border, rgba(6, 182, 212, 0.3));
+            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15));
+            color: var(--text, #141414);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -402,12 +471,12 @@ class SettingsUI {
         settingsBtn.onmouseenter = () => {
             if (!settingsBtn.classList.contains('disabled')) {
                 settingsBtn.style.transform = 'scale(1.08)';
-                settingsBtn.style.boxShadow = '0 6px 25px rgba(0, 180, 216, 0.25)';
+                settingsBtn.style.boxShadow = '0 6px 25px rgba(6, 182, 212, 0.25)';
             }
         };
         settingsBtn.onmouseleave = () => {
             settingsBtn.style.transform = 'scale(1)';
-            settingsBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15))';
+            settingsBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15))';
         };
         
         // 主题切换按钮
@@ -434,11 +503,11 @@ class SettingsUI {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: var(--monitor-bg, rgba(0, 180, 216, 0.1));
+            background: var(--monitor-bg, rgba(6, 182, 212, 0.1));
             backdrop-filter: blur(12px);
-            border: 1px solid var(--monitor-border, rgba(0, 180, 216, 0.3));
-            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15));
-            color: var(--text, #0a1628);
+            border: 1px solid var(--monitor-border, rgba(6, 182, 212, 0.3));
+            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15));
+            color: var(--text, #141414);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -447,11 +516,11 @@ class SettingsUI {
         `;
         themeBtn.onmouseenter = () => {
             themeBtn.style.transform = 'scale(1.08)';
-            themeBtn.style.boxShadow = '0 6px 25px rgba(0, 180, 216, 0.25)';
+            themeBtn.style.boxShadow = '0 6px 25px rgba(6, 182, 212, 0.25)';
         };
         themeBtn.onmouseleave = () => {
             themeBtn.style.transform = 'scale(1)';
-            themeBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15))';
+            themeBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15))';
         };
         
         // 登录按钮
@@ -468,11 +537,11 @@ class SettingsUI {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: var(--monitor-bg, rgba(0, 180, 216, 0.1));
+            background: var(--monitor-bg, rgba(6, 182, 212, 0.1));
             backdrop-filter: blur(12px);
-            border: 1px solid var(--monitor-border, rgba(0, 180, 216, 0.3));
-            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15));
-            color: var(--text, #0a1628);
+            border: 1px solid var(--monitor-border, rgba(6, 182, 212, 0.3));
+            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15));
+            color: var(--text, #141414);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -483,11 +552,11 @@ class SettingsUI {
         `;
         loginBtn.onmouseenter = () => {
             loginBtn.style.transform = 'scale(1.08)';
-            loginBtn.style.boxShadow = '0 6px 25px rgba(0, 180, 216, 0.25)';
+            loginBtn.style.boxShadow = '0 6px 25px rgba(6, 182, 212, 0.25)';
         };
         loginBtn.onmouseleave = () => {
             loginBtn.style.transform = 'scale(1)';
-            loginBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15))';
+            loginBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15))';
         };
         
         container.appendChild(settingsBtn);
@@ -507,11 +576,11 @@ class SettingsUI {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: var(--monitor-bg, rgba(0, 180, 216, 0.1));
+            background: var(--monitor-bg, rgba(6, 182, 212, 0.1));
             backdrop-filter: blur(12px);
-            border: 1px solid var(--monitor-border, rgba(0, 180, 216, 0.3));
-            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15));
-            color: var(--text, #0a1628);
+            border: 1px solid var(--monitor-border, rgba(6, 182, 212, 0.3));
+            box-shadow: 0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15));
+            color: var(--text, #141414);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -524,7 +593,7 @@ class SettingsUI {
         };
         restartBtn.onmouseleave = () => {
             restartBtn.style.transform = 'scale(1)';
-            restartBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(0, 180, 216, 0.15))';
+            restartBtn.style.boxShadow = '0 4px 20px var(--monitor-shadow, rgba(6, 182, 212, 0.15))';
         };
         restartBtn.onclick = () => {
             restartBtn.style.opacity = '0.5';
@@ -549,7 +618,7 @@ class SettingsUI {
             position: fixed;
             inset: 0;
             z-index: 998;
-            background: rgba(8, 15, 30, 0.5);
+            background: rgba(15, 15, 14, 0.5);
             backdrop-filter: blur(3px);
             -webkit-backdrop-filter: blur(3px);
             opacity: 0;
@@ -589,24 +658,25 @@ class SettingsUI {
                 </button>
             </div>
             <div class="settings-side-scroll">
-                <button id="settings-api-btn" class="set-card" style="--sc:#00b4d8;--sc2:#00f0ff;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
+                <button id="settings-api-btn" class="set-card" style="--sc:#06b6d4;--sc2:#00f0ff;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
                     <span class="set-card-body"><span class="set-card-title">API 设置</span><span class="set-card-sub">配置 API Key 和模型参数</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
                 <button id="settings-lan-btn" class="set-card" style="--sc:#84cc16;--sc2:#d9f99d;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg></span>
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg></span>
                     <span class="set-card-body"><span class="set-card-title">局域网共享</span><span class="set-card-sub">让同一局域网的人访问本机</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
                 <div id="settings-comfyui-btn" class="set-card" style="--sc:#8b5cf6;--sc2:#c084fc;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></span>
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></span>
                     <span class="set-card-body"><span class="set-card-title">ComfyUI</span><span class="set-card-sub" style="display:flex;align-items:center;gap:6px;"><span id="comfy-status-dot"></span><span id="comfy-status-text">检查中...</span></span></span>
                     <span class="comfy-card-actions">
                         <button id="comfy-start-btn" type="button" title="启动 ComfyUI">
                             <svg data-role="icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             <span data-role="label">启动</span>
                         </button>
+                        <button id="comfy-models-btn" type="button" title="选择在菜单中显示的 ComfyUI 模型">模型</button>
                         <button id="comfy-log-btn" type="button" title="查看日志">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                         </button>
@@ -619,23 +689,41 @@ class SettingsUI {
                         <button id="comfy-log-clear" title="清空" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">清</button>
                         <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><input type="checkbox" id="comfy-log-auto" checked>自动</label>
                     </div>
-                    <pre id="comfy-log-content" style="margin:0;padding:10px;background:#0a1628;color:#a7f3d0;border-radius:8px;font-size:10.5px;max-height:160px;overflow:auto;white-space:pre-wrap;">(加载中...)</pre>
+                    <pre id="comfy-log-content" style="margin:0;padding:10px;background:#141414;color:#e1dfd6;border-radius:8px;font-size:10.5px;max-height:160px;overflow:auto;white-space:pre-wrap;">(加载中...)</pre>
                 </div>
                 <button id="settings-users-btn" class="set-card" style="--sc:#f59e0b;--sc2:#fbbf24;display:none;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
                     <span class="set-card-body"><span class="set-card-title">用户管理</span><span class="set-card-sub">管理用户和重置密码</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-                <button id="settings-look-btn" class="set-card" type="button" style="--sc:#a78bfa;--sc2:#c4b5fd;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
-                    <span class="set-card-body"><span class="set-card-title">界面外观</span><span class="set-card-sub">主题、扫描线、强调色和缩放</span></span>
+                <button id="settings-look-btn" class="set-card" type="button" style="--sc:#a78bfa;--sc2:#cbc9c0;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">界面外观</span><span class="set-card-sub">主题、底色、透明和缩放</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-                <button id="sys-auth-btn" class="set-card" type="button" style="--sc:#34d399;--sc2:#10b981;"><span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="set-card-body"><span class="set-card-title" id="sys-auth-label">登录</span><span id="sys-auth-hint" class="set-card-sub">未登录</span></span><span class="set-card-arrow" id="sys-auth-trail">›</span></button>
-                <button id="sys-restart-btn" class="set-card" type="button" style="--sc:#fb923c;--sc2:#f97316;"><span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></span><span class="set-card-body"><span class="set-card-title">重启服务</span><span class="set-card-sub">立即重启生效</span></span><span class="set-card-arrow">›</span></button>
+                <button id="settings-modules-btn" class="set-card" type="button" style="--sc:#38bdf8;--sc2:#00f0ff;display:none;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">功能模块</span><span class="set-card-sub">开启或关闭左侧功能入口</span></span>
+                    <span class="set-card-arrow">›</span>
+                </button>
+                <button id="sys-restart-btn" class="set-card" type="button" style="--sc:#fb923c;--sc2:#f97316;"><span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></span><span class="set-card-body"><span class="set-card-title">重启服务</span><span class="set-card-sub">立即重启生效</span></span><span class="set-card-arrow">›</span></button>
             </div>
             </aside>
             <div id="settings-detail">
+                <div id="settings-comfy-models-pane" hidden>
+                    <div>
+                        <div class="comfy-models-title">ComfyUI 模型</div>
+                        <div class="comfy-models-sub">开关在卡片右侧。关闭后模型仍留在这里，生成菜单里不再出现。</div>
+                    </div>
+                    <div id="settings-comfy-models-grid"></div>
+                </div>
+                <div id="settings-modules-pane" hidden>
+                    <div>
+                        <div class="comfy-models-title">功能模块</div>
+                        <div class="comfy-models-sub">勾选功能或整组后可批量开关；用 ↑ ↓ 调整组内顺序。本机设置保存在当前浏览器，访客权限由主机统一设置。固定开启项和仅限本机项不会被批量操作改变。</div>
+                    </div>
+                    <div id="settings-modules-list"></div>
+                </div>
                 <div id="settings-look-pane" hidden>
                     <div class="look-pane-grid">
                         <div class="look-block">
@@ -645,11 +733,24 @@ class SettingsUI {
                                 <button type="button" data-look-theme="dark">深色</button>
                             </div>
                         </div>
-                        <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#22d3ee;--tile2:#06b6d4;"><span class="sys-tile-txt"><span class="sys-tile-title">背景扫描线</span><span id="look-scan-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="look-scan-trail">关</span></button>
-                        <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#38bdf8;--tile2:#0ea5e9;"><span class="sys-tile-ico"><svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg></span><span class="sys-tile-txt"><span class="sys-tile-title">锁定侧边栏</span><span id="sys-lock-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="sys-lock-trail">关</span></button>
+                        <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#00f0ff;--tile2:#06b6d4;"><span class="sys-tile-txt"><span class="sys-tile-title">背景扫描线</span><span id="look-scan-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="look-scan-trail">关</span></button>
+                        <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#00f0ff;--tile2:#06b6d4;"><span class="sys-tile-ico"><svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg></span><span class="sys-tile-txt"><span class="sys-tile-title">锁定侧边栏</span><span id="sys-lock-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="sys-lock-trail">关</span></button>
+                        <div class="look-block" style="grid-column:1 / -1;">
+                            <div class="look-label">界面底色</div>
+                            <div id="look-palette-row">
+                                <button type="button" class="look-swatch" data-look-palette="ink" title="墨灰" style="background:linear-gradient(135deg,#14161c 0 34%,#1c202a 34% 67%,#252b38 67% 100%);"></button>
+                                <button type="button" class="look-swatch" data-look-palette="night" title="夜蓝" style="background:linear-gradient(135deg,#0e1626 0 34%,#162238 34% 67%,#1e2d48 67% 100%);"></button>
+                                <button type="button" class="look-swatch" data-look-palette="pine" title="松绿" style="background:linear-gradient(135deg,#101916 0 34%,#17241f 34% 67%,#20302a 67% 100%);"></button>
+                                <button type="button" class="look-swatch" data-look-palette="dusk" title="暮紫" style="background:linear-gradient(135deg,#16141f 0 34%,#211c2e 34% 67%,#2c243d 67% 100%);"></button>
+                                <button type="button" class="look-swatch" data-look-palette="sand" title="暖棕" style="background:linear-gradient(135deg,#1a1612 0 34%,#262018 34% 67%,#32281e 67% 100%);"></button>
+                                <input id="look-palette-custom" type="color" title="自定义颜色" value="#1a2744">
+                            </div>
+                            <div id="look-palette-preview" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+                        </div>
+                        <label class="look-scale-row" style="grid-column:1 / -1;"><span>面板透明</span><span style="display:flex;align-items:center;gap:10px;"><input id="look-panel-alpha" type="range" min="0" max="40" step="1" value="20" style="width:148px;accent-color:var(--accent);"><span id="look-panel-alpha-val">20%</span></span></label>
                         <div class="look-block">
                             <div class="look-label">强调色</div>
-                            <div id="look-accent-row"><button type="button" data-look-accent="" title="默认" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891B2,#7C3AED,#D97706,#059669,#E11D48,#0891B2);cursor:pointer;"></button><button type="button" data-look-accent="cyan" title="青" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#06B6D4;cursor:pointer;"></button><button type="button" data-look-accent="violet" title="紫" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#A78BFA;cursor:pointer;"></button><button type="button" data-look-accent="amber" title="琥珀" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#FBBF24;cursor:pointer;"></button><button type="button" data-look-accent="emerald" title="绿" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#34D399;cursor:pointer;"></button><button type="button" data-look-accent="rose" title="玫红" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#FB7185;cursor:pointer;"></button></div>
+                            <div id="look-accent-row"><button type="button" data-look-accent="" title="默认" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891b2,#7c3aed,#d97706,#059669,#e11d48,#0891b2);cursor:pointer;"></button><button type="button" data-look-accent="cyan" title="青" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#06b6d4;cursor:pointer;"></button><button type="button" data-look-accent="violet" title="紫" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#a78bfa;cursor:pointer;"></button><button type="button" data-look-accent="amber" title="琥珀" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fbbf24;cursor:pointer;"></button><button type="button" data-look-accent="emerald" title="绿" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#34d399;cursor:pointer;"></button><button type="button" data-look-accent="rose" title="玫红" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fb7185;cursor:pointer;"></button></div>
                         </div>
                         <label class="look-scale-row"><span>界面缩放</span><select id="look-scale"></select></label>
                     </div>
@@ -681,8 +782,8 @@ class SettingsUI {
         modal.innerHTML = `
             <div id="login-modal-box" style="
                 width: 320px;
-                background: var(--sidebar-bg, #D4ECF2);
-                border: 1px solid var(--border, #B0D4E0);
+                background: var(--sidebar-bg, #ebe9e4);
+                border: 1px solid var(--border, #d4d2c9);
                 border-radius: 20px;
                 padding: 28px;
                 box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -718,8 +819,8 @@ class SettingsUI {
                 <div style="display:flex;gap:10px;">
                     <button id="login-submit-btn" style="
                         flex:1;height:42px;border-radius:10px;border:none;
-                        background:linear-gradient(135deg,#00b4d8,#00f0ff);
-                        color:#0a1628;font-size:13px;font-weight:700;cursor:pointer;
+                        background:linear-gradient(135deg,#06b6d4,#00f0ff);
+                        color:#141414;font-size:13px;font-weight:700;cursor:pointer;
                         transition:all 0.2s;
                     ">登录</button>
                     <button id="login-register-btn" style="
@@ -773,6 +874,8 @@ class SettingsUI {
         if (comfyBtn) comfyBtn.onclick = (e) => { e.stopPropagation(); this.showSection('comfy'); };
         const lookBtn = document.getElementById('settings-look-btn');
         if (lookBtn) lookBtn.onclick = (e) => { e.stopPropagation(); this.showSection('look'); };
+        const modulesBtn = document.getElementById('settings-modules-btn');
+        if (modulesBtn) modulesBtn.onclick = (e) => { e.stopPropagation(); this.showSection('modules'); };
         
         const usersBtn = document.getElementById('settings-users-btn');
         if (usersBtn) usersBtn.onclick = (e) => { e.stopPropagation(); this.showSection('users'); };
@@ -807,7 +910,6 @@ class SettingsUI {
 
         // ---- 系统设置卡片事件绑定 ----
         const sysLockBtn = document.getElementById('sys-lock-btn');
-        const sysAuthBtn = document.getElementById('sys-auth-btn');
         const sysRestartBtn = document.getElementById('sys-restart-btn');
 
         if (sysLockBtn) {
@@ -817,16 +919,7 @@ class SettingsUI {
             };
         }
         this.bindLookSettings();
-        if (sysAuthBtn) {
-            sysAuthBtn.onclick = async () => {
-                if (AuthManager.isLoggedIn()) {
-                    await AuthManager.logout();
-                    window.location.href = '/static/login.html';
-                } else {
-                    this.showLoginModal();
-                }
-            };
-        }
+        this.renderModules();
         if (sysRestartBtn) {
             sysRestartBtn.onclick = () => {
                 fetch('/api/restart', { method: 'POST' }).catch(() => {});
@@ -835,6 +928,180 @@ class SettingsUI {
         }
     }
     
+    async renderModules() {
+        const host = document.getElementById('settings-modules-list');
+        const mods = window.FeatureModules;
+        if (!host || !mods) return;
+        await mods.ready;
+        const access = mods.access;
+        const canManageGuests = access && !access.visitor;
+        const selected = this.moduleSelection ||= new Set();
+        const groups = mods.orderedGroups();
+        const allItems = groups.flatMap(group => group.items);
+        const busy = !!this.moduleSaving;
+        const bulk = '<div class="module-bulk"><label><input type="checkbox" data-module-select-all>全选</label><span data-module-selected-count></span><button type="button" data-module-clear>清空选择</button><span class="module-bulk-target">本机显示<button type="button" data-module-bulk="local-on">开启</button><button type="button" data-module-bulk="local-off">关闭</button></span>' + (canManageGuests ? '<span class="module-bulk-target">访客可用<button type="button" data-module-bulk="guest-on">开启</button><button type="button" data-module-bulk="guest-off">关闭</button></span>' : '') + '</div>';
+        host.innerHTML = '<p class="module-touch-hint">点选整行可多选；按住左侧手柄拖动排序。手柄聚焦后可用方向键或 Home / End 排序。</p><div class="module-groups">' + groups.map((group, groupIndex) => {
+            const rows = group.items.map((item, index) => {
+                const on = mods.isOn(item.id);
+                const guestOn = access && !access.guest_disabled.includes(item.id);
+                return '<div class="module-row" data-module-row="' + item.id + '"><span class="module-order-controls"><button type="button" class="module-drag" data-module-drag="' + item.id + '" aria-label="拖动排序' + item.name + '"' + (busy ? ' disabled' : '') + '>⠿</button></span><span class="module-name"><label class="module-select-label"><input type="checkbox" data-module-select="' + item.id + '" aria-label="选择' + item.name + '"><span>' + item.name + '</span></label></span><span class="module-toggle-pair"><label class="module-toggle-label">本机显示<span class="module-switch"><input aria-label="' + item.name + '本机显示" type="checkbox" data-module-toggle="' + item.id + '"' + (on ? ' checked' : '') + (item.locked || busy ? ' disabled' : '') + '></span></label>' + (canManageGuests ? '<label class="module-toggle-label">访客可用<span class="module-switch"><input aria-label="' + item.name + '访客可用" type="checkbox" data-guest-module-toggle="' + item.id + '"' + (guestOn ? ' checked' : '') + (item.id === 'training' || busy ? ' disabled' : '') + '></span></label>' : '') + '</span></div>';
+            }).join('');
+            return '<div class="module-group"><div class="module-group-title"><label><input type="checkbox" data-module-select-group="' + groupIndex + '">' + group.title + '</label><span class="module-group-level">' + (groupIndex === 0 ? '一级 · 主导航' : '二级 · ComfyUI 子功能') + '</span></div>' + rows + '</div>';
+        }).join('') + '</div>' + bulk;
+        const syncSelection = () => {
+            host.querySelectorAll('[data-module-select]').forEach(input => { input.checked = selected.has(input.dataset.moduleSelect); input.closest('.module-row').classList.toggle('is-selected', input.checked); });
+            const syncCheck = (input, items) => {
+                const count = items.filter(item => selected.has(item.id)).length;
+                input.checked = count === items.length;
+                input.indeterminate = count > 0 && count < items.length;
+                input.disabled = busy;
+            };
+            syncCheck(host.querySelector('[data-module-select-all]'), allItems);
+            host.querySelectorAll('[data-module-select-group]').forEach(input => syncCheck(input, groups[Number(input.dataset.moduleSelectGroup)].items));
+            host.querySelector('[data-module-selected-count]').textContent = busy ? '正在保存…' : '已选 ' + selected.size + ' 项';
+            host.querySelectorAll('[data-module-bulk]').forEach(button => {
+                const guest = button.dataset.moduleBulk.startsWith('guest');
+                button.disabled = busy || !allItems.some(item => selected.has(item.id) && (guest ? item.id !== 'training' : !item.locked));
+            });
+            host.querySelector('[data-module-clear]').disabled = busy || !selected.size;
+            host.querySelectorAll('[data-module-select]').forEach(input => { input.disabled = busy; });
+        };
+        host.querySelectorAll('[data-module-select]').forEach(input => {
+            input.onchange = () => { input.checked ? selected.add(input.dataset.moduleSelect) : selected.delete(input.dataset.moduleSelect); syncSelection(); };
+        });
+        const selectItems = (items, on) => { items.forEach(item => on ? selected.add(item.id) : selected.delete(item.id)); syncSelection(); };
+        host.querySelector('[data-module-select-all]').onchange = event => selectItems(allItems, event.target.checked);
+        host.querySelectorAll('[data-module-select-group]').forEach(input => { input.onchange = () => selectItems(groups[Number(input.dataset.moduleSelectGroup)].items, input.checked); });
+        host.querySelector('[data-module-clear]').onclick = () => { selected.clear(); syncSelection(); };
+        host.querySelectorAll('[data-module-bulk]').forEach(button => {
+            button.onclick = () => this.applyModuleBatch(button.dataset.moduleBulk);
+        });
+        syncSelection();
+        host.querySelectorAll('[data-module-row]').forEach(row => {
+            row.onclick = event => {
+                if (busy || event.target.closest('label,button,input')) return;
+                const input = row.querySelector('[data-module-select]');
+                input.checked = !input.checked;
+                input.onchange();
+            };
+        });
+        host.querySelectorAll('[data-module-drag]').forEach(handle => {
+            const id = handle.dataset.moduleDrag;
+            handle.onkeydown = event => {
+                if (busy) return;
+                const group = groups.find(g => g.items.some(item => item.id === id));
+                if (event.key === 'ArrowUp' || event.key === 'ArrowDown') mods.move(id, event.key === 'ArrowUp' ? -1 : 1);
+                else if (event.key === 'Home' || event.key === 'End') mods.moveTo(id, group.items[event.key === 'Home' ? 0 : group.items.length - 1].id, event.key === 'End');
+                else return;
+                event.preventDefault();
+                this.renderModules().then(() => host.querySelector('[data-module-drag="' + id + '"]')?.focus());
+            };
+            handle.onpointerdown = event => {
+                if (busy || !event.isPrimary || event.button !== 0) return;
+                event.preventDefault();
+                const row = handle.closest('.module-row');
+                const peers = [...row.parentElement.querySelectorAll('[data-module-row]')].filter(peer => peer !== row);
+                const scroller = host.closest('.settings-main');
+                const ordered = [row, ...peers].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+                const boxes = new Map(ordered.map(peer => [peer, peer.getBoundingClientRect()]));
+                const origin = boxes.get(row), startIndex = ordered.indexOf(row);
+                const initialScroll = scroller ? scroller.scrollTop : 0;
+                const step = ordered.length > 1 ? boxes.get(ordered[1]).top - boxes.get(ordered[0]).top : origin.height;
+                let target = null, after = false, y = event.clientY, frame;
+                handle.setPointerCapture(event.pointerId);
+                row.classList.add('is-dragging');
+                const update = () => {
+                    const scrollDelta = (scroller ? scroller.scrollTop : 0) - initialScroll;
+                    const pointerY = y + scrollDelta;
+                    target = peers.reduce((best, peer) => {
+                        const box = boxes.get(peer);
+                        return !best || Math.abs(pointerY - (box.top + box.height / 2)) < Math.abs(pointerY - (boxes.get(best).top + boxes.get(best).height / 2)) ? peer : best;
+                    }, null);
+                    if (!target) return;
+                    const box = boxes.get(target);
+                    after = pointerY > box.top + box.height / 2;
+                    const remaining = ordered.filter(peer => peer !== row);
+                    const insertIndex = remaining.indexOf(target) + (after ? 1 : 0);
+                    peers.forEach(peer => {
+                        const oldIndex = ordered.indexOf(peer);
+                        const shift = insertIndex > startIndex && oldIndex > startIndex && oldIndex <= insertIndex ? -step
+                            : insertIndex < startIndex && oldIndex >= insertIndex && oldIndex < startIndex ? step : 0;
+                        peer.style.transform = 'translateY(' + shift + 'px)';
+                    });
+                    const min = boxes.get(ordered[0]).top - origin.top;
+                    const max = boxes.get(ordered[ordered.length - 1]).top - origin.top;
+                    row.style.transform = 'translateY(' + Math.max(min, Math.min(max, y - event.clientY + scrollDelta)) + 'px)';
+                };
+                const scroll = () => {
+                    if (scroller) {
+                        const box = scroller.getBoundingClientRect();
+                        const delta = y < box.top + 64 ? -10 : y > box.bottom - 96 ? 10 : 0;
+                        if (delta) { scroller.scrollTop += delta; update(); }
+                    }
+                    frame = requestAnimationFrame(scroll);
+                };
+                handle.onpointermove = move => { if (move.pointerId === event.pointerId) { y = move.clientY; update(); } };
+                const finish = end => {
+                    if (end.pointerId !== event.pointerId) return;
+                    cancelAnimationFrame(frame);
+                    handle.onpointermove = handle.onpointerup = handle.onpointercancel = handle.onlostpointercapture = null;
+                    row.classList.remove('is-dragging');
+                    ordered.forEach(peer => { peer.style.transform = ''; });
+                    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+                    if (end.type === 'pointerup' && target) {
+                        mods.moveTo(id, target.dataset.moduleRow, after);
+                        this.renderModules();
+                    }
+                };
+                handle.onpointerup = handle.onpointercancel = handle.onlostpointercapture = finish;
+                frame = requestAnimationFrame(scroll);
+            };
+        });
+        host.querySelectorAll('[data-module-toggle]').forEach(input => {
+            input.onchange = () => {
+                if (!window.FeatureModules) return;
+                window.FeatureModules.set(input.getAttribute('data-module-toggle'), input.checked);
+            };
+        });
+        host.querySelectorAll('[data-guest-module-toggle]').forEach(input => {
+            input.onchange = async () => {
+                const disabled = [...host.querySelectorAll('[data-guest-module-toggle]')].filter(item => !item.checked).map(item => item.getAttribute('data-guest-module-toggle'));
+                await this.saveGuestModules(disabled);
+            };
+        });
+    }
+
+    async applyModuleBatch(action) {
+        if (this.moduleSaving || !this.moduleSelection?.size) return;
+        const mods = window.FeatureModules;
+        const ids = [...this.moduleSelection];
+        if (action === 'local-on' || action === 'local-off') {
+            mods.setMany(ids, action === 'local-on');
+            await this.renderModules();
+        } else if ((action === 'guest-on' || action === 'guest-off') && mods.access && !mods.access.visitor) {
+            const disabled = new Set(mods.access.guest_disabled);
+            ids.forEach(id => { if (id !== 'training') action === 'guest-on' ? disabled.delete(id) : disabled.add(id); });
+            await this.saveGuestModules([...disabled]);
+        }
+    }
+
+    async saveGuestModules(disabled) {
+        if (this.moduleSaving) return;
+        this.moduleSaving = true;
+        try {
+            await this.renderModules();
+            const response = await fetch('/api/feature-access', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({guest_disabled:disabled}) });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || '访客权限保存失败');
+            window.FeatureModules.access = data;
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            this.moduleSaving = false;
+            await this.renderModules();
+        }
+    }
+
     bindLookSettings() {
         const paint = () => {
             const dark = document.body.classList.contains('theme-dark') ||
@@ -842,7 +1109,7 @@ class SettingsUI {
             document.querySelectorAll('[data-look-theme]').forEach(btn => {
                 const on = btn.dataset.lookTheme === (dark ? 'dark' : 'light');
                 btn.style.background = on ? 'var(--accent)' : 'transparent';
-                btn.style.color = on ? '#0a1628' : 'var(--text)';
+                btn.style.color = on ? '#141414' : 'var(--text)';
                 btn.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
             });
             const scan = window.StudioLook ? window.StudioLook.scanlines() : false;
@@ -856,6 +1123,32 @@ class SettingsUI {
                 btn.style.outline = on ? '2px solid var(--text)' : 'none';
                 btn.style.outlineOffset = '2px';
             });
+            const palette = window.StudioLook && window.StudioLook.palette ? window.StudioLook.palette() : 'ink';
+            document.querySelectorAll('[data-look-palette]').forEach(btn => {
+                const on = btn.dataset.lookPalette === palette;
+                btn.style.outline = on ? '2px solid var(--text)' : 'none';
+                btn.style.outlineOffset = '2px';
+            });
+            const custom = document.getElementById('look-palette-custom');
+            if (custom && window.StudioLook && window.StudioLook.paletteColor && document.activeElement !== custom) {
+                custom.value = window.StudioLook.paletteColor();
+            }
+            const preview = document.getElementById('look-palette-preview');
+            if (preview) {
+                const root = getComputedStyle(document.documentElement);
+                ['--ui-bg', '--ui-panel', '--ui-soft', '--ui-line'].forEach((name, i) => {
+                    const chip = preview.children[i];
+                    if (chip) chip.style.flex = '1';
+                    if (chip) chip.style.background = root.getPropertyValue(name).trim() || 'transparent';
+                });
+            }
+            const alpha = document.getElementById('look-panel-alpha');
+            const alphaVal = document.getElementById('look-panel-alpha-val');
+            if (alpha && window.StudioLook && window.StudioLook.panelAlpha && document.activeElement !== alpha) {
+                const current = window.StudioLook.panelAlpha();
+                alpha.value = String(current);
+                if (alphaVal) alphaVal.textContent = current + '%';
+            }
             const scale = document.getElementById('look-scale');
             if (scale && window.StudioScale && !scale.dataset.ready) {
                 const opts = window.StudioScale.options.slice();
@@ -888,6 +1181,28 @@ class SettingsUI {
                 paint();
             };
         });
+        document.querySelectorAll('[data-look-palette]').forEach(btn => {
+            btn.onclick = () => {
+                if (window.StudioLook && window.StudioLook.setPalette) window.StudioLook.setPalette(btn.dataset.lookPalette);
+                paint();
+            };
+        });
+        const panelAlpha = document.getElementById('look-panel-alpha');
+        if (panelAlpha) {
+            panelAlpha.oninput = () => {
+                const next = Number(panelAlpha.value);
+                const label = document.getElementById('look-panel-alpha-val');
+                if (label) label.textContent = next + '%';
+                if (window.StudioLook && window.StudioLook.setPanelAlpha) window.StudioLook.setPanelAlpha(next);
+            };
+        }
+        const paletteCustom = document.getElementById('look-palette-custom');
+        if (paletteCustom) {
+            paletteCustom.oninput = () => {
+                if (window.StudioLook && window.StudioLook.setPaletteColor) window.StudioLook.setPaletteColor(paletteCustom.value);
+                paint();
+            };
+        }
         window.addEventListener('studio-theme-change', paint);
         window.addEventListener('studio-look-change', paint);
         paint();
@@ -942,7 +1257,7 @@ class SettingsUI {
         this.panelEl.style.opacity = '1';
         this.panelVisible = true;
         this.updateSysSettingsState();
-        const preferred = this.currentSection || 'api';
+        const preferred = AuthManager.isAdmin() ? (this.currentSection || 'api') : 'look';
         this.showSection(preferred === 'translate' ? 'api' : preferred);
     }
 
@@ -955,19 +1270,25 @@ class SettingsUI {
     }
 
     showSection(name) {
+        const adminOnly = name === 'api' || name === 'lan' || name === 'comfy' || name === 'modules' || name === 'users' || name === 'comfy-models' || name === 'translate';
+        if (adminOnly && !AuthManager.isAdmin()) name = 'look';
         this.currentSection = name;
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-users-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
             const on = (name === 'api' && id === 'settings-api-btn')
                 || (name === 'lan' && id === 'settings-lan-btn')
                 || (name === 'comfy' && id === 'settings-comfyui-btn')
                 || (name === 'look' && id === 'settings-look-btn')
+                || (name === 'modules' && id === 'settings-modules-btn')
                 || (name === 'users' && id === 'settings-users-btn');
             btn.classList.toggle('is-on', on);
         });
         const lookPane = document.getElementById('settings-look-pane');
+        const modulesPane = document.getElementById('settings-modules-pane');
         const usersPane = document.getElementById('settings-users-pane');
+        const modelsPane = document.getElementById('settings-comfy-models-pane');
+        if (modelsPane) modelsPane.hidden = true;
         const hideEmbedded = () => {
             const host = document.getElementById('settings-detail');
             if (host) host.querySelectorAll('iframe').forEach(frame => frame.classList.remove('settings-embedded'));
@@ -975,20 +1296,56 @@ class SettingsUI {
         if (name === 'look') {
             hideEmbedded();
             if (usersPane) usersPane.hidden = true;
+            if (modulesPane) modulesPane.hidden = true;
             if (lookPane) lookPane.hidden = false;
+            return;
+        }
+        if (name === 'modules') {
+            hideEmbedded();
+            if (usersPane) usersPane.hidden = true;
+            if (lookPane) lookPane.hidden = true;
+            if (modulesPane) modulesPane.hidden = false;
+            this.renderModules();
             return;
         }
         if (name === 'users') {
             hideEmbedded();
             if (lookPane) lookPane.hidden = true;
+            if (modulesPane) modulesPane.hidden = true;
             if (usersPane) usersPane.hidden = false;
             this.showUserList();
             return;
         }
         if (lookPane) lookPane.hidden = true;
+        if (modulesPane) modulesPane.hidden = true;
         if (usersPane) usersPane.hidden = true;
         if (name === 'api' || name === 'lan') this.mountSettingsFrame('api-settings', name);
         if (name === 'comfy') this.mountSettingsFrame('comfyui-settings');
+    }
+
+    async showComfyModels() {
+        if (!AuthManager.isAdmin()) {
+            this.showSection('look');
+            return;
+        }
+        this._modelsReturn = this.currentSection && this.currentSection !== 'comfy-models' ? this.currentSection : (this._modelsReturn || 'api');
+        this.currentSection = 'comfy-models';
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.classList.toggle('is-on', id === 'settings-comfyui-btn');
+        });
+        const lookPane = document.getElementById('settings-look-pane');
+        const modulesPane = document.getElementById('settings-modules-pane');
+        const usersPane = document.getElementById('settings-users-pane');
+        const modelsPane = document.getElementById('settings-comfy-models-pane');
+        const host = document.getElementById('settings-detail');
+        if (lookPane) lookPane.hidden = true;
+        if (modulesPane) modulesPane.hidden = true;
+        if (usersPane) usersPane.hidden = true;
+        if (host) host.querySelectorAll('iframe').forEach(frame => frame.classList.remove('settings-embedded'));
+        if (modelsPane) modelsPane.hidden = false;
+        const grid = document.getElementById('settings-comfy-models-grid');
+        if (grid && window.ModelVisibility) await ModelVisibility.mount(grid);
     }
 
     mountSettingsFrame(id, section) {
@@ -1101,7 +1458,7 @@ class SettingsUI {
                 <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">确定要退出当前账号吗？</p>
                 <div style="display:flex;gap:10px;">
                     <button id="logout-cancel-btn" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;">取消</button>
-                    <button id="logout-confirm-btn" style="flex:1;height:40px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">确认退出</button>
+                    <button id="logout-confirm-btn" style="flex:1;height:40px;border-radius:10px;border:none;background:#ef4444;color:#fcfcfb;font-size:13px;font-weight:700;cursor:pointer;">确认退出</button>
                 </div>
             </div>
         `;
@@ -1181,31 +1538,18 @@ class SettingsUI {
         if (iconClosed) iconClosed.style.display = isLocked ? 'block' : 'none';
         if (status) status.textContent = isLocked ? '已锁定' : '关闭';
         if (trail) trail.textContent = isLocked ? '开' : '关';
-        if (tile) tile.style.setProperty('--tile', isLocked ? '#f59e0b' : '#38bdf8'),
-                 tile.style.setProperty('--tile2', isLocked ? '#d97706' : '#0ea5e9');
+        if (tile) tile.style.setProperty('--tile', isLocked ? '#f59e0b' : '#00f0ff'),
+                 tile.style.setProperty('--tile2', isLocked ? '#d97706' : '#06b6d4');
     }
 
     updateSysAuthState() {
-        const label = document.getElementById('sys-auth-label');
-        const hint = document.getElementById('sys-auth-hint');
-        const trail = document.getElementById('sys-auth-trail');
-        const tile = document.getElementById('sys-auth-btn');
-        if (!label || !hint) return;
         const accountName = document.getElementById('sidebar-account-name');
         const accountBtn = document.getElementById('sidebar-account-btn');
         if (typeof AuthManager !== 'undefined' && AuthManager.isLoggedIn()) {
             const user = AuthManager.getUser();
-            label.textContent = '切换用户';
-            hint.textContent = this.escapeHtml(user.username);
-            if (trail) trail.textContent = '切换';
-            if (tile) tile.classList.remove('sys-tile-danger');
             if (accountName) accountName.textContent = user.username || '账号';
             if (accountBtn) accountBtn.title = '账号：' + (user.username || '');
         } else {
-            label.textContent = '登录';
-            hint.textContent = '未登录';
-            if (trail) trail.textContent = '›';
-            if (tile) tile.classList.remove('sys-tile-danger');
             if (accountName) accountName.textContent = '登录';
             if (accountBtn) accountBtn.title = '登录';
         }
@@ -1270,13 +1614,14 @@ class SettingsUI {
             this.buttonEl.style.cursor = 'pointer';
         }
         const admin = loggedIn && AuthManager.isAdmin();
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-modules-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (!admin) el.style.display = 'none';
             else if (id === 'settings-users-btn') el.style.display = 'flex';
             else el.style.display = '';
         });
+        if (!admin && ['api', 'lan', 'comfy', 'modules', 'users', 'comfy-models', 'translate'].includes(this.currentSection)) this.showSection('look');
     }
     
     escapeHtml(str) {
@@ -1319,7 +1664,7 @@ class SettingsUI {
             return `
                 <div class="user-card" data-username="${name}">
                     <div class="user-card-main">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0a1628;flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
+                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#141414;flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
                         <div style="min-width:0;">
                             <div style="font-size:14px;font-weight:700;color:var(--text);">${name}</div>
                             <div style="font-size:12px;color:var(--muted);margin-top:4px;">${isSelf ? '当前账号' : ''}${isSelf && u.is_admin ? ' · ' : ''}${u.is_admin ? '管理员' : (isSelf ? '' : '普通用户')}</div>
@@ -1419,7 +1764,7 @@ class SettingsUI {
                 <form id="reset-password-form" style="margin:0;" onsubmit="return false;">
                 <input id="reset-new-password" type="password" placeholder="输入新密码" style="width:100%;height:42px;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:var(--stage-bg);color:var(--text);font-size:14px;outline:none;box-sizing:border-box;">
                 <div id="reset-error" style="color:#ef4444;font-size:12px;margin:12px 0;display:none;"></div>
-                <button id="reset-confirm-btn" style="width:100%;height:42px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#0a1628;font-size:13px;font-weight:700;cursor:pointer;margin-top:12px;transition:all 0.2s;">确认重置</button>
+                <button id="reset-confirm-btn" style="width:100%;height:42px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#141414;font-size:13px;font-weight:700;cursor:pointer;margin-top:12px;transition:all 0.2s;">确认重置</button>
                 </form>
             </div>
         `;
@@ -1477,7 +1822,7 @@ class SettingsUI {
                 <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">确定要删除用户 <strong style="color:var(--text);">${this.escapeHtml(username)}</strong> 吗？此操作不可恢复。</p>
                 <div style="display:flex;gap:10px;">
                     <button id="delete-cancel-btn" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;">取消</button>
-                    <button id="delete-confirm-btn" style="flex:1;height:40px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">确认删除</button>
+                    <button id="delete-confirm-btn" style="flex:1;height:40px;border-radius:10px;border:none;background:#ef4444;color:#fcfcfb;font-size:13px;font-weight:700;cursor:pointer;">确认删除</button>
                 </div>
                 <div id="delete-error" style="color:#ef4444;font-size:12px;margin-top:12px;display:none;"></div>
             </div>
@@ -1516,6 +1861,7 @@ class ComfyProcessManager {
         this.pollTimer = null;
         this.logPollTimer = null;
         this.startBtn = document.getElementById('comfy-start-btn');
+        this.modelsBtn = document.getElementById('comfy-models-btn');
         this.statusDot = document.getElementById('comfy-status-dot');
         this.statusText = document.getElementById('comfy-status-text');
         this.logBtn = document.getElementById('comfy-log-btn');
@@ -1541,6 +1887,13 @@ class ComfyProcessManager {
                 e.stopPropagation();
                 if (this.mode === 'stopped') this.startComfy();
                 else this.stopComfy();
+            };
+        }
+
+        if (this.modelsBtn) {
+            this.modelsBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.toggleModelVisibility();
             };
         }
 
@@ -1660,13 +2013,13 @@ class ComfyProcessManager {
                 if (label) label.textContent = '运行中';
                 this.startBtn.title = '点击关闭 ComfyUI';
                 this.startBtn.style.background = '#059669';
-                this.startBtn.style.color = '#ecfdf5';
+                this.startBtn.style.color = '#f8f8f6';
                 if (icon) icon.innerHTML = '<rect x="5" y="5" width="14" height="14" rx="2"/>';
             } else if (this.mode === 'starting') {
                 if (label) label.textContent = '启动中';
                 this.startBtn.title = '正在启动，点击可关闭';
                 this.startBtn.style.background = '#d97706';
-                this.startBtn.style.color = '#fffbeb';
+                this.startBtn.style.color = '#faf9f7';
                 if (icon) icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
             } else {
                 if (label) label.textContent = '启动';
@@ -1732,6 +2085,16 @@ class ComfyProcessManager {
                 if (data.reachable) return;
             } catch (e) {}
         }
+    }
+
+    async toggleModelVisibility() {
+        const ui = window._settingsUI;
+        if (!ui) return;
+        if (ui.currentSection === 'comfy-models') {
+            ui.showSection(ui._modelsReturn || 'api');
+            return;
+        }
+        await ui.showComfyModels();
     }
 
     async stopComfy() {

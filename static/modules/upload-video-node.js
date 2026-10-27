@@ -14,7 +14,7 @@ function injectUploadVideoNodeCSS() {
         .uv-upload-area video { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; border-radius:12px; }
         .uv-upload-area .uv-upload-hint { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
         .uv-upload-area.has-video .uv-upload-hint { opacity:0; transition:opacity .15s var(--ease); }
-        .uv-upload-area.has-video:hover .uv-upload-hint { opacity:1; background:rgba(0,0,0,.5); color:#fff; padding:6px 12px; border-radius:8px; }
+        .uv-upload-area.has-video:hover .uv-upload-hint { opacity:1; background:rgba(0,0,0,.5); color:#fcfcfb; padding:6px 12px; border-radius:8px; }
         .uv-file-name { font-size:10px; font-weight:700; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     `;
     document.head.appendChild(style);

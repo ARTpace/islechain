@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>对话生图</title>
 <script src="/static/modules/auth-token.js"></script>
-<script src="/static/js/theme.js?v=20261022e"></script>
+<script src="/static/js/theme.js?v=20261024001"></script>
+<script src="/static/js/ui-refine.js?v=20261024001"></script>
+<link rel="stylesheet" href="/static/css/studio-ui.css">
 <style>
-:root { --bg:#10141c; --card:#1a2230; --line:#2a3548; --text:#e7eef8; --muted:#8ea0b8; --accent:#22b8cf; }
+:root { --bg: var(--ui-bg); --card: var(--ui-panel); --line: var(--ui-line); --text: var(--ui-text); --muted: var(--ui-muted); --accent: var(--ui-accent); }
 html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
 .page { height:100%; display:flex; flex-direction:column; }
 .top { display:flex; justify-content:space-between; align-items:center; padding:16px 22px 0; }
@@ -19,15 +21,27 @@ html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font
 .row { display:flex; }
 .row.user { justify-content:flex-end; }
 .bubble { max-width:min(680px,82%); font-size:14px; line-height:1.6; white-space:pre-wrap; }
-.user .bubble { background:#19b5d1; color:#042027; border-radius:16px 16px 4px 16px; padding:10px 14px; }
-.asst .bubble { background:#1b2636; border:1px solid #2c3b52; border-radius:16px 16px 16px 4px; padding:10px 14px; }
+.user .bubble { background:var(--ui-accent); color:var(--ui-accent-ink); border-radius:16px 16px 4px 16px; padding:10px 14px; }
+.asst .bubble { background:var(--ui-soft); border:1px solid var(--ui-line-strong); border-radius:16px 16px 16px 4px; padding:10px 14px; }
 .asst img { display:block; margin-top:10px; max-width:min(440px,70vw); border-radius:12px; }
 .dock { padding:0 8vw 18px; }
-.composer { border:1px solid #2c4d66; border-radius:22px; background:#121a26; padding:12px; }
+.composer { border:1px solid var(--ui-line-strong); border-radius:22px; background:var(--ui-soft); padding:12px; }
 textarea { width:100%; min-height:52px; max-height:140px; border:0; resize:none; outline:none; background:transparent; color:var(--text); font:14px/1.5 inherit; }
 .bar { display:flex; justify-content:flex-end; }
-.send { width:36px; height:36px; border:0; border-radius:50%; background:var(--accent); color:#042027; font-weight:800; cursor:pointer; }
+.send { width:36px; height:36px; border:0; border-radius:50%; background:var(--accent); color:#181818; font-weight:800; cursor:pointer; }
 .send:disabled { opacity:.45; }
+
+/* studio-ui 响应式（外层 chrome 流式 + 移动兜底） */
+body { overflow-x: hidden; }
+@media (max-width: 640px) {
+  .top { padding: 12px 14px 0; }
+  .thread { padding: 16px 14px 12px; }
+  .dock { padding: 0 14px 14px; }
+  .bubble { max-width: 88%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
 </style>
 </head>
 <body>
@@ -139,7 +153,7 @@ async function send(message) {
             }
             if (event.type === 'delta') {
                 full += event.delta || '';
-                bubble.textContent = visibleText(full) || '…';
+                UIRefine.stream(bubble, visibleText(full) || '…');
                 scrollBottom();
             }
             if (event.type === 'error') throw new Error(event.detail || '对话失败');
@@ -150,12 +164,12 @@ async function send(message) {
             }
         }
     }
-    bubble.textContent = visibleText(full) || '好的。';
+    UIRefine.finish(bubble, visibleText(full) || '好的。');
     const spec = readImageSpec(full);
     if (!spec) return;
     const note = document.createElement('div');
     note.textContent = '正在按你的需求生成图片…';
-    note.style.color = '#8ec9d6';
+    note.style.color = '#c9c8bf';
     note.style.marginTop = '8px';
     bubble.appendChild(note);
     const images = await draw(spec);

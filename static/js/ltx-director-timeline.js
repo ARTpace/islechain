@@ -75,7 +75,7 @@ const STYLES = `
     padding-bottom: 4px;
   }
   .pr-wrapper.drag-active {
-    outline: 2px dashed #888;
+    outline: 2px dashed #888888;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
   }
@@ -93,9 +93,9 @@ const STYLES = `
     flex-wrap: wrap;
   }
   .pr-btn {
-    background: #222;
+    background: #222222;
     color: #e0e0e0;
-    border: 1px solid #111;
+    border: 1px solid #111111;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 11px;
@@ -107,17 +107,17 @@ const STYLES = `
     transition: all 0.2s ease;
   }
   .pr-btn:hover {
-    background: #333;
-    border-color: #555;
+    background: #333333;
+    border-color: #555555;
   }
   .pr-btn-danger:hover {
-    background: #4a1515;
+    background: #252522;
     border-color: #cc4444;
-    color: #ffaaaa;
+    color: #cccbc2;
   }
   .pr-canvas {
     border-radius: 6px;
-    border: 1px solid #111;
+    border: 1px solid #111111;
     background: #2a2a2a;
     cursor: pointer;
     width: 100%;
@@ -138,7 +138,7 @@ const STYLES = `
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: #a19f97;
     margin-bottom: 4px;
   }
   .pr-prompt-area {
@@ -146,9 +146,9 @@ const STYLES = `
     min-height: 72px;
     height: 72px;
     flex: 0 0 72px;
-    background: #222;
+    background: #222222;
     color: #e0e0e0;
-    border: 1px solid #111;
+    border: 1px solid #111111;
     border-radius: 6px;
     padding: 8px;
     resize: vertical;
@@ -159,14 +159,14 @@ const STYLES = `
     transition: border-color 0.2s ease;
   }
   .pr-prompt-area:focus {
-    border-color: #888;
+    border-color: #888888;
   }
   .pr-audio-info {
     width: 100%;
     height: 100%;
     background: #181818;
-    color: #aaa;
-    border: 1px solid #111;
+    color: #aaaaaa;
+    border: 1px solid #111111;
     border-radius: 6px;
     padding: 10px;
     font-size: 12px;
@@ -174,10 +174,10 @@ const STYLES = `
     box-sizing: border-box;
     display: none;
   }
-  .pr-audio-info span { color: #fff; font-weight: 500; }
+  .pr-audio-info span { color: #fcfcfb; font-weight: 500; }
   .pr-controls-group {
     background: #1e1e1e;
-    border: 1px solid #333;
+    border: 1px solid #333333;
     border-radius: 6px;
     padding: 6px 10px;
     display: flex;
@@ -204,13 +204,13 @@ const STYLES = `
     border: 1px solid #1e1e1e;
   }
   .pr-height-resizer:hover {
-    background: #444;
-    border-color: #555;
+    background: #444444;
+    border-color: #555555;
   }
   .pr-strength-label {
     font-size: 11px;
     font-weight: 600;
-    color: #fff;
+    color: #fcfcfb;
     white-space: nowrap;
     margin-left: auto;
   }
@@ -219,11 +219,11 @@ const STYLES = `
     appearance: none;
     width: 80px;
     height: 4px;
-    background: #444;
+    background: #444444;
     border-radius: 2px;
     outline: none;
     cursor: pointer;
-    border: 1px solid #222;
+    border: 1px solid #222222;
   }
   .pr-strength-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -231,7 +231,7 @@ const STYLES = `
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #aaa;
+    background: #aaaaaa;
     cursor: pointer;
   }
   .pr-strength-slider:disabled {
@@ -240,9 +240,9 @@ const STYLES = `
   }
   .pr-strength-input {
     font-size: 12px;
-    color: #fff;
-    background: #222;
-    border: 1px solid #444;
+    color: #fcfcfb;
+    background: #222222;
+    border: 1px solid #444444;
     border-radius: 4px;
     width: 52px;
     text-align: center;
@@ -263,7 +263,7 @@ const STYLES = `
   .pr-gap-menu {
     position: fixed;
     background: #1e1e1e;
-    border: 1px solid #444;
+    border: 1px solid #444444;
     border-radius: 6px;
     padding: 4px;
     display: flex;
@@ -275,7 +275,7 @@ const STYLES = `
   .pr-gap-menu-btn {
     background: #2a2a2a;
     color: #e0e0e0;
-    border: 1px solid #333;
+    border: 1px solid #333333;
     border-radius: 4px;
     padding: 6px 14px;
     font-size: 11px;
@@ -290,7 +290,7 @@ const STYLES = `
   }
   .pr-gap-menu-btn:hover {
     background: #3a3a3a;
-    border-color: #666;
+    border-color: #666666;
   }
   .pr-player-controls {
     display: flex;
@@ -303,8 +303,8 @@ const STYLES = `
   }
   .pr-icon-btn {
     background: #2a2a2a;
-    border: 1px solid #444;
-    color: #eee;
+    border: 1px solid #444444;
+    color: #eeeeee;
     cursor: pointer;
     padding: 6px 12px;
     border-radius: 4px;
@@ -317,24 +317,24 @@ const STYLES = `
     pointer-events: none;
   }
   .pr-icon-btn:hover {
-    color: #fff;
+    color: #fcfcfb;
     background: #3a3a3a;
-    border-color: #666;
+    border-color: #666666;
   }
   .pr-icon-btn.active {
     color: #4fff8f;
     border-color: #4fff8f;
-    background: #1a3a2a;
+    background: #30302c;
   }
   .pr-seek-bar {
     -webkit-appearance: none;
     appearance: none;
     height: 6px;
-    background: #444;
+    background: #444444;
     border-radius: 3px;
     outline: none;
     cursor: pointer;
-    border: 1px solid #222;
+    border: 1px solid #222222;
   }
   .pr-seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -344,7 +344,7 @@ const STYLES = `
     border-radius: 50%;
     background: #ff4444;
     cursor: pointer;
-    border: 2px solid #222;
+    border: 2px solid #222222;
   }
   .pr-timeline-viewport {
     width: 100%;
@@ -359,13 +359,13 @@ const STYLES = `
     border-radius: 5px;
   }
   .pr-timeline-viewport::-webkit-scrollbar-thumb {
-    background: #444;
+    background: #444444;
     border-radius: 5px;
-    border: 1px solid #000;
+    border: 1px solid #0b0b0a;
   }
   .pr-timeline-viewport::-webkit-scrollbar-thumb:hover {
-    background: #666;
-    border-color: #000;
+    background: #666666;
+    border-color: #0b0b0a;
   }
   .pr-zoom-controls {
     display: flex;
@@ -378,7 +378,7 @@ const STYLES = `
     -webkit-appearance: none;
     appearance: none;
     height: 4px;
-    background: #444;
+    background: #444444;
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -389,7 +389,7 @@ const STYLES = `
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #aaa;
+    background: #aaaaaa;
     cursor: pointer;
   }
   .pr-right-group {
@@ -399,7 +399,7 @@ const STYLES = `
   }
   .pr-segment-bounds {
     font-size: 12px;
-    color: #aaa;
+    color: #aaaaaa;
     font-family: monospace;
   }
   .pr-timecode {
@@ -411,7 +411,7 @@ const STYLES = `
   .pr-settings-menu {
     position: fixed;
     background: #1e1e1e;
-    border: 1px solid #444;
+    border: 1px solid #444444;
     border-radius: 6px;
     padding: 10px;
     display: flex;
@@ -424,11 +424,11 @@ const STYLES = `
   .pr-settings-title {
     font-size: 11px;
     font-weight: 600;
-    color: #888;
+    color: #888888;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding-bottom: 4px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid #333333;
     margin-bottom: 2px;
   }
   .pr-settings-row {
@@ -439,21 +439,21 @@ const STYLES = `
   }
   .pr-settings-label {
     font-size: 12px;
-    color: #bbb;
+    color: #bbbbbb;
     flex: 1;
     white-space: nowrap;
   }
   .pr-number-control {
     display: flex;
     align-items: center;
-    border: 1px solid #444;
+    border: 1px solid #444444;
     border-radius: 4px;
     background: #2a2a2a;
     overflow: hidden;
   }
   .pr-number-btn {
-    background: #333;
-    color: #aaa;
+    background: #333333;
+    color: #aaaaaa;
     border: none;
     width: 20px;
     height: 22px;
@@ -466,8 +466,8 @@ const STYLES = `
     user-select: none;
   }
   .pr-number-btn:hover {
-    background: #444;
-    color: #fff;
+    background: #444444;
+    color: #fcfcfb;
   }
   .pr-settings-input {
     background: transparent;
@@ -490,7 +490,7 @@ const STYLES = `
   .pr-settings-select {
     background: #2a2a2a;
     color: #e0e0e0;
-    border: 1px solid #444;
+    border: 1px solid #444444;
     border-radius: 4px;
     padding: 3px 4px;
     font-size: 12px;
@@ -505,8 +505,8 @@ const STYLES = `
   .pr-settings-toggle-btn {
     width: 100%;
     background: #252525;
-    color: #aaa;
-    border: 1px solid #333;
+    color: #aaaaaa;
+    border: 1px solid #333333;
     border-radius: 4px;
     padding: 5px 8px;
     font-size: 11px;
@@ -516,12 +516,12 @@ const STYLES = `
   }
   .pr-settings-toggle-btn:hover {
     background: #2e2e2e;
-    color: #ccc;
-    border-color: #555;
+    color: #cccccc;
+    border-color: #555555;
   }
   .pr-settings-close-btn {
     background: transparent;
-    color: #888;
+    color: #888888;
     border: none;
     cursor: pointer;
     padding: 2px;
@@ -532,13 +532,13 @@ const STYLES = `
     transition: all 0.15s;
   }
   .pr-settings-close-btn:hover {
-    color: #fff;
+    color: #fcfcfb;
     background: rgba(255,255,255,0.1);
   }
   .pr-segmented-control {
     display: flex;
     background: #1e1e1e;
-    border: 1px solid #333;
+    border: 1px solid #333333;
     border-radius: 6px;
     padding: 2px;
     width: 110px;
@@ -554,15 +554,15 @@ const STYLES = `
     line-height: 18px;
     cursor: pointer;
     border-radius: 4px;
-    color: #888;
+    color: #888888;
     transition: all 0.15s ease;
   }
   .pr-segment.active {
-    background: #333;
-    color: #fff;
+    background: #333333;
+    color: #fcfcfb;
   }
   .pr-segment:hover:not(.active) {
-    color: #ccc;
+    color: #cccccc;
   }
 `;
 
@@ -1026,12 +1026,12 @@ class TimelineEditor {
     const updateToggleStyle = (isOn) => {
       toggleBtn.textContent = isOn ? "Custom Audio: ON" : "Custom Audio: OFF";
       if (isOn) {
-        toggleBtn.style.background = "#1c222d";
-        toggleBtn.style.borderColor = "#283142";
+        toggleBtn.style.background = "#21211f";
+        toggleBtn.style.borderColor = "#32322e";
         toggleBtn.style.color = "#e0e0e0";
       } else {
-        toggleBtn.style.background = "#222";
-        toggleBtn.style.borderColor = "#111";
+        toggleBtn.style.background = "#222222";
+        toggleBtn.style.borderColor = "#111111";
         toggleBtn.style.color = "#e0e0e0";
       }
     };
@@ -1874,9 +1874,9 @@ class TimelineEditor {
 
 
     // Render Track Backgrounds
-    this.ctx.fillStyle = "#111"; // Image track bg
+    this.ctx.fillStyle = "#111111"; // Image track bg
     this.ctx.fillRect(0, RULER_HEIGHT, width, this.blockHeight);
-    this.ctx.fillStyle = "#111"; // Audio track bg
+    this.ctx.fillStyle = "#111111"; // Audio track bg
     this.ctx.fillRect(0, RULER_HEIGHT + this.blockHeight, width, this.audioTrackHeight);
 
 
@@ -1933,19 +1933,19 @@ class TimelineEditor {
         this.ctx.fillStyle = "#2a2a2a";
         this.ctx.fillRect(startX, RULER_HEIGHT, pxWidth, this.blockHeight);
 
-        this.ctx.strokeStyle = "#777";
+        this.ctx.strokeStyle = "#777777";
         this.ctx.lineWidth = 2;
         this.ctx.setLineDash([5, 5]);
         this.ctx.strokeRect(startX, RULER_HEIGHT + 1, pxWidth, this.blockHeight - 2);
         this.ctx.setLineDash([]);
 
-        this.ctx.fillStyle = "#aaa";
+        this.ctx.fillStyle = "#aaaaaa";
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
         this.ctx.font = "bold 12px sans-serif";
         this.ctx.fillText("Drop to Place", startX + pxWidth / 2, RULER_HEIGHT + this.blockHeight / 2);
       } else {
-        this.ctx.fillStyle = seg.type === "text" ? "#000b12" : "#000";
+        this.ctx.fillStyle = seg.type === "text" ? "#0b0b0a" : "#0b0b0a";
         this.ctx.fillRect(startX, RULER_HEIGHT + 1, pxWidth, this.blockHeight - 2);
       }
 
@@ -2007,7 +2007,7 @@ class TimelineEditor {
           // Text
           const fontSize = Math.min(11, overlayH * 0.58);
           this.ctx.font = `${fontSize}px sans-serif`;
-          this.ctx.fillStyle = "#e0e3ed";
+          this.ctx.fillStyle = "#e9e7e1";
           this.ctx.textAlign = "center";
           this.ctx.textBaseline = "middle";
 
@@ -2032,7 +2032,7 @@ class TimelineEditor {
           this.ctx.beginPath();
           this.ctx.rect(startX + pad, RULER_HEIGHT + pad, boxW, this.blockHeight - pad * 2);
           this.ctx.clip();
-          this.ctx.fillStyle = "#e0e3ed";
+          this.ctx.fillStyle = "#e9e7e1";
           this.ctx.font = "11px sans-serif";
           this.ctx.textAlign = "center";
           this.ctx.textBaseline = "top";
@@ -2070,10 +2070,10 @@ class TimelineEditor {
       }
 
       if (isSelected) {
-        this.ctx.strokeStyle = "#fff";
+        this.ctx.strokeStyle = "#fcfcfb";
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(startX, RULER_HEIGHT + 1, pxWidth, this.blockHeight - 2);
-        this.ctx.fillStyle = "#fff";
+        this.ctx.fillStyle = "#fcfcfb";
         this.ctx.beginPath();
         this.ctx.roundRect(startX, RULER_HEIGHT + this.blockHeight / 2 - 12, 4, 24, 2);
         this.ctx.fill();
@@ -2081,7 +2081,7 @@ class TimelineEditor {
         this.ctx.roundRect(startX + pxWidth - 4, RULER_HEIGHT + this.blockHeight / 2 - 12, 4, 24, 2);
         this.ctx.fill();
       } else {
-        this.ctx.strokeStyle = "#000";
+        this.ctx.strokeStyle = "#0b0b0a";
         this.ctx.lineWidth = 1.5;
         this.ctx.strokeRect(startX, RULER_HEIGHT + 1, pxWidth, this.blockHeight - 2);
       }
@@ -2105,12 +2105,12 @@ class TimelineEditor {
       if (seg.type === "ghost") {
         this.ctx.fillStyle = "#1a1a1a";
         this.ctx.fillRect(startX, trackY, pxWidth, this.audioTrackHeight);
-        this.ctx.strokeStyle = "#555";
+        this.ctx.strokeStyle = "#555555";
         this.ctx.lineWidth = 2;
         this.ctx.setLineDash([5, 5]);
         this.ctx.strokeRect(startX, trackY, pxWidth, this.audioTrackHeight);
         this.ctx.setLineDash([]);
-        this.ctx.fillStyle = "#888";
+        this.ctx.fillStyle = "#888888";
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
         this.ctx.font = "bold 12px sans-serif";
@@ -2127,7 +2127,7 @@ class TimelineEditor {
     this.ctx.fillRect(0, 0, width, RULER_HEIGHT);
 
     // Crisp Ruler Text
-    this.ctx.fillStyle = "#aaa";
+    this.ctx.fillStyle = "#aaaaaa";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.font = "10px sans-serif";
@@ -2174,7 +2174,7 @@ class TimelineEditor {
     }
     const minorStepFrames = mode === "seconds" ? minorStep * frameRate : minorStep;
 
-    this.ctx.fillStyle = "#444";
+    this.ctx.fillStyle = "#444444";
     const totalMinorTicks = Math.floor(totalFrames / minorStepFrames);
     for (let i = 0; i <= totalMinorTicks; i++) {
       const frameVal = i * minorStepFrames;
@@ -2184,13 +2184,13 @@ class TimelineEditor {
       this.ctx.fillRect(Math.floor(x), RULER_HEIGHT - 3, 1, 3);
     }
 
-    this.ctx.fillStyle = "#aaa";
+    this.ctx.fillStyle = "#aaaaaa";
     const totalMajorTicks = Math.floor(totalFrames / majorStepFrames);
     for (let i = 0; i <= totalMajorTicks; i++) {
       const frameVal = i * majorStepFrames;
       const x = (frameVal / totalFrames) * width;
 
-      this.ctx.fillStyle = "#aaa";
+      this.ctx.fillStyle = "#aaaaaa";
       this.ctx.fillRect(Math.floor(x), RULER_HEIGHT - 6, 1, 6);
 
       if (frameVal > 0 && frameVal < totalFrames) {
@@ -2204,7 +2204,7 @@ class TimelineEditor {
     this.ctx.fillText(zeroLabel, 4, RULER_HEIGHT / 2);
 
     // Divider
-    this.ctx.fillStyle = "#333";
+    this.ctx.fillStyle = "#333333";
     this.ctx.fillRect(0, RULER_HEIGHT + this.blockHeight, width, 1);
 
     // Draw gap "+" buttons
@@ -2221,7 +2221,7 @@ class TimelineEditor {
         this.ctx.roundRect(gap.centerX - BTN_W / 2, gap.centerY - BTN_H / 2, BTN_W, BTN_H, 4);
         this.ctx.fillStyle = hov ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)";
         this.ctx.fill();
-        this.ctx.fillStyle = hov ? "#fff" : "#888";
+        this.ctx.fillStyle = hov ? "#fcfcfb" : "#888888";
         this.ctx.font = "14px sans-serif";
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
@@ -2303,7 +2303,7 @@ class TimelineEditor {
   }
 
   drawAudioSegmentVisuals(ctx, seg, isSelected, yOffset, trackHeight, startX, pxWidth) {
-    ctx.fillStyle = isSelected ? "#2a4a3a" : "#1a2a1a";
+    ctx.fillStyle = isSelected ? "#42423d" : "#232321";
     ctx.fillRect(startX, yOffset + 2, pxWidth, trackHeight - 3);
 
     if (seg.waveformPeaks && pxWidth > 0) {
@@ -2327,7 +2327,7 @@ class TimelineEditor {
       }
     }
 
-    ctx.strokeStyle = isSelected ? "#4fff8f" : "#000";
+    ctx.strokeStyle = isSelected ? "#4fff8f" : "#0b0b0a";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(startX, yOffset + 2, pxWidth, trackHeight - 3);
 
@@ -2341,7 +2341,7 @@ class TimelineEditor {
       ctx.fill();
     }
 
-    ctx.fillStyle = "#ccc";
+    ctx.fillStyle = "#cccccc";
     ctx.font = "11px sans-serif";
     ctx.textBaseline = "top";
     ctx.textAlign = "left";

@@ -1,12 +1,46 @@
 """系统配置相关路由"""
 import main as _main  # P2 惰性依赖（2026-10-22 断循环）：见本文件 __getattr__
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import List
 import os, json, re, httpx
 
 
 # No prefix - use full paths
 router = APIRouter()
+
+
+@router.get("/api/providers/webai2api/status")
+@router.post("/api/providers/webai2api/sync")
+async def webai2api_status(request: Request, provider_id: str = "webai2api", refresh: bool = False, model: str = ""):
+    provider = _main.get_api_provider(provider_id)
+    if not provider or _main.provider_protocol(provider) != "webai2api":
+        raise HTTPException(status_code=404, detail="请先添加并保存 WebAI2API 平台")
+    base = provider.get("base_url", "").rstrip("/")
+    management_url = base[:-3] if base.endswith('/v1') else base
+    try:
+        if refresh:
+            result = await _main.fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id), refresh=True, model=model)
+        else:
+            result = await _main.fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id))
+    except Exception as exc:
+        return {"online": False, "management_url": management_url,
+                "message": str(getattr(exc, 'detail', exc))[:250]}
+    if request.method == 'POST':
+        providers = _main.load_api_providers()
+        for item in providers:
+            if item['id'] == provider_id:
+                # 参数同步仅更新用户已添加的模型，模型目录不等于已选列表。
+                selected = set(item.get('image_models', []) + item.get('chat_models', []) + item.get('video_models', []))
+                previous = item.get('model_capabilities') or {}
+                item['model_capabilities'] = {
+                    model: result['model_capabilities'].get(model, {**previous.get(model, {}), 'available': False,
+                        'generation_params': {'source': 'website', 'status': 'unavailable', 'params': [], 'message': '上游已移除该模型'}})
+                    for model in selected
+                }
+                result = {**result, **{key: item.get(key, []) for key in ('image_models', 'chat_models', 'video_models')},
+                          'model_capabilities': item['model_capabilities']}
+        _main.save_api_providers(providers)
+    return {"online": True, "management_url": management_url, **result}
 
 
 @router.get("/api/config")
@@ -52,7 +86,7 @@ MODELSCOPE_DEFAULT_IMAGE_MODELS = [
 ]
 JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro", "5.0", "4.7", "4.6", "4.5", "4.1", "4.0", "3.1", "3.0"]
 JIMENG_DEFAULT_VIDEO_MODELS = ["VideoGen-720p", "VideoGen-1080p", "VideoGen-4K"]
-CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "$imagegen"]
+CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2"]
 GEMINI_CLI_DEFAULT_IMAGE_MODELS = ["imagen-3", "imagen-3-2k", "Nano-Banana", "$imagegen"]
 RUNNINGHUB_DEFAULT_IMAGE_MODELS = [
     "Tongyi-MAI/Z-Image-Turbo",
@@ -86,6 +120,8 @@ async def provider_models(provider_id: str = ""):
 
     prov = _main.get_api_provider(provider_id)
     builtin_img, builtin_chat, builtin_video = builtin_default_models(provider_id)
+    if prov and _main.provider_protocol(prov) == "codex":
+        builtin_img = list(CODEX_DEFAULT_IMAGE_MODELS)
 
     if prov:
         img = list(prov.get("image_models") or [])
@@ -98,18 +134,12 @@ async def provider_models(provider_id: str = ""):
         if not vid and builtin_video:
             vid = builtin_video
         pk = _main.get_provider_api_key(prov["id"])
-        if pk and prov.get("base_url") and provider_id not in ("comfly", "modelscope", "jimeng", "codex", "gemini-cli"):
+        if not (img or chat or vid) and pk and prov.get("base_url") and provider_id not in ("comfly", "modelscope", "jimeng", "codex", "gemini-cli"):
             try:
                 result = await _main.fetch_models_from_upstream(prov["base_url"], pk)
-                upstream_img = result.get("image_models") or []
-                upstream_chat = result.get("chat_models") or []
-                upstream_video = result.get("video_models") or []
-                return {
-                    "provider_id": provider_id,
-                    "image_models": upstream_img or img,
-                    "chat_models": upstream_chat or chat,
-                    "video_models": upstream_video or vid,
-                }
+                img = result.get("image_models") or img
+                chat = result.get("chat_models") or chat
+                vid = result.get("video_models") or vid
             except Exception as e:
                 return {"provider_id": provider_id, "error": str(e)[:300],
                         "image_models": img, "video_models": vid, "chat_models": chat}
@@ -157,7 +187,7 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
     for item in payload:
         provider = _main.normalize_provider(item.dict(exclude={"api_key"}))
         old = existing.get(provider["id"]) or {}
-        for key in ("ms_loras", "rh_apps", "rh_workflows", "image_generation_endpoint", "image_edit_endpoint"):
+        for key in ("ms_loras", "rh_apps", "rh_workflows", "image_generation_endpoint", "image_edit_endpoint", "model_capabilities"):
             if key in old and not provider.get(key):
                 provider[key] = old[key]
         if provider["id"] == "runninghub":
@@ -219,7 +249,10 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
 
-    url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+    if _main.is_cloudflare(_main.api_root(base_url)):
+        result = await _main.fetch_models_from_upstream(base_url, api_key)
+        return {"ok": True, "status": 200, "model_count": result["total"], **result}
+    url = _main.models_endpoint(base_url)
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -245,7 +278,12 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
 
         ids = sorted(set(ids))
 
+        from tools.webai_gateway import model_catalog
+        capabilities = model_catalog(items)
         def classify(mid):
+            explicit = capabilities.get(mid, {}).get("type")
+            if explicit:
+                return explicit
             lc = mid.lower()
             video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
             if any(k in lc for k in video_keys):
@@ -266,7 +304,7 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
                 bare = await bare_client.get(url, headers={"Accept": "application/json"})
             if bare.status_code < 400 and ids:
                 probe_model = (grouped["chat"] or ids)[0]
-                chat_url = f"{base_url}/chat/completions" if base_url.endswith("/v1") else f"{base_url}/v1/chat/completions"
+                chat_url = _main.api_root(base_url) + "/chat/completions"
                 async with httpx.AsyncClient(timeout=20) as probe_client:
                     probe = await probe_client.post(
                         chat_url,

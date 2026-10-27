@@ -4,7 +4,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #1a1a2e;
+    background: #1c1c1b;
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -31,7 +31,7 @@
 .style-preset-title span:not(.style-preset-icon):not(.style-preset-badge) {
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: #fbfaf9;
 }
 
 .style-preset-badge {
@@ -52,7 +52,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    color: #fbfaf9;
     font-size: 13px;
     outline: none;
     transition: all 0.2s;
@@ -118,7 +118,7 @@
     flex: 1;
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: #fbfaf9;
 }
 
 .style-preset-cat-count {
@@ -202,7 +202,7 @@
 .style-preset-item-name {
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: #fbfaf9;
 }
 
 .style-preset-item-badge {
@@ -236,7 +236,7 @@
     display: flex;
     gap: 6px;
     z-index: 10;
-    background: #1a1a2e;
+    background: #1c1c1b;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     padding: 6px;
@@ -260,7 +260,7 @@
     border: none;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+    color: #fbfaf9;
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
@@ -269,7 +269,7 @@
 
 .style-preset-action-btn:hover {
     background: #f59e0b;
-    color: #000;
+    color: #0b0b0a;
 }
 
 /* === 空状态 === */
