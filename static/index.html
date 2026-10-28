@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="/static/modules/load-log.js?v=20261027load"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         (function(){
@@ -1043,21 +1044,23 @@
                 for (const group of this.orderedGroups()) for (const item of group.items) if (this.isOn(item.id)) return item.id;
                 return '';
             },
-            orderedGroups: function () {
+            orderedGroups: function (includeApps) {
                 var saved = {};
                 try { saved = JSON.parse(localStorage.getItem('studio_feature_module_order') || '{}') || {}; } catch (e) {}
-                return this.groups.map(function (group) {
+                return this.groups.map(function (group, index) {
                     var ids = Array.isArray(saved[group.title]) ? saved[group.title] : [];
-                    var items = group.items.slice().sort(function (a, b) {
+                    var source = group.items.slice();
+                    if (includeApps && index === 0) source.push({ id: 'apps', name: '应用', orderOnly: true });
+                    var items = source.sort(function (a, b) {
                         var ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
-                        return (ai < 0 ? ids.length + group.items.indexOf(a) : ai) - (bi < 0 ? ids.length + group.items.indexOf(b) : bi);
+                        return (ai < 0 ? ids.length + (a.orderOnly ? group.items.length : group.items.indexOf(a)) : ai) - (bi < 0 ? ids.length + (b.orderOnly ? group.items.length : group.items.indexOf(b)) : bi);
                     });
                     return Object.assign({}, group, { items: items });
                 });
             },
             move: function (id, direction) {
                 if (direction !== -1 && direction !== 1) return;
-                var groups = this.orderedGroups();
+                var groups = this.orderedGroups(true);
                 var group = groups.find(group => group.items.some(item => item.id === id));
                 if (!group) return;
                 var index = group.items.findIndex(item => item.id === id), next = index + direction;
@@ -1069,7 +1072,7 @@
                 this.applyOrder();
             },
             moveTo: function (id, targetId, after) {
-                var groups = this.orderedGroups();
+                var groups = this.orderedGroups(true);
                 var group = groups.find(g => g.items.some(item => item.id === id));
                 if (!group || id === targetId || !group.items.some(item => item.id === targetId)) return;
                 var item = group.items.splice(group.items.findIndex(item => item.id === id), 1)[0];
@@ -1083,10 +1086,10 @@
                 var nav = document.querySelector('.sidebar-nav');
                 var anchor = document.getElementById('nav-comfy');
                 var submenu = document.getElementById('comfyui-submenu');
-                this.orderedGroups().forEach(function (group, index) {
+                this.orderedGroups(true).forEach(function (group, index) {
                     group.items.forEach(function (item) {
-                        var node = document.querySelector('[data-module="' + item.id + '"]');
-                        if (index === 0 && nav && anchor && node?.parentNode === nav) nav.insertBefore(node, anchor);
+                        var node = item.orderOnly ? anchor : document.querySelector('[data-module="' + item.id + '"]');
+                        if (index === 0 && nav && node?.parentNode === nav) nav.appendChild(node);
                         else if (index === 1 && submenu && node?.parentNode === submenu) submenu.appendChild(node);
                     });
                 });
@@ -1225,7 +1228,7 @@
     </script>
 
     <script src="/static/modules/model-visibility.js?v=20261024pane"></script>
-    <script src="/static/modules/settings.js?v=20261026moduledragpreview"></script>
+    <script src="/static/modules/settings.js?v=20261028apporder"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -1271,6 +1274,29 @@
             target.classList.remove('leaving');
             target.classList.add('active');
         }
+
+        let imageEditorReturnFrame = null;
+        window.openGalleryCanvasEditor = function(key) {
+            const source = document.querySelector('iframe.active');
+            const nav = document.querySelector('.nav-item[data-module="canvas"]');
+            const target = document.getElementById('frame-canvas');
+            if (!source || !nav || !target) return false;
+            imageEditorReturnFrame = {
+                frame:source,
+                nav:document.querySelector('.nav-item.active, .nav-item.submenu-active')
+            };
+            target.src = '/static/canvas.html?editImage=' + encodeURIComponent(key);
+            switchUI(nav, 'canvas');
+            return true;
+        };
+        window.returnFromGalleryCanvasEditor = function() {
+            const previous = imageEditorReturnFrame;
+            if (!previous) return false;
+            imageEditorReturnFrame = null;
+            if (previous.nav) previous.nav.click();
+            else showFrame(previous.frame);
+            return true;
+        };
 
         function switchUI(el, id, parentId) {
             if (window.FeatureModules && !FeatureModules.isOn(id)) return;
@@ -1471,9 +1497,12 @@
         });
         window.addEventListener('resize', positionSubmenu);
 
+        let queueStatusPending = false;
         async function syncStatus() {
+            if (queueStatusPending || document.hidden) return;
+            queueStatusPending = true;
             try {
-                const res = await fetch(`/api/queue_status?client_id=${CID}`);
+                const res = await fetch(`/api/queue_status?client_id=${CID}`, {signal: AbortSignal.timeout(10000)});
                 const data = await res.json();
                 const monitor = document.getElementById('nano-monitor');
                 const queueVal = document.getElementById('queue-val');
@@ -1490,6 +1519,7 @@
                     logoDot.style.backgroundColor = 'var(--text)';
                 }
             } catch (e) { }
+            finally { queueStatusPending = false; }
         }
 
         const host = window.location.host;

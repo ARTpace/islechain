@@ -8,7 +8,7 @@ import os, json
 router = APIRouter(prefix="/api/workflows")
 
 @router.get("/builtin")
-async def list_builtin_workflows():
+def list_builtin_workflows():
     """列出所有内置工作流及元数据（含模型文件夹前缀）"""
     if not os.path.isdir(_main.WORKFLOW_DIR):
         return {"workflows": []}

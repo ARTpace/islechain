@@ -132,3 +132,21 @@ desktop/src-tauri/target/
 desktop/src-tauri/sidecar-server/
 desktop/src-tauri/gen/
 
+# 本机 API 提供商配置（缺失时后端自动生成默认配置）
+/api_providers.json
+
+# 本地编辑助手配置、临时实验与调研/验证产物
+/.workbuddy/
+/scratch/
+/artifacts/
+
+# 导入工具运行报告（脚本与工作流仍提交）
+/tools/opennana-import/last-update-report.json
+
+# 本地环境变量与凭据，保留可分享的配置模板
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+

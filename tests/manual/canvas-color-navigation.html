@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN" class="theme-dark studio-theme-dark">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>颜色定位布局验收</title>
+<link rel="stylesheet" href="/static/css/canvas.css">
+<link rel="stylesheet" href="/static/css/studio-ui.css">
+<link rel="stylesheet" href="/static/css/theme.css">
+<link rel="stylesheet" href="/static/css/canvas-media.css">
+<body class="theme-dark studio-theme-dark">
+<div class="shell" style="height:100vh">
+    <div class="topbar">
+        <div class="panel canvas-nav"><span>颜色定位布局验收</span></div>
+        <div id="quickToolbar" class="panel toolbar collapsed">
+            <button class="tool-btn toolbar-toggle">‹</button>
+            <div class="toolbar-fixed"><button class="tool-btn toolbar-workflow">工作流</button><button class="tool-btn toolbar-asset">资产库</button><button class="tool-btn toolbar-log">日志</button></div>
+        </div>
+    </div>
+    <div id="board" class="board" style="position:absolute;inset:0"></div>
+</div>
+<script>
+// Permanent manual regression fixture: actual production styles and navigation component, no real user data or API calls.
+const nodes=[{id:'one',type:'image',url:'/static/images/logo.png',name:'内容 1',colorTag:'cyan',x:0,y:0,w:200,h:300},{id:'two',type:'image',url:'/static/images/logo.png',name:'未命名媒体_抠图',colorTag:'cyan',x:300,y:0,w:200,h:300},{id:'three',type:'image',url:'/static/images/logo.png',name:'图片 3',colorTag:'blue',x:600,y:0,w:200,h:300}];
+const selected=new Set(),viewport={x:0,y:0,scale:1},board=document.getElementById('board');
+const canvas={id:'fixture'};
+const canvasDisplayMediaUrl=url=>url;
+const estimatedNodeRect=node=>node;
+const pushUndo=()=>{},scheduleSave=()=>{};
+function render(){renderCanvasColorNavigator();}
+function centerViewportOnWorldPoint(point){document.title='已定位 '+[...selected][0];}
+function openCanvasLog(){document.title='画布日志入口已触发';}
+</script>
+<script src="/static/js/canvas-color-tags.js"></script>
+<script>render();</script>
+</html>

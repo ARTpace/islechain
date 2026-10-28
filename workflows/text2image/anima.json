@@ -17,10 +17,7 @@
   },
   "11": {
     "inputs": {
-      "text": [
-        "51",
-        0
-      ],
+      "text": "",
       "clip": [
         "45",
         0
@@ -121,16 +118,6 @@
     "class_type": "AnimaNormalizedAttentionGuidance",
     "_meta": {
       "title": "Anima Normalized Attention Guidance"
-    }
-  },
-  "51": {
-    "inputs": {
-      "character_tags": "",
-      "mode": "append"
-    },
-    "class_type": "AnimaCharacterTagSelector",
-    "_meta": {
-      "title": "Anima 角色 Tag 选择器"
     }
   },
   "69": {

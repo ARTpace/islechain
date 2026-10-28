@@ -614,6 +614,49 @@
         /* 空占位以避免重复定义 */
         
         body.show-webai .image-request-mode-wrap, body.show-webai #probeAsyncBtn { display:none !important; }
+        /* 隐藏的引导卡不得留下空边框；通用协议共享一条自适应操作栏。 */
+        .provider-onboarding-card[hidden] { display:none !important; }
+        .verify-action-row > .models-toolbar-actions { margin-left:auto; width:auto; flex:0 0 auto; }
+        .verify-action-row .field-frame { min-width:0; max-width:100%; }
+        .verify-action-row select { min-width:0; max-width:100%; }
+        .key-row, .model-list, .model-grid { min-width:0; }
+        .model-row input { min-width:0; width:100%; }
+        @media (max-width:640px) {
+            .verify-action-row > .field-frame { flex:1 1 180px; }
+            .verify-action-row > .models-toolbar-actions { margin-left:auto; flex-wrap:wrap; }
+            .model-row { grid-template-columns:minmax(0,1fr) 36px; }
+            .model-row .model-label { grid-column:1; grid-row:2; border-left:0; border-top:1px solid var(--line); }
+            .model-row > button { grid-column:2; grid-row:1 / 3; }
+        }
+        #lanContent { gap:14px; }
+        #lanContent .block { gap:16px; }
+        .lan-toggle { display:flex; align-items:center; gap:14px; cursor:pointer; min-height:56px; }
+        .lan-toggle input { width:24px; height:24px; flex-shrink:0; accent-color:var(--neon-cyan, #06b6d4); }
+        .lan-toggle strong { display:block; color:var(--text); font-size:15px; }
+        .lan-toggle small { display:block; margin-top:5px; color:var(--muted); font-size:12px; line-height:1.5; }
+        #lanStatus { padding:10px 12px; border-radius:10px; background:var(--soft); overflow-wrap:anywhere; }
+        .lan-port-field { max-width:320px; }
+        .lan-devices-head, .lan-client, .lan-address { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .lan-devices-head { margin:12px 0; padding-top:16px; border-top:1px solid var(--line); }
+        .lan-address, .lan-client { padding:12px; margin-top:8px; border:1px solid var(--line); border-radius:12px; }
+        .lan-address a { min-width:0; color:var(--neon-cyan, #06b6d4); overflow-wrap:anywhere; font-size:13px; }
+        #lanContent button { min-height:44px; padding-inline:16px; flex-shrink:0; }
+        .lan-client-info { min-width:0; overflow-wrap:anywhere; }
+        .lan-client-info { flex:1; }
+        #lanDiagnostics { white-space:pre-line; line-height:1.8; padding:12px; background:var(--soft); border-radius:10px; overflow-wrap:anywhere; }
+        @media (max-width:420px) { .lan-client { flex-wrap:wrap; } .lan-client-info { flex-basis:100%; } }
+        .lan-client-info strong { display:block; color:var(--text); font-size:13px; }
+        .lan-client-info small { display:block; margin-top:5px; line-height:1.5; }
+        .lan-client-state { color:var(--muted); }
+        .lan-client-state.online { color:#10b981; }
+        @media (max-width:600px) {
+            #lanContent .content-head, #lanContent .block { padding:16px; border-radius:14px; }
+            #lanContent .editor-title { font-size:20px; }
+            .lan-port-field { max-width:none; }
+            .lan-save button { width:100%; }
+            .lan-client, .lan-address { padding:12px 10px; gap:8px; }
+            #lanContent button { padding-inline:12px; }
+        }
     </style>
     <style id="ui-responsive">
         /* === 统一响应式：与 studio-ui.css 断点对齐（≤640 移动 / ≤1024 平板） === */
@@ -687,10 +730,6 @@
                     <div class="cli-quick-group translate-side-group" style="margin-top:4px;">
                         <div class="side-section-title">翻译设置</div>
                         <button class="cli-quick-btn" type="button" onclick="selectTranslate()" id="translateSideBtn"><i data-lucide="languages" class="w-3.5 h-3.5"></i><span>翻译配置</span></button>
-                    </div>
-                    <div class="cli-quick-group lan-side-group" style="margin-top:4px;">
-                        <div class="side-section-title">局域网</div>
-                        <button class="cli-quick-btn" type="button" onclick="selectLan()" id="lanSideBtn"><i data-lucide="wifi" class="w-3.5 h-3.5"></i><span>局域网共享</span></button>
                     </div>
                 </aside>
 
@@ -922,6 +961,14 @@
                                         <option value="openai-async-image">图片：OpenAI 异步图片</option>
                                     </select>
                                 </div>
+                                <div id="modelsHead" class="models-toolbar-actions" aria-label="模型列表操作">
+                                    <button id="fetchModelsBtn" class="action-btn primary-btn icon-act" type="button" title="拉取模型" onclick="fetchModels()">
+                                        <i data-lucide="download-cloud" class="w-4 h-4"></i><span data-i18n="api.fetchModels">拉取模型</span>
+                                    </button>
+                                    <button id="openPickerBtn" class="action-btn icon-act" type="button" title="选择模型" onclick="openModelPicker()" disabled style="opacity:.5">
+                                        <i data-lucide="list-checks" class="w-4 h-4"></i><span data-i18n="api.selectModels">选择模型</span>
+                                    </button>
+                                </div>
                             </div>
                             <div id="verifyResult" style="display:none;padding:2px 0;grid-column:1/-1"></div>
                         </div>
@@ -966,20 +1013,6 @@
                         </div>
                     </section>
 
-                    <div id="modelsHead" class="block models-toolbar">
-                        <div>
-                            <div class="block-title" data-i18n="api.modelsTitle">模型列表</div>
-                            <div class="block-desc" data-i18n="api.modelsDesc">从上游 API 自动拉取所有可用模型并按类型分类（image / chat / video）</div>
-                        </div>
-                        <div class="models-toolbar-actions">
-                            <button id="fetchModelsBtn" class="action-btn primary-btn icon-act" type="button" title="拉取模型" onclick="fetchModels()">
-                                <i data-lucide="download-cloud" class="w-4 h-4"></i><span data-i18n="api.fetchModels">拉取模型</span>
-                            </button>
-                            <button id="openPickerBtn" class="action-btn icon-act" type="button" title="选择模型" onclick="openModelPicker()" disabled style="opacity:.5">
-                                <i data-lucide="list-checks" class="w-4 h-4"></i><span data-i18n="api.selectModels">选择模型</span>
-                            </button>
-                        </div>
-                    </div>
                     <div class="model-grid">
                         <section class="block">
                             <div class="block-head">
@@ -1043,20 +1076,23 @@
                 </div>
                 <section class="block">
                     <div class="form" style="grid-template-columns:1fr;gap:14px;">
-                        <label class="field" style="flex-direction:row;align-items:center;gap:10px;">
+                        <label class="lan-toggle">
                             <input id="lanEnabled" type="checkbox">
-                            <span class="label" style="margin:0;">允许局域网访问</span>
+                            <span><strong>允许局域网访问</strong><small>同一网络的手机、平板和电脑均可连接</small></span>
                         </label>
                         <p id="lanStatus" class="hint" style="margin:0;">正在读取共享状态…</p>
-                        <label class="field">
+                        <label class="field lan-port-field">
                             <span class="label">分享端口</span>
-                            <div class="field-frame"><input id="lanPort" type="number" min="1" max="65535" value="7001"></div>
+                            <div class="field-frame"><input id="lanPort" type="number" inputmode="numeric" min="1" max="65535" value="7001"></div>
                         </label>
                         <p class="hint" style="margin:0;">只在可信局域网打开。访问走 HTTP。连不上时，在 Windows 防火墙里允许 ArtCanvas 使用专用网络。</p>
-                        <div><button class="action-btn save-btn" type="button" onclick="saveLanSettings()">保存</button></div>
+                        <div class="lan-save"><button class="action-btn save-btn" type="button" onclick="saveLanSettings()">保存共享设置</button></div>
+                        <div class="label">访问地址</div>
                         <div id="lanAddresses" class="hint" style="margin:0;"></div>
+                        <div><button class="ghost-btn" type="button" onclick="diagnoseLan(this)">运行连接诊断</button></div>
+                        <div id="lanDiagnostics" class="hint" role="status" hidden></div>
                         <div>
-                            <div class="label">访问设备</div>
+                            <div class="lan-devices-head"><div class="label">访问设备</div><button class="ghost-btn" type="button" onclick="loadLanClients()">刷新列表</button></div>
                             <div id="lanClients" class="hint">还没有设备访问。</div>
                         </div>
                     </div>
@@ -2072,7 +2108,7 @@
         }
         function updatePickerMode(){
             const open = !!(selectedId || selectedTranslate || selectedLan || selectedRecommend);
-            const providerOpen = !!selectedId && !selectedTranslate && !selectedLan;
+            const providerOpen = (!!selectedId && !selectedLan) || selectedTranslate;
             document.documentElement.classList.toggle('provider-home', !open);
             document.documentElement.classList.toggle('provider-open', open);
             document.documentElement.classList.toggle('show-back', providerOpen);
@@ -2131,24 +2167,65 @@
             if(port) port.value = data.sharingPort || 7001;
             if(status) status.textContent = data.error || (data.available ? '局域网共享已开启' : (data.enabled ? '共享已保存，但当前没有可用地址' : '局域网共享已关闭，只有本机可以访问'));
             if(addresses){
-                const links = (data.addresses || []).map(url => '<div><a href="' + url + '" target="_blank">' + url + '</a></div>').join('');
+                const links = (data.addresses || []).filter(url => /^https?:\/\//i.test(url)).map(url => '<div class="lan-address"><a href="' + escapeLanText(url) + '" target="_blank" rel="noopener noreferrer">' + escapeLanText(url) + '</a><button class="ghost-btn" type="button" onclick="copyLanAddress(this)">复制地址</button></div>').join('');
                 addresses.innerHTML = links || '打开并保存后，这里会显示可以发给局域网其他人的地址。';
+            }
+        }
+        function escapeLanText(value){
+            return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+        async function copyLanAddress(button){
+            const url = button.parentElement.querySelector('a').href;
+            try {
+                await navigator.clipboard.writeText(url);
+                button.textContent = '已复制';
+                setTimeout(() => { button.textContent = '复制地址'; }, 1800);
+            } catch (_) {
+                window.prompt('请复制访问地址', url);
             }
         }
         async function loadLanClients(){
             const box = document.getElementById('lanClients');
             if(!box) return;
+            try {
             const response = await fetch('/api/lan/clients', {cache:'no-store'});
+            if (!response.ok) throw new Error('读取设备失败');
             const data = await response.json();
             const rows = data.clients || [];
             if(!rows.length){ box.textContent = '还没有设备访问。'; return; }
             box.innerHTML = rows.map(item => {
                 const names = (item.usernames || []).filter(Boolean).join('、');
                 const state = item.blocked ? '已禁用' : (item.online ? '在线' : '离线');
-                return '<div style="display:flex;gap:12px;align-items:center;margin:8px 0;">' +
-                    '<span>' + item.ip + (names ? ' · ' + names : '') + ' · ' + state + '</span>' +
-                    '<button type="button" class="ghost-btn" onclick="toggleLanClient(\'' + item.ip + '\',' + (!item.blocked) + ')">' + (item.blocked ? '解除' : '禁用') + '</button></div>';
+                return '<div class="lan-client"><div class="lan-client-info"><strong>' + escapeLanText(item.note || item.ip) + '</strong><small>' + (item.note ? escapeLanText(item.ip) + ' · ' : '') + (names ? escapeLanText(names) + ' · ' : '') + '<span class="lan-client-state' + (item.online && !item.blocked ? ' online' : '') + '">' + state + '</span></small><small>最近访问：' + (item.lastSeen ? escapeLanText(new Date(item.lastSeen).toLocaleString()) : '暂无记录') + '</small></div>' +
+                    '<button type="button" class="ghost-btn" data-ip="' + escapeLanText(item.ip) + '" data-note="' + escapeLanText(item.note || '') + '" onclick="renameLanClient(this)">备注</button>' +
+                    '<button type="button" class="ghost-btn" data-ip="' + escapeLanText(item.ip) + '" onclick="toggleLanClient(this.dataset.ip,' + (!item.blocked) + ')">' + (item.blocked ? '解除禁用' : '禁用') + '</button></div>';
             }).join('');
+            } catch (_) { box.textContent = '设备列表读取失败，请点击刷新重试。'; }
+        }
+        async function renameLanClient(button){
+            const note = window.prompt('设备备注（最多 60 字，可清空）', button.dataset.note);
+            if (note === null) return;
+            try {
+                const response = await fetch('/api/lan/clients', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip:button.dataset.ip, note})});
+                if (!response.ok) throw new Error((await response.json()).detail || '保存失败');
+                await loadLanClients();
+            } catch (error) { window.alert(error.message); }
+        }
+        async function diagnoseLan(button){
+            const box = document.getElementById('lanDiagnostics');
+            button.disabled = true;
+            box.hidden = false;
+            box.textContent = '正在检查已保存的共享配置…';
+            try {
+                const response = await fetch('/api/lan/diagnostics', {cache:'no-store'});
+                if (!response.ok) throw new Error('诊断失败，请确认在主机本地操作');
+                const data = await response.json();
+                const profiles = (data.firewall.profiles || []).map(p => p.Name + '：' + (p.Enabled ? '防火墙开启' : '防火墙关闭')).join('；');
+                box.textContent = [data.enabled ? '共享已开启 · 端口 ' + data.port : '共享未开启', data.error,
+                    ...(data.addresses.length ? data.addresses.map(a => a.address + ' · ' + (a.reachable ? '本机连接成功' : '本机连接失败，请检查监听状态或端口占用')) : ['未找到可用局域网地址，请检查网络连接']),
+                    profiles, data.firewall.message, data.message].filter(Boolean).join('\n');
+            } catch (error) { box.textContent = error.message; }
+            finally { button.disabled = false; }
         }
         async function toggleLanClient(ip, blocked){
             await fetch('/api/lan/clients', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip, blocked})});

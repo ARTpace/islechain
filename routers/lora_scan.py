@@ -43,7 +43,8 @@ async def _dbug():
     return r
 
 @router.get("/api/loras/scan")
-async def scan_lora_folder(subfolder: str = ""):
+def scan_lora_folder(subfolder: str = ""):
+    # 同步路由由 FastAPI 在线程池运行，目录扫描不阻塞其他页面和对话请求。
     """直接扫描本地 LoRA 文件夹获取完整列表(不依赖 ComfyUI 节点枚举)"""
     if not _main.COMFYUI_BASE_PATH:
         raise HTTPException(status_code=400, detail="未配置 COMFYUI_BASE_PATH")

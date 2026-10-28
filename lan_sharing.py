@@ -5,6 +5,7 @@ import socket
 import threading
 import time
 import hmac
+import subprocess
 from hashlib import scrypt
 from secrets import token_hex
 
@@ -135,6 +136,7 @@ def client_status():
         online = (not item.get("blocked")) and now - int(item.get("lastSeen") or 0) < 5 * 60 * 1000
         rows.append({
             "ip": ip,
+            "note": item.get("note") or "",
             "firstSeen": item.get("firstSeen") or 0,
             "lastSeen": item.get("lastSeen") or 0,
             "blocked": bool(item.get("blocked")),
@@ -183,6 +185,35 @@ def set_client_blocked(ip: str, blocked: bool):
         for key in stale:
             _SESSIONS.pop(key, None)
     return client_status()
+
+
+def diagnose():
+    config = load_config()
+    checks = []
+    for ip in network_addresses():
+        try:
+            with socket.create_connection((ip, config['port']), timeout=1):
+                reachable = True
+        except OSError:
+            reachable = False
+        checks.append({'address': f"http://{ip}:{config['port']}/", 'reachable': reachable})
+    firewall = {'state': 'unknown', 'message': '当前系统不支持 Windows 防火墙检查。'}
+    if os.name == 'nt':
+        try:
+            result = subprocess.run(
+                ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                 'Get-NetFirewallProfile | Select-Object Name,Enabled,DefaultInboundAction | ConvertTo-Json -Compress'],
+                capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+            if result.returncode:
+                raise ValueError('读取失败')
+            profiles = json.loads(result.stdout)
+            firewall = {'state': 'checked', 'profiles': profiles if isinstance(profiles, list) else [profiles],
+                        'message': '已读取防火墙配置；应用规则、网络隔离及其他安全软件仍可能拦截，请从另一台设备实际访问确认。'}
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            firewall = {'state': 'unknown', 'message': '无法读取防火墙配置，请在 Windows 安全中心检查专用网络及 ArtCanvas 入站权限。'}
+    return {'enabled': config['enabled'], 'port': config['port'], 'error': _ERROR,
+            'addresses': checks, 'firewall': firewall,
+            'message': '端口检测仅代表主机自身可连接，不代表局域网其他设备可达。'}
 
 
 def _stop_listeners():
@@ -264,7 +295,7 @@ def _login_html(error="", username=""):
 
 
 def _host_only(path: str, method: str) -> bool:
-    if path.startswith("/api/lan/settings") or path.startswith("/api/lan/clients"):
+    if path.startswith(("/api/lan/settings", "/api/lan/clients", "/api/lan/diagnostics")):
         return True
     if path.startswith("/api/auth/admin") or path.startswith("/api/restart"):
         return True
@@ -342,7 +373,26 @@ async def save_lan_client(request: Request):
     if not _is_local(request):
         raise HTTPException(status_code=403, detail="共享设置只能在主机本地修改")
     payload = await request.json()
+    if 'note' in payload:
+        note = payload['note']
+        if not isinstance(note, str) or len(note) > 60:
+            raise HTTPException(status_code=400, detail='备注最多 60 个字符')
+        with _LOCK:
+            clients = _clients()
+            client = clients.get(str(payload.get('ip') or ''))
+            if not client:
+                raise HTTPException(status_code=400, detail='设备不存在')
+            client['note'] = note.strip()
+            _save_clients(clients)
+        return client_status()
     return set_client_blocked(str(payload.get("ip") or ""), payload.get("blocked"))
+
+
+@router.get('/api/lan/diagnostics')
+def get_lan_diagnostics(request: Request):
+    if not _is_local(request):
+        raise HTTPException(status_code=403, detail='连接诊断只能在主机本地运行')
+    return diagnose()
 
 
 def _session_ok(request, ip: str) -> bool:

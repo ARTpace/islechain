@@ -854,6 +854,7 @@ body.theme-dark .minimap-arrange-btn { background:rgba(23, 23, 22, .9); color:va
 body.theme-dark .minimap-arrange-btn:hover { background:rgba(40, 40, 37, .96); color:var(--text); }
 .selection-hub { position:absolute; z-index:28; display:none; align-items:center; gap:6px; padding:6px; border-radius:999px; background:rgba(255, 255, 255, .96); border:1px solid #f3f2ef; box-shadow:0 12px 30px rgba(23, 23, 22, .12); }
 .selection-hub.open { display:flex; }
+.selection-hub { max-width:calc(100% - 16px); }
 .hub-port { height:30px; border-radius:999px; padding:0 10px; display:flex; align-items:center; gap:7px; background:#f9f9f7; color:#5e5d56; font-size:11px; font-weight:700; cursor:crosshair; }
 .hub-dot { width:10px; height:10px; border-radius:50%; background:#181817; box-shadow:0 0 0 2px #fbfaf9, 0 0 0 3px #e2e0d8; }
 .canvas-gate { position:absolute; inset:0; z-index:18; display:flex; align-items:center; justify-content:center; padding:32px; background:#f9f9f7; background-image:radial-gradient(#eae8e2 1px, transparent 1px); background-size:24px 24px; }

@@ -394,6 +394,10 @@ const CANVAS_LIST_PROJECT_KEY = 'canvasListCurrentProjectId';
 const CANVAS_COLOR_OPTIONS = ['red','orange','amber','green','teal','blue','violet','pink','slate'];
 // 先绑定返回，避免编辑器后续初始化较慢时丢失来源项目。
 backToManagerBtn?.addEventListener('click', () => {
+    if(new URLSearchParams(location.search).get('fromGallery') === '1') {
+        if(window.parent !== window && window.parent.returnFromGalleryCanvasEditor?.()) return;
+        if(window.parent === window && history.length > 1) { history.back(); return; }
+    }
     window.location.href = canvasListUrlForProject(canvas?.project || requestedCanvasListProject() || rememberedCanvasListProject());
 });
 let localCanvasDirty = false;
@@ -1187,6 +1191,7 @@ function canvasWheelZoomFactor(event, pageSize){
 function applyViewport(){
     world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
     scheduleMinimapRender();
+    renderSelectionHub(true);
 }
 function estimatedNodeRect(n){
     const size = defaultNodeSize(n.type);
@@ -5867,20 +5872,23 @@ function measureCanvasOriginalImageNodes(root=nodesEl){
         const nodeEl = imgEl.closest('.image-node');
         const node = nodes.find(n => n.id === nodeEl?.dataset.id);
         if(!node || node.type !== 'image' || !node.url || node.natural_w || node.natural_h || node._naturalSizeLoading) return;
+        const measuredUrl = node.url;
         const original = imgEl.dataset.originalSrc || node.url;
         if(!original) return;
         node._naturalSizeLoading = true;
         loadCanvasOriginalImageDimensions(original).then(size => {
             node._naturalSizeLoading = false;
-            if(!size || node.natural_w || node.natural_h) return;
+            if(!size || node.url !== measuredUrl || node.natural_w || node.natural_h) return;
             node.natural_w = size.w;
             node.natural_h = size.h;
+            if(!node.h) refreshNodes([node.id]);
             scheduleSave();
         });
     });
 }
 
 function render(){
+    clearCanvasComposerProgressView();
     const outputScrolls = captureOutputScrolls();
     const mediaStates = captureMediaPlaybackStates();
     const reusableMediaNodes = new Map();
@@ -6081,10 +6089,15 @@ function renderNode(node){
     const size = defaultNodeSize(node.type);
     const hasFixedSize = Boolean(node.h || size.h);
     el.className = `node ${node.type}-node ${node.url ? 'has-image' : ''} ${hasFixedSize ? 'sized' : ''} ${selected.has(node.id) ? 'selected' : ''}`;
+    const framelessImage = node.type === 'image' && node.url && mediaKindForNode(node) === 'image';
+    if(framelessImage) el.classList.add('media-image-node');
     el.style.left = `${node.x}px`;
     el.style.top = `${node.y}px`;
     el.style.width = `${node.w || size.w}px`;
     if(node.h || size.h) el.style.height = `${node.h || size.h}px`;
+    if(framelessImage && !node.h && node.natural_w > 0 && node.natural_h > 0) {
+        el.style.height = `${(node.w || size.w) * node.natural_h / node.natural_w}px`;
+    }
     el.dataset.id = node.id;
     el.onclick = (e) => {
         e.stopPropagation();
@@ -6101,7 +6114,7 @@ function renderNode(node){
         else openGeneratorNodeMenu(node.id, e.clientX, e.clientY);
     };
     const title = node.type === 'image' ? 'Image' : node.type === 'prompt' ? 'Prompt' : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'ltxDirector' ? tr('canvas.ltxDirector') : node.type === 'rh' ? 'RunningHub' : node.type === 'minimax' ? 'MiniMax H3' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
-    const displayTitle = node.type === 'image' && node.url ? nodeTitleForMedia(node) : title;
+    const displayTitle = framelessImage ? `<i data-lucide="image" aria-hidden="true"></i>${escapeHtml(node.name || '图片')}` : node.type === 'image' && node.url ? nodeTitleForMedia(node) : title;
     // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
     const showStatus = ['generator','msgen','comfy','ltxDirector','llm','video','rh','minimax'].includes(node.type) && node.runStatus
         && (node.runStatus !== 'failed' || node._cascadeFailed);
@@ -6128,6 +6141,7 @@ function renderNode(node){
             const loadedImg = body.querySelector('img');
             const videoPlayBtn = body.querySelector('.canvas-video-play');
             const openPreview = e => {
+                if(e.target.closest('.cutout-compare-slider')) return;
                 if(!node.url || missing) return;
                 e.preventDefault();
                 e.stopPropagation();
@@ -6272,6 +6286,9 @@ function renderNode(node){
         body.querySelectorAll('.output-img-wrap').forEach(wrap => bindOutputWrap(wrap, node));
     }
     el.appendChild(body);
+    if(framelessImage) mountImageVersions(el,node);
+    if(framelessImage) mountImageColorTag(el,node);
+    if(framelessImage) mountCanvasCutoutComparison(el,node);
     el.querySelectorAll('button, select, textarea, input').forEach(control => {
         control.addEventListener('mousedown', e => e.stopPropagation(), true);
         control.addEventListener('click', e => e.stopPropagation());
@@ -13525,9 +13542,15 @@ function finishSelection(){
     render();
     if(workflowTransferModal?.classList.contains('open')) updateWorkflowTransferMeta();
 }
-function renderSelectionHub(){
+function renderSelectionHub(positionOnly=false){
+    if(positionOnly){
+        positionImageSelectionTools();
+        positionImageEditComposer();
+        return;
+    }
     selectionHub.innerHTML = '';
     selectionHub.classList.remove('open');
+    renderImageSelectionTools();
 }
 function startSelectionLink(e, kind){
     e.preventDefault();
@@ -13966,7 +13989,7 @@ function onNodeDrag(e){
         }
     });
     scheduleLinksRender();
-    renderSelectionHub();
+    renderSelectionHub(true);
     if(workflowTransferModal?.classList.contains('open')) updateWorkflowTransferMeta();
     scheduleMinimapRender();
 }
@@ -14000,7 +14023,7 @@ function onNodeResize(e){
         el.style.height = `${resizeNode.node.h}px`;
     }
     scheduleLinksRender();
-    renderSelectionHub();
+    renderSelectionHub(true);
     scheduleMinimapRender();
 }
 function startLink(e, originId, originKind){
@@ -14356,6 +14379,13 @@ function canResolvePort(id){
 function renderLinks(){
     linksEl.innerHTML = '';
     linkControlsEl.innerHTML = '';
+    // Source relationships are visual only: never add them to workflow connections.
+    imageSourceLinkSegments(nodes, selected).forEach(({a,b,active}) => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg','path');
+        line.setAttribute('d', `M ${a.x} ${a.y} L ${(a.x+b.x)/2} ${a.y} L ${b.x} ${b.y}`);
+        line.setAttribute('class', `image-source-link${active ? ' active' : ''}`);
+        linksEl.appendChild(line);
+    });
     // 先批量读取所有端点坐标（portPoint 里有 getBoundingClientRect），再统一写入 DOM。
     // 否则“读一条 rect → append 一条线”交错进行，每次 append 都让布局失效，下一次读 rect 就触发一次
     // 全量强制重排（layout thrashing），连线一多拖动就掉帧。读写分离后每帧只强制重排一次。
@@ -14901,7 +14931,12 @@ window.onload = async () => {
     await loadConfig();
     pruneMissingComfyWorkflows();
     // 编辑器页只负责打开单个画布：必须带 ?id；没有 id 就回到独立的选画布页面。
-    const openId = new URLSearchParams(window.location.search).get('id');
+    const params = new URLSearchParams(window.location.search);
+    if(params.has('editImage')) {
+        await openGalleryImageEditor(params.get('editImage'));
+        return;
+    }
+    const openId = params.get('id');
     if(openId){
         await openCanvas(openId);
     } else {

@@ -187,6 +187,7 @@
             dragStartY = e.clientY;
             dragStartPanX = panX;
             dragStartPanY = panY;
+            beginInteract(img, 'drag');
             img.style.cursor = 'grabbing';
             e.preventDefault();
         });
@@ -198,13 +199,17 @@
             const dy = (e.clientY - dragStartY) / currentScale;
             panX = dragStartPanX + dx;
             panY = dragStartPanY + dy;
-            img.style.transform = `scale(${currentScale}) translate(${panX}px, ${panY}px)`;
+            // 只记录最新位移，实际写样式交给下一帧统一执行：
+            // 高刷鼠标一帧可能触发多次 mousemove，逐事件同步写 style 会造成卡顿
+            pendingTransform = true;
+            schedulePanFlush();
         });
 
         document.addEventListener('mouseup', () => {
             if (isPanning) {
                 isPanning = false;
                 img.style.cursor = 'grab';
+                endInteract(img);
             }
         });
     }
@@ -220,7 +225,9 @@
         const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
         currentScale = Math.max(0.15, Math.min(6.0, currentScale * factor));
         
+        beginInteract(img, 'zoom');
         applyZoom();
+        endInteract(img);
     }
 
     function handleKeyDown(event) {
@@ -276,6 +283,11 @@
             res.textContent = size.w + '×' + size.h + ' (' + (currentIndex + 1) + '/' + imageList.length + ')';
         };
 
+        // 画质策略：原图优先（/output 直出未重编码），失败再回落压缩预览。
+        // 开关：localStorage('viewer_full_quality') 设为 '0' 可回到旧的压缩预览，无需改代码。
+        const _fullQuality = localStorage.getItem('viewer_full_quality') !== '0';
+        const _isVideo = /\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(String(originalUrl).split('?')[0]);
+
         img.src = previewMediaUrl(originalUrl, 768);
         img.onload = () => {
             if (originalWidth === 0 && _pendingPhaseUrl === originalUrl) {
@@ -285,19 +297,30 @@
         };
 
         (function phase2() {
-            const midImg = new Image();
-            const midUrl = previewMediaUrl(originalUrl, 1536);
-            midImg.onload = () => {
+            // 阶段二加载成图：默认直接拉原图，避免 /api/media-preview 的 WebP(q=88) 重编码降质
+            const useOriginal = _fullQuality && !_isVideo;
+            const fullUrl = unwrapMediaUrl(originalUrl);
+            const applyFull = (src, w, h) => {
                 if (_pendingPhaseUrl !== originalUrl) return;
                 const liveImg = document.getElementById('lightboxImg');
                 if (!liveImg) return;
-                liveImg.src = midUrl;
-                originalWidth = midImg.naturalWidth;
-                originalHeight = midImg.naturalHeight;
+                liveImg.src = src;
+                originalWidth = w;
+                originalHeight = h;
                 applyZoom();
             };
-            midImg.onerror = () => {};
-            midImg.src = midUrl;
+            const loadPreview = () => {
+                const midImg = new Image();
+                const midUrl = previewMediaUrl(originalUrl, 1536);
+                midImg.onload = () => applyFull(midUrl, midImg.naturalWidth, midImg.naturalHeight);
+                midImg.onerror = () => {};
+                midImg.src = midUrl;
+            };
+            if (!useOriginal) { loadPreview(); return; }
+            const fullImg = new Image();
+            fullImg.onload = () => applyFull(fullUrl, fullImg.naturalWidth, fullImg.naturalHeight);
+            fullImg.onerror = loadPreview;   // 原图不可用（如外部 URL）时回落压缩预览
+            fullImg.src = fullUrl;
         })();
 
         probeFileSize(originalUrl).then(paintFileSize);
@@ -323,9 +346,55 @@
         if (!img || !originalWidth) return;
         
         // 使用 transform 缩放，不影响布局
+        writeTransform(img);
+        img.style.cursor = currentScale > 1 ? 'grab' : 'default';
+    }
+
+    // ─────────────────────────────────────────────
+    //  拖动性能：按帧合并写入 + 交互期 GPU 合成层提升 + 关闭补间动画
+    //  这三样缺一样，拖动大尺寸原图就会有拖影 / 卡顿感
+    // ─────────────────────────────────────────────
+    let pendingTransform = false;
+    let panRAF = 0;
+    let gpuIdleTimer = null;
+
+    function writeTransform(img) {
+        if (!img) return;
         img.style.transform = `scale(${currentScale}) translate(${panX}px, ${panY}px)`;
         img.style.transformOrigin = 'center center';
-        img.style.cursor = currentScale > 1 ? 'grab' : 'default';
+    }
+
+    function schedulePanFlush() {
+        if (panRAF) return;
+        panRAF = requestAnimationFrame(() => {
+            panRAF = 0;
+            if (!pendingTransform) return;
+            pendingTransform = false;
+            writeTransform(document.getElementById('lightboxImg'));
+        });
+    }
+
+    // 交互开始：提升为独立合成层；拖动还会禁用 transform 补间动画 + 关掉背景毛玻璃
+    // mode: 'drag' = 关补间+关毛玻璃+升层；'zoom' = 只升层（保留补间的顺滑手感）
+    function beginInteract(img, mode) {
+        if (gpuIdleTimer) { clearTimeout(gpuIdleTimer); gpuIdleTimer = null; }
+        if (img) img.classList.add(mode === 'drag' ? 'is-lb-interacting' : 'is-lb-gpu');
+        if (mode === 'drag') {
+            const lb = document.getElementById('lightbox');
+            if (lb) lb.classList.add('is-lb-dragging');
+        }
+    }
+
+    // 交互结束后延迟释放合成层（连续缩放不会反复申请/释放图层）
+    function endInteract(img) {
+        const lb = document.getElementById('lightbox');
+        if (lb) lb.classList.remove('is-lb-dragging');
+        if (gpuIdleTimer) clearTimeout(gpuIdleTimer);
+        gpuIdleTimer = setTimeout(() => {
+            gpuIdleTimer = null;
+            const el = img || document.getElementById('lightboxImg');
+            if (el) el.classList.remove('is-lb-interacting', 'is-lb-gpu');
+        }, 500);
     }
 
     function resetPan() {
@@ -352,13 +421,17 @@
     function zoomIn() {
         const newScale = Math.min(6.0, currentScale * 1.12);
         currentScale = newScale;
+        beginInteract(null, 'zoom');
         applyZoom();
+        endInteract(null);
     }
 
     function zoomOut() {
         const newScale = Math.max(0.15, currentScale / 1.12);
         currentScale = newScale;
+        beginInteract(null, 'zoom');
         applyZoom();
+        endInteract(null);
     }
 
     function updateNavigationButtons() {
@@ -373,7 +446,14 @@
         const lightbox = document.getElementById('lightbox');
         if (lightbox) {
             lightbox.classList.add('hidden');
+            lightbox.classList.remove('is-lb-dragging');
             document.body.style.overflow = '';
+            // 关闭时彻底释放合成层与待处理帧，避免残留图层占显存
+            if (panRAF) { cancelAnimationFrame(panRAF); panRAF = 0; }
+            pendingTransform = false;
+            if (gpuIdleTimer) { clearTimeout(gpuIdleTimer); gpuIdleTimer = null; }
+            const el = document.getElementById('lightboxImg');
+            if (el) el.classList.remove('is-lb-interacting', 'is-lb-gpu');
             setTimeout(() => {
                 const img = document.getElementById('lightboxImg');
                 if (img) img.src = '';

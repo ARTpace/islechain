@@ -1,0 +1,7 @@
+html.canvas-composer-embed,html.canvas-composer-embed body { background:transparent !important; min-height:0; height:auto; overflow-x:hidden; }
+html.canvas-composer-embed body>main,html.canvas-composer-embed body>#toolbarFixed,html.canvas-composer-embed body>#chatTopbar { display:none !important; }
+html.canvas-composer-embed body>.history-bulk-toolbar,html.canvas-composer-embed #galleryScrollToTop { display:none !important; }
+html.canvas-composer-embed body>header { padding:0 !important; margin:0 !important; overflow:visible !important; flex-shrink:0; max-height:none !important; }
+html.canvas-composer-embed header>.layout-container { width:100% !important; max-width:none !important; padding:0 !important; margin:0 !important; }
+html.canvas-composer-embed #generationComposer { margin:0; box-shadow:none; }
+html.canvas-composer-embed .anima-dropdown-menu { max-height:45vh; overflow-y:auto; }

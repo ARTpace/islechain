@@ -345,7 +345,7 @@ async def list_comfyui_loras():
     all_loras = set()
     node_types = ["LoraLoaderModelOnly", "LoraLoader"]
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=30, verify=_main.COMFY_HTTP_SSL_CONTEXT, trust_env=False) as client:
             for node_type in node_types:
                 try:
                     url = f"http://{target}/object_info/{node_type}"

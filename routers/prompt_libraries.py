@@ -3,17 +3,192 @@
 前缀: /api/prompt-libraries
 """
 from fastapi import HTTPException
+import os
+import re
+import threading
 import uuid
 from fastapi import APIRouter
 
 import main as _main
+import preset_manager
 
 router = APIRouter()
 
 
+# === 系统提示词库（只读真源）===
+# 数据来自 data/style-presets.json —— 与生成页「风格预设」同一份数据，
+# 保证两处看到的风格提示词完全一致。2.2 万条不可能一次性下发，
+# 这里产出精简索引 + 服务端分页查询。
+_STYLE_CATALOG_CACHE = {"mtime": 0.0, "catalog": None}
+
+
+def _slim_style_item(preset, cat_id, sub_id, index):
+    # 正文给全文：一页 150 条约 400KB，本地访问无压力；
+    # 截断过会导致「搜索命中不到长尾词 + 弹窗要二次补全文」两个麻烦。
+    return {
+        "id": preset.get("id") or "",
+        "name": preset.get("name") or "",
+        "category": cat_id,
+        "subcategory": sub_id,
+        "scene": "",
+        "positive": preset.get("prompt") or "",
+        "negative": preset.get("negative_prompt") or "",
+        "params": {"来源": preset.get("description") or ""},
+        "thumbnail": preset.get("thumbnail") or "",
+        "readonly": True,
+        "created_at": index,
+        "updated_at": 0,
+    }
+
+
+def _style_catalog():
+    """构建（并缓存）系统库索引：分类树 + 精简条目 + id→原文映射。"""
+    try:
+        mtime = os.path.getmtime(preset_manager.STYLE_PRESETS_FILE)
+    except OSError:
+        mtime = 0.0
+    cached = _STYLE_CATALOG_CACHE.get("catalog")
+    if cached is not None and _STYLE_CATALOG_CACHE.get("mtime") == mtime:
+        return cached
+
+    data = preset_manager.get_style_presets()
+    items = []
+    by_id = {}
+    categories = []
+    source_counts = {}
+    index = 0
+    for cat in data.get("categories") or []:
+        cat_id = str(cat.get("id") or "")
+        if not cat_id:
+            continue
+        cat_count = 0
+        for sub in cat.get("subcategories") or []:
+            sub_id = str(sub.get("id") or "")
+            for preset in sub.get("presets") or []:
+                pid = str(preset.get("id") or "")
+                if not pid:
+                    continue
+                slim = _slim_style_item(preset, cat_id, sub_id, index)
+                items.append(slim)
+                by_id[pid] = preset
+                index += 1
+                cat_count += 1
+                src = slim["params"]["来源"]
+                if src:
+                    source_counts[src] = source_counts.get(src, 0) + 1
+        categories.append({"id": cat_id, "name": cat.get("name") or cat_id, "count": cat_count})
+
+    catalog = {
+        "items": items,
+        "by_id": by_id,
+        "categories": categories,
+        "sources": sorted(source_counts.items(), key=lambda kv: -kv[1]),
+        "total": len(items),
+    }
+    _STYLE_CATALOG_CACHE["mtime"] = mtime
+    _STYLE_CATALOG_CACHE["catalog"] = catalog
+    return catalog
+
+
+def _system_library_payload():
+    catalog = _style_catalog()
+    return {
+        "id": "system",
+        "name": "系统提示词库",
+        "system": True,
+        "readonly": True,
+        "type": "prompt",
+        "paged": True,
+        "categories": catalog["categories"],
+        "items": [],
+        "total": catalog["total"],
+        "sources": [{"id": name, "count": count} for name, count in catalog["sources"]],
+    }
+
+
+def _apply_style_catalog(data):
+    """用真源替换 system 库（其余个人库原样保留）。"""
+    libraries = data.get("libraries") or []
+    replaced = False
+    out = []
+    for lib in libraries:
+        if isinstance(lib, dict) and lib.get("id") == "system":
+            replaced = True
+            out.append(_system_library_payload())
+        else:
+            out.append(lib)
+    if not replaced:
+        out.insert(0, _system_library_payload())
+    data["libraries"] = out
+    return data
+
+
 @router.get("/api/prompt-libraries")
 async def get_prompt_libraries():
-    return {"library": _main.public_prompt_libraries()}
+    return {"library": _apply_style_catalog(_main.public_prompt_libraries())}
+
+
+@router.get("/api/prompt-libraries/items")
+def list_style_prompt_items(category: str = "", source: str = "", q: str = "", sort: str = "random", seed: str = "", offset: int = 0, limit: int = 120):
+    """系统库分页查询：分类 / 来源 / 关键词 / 排序。"""
+    import hashlib
+
+    catalog = _style_catalog()
+    pool = catalog["items"]
+    if category and category != "all":
+        pool = [item for item in pool if item["category"] == category]
+    if source:
+        pool = [item for item in pool if item["params"]["来源"] == source]
+    tokens = [token for token in (q or "").lower().split() if token]
+    if tokens:
+        def match(item):
+            hay = " ".join([
+                item.get("name") or "", item.get("positive") or "",
+                item.get("negative") or "", item["params"]["来源"] or "",
+            ]).lower()
+            return all(token in hay for token in tokens)
+        pool = [item for item in pool if match(item)]
+
+    if sort == "name":
+        pool = sorted(pool, key=lambda item: item.get("name") or "")
+    elif sort == "newest":
+        pool = list(reversed(pool))
+    elif sort == "random":
+        # 用 seed 做确定性散列，保证翻页时顺序稳定、不漏不重
+        key = (seed or "0").encode("utf-8")
+
+        def weight(item):
+            return hashlib.md5(item["id"].encode("utf-8") + key).hexdigest()
+
+        pool = sorted(pool, key=weight)
+
+    total = len(pool)
+    offset = max(0, offset)
+    limit = max(1, min(500, limit))
+    return {
+        "items": pool[offset:offset + limit],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + limit < total,
+    }
+
+
+@router.get("/api/prompt-libraries/item/{item_id}")
+def get_style_prompt_item(item_id: str):
+    """取单条全文（列表下发的是截断版本）。"""
+    preset = _style_catalog()["by_id"].get(item_id)
+    if not preset:
+        raise HTTPException(status_code=404, detail="提示词不存在")
+    return {
+        "id": preset.get("id"),
+        "name": preset.get("name") or "",
+        "positive": preset.get("prompt") or "",
+        "negative": preset.get("negative_prompt") or "",
+        "source": preset.get("description") or "",
+        "thumbnail": preset.get("thumbnail") or "",
+    }
+
 
 @router.post("/api/prompt-libraries")
 async def create_prompt_library(payload: _main.PromptLibraryRequest):
@@ -136,7 +311,95 @@ async def batch_delete_prompt_library_items(payload: _main.PromptLibraryBatchDel
     data = _main.save_prompt_libraries(data)
     return {"library": _main.public_prompt_libraries(data), "removed": removed}
 
-PROMPT_BUILTIN_CATEGORY_IDS = {"view", "storyboard", "character", "product", "lighting", "custom"}
+PROMPT_BUILTIN_CATEGORY_IDS = {category["id"] for category in _main.PROMPT_LIBRARY_BUILTIN_CATEGORIES}
+
+def _prompt_fingerprint(text):
+    """批量导入的去重指纹：只做空白压缩 + 小写，保证「改标点/改空格」不被当成新条目。"""
+    return re.sub(r"\s+", " ", str(text or "")).strip().lower()
+
+@router.post("/api/prompt-libraries/items/import")
+async def import_prompt_library_items(payload: _main.PromptLibraryImportRequest):
+    raw_items = [item for item in (payload.items or []) if isinstance(item, dict)]
+    if not raw_items:
+        raise HTTPException(status_code=400, detail="没有可导入的提示词")
+    if len(raw_items) > 20000:
+        raise HTTPException(status_code=400, detail="单次最多导入 20000 条")
+    data = _main.load_prompt_libraries()
+    library = _main.find_prompt_library(data, payload.library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    existing_ids = {item.get("id") for item in (library.get("items") or [])}
+    existing_fp = {_prompt_fingerprint(item.get("positive")) for item in (library.get("items") or [])}
+    existing_ids.discard(None)
+    existing_fp.discard("")
+    added, skipped_empty, skipped_dup = [], 0, 0
+    for raw in raw_items:
+        positive = str(raw.get("positive") or raw.get("prompt") or raw.get("text") or "").strip()
+        if not positive:
+            skipped_empty += 1
+            continue
+        item_id = str(raw.get("id") or "").strip()
+        fingerprint = _prompt_fingerprint(positive)
+        if payload.dedupe and ((item_id and item_id in existing_ids) or (fingerprint and fingerprint in existing_fp)):
+            skipped_dup += 1
+            continue
+        category = payload.category or raw.get("category") or "custom"
+        item = _main.normalize_prompt_library_item({
+            "id": item_id or None,
+            "name": raw.get("name") or raw.get("title") or "提示词",
+            "category": category,
+            "scene": raw.get("scene") or raw.get("description") or "",
+            "positive": positive,
+            "negative": raw.get("negative") or raw.get("negative_prompt") or "",
+            "thumbnail": raw.get("thumbnail") or raw.get("thumb") or "",
+            "params": raw.get("params") if isinstance(raw.get("params"), dict) else {},
+            "created_at": _main.now_ms(),
+            "updated_at": _main.now_ms(),
+        })
+        # 同批内 id 撞车时补后缀，避免 normalize 阶段被去重吞掉
+        base_id, seq = item["id"], 2
+        while item["id"] in existing_ids:
+            item["id"] = f"{base_id[:56]}_{seq}"
+            seq += 1
+        existing_ids.add(item["id"])
+        if fingerprint:
+            existing_fp.add(fingerprint)
+        added.append(item)
+    if payload.dry_run:
+        return {"dry_run": True, "library": _main.public_prompt_libraries(data),
+                "added": len(added), "skipped_empty": skipped_empty, "skipped_dup": skipped_dup}
+    library.setdefault("items", [])[0:0] = added
+    data["active_library_id"] = library.get("id") or data.get("active_library_id")
+    data = _main.save_prompt_libraries(data)
+    return {"library": _main.public_prompt_libraries(data), "added": len(added),
+            "skipped_empty": skipped_empty, "skipped_dup": skipped_dup}
+
+@router.get("/api/prompt-libraries/{library_id}/export")
+async def export_prompt_library(library_id: str):
+    data = _main.load_prompt_libraries()
+    library = _main.find_prompt_library(data, library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="提示词库不存在")
+    items = library.get("items") or []
+    return {
+        "library": {"id": library.get("id"), "name": library.get("name")},
+        "categories": library.get("categories") or [],
+        "count": len(items),
+        "items": [
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "category": item.get("category"),
+                "scene": item.get("scene"),
+                "positive": item.get("positive"),
+                "negative": item.get("negative"),
+                "thumbnail": item.get("thumbnail") or "",
+                "params": item.get("params") or {},
+                "updated_at": item.get("updated_at"),
+            }
+            for item in items
+        ],
+    }
 
 @router.post("/api/prompt-libraries/categories")
 async def add_prompt_library_category(payload: _main.PromptLibraryCategoryRequest):
@@ -189,3 +452,109 @@ async def delete_prompt_library_category(category_id: str):
         raise HTTPException(status_code=404, detail="分组不存在")
     data = _main.save_prompt_libraries(data)
     return {"library": _main.public_prompt_libraries(data)}
+
+
+_THUMB_SOURCE_CACHE = {"key": None, "map": {}}
+_THUMB_SOURCE_LOCK = threading.Lock()
+# 一屏会并发拉几十张缩略图，这里限制同时下载转码的数量，
+# 否则几十个线程各自下载 4~5MB 原图 + PIL 解码，会把服务端 CPU 打满，
+# 连带把 /items 等接口拖到超时。
+_THUMB_FETCH_SEM = threading.BoundedSemaphore(6)
+_THUMB_INFLIGHT = {}
+_THUMB_INFLIGHT_LOCK = threading.Lock()
+
+
+def _prompt_thumbnail_sources():
+    """id → 原图地址映射，按数据文件 mtime 缓存。
+
+    一屏几十张卡片会并发打这个接口，每次都重解析库文件太浪费；
+    并发首次命中时还要加锁，避免几十个线程各建一遍 2 万条映射。
+    """
+    import os
+    try:
+        mtime = os.path.getmtime(_main.PROMPT_LIBRARY_PATH)
+    except OSError:
+        mtime = 0.0
+    catalog = _style_catalog()
+    key = (mtime, _STYLE_CATALOG_CACHE.get("mtime"))
+    if _THUMB_SOURCE_CACHE.get("key") == key and _THUMB_SOURCE_CACHE["map"]:
+        return _THUMB_SOURCE_CACHE["map"]
+    with _THUMB_SOURCE_LOCK:
+        if _THUMB_SOURCE_CACHE.get("key") == key and _THUMB_SOURCE_CACHE["map"]:
+            return _THUMB_SOURCE_CACHE["map"]
+        mapping = {item["id"]: item["thumbnail"] for item in catalog["items"]}
+        data = _main.load_prompt_libraries()
+        for lib in data.get("libraries", []) or []:
+            for entry in lib.get("items") or []:
+                if isinstance(entry, dict) and entry.get("id"):
+                    mapping[entry["id"]] = entry.get("thumbnail") or ""
+        _THUMB_SOURCE_CACHE["key"] = key
+        _THUMB_SOURCE_CACHE["map"] = mapping
+        return mapping
+
+
+@router.get("/api/prompt-libraries/thumb/{item_id}")
+def get_prompt_thumbnail(item_id: str, width: int = 480):
+    """按需生成提示词缩略图并落本地缓存。
+
+    采集源给的是原图（动辄 4~5MB），一屏几十张就是几百 MB。
+    这里首次请求下载原图、缩到指定宽度存 webp，之后直接读缓存；
+    失败则 302 回原图地址，保证图不会白框。
+    """
+    import hashlib
+    import io
+    import os
+    import requests
+    from PIL import Image
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    source = str(_prompt_thumbnail_sources().get(item_id) or "").strip()
+    if not source.startswith(("http://", "https://")):
+        raise HTTPException(status_code=404, detail="这条提示词没有可用的配图")
+
+    try:
+        target_w = max(120, min(int(width), 1200))
+    except (TypeError, ValueError):
+        target_w = 480
+
+    cache_dir = os.path.join(getattr(_main, "MEDIA_PREVIEW_DIR", os.path.join(_main.DATA_DIR, "cache")), "prompt_thumbs")
+    os.makedirs(cache_dir, exist_ok=True)
+    digest = hashlib.sha1(f"{source}|{target_w}".encode("utf-8")).hexdigest()[:20]
+    cache_path = os.path.join(cache_dir, f"{digest}_{target_w}.webp")
+    headers = {"Cache-Control": "public, max-age=2592000"}
+    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+        return FileResponse(cache_path, media_type="image/webp", headers=headers)
+
+    # 同一张图被多个卡位同时请求时只下载一次，其余等它出结果
+    with _THUMB_INFLIGHT_LOCK:
+        waiter = _THUMB_INFLIGHT.get(cache_path)
+        owner = waiter is None
+        if owner:
+            waiter = threading.Event()
+            _THUMB_INFLIGHT[cache_path] = waiter
+    if not owner:
+        waiter.wait(timeout=40)
+        if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+            return FileResponse(cache_path, media_type="image/webp", headers=headers)
+        return RedirectResponse(source, status_code=302)
+
+    try:
+        with _THUMB_FETCH_SEM:
+            session = requests.Session()
+            session.trust_env = False  # 本机挂了 127.0.0.1:2953 代理，直连
+            resp = session.get(source, timeout=25, headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            with Image.open(io.BytesIO(resp.content)) as img:
+                img = img.convert("RGB")
+                if img.width > target_w:
+                    height = max(1, round(img.height * target_w / img.width))
+                    img = img.resize((target_w, height), Image.LANCZOS)
+                img.save(cache_path, "WEBP", quality=78, method=4)
+    except Exception:
+        return RedirectResponse(source, status_code=302)
+    finally:
+        with _THUMB_INFLIGHT_LOCK:
+            _THUMB_INFLIGHT.pop(cache_path, None)
+        waiter.set()
+
+    return FileResponse(cache_path, media_type="image/webp", headers=headers)

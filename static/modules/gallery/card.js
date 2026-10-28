@@ -347,6 +347,7 @@
             const badge = card.querySelector('.model-badge');
             if (badge) badge.style.right = '56px';
         }
+        if (!isVideo && record.images?.[0]) mountCutoutAction(card, () => record, record.images[0]);
 
         // 右键菜单
         if (features.contextMenu) {
@@ -598,6 +599,194 @@
     }
 
     /** 对话缩略图复用普通卡片的图标、尺寸、阴影及收藏同步。 */
+    const cutoutJobs = new Map();
+    // Legacy results contain no model list; validate these common RMBG choices on submission.
+    const cutoutDefaultModels = ['BEN2', 'RMBG-2.0', 'INSPYRENET', 'BEN', 'Lucida', 'BiRefNet-general', 'BiRefNet-HR-matting', 'BiRefNet_toonout', 'FeyNoBg', 'SAM3'];
+    function createCutoutProgress() {
+        const element = document.createElement('div');
+        element.hidden = true;
+        element.innerHTML = '<div role="status" style="font-size:12px;margin-bottom:5px"></div><progress max="100" aria-label="抠图进度" style="display:block;width:100%;height:8px;accent-color:#34d399"></progress>';
+        return { element, update(state) {
+            element.hidden = false;
+            element.querySelector('[role="status"]').textContent = state.label || '正在抠图…';
+            const bar = element.querySelector('progress');
+            if (Number.isFinite(state.value)) bar.value = state.value;
+            else bar.removeAttribute('value');
+        } };
+    }
+    function mountCutoutAction(host, getRecord, imageUrl) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gallery-cutout';
+        button.style.cssText = BTN_INLINE + 'right:8px;bottom:60px;width:44px;height:44px;';
+        button.title = '编辑图片';
+        button.setAttribute('aria-label', button.title);
+        button.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 16 1-4 8-8 3 3-8 8-4 1Z"/></svg>';
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const key = 'canvas-image-edit:' + crypto.randomUUID();
+            try {
+                // Keep the image payload until the same-tab canvas imports it.
+                sessionStorage.setItem(key, JSON.stringify({url:imageUrl, prompt:getRecord()?.prompt || ''}));
+                if (global.parent !== global && global.parent.openGalleryCanvasEditor?.(key)) return;
+                global.location.assign('/static/canvas.html?editImage=' + encodeURIComponent(key));
+            } catch (error) {
+                sessionStorage.removeItem(key);
+                global.alert(error.message || '图片编辑器打开失败');
+            }
+        });
+        host.appendChild(button);
+    }
+
+    let cutoutClientLoading;
+    async function loadCutoutClient() {
+        if (global.ImageCutoutClient) return global.ImageCutoutClient;
+        // ponytail: load the same small client lazily instead of adding it to every gallery page.
+        if (!cutoutClientLoading) cutoutClientLoading = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/static/js/image-cutout-client.js?v=20261028007';
+            script.onload = () => resolve(global.ImageCutoutClient);
+            script.onerror = () => { cutoutClientLoading = null; script.remove(); reject(new Error('抠图组件加载失败，请重试')); };
+            document.head.appendChild(script);
+        });
+        return cutoutClientLoading;
+    }
+    async function cutoutRequest(url, options) { return (await loadCutoutClient()).request(url, options); }
+    async function runCutout(imageUrl, prompt, options) { return (await loadCutoutClient()).run(imageUrl, prompt, options); }
+
+    function setupCutoutComparison(dialog, imageUrl) {
+        const surface = dialog.querySelector('[data-compare]');
+        const original = dialog.querySelector('[data-original]');
+        const divider = dialog.querySelector('[data-divider]');
+        const range = dialog.querySelector('[data-compare-range]');
+        original.src = imageUrl;
+        const position = value => {
+            const percent = Math.max(0, Math.min(100, Number(value)));
+            range.value = String(percent);
+            original.style.clipPath = 'inset(0 ' + (100 - percent) + '% 0 0)';
+            divider.style.left = percent + '%';
+        };
+        range.oninput = () => position(range.value);
+        const drag = event => {
+            const rect = surface.getBoundingClientRect();
+            if (rect.width) position((event.clientX - rect.left) / rect.width * 100);
+        };
+        surface.onpointerdown = event => {
+            if (event.button !== 0) return;
+            surface.setPointerCapture(event.pointerId);
+            drag(event);
+        };
+        surface.onpointermove = event => { if (surface.hasPointerCapture(event.pointerId)) drag(event); };
+        surface.onpointerup = surface.onpointercancel = event => {
+            if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
+        };
+        original.onerror = () => {
+            original.hidden = divider.hidden = true;
+            range.disabled = true;
+            dialog.querySelector('[data-compare-hint]').textContent = '原图加载失败，仍可查看与下载抠图结果';
+        };
+        position(50);
+    }
+
+    function showCutout(result, imageUrl, prompt) {
+        const dialog = document.createElement('dialog');
+        dialog.style.cssText = 'margin:auto;padding:0;border:1px solid #475569;border-radius:16px;background:#17202c;color:#f8fafc;width:min(900px,94vw);max-height:92dvh;box-shadow:0 20px 80px #0009;';
+        dialog.setAttribute('aria-label', '抠图结果');
+        dialog.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap"><strong style="flex:1">抠图结果</strong><button type="button" data-download style="min-height:44px;padding:0 12px">下载 PNG</button><button type="button" data-close style="min-width:44px;min-height:44px" aria-label="关闭">✕</button></div><div data-info style="padding:0 16px 12px;font-size:12px;color:#b5c7da"></div><div data-compare style="position:relative;touch-action:pan-y;cursor:ew-resize;user-select:none;background-color:#ddd;background-image:conic-gradient(#aaa 25%,transparent 0 50%,#aaa 0 75%,transparent 0);background-size:20px 20px;overflow:hidden"><img alt="透明背景抠图结果" draggable="false" style="display:block;width:100%;max-height:60dvh;object-fit:contain"><img data-original alt="原图" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none"><span style="position:absolute;left:12px;top:10px;padding:4px 8px;border-radius:6px;background:#17202ccc;color:white;font-size:12px;pointer-events:none">原图</span><span style="position:absolute;right:12px;top:10px;padding:4px 8px;border-radius:6px;background:#17202ccc;color:white;font-size:12px;pointer-events:none">抠图后</span><div data-divider style="position:absolute;top:0;bottom:0;width:2px;background:white;box-shadow:0 0 4px #000;pointer-events:none"><span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:10px 5px;border-radius:20px;background:#17202c;color:white">↔</span></div></div><label style="display:block;padding:8px 16px;font-size:12px"><span data-compare-hint>左右拖动图片或下方滑块，对比原图与抠图结果</span><input data-compare-range type="range" min="0" max="100" step="0.1" value="50" aria-label="原图与抠图对比位置" style="display:block;width:100%;height:44px;accent-color:#34d399"></label>';
+        setupCutoutComparison(dialog, imageUrl);
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;padding:0 16px 12px;align-items:end;';
+        controls.innerHTML = '<label style="flex:1;min-width:140px;font-size:12px">抠图模型<select data-model style="display:block;width:100%;min-height:44px;background:#243245;color:#fff;border:1px solid #54647a;border-radius:8px;padding:6px"></select></label><button type="button" data-retry style="min-height:44px;padding:8px 14px;background:#047857;color:#fff;border-radius:8px">重新抠图</button><label style="flex:1;min-width:170px;font-size:12px">历史版本<select data-version style="display:block;width:100%;min-height:44px;background:#243245;color:#fff;border:1px solid #54647a;border-radius:8px;padding:6px"></select></label><div data-status role="status" style="width:100%;font-size:12px;color:#b5c7da">换模型后点击重新抠图，始终使用原图，保留已有版本。</div>';
+        dialog.insertBefore(controls, dialog.querySelector('[data-info]'));
+        const models = controls.querySelector('[data-model]');
+        const versions = controls.querySelector('[data-version]');
+        const retry = controls.querySelector('[data-retry]');
+        const status = controls.querySelector('[data-status]');
+        const targetLabel = document.createElement('label');
+        targetLabel.hidden = true;
+        targetLabel.style.cssText = 'width:100%;font-size:12px;';
+        targetLabel.innerHTML = 'SAM3 保留目标<input data-target type="text" maxlength="2000" placeholder="英文描述，例如 person、cat、logo；只保留匹配的目标" style="display:block;width:100%;min-height:44px;padding:8px;border:1px solid #54647a;border-radius:8px;background:#243245;color:white">';
+        controls.appendChild(targetLabel);
+        const target = targetLabel.querySelector('[data-target]');
+        target.value = result.target || '';
+        const toggleTarget = () => { targetLabel.hidden = models.value !== 'SAM3'; };
+        models.onchange = toggleTarget;
+        const progress = createCutoutProgress();
+        progress.element.style.cssText = 'width:100%;color:#b5c7da;';
+        controls.appendChild(progress.element);
+        let history = [];
+        const option = (value, label) => {
+            const node = document.createElement('option');
+            node.value = value;
+            node.textContent = label;
+            return node;
+        };
+        const populateModels = available => {
+            available = available?.length ? available : cutoutDefaultModels;
+            const selected = models.value || result.model;
+            models.replaceChildren(option('auto', '自动选择'), ...available.map(model => option(model, model)));
+            models.value = available.includes(selected) ? selected : 'auto';
+            toggleTarget();
+        };
+        const selectVersion = () => {
+            const version = history[Number(versions.value)];
+            dialog.querySelector('img').src = version.url;
+            dialog.querySelector('[data-info]').textContent = (version.selection === 'manual' ? '手动选择：' : '自动选择：') + version.model + ' · ' + version.kind + (version.target ? ' · 目标：' + version.target : '');
+        };
+        const populateVersions = latest => {
+            history = latest.versions?.length ? latest.versions : [latest];
+            versions.replaceChildren(...history.map((version, index) => option(String(index), '版本 ' + (index + 1) + ' · ' + version.model + (index === history.length - 1 ? '（最新）' : ''))));
+            versions.value = String(history.length - 1);
+            selectVersion();
+        };
+        populateModels(result.available_models || []);
+        populateVersions(result);
+        versions.onchange = selectVersion;
+        cutoutRequest('/api/image-cutout/models').then(data => populateModels(data.models)).catch(error => {
+            if (!retry.disabled) status.textContent = '模型列表读取失败：' + error.message + '。当前显示常用或已缓存模型，重新抠图时会校验是否支持。';
+        });
+        retry.onclick = async () => {
+            if (models.value === 'SAM3' && !target.value.trim()) {
+                status.textContent = '请填写 SAM3 要保留的目标，例如 person、cat 或 logo。';
+                target.focus();
+                return;
+            }
+            if (cutoutJobs.has(imageUrl)) {
+                status.textContent = '这张图片正在抠图，请等待当前任务完成。';
+                return;
+            }
+            retry.disabled = true;
+            models.disabled = true;
+            retry.textContent = '正在抠图…';
+            status.textContent = '正在使用原图重新处理，可切换历史版本查看已有结果。';
+            progress.update({ label: '正在提交抠图任务…' });
+            const job = runCutout(imageUrl, prompt, { model: models.value, retry: true, target: target.value.trim(), onProgress: progress.update });
+            cutoutJobs.set(imageUrl, job);
+            try {
+                const latest = await job;
+                populateVersions(latest);
+                status.textContent = '新版本已保存，可切换历史版本对比并下载。';
+            } catch (error) {
+                status.textContent = '重新抠图失败：' + error.message + '；已有版本已保留。';
+            } finally {
+                progress.element.hidden = true;
+                cutoutJobs.delete(imageUrl);
+                retry.disabled = false;
+                models.disabled = false;
+                retry.textContent = '重新抠图';
+            }
+        };
+        dialog.querySelector('[data-close]').onclick = () => dialog.close();
+        dialog.querySelector('[data-download]').onclick = event => {
+            const version = history[Number(versions.value)];
+            global.GalleryActions.downloadImage(version.url, 'cutout-v' + (Number(versions.value) + 1) + '.png', event);
+        };
+        dialog.addEventListener('close', () => dialog.remove(), { once: true });
+        dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    }
+
     function mountDownloadAction(host, imageUrl) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -642,6 +831,7 @@
         host.appendChild(info);
         host.appendChild(fav);
         mountDownloadAction(host, imageUrl);
+        mountCutoutAction(host, getRecord, imageUrl);
     }
 
     global.GalleryCard = { render, thumbUrl, mountImageActions, ICONS, DEFAULT_FEATURES, BUTTON_CONFIG };

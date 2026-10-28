@@ -143,6 +143,7 @@ function _buildFlatIndex() {
                 _flatIndex.push({
                     ...p,
                     _type: 'style',
+                    _collection: _styleCollection(p, cat.id, sub.name),
                     category_id: 'style_' + cat.id,
                     category_name: catName,
                     name: pName,
@@ -158,6 +159,77 @@ function _buildFlatIndex() {
 }
 
 // 加载预设数据
+// ponytail: 只整理展示索引，不改来源数据与选择键；后续导入自动沿用这些规则。
+const _styleCollections = [
+    ['edit', '图片编辑', /修复|换装|换脸|抠图|去除|老照片|照片转|人物转|人像转|线稿上色|背景替换|去水印/i],
+    ['stickers', '贴纸表情', /表情包|贴纸|表情贴|sticker/i],
+    ['ui', '图标 UI', /图标|界面|UI设计|\bicons?\b|interface/i],
+    ['poster', '海报排版', /海报|招贴|信息图|日历|月历|手账|排版|流程图|图解|画报|日签|拼贴|poster|infographic/i],
+    ['product', '产品商业', /产品|商品|电商|广告|品牌|包装|标志|商标|\blogo\b|product|branding/i],
+    ['character', '角色设计', /角色|设定图|三视图|吉祥物|手办|character/i],
+    ['portrait', '人像写真', /人像|写真|肖像|自拍|portrait|headshot/i],
+    ['scene', '场景建筑', /场景|风景|景观|建筑|室内设计|宫殿群|landscape|architecture|interior design/i],
+    ['anime', '动漫插画', /动漫|动画|二次元|卡通|漫画|Q版|anime|manga|cartoon|chibi/i],
+    ['3d', '3D 与材质', /3D|三维|黏土|粘土|剪纸|折纸|刺绣|毛毡|浮雕|雕塑|像素|voxel/i],
+    ['painting', '绘画艺术', /水彩|油画|水墨|素描|版画|绘画|插画|手绘|涂鸦|watercolor|painting|sketch|illustration/i],
+    ['photo', '摄影与光影', /摄影|街拍|抓拍|胶片|镜头|CCD|生活照|电影剧照|photography|cinematic/i],
+    ['food', '美食静物', /美食|菜肴|食物|甜点|静物|food|still life/i],
+    ['pets', '动物萌宠', /萌宠|宠物|猫咪|小猫|小狗|狗狗|动物|pet portrait/i],
+    ['wallpaper', '壁纸背景', /壁纸|背景纹理|wallpaper/i],
+    ['storyboard', '分镜叙事', /分镜|故事板|连环画|四格漫|storyboard/i],
+    ['vehicle', '机械载具', /汽车|跑车|赛车|机车|载具|机甲|机械|法拉利|兰博基尼|劳斯莱斯/i],
+    ['fantasy', '奇幻科幻', /奇幻|科幻|怪物|巨兽|巨龙|天使军团|赛博朋克|神话|史诗对决/i],
+    ['effects', '材质特效', /肌理|材质|液态|全息|光晕|玻璃微距|金属质感|texture/i],
+    ['layout', '构图与版式', /构图|版式|宫格|网格图|平铺图|三联画|双联画|对比图|分屏|立体字|视觉设计指南/i],
+    ['concept', '概念创意', /概念|超现实|梦核|悖论|反模因|抽象|视错觉|脑洞|极简主义|几何|美学/i],
+    ['assistant', '提示词与文案', /提示词|报告要求|管理计划|对作品进行评价|图片反推|图像反推/i],
+    ['style', '通用画风', null],
+    ['review', '其他待整理', null]
+];
+function _styleCollection(p, category, subcategory = '') {
+    if (!p.id.startsWith('opennana_') && !p.id.startsWith('yuanbao_')) return 'style';
+    const title = p.name || '';
+    const matched = _styleCollections.find(([, , pattern]) => pattern?.test(title));
+    if (matched) return matched[0];
+    if (category === 'yuanbao') {
+        const sourceCategory = { '智能P图': 'edit', '海报设计': 'poster', '电脑壁纸': 'wallpaper', '品牌设计': 'product', '电商营销': 'product', 'UI设计': 'ui', '产品设计': 'product', 'IP角色': 'character', '写实人像': 'portrait' }[subcategory];
+        if (sourceCategory) return sourceCategory;
+    }
+    if (/少女|女性|女子|女郎|男士|男性|女孩|男孩|情侣|佳人|美妆|发型|穿搭|人物|美女|美男/.test(title)) return 'portrait';
+    const originalCollection = ({ anime_manga: 'anime', painting: 'painting', art_movements: 'painting', digital_3d: '3d', crafts: '3d', photography: 'photo', film_cinema: 'photo', retro: 'photo' })[category];
+    if (originalCollection) return originalCollection;
+    // 标题没有命中时才读取正文的明确用途，避免示例、背景和负向词抢占分类。
+    const extraTitleRules = [
+        ['poster', /封面|画册|图谱|科普图|数据可视化|图表|宣传图|长图|金句卡|许可证|邮票|剪贴簿|PPT|墙报|食谱|运势图/],
+        ['portrait', /模特|超模|名模|时尚大片|时尚社论|丽人|名媛|女神|辣妹|美人|少年|男孩|男子|女生|男生|全身像|偶像|女球迷|时尚缪斯|名伶|青年|女友|运动员|人像|女主角/],
+        ['painting', /工笔|蜡笔|厚涂|浮世绘|速写|草图|线稿|行书|书法|莫奈|毕加索|马蒂斯|克里姆特|维米尔|夏加尔|吉卜力|绘卷|平涂|线绘|蓝晒/],
+        ['3d', /布偶|玩偶|微缩|立体模型|等距|树脂|搪胶|纸艺|公仔|娃娃/],
+        ['product', /工业设计|人体工程学|物品拆解|爆炸图|护肤品|面霜|香水瓶|球鞋|腕表|咖啡机|徽章/],
+        ['photo', /照片|拍照|随拍|快照|全身照|纪实|影棚|光影|微距|实景|随手拍|闪光灯|特写|电影静帧/],
+        ['food', /蛋糕|披萨|糕点|三明治|芝士|咖啡|饮料|可乐|美食/],
+        ['scene', /天际线|城市|海岸|山河|花园|森林|教堂|楼梯|天空|云海|宫殿|庭院|主城|夜景|地形图|街道|地标/],
+        ['effects', /视错觉|几何波普|色彩质感|流体|渐变|背景色彩/]
+    ];
+    const extraTitle = extraTitleRules.find(([, pattern]) => pattern.test(title));
+    if (extraTitle) return extraTitle[0];
+    const prompt = (p.prompt || '').replace(/<[^>]*>/g, ' ').split(/负面|负向|反向提示|negative\s*(?:prompt)?\s*[:：]/i)[0];
+    const contentRules = [
+        ['storyboard', /分镜图|故事板|连环画|三格竖向漫画|四格漫画/],
+        ['ui', /音乐播放器|系统原生.*界面|应用.*界面设计/],
+        ['poster', /生成.{0,15}(?:封面图|海报|信息图)|创作.{0,15}海报|收藏卡片|艺术邮票/],
+        ['product', /产品照片|产品摄影|电商主图|包装设计|工业设计/],
+        ['3d', /复古手工布偶|搪胶|微缩模型|黏土材质|毛毡材质/],
+        ['painting', /水墨画风|工笔画|油画风格|水彩画|丙烯笔刷|儿童绘本画风|速写草图/],
+        ['anime', /动漫风格|卡通风格|日式动画风格|吉卜力风格/],
+        ['portrait', /年轻女性|年轻男性|一位.{0,10}(?:女孩|男子|女人|男人)|时尚编辑肖像|全身肖像|主体.{0,8}(?:女性|男性)|人物.{0,8}(?:面部|五官)|模特.{0,8}(?:身穿|穿着)/],
+        ['pets', /一只.{0,12}(?:猫|狗|熊|狐狸|鹦鹉|兔|鸟)|动物肖像/],
+        ['food', /美食摄影|食物摄影|静物摄影/],
+        ['wallpaper', /手机壁纸|电脑壁纸/]
+    ];
+    const contentMatch = contentRules.find(([, pattern]) => pattern.test(prompt));
+    if (contentMatch) return contentMatch[0];
+    return 'review';
+}
 let _stylePickerData = { categories: [] }; // 风格预设原始数据
 let _styleI18n = { categories: {}, subcategories: {}, presets: {} }; // 风格中文映射
 
@@ -189,13 +261,19 @@ function _getFilteredPresets() {
     // 分类过滤
     if (presetPickerCategory !== 'all') {
         if (_presetMode === 'style') {
-            list = list.filter(p => p.category_id === 'style_' + presetPickerCategory);
+            list = presetPickerCategory.startsWith('collection_')
+                ? list.filter(p => p._collection === presetPickerCategory.slice(11))
+                : presetPickerCategory === 'opennana'
+                ? list.filter(p => p.id.startsWith('opennana_'))
+                : list.filter(p => p.category_id === 'style_' + presetPickerCategory && !p.id.startsWith('opennana_'));
         } else {
             list = list.filter(p => p.category_id === presetPickerCategory);
         }
     }
     if (presetPickerSubcategory !== 'all') {
-        list = list.filter(p => p._subcats.some(s => s.id === presetPickerSubcategory));
+        list = _presetMode === 'style' && presetPickerCategory === 'opennana'
+            ? list.filter(p => p._collection === presetPickerSubcategory)
+            : list.filter(p => p._subcats.some(s => s.id === presetPickerSubcategory));
     }
 
     // 搜索过滤
@@ -229,15 +307,20 @@ function presetPickerRenderCategories() {
         let styleAll = 0;
         cats.forEach(cat => {
             let n = 0;
-            cat.subcategories.forEach(sub => { n += sub.presets.length; });
+            cat.subcategories.forEach(sub => { n += sub.presets.filter(p => !p.id.startsWith('opennana_')).length; });
             styleCounts[cat.id] = n;
-            styleAll += n;
+            styleAll += cat.subcategories.reduce((sum, sub) => sum + sub.presets.length, 0);
         });
         el.innerHTML = [
             { id: 'all', name: '全部', count: styleAll },
-            ...cats.map(cat => ({ id: cat.id, name: sCatI18n[cat.id] || cat.name, count: styleCounts[cat.id] || 0 }))
-        ].map(cat => {
-            return '<div class="preset-picker-cat' + (presetPickerCategory === cat.id ? ' active' : '') + '" onclick="presetPickerSetCategory(\'' + cat.id + '\')">' +
+            { id: 'opennana', name: 'OpenNana', count: _flatIndex.filter(p => p._type === 'style' && p.id.startsWith('opennana_')).length },
+            ...cats.map(cat => ({ id: cat.id, name: sCatI18n[cat.id] || cat.name, count: styleCounts[cat.id] || 0 })).filter(cat => cat.count)
+        ].map((cat, index, items) => {
+            const collection = cat.id.startsWith('collection_');
+            const heading = collection && !items[index - 1]?.id.startsWith('collection_') ? '按用途 / 画风' :
+                !collection && cat.id !== 'all' && items[index - 1]?.id.startsWith('collection_') ? '原分类 / 来源（保留）' : '';
+            return (heading ? '<div style="padding:12px 10px 4px;opacity:.6;font-size:11px">' + heading + '</div>' : '') +
+                '<div class="preset-picker-cat' + (presetPickerCategory === cat.id ? ' active' : '') + '" onclick="presetPickerSetCategory(\'' + cat.id + '\')">' +
                 '<span>' + cat.name + '</span>' +
                 '<span class="count">' + cat.count + '</span>' +
                 '</div>';
@@ -272,7 +355,13 @@ function presetPickerRenderSubcategories() {
     }
 
     let subcats = [];
-    if (_presetMode === 'style') {
+    if (_presetMode === 'style' && presetPickerCategory === 'opennana') {
+        const counts = {};
+        _flatIndex.forEach(p => {
+            if (p._type === 'style' && p.id.startsWith('opennana_')) counts[p._collection] = (counts[p._collection] || 0) + 1;
+        });
+        subcats = _styleCollections.map(([id, name]) => ({ id, name, count: counts[id] || 0 })).filter(sub => sub.count);
+    } else if (_presetMode === 'style') {
         const cat = (_stylePickerData.categories || []).find(c => c.id === presetPickerCategory);
         if (!cat) { el.innerHTML = ''; el.style.display = 'none'; return; }
         const sSubI18n = _styleI18n.subcategories || {};
@@ -360,13 +449,17 @@ function _vsAppendBatch(grid) {
     wrapper.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px;';
     batch.forEach(p => {
         const sel = presetPickerSelected.some(s => s.id === p.id && s.category_id === p.category_id);
-        const catTags = p._subcats.map(s => '<span class="preset-picker-card-tag">' + s.name + '</span>').join('');
+        const cardCategories = isStyle && p._collection
+            ? [{ name: _styleCollections.find(([id]) => id === p._collection)[1] }]
+            : p._subcats;
+        const catTags = cardCategories.map(s => '<span class="preset-picker-card-tag">' + s.name + '</span>').join('');
         const cnName = _getPresetCnName(p);
         const displayName = cnName 
             ? cnName + '<br><span style="font-size:9px;opacity:0.7;font-weight:400;">' + p.prompt + '</span>'
             : p.prompt;
         const card = document.createElement('div');
         card.className = 'preset-picker-card' + (isStyle ? ' preset-picker-card-style' : '') + (sel ? ' selected' : '');
+        if (isStyle && p.description) card.title = p.description;
         // 使用 addEventListener 替代内联 onclick，避免 ID 含特殊字符时 JS 解析失败
         card.addEventListener('click', () => presetPickerToggle(p.id, p.category_id));
 

@@ -573,7 +573,7 @@
     _injectCss();
     _render();
     _applyKindFilter();
-    loadLibrary({ silent: true });
+    // 数据在 open() 时按需读取，隐藏的素材库不参与首屏请求和渲染。
   }
 
   // 监听全局变更事件：任何地方改动资产库后派发该事件即可触发本模块刷新

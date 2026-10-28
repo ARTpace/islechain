@@ -1,0 +1,22 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const context = vm.createContext({Math});
+vm.runInContext(fs.readFileSync('static/js/canvas-mask-editor.js','utf8'),context);
+let alpha = 0;
+const ctx = {getImageData:()=>({alpha}),putImageData:state=>{alpha=state.alpha}};
+const mask = {width:1,height:1,getContext:()=>ctx};
+const history=context.createMaskHistory(mask,12); // Three snapshots.
+history.save();alpha=128;history.save();alpha=255;history.save();
+assert(history.move(-1));assert.equal(alpha,128);
+assert(history.move(-1));assert.equal(alpha,0);
+assert.equal(history.move(-1),false,'undo may not wrap');
+assert(history.move(1));assert.equal(alpha,128);
+alpha=64;history.save();
+assert.equal(history.redo,false,'painting after undo must discard the old redo branch');
+alpha=200;history.save();alpha=250;history.save();
+assert(history.move(-1));assert.equal(alpha,200);
+assert(history.move(-1));assert.equal(alpha,64);
+assert.equal(history.move(-1),false,'history must honor the memory budget');
+assert(history.move(1));assert(history.move(1));assert.equal(alpha,250);
+console.log('Mask history: soft alpha, undo/redo, branching, memory limit passed');

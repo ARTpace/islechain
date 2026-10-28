@@ -26,6 +26,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
+import ssl
+import certifi
+
+# 内部 ComfyUI 请求共用校验证书，避免在事件循环里反复加载证书文件。
+COMFY_HTTP_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 # 清除坏掉的 SSL_CERT_FILE 环境变量(ComfyUI/python_embeded 遗留的 CA 路径可能不存在)
 os.environ.pop("SSL_CERT_FILE", None)
 os.environ.pop("REQUESTS_CA_BUNDLE", None)
@@ -216,6 +221,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+from tools.performance_timing import PerformanceTimingMiddleware
+app.add_middleware(PerformanceTimingMiddleware, boot_id=APP_BOOT_ID)
 
 @app.websocket("/ws/stats")
 async def websocket_endpoint(websocket: WebSocket, client_id: str = None):
@@ -1792,10 +1799,8 @@ class NoCacheStaticFiles(StarletteStaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if hasattr(response, 'headers'):
-            # Disable caching for all static files to ensure latest JS/CSS is loaded
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
+            # ponytail: 资源可缓存但每次校验 ETag，更新立即生效，未变化时只返回 304。
+            response.headers['Cache-Control'] = 'no-store' if path.lower().endswith('.html') else 'no-cache'
         return response
 
 app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
@@ -2174,6 +2179,13 @@ class AssetLibraryBatchCropRequest(BaseModel):
     target_category_id: str = ""
     mode: str = "square"
 
+class AssetLibraryCategoryReorderRequest(BaseModel):
+    library_id: str = ""
+    order: List[str] = []
+
+class AssetLibraryMaintenanceScanRequest(BaseModel):
+    library_id: str = ""
+
 class AssetAvatarRegisterRequest(BaseModel):
     library_id: str = ""
     provider_id: str = ""
@@ -2202,6 +2214,13 @@ class PromptLibraryItemRequest(BaseModel):
 
 class PromptLibraryBatchDeleteRequest(BaseModel):
     ids: List[str] = []
+
+class PromptLibraryImportRequest(BaseModel):
+    library_id: str = ""
+    items: List[dict] = []
+    category: str = ""          # 非空则强制覆盖每条的分类
+    dedupe: bool = True         # 按 id 与正文归一化指纹去重
+    dry_run: bool = False       # 只统计不落盘
 
 class PromptLibraryCategoryRequest(BaseModel):
     name: str = "新分组"
@@ -3788,6 +3807,57 @@ def output_file_from_url(url):
     if os.path.commonpath([output_root, path]) != output_root or not os.path.exists(path):
         return None
     return path
+
+def asset_library_item_path(url):
+    """把资产 url 解析成本地绝对路径，不校验文件是否存在。
+
+    output_file_from_url 在文件丢失时返回 None，无法区分「路径非法」和「文件丢了」，
+    整理/清理功能需要后者，所以单独留出这条只解析、不检查的分支。
+    """
+    if isinstance(url, dict):
+        url = url.get("url", "")
+    url = str(url or "")
+    if not (url.startswith("/output/") or url.startswith("/assets/")):
+        return None
+    clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
+    if clean.startswith("/assets/"):
+        root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
+        rel = clean[len("/assets/"):]
+    else:
+        root = OUTPUT_DIR
+        rel = clean[len("/output/"):]
+    rel = rel.lstrip("/")
+    if not rel:
+        return None
+    try:
+        path = os.path.abspath(os.path.join(root, rel))
+        if os.path.commonpath([os.path.abspath(root), path]) != os.path.abspath(root):
+            return None
+    except (ValueError, OSError):
+        return None
+    return path
+
+def asset_file_fingerprint(path, size=0):
+    """重复素材检测用的快速指纹：文件前 2MB + 总大小。
+
+    素材里混着几十 MB 的视频，全量 md5 太慢；同大小 + 前 2MB 一致
+    已经足够判定图文重复，误判概率可忽略。
+    """
+    import hashlib
+    try:
+        digest = hashlib.md5()
+        with open(path, "rb") as handle:
+            remaining = 2 * 1024 * 1024
+            while remaining > 0:
+                chunk = handle.read(min(262144, remaining))
+                if not chunk:
+                    break
+                digest.update(chunk)
+                remaining -= len(chunk)
+        digest.update(str(size or 0).encode("utf-8"))
+        return digest.hexdigest()
+    except OSError:
+        return ""
 
 def local_media_file_by_basename(name: str):
     safe = os.path.basename(urllib.parse.unquote(str(name or "")))
@@ -5660,6 +5730,7 @@ def normalize_prompt_library_item(item):
         "scene": str(item.get("scene") or "").strip()[:500],
         "positive": positive,
         "negative": str(item.get("negative") or "").strip(),
+        "thumbnail": str(item.get("thumbnail") or item.get("thumb") or "").strip()[:600],
         "params": item.get("params") if isinstance(item.get("params"), dict) else {},
         "created_at": int(item.get("created_at") or now_ms()),
         "updated_at": int(item.get("updated_at") or item.get("created_at") or now_ms()),
@@ -5681,15 +5752,22 @@ def default_prompt_libraries():
         "updated_at": now_ms(),
     }
 
+# 提示词库内置分类：按题材/风格划分（2026-10-28 从「视角/分镜/角色/产品/光影」的用途维度改为题材维度，
+# 与 style-presets、采集来的平台提示词对齐）。个人词库会剔除这些 id，只能落在自己的自定义分类里。
+PROMPT_LIBRARY_BUILTIN_CATEGORIES = [
+    {"id": "portrait", "name": "人像摄影"},
+    {"id": "anime", "name": "动漫二次元"},
+    {"id": "design", "name": "平面设计"},
+    {"id": "illustration", "name": "插画艺术"},
+    {"id": "scene", "name": "场景建筑"},
+    {"id": "sci3d", "name": "3D 科幻"},
+    {"id": "template", "name": "版式模板"},
+    {"id": "misc", "name": "其他"},
+    {"id": "custom", "name": "我的"},
+]
+
 def defaultPromptTemplateCategories():
-    return [
-        {"id": "view", "name": "视角"},
-        {"id": "storyboard", "name": "分镜"},
-        {"id": "character", "name": "角色"},
-        {"id": "product", "name": "产品"},
-        {"id": "lighting", "name": "光影"},
-        {"id": "custom", "name": "我的"},
-    ]
+    return [dict(category) for category in PROMPT_LIBRARY_BUILTIN_CATEGORIES]
 
 def normalize_prompt_template_categories(*category_lists, include_defaults=True):
     normalized = []
@@ -5744,7 +5822,7 @@ def normalize_prompt_libraries(data):
         default_name = "系统提示词库" if is_system else "提示词库"
         raw_categories = raw.get("categories") if isinstance(raw.get("categories"), list) else []
         if not is_system:
-            builtin_ids = {"view", "storyboard", "character", "product", "lighting", "custom"}
+            builtin_ids = {category["id"] for category in PROMPT_LIBRARY_BUILTIN_CATEGORIES}
             raw_categories = [c for c in raw_categories if isinstance(c, dict) and normalize_prompt_category_id(c.get("id") or c.get("name") or "") not in builtin_ids]
         libraries.append({
             "id": lib_id,
@@ -7482,8 +7560,8 @@ async def fetch_models_from_upstream(base_url: str, api_key: str, refresh: bool 
 # 工作流名称校验正则
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
-# 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器 + 提示词/ 子目录下的本地扩写工作流)
-BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词"), os.path.join(WORKFLOW_DIR, "video")]
+# 内置工作流列表（根目录及已登记的分类目录，包含抠图工作流）
+BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词"), os.path.join(WORKFLOW_DIR, "video"), os.path.join(WORKFLOW_DIR, "cutout")]
 BUILTIN_WORKFLOWS = set()
 for _wd in BUILTIN_WORKFLOW_DIRS:
     if not os.path.isdir(_wd):
@@ -7551,18 +7629,29 @@ _comfyui_process: Optional[subprocess.Popen] = None
 
 
 
+_comfy_health_cache = None
+_comfy_health_lock = asyncio.Lock()
+
+
 async def get_comfyui_health() -> bool:
     """检查 ComfyUI 后端是否可达"""
+    global _comfy_health_cache
     if not COMFYUI_INSTANCES:
         return False
     addr = COMFYUI_INSTANCES[0]
-    url = f"http://{addr}/system_stats"
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            r = await client.get(url)
-            return r.status_code == 200
-    except:
-        return False
+    # 父页面、对话页和多个访客复用一次短探测，避免重复连接 ComfyUI。
+    async with _comfy_health_lock:
+        if _comfy_health_cache and _comfy_health_cache[0] == addr and time.monotonic() < _comfy_health_cache[1]:
+            return _comfy_health_cache[2]
+        reachable = False
+        try:
+            async with httpx.AsyncClient(timeout=5.0, verify=COMFY_HTTP_SSL_CONTEXT, trust_env=False) as client:
+                r = await client.get(f"http://{addr}/system_stats")
+                reachable = r.status_code == 200
+        except Exception:
+            pass
+        _comfy_health_cache = (addr, time.monotonic() + 3, reachable)
+        return reachable
 
 
 

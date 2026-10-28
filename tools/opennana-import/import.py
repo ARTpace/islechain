@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """全量导入 OpenNana（无数量限制）"""
-import urllib.request, json, os, time
+import urllib.request, urllib.parse, json, os, time
+import argparse
+import shutil
+import ssl
+import tempfile
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -14,19 +18,38 @@ CACHE_DIR.mkdir(exist_ok=True)
 API = "https://api.opennana.com"
 HDR = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
 WORKERS = 12
+SSL_CONTEXT = ssl.create_default_context()
+
+
+def write_json(path, data):
+    """同目录原子替换，避免中断后留下半个 JSON。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    name = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                                         suffix='.tmp', delete=False) as stream:
+            name = stream.name
+            json.dump(data, stream, ensure_ascii=False, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, path)
+    finally:
+        if name and os.path.exists(name):
+            os.unlink(name)
 
 
 def api(path, params=None):
     url = f"{API}{path}"
     if params:
-        url += "?" + "&".join(f"{k}={v}" for k, v in params.items())
+        url += "?" + urllib.parse.urlencode(params)
     for i in range(3):
         try:
-            r = urllib.request.urlopen(urllib.request.Request(url, headers=HDR), timeout=15)
-            return json.loads(r.read())
-        except:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=HDR), timeout=15,
+                                        context=SSL_CONTEXT) as response:
+                return json.load(response)
+        except (OSError, ValueError):
             if i == 2: raise
-            time.sleep(0.3)
+            time.sleep(0.5 * (2 ** i))
 
 
 def get_all_slugs():
@@ -49,19 +72,27 @@ def get_all_slugs():
     return slugs
 
 
-def get_detail(slug):
+def get_detail(slug, offline=False):
+    if not slug or Path(slug).name != slug or '\\' in slug:
+        raise ValueError('Invalid slug')
     cf = CACHE_DIR / f"{slug}.json"
     if cf.exists():
-        return json.loads(cf.read_text("utf-8"))
-    try:
-        d = api(f"/api/prompts/{slug}")
-        if d.get("status") == 200:
-            det = d.get("data", d)
-            cf.write_text(json.dumps(det, ensure_ascii=False), "utf-8")
-            return det
-    except:
-        pass
-    return None
+        try:
+            detail = json.loads(cf.read_text("utf-8"))
+            if not isinstance(detail, dict):
+                raise ValueError('Invalid cache')
+            return detail
+        except (OSError, ValueError):
+            if offline:
+                raise
+    if offline:
+        raise ValueError('No cached detail')
+    d = api('/api/prompts/' + urllib.parse.quote(slug, safe=''))
+    if d.get('status') != 200 or not isinstance(d.get('data'), dict):
+        raise ValueError('Invalid API detail response')
+    det = d['data']
+    write_json(cf, det)
+    return det
 
 
 def classify(title, prompt):
@@ -87,31 +118,46 @@ def classify(title, prompt):
     return "misc"
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='OpenNana 增量更新（保留已有记录）')
+    parser.add_argument('--offline', action='store_true', help='仅从已有详情缓存补充，不联网')
+    parser.add_argument('--dry-run', action='store_true', help='预览，不写风格库和名称映射')
+    parser.add_argument('--workers', type=int, default=WORKERS, choices=range(1, 25), metavar='1-24')
+    args = parser.parse_args(argv)
     t0 = time.time()
     print("=" * 50)
-    print("  OpenNana 全量导入")
+    print("  OpenNana 增量更新" + ("（预览）" if args.dry_run else ""))
     print("=" * 50)
 
     # 1. 获取所有 slug
     print("\n[1/3] 获取 slug 列表...")
-    slugs = get_all_slugs()
+    existing = json.loads(OUT_FILE.read_text('utf-8')) if OUT_FILE.exists() else {'categories': []}
+    exist_ids = {p['id'] for c in existing['categories'] for s in c.get('subcategories', []) for p in s.get('presets', [])}
+    slugs = ([{'slug': p.stem} for p in sorted(CACHE_DIR.glob('*.json'))]
+             if args.offline else get_all_slugs())
+    slugs = list({item['slug']: item for item in slugs}.values())
+    candidates = len(slugs)
+    slugs = [item for item in slugs if 'opennana_' + item['slug'] not in exist_ids]
+    print(f'  已有 ID 跳过: {candidates - len(slugs)}, 待处理: {len(slugs)}')
     print(f"  共 {len(slugs)} 个 ({time.time()-t0:.1f}s)")
 
     # 2. 并发抓详情（全量，已缓存的秒回）
-    print(f"\n[2/3] 抓取详情 ({WORKERS}并发, 已缓存的跳过)...")
+    print(f"\n[2/3] 抓取详情 ({args.workers}并发, 已缓存的跳过)...")
     results = {}
+    failures = []
     done = 0
 
     def fetch(it):
-        return it["slug"], get_detail(it["slug"])
+        return get_detail(it['slug'], offline=args.offline)
 
-    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
         futs = {ex.submit(fetch, s): s for s in slugs}
         for f in as_completed(futs):
-            slug, det = f.result()
-            if det:
-                results[slug] = det
+            slug = futs[f]['slug']
+            try:
+                results[slug] = f.result()
+            except Exception as error:
+                failures.append({'slug': slug, 'error': str(error)})
             done += 1
             if done % 200 == 0:
                 print(f"  {done}/{len(slugs)} ({len(results)} ok, {time.time()-t0:.1f}s)")
@@ -120,18 +166,16 @@ def main():
 
     # 3. 转换合并
     print(f"\n[3/3] 转换合并...")
-    existing = json.loads(OUT_FILE.read_text("utf-8")) if OUT_FILE.exists() else {"categories": []}
-    exist_ids = set()
-    for c in existing.get("categories", []):
-        for s in c.get("subcategories", []):
-            for p in s.get("presets", []):
-                exist_ids.add(p["id"])
-
     cat_names = {"photography":"摄影","film_cinema":"电影感","anime_manga":"动漫","painting":"绘画",
                  "digital_3d":"数字3D","commercial":"商业设计","retro":"复古","crafts":"手工艺",
                  "art_movements":"艺术风格","misc":"综合"}
     added = 0
-    for slug, det in results.items():
+    rejected = 0
+    for item in slugs:
+        slug = item['slug']
+        det = results.get(slug)
+        if det is None:
+            continue
         prompts = det.get("prompts", [])
         zh, en = "", ""
         for p in prompts:
@@ -140,6 +184,7 @@ def main():
                 elif p.get("type") == "en": en = p.get("text","").strip()
         prompt = zh or en
         if not prompt or len(prompt) < 20:
+            rejected += 1
             continue
 
         pid = f"opennana_{slug}"
@@ -169,8 +214,6 @@ def main():
         exist_ids.add(pid)
         added += 1
 
-    OUT_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), "utf-8")
-
     # i18n
     i18n = json.loads(I18N_FILE.read_text("utf-8")) if I18N_FILE.exists() else {"categories":{},"subcategories":{},"presets":{}}
     for c in existing["categories"]:
@@ -178,14 +221,28 @@ def main():
             for p in s.get("presets",[]):
                 if p["id"] not in i18n.get("presets",{}):
                     i18n.setdefault("presets",{})[p["id"]] = p["name"]
-    I18N_FILE.write_text(json.dumps(i18n, ensure_ascii=False, indent=2), "utf-8")
+    if added and not args.dry_run:
+        backup = BASE / 'artifacts' / ('opennana-backup-' + time.strftime('%Y%m%d-%H%M%S') + '-' + str(time.time_ns()))
+        backup.mkdir(parents=True)
+        for path in (OUT_FILE, I18N_FILE):
+            if path.exists():
+                shutil.copy2(path, backup / path.name)
+        write_json(OUT_FILE, existing)
+        write_json(I18N_FILE, i18n)
+        print(f'  备份: {backup}')
+    report = {'dry_run': args.dry_run, 'offline': args.offline, 'candidates': candidates,
+              'processed': len(slugs), 'added': added, 'rejected_short_or_empty': rejected,
+              'failures': sorted(failures, key=lambda item: item['slug'])}
+    write_json(CACHE_DIR.parent / 'last-update-report.json', report)
+    print(json.dumps(report, ensure_ascii=False))
 
     total = sum(len(s.get("presets",[])) for c in existing["categories"] for s in c.get("subcategories",[]))
     print(f"\n  新增: {added}")
     print(f"  总计: {total} 预设 ({len(existing['categories'])} 分类)")
     print(f"  耗时: {time.time()-t0:.1f}s")
     print(f"  缓存: {len(list(CACHE_DIR.iterdir()))} 文件")
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

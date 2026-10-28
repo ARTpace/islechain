@@ -27,6 +27,8 @@ window.ChatComposer = (() => {
         anchor.after(button);
         const panel = document.createElement('section');
         panel.id = 'chatAdvancedPanel';
+        panel.className = 'generation-options-panel';
+        panel.setAttribute('aria-label', '高级参数');
         panel.hidden = true;
         panel.innerHTML = '<div class="chat-advanced-row" id="chatAdvancedSeed"><span>生成种子</span></div>' +
             '<div class="chat-advanced-negative"><label for="extraNegativePrompt">负向提示词（本地生图）</label></div>' +
@@ -35,11 +37,9 @@ window.ChatComposer = (() => {
         document.body.appendChild(panel);
         const positionPanel = () => {
             if (panel.hidden) return;
-            const rect = button.getBoundingClientRect();
-            panel.style.right = Math.max(12, window.innerWidth - rect.right) + 'px';
-            panel.style.bottom = Math.max(12, window.innerHeight - rect.top + 10) + 'px';
-            panel.style.maxHeight = Math.max(80, rect.top - 24) + 'px';
+            GenerationMenuPosition.place(panel, button, {width:520,preferAbove:true,align:'end'});
         };
+        new ResizeObserver(positionPanel).observe(panel);
         window.addEventListener('resize', positionPanel);
         window.addEventListener('scroll', positionPanel, true);
         if (!document.body.classList.contains('chat-layout')) {

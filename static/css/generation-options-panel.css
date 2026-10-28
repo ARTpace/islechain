@@ -1,0 +1,25 @@
+#generationComposer .generation-options-source { display:none !important; }
+.generation-options-trigger { white-space:nowrap; font-variant-numeric:tabular-nums; }
+#generationComposer .control-bar .anima-ctrl,
+#generationComposer .control-bar #mainGenBtn { height:38px; font-size:13px; gap:7px; }
+#generationComposer .control-bar #unifiedModelText { font-size:13px !important; }
+#generationComposer .control-bar .generation-options-trigger { padding:0 12px !important; }
+#generationComposer .control-bar .generation-options-trigger .generation-options-ratio-icon { flex-shrink:0; }
+#generationComposer .control-bar #randomPromptContainer button { min-width:38px; min-height:38px; font-size:13px; }
+#generationComposer .control-bar #mainGenBtn svg { width:16px; height:16px; }
+.generation-options-panel { position:fixed; z-index:1000; box-sizing:border-box; padding:18px; border:1px solid var(--ui-line,#383838); border-radius:18px; background:var(--ui-panel,#262626); color:var(--ui-text,#f6f6f4); box-shadow:0 12px 36px #0004; overflow:auto; }
+.generation-options-panel[hidden],.generation-options-trigger[hidden] { display:none !important; }
+.generation-options-section+.generation-options-section { margin-top:20px; }
+.generation-options-section h3 { margin:0 0 10px; font-size:12px; font-weight:400; color:var(--ui-muted,#999); }
+.generation-options-segments { display:flex; gap:3px; padding:3px; border-radius:12px; background:var(--ui-soft,#353535); flex-wrap:wrap; }
+.generation-options-segments button { flex:1 0 40px; min-height:36px; padding:8px 6px; border:0; border-radius:9px; color:inherit; background:transparent; font:inherit; font-size:13px; cursor:pointer; }
+.generation-options-segments button:hover { background:color-mix(in srgb,currentColor 7%,transparent); }
+.generation-options-segments button[aria-pressed=true] { background:color-mix(in srgb,currentColor 13%,transparent); }
+.generation-options-segments button:focus-visible { outline:2px solid var(--ui-accent,#00c8dc); outline-offset:-2px; }
+.generation-options-segments button:disabled { opacity:.35; cursor:not-allowed; }
+.generation-options-segments.is-ratio button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:64px; }
+.generation-options-ratio-icon { display:block; box-sizing:border-box; border:1.5px solid currentColor; border-radius:2px; }
+/* An iframe cannot paint outside its viewport; expand the real composer above the footer. */
+html.canvas-composer-embed #generationComposer:has(.generation-options-panel:not([hidden])) { display:flex; flex-direction:column; }
+html.canvas-composer-embed .generation-options-panel { position:static; order:1; width:100%; max-height:none; margin:8px 0; box-shadow:none; }
+html.canvas-composer-embed #generationComposer>.control-bar { order:2; }

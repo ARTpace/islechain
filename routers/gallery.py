@@ -171,8 +171,11 @@ async def scan_new_images(type: str = "", token: str = ""):
                 ct = node.get('class_type', '')
                 inp = node.get('inputs', {})
 
-                # 识别工作流类型
+                # 识别工作流类型（AnimaCharacterTagSelector 已从 anima.json 旁路移除，
+                # 旧工作流文件仍带该节点；同时按文件名兜底识别）
                 if ct == 'AnimaCharacterTagSelector':
+                    is_anima = True
+                if 'anima' in os.path.basename(str(fpath)).lower():
                     is_anima = True
 
                 # 采样器 → seed + positive prompt

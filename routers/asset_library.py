@@ -88,8 +88,32 @@ async def list_canvas_assets():
 # --- 资产库 API ---
 
 @router.get("/api/asset-library")
-async def get_asset_library():
-    return {"library": _main.load_asset_library()}
+def get_asset_library():
+    lib = _main.load_asset_library()
+    _annotate_asset_file_meta(lib)
+    return {"library": lib}
+
+
+def _annotate_asset_file_meta(lib):
+    """给每条素材补上文件大小与是否还在，供前端排序、标记坏记录。
+
+    每次都现算覆盖，所以这两个字段只当只读展示用，不参与业务判断。
+    """
+    for library in lib.get("libraries", []) or []:
+        for cat in library.get("categories") or []:
+            for item in cat.get("items") or []:
+                if not isinstance(item, dict):
+                    continue
+                path = _main.asset_library_item_path(item.get("url"))
+                size, exists = 0, False
+                if path:
+                    try:
+                        size = int(os.path.getsize(path))
+                        exists = True
+                    except OSError:
+                        exists = False
+                item["size"] = size
+                item["file_exists"] = exists
 
 @router.patch("/api/asset-library/libraries/{library_id}")
 async def rename_asset_library(library_id: str, payload: _main.AssetLibraryRenameRequest):

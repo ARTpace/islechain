@@ -51,9 +51,15 @@ assert.equal(ctx.cloudWebsiteRequestParams().size, before);
     ctx._cloudProviders = [];
     let requested;
     const fresh = {source:'website', status:'ready', params:[param('ratio',['auto']),param('count',[1])], max_reference_images:1};
-    ctx.fetch = async url => {requested = url; return {ok:true,json:async()=>({online:true,model_capabilities:{gpt:{generation_params:fresh}}})};};
+    ctx.fetch = async (url, options) => {
+        requested = url;
+        assert(url.startsWith('/api/providers/webai2api/status?'));
+        assert.equal(options?.method || 'GET', 'GET');
+        return {ok:true,json:async()=>({online:true,model_capabilities:{gpt:{generation_params:fresh}}})};
+    };
     await assert.rejects(() => ctx.cloudPreflightWebsiteParams({protocol:'webai2api',provider_id:'p',model:'gpt',generation_params:{ratio:'16:9',count:2}}), /参数已变化/);
     assert(requested.includes('refresh=true') && requested.includes('model=gpt'));
+    assert(!html.includes("fetch('/api/providers/webai2api/sync?"));
     assert.equal(ctx._cloudCatalog[1].model_capabilities.gpt, undefined);
     await ctx.cloudPreflightWebsiteParams({protocol:'webai2api',provider_id:'p',model:'gpt',generation_params:{ratio:'auto',count:1}});
     ctx.fetch = async () => ({ok:true,json:async()=>({online:false,message:'未登录'})});

@@ -394,6 +394,26 @@ class SettingsUI {
             .module-bulk-target { flex-wrap:wrap; }
             @media(prefers-reduced-motion:reduce) { .module-row { transition:none; } }
             .module-touch-hint { color:var(--muted); font-size:12px; margin:0; }
+            .module-groups { grid-template-columns:minmax(0,1fr); }
+            .module-app-control { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; }
+            .module-app-control small { display:block; color:var(--muted); font-size:11px; font-weight:400; margin-top:5px; }
+            details.module-apps { display:block; }
+            .module-apps summary { cursor:pointer; list-style:none; }
+            .module-apps summary::-webkit-details-marker { display:none; }
+            .module-apps summary::after { content:'展开 ＋'; display:block; text-align:right; font-size:12px; color:var(--muted); padding:0 8px 8px; }
+            .module-apps[open] summary::after { content:'收起 −'; }
+            .module-app-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:60vh; overflow-y:auto; padding:4px; overscroll-behavior:contain; }
+            @media(min-width:1200px) { .module-app-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+            @media(max-width:700px) {
+                .module-app-grid { grid-template-columns:minmax(0,1fr); max-height:none; overflow:visible; }
+                .module-row { grid-template-columns:36px minmax(0,1fr); }
+                .module-row .module-toggle-pair { grid-column:2; justify-self:start; margin-left:0; gap:24px; }
+                .module-order-controls { grid-row:1 / 3; }
+                .module-select-label span { white-space:normal; }
+                .module-bulk { gap:8px; }
+                .module-bulk-target { flex:1 1 100%; justify-content:space-between; }
+                .module-bulk-target button { flex:1; }
+            }
             @media(max-width:600px) {
                 .module-toggle-pair { gap:10px; margin-left:auto; }
                 .module-toggle-pair { gap:6px; }
@@ -937,16 +957,21 @@ class SettingsUI {
         const canManageGuests = access && !access.visitor;
         const selected = this.moduleSelection ||= new Set();
         const groups = mods.orderedGroups();
+        const sortableGroups = mods.orderedGroups(true);
         const allItems = groups.flatMap(group => group.items);
         const busy = !!this.moduleSaving;
+        const appItems = groups[1]?.items || [];
+        const appControl = '<div class="module-app-control"><strong>应用 <small>管理下方全部子模块</small></strong><span class="module-toggle-pair"><label class="module-toggle-label">本机显示<span class="module-switch"><input type="checkbox" data-app-toggle="local" aria-label="全部应用本机显示"' + (appItems.some(item => mods.isOn(item.id)) ? ' checked' : '') + (busy ? ' disabled' : '') + '></span></label>' + (canManageGuests ? '<label class="module-toggle-label">访客可用<span class="module-switch"><input type="checkbox" data-app-toggle="guest" aria-label="全部应用访客可用"' + (appItems.some(item => !access.guest_disabled.includes(item.id)) ? ' checked' : '') + (busy ? ' disabled' : '') + '></span></label>' : '') + '</span></div>';
         const bulk = '<div class="module-bulk"><label><input type="checkbox" data-module-select-all>全选</label><span data-module-selected-count></span><button type="button" data-module-clear>清空选择</button><span class="module-bulk-target">本机显示<button type="button" data-module-bulk="local-on">开启</button><button type="button" data-module-bulk="local-off">关闭</button></span>' + (canManageGuests ? '<span class="module-bulk-target">访客可用<button type="button" data-module-bulk="guest-on">开启</button><button type="button" data-module-bulk="guest-off">关闭</button></span>' : '') + '</div>';
         host.innerHTML = '<p class="module-touch-hint">点选整行可多选；按住左侧手柄拖动排序。手柄聚焦后可用方向键或 Home / End 排序。</p><div class="module-groups">' + groups.map((group, groupIndex) => {
-            const rows = group.items.map((item, index) => {
+            const rows = sortableGroups[groupIndex].items.map((item, index) => {
+                if (item.orderOnly) return appControl.replace('class="module-app-control"', 'class="module-row module-app-control" data-module-row="apps"').replace('<strong>', '<span class="module-order-controls"><button type="button" class="module-drag" data-module-drag="apps" aria-label="拖动排序应用"' + (busy ? ' disabled' : '') + '>⠿</button></span><strong class="module-name">');
                 const on = mods.isOn(item.id);
                 const guestOn = access && !access.guest_disabled.includes(item.id);
                 return '<div class="module-row" data-module-row="' + item.id + '"><span class="module-order-controls"><button type="button" class="module-drag" data-module-drag="' + item.id + '" aria-label="拖动排序' + item.name + '"' + (busy ? ' disabled' : '') + '>⠿</button></span><span class="module-name"><label class="module-select-label"><input type="checkbox" data-module-select="' + item.id + '" aria-label="选择' + item.name + '"><span>' + item.name + '</span></label></span><span class="module-toggle-pair"><label class="module-toggle-label">本机显示<span class="module-switch"><input aria-label="' + item.name + '本机显示" type="checkbox" data-module-toggle="' + item.id + '"' + (on ? ' checked' : '') + (item.locked || busy ? ' disabled' : '') + '></span></label>' + (canManageGuests ? '<label class="module-toggle-label">访客可用<span class="module-switch"><input aria-label="' + item.name + '访客可用" type="checkbox" data-guest-module-toggle="' + item.id + '"' + (guestOn ? ' checked' : '') + (item.id === 'training' || busy ? ' disabled' : '') + '></span></label>' : '') + '</span></div>';
             }).join('');
-            return '<div class="module-group"><div class="module-group-title"><label><input type="checkbox" data-module-select-group="' + groupIndex + '">' + group.title + '</label><span class="module-group-level">' + (groupIndex === 0 ? '一级 · 主导航' : '二级 · ComfyUI 子功能') + '</span></div>' + rows + '</div>';
+            const title = '<div class="module-group-title"><label><input type="checkbox" data-module-select-group="' + groupIndex + '">' + (groupIndex === 0 ? group.title : '应用子模块') + '</label><span class="module-group-level">' + group.items.length + ' 项' + (groupIndex ? ' · 点击展开 / 收起' : '') + '</span></div>';
+            return groupIndex === 0 ? '<div class="module-group">' + title + rows + '</div>' : '<details class="module-group module-apps"' + (this.moduleAppsCollapsed ? '' : ' open') + '><summary>' + title + '</summary><div class="module-app-grid">' + rows + '</div></details>';
         }).join('') + '</div>' + bulk;
         const syncSelection = () => {
             host.querySelectorAll('[data-module-select]').forEach(input => { input.checked = selected.has(input.dataset.moduleSelect); input.closest('.module-row').classList.toggle('is-selected', input.checked); });
@@ -977,10 +1002,25 @@ class SettingsUI {
             button.onclick = () => this.applyModuleBatch(button.dataset.moduleBulk);
         });
         syncSelection();
+        const appDetails = host.querySelector('.module-apps');
+        if (appDetails) appDetails.ontoggle = () => { this.moduleAppsCollapsed = !appDetails.open; };
+        host.querySelectorAll('[data-app-toggle]').forEach(input => {
+            input.onchange = async () => {
+                if (input.dataset.appToggle === 'local') {
+                    mods.setMany(appItems.map(item => item.id), input.checked);
+                    await this.renderModules();
+                } else {
+                    const disabled = new Set(access.guest_disabled);
+                    appItems.forEach(item => input.checked ? disabled.delete(item.id) : disabled.add(item.id));
+                    await this.saveGuestModules([...disabled]);
+                }
+            };
+        });
         host.querySelectorAll('[data-module-row]').forEach(row => {
             row.onclick = event => {
                 if (busy || event.target.closest('label,button,input')) return;
                 const input = row.querySelector('[data-module-select]');
+                if (!input) return;
                 input.checked = !input.checked;
                 input.onchange();
             };
@@ -989,7 +1029,7 @@ class SettingsUI {
             const id = handle.dataset.moduleDrag;
             handle.onkeydown = event => {
                 if (busy) return;
-                const group = groups.find(g => g.items.some(item => item.id === id));
+                const group = sortableGroups.find(g => g.items.some(item => item.id === id));
                 if (event.key === 'ArrowUp' || event.key === 'ArrowDown') mods.move(id, event.key === 'ArrowUp' ? -1 : 1);
                 else if (event.key === 'Home' || event.key === 'End') mods.moveTo(id, group.items[event.key === 'Home' ? 0 : group.items.length - 1].id, event.key === 'End');
                 else return;
@@ -1061,6 +1101,8 @@ class SettingsUI {
             input.onchange = () => {
                 if (!window.FeatureModules) return;
                 window.FeatureModules.set(input.getAttribute('data-module-toggle'), input.checked);
+                const appToggle = host.querySelector('[data-app-toggle="local"]');
+                if (appToggle) appToggle.checked = appItems.some(item => mods.isOn(item.id));
             };
         });
         host.querySelectorAll('[data-guest-module-toggle]').forEach(input => {

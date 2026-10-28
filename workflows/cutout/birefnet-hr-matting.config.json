@@ -1,0 +1,14 @@
+{
+  "title": "抠图 / BiRefNet-HR-matting",
+  "fields": [
+    {
+      "id": "image",
+      "node": "3",
+      "input": "image",
+      "name": "原图",
+      "type": "image",
+      "default": "input.png",
+      "options": []
+    }
+  ]
+}

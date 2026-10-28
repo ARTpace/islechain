@@ -381,14 +381,31 @@ def get_tag_presets() -> Dict[str, Any]:
 
 # === 风格预设（新增体系）===
 
+_STYLE_PRESETS_CACHE: Dict[str, Any] = {"mtime": 0.0, "data": None}
+
+
 def get_style_presets() -> Dict[str, Any]:
-    """获取风格预设（完整提示词）"""
+    """获取风格预设（完整提示词）
+
+    文件约 40MB，解析一次要几百毫秒。按 mtime 缓存，避免每次打开
+    风格选择器都重新解析（合并 PIA 数据后体积更大，必须缓存）。
+    """
     if not STYLE_PRESETS_FILE.exists():
         return {"categories": []}
 
     try:
+        mtime = os.path.getmtime(STYLE_PRESETS_FILE)
+    except OSError:
+        mtime = 0.0
+    cached = _STYLE_PRESETS_CACHE.get("data")
+    if cached is not None and _STYLE_PRESETS_CACHE.get("mtime") == mtime:
+        return cached
+
+    try:
         with open(STYLE_PRESETS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+        _STYLE_PRESETS_CACHE["mtime"] = mtime
+        _STYLE_PRESETS_CACHE["data"] = data
         return data
     except Exception as e:
         print(f"[preset_manager] style presets load error: {e}")
@@ -401,6 +418,8 @@ def save_style_presets(data: Dict[str, Any]) -> bool:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         with open(STYLE_PRESETS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        _STYLE_PRESETS_CACHE["mtime"] = 0.0
+        _STYLE_PRESETS_CACHE["data"] = None
         return True
     except Exception as e:
         print(f"[preset_manager] style presets save error: {e}")

@@ -20,7 +20,9 @@ class WebaiGatewayTests(unittest.TestCase):
         provider = {'id': 'webapi', 'base_url': 'http://localhost:3005',
                     'image_models': ['selected'], 'chat_models': ['chat'], 'video_models': [],
                     'model_labels': {'selected': 'My image'}}
-        async def upstream(*args):
+        async def upstream(*args, **kwargs):
+            if kwargs:
+                self.assertEqual(kwargs, {'refresh': True, 'model': 'selected'})
             return {'image_models': ['selected', 'unselected'], 'chat_models': ['chat', 'extra-chat'],
                     'model_capabilities': {'selected': {'generation_params': {'status': 'ready'}}, 'unselected': {}}}
         saved = []
@@ -29,6 +31,11 @@ class WebaiGatewayTests(unittest.TestCase):
             get_provider_api_key=lambda _: 'test', fetch_models_from_upstream=upstream,
             load_api_providers=lambda: [provider], save_api_providers=lambda items: saved.append(items))}
         exec(compile(ast.Module(body=[node], type_ignores=[]), '<sync>', 'exec'), context)
+        result = asyncio.run(context['webai2api_status'](SimpleNamespace(method='GET'), 'webapi', refresh=True, model='selected'))
+        self.assertTrue(result['online'])
+        self.assertEqual(result['model_capabilities']['selected']['generation_params']['status'], 'ready')
+        self.assertEqual(saved, [])
+        self.assertNotIn('model_capabilities', provider)
         for _ in range(2):
             result = asyncio.run(context['webai2api_status'](SimpleNamespace(method='POST'), 'webapi'))
             self.assertEqual(result['image_models'], ['selected'])
@@ -38,6 +45,17 @@ class WebaiGatewayTests(unittest.TestCase):
             self.assertEqual(provider['model_labels'], {'selected': 'My image'})
         self.assertEqual(provider['model_capabilities']['selected']['generation_params']['status'], 'ready')
         self.assertEqual(len(saved), 2)
+
+    def test_guest_can_read_parameters_but_cannot_change_providers(self):
+        source = ast.parse(Path('lan_sharing.py').read_text(encoding='utf-8'))
+        node = next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == '_host_only')
+        context = {}
+        exec(compile(ast.Module(body=[node], type_ignores=[]), '<permissions>', 'exec'), context)
+        host_only = context['_host_only']
+        self.assertFalse(host_only('/api/providers/webai2api/status', 'GET'))
+        self.assertTrue(host_only('/api/providers/webai2api/sync', 'POST'))
+        self.assertTrue(host_only('/api/providers', 'POST'))
+        self.assertTrue(host_only('/api/providers/webapi', 'DELETE'))
 
     def test_closed_parameter_contract_and_channel_dependencies(self):
         schema = {'source': 'website', 'status': 'ready', 'max_reference_images': 2,

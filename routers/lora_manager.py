@@ -4,16 +4,33 @@
 """
 from fastapi import HTTPException
 from starlette.responses import Response
-import hashlib, httpx, json, os
+from starlette.concurrency import run_in_threadpool
+import hashlib, httpx, json, os, asyncio, time
+from collections import OrderedDict
 from fastapi import APIRouter
 
 import main as _main
 
 router = APIRouter()
+_list_cache = None
+_list_lock = asyncio.Lock()
 
 
 @router.get("/api/lora-manager/loras")
 async def proxy_lora_manager_list():
+    # ponytail: 主机共用短缓存，访客同时刷新只拉取一次；不缓存错误或不完整结果。
+    global _list_cache
+    target = _main.COMFYUI_ADDRESS
+    async with _list_lock:
+        if _list_cache and _list_cache[0] == target and time.monotonic() < _list_cache[1]:
+            return _list_cache[2]
+        result = await _fetch_lora_manager_list()
+        if not result.get('error'):
+            _list_cache = (target, time.monotonic() + 30, result)
+        return result
+
+
+async def _fetch_lora_manager_list():
     """代理 LoRA Manager 的 LoRA 列表,自动遍历所有分页返回完整数据。
     增强:对每条 LoRA 读取其 file_path 旁边的 .metadata.json 文件,
     把 civitai / preview_nsfw_level / trainedWords / model_name / tags
@@ -73,12 +90,12 @@ async def proxy_lora_manager_list():
         all_items = []
         page = 1
         total_pages = 1
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=60, verify=_main.COMFY_HTTP_SSL_CONTEXT, trust_env=False) as client:
             while page <= total_pages and page <= 30:  # 最多 30 页 = 3000 个 LoRA
                 url = f"http://{target}/api/lm/loras/list?page={page}&page_size=100"
                 resp = await client.get(url)
                 if resp.status_code != 200:
-                    _enrich_with_metadata_json(all_items)
+                    await run_in_threadpool(_enrich_with_metadata_json, all_items)
                     return {"items": all_items, "total": len(all_items), "error": f"LoRA Manager 返回 {resp.status_code}"}
                 data = resp.json()
                 items = data.get("items", [])
@@ -87,7 +104,7 @@ async def proxy_lora_manager_list():
                 if not items:
                     break
                 page += 1
-        _enrich_with_metadata_json(all_items)
+        await run_in_threadpool(_enrich_with_metadata_json, all_items)
         return {"items": all_items, "total": len(all_items), "page": 1, "page_size": len(all_items), "total_pages": 1}
     except Exception as e:
         return {"items": [], "error": str(e)}
@@ -225,3 +242,253 @@ async def proxy_lora_manager_trigger_words(name: str):
         return {"triggerWords": []}
     except Exception as e:
         return {"triggerWords": [], "error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────
+# Civitai 例图（showcase images）
+# 卡片上的「例图」按钮 → 右侧抽屉瀑布流展示该 LoRA 的官方示例图
+# ─────────────────────────────────────────────────────────────
+import re as _re
+
+_CIVITAI_IMG_RE = _re.compile(
+    r"^(https://image\.civitai\.com/[^/]+/[^/]+)/.*?/([^/]+?)\.([A-Za-z0-9]+)$"
+)
+_examples_cache: dict = {}      # model_id -> (expire_ts, payload)
+_EXAMPLES_TTL = 600             # 10 分钟
+_NSFW_LEVEL_MAP = {"none": 1, "pg": 1, "pg13": 2, "soft": 2, "mature": 4, "m": 4, "r": 8, "x": 16, "xxx": 32}
+_model_cache: dict = {}         # model_id -> (expire_ts, {name, versions})
+
+
+def _civitai_thumb(url: str, width: int = 450) -> str:
+    """把 Civitai 原始图/视频 URL 转成指定宽度的 jpeg 缩略图 URL。
+    注意：扩展名必须保持原样（视频保留 .mp4），CDN 会按 anim=false 转成 jpeg，
+    若把视频扩展名改写成 .jpeg 反而会回退返回原始 mp4。"""
+    m = _CIVITAI_IMG_RE.match(url or "")
+    if not m:
+        return url or ""
+    return f"{m.group(1)}/anim=false,width={width},optimized=true/{m.group(2)}.{m.group(3)}"
+
+
+def _nsfw_to_num(v) -> int:
+    """Civitai 的 nsfwLevel 有时是数字（PG=1/Soft=2/M=4/X=16），有时是字符串（Soft/Mature/X）"""
+    if isinstance(v, int):
+        return v
+    s = str(v or "").strip()
+    if s.isdigit():
+        return int(s)
+    return _NSFW_LEVEL_MAP.get(s.lower(), 0)
+
+
+async def _civitai_model_info(model_id: int):
+    """取 Civitai 模型基础信息（名称 + 版本列表），10 分钟缓存"""
+    now = time.time()
+    hit = _model_cache.get(model_id)
+    if hit and hit[0] > now:
+        return hit[1]
+    try:
+        async with httpx.AsyncClient(timeout=25, trust_env=False, follow_redirects=True) as client:
+            resp = await client.get(f"https://civitai.com/api/v1/models/{model_id}")
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+    except Exception:
+        return None
+    info = {
+        "name": data.get("name") or "",
+        "versions": [
+            {"id": v.get("id") or 0, "name": v.get("name") or "", "baseModel": v.get("baseModel") or ""}
+            for v in (data.get("modelVersions") or [])
+        ],
+    }
+    _model_cache[model_id] = (now + _EXAMPLES_TTL, info)
+    if len(_model_cache) > 500:
+        for k in list(_model_cache.keys())[:200]:
+            _model_cache.pop(k, None)
+    return info
+
+
+@router.get("/api/lora-manager/examples")
+async def lora_manager_examples(model_id: int, version_id: int = 0, allow_nsfw: int = 0, limit: int = 60):
+    """返回某个 LoRA 版本的例图（走 Civitai images 端点，官方图 + 社区生成图，按点赞排序）
+    allow_nsfw=0 时只取 Soft 及以下级别；结果 10 分钟缓存。"""
+    if not model_id:
+        raise HTTPException(status_code=400, detail="缺少 model_id")
+
+    info = await _civitai_model_info(model_id)
+    if not info:
+        return {"images": [], "total": 0, "error": "Civitai 模型信息获取失败"}
+    versions = info["versions"]
+    vid = int(version_id or 0) or (versions[0]["id"] if versions else 0)
+    vname = next((v["name"] for v in versions if v["id"] == vid), "")
+
+    key = (vid, 1 if allow_nsfw else 0)
+    now = time.time()
+    hit = _examples_cache.get(key)
+    if hit and hit[0] > now:
+        images = hit[1]
+    else:
+        params = {
+            "modelVersionId": vid,
+            "limit": max(1, min(int(limit or 60), 100)),
+            "sort": "Most Reactions",
+            "nsfw": "X" if allow_nsfw else "Soft",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=25, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get("https://civitai.com/api/v1/images", params=params)
+            if resp.status_code != 200:
+                return {"images": [], "total": 0, "error": f"Civitai 返回 {resp.status_code}"}
+            items = resp.json().get("items") or []
+        except Exception as e:
+            return {"images": [], "total": 0, "error": str(e)}
+
+        images, seen = [], set()
+        for im in items:
+            u = im.get("url") or ""
+            if not u or u in seen:
+                continue
+            seen.add(u)
+            images.append({
+                "id": im.get("id"),
+                "thumb": _civitai_thumb(u, 450),
+                "full": _civitai_thumb(u, 1200),
+                "w": im.get("width") or 0,
+                "h": im.get("height") or 0,
+                "type": im.get("type") or "image",
+                "nsfw": _nsfw_to_num(im.get("nsfwLevel")),
+                "user": im.get("username") or "",
+                "likes": int((im.get("stats") or {}).get("likeCount") or 0),
+            })
+        if not allow_nsfw:
+            images = [i for i in images if i["nsfw"] < 4]
+        _examples_cache[key] = (now + _EXAMPLES_TTL, images)
+        if len(_examples_cache) > 500:
+            for k in list(_examples_cache.keys())[:200]:
+                _examples_cache.pop(k, None)
+
+    return {
+        "modelId": model_id,
+        "name": info["name"],
+        "versionId": vid,
+        "version": vname,
+        "total": len(images),
+        "images": images,
+        "source": "civitai-images",
+        "versions": [{"id": v["id"], "name": v["name"]} for v in versions],
+    }
+
+
+# ── 图片代理：内存 LRU + 磁盘缓存 + WebP 二次压缩 ──────────────
+_IMG_CACHE_DIR = os.path.join(_main.USER_DATA_DIR, "cache", "civitai-img")
+_IMG_MEM: "OrderedDict[str, tuple[bytes, str]]" = OrderedDict()
+_IMG_MEM_MAX = 300                     # 最多 300 张（约 10~15MB）
+_IMG_FETCH_SEM = asyncio.Semaphore(8)  # 限制对 Civitai 的并发下载
+_IMG_INFLIGHT: dict = {}               # key -> asyncio.Future，避免同一张图重复下载
+_IMG_CLIENT: "httpx.AsyncClient | None" = None
+
+
+def _get_img_client() -> httpx.AsyncClient:
+    global _IMG_CLIENT
+    if _IMG_CLIENT is None or _IMG_CLIENT.is_closed:
+        _IMG_CLIENT = httpx.AsyncClient(
+            timeout=30,
+            trust_env=False,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=16, max_keepalive_connections=16),
+        )
+    return _IMG_CLIENT
+
+
+def _img_mem_put(key: str, content: bytes, media_type: str) -> None:
+    _IMG_MEM[key] = (content, media_type)
+    _IMG_MEM.move_to_end(key)
+    while len(_IMG_MEM) > _IMG_MEM_MAX:
+        _IMG_MEM.popitem(last=False)
+
+
+def _img_cache_path(key: str) -> str:
+    return os.path.join(_IMG_CACHE_DIR, key[:2], key + ".bin")
+
+
+def _shrink_to_webp(raw: bytes, max_w: int) -> tuple[bytes, str]:
+    """把原图缩到 max_w 宽并转 WebP（体积通常只有原图 1/6）。
+    失败时原样返回，不影响可用性。"""
+    try:
+        import io
+        from PIL import Image
+        img = Image.open(io.BytesIO(raw))
+        if img.width > max_w:
+            nh = max(1, round(img.height * max_w / img.width))
+            img = img.resize((max_w, nh), Image.LANCZOS)
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+        out = io.BytesIO()
+        img.save(out, format="WEBP", quality=78, method=4)
+        data = out.getvalue()
+        return (data, "image/webp") if data else (raw, "image/jpeg")
+    except Exception:
+        return raw, "image/jpeg"
+
+
+@router.get("/api/lora-manager/civitai-img")
+async def proxy_civitai_image(u: str, w: int = 360):
+    """代理 Civitai 图片：内存 LRU → 磁盘缓存 → 回源（并发限流 + 去重 + WebP 压缩）"""
+    if not u.startswith("https://image.civitai.com/"):
+        raise HTTPException(status_code=400, detail="非法图片地址")
+    w = max(80, min(int(w or 360), 1600))
+    target_url = _civitai_thumb(u, w) if w else u
+    key = hashlib.md5(target_url.encode()).hexdigest()
+    headers = {
+        "Cache-Control": "public, max-age=2592000, immutable",
+        "ETag": f'"{key}"',
+    }
+
+    # 1) 内存
+    hit = _IMG_MEM.get(key)
+    if hit:
+        _IMG_MEM.move_to_end(key)
+        return Response(content=hit[0], media_type=hit[1], headers=headers)
+
+    # 2) 磁盘
+    path = _img_cache_path(key)
+    if os.path.isfile(path):
+        try:
+            with open(path, "rb") as f:
+                content = f.read()
+            if content:
+                _img_mem_put(key, content, "image/webp")
+                return Response(content=content, media_type="image/webp", headers=headers)
+        except Exception:
+            pass
+
+    # 3) 回源（同一 key 并发只下载一次）
+    fut = _IMG_INFLIGHT.get(key)
+    if fut is None:
+        fut = asyncio.get_running_loop().create_future()
+        _IMG_INFLIGHT[key] = fut
+        try:
+            async with _IMG_FETCH_SEM:
+                resp = await _get_img_client().get(target_url)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="图片获取失败")
+            content, mt = await run_in_threadpool(_shrink_to_webp, resp.content, w)
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "wb") as f:
+                    f.write(content)
+            except Exception:
+                pass
+            _img_mem_put(key, content, mt)
+            fut.set_result((content, mt))
+        except Exception as e:
+            fut.set_exception(e)
+        finally:
+            _IMG_INFLIGHT.pop(key, None)
+
+    try:
+        content, mt = await fut
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"代理图片失败: {e}")
+    return Response(content=content, media_type=mt, headers=headers)

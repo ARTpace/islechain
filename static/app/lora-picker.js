@@ -544,9 +544,15 @@ function loraPickerInit() {
     window.addEventListener('resize', loraPickerPlaceDrawerIfOpen);
     window.addEventListener('scroll', loraPickerPlaceDrawerIfOpen, true);
 
-    // ESC 关闭
+    // ESC 关闭：例图抽屉优先
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && shell.classList.contains('is-open')) {
+        if (e.key !== 'Escape') return;
+        var _exPanel = document.getElementById('loraExamplesPanel');
+        if (_exPanel && _exPanel.classList.contains('is-open')) {
+            loraPickerCloseExamples();
+            return;
+        }
+        if (shell.classList.contains('is-open')) {
             loraPickerClose();
         }
     });
@@ -691,6 +697,8 @@ function loraPickerClose() {
     // 清空锁定顺序，下次打开时重新计算
     loraPickerFrozenOrder = null;
     document.body.style.overflow = '';
+    // 关闭例图抽屉，下次打开重新拉取
+    if (typeof window.loraPickerCloseExamples === 'function') window.loraPickerCloseExamples();
     loraPickerCallback = null;
     loraPickerOnSelectionChange = null;
     const loraBtn = document.getElementById('loraBtn');
@@ -1293,6 +1301,18 @@ function loraPickerBuildCardHtml(item) {
         }
     }
 
+    // ── 例图按钮(hover 显示,打开右侧例图抽屉) ──
+    let examplesBtnHtml = '';
+    if (item.civitai && item.civitai.modelId) {
+        const _exModelId = item.civitai.modelId;
+        const _exVerId = item.civitai.id || 0;
+        const _exAllow = (!item.isNsfw || loraPickerNsfwRevealed.has(loraPickerCardKey(item))) ? 1 : 0;
+        const _exTitle = (item.displayName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        examplesBtnHtml = '<button type="button" class="lora-card-examples-btn" onmouseenter="loraPickerPrefetchExamples(' + _exModelId + ',' + _exVerId + ',' + _exAllow + ')" onclick="event.stopPropagation();loraPickerOpenExamples(' + _exModelId + ',' + _exVerId + ',\'' + _exTitle + '\',' + _exAllow + ')" title="查看例图">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>' +
+        '</button>';
+    }
+
     // NSFW 等级徽章(仅显示在名称旁,小尺寸)
     let nsfwBadgeHtml = '';
     if (item.nsfwLevel > 0) {
@@ -1327,6 +1347,7 @@ function loraPickerBuildCardHtml(item) {
             versionBadgeHtml +
             usageBadgeHtml +
             infoBtnHtml +
+            examplesBtnHtml +
             debugDot +
             nsfwOverlayHtml +
             '<div class="lora-card-img-placeholder" style="display:' + placeholderDisplay + '">' +
@@ -1901,3 +1922,157 @@ async function loraPickerOpenManager() {
         setBusy(false);
     }
 }
+
+// ══════════════════════════════════════════════════════════════
+// 例图抽屉 —— 卡片上的「例图」按钮打开右侧面板，瀑布流展示
+// 该 LoRA 在 Civitai 上的官方示例图（走 /api/lora-manager/examples）
+// ══════════════════════════════════════════════════════════════
+var loraExamplesState = { modelId: 0, versionId: 0, reqId: 0 };
+// hover 预取缓存：mid:vid:allow -> 例图数据（提前拉 JSON + 预热缩略图，点开即出图）
+var loraExamplesPrefetch = new Map();
+
+window.loraPickerPrefetchExamples = function (modelId, versionId, allowNsfw) {
+    var mid = Number(modelId) || 0, vid = Number(versionId) || 0, allow = allowNsfw ? 1 : 0;
+    if (!mid) return;
+    var key = mid + ':' + vid + ':' + allow;
+    if (loraExamplesPrefetch.has(key)) return;
+    loraExamplesPrefetch.set(key, null);   // 占位，防止重复请求
+    var qs = '/api/lora-manager/examples?model_id=' + mid + '&version_id=' + vid + '&allow_nsfw=' + allow;
+    fetch(qs, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            loraExamplesPrefetch.set(key, data || {});
+            // 预热前 6 张缩略图，点开后立刻可见
+            (((data || {}).images) || []).slice(0, 6).forEach(function (im) {
+                var raw = im.thumb || im.full;
+                if (!raw) return;
+                var p = new Image();
+                p.decoding = 'async';
+                p.src = '/api/lora-manager/civitai-img?w=360&u=' + encodeURIComponent(raw);
+            });
+        })
+        .catch(function () { loraExamplesPrefetch.delete(key); });
+};
+
+function loraPickerEnsureExamplesPanel() {
+    var win = document.querySelector('.lora-picker-window');
+    if (!win) return null;
+    var panel = document.getElementById('loraExamplesPanel');
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.className = 'lora-examples-panel';
+    panel.id = 'loraExamplesPanel';
+    panel.innerHTML =
+        '<div class="lora-examples-head">' +
+            '<div class="lora-examples-hd">' +
+                '<span class="lora-examples-kicker">例图</span>' +
+                '<span class="lora-examples-name" id="loraExamplesName"></span>' +
+            '</div>' +
+            '<button type="button" class="lora-examples-close" onclick="loraPickerCloseExamples()" title="关闭 (Esc)">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>' +
+            '</button>' +
+        '</div>' +
+        '<div class="lora-examples-body" id="loraExamplesBody"></div>' +
+        '<div class="lora-examples-foot" id="loraExamplesFoot"></div>';
+    win.appendChild(panel);
+    return panel;
+}
+
+window.loraPickerOpenExamples = function (modelId, versionId, title, allowNsfw) {
+    var panel = loraPickerEnsureExamplesPanel();
+    if (!panel) return;
+    loraExamplesState.modelId = Number(modelId) || 0;
+    loraExamplesState.versionId = Number(versionId) || 0;
+    panel.classList.add('is-open');
+    var nameEl = document.getElementById('loraExamplesName');
+    if (nameEl) nameEl.textContent = title || '';
+    var body = document.getElementById('loraExamplesBody');
+    var foot = document.getElementById('loraExamplesFoot');
+    if (body) body.innerHTML = '<div class="lora-examples-hint">正在加载例图…</div>';
+    if (foot) foot.innerHTML = '';
+
+    var reqId = ++loraExamplesState.reqId;
+    // 命中 hover 预取：直接渲染，零等待
+    var pfKey = (Number(modelId) || 0) + ':' + (Number(versionId) || 0) + ':' + (allowNsfw ? 1 : 0);
+    var pf = loraExamplesPrefetch.get(pfKey);
+    if (pf && pf.images) {
+        loraPickerRenderExamples(pf);
+        return;
+    }
+    var qs = '/api/lora-manager/examples?model_id=' + loraExamplesState.modelId +
+             '&version_id=' + loraExamplesState.versionId +
+             '&allow_nsfw=' + (allowNsfw ? 1 : 0);
+    fetch(qs, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (reqId !== loraExamplesState.reqId) return;
+            loraPickerRenderExamples(data || {});
+        })
+        .catch(function (err) {
+            if (reqId !== loraExamplesState.reqId) return;
+            if (body) body.innerHTML = '<div class="lora-examples-hint is-error">例图加载失败：' + loraPickerEscapeHtml(String(err && err.message || err)) + '</div>';
+        });
+};
+
+function loraPickerRenderExamples(data) {
+    var body = document.getElementById('loraExamplesBody');
+    var foot = document.getElementById('loraExamplesFoot');
+    if (!body) return;
+    var imgs = Array.isArray(data.images) ? data.images : [];
+
+    if (!imgs.length) {
+        var msg = data.error ? ('Civitai 拉取失败：' + data.error) : '这个 LoRA 在 Civitai 上暂无可展示的例图';
+        body.innerHTML = '<div class="lora-examples-hint' + (data.error ? ' is-error' : '') + '">' + loraPickerEscapeHtml(msg) + '</div>';
+    } else {
+        var html = '<div class="lora-examples-flow">';
+        imgs.forEach(function (im, i) {
+            var raw = im.thumb || im.full || '';
+            if (!raw) return;
+            var src = '/api/lora-manager/civitai-img?w=360&u=' + encodeURIComponent(raw);
+            var big = '/api/lora-manager/civitai-img?w=1200&u=' + encodeURIComponent(im.full || raw);
+            var ratio = (im.w && im.h) ? (im.h / im.w) : 1;
+            var h = Math.max(90, Math.min(360, Math.round(200 * ratio)));
+            var tip = im.user ? (im.user + (im.likes ? ' · ♥ ' + im.likes : '')) : '点击查看大图';
+            html += '<div class="lora-example-item" data-big="' + loraPickerEscapeHtml(big) + '" onclick="loraPickerViewExample(this)" title="' + loraPickerEscapeHtml(tip) + '">' +
+                '<img src="' + loraPickerEscapeHtml(src) + '" loading="lazy" decoding="async" style="aspect-ratio:' + (im.w || 1) + '/' + (im.h || 1) + ';min-height:' + h + 'px" onerror="this.parentNode.style.display=\'none\'">' +
+                (im.type === 'video' ? '<span class="lora-example-video-tag">视频</span>' : '') +
+            '</div>';
+        });
+        html += '</div>';
+        body.innerHTML = html;
+    }
+
+    if (foot) {
+        var vid = data.version || '';
+        var url = 'https://civitai.com/models/' + (data.modelId || loraExamplesState.modelId) +
+                  (data.versionId ? '?modelVersionId=' + data.versionId : '');
+        foot.innerHTML =
+            '<span class="lora-examples-count">' + imgs.length + ' 张' + (vid ? ' · ' + loraPickerEscapeHtml(String(vid)) : '') + '</span>' +
+            '<button type="button" class="lora-examples-open" onclick="window.open(\'' + url + '\',\'_blank\',\'noopener\')">在 Civitai 打开</button>';
+    }
+}
+
+window.loraPickerCloseExamples = function () {
+    var panel = document.getElementById('loraExamplesPanel');
+    if (panel) panel.classList.remove('is-open');
+    loraExamplesState.reqId++;
+    var lb = document.getElementById('loraExampleLightbox');
+    if (lb) lb.style.display = 'none';
+};
+
+window.loraPickerViewExample = function (el) {
+    var big = el && el.getAttribute('data-big');
+    if (!big) return;
+    var lb = document.getElementById('loraExampleLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'loraExampleLightbox';
+        lb.className = 'lora-example-lightbox';
+        lb.innerHTML = '<img id="loraExampleLightboxImg" alt="">';
+        lb.addEventListener('click', function () { lb.style.display = 'none'; });
+        document.body.appendChild(lb);
+    }
+    var img = document.getElementById('loraExampleLightboxImg');
+    if (img) img.src = big;
+    lb.style.display = 'flex';
+};

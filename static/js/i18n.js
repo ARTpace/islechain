@@ -14,11 +14,13 @@
         document.write(tags);
         return;
     }
-    scripts.reduce((promise, src) => promise.then(() => new Promise((resolve, reject) => {
+    // 并行下载，按插入顺序执行，确保 core 先于语言字典注册。
+    Promise.all(scripts.map(src => new Promise((resolve, reject) => {
         const script = document.createElement('script');
+        script.async = false;
         script.src = src + '?v=' + VERSION;
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);
-    })), Promise.resolve()).then(() => window.StudioI18n?.apply?.()).catch(err => console.error('Failed to load i18n modules', err));
+    }))).then(() => window.StudioI18n?.apply?.()).catch(err => console.error('Failed to load i18n modules', err));
 })();

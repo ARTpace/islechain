@@ -199,7 +199,14 @@ def load_canvas_any(canvas_id):
         return json.load(f)
 
 def canvas_record(data):
+    image_source = None
+    if data.get("title", "").startswith("图片编辑"):
+        source = next((node for node in data.get("nodes", []) if node.get("type") == "image"), None)
+        if source:
+            versions = source.get("imageVersions") or []
+            image_source = versions[0].get("url") if versions else source.get("url")
     return {
+        "image_edit_source": image_source,
         "id": data.get("id"),
         "title": data.get("title", "未命名画布"),
         "icon": data.get("icon", "🧩"),

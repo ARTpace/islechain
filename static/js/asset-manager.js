@@ -51,10 +51,43 @@ let selectedPromptIds = new Set();
 let assetQuery = '';
 let workflowQuery = '';
 let promptQuery = '';
+// 提示词库动辄几千条，全量铺 DOM 会卡；默认先渲染一批，滚到底部再自动追加。
+const PROMPT_RENDER_STEP = 150;
+let promptRenderLimit = PROMPT_RENDER_STEP;
+// 搜索用正文缓存，避免每次输入都重新拼接 2000+ 条长提示词
+const promptSearchCache = new Map();
+// 瀑布流筛选与排序（对齐 ccprompt gallery 的交互）
+let promptSortMode = 'random';
+let promptSourceFilter = '';
+let promptFavOnly = false;
+// 随机排序种子：换一次排序重新洗一次，但同一次渲染内保持稳定，避免滚动时卡片跳位
+let promptRandomSeed = Date.now();
+// 详情弹窗（复刻参考站的弹窗式详情，右侧面板在提示词标签页里不再使用）
+let promptDialogId = '';
+let promptScrollObserver = null;
+// 系统库 = 生成页「风格预设」同一份数据（2.2 万条），走服务端分页，不在前端全量持有
+let promptServerPool = { key:'', items:[], total:0, hasMore:true, loading:false, seq:0 };
+const PROMPT_SERVER_PAGE = 150;
+const PROMPT_FAV_STORAGE_KEY = 'artCanvas.promptGallery.favorites.v1';
+const PROMPT_LIKE_STORAGE_KEY = 'artCanvas.promptGallery.likes.v1';
+let promptFavorites = readPromptFlagSet(PROMPT_FAV_STORAGE_KEY);
+let promptLikesSet = readPromptFlagSet(PROMPT_LIKE_STORAGE_KEY);
+// 提示词元信息（作者 / 点赞数 / 来源）解析缓存
+const promptMetaCache = new Map();
 let assetManageMode = false;
 let workflowManageMode = false;
 let promptManageMode = false;
 let assetMoveTarget = '';
+const ASSET_SORT_STORAGE_KEY = 'artCanvas.assets.sort.v1';
+const ASSET_SORT_MODES = new Set(['newest','oldest','name','size']);
+let assetSortMode = (() => {
+    try{ const saved = localStorage.getItem(ASSET_SORT_STORAGE_KEY); return ASSET_SORT_MODES.has(saved) ? saved : 'newest'; }catch(err){ return 'newest'; }
+})();
+// 「未分类」是一个虚拟视图，不是真实分组，所以单独用开关而不是改 activeAssetCategoryId
+let assetUnclassifiedOnly = false;
+let assetDragState = null;
+let assetMaintenance = null;
+let assetMaintenanceBusy = false;
 let assetClipboard = null;
 let assetEditMode = false;
 let promptEditMode = false;
@@ -189,13 +222,45 @@ function activeAssetCategory(){
     const cats = assetCategories();
     return cats.find(cat => cat.id === activeAssetCategoryId) || cats[0] || null;
 }
+function assetClassificationFlat(item){
+    const flat = item?.classification?.flat;
+    return Array.isArray(flat) ? flat.filter(entry => entry && (entry.tag || entry.label)) : [];
+}
+function assetIsUnclassified(item){
+    return assetClassificationFlat(item).length === 0;
+}
+function assetUnclassifiedItems(){
+    return assetCategories().flatMap(cat => cat.items || []).filter(assetIsUnclassified);
+}
+function assetSortStamp(item){
+    const raw = item?.created_at;
+    const num = Number(raw);
+    if(Number.isFinite(num) && num > 0) return num;
+    const parsed = Date.parse(String(raw || ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+function sortAssetItems(items){
+    const list = items.slice();
+    if(assetSortMode === 'name'){
+        return list.sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hans-CN'));
+    }
+    if(assetSortMode === 'size'){
+        return list.sort((a, b) => Number(b?.size || 0) - Number(a?.size || 0) || assetSortStamp(b) - assetSortStamp(a));
+    }
+    if(assetSortMode === 'oldest'){
+        return list.sort((a, b) => assetSortStamp(a) - assetSortStamp(b));
+    }
+    return list.sort((a, b) => assetSortStamp(b) - assetSortStamp(a));
+}
 function assetViewTitle(){
+    if(assetUnclassifiedOnly) return '未分类素材';
     const entry = activeAssetClassEntry();
     if(entry) return entry.tag || '智能分类';
     return activeAssetCategory()?.name || '图片资产';
 }
 function assetViewSubtitle(items){
     const libName = activeAssetLibrary()?.name || '资产库';
+    if(assetUnclassifiedOnly) return `${libName} / 未分类 / ${items.length} 个素材`;
     const entry = activeAssetClassEntry();
     if(entry) return `${libName} / 智能分类：${entry.label} / ${items.length} 个素材`;
     return `${libName} / ${items.length} 个素材`;
@@ -279,10 +344,21 @@ const ASSET_CLASSIFICATION_LABELS = {
 function promptCategoryLabel(category='custom'){
     const found = activePromptCategories().find(cat => cat.id === category);
     if(found?.name) return found.name;
-    const map = {view:'视角', storyboard:'分镜', character:'角色', product:'产品', lighting:'光影', mine:'我的', custom:'我的'};
+    const map = {
+        portrait:'人像摄影', anime:'动漫二次元', design:'平面设计', illustration:'插画艺术',
+        scene:'场景建筑', sci3d:'3D 科幻', template:'版式模板', misc:'其他', mine:'我的', custom:'我的',
+        // 旧分类 id 兜底（历史个人库可能还留着这些值）
+        view:'视角', storyboard:'分镜', character:'角色', product:'产品', lighting:'光影'
+    };
     return map[category] || category || '自定义';
 }
 function promptCountForCategory(category, lib=activePromptLibrary()){
+    // 系统库是服务端分页的，本地只有当前页，计数直接用后端给的分类总量
+    if(lib?.paged){
+        if(category === 'all') return Number(lib.total) || 0;
+        const found = (lib.categories || []).find(cat => cat.id === category);
+        return Number(found?.count) || 0;
+    }
     const items = lib?.items || [];
     if(category === 'all') return items.length;
     return items.filter(item => (item.category || 'custom') === category).length;
@@ -631,16 +707,19 @@ async function openSharedFolder(folderId){
 }
 function currentAssetItems(){
     const query = assetQuery.trim().toLowerCase();
-    const source = activeAssetClassFilter
-        ? assetItemsForClassFilter(activeAssetClassFilter)
-        : query
-            ? assetCategories().flatMap(cat => cat.items || [])
-            : (activeAssetCategory()?.items || []);
-    return source.filter(item => {
+    const source = assetUnclassifiedOnly
+        ? assetUnclassifiedItems()
+        : activeAssetClassFilter
+            ? assetItemsForClassFilter(activeAssetClassFilter)
+            : query
+                ? assetCategories().flatMap(cat => cat.items || [])
+                : (activeAssetCategory()?.items || []);
+    const filtered = source.filter(item => {
         if(activeAssetKindFilter !== 'all' && assetKind(item) !== activeAssetKindFilter) return false;
         if(!query) return true;
         return [item.name, item.url, assetKindLabel(item), assetClassificationSearchText(item)].join(' ').toLowerCase().includes(query);
     });
+    return sortAssetItems(filtered);
 }
 function currentWorkflowItems(){
     const query = workflowQuery.trim().toLowerCase();
@@ -759,11 +838,24 @@ function groupCanvasAssetItems(items){
     });
     return groups;
 }
+// 只列与选中素材类型一致的分组：类型由选中项决定，没选中时退回当前分组类型
+function assetMoveKinds(){
+    const kinds = new Set();
+    for(const item of currentAssetItems()){
+        if(item && selectedAssetIds.has(item.id)) kinds.add(assetKind(item));
+    }
+    if(!kinds.size) kinds.add(activeAssetCategory()?.type || 'image');
+    return kinds;
+}
 function assetMoveTargets(){
     const currentKey = `${activeAssetLibraryId}::${activeAssetCategoryId}`;
+    const kinds = assetMoveKinds();
     const targets = [];
     assetLibraries().forEach(lib => {
-        (lib.categories || []).filter(cat => (cat.type || 'image') === 'image').forEach(cat => {
+        (lib.categories || []).forEach(cat => {
+            const catType = cat.type || 'image';
+            // 文本素材没有独立分组，允许进普通图片分组
+            if(!kinds.has(catType) && !(catType === 'image' && kinds.has('text'))) return;
             const key = `${lib.id}::${cat.id}`;
             if(key !== currentKey) targets.push({key, libraryId:lib.id, categoryId:cat.id, label:`${lib.name || '资产库'} / ${cat.name || '分组'}`});
         });
@@ -775,14 +867,160 @@ function normalizeAssetMoveTarget(){
     if(!targets.some(item => item.key === assetMoveTarget)) assetMoveTarget = targets[0]?.key || '';
     return targets;
 }
+function promptHaystack(item){
+    const key = item?.id || '';
+    const cached = promptSearchCache.get(key);
+    if(cached && cached.updated_at === item?.updated_at) return cached.text;
+    const text = [item?.name, item?.scene, item?.positive, item?.negative, item?.category]
+        .filter(Boolean).join(' ').toLowerCase();
+    if(key) promptSearchCache.set(key, {updated_at:item?.updated_at, text});
+    return text;
+}
+function readPromptFlagSet(key){
+    try{
+        const raw = JSON.parse(localStorage.getItem(key) || '[]');
+        return new Set(Array.isArray(raw) ? raw.filter(Boolean) : []);
+    }catch(err){ return new Set(); }
+}
+function writePromptFlagSet(key, set){
+    try{ localStorage.setItem(key, JSON.stringify([...set])); }catch(err){ /* 隐私模式下写不进去，忽略 */ }
+}
+// 原有数据把「作者 · 103 赞」塞在 scene 里，来源塞在 params.来源，这里统一解析并缓存，避免每次渲染都跑正则
+function promptMetaOf(item){
+    const key = item?.id || '';
+    const cached = promptMetaCache.get(key);
+    if(cached && cached.updated_at === item?.updated_at) return cached.data;
+    const scene = String(item?.scene || '');
+    const likeMatch = scene.match(/(\d[\d,]*)\s*赞/);
+    const source = String(item?.params?.['来源'] || item?.params?.source || '').trim();
+    const data = {
+        likes: likeMatch ? Number(likeMatch[1].replace(/,/g, '')) : 0,
+        author: scene.split('·')[0]?.trim() || '',
+        source
+    };
+    promptMetaCache.set(key, {updated_at:item?.updated_at, data});
+    return data;
+}
+function promptSourceOptions(){
+    const counts = new Map();
+    for(const item of (activePromptLibrary()?.items || [])){
+        const src = promptMetaOf(item).source;
+        if(!src) continue;
+        counts.set(src, (counts.get(src) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+function promptSourceLabel(value){
+    const labels = {promptsref:'PromptsRef', promptimageatlas:'PromptImageAtlas', pia:'PromptImageAtlas', opennana:'OpenNana', manual:'手动创建'};
+    return labels[value] || value;
+}
+// 用 id + 种子做稳定散列，保证同一轮随机排序里每次重渲染顺序一致
+function promptRandomWeight(id){
+    const text = `${id}:${promptRandomSeed}`;
+    let hash = 2166136261;
+    for(let i = 0; i < text.length; i += 1){
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+}
+// === 系统库服务端分页池 ===
+// 系统库和生成页「风格预设」是同一份数据，2.2 万条只能按需取：
+// 筛选条件一变就重置池子重新拉第一页，滚动到底再续一页。
+function promptServerKey(lib){
+    return [lib?.id || '', activePromptCategory, promptSourceFilter, promptQuery.trim().toLowerCase(), promptSortMode, promptRandomSeed].join('|');
+}
+function promptServerUrl(offset, limit){
+    const params = new URLSearchParams();
+    if(activePromptCategory && activePromptCategory !== 'all') params.set('category', activePromptCategory);
+    if(promptSourceFilter) params.set('source', promptSourceFilter);
+    if(promptQuery.trim()) params.set('q', promptQuery.trim());
+    params.set('sort', promptSortMode);
+    params.set('seed', String(promptRandomSeed));
+    params.set('offset', String(offset));
+    params.set('limit', String(limit));
+    return `/api/prompt-libraries/items?${params.toString()}`;
+}
+let promptServerSeq = 0;
+
+async function fetchPromptServer(key, offset, replace){
+    const requestUrl = promptServerUrl(offset, PROMPT_SERVER_PAGE);
+    try{
+        const data = await apiJson(requestUrl);
+        if(promptServerKey(activePromptLibrary()) !== key) return; // 期间条件又变了，丢弃
+        promptServerPool = {
+            key,
+            items: replace ? (data.items || []) : promptServerPool.items.concat(data.items || []),
+            total: Number(data.total) || 0,
+            hasMore: Boolean(data.has_more),
+            loading: false,
+            seq: ++promptServerSeq,
+        };
+    }catch(err){
+        if(promptServerKey(activePromptLibrary()) !== key) return;
+        // 首页失败就清空；续页失败保留已拿到的内容，只是不再往下翻
+        promptServerPool = replace
+            ? { key, items:[], total:0, hasMore:false, loading:false, seq: ++promptServerSeq }
+            : { ...promptServerPool, loading:false, hasMore:false, seq: ++promptServerSeq };
+    }finally{
+        if(promptServerPool.key === key) render();
+    }
+}
+
+// 触底续页
+function loadPromptServerPage(){
+    const lib = activePromptLibrary();
+    if(!lib?.paged) return;
+    const key = promptServerKey(lib);
+    if(promptServerPool.key !== key || promptServerPool.loading || !promptServerPool.hasMore) return;
+    promptServerPool.loading = true;
+    fetchPromptServer(key, promptServerPool.items.length, false);
+}
+
+function currentPromptServerItems(){
+    const lib = activePromptLibrary();
+    if(!lib?.paged) return [];
+    const key = promptServerKey(lib);
+    if(promptServerPool.key !== key){
+        // 条件变了：立刻切到目标 key 的 pending 态并发起取数，
+        // 后续渲染看到 key 已匹配就不会重复派发；过期结果由 key 校验丢弃。
+        promptServerPool = { key, items:[], total:0, hasMore:true, loading:true, seq: promptServerSeq };
+        fetchPromptServer(key, 0, true);
+        return [];
+    }
+    const list = promptFavOnly ? promptServerPool.items.filter(item => promptFavorites.has(item.id)) : promptServerPool.items;
+    return list.slice();
+}
+function promptServerLoading(){
+    const lib = activePromptLibrary();
+    if(!lib?.paged) return false;
+    return promptServerPool.key !== promptServerKey(lib) || promptServerPool.loading;
+}
+function promptServerTotal(){
+    return promptServerPool.total || 0;
+}
 function currentPromptItems(){
     const lib = activePromptLibrary();
-    const query = promptQuery.trim().toLowerCase();
-    return (lib?.items || []).filter(item => {
+    if(lib?.paged) return currentPromptServerItems();
+    const tokens = promptQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const list = (lib?.items || []).filter(item => {
         if(activePromptCategory !== 'all' && (item.category || 'custom') !== activePromptCategory) return false;
-        if(!query) return true;
-        return [item.name, item.scene, item.positive, item.negative, item.category].join(' ').toLowerCase().includes(query);
+        if(promptSourceFilter && promptMetaOf(item).source !== promptSourceFilter) return false;
+        if(promptFavOnly && !promptFavorites.has(item.id)) return false;
+        if(!tokens.length) return true;
+        const hay = promptHaystack(item);
+        return tokens.every(token => hay.includes(token));
     });
+    if(promptSortMode === 'newest'){
+        list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    } else if(promptSortMode === 'likes'){
+        list.sort((a, b) => promptMetaOf(b).likes - promptMetaOf(a).likes || (b.created_at || 0) - (a.created_at || 0));
+    } else if(promptSortMode === 'name'){
+        list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-CN'));
+    } else {
+        list.sort((a, b) => promptRandomWeight(a.id) - promptRandomWeight(b.id));
+    }
+    return list;
 }
 // 认证支持的平台键（与后端 AVATAR_SUPPORTED_PLATFORMS 保持一致；新增平台时同步）
 const AVATAR_SUPPORTED_PLATFORMS = ['apimart', 'volcengine'];
@@ -838,7 +1076,15 @@ function findWorkflowItem(id){
     return null;
 }
 function findPromptItem(id){
-    for(const lib of promptLibraries()) for(const item of lib.items || []) if(item.id === id) return item;
+    for(const lib of promptLibraries()){
+        if(lib?.paged){
+            // 系统库条目在分页池里，不在 lib.items
+            const hit = promptServerPool.items.find(item => item.id === id);
+            if(hit) return hit;
+            continue;
+        }
+        for(const item of lib.items || []) if(item.id === id) return item;
+    }
     return null;
 }
 function findCanvasAssetItem(id){
@@ -866,6 +1112,8 @@ function normalizeAssetState(){
     const cats = assetCategories();
     if(!activeAssetCategoryId || !cats.some(cat => cat.id === activeAssetCategoryId)) activeAssetCategoryId = cats[0]?.id || '';
     if(activeAssetClassFilter && !activeAssetClassEntry()) activeAssetClassFilter = '';
+    // 未分类与智能分类筛选互斥：两者都改数据源，同时开着会互相打架
+    if(assetUnclassifiedOnly && activeAssetClassFilter) assetUnclassifiedOnly = false;
     const items = currentAssetItems();
     if(selectedAssetId && !items.some(item => item.id === selectedAssetId)) selectedAssetId = '';
     if(!selectedAssetId && items.length) selectedAssetId = items[0].id;
@@ -952,6 +1200,8 @@ function render(){
     const scrollState = [...document.querySelectorAll('.nav-scroll,.content-scroll,.detail-scroll')]
         .map((el, index) => ({index, top:el.scrollTop, left:el.scrollLeft}));
     document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
+    // 提示词标签页改成「左侧树 + 全宽瀑布流」，右侧详情让位给弹窗
+    root.classList.toggle('prompt-gallery-mode', activeTab === 'prompts');
     if(activeTab === 'prompts') renderPromptManager();
     else if(activeTab === 'workflows') renderWorkflowManager();
     else if(activeTab === 'local') renderLocalManager();
@@ -972,7 +1222,7 @@ function render(){
 function updateSearchQueryFromInput(id, value){
     if(id === 'assetSearch') assetQuery = value || '';
     else if(id === 'workflowSearch') workflowQuery = value || '';
-    else if(id === 'promptSearch') promptQuery = value || '';
+    else if(id === 'promptSearch'){ promptQuery = value || ''; promptRenderLimit = PROMPT_RENDER_STEP; }
     else if(id === 'localSearch') localQuery = value || '';
     else if(id === 'localUploadSearch') localUploadQuery = value || '';
     else if(id === 'canvasAssetSearch') canvasAssetQuery = value || '';
@@ -1493,6 +1743,7 @@ function renderAssetManager(){
     const items = currentAssetItems();
     const detail = selectedAsset();
     const imageCount = selectedAssetImageItems().length;
+    const moveTargets = normalizeAssetMoveTarget();
     root.innerHTML = `
         <aside class="asset-panel asset-nav">
             <div class="panel-head">
@@ -1523,6 +1774,12 @@ function renderAssetManager(){
                     </div>
                     <label class="asset-size-wrap" title="调整卡片大小"><i data-lucide="minimize-2"></i><input id="assetGridSize" class="asset-size-range" type="range" min="72" max="320" step="8" value="${assetGridSize}"></label>
                     <label class="asset-search-wrap"><i data-lucide="search"></i><input id="assetSearch" class="asset-search" type="search" value="${escapeAttr(assetQuery)}" placeholder="搜索素材"></label>
+                    <select id="assetSort" class="asset-sort-select" title="排序方式">
+                        <option value="newest" ${assetSortMode === 'newest' ? 'selected' : ''}>最新优先</option>
+                        <option value="oldest" ${assetSortMode === 'oldest' ? 'selected' : ''}>最早优先</option>
+                        <option value="name" ${assetSortMode === 'name' ? 'selected' : ''}>按名称</option>
+                        <option value="size" ${assetSortMode === 'size' ? 'selected' : ''}>按大小</option>
+                    </select>
                     <button class="asset-btn ${assetManageMode ? 'primary' : ''}" type="button" data-asset-manage><i data-lucide="list-checks"></i><span>${assetManageMode ? '完成管理' : '批量管理'}</span></button>
                 </div>
             </div>
@@ -1542,9 +1799,22 @@ function renderAssetManager(){
                         <button class="asset-btn danger" type="button" data-asset-delete-selected ${selectedAssetIds.size ? '' : 'disabled'}><i data-lucide="trash-2"></i><span>删除所选</span></button>
                     </div>
                 </div>
+                <div class="manage-group manage-move-group">
+                    <span class="manage-group-title">移动到</span>
+                    ${moveTargets.length
+                        ? `<select id="assetMoveTarget" class="asset-move-select">
+                            ${moveTargets.map(t => `<option value="${escapeAttr(t.key)}" ${t.key === assetMoveTarget ? 'selected' : ''}>${escapeHtml(t.label)}</option>`).join('')}
+                        </select>
+                        <button class="asset-btn" type="button" data-asset-move-selected ${selectedAssetIds.size ? '' : 'disabled'}><i data-lucide="move"></i><span>移动</span></button>`
+                        : `<span class="manage-summary">${selectedAssetIds.size ? '没有同类型的其他分组可移动' : '选中素材后选择目标分组'}</span>`}
+                </div>
                 <div class="manage-group manage-ai-group">
                     <span class="manage-group-title">AI 处理</span>
                     <button class="asset-btn" type="button" data-asset-classify-selected ${imageCount && !assetClassifyBusy ? '' : 'disabled'}><i data-lucide="${assetClassifyBusy ? 'loader-2' : 'tags'}"></i><span>${assetClassifyBusy ? '分类中' : '智能分类'}</span></button>
+                </div>
+                <div class="manage-group manage-fix-group">
+                    <span class="manage-group-title">整理</span>
+                    <button class="asset-btn" type="button" data-asset-maintenance-scan><i data-lucide="scan"></i><span>整理检查</span></button>
                 </div>
             </div>
             <div class="content-scroll">
@@ -1558,6 +1828,7 @@ function renderAssetManager(){
         <aside class="asset-panel asset-detail">
             ${renderAssetDetail(detail)}
         </aside>
+        ${renderAssetMaintenanceDialog()}
     `;
 }
 function renderWorkflowManager(){
@@ -1733,13 +2004,18 @@ function renderAssetTreeBranch(lib){
         </button>
         ${showLibActions ? renderAssetTreeActionBar('library') : ''}
         <div class="tree-children">
-            ${cats.length ? cats.map(cat => `<button class="tree-row tree-child ${isActiveLib && cat.id === activeAssetCategoryId && assetTreeFocus === 'category' ? 'active' : ''}" type="button" data-asset-cat="${escapeAttr(cat.id)}" data-asset-cat-lib="${escapeAttr(lib.id)}">
+            ${cats.length ? cats.map(cat => `<button class="tree-row tree-child ${isActiveLib && cat.id === activeAssetCategoryId && assetTreeFocus === 'category' ? 'active' : ''}" type="button" data-asset-cat="${escapeAttr(cat.id)}" data-asset-cat-lib="${escapeAttr(lib.id)}" data-asset-cat-type="${escapeAttr(cat.type || 'image')}" draggable="true">
                 <span class="tree-elbow"></span>
                 <span class="tree-row-icon"><i data-lucide="image"></i></span>
                 <span class="tree-row-name">${escapeHtml(cat.name || '分组')}</span>
                 <span class="tree-row-count">${(cat.items || []).length}</span>
             </button>${isActiveLib && cat.id === activeAssetCategoryId && assetTreeFocus === 'category' ? renderAssetTreeActionBar('category') : ''}`).join('') : '<div class="tree-empty">暂无分组</div>'}
             ${isActiveLib ? `<div class="tree-smart-class">
+                <button class="tree-row tree-parent ${assetUnclassifiedOnly ? 'active' : ''}" type="button" data-asset-unclassified="${escapeAttr(lib.id)}" title="还没打上智能分类标签的素材">
+                    <span class="tree-row-icon"><i data-lucide="circle-dashed"></i></span>
+                    <span class="tree-row-name">未分类</span>
+                    <span class="tree-row-count">${assetUnclassifiedItems().length}</span>
+                </button>
                 <button class="tree-row tree-parent ${activeAssetClassFilter ? 'contains-active' : ''}" type="button" data-asset-class-root="${escapeAttr(lib.id)}">
                     <span class="tree-row-icon"><i data-lucide="tags"></i></span>
                     <span class="tree-row-name">智能分类</span>
@@ -1790,14 +2066,116 @@ function renderAssetTreeInlineEdit(kind){
         <button type="button" data-asset-tree-edit-cancel><i data-lucide="x"></i><span>取消</span></button>
     </div>`;
 }
+// ---------- 整理检查：文件已丢失的记录 + 内容重复 ----------
+function assetMaintenanceMissingIds(){
+    return (assetMaintenance?.missing || []).map(row => row.id).filter(Boolean);
+}
+function assetMaintenanceDuplicateIds(){
+    const ids = [];
+    for(const group of assetMaintenance?.duplicate_groups || []){
+        for(const row of group.items || []) if(row.id) ids.push(row.id);
+    }
+    return ids;
+}
+function renderAssetMaintenanceDialog(){
+    if(!assetMaintenance) return '';
+    const missing = assetMaintenance.missing || [];
+    const groups = assetMaintenance.duplicate_groups || [];
+    const dupCount = Number(assetMaintenance.duplicate_count || 0);
+    const listMissing = missing.slice(0, 12);
+    const listGroups = groups.slice(0, 8);
+    return `<div class="asset-modal-mask" data-asset-maintenance-close>
+        <div class="asset-modal" role="dialog" aria-label="整理检查">
+            <div class="asset-modal-head">
+                <strong>整理检查</strong>
+                <span class="asset-modal-sub">共扫描 ${assetMaintenance.total || 0} 条记录</span>
+                <button class="asset-icon-btn" type="button" data-asset-maintenance-close title="关闭"><i data-lucide="x"></i></button>
+            </div>
+            <div class="asset-modal-body">
+                <div class="maint-summary">
+                    <span class="maint-chip ${missing.length ? 'warn' : ''}">文件缺失 ${missing.length}</span>
+                    <span class="maint-chip ${dupCount ? 'warn' : ''}">重复 ${dupCount} 条 / ${groups.length} 组</span>
+                    <span class="maint-chip">可释放 ${escapeHtml(formatFileSize(assetMaintenance.reclaim_bytes || 0))}</span>
+                </div>
+                ${(!missing.length && !dupCount) ? '<div class="maint-empty">没有发现需要清理的内容</div>' : ''}
+                ${missing.length ? `<div class="maint-section">
+                    <div class="maint-section-head">
+                        <strong>文件已丢失（只剩记录）</strong>
+                        <button class="asset-btn danger" type="button" data-asset-maintenance-clean="missing">清理 ${missing.length} 条</button>
+                    </div>
+                    <ul class="maint-list">
+                        ${listMissing.map(row => `<li><span class="maint-name">${escapeHtml(row.name || row.id)}</span><small>${escapeHtml(row.category_name || '')}</small></li>`).join('')}
+                        ${missing.length > listMissing.length ? `<li class="maint-more">还有 ${missing.length - listMissing.length} 条…</li>` : ''}
+                    </ul>
+                </div>` : ''}
+                ${dupCount ? `<div class="maint-section">
+                    <div class="maint-section-head">
+                        <strong>内容重复（每组保留最早的一条）</strong>
+                        <button class="asset-btn danger" type="button" data-asset-maintenance-clean="duplicates">删除 ${dupCount} 条</button>
+                    </div>
+                    <ul class="maint-list">
+                        ${listGroups.map(group => `<li><span class="maint-name">${escapeHtml(group.keep?.name || '')}</span><small>${escapeHtml(formatFileSize(group.size || 0))} × ${(group.items || []).length + 1}</small></li>`).join('')}
+                        ${groups.length > listGroups.length ? `<li class="maint-more">还有 ${groups.length - listGroups.length} 组…</li>` : ''}
+                    </ul>
+                </div>` : ''}
+            </div>
+            <div class="asset-modal-foot">
+                <button class="asset-btn" type="button" data-asset-maintenance-rescan ${assetMaintenanceBusy ? 'disabled' : ''}><i data-lucide="${assetMaintenanceBusy ? 'loader-2' : 'refresh-cw'}"></i><span>${assetMaintenanceBusy ? '扫描中' : '重新扫描'}</span></button>
+                <button class="asset-btn primary" type="button" data-asset-maintenance-close>关闭</button>
+            </div>
+        </div>
+    </div>`;
+}
+async function runAssetMaintenanceScan(){
+    if(assetMaintenanceBusy) return;
+    assetMaintenanceBusy = true;
+    if(assetMaintenance) render();
+    setStatus('正在扫描素材文件…');
+    try{
+        const data = await apiJson('/api/asset-library/maintenance/scan', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({library_id:''})
+        });
+        assetMaintenance = data || null;
+        if(data) setStatus(`扫描完成：文件缺失 ${(data.missing || []).length} 条，重复 ${data.duplicate_count || 0} 条`);
+        else setStatus('扫描失败');
+    }catch(err){
+        assetMaintenance = null;
+        setStatus(err?.message || '扫描失败');
+    }finally{
+        assetMaintenanceBusy = false;
+        render();
+    }
+}
+async function cleanAssetMaintenance(kind){
+    const ids = kind === 'missing' ? assetMaintenanceMissingIds() : assetMaintenanceDuplicateIds();
+    if(!ids.length){ setStatus('没有需要清理的内容'); return; }
+    const label = kind === 'missing'
+        ? `${ids.length} 条文件已丢失的记录`
+        : `${ids.length} 条重复素材（每组保留最早的一条）`;
+    if(!window.confirm(`确定删除${label}吗？删除后不可撤销。`)) return;
+    const data = await apiJson('/api/asset-library/items/delete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({library_id:'', ids})
+    });
+    if(!data){ setStatus('清理失败'); return; }
+    assetLibrary = data.library || assetLibrary;
+    selectedAssetIds.clear();
+    if(ids.includes(selectedAssetId)) selectedAssetId = '';
+    setStatus(`已清理 ${data.removed || 0} 条`);
+    await runAssetMaintenanceScan();
+}
 function renderAssetCard(item){
     const isImg = assetKind(item) === 'image';
-    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}">
+    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}" data-asset-kind="${escapeAttr(assetKind(item))}" draggable="true">
         <input class="asset-card-check" type="checkbox" data-asset-check="${escapeAttr(item.id)}" ${selectedAssetIds.has(item.id) ? 'checked' : ''}>
         <div class="asset-thumb">${assetThumb(item)}</div>
         <div class="asset-card-body">
             <div class="asset-card-name" title="${escapeAttr(item.name || '')}">${escapeHtml(item.name || 'asset')}</div>
             <div class="asset-card-meta">${escapeHtml(assetKindLabel(item))} · ${escapeHtml(formatDate(item.created_at))}</div>
+            ${item.file_exists === false ? '<div class="asset-card-warn" title="源文件已丢失，只剩这条记录"><i data-lucide="alert-triangle"></i><span>文件缺失</span></div>' : ''}
         </div>
     </article>`;
 }
@@ -1932,10 +2310,25 @@ function renderPromptManager(){
     const readonly = Boolean(lib?.readonly);
     const cats = activePromptCategories();
     const items = currentPromptItems();
-    const detail = promptCreateMode ? null : selectedPrompt();
-    const promptEmptyText = (lib?.items || []).length
-        ? '当前条件下没有提示词。可以切换分类或清空搜索条件。'
-        : `${lib?.name || '当前提示词库'} 暂无提示词，点击「新增」添加。`;
+    const isPaged = Boolean(lib?.paged);
+    const sources = isPaged
+        ? (lib?.sources || []).map(entry => [entry.id, entry.count])
+        : promptSourceOptions();
+    const totalCount = isPaged ? promptServerTotal() : items.length;
+    // 首次进入 / 筛选刚变时池子还没数据，这段时间要显示加载态而不是"没内容"
+    const loadingFirstPage = isPaged && promptServerLoading();
+    // 服务端分页的库：当前数组就是这一页，不再按 promptRenderLimit 二次截断
+    const visibleItems = isPaged ? items : items.slice(0, promptRenderLimit);
+    const hasMore = isPaged ? Boolean(promptServerPool.hasMore) : items.length > promptRenderLimit;
+    const hasFilter = Boolean(promptQuery.trim() || promptSourceFilter || promptFavOnly || activePromptCategory !== 'all');
+    const sourceOptionsHtml = ['<option value="">全部来源</option>']
+        .concat(sources.map(([value, count]) => `<option value="${escapeAttr(value)}" ${value === promptSourceFilter ? 'selected' : ''}>${escapeHtml(promptSourceLabel(value))}（${count}）</option>`))
+        .join('');
+    const sortOptionsHtml = [['random', '随机推荐'], ['newest', '最新入库'], ['likes', '点赞最多'], ['name', '名称排序']]
+        .map(([value, text]) => `<option value="${value}" ${value === promptSortMode ? 'selected' : ''}>${text}</option>`)
+        .join('');
+    const emptyTitle = hasFilter ? '没有找到匹配提示词' : '这个分类还没有提示词';
+    const emptyHint = hasFilter ? '换一个关键词，或者清空筛选后再试试。' : '可以点「新增」手写一条，或用「导入」批量导入 JSON / JSONL。';
     root.innerHTML = `
         <aside class="asset-panel asset-nav">
             <div class="panel-head">
@@ -1955,13 +2348,21 @@ function renderPromptManager(){
             <div class="content-toolbar">
                 <div class="content-heading">
                     <strong>${escapeHtml(lib?.name || '提示词库')}</strong>
-                    <span>共 ${items.length} 条提示词</span>
+                    <span>共 ${totalCount} 条提示词${promptFavOnly ? '（仅收藏）' : ''}</span>
                 </div>
                 <div class="asset-tools">
-                    <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="搜索名称、说明或正文"></label>
+                    <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="输入关键词，或描述你想找的画面"></label>
+                    <button class="asset-icon-btn" type="button" data-prompt-import title="导入提示词文件（JSON / JSONL）"><i data-lucide="upload"></i></button>
+                    <button class="asset-icon-btn" type="button" data-prompt-export title="导出当前提示词库"><i data-lucide="download"></i></button>
                     <button class="asset-btn primary" type="button" data-prompt-new ${readonly ? 'disabled' : ''}><i data-lucide="file-plus-2"></i><span>新增</span></button>
                     <button class="asset-btn ${promptManageMode ? 'primary' : ''}" type="button" data-prompt-manage><i data-lucide="list-checks"></i><span>${promptManageMode ? '完成管理' : '批量管理'}</span></button>
                 </div>
+            </div>
+            <div class="prompt-filter-bar">
+                <label class="prompt-select"><span>来源</span><select id="promptSourceFilter">${sourceOptionsHtml}</select></label>
+                <label class="prompt-select"><span>排序</span><select id="promptSort">${sortOptionsHtml}</select></label>
+                <button class="prompt-chip ${promptFavOnly ? 'is-on' : ''}" type="button" data-prompt-fav-only aria-pressed="${promptFavOnly}"><i data-lucide="star"></i><span>只看收藏 ${promptFavorites.size}</span></button>
+                ${hasFilter ? '<button class="prompt-chip" type="button" data-prompt-filter-reset><i data-lucide="rotate-ccw"></i><span>清空筛选</span></button>' : ''}
             </div>
             <div class="manage-tools">
                 <span>已选择 ${selectedPromptIds.size} 条提示词，支持拖拽框选或逐个勾选。</span>
@@ -1971,14 +2372,186 @@ function renderPromptManager(){
                     <button class="asset-btn danger ${pendingBatchDelete === 'prompt' ? 'detail-confirm' : ''}" type="button" data-prompt-delete-selected ${readonly || !selectedPromptIds.size ? 'disabled' : ''}><i data-lucide="trash-2"></i><span>${pendingBatchDelete === 'prompt' ? '确认删除' : '删除所选'}</span></button>
                 </div>
             </div>
-            <div class="content-scroll">
-                ${items.length ? `<div class="prompt-list">${items.map(item => renderPromptRow(item, readonly)).join('')}</div>` : `<div class="empty-state">${escapeHtml(promptEmptyText)}</div>`}
+            <div class="content-scroll prompt-gallery-scroll">
+                ${visibleItems.length
+                    ? `<div class="prompt-masonry prompt-gallery">${visibleItems.map(item => renderPromptRow(item, readonly)).join('')}</div>
+                       ${hasMore
+                            ? `<div class="prompt-gallery-sentinel" data-prompt-sentinel><span>正在加载更多…</span></div>`
+                            : `<div class="prompt-gallery-end">已经到底了 · 共 ${totalCount} 条</div>`}`
+                    : `<div class="empty-state prompt-empty"><strong>${escapeHtml(loadingFirstPage ? '正在加载提示词…' : emptyTitle)}</strong><p>${escapeHtml(loadingFirstPage ? '正在从系统库取一页数据。' : emptyHint)}</p></div>`}
             </div>
+            <button class="prompt-back-top" type="button" data-prompt-back-top title="回到顶部" aria-label="回到顶部"><i data-lucide="arrow-up"></i></button>
         </section>
-        <aside class="asset-panel asset-detail">
-            ${renderPromptDetail(detail, readonly)}
-        </aside>
+        ${renderPromptDialog(lib, readonly)}
     `;
+    mountPromptGalleryObserver(hasMore);
+    mountPromptBackTop();
+}
+// 滚过一屏才显示「回到顶部」，避免一直挂在画面上
+function mountPromptBackTop(){
+    const scroller = root.querySelector('.prompt-gallery-scroll');
+    const button = root.querySelector('[data-prompt-back-top]');
+    if(!scroller || !button) return;
+    scroller.addEventListener('scroll', () => {
+        button.classList.toggle('is-visible', scroller.scrollTop > 480);
+    }, {passive:true});
+}
+// 滚动到底部自动续载，替代原来的「加载更多」按钮
+function mountPromptGalleryObserver(hasMore){
+    if(promptScrollObserver){ promptScrollObserver.disconnect(); promptScrollObserver = null; }
+    const sentinel = root.querySelector('[data-prompt-sentinel]');
+    if(!sentinel || !hasMore || !('IntersectionObserver' in window)) return;
+    promptScrollObserver = new IntersectionObserver(entries => {
+        if(!entries.some(entry => entry.isIntersecting)) return;
+        if(promptScrollObserver){ promptScrollObserver.disconnect(); promptScrollObserver = null; }
+        if(activePromptLibrary()?.paged){
+            loadPromptServerPage(); // 拉完一页自己会重渲
+            return;
+        }
+        promptRenderLimit += PROMPT_RENDER_STEP;
+        render();
+    }, {rootMargin:'600px 0px'});
+    promptScrollObserver.observe(sentinel);
+}
+async function copyPromptText(text, label = '提示词'){
+    const value = String(text || '');
+    if(!value.trim()){ setStatus(`没有可复制的${label}`); return; }
+    try{
+        await navigator.clipboard.writeText(value);
+    }catch(err){
+        const area = document.createElement('textarea');
+        area.value = value;
+        area.style.position = 'fixed';
+        area.style.top = '-1000px';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        let ok = true;
+        try{ ok = document.execCommand('copy'); }catch(e2){ ok = false; }
+        area.remove();
+        if(!ok){ setStatus('复制失败，请手动选中复制'); return; }
+    }
+    setStatus(`已复制${label}（${value.length} 字符）`);
+}
+// 复用资产库那套灯箱（滚轮缩放 / 拖拽平移 / ESC 关闭）
+function openPromptImageViewer(item){
+    const url = String(item?.thumbnail || '').trim();
+    if(!url){ setStatus('这条提示词没有配图'); return; }
+    document.querySelector('.asset-lightbox')?.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'asset-lightbox';
+    overlay.dataset.scale = '1';
+    overlay.dataset.x = '0';
+    overlay.dataset.y = '0';
+    overlay.innerHTML = `<div class="asset-lightbox-inner" role="dialog" aria-modal="true" aria-label="图片预览"><img class="asset-lightbox-image" src="${escapeAttr(url)}" alt="${escapeAttr(item.name || '提示词配图')}" draggable="false"></div>`;
+    document.body.appendChild(overlay);
+    document.body.classList.add('asset-lightbox-open');
+}
+function closePromptDialog(){
+    promptDialogId = '';
+    promptEditMode = false;
+    promptCreateMode = false;
+    pendingDeletePromptId = '';
+    render();
+}
+function togglePromptFavorite(id){
+    if(!id) return;
+    if(promptFavorites.has(id)) promptFavorites.delete(id);
+    else promptFavorites.add(id);
+    writePromptFlagSet(PROMPT_FAV_STORAGE_KEY, promptFavorites);
+    render();
+}
+function togglePromptLike(id){
+    if(!id) return;
+    if(promptLikesSet.has(id)) promptLikesSet.delete(id);
+    else promptLikesSet.add(id);
+    writePromptFlagSet(PROMPT_LIKE_STORAGE_KEY, promptLikesSet);
+    render();
+}
+function renderPromptDialog(lib, readonly){
+    const isCreate = promptCreateMode && !readonly;
+    const item = promptDialogId ? findPromptItem(promptDialogId) : null;
+    if(!isCreate && !item) return '';
+    const isEdit = Boolean(item && promptEditMode && !readonly);
+    const formHtml = (target, isNew) => `
+        <div class="prompt-dialog-form">
+            <header class="prompt-dialog-head">
+                <h2>${isNew ? '新增提示词' : '编辑提示词'}</h2>
+                <p>${isNew ? `保存到「${escapeHtml(lib?.name || '当前词库')}」` : `修改后立即保存到「${escapeHtml(lib?.name || '当前词库')}」`}</p>
+            </header>
+            <div class="inline-edit-form">
+                <label class="inline-edit-field"><span>名称</span><input id="promptEditName" type="text" value="${escapeAttr(target?.name || '')}" placeholder="提示词名称"></label>
+                <label class="inline-edit-field"><span>用途说明</span><textarea id="promptEditScene" placeholder="用途说明">${escapeHtml(target?.scene || '')}</textarea></label>
+                <label class="inline-edit-field"><span>正向提示词</span><textarea id="promptEditPositive" placeholder="正向提示词">${escapeHtml(target?.positive || '')}</textarea></label>
+                <label class="inline-edit-field"><span>负向提示词</span><textarea id="promptEditNegative" placeholder="负向提示词">${escapeHtml(target?.negative || '')}</textarea></label>
+            </div>
+            <div class="prompt-dialog-actions">
+                <button class="prompt-action primary" type="button" ${isNew ? 'data-prompt-create-save' : `data-prompt-edit-save="${escapeAttr(target?.id || '')}"`}><i data-lucide="check"></i><span>保存</span></button>
+                <button class="prompt-action" type="button" data-prompt-edit-cancel><span>取消</span></button>
+            </div>
+        </div>`;
+    let body;
+    if(isCreate){
+        body = formHtml(null, true);
+    } else if(isEdit){
+        body = formHtml(item, false);
+    } else {
+        const meta = promptMetaOf(item);
+        const liked = promptLikesSet.has(item.id);
+        const faved = promptFavorites.has(item.id);
+        const positive = String(item.positive || '');
+        const negative = String(item.negative || '');
+        const thumb = String(item.thumbnail || '').trim();
+        const likeCount = meta.likes + (liked ? 1 : 0);
+        const metaRows = [
+            ['作者', meta.author],
+            ['分类', promptCategoryLabel(item.category || 'custom')],
+            ['来源', meta.source ? promptSourceLabel(meta.source) : ''],
+            ['正文长度', positive ? `${positive.length} 字符` : ''],
+            ['入库时间', item.created_at ? new Date(item.created_at).toLocaleString('zh-CN', {hour12:false}) : '']
+        ].filter(([, value]) => value);
+        body = `
+            <div class="prompt-dialog-media ${thumb ? '' : 'is-empty'}" ${thumb ? `data-prompt-zoom="${escapeAttr(item.id)}" title="点击查看大图"` : ''}>
+                ${thumb
+                    ? `<img src="/api/prompt-libraries/thumb/${encodeURIComponent(item.id)}?width=1000" data-fallback-src="${escapeAttr(thumb)}" alt="${escapeAttr(item.name || '提示词配图')}" loading="eager" decoding="async" onerror="if(!this.dataset.fallbackUsed){this.dataset.fallbackUsed='1';this.src=this.dataset.fallbackSrc}else{this.remove()}">`
+                    : `<div class="prompt-dialog-media-empty"><strong>${escapeHtml(item.name || '提示词')}</strong><span>这条提示词没有配图</span></div>`}
+            </div>
+            <article class="prompt-dialog-copy">
+                <header class="prompt-dialog-head">
+                    <h2>${escapeHtml(item.name || '提示词')}</h2>
+                    <div class="prompt-dialog-tags">
+                        <span class="prompt-tag">${escapeHtml(promptCategoryLabel(item.category || 'custom'))}</span>
+                        ${meta.source ? `<span class="prompt-tag ghost">${escapeHtml(promptSourceLabel(meta.source))}</span>` : ''}
+                        ${meta.author ? `<span class="prompt-tag ghost">${escapeHtml(meta.author)}</span>` : ''}
+                    </div>
+                </header>
+                <div class="prompt-dialog-actions">
+                    <button class="prompt-action ${liked ? 'is-on' : ''}" type="button" data-prompt-like="${escapeAttr(item.id)}" aria-pressed="${liked}"><i data-lucide="heart"></i><span>点赞 ${likeCount || ''}</span></button>
+                    <button class="prompt-action ${faved ? 'is-on' : ''}" type="button" data-prompt-fav="${escapeAttr(item.id)}" aria-pressed="${faved}"><i data-lucide="star"></i><span>${faved ? '已收藏' : '收藏'}</span></button>
+                    <button class="prompt-action primary" type="button" data-prompt-copy="${escapeAttr(item.id)}"><i data-lucide="copy"></i><span>复制</span></button>
+                    <button class="prompt-action" type="button" data-prompt-edit-start="${escapeAttr(item.id)}" ${readonly ? 'disabled' : ''}><i data-lucide="pencil"></i><span>编辑</span></button>
+                    <button class="prompt-action danger ${pendingDeletePromptId === item.id ? 'is-confirm' : ''}" type="button" data-prompt-delete="${escapeAttr(item.id)}" ${readonly ? 'disabled' : ''}><i data-lucide="trash-2"></i><span>${pendingDeletePromptId === item.id ? '确认删除' : '删除'}</span></button>
+                </div>
+                <section class="prompt-dialog-block">
+                    <div class="prompt-dialog-block-head"><strong>提示词</strong><span>${positive.length} 字符</span></div>
+                    <p class="prompt-dialog-text">${escapeHtml(positive || '未填写')}</p>
+                </section>
+                ${negative ? `<section class="prompt-dialog-block">
+                    <div class="prompt-dialog-block-head"><strong>负向提示词</strong><button class="prompt-block-copy" type="button" data-prompt-copy-negative="${escapeAttr(item.id)}">复制</button></div>
+                    <p class="prompt-dialog-text negative">${escapeHtml(negative)}</p>
+                </section>` : ''}
+                <details class="prompt-dialog-meta">
+                    <summary>作品信息</summary>
+                    <dl>${metaRows.map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl>
+                </details>
+            </article>`;
+    }
+    return `<div class="prompt-dialog-backdrop" data-prompt-dialog-backdrop>
+        <section class="prompt-dialog ${(isCreate || isEdit) ? 'is-form' : ''}" role="dialog" aria-modal="true" aria-label="提示词详情">
+            <button class="prompt-dialog-close" type="button" data-prompt-dialog-close aria-label="关闭">×</button>
+            ${body}
+        </section>
+    </div>`;
 }
 function renderPromptTreeBranch(lib){
     const isActiveLib = lib.id === activePromptLibraryId;
@@ -2047,81 +2620,107 @@ function renderPromptTreeInlineEdit(kind){
         <button type="button" data-prompt-tree-edit-cancel><i data-lucide="x"></i><span>取消</span></button>
     </div>`;
 }
+function parsePromptImportFile(text){
+    const raw = String(text || '').trim();
+    if(!raw) return [];
+    let list = [];
+    if(raw.startsWith('{') || raw.startsWith('[')){
+        try{
+            const json = JSON.parse(raw);
+            if(Array.isArray(json)) list = json;
+            else if(Array.isArray(json.items)) list = json.items;
+            else if(Array.isArray(json.data)) list = json.data;
+        }catch(err){ list = []; }
+    }
+    if(!list.length){
+        for(const line of raw.split(/\r?\n/)){
+            const trimmed = line.trim();
+            if(!trimmed.startsWith('{')) continue;
+            try{ list.push(JSON.parse(trimmed)); }catch(err){ /* 跳过坏行 */ }
+        }
+    }
+    return list.filter(entry => entry && typeof entry === 'object');
+}
+async function importPromptLibraryFile(){
+    const lib = activePromptLibrary();
+    if(!lib){ setStatus('请先选择一个提示词库'); return; }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.jsonl,application/json,text/plain';
+    input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        if(!file) return;
+        try{
+            setStatus(`正在解析 ${file.name}…`);
+            const items = parsePromptImportFile(await file.text());
+            if(!items.length) throw new Error('没有识别到提示词（支持 JSON 数组、{items:[...]} 或 JSONL）');
+            setStatus(`正在导入 ${items.length} 条…`);
+            const data = await apiJson('/api/prompt-libraries/items/import', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({library_id:lib.id, items})
+            });
+            promptLibrary = data.library || promptLibrary;
+            promptSearchCache.clear();
+            promptRenderLimit = PROMPT_RENDER_STEP;
+            setStatus(`导入完成：新增 ${data.added || 0} 条${data.skipped_dup ? `，跳过重复 ${data.skipped_dup} 条` : ''}${data.skipped_empty ? `，跳过空正文 ${data.skipped_empty} 条` : ''}`);
+            render();
+        }catch(err){
+            setStatus('导入失败：' + (err?.message || err));
+        }
+    });
+    input.click();
+}
+async function exportPromptLibrary(){
+    const lib = activePromptLibrary();
+    if(!lib) return;
+    try{
+        setStatus('正在导出…');
+        const data = await apiJson(`/api/prompt-libraries/${encodeURIComponent(lib.id)}/export`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${lib.name || '提示词库'}-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        setStatus(`已导出 ${data.count || 0} 条提示词`);
+    }catch(err){
+        setStatus('导出失败：' + (err?.message || err));
+    }
+}
 function renderPromptRow(item, readonly){
-    return `<article class="prompt-row ${item.id === selectedPromptId ? 'active' : ''}" data-prompt-row="${escapeAttr(item.id)}">
-        <input class="prompt-row-check" type="checkbox" data-prompt-check="${escapeAttr(item.id)}" ${selectedPromptIds.has(item.id) ? 'checked' : ''} ${readonly ? 'disabled' : ''}>
-        <div class="prompt-row-main">
-            <div class="prompt-row-title"><strong>${escapeHtml(item.name || '提示词')}</strong><span class="prompt-tag">${escapeHtml(promptCategoryLabel(item.category || 'custom'))}</span></div>
-            <div class="prompt-row-scene">${escapeHtml(item.scene || '未填写用途说明')}</div>
-            <div class="prompt-row-text">${escapeHtml(item.positive || '')}</div>
+    const active = item.id === selectedPromptId ? 'active' : '';
+    const catLabel = promptCategoryLabel(item.category || 'custom');
+    const name = item.name || '提示词';
+    const summary = String(item.positive || '').replace(/\s+/g, ' ').trim();
+    const thumb = String(item.thumbnail || '').trim();
+    const check = `<input class="prompt-row-check" type="checkbox" data-prompt-check="${escapeAttr(item.id)}" ${selectedPromptIds.has(item.id) ? 'checked' : ''} ${readonly ? 'disabled' : ''}>`;
+    const faved = promptFavorites.has(item.id) ? '<span class="prompt-card-fav" title="已收藏">★</span>' : '';
+    if(!thumb){
+        return `<article class="prompt-card is-text ${active}" data-prompt-row="${escapeAttr(item.id)}">
+            ${check}
+            <div class="prompt-card-body">
+                <div class="prompt-card-tags"><span class="prompt-tag">${escapeHtml(catLabel)}</span>${faved}</div>
+                <strong class="prompt-card-name">${escapeHtml(name)}</strong>
+                <p class="prompt-card-summary">${escapeHtml(summary || item.scene || '未填写正文')}</p>
+            </div>
+        </article>`;
+    }
+    return `<article class="prompt-card ${active}" data-prompt-row="${escapeAttr(item.id)}">
+        ${check}
+        <div class="prompt-card-media">
+            <div class="prompt-card-fallback"><strong>${escapeHtml(name)}</strong></div>
+            <img src="/api/prompt-libraries/thumb/${encodeURIComponent(item.id)}?width=420" data-fallback-src="${escapeAttr(thumb)}" alt="${escapeAttr(name)}" loading="lazy" decoding="async" onerror="if(!this.dataset.fallbackUsed){this.dataset.fallbackUsed='1';this.src=this.dataset.fallbackSrc}else{this.remove()}">
+            <span class="prompt-card-badge">${escapeHtml(catLabel)}</span>
+            ${faved}
+            <div class="prompt-card-overlay">
+                <strong>${escapeHtml(name)}</strong>
+                <p>${escapeHtml(summary.slice(0, 110))}</p>
+            </div>
         </div>
     </article>`;
-}
-function renderPromptDetail(item, readonly){
-    if(promptCreateMode && !readonly){
-        return `
-            <div class="panel-head">
-                <div class="panel-title"><strong>新增提示词</strong><span>保存到当前提示词库</span></div>
-                <div class="panel-actions">
-                    <button class="asset-btn primary" type="button" data-prompt-create-save><i data-lucide="check"></i><span>保存</span></button>
-                    <button class="asset-icon-btn" type="button" data-prompt-edit-cancel title="取消"><i data-lucide="x"></i></button>
-                </div>
-            </div>
-            <div class="detail-scroll">
-                <div class="inline-edit-form">
-                    <label class="inline-edit-field"><span>名称</span><input id="promptEditName" type="text" value="" placeholder="提示词名称"></label>
-                    <label class="inline-edit-field"><span>用途说明</span><textarea id="promptEditScene" placeholder="用途说明"></textarea></label>
-                    <label class="inline-edit-field"><span>正向提示词</span><textarea id="promptEditPositive" placeholder="正向提示词"></textarea></label>
-                    <label class="inline-edit-field"><span>负向提示词</span><textarea id="promptEditNegative" placeholder="负向提示词"></textarea></label>
-                </div>
-            </div>
-        `;
-    }
-    if(!item) return `<div class="panel-head"><div class="panel-title"><strong>提示词预览</strong><span>选择一条提示词查看全文</span></div></div><div class="detail-scroll"><div class="detail-empty"><i data-lucide="text-cursor-input"></i><span>暂无可预览提示词</span></div></div>`;
-    if(promptEditMode && item.id === selectedPromptId && !readonly){
-        return `
-            <div class="panel-head">
-                <div class="panel-title"><strong>编辑提示词</strong><span>在当前库内保存</span></div>
-                <div class="panel-actions">
-                    <button class="asset-btn primary" type="button" data-prompt-edit-save="${escapeAttr(item.id)}"><i data-lucide="check"></i><span>保存</span></button>
-                    <button class="asset-icon-btn" type="button" data-prompt-edit-cancel title="取消"><i data-lucide="x"></i></button>
-                </div>
-            </div>
-            <div class="detail-scroll">
-                <div class="inline-edit-form">
-                    <label class="inline-edit-field"><span>名称</span><input id="promptEditName" type="text" value="${escapeAttr(item.name || '')}" placeholder="提示词名称"></label>
-                    <label class="inline-edit-field"><span>用途说明</span><textarea id="promptEditScene" placeholder="用途说明">${escapeHtml(item.scene || '')}</textarea></label>
-                    <label class="inline-edit-field"><span>正向提示词</span><textarea id="promptEditPositive" placeholder="正向提示词">${escapeHtml(item.positive || '')}</textarea></label>
-                    <label class="inline-edit-field"><span>负向提示词</span><textarea id="promptEditNegative" placeholder="负向提示词">${escapeHtml(item.negative || '')}</textarea></label>
-                </div>
-            </div>
-        `;
-    }
-    const params = item.params && typeof item.params === 'object' ? Object.entries(item.params) : [];
-    return `
-        <div class="panel-head">
-            <div class="panel-title"><strong>提示词预览</strong><span>${escapeHtml(promptCategoryLabel(item.category || 'custom'))}</span></div>
-            <div class="panel-actions">
-                <button class="asset-icon-btn" type="button" data-prompt-edit-start="${escapeAttr(item.id)}" ${readonly ? 'disabled' : ''} title="编辑"><i data-lucide="pencil"></i></button>
-                <button class="asset-icon-btn danger ${pendingDeletePromptId === item.id ? 'detail-confirm' : ''}" type="button" data-prompt-delete="${escapeAttr(item.id)}" ${readonly ? 'disabled' : ''} title="${pendingDeletePromptId === item.id ? '再次点击确认删除' : '删除'}"><i data-lucide="trash-2"></i></button>
-            </div>
-        </div>
-        <div class="detail-scroll">
-            <div class="prompt-detail-head">
-                <div class="prompt-detail-title">${escapeHtml(item.name || '提示词')}</div>
-                <div class="prompt-detail-scene">${escapeHtml(item.scene || '未填写用途说明')}</div>
-            </div>
-            <section class="prompt-block">
-                <div class="prompt-block-head"><span>正向提示词</span><span>${String(item.positive || '').length} 字符</span></div>
-                <div class="prompt-block-body">${escapeHtml(item.positive || '未填写')}</div>
-            </section>
-            <section class="prompt-block">
-                <div class="prompt-block-head"><span>负向提示词</span><span>${String(item.negative || '').length} 字符</span></div>
-                <div class="prompt-block-body negative">${escapeHtml(item.negative || '未填写')}</div>
-            </section>
-            ${params.length ? `<div class="params-list">${params.map(([key, value]) => `<div class="param-row"><strong>${escapeHtml(key)}</strong><span>${escapeHtml(value)}</span></div>`).join('')}</div>` : ''}
-        </div>
-    `;
 }
 async function uploadFiles(files){
     const cat = activeAssetCategory();
@@ -2741,7 +3340,7 @@ async function saveLocalUploadCaption(id){
 async function handleClick(event){
     const target = event.target;
     const tabBtn = target.closest?.('[data-tab]');
-    if(tabBtn){ activeTab = tabBtn.dataset.tab || 'assets'; selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear(); selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear(); render(); return; }
+    if(tabBtn){ activeTab = tabBtn.dataset.tab || 'assets'; promptDialogId = ''; promptCreateMode = false; promptEditMode = false; selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear(); selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear(); render(); return; }
     if(target.closest?.('#refreshBtn')){ await loadAll(); return; }
     const assetPreview = target.closest?.('[data-asset-preview]');
     if(assetPreview){ showDetailPreview('asset', assetPreview.dataset.assetPreview || ''); return; }
@@ -3015,6 +3614,18 @@ async function handleClick(event){
     if(target.closest?.('[data-asset-classify-selected]')){ await runAssetClassifySelected(); return; }
     if(target.closest?.('[data-asset-download-selected]')){ await downloadSelectedAssets(); return; }
     if(target.closest?.('[data-asset-copy-to-canvas]')){ copySelectedAssetsToCanvas(); return; }
+    if(target.closest?.('[data-asset-move-selected]')){ await moveSelectedAssets(); return; }
+    if(target.closest?.('[data-asset-maintenance-scan]') || target.closest?.('[data-asset-maintenance-rescan]')){ await runAssetMaintenanceScan(); return; }
+    const maintClean = target.closest?.('[data-asset-maintenance-clean]');
+    if(maintClean){ await cleanAssetMaintenance(maintClean.dataset.assetMaintenanceClean || ''); return; }
+    const maintClose = target.closest?.('[data-asset-maintenance-close]');
+    if(maintClose){
+        // 点遮罩空白处才关闭；点在弹窗内部不算
+        if(maintClose.classList.contains('asset-modal-mask') && target.closest('.asset-modal')) return;
+        assetMaintenance = null;
+        render();
+        return;
+    }
     if(target.closest?.('[data-asset-delete-selected]')){ await deleteSelectedAssets(); return; }
     if(target.closest?.('[data-asset-upload]')){
         if(uploadInput) uploadInput.accept = 'image/*,video/*,audio/*';
@@ -3058,7 +3669,17 @@ async function handleClick(event){
         await deleteAssetCategory(); return;
     }
     const assetLib = target.closest?.('[data-asset-lib]');
-    if(assetLib){ activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; activeAssetKindFilter = 'all'; activeAssetCategoryId = assetCategories()[0]?.id || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    if(assetLib){ activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; assetUnclassifiedOnly = false; activeAssetKindFilter = 'all'; activeAssetCategoryId = assetCategories()[0]?.id || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    const assetUnclassifiedRow = target.closest?.('[data-asset-unclassified]');
+    if(assetUnclassifiedRow){
+        activeAssetLibraryId = assetUnclassifiedRow.dataset.assetUnclassified || activeAssetLibraryId;
+        assetUnclassifiedOnly = !assetUnclassifiedOnly;
+        if(assetUnclassifiedOnly){ activeAssetClassFilter = ''; assetTreeFocus = 'unclassified'; }
+        else { assetTreeFocus = 'category'; }
+        selectedAssetId = '';
+        selectedAssetIds.clear();
+        render(); return;
+    }
     const assetClassRoot = target.closest?.('[data-asset-class-root]');
     if(assetClassRoot){
         activeAssetLibraryId = assetClassRoot.dataset.assetClassRoot || activeAssetLibraryId;
@@ -3078,6 +3699,7 @@ async function handleClick(event){
         const nextFilter = assetClass.dataset.assetClassFilter || '';
         activeAssetClassFilter = activeAssetClassFilter === nextFilter ? '' : nextFilter;
         if(activeAssetClassFilter) {
+            assetUnclassifiedOnly = false;
             openAssetClassGroup = assetClassificationGroupIdForFilter(activeAssetClassFilter, assetClassificationEntriesForLibrary(activeAssetLibrary())) || openAssetClassGroup;
         }
         assetTreeFocus = 'class';
@@ -3096,7 +3718,7 @@ async function handleClick(event){
         return;
     }
     const assetCat = target.closest?.('[data-asset-cat]');
-    if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; activeAssetKindFilter = 'all'; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; assetUnclassifiedOnly = false; activeAssetKindFilter = 'all'; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetCard = target.closest?.('[data-asset-card]');
     if(assetCard){ selectedAssetId = assetCard.dataset.assetCard || ''; assetEditMode = false; pendingDeleteAssetId = ''; render(); return; }
 
@@ -3105,7 +3727,30 @@ async function handleClick(event){
     if(target.closest?.('[data-prompt-create-save]')){ await savePromptCreate(); return; }
     if(target.closest?.('[data-prompt-edit-cancel]')){ promptEditMode = false; promptCreateMode = false; render(); return; }
     const promptEditStart = target.closest?.('[data-prompt-edit-start]');
-    if(promptEditStart){ selectedPromptId = promptEditStart.dataset.promptEditStart || selectedPromptId; promptEditMode = true; promptCreateMode = false; pendingDeletePromptId = ''; render(); return; }
+    if(promptEditStart){ selectedPromptId = promptEditStart.dataset.promptEditStart || selectedPromptId; promptDialogId = selectedPromptId; promptEditMode = true; promptCreateMode = false; pendingDeletePromptId = ''; render(); return; }
+    // 瀑布流卡片：点开弹窗详情（批量管理模式下点选不弹窗）
+    const promptZoomTarget = target.closest?.('[data-prompt-zoom]');
+    if(promptZoomTarget){ openPromptImageViewer(findPromptItem(promptZoomTarget.dataset.promptZoom || '')); return; }
+    const promptCopyBtn = target.closest?.('[data-prompt-copy]');
+    if(promptCopyBtn){ await copyPromptText(findPromptItem(promptCopyBtn.dataset.promptCopy || '')?.positive || '', '正向提示词'); return; }
+    const promptCopyNegativeBtn = target.closest?.('[data-prompt-copy-negative]');
+    if(promptCopyNegativeBtn){ await copyPromptText(findPromptItem(promptCopyNegativeBtn.dataset.promptCopyNegative || '')?.negative || '', '负向提示词'); return; }
+    const promptLikeBtn = target.closest?.('[data-prompt-like]');
+    if(promptLikeBtn){ togglePromptLike(promptLikeBtn.dataset.promptLike || ''); return; }
+    const promptFavBtn = target.closest?.('[data-prompt-fav]');
+    if(promptFavBtn){ togglePromptFavorite(promptFavBtn.dataset.promptFav || ''); return; }
+    if(target.closest?.('[data-prompt-fav-only]')){ promptFavOnly = !promptFavOnly; promptRenderLimit = PROMPT_RENDER_STEP; render(); return; }
+    if(target.closest?.('[data-prompt-filter-reset]')){
+        promptQuery = ''; promptSourceFilter = ''; promptFavOnly = false;
+        activePromptCategory = 'all'; promptRenderLimit = PROMPT_RENDER_STEP; render(); return;
+    }
+    if(target.closest?.('[data-prompt-back-top]')){
+        root.querySelector('.prompt-gallery-scroll')?.scrollTo({top:0, behavior:'smooth'});
+        return;
+    }
+    if(target.closest?.('[data-prompt-dialog-close]') || target.matches?.('[data-prompt-dialog-backdrop]')){ closePromptDialog(); return; }
+    if(target.closest?.('[data-prompt-import]')){ await importPromptLibraryFile(); return; }
+    if(target.closest?.('[data-prompt-export]')){ await exportPromptLibrary(); return; }
     if(target.closest?.('[data-prompt-manage]')){
         promptManageMode = !promptManageMode;
         pendingBatchDelete = '';
@@ -3126,7 +3771,7 @@ async function handleClick(event){
         const catRow = target.closest('[data-prompt-cat]');
         if(libId){ activePromptLibraryId = libId; activePromptCategory = 'all'; }
         if(catRow){ activePromptLibraryId = catRow.dataset.promptCatLib || activePromptLibraryId; activePromptCategory = catRow.dataset.promptCat || activePromptCategory; }
-        promptCreateMode = true; promptEditMode = false; pendingDeletePromptId = ''; render(); return;
+        promptCreateMode = true; promptEditMode = false; promptDialogId = ''; pendingDeletePromptId = ''; render(); return;
     }
     if(target.closest?.('[data-prompt-lib-new]')){ promptTreeFocus = 'library'; promptTreeEdit = {kind:'library-new', placement:'head', value:'新提示词库', label:'提示词库名称'}; render(); focusTreeEditInput('promptTreeEditInput'); return; }
     if(target.closest?.('[data-prompt-cat-new]')){
@@ -3160,11 +3805,20 @@ async function handleClick(event){
         await deletePromptLibrary(); return;
     }
     const promptLib = target.closest?.('[data-prompt-lib]');
-    if(promptLib){ activePromptLibraryId = promptLib.dataset.promptLib || ''; activePromptCategory = 'all'; promptTreeFocus = 'library'; selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; selectedPromptIds.clear(); render(); return; }
+    if(promptLib){ activePromptLibraryId = promptLib.dataset.promptLib || ''; activePromptCategory = 'all'; promptTreeFocus = 'library'; selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; promptDialogId = ''; selectedPromptIds.clear(); render(); return; }
     const promptCat = target.closest?.('[data-prompt-cat]');
-    if(promptCat){ activePromptLibraryId = promptCat.dataset.promptCatLib || activePromptLibraryId; activePromptCategory = promptCat.dataset.promptCat || 'all'; promptTreeFocus = 'category'; selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; selectedPromptIds.clear(); render(); return; }
+    if(promptCat){ activePromptLibraryId = promptCat.dataset.promptCatLib || activePromptLibraryId; activePromptCategory = promptCat.dataset.promptCat || 'all'; promptTreeFocus = 'category'; selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; promptDialogId = ''; selectedPromptIds.clear(); render(); return; }
     const promptRow = target.closest?.('[data-prompt-row]');
-    if(promptRow){ selectedPromptId = promptRow.dataset.promptRow || ''; promptEditMode = false; promptCreateMode = false; pendingDeletePromptId = ''; render(); return; }
+    if(promptRow){
+        const rowId = promptRow.dataset.promptRow || '';
+        selectedPromptId = rowId;
+        promptEditMode = false;
+        promptCreateMode = false;
+        pendingDeletePromptId = '';
+        promptDialogId = promptManageMode ? '' : rowId;
+        render();
+        return;
+    }
 }
 function openAssetItem(id){
     const item = findAssetItem(id);
@@ -3290,7 +3944,8 @@ function beginMarqueeSelection(event){
     const selector = marqueeTargetSelector();
     if(!selector) return;
     if(event.button !== 0) return;
-    if(event.target.closest?.('button,input,textarea,select,.side-upload-card,.upload-grid-card,.asset-search-wrap')) return;
+    // 卡片上按下交给原生拖拽（拖到左侧分组=移动）；框选仍可从网格空白处开始
+    if(event.target.closest?.('button,input,textarea,select,.side-upload-card,.upload-grid-card,.asset-search-wrap,[data-asset-card]')) return;
     const area = event.target.closest?.('.content-scroll');
     if(!area) return;
     event.preventDefault();
@@ -3756,20 +4411,11 @@ async function pasteLocalClipboardToAssets(){
     setStatus(`已导入 ${imported} 个素材到图片资产`);
 }
 async function moveSelectedAssets(){
-    if(!selectedAssetIds.size || !assetMoveTarget) return;
+    if(!selectedAssetIds.size){ setStatus('先选中要移动的素材'); return; }
+    if(!assetMoveTarget){ setStatus('没有可移动到的目标分组'); return; }
     const [targetLibraryId, targetCategoryId] = assetMoveTarget.split('::');
     if(!targetLibraryId || !targetCategoryId) return;
-    const ids = [...selectedAssetIds];
-    const data = await apiJson('/api/asset-library/items/move', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({library_id:activeAssetLibraryId, target_library_id:targetLibraryId, target_category_id:targetCategoryId, ids})
-    });
-    assetLibrary = data.library || assetLibrary;
-    selectedAssetIds.clear();
-    if(ids.includes(selectedAssetId)) selectedAssetId = '';
-    render();
-    setStatus(`已移动 ${data.moved || 0} 个素材`);
+    await moveAssetsToCategory([...selectedAssetIds], targetLibraryId, targetCategoryId);
 }
 function openLocalItem(id){
     const item = findLocalItem(id);
@@ -3904,6 +4550,7 @@ async function savePromptCreate(){
     promptLibrary = data.library || promptLibrary;
     selectedPromptId = data.item?.id || selectedPromptId;
     promptCreateMode = false;
+    promptDialogId = '';
     render();
     setStatus('提示词已新增');
 }
@@ -3948,6 +4595,7 @@ async function deletePromptItem(id){
     promptLibrary = data.library || promptLibrary;
     selectedPromptIds.delete(id);
     if(selectedPromptId === id) selectedPromptId = '';
+    if(promptDialogId === id) promptDialogId = '';
     pendingDeletePromptId = '';
     render();
     setStatus('提示词已删除');
@@ -3968,6 +4616,149 @@ async function deleteSelectedPrompts(){
     pendingBatchDelete = '';
     render();
 }
+// ---------- 资产拖拽整理：卡片拖到分组=移动，分组拖到分组=排序 ----------
+const ASSET_DRAG_MIME = 'application/x-artcanvas-assets';
+const ASSET_CAT_DRAG_MIME = 'application/x-artcanvas-category';
+let assetDropMarked = null;
+
+function assetDragKindsOf(ids){
+    return (ids || []).map(id => assetKind(findAssetItem(id))).filter(Boolean);
+}
+function markAssetDropTarget(el, cls){
+    if(assetDropMarked && (assetDropMarked.el !== el || assetDropMarked.cls !== cls)){
+        assetDropMarked.el.classList.remove(assetDropMarked.cls);
+        assetDropMarked = null;
+    }
+    if(!el || assetDropMarked) return;
+    el.classList.add(cls);
+    assetDropMarked = {el, cls};
+}
+function clearAssetDropMarks(){
+    if(assetDropMarked){
+        assetDropMarked.el.classList.remove(assetDropMarked.cls);
+        assetDropMarked = null;
+    }
+}
+function resetAssetDragVisuals(){
+    clearAssetDropMarks();
+    root.querySelectorAll('.asset-dragging').forEach(el => el.classList.remove('asset-dragging'));
+}
+function handleAssetDragStart(event){
+    const catRow = event.target?.closest?.('[data-asset-cat]');
+    const card = event.target?.closest?.('[data-asset-card]');
+    if(card && !catRow){
+        const id = card.dataset.assetCard || '';
+        const ids = selectedAssetIds.has(id) ? [...selectedAssetIds] : (id ? [id] : []);
+        if(!ids.length) return;
+        assetDragState = {kind:'asset', ids};
+        try{
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData(ASSET_DRAG_MIME, JSON.stringify(ids));
+            event.dataTransfer.setData('text/plain', ids.join(','));
+        }catch(err){ /* 个别浏览器限制 dataTransfer，忽略 */ }
+        card.classList.add('asset-dragging');
+        return;
+    }
+    if(catRow){
+        const catId = catRow.dataset.assetCat || '';
+        if(!catId) return;
+        assetDragState = {kind:'category', libraryId:catRow.dataset.assetCatLib || '', categoryId:catId, type:catRow.dataset.assetCatType || 'image'};
+        try{
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData(ASSET_CAT_DRAG_MIME, catId);
+            event.dataTransfer.setData('text/plain', catId);
+        }catch(err){ /* 同上 */ }
+        catRow.classList.add('asset-dragging');
+    }
+}
+function handleAssetDragOver(event){
+    const state = assetDragState;
+    if(!state) return;
+    const catRow = event.target?.closest?.('[data-asset-cat]');
+    if(!catRow){ clearAssetDropMarks(); return; }
+    if(state.kind === 'asset'){
+        event.preventDefault();
+        if(event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        const catType = catRow.dataset.assetCatType || 'image';
+        const kinds = new Set(assetDragKindsOf(state.ids));
+        const typeOk = kinds.has(catType) || (catType === 'image' && kinds.has('text'));
+        const sameCat = catRow.dataset.assetCat === activeAssetCategoryId
+            && catRow.dataset.assetCatLib === activeAssetLibraryId
+            && !assetUnclassifiedOnly && !activeAssetClassFilter;
+        markAssetDropTarget(catRow, typeOk && !sameCat ? 'asset-drop-ok' : 'asset-drop-ban');
+        return;
+    }
+    if(state.kind === 'category'){
+        if(catRow.dataset.assetCat === state.categoryId || catRow.dataset.assetCatLib !== state.libraryId) return;
+        event.preventDefault();
+        if(event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        markAssetDropTarget(catRow, 'asset-drop-before');
+    }
+}
+async function handleAssetDrop(event){
+    const state = assetDragState;
+    assetDragState = null;
+    if(!state){ resetAssetDragVisuals(); return; }
+    const catRow = event.target?.closest?.('[data-asset-cat]');
+    resetAssetDragVisuals();
+    if(!catRow) return;
+    event.preventDefault();
+    const targetLibraryId = catRow.dataset.assetCatLib || '';
+    const targetCategoryId = catRow.dataset.assetCat || '';
+    if(!targetLibraryId || !targetCategoryId) return;
+    if(state.kind === 'asset'){
+        const catType = catRow.dataset.assetCatType || 'image';
+        const kinds = new Set(assetDragKindsOf(state.ids));
+        if(!kinds.has(catType) && !(catType === 'image' && kinds.has('text'))){
+            setStatus('目标分组类型不匹配，没有移动');
+            return;
+        }
+        await moveAssetsToCategory(state.ids, targetLibraryId, targetCategoryId);
+        return;
+    }
+    if(state.kind === 'category'){
+        if(targetCategoryId === state.categoryId) return;
+        await reorderAssetCategory(state.libraryId, state.categoryId, targetCategoryId);
+    }
+}
+async function moveAssetsToCategory(ids, targetLibraryId, targetCategoryId){
+    const list = (ids || []).filter(Boolean);
+    if(!list.length){ setStatus('先选中要移动的素材'); return; }
+    const data = await apiJson('/api/asset-library/items/move', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({library_id:activeAssetLibraryId, target_library_id:targetLibraryId, target_category_id:targetCategoryId, ids:list})
+    });
+    if(!data){ setStatus('移动失败'); return; }
+    assetLibrary = data.library || assetLibrary;
+    selectedAssetIds.clear();
+    if(list.includes(selectedAssetId)) selectedAssetId = '';
+    render();
+    setStatus(`已移动 ${data.moved || 0} 个素材`);
+}
+async function reorderAssetCategory(libraryId, dragCategoryId, targetCategoryId){
+    const library = assetLibraries().find(lib => lib.id === libraryId);
+    if(!library) return;
+    const order = (library.categories || []).map(cat => cat.id);
+    const from = order.indexOf(dragCategoryId);
+    const to = order.indexOf(targetCategoryId);
+    if(from < 0 || to < 0 || from === to) return;
+    order.splice(from, 1);
+    order.splice(to, 0, dragCategoryId);
+    const data = await apiJson('/api/asset-library/categories/reorder', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({library_id:libraryId, order})
+    });
+    if(!data){ setStatus('分组排序保存失败'); return; }
+    assetLibrary = data.library || assetLibrary;
+    render();
+    setStatus('分组顺序已保存');
+}
+root.addEventListener('dragstart', handleAssetDragStart);
+root.addEventListener('dragover', handleAssetDragOver);
+root.addEventListener('drop', handleAssetDrop);
+root.addEventListener('dragend', () => { assetDragState = null; resetAssetDragVisuals(); });
 root.addEventListener('click', event => {
     handleClick(event).catch(err => setStatus(err.message || '操作失败'));
 });
@@ -3975,6 +4766,10 @@ document.addEventListener('click', event => {
     if(event.target.closest?.('.asset-lightbox') && !event.target.closest?.('.asset-lightbox-image,.asset-lightbox-video')) closeDetailPreview();
 });
 document.addEventListener('keydown', event => {
+    if(event.key === 'Escape' && root.querySelector?.('[data-prompt-dialog-backdrop]')){
+        closePromptDialog();
+        return;
+    }
     if(event.key === 'Escape') closeDetailPreview();
     if(event.target?.id === 'assetTreeEditInput'){
         if(event.key === 'Enter'){ event.preventDefault(); saveAssetTreeEdit().catch(err => setStatus(err.message || '保存失败')); }
@@ -4036,6 +4831,20 @@ root.addEventListener('input', event => {
     }
 });
 root.addEventListener('change', event => {
+    // 瀑布流筛选：来源 / 排序
+    if(event.target?.id === 'promptSourceFilter'){
+        promptSourceFilter = event.target.value || '';
+        promptRenderLimit = PROMPT_RENDER_STEP;
+        render();
+        return;
+    }
+    if(event.target?.id === 'promptSort'){
+        promptSortMode = event.target.value || 'random';
+        promptRandomSeed = Date.now();
+        promptRenderLimit = PROMPT_RENDER_STEP;
+        render();
+        return;
+    }
     const inlineLocalUploadName = event.target.closest?.('[data-localup-inline-name]');
     if(inlineLocalUploadName){
         saveLocalUploadInlineName(inlineLocalUploadName.dataset.localupInlineName || '', inlineLocalUploadName.value || '').catch(err => setStatus(err.message || '保存失败'));
@@ -4107,6 +4916,12 @@ root.addEventListener('change', event => {
     if(event.target?.id === 'canvasAssetSort'){
         canvasAssetSort = event.target.value || 'canvas_asc';
         selectedCanvasAssetId = '';
+        render();
+    }
+    if(event.target?.id === 'assetSort'){
+        assetSortMode = ASSET_SORT_MODES.has(event.target.value) ? event.target.value : 'newest';
+        try{ localStorage.setItem(ASSET_SORT_STORAGE_KEY, assetSortMode); }catch(err){ /* 隐私模式下写不进，忽略 */ }
+        selectedAssetId = '';
         render();
     }
     if(event.target?.id === 'assetMoveTarget'){

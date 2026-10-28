@@ -61,6 +61,8 @@ async def required_modules(request):
         module = Path(path).stem
         return {module} if module in MODULES else set()
     pages = {'/static/canvas.html':'canvas', '/static/asset-manager.html':'asset-manager'}
+    if path == '/api/image-cutout' or path.startswith('/api/image-cutout/'):
+        return {'rmbg'}
     if path in pages:
         return {pages[path]}
     for prefix, module in (('/api/generation-data','generation-dashboard'),('/api/training','training'),

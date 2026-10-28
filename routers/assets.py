@@ -677,6 +677,91 @@ async def batch_move_asset_library_items(payload: _main.AssetLibraryBatchMoveReq
             existing_ids.add(item.get("id"))
     _main.save_asset_library(lib)
     return {"library": lib, "moved": len(moved)}
+@router.post("/api/asset-library/categories/reorder")
+async def reorder_asset_library_categories(payload: _main.AssetLibraryCategoryReorderRequest):
+    order = [str(item) for item in (payload.order or []) if str(item)]
+    if not order:
+        raise HTTPException(status_code=400, detail="排序列表为空")
+    lib = _main.load_asset_library()
+    library = _main.find_asset_library(lib, payload.library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="资产库不存在")
+    cats = library.get("categories") or []
+    known = {cat.get("id") for cat in cats}
+    unknown = [cid for cid in order if cid not in known]
+    if unknown:
+        raise HTTPException(status_code=400, detail="排序列表含未知分组")
+    ranked = {cid: pos for pos, cid in enumerate(order)}
+    keep_index = {cat.get("id"): pos for pos, cat in enumerate(cats)}
+    cats.sort(key=lambda cat: ranked.get(cat.get("id"), len(ranked) + keep_index.get(cat.get("id"), 0)))
+    library["categories"] = cats
+    if lib.get("active_library_id") == library.get("id"):
+        lib["categories"] = cats
+    _main.save_asset_library(lib)
+    return {"library": lib, "categories": cats}
+
+@router.post("/api/asset-library/maintenance/scan")
+async def scan_asset_library_maintenance(payload: _main.AssetLibraryMaintenanceScanRequest):
+    lib = _main.load_asset_library()
+    entries = []
+    for library in lib.get("libraries", []):
+        if payload.library_id and library.get("id") != payload.library_id:
+            continue
+        for cat in library.get("categories") or []:
+            for item in cat.get("items") or []:
+                if not isinstance(item, dict):
+                    continue
+                path = _main.asset_library_item_path(item.get("url"))
+                exists = bool(path) and os.path.isfile(path)
+                size = 0
+                if exists:
+                    try:
+                        size = os.path.getsize(path)
+                    except OSError:
+                        size = 0
+                try:
+                    created_at = int(float(item.get("created_at") or 0))
+                except (TypeError, ValueError):
+                    created_at = 0
+                entries.append({
+                    "id": item.get("id") or "",
+                    "name": item.get("name") or "",
+                    "url": item.get("url") or "",
+                    "kind": item.get("kind") or "",
+                    "library_id": library.get("id") or "",
+                    "category_id": cat.get("id") or "",
+                    "category_name": cat.get("name") or "",
+                    "path": path or "",
+                    "exists": exists,
+                    "size": size,
+                    "created_at": created_at,
+                })
+    missing = [row for row in entries if not row["exists"]]
+    buckets = {}
+    for row in entries:
+        if not row["exists"]:
+            continue
+        fingerprint = _main.asset_file_fingerprint(row["path"], row["size"])
+        if not fingerprint:
+            continue
+        buckets.setdefault((row["size"], fingerprint), []).append(row)
+    duplicate_groups = []
+    for rows in buckets.values():
+        if len(rows) < 2:
+            continue
+        rows.sort(key=lambda row: row["created_at"] or row["id"])
+        duplicate_groups.append({"keep": rows[0], "items": rows[1:], "size": rows[0]["size"]})
+    duplicate_groups.sort(key=lambda group: group["size"] * len(group["items"]), reverse=True)
+    duplicate_count = sum(len(group["items"]) for group in duplicate_groups)
+    reclaim = sum(row["size"] for row in missing) + sum(group["size"] * len(group["items"]) for group in duplicate_groups)
+    return {
+        "total": len(entries),
+        "missing": missing,
+        "duplicate_groups": duplicate_groups,
+        "duplicate_count": duplicate_count,
+        "reclaim_bytes": reclaim,
+        "scanned_at": _main.now_ms(),
+    }
 @router.post("/api/asset-library/items/crop")
 async def batch_crop_asset_library_items(payload: _main.AssetLibraryBatchCropRequest):
     ids = {str(item) for item in (payload.ids or []) if str(item)}

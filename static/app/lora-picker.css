@@ -37,6 +37,7 @@
     border: 1px solid oklch(28% 0.02 280 / 0.5);
     box-shadow: 0 30px 80px oklch(0% 0 0 / 0.55), 0 2px 8px oklch(0% 0 0 / 0.3);
     overflow: hidden;
+    position: relative;
     animation: lora-picker-pop 0.22s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
 @keyframes lora-picker-pop {
@@ -1723,3 +1724,208 @@ body.studio-theme-dark .lac-action-btn { background:rgba(0, 0, 0, 0.6); }
 body.studio-theme-dark .lac-action-btn.lac-toggle-on { background:rgba(74, 222, 128, 0.5); color:#fbfaf9; }
 .lac-action-btn.lac-toggle-on { background:rgba(74, 222, 128, 0.85); color:#fbfaf9; }
 .lac-action-btn.lac-toggle-on:hover { background:rgba(74, 222, 128, 0.95); box-shadow:0 4px 12px rgba(74, 222, 128, 0.4); }
+
+/* ========================================================================
+   例图抽屉（Civitai showcase）
+   卡片左上「例图」按钮 → 窗口内右侧滑出，双列瀑布流
+   ======================================================================== */
+.lora-card-examples-btn {
+    position: absolute;
+    top: 6px;
+    left: 32px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fbfaf9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 8;
+    padding: 0;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s, transform 0.15s;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    pointer-events: auto;
+}
+.lora-card-item:hover .lora-card-examples-btn {
+    opacity: 1;
+    transform: scale(1.1);
+    background: rgba(99, 102, 241, 0.7);
+}
+.lora-card-examples-btn:hover { background: rgba(99, 102, 241, 0.85); }
+
+.lora-examples-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 88%);
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, oklch(17% 0.025 280) 0%, oklch(12.5% 0.02 285) 100%);
+    border-left: 1px solid oklch(32% 0.025 280 / 0.6);
+    box-shadow: -18px 0 44px oklch(0% 0 0 / 0.5);
+    transform: translateX(102%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.26s var(--picker-ease, cubic-bezier(0.16, 1, 0.3, 1)), opacity 0.2s ease;
+    z-index: 20;
+}
+.lora-examples-panel.is-open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.lora-examples-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 10px 14px;
+    border-bottom: 1px solid oklch(30% 0.02 280 / 0.5);
+    flex-shrink: 0;
+}
+.lora-examples-hd {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.lora-examples-kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: oklch(72% 0.11 285);
+    flex-shrink: 0;
+}
+.lora-examples-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: oklch(92% 0.01 280);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lora-examples-close {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid oklch(34% 0.02 280 / 0.5);
+    background: oklch(24% 0.02 280 / 0.6);
+    color: oklch(80% 0.01 280);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.lora-examples-close:hover { background: rgba(239, 68, 68, 0.75); color: #fff; border-color: transparent; }
+
+.lora-examples-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 12px 14px;
+}
+.lora-examples-body::-webkit-scrollbar { width: 6px; }
+.lora-examples-body::-webkit-scrollbar-thumb {
+    background: oklch(40% 0.02 280 / 0.5);
+    border-radius: 3px;
+}
+
+.lora-examples-flow { column-count: 2; column-gap: 8px; }
+.lora-example-item {
+    position: relative;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    margin: 0 0 8px;
+    border-radius: 9px;
+    overflow: hidden;
+    cursor: zoom-in;
+    background: oklch(22% 0.02 280);
+    border: 1px solid oklch(30% 0.02 280 / 0.35);
+    transition: border-color 0.15s, transform 0.15s;
+}
+.lora-example-item:hover { border-color: oklch(60% 0.12 285 / 0.7); transform: translateY(-1px); }
+.lora-example-item img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+}
+.lora-example-video-tag {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fbfaf9;
+    backdrop-filter: blur(2px);
+}
+
+.lora-examples-hint {
+    padding: 36px 14px;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: oklch(62% 0.015 280);
+}
+.lora-examples-hint.is-error { color: oklch(70% 0.13 25); }
+
+.lora-examples-foot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-top: 1px solid oklch(30% 0.02 280 / 0.5);
+}
+.lora-examples-count { font-size: 11.5px; color: oklch(62% 0.015 280); }
+.lora-examples-open {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid oklch(48% 0.12 285 / 0.6);
+    background: oklch(34% 0.1 285 / 0.55);
+    color: oklch(95% 0.01 280);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.lora-examples-open:hover { background: oklch(46% 0.15 285 / 0.8); border-color: transparent; }
+
+/* 大图预览 */
+.lora-example-lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.86);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: zoom-out;
+}
+.lora-example-lightbox img {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+}
+
+@media (max-width: 640px) {
+    .lora-examples-panel { width: 100%; }
+}

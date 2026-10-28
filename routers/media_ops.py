@@ -11,6 +11,8 @@ from fastapi import APIRouter
 import main as _main
 
 router = APIRouter()
+from image_cutout import router as cutout_router
+router.include_router(cutout_router)
 
 
 def _preview_cache_headers(path: str) -> dict:

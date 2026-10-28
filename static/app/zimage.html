@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <script>if(new URLSearchParams(location.search).get('canvasComposer')==='1'){document.documentElement.classList.add('canvas-composer-embed');document.documentElement.dataset.studioScale='off';document.documentElement.dataset.studioFitScale='off';}</script>
+    <link rel="stylesheet" href="/static/css/canvas-composer-embed.css?v=20261028012">
+    <script src="/static/modules/load-log.js?v=20261027load"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <script src="/static/modules/model-visibility.js?v=20261024card"></script>
@@ -24,9 +27,9 @@
     <script src="/static/history-bulk-manager.js?v=20261024tone" defer></script>
     <script src="/static/modules/interrogator.js" defer></script>
     <script src="/static/modules/ref-image-manager.js?v=20261026paste" defer></script>
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261027download">
-    <script src="/static/modules/image-viewer.js?v=20261026size" defer></script>
-    <script src="/static/modules/gallery/bundle.js?v=20261027download" defer></script>
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261028026">
+    <script src="/static/modules/image-viewer.js?v=20261028full" defer></script>
+<script src="/static/modules/gallery/bundle.js?v=20261028imageedit2" defer></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20261024001">
     <script src="/static/app/anima-character-picker.js?v=20261027caret" defer></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20261024001">
@@ -39,9 +42,9 @@
     <script src="/static/modules/prompt-translate-ui.js?v=20261024001" defer></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20261027stylecard">
     <script src="/static/app/preset-thumbnails.js?v=20261027" defer></script>
-    <script src="/static/app/preset-picker.js?v=20261027thumbqueue" defer></script>
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261024up">
-    <script src="/static/app/lora-picker.js?v=20261025005" defer></script>
+    <script src="/static/app/preset-picker.js?v=20261028classify" defer></script>
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261028155">
+    <script src="/static/app/lora-picker.js?v=20261028155" defer></script>
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js?v=20261027thumbqueue" defer></script>
     <!-- smart-prompt-picker.js / smart-prompt-manager.js 已合并到 prompt-module.js -->
@@ -49,6 +52,7 @@
     <script src="/static/js/translate-queue.js?v=20261024001" defer></script>
     <script src="/static/js/incremental-translator.js?v=20261024001" defer></script>
     <script src="/static/modules/generation-controls.js?v=20261026res"></script>
+    <script src="/static/modules/generation-menu-position.js?v=20261028020"></script>
     <style>
         :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0b0b0a; }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
@@ -752,7 +756,7 @@
             body.chat-layout .chat-user,
             body.chat-layout .chat-reply { font-size:15px; }
         }
-        .prompt-picker-shell { position:fixed; z-index:85; display:block; overflow:hidden; height:0; border-radius:16px; background:transparent; transition:height .28s ease; }
+        .prompt-picker-shell { position:fixed; z-index:85; display:block; overflow:hidden; height:0; min-width:0; box-sizing:border-box; border-radius:16px; background:transparent; transition:height .28s ease; }
         .prompt-picker-shell.is-open { display:flex; flex-direction:column; }
         .prompt-picker-bar { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:8px 10px; background:var(--ui-panel, #1c202a); border:1px solid var(--ui-line, #343b4c); border-bottom:0; border-radius:16px 16px 0 0; overflow:auto; }
         .prompt-picker-bar button[data-prompt-tab] { height:28px; padding:0 10px; border-radius:8px; border:1px solid transparent; background:transparent; color:var(--ui-muted, #9c9b92); font-size:12px; font-weight:700; cursor:pointer; flex:0 0 auto; }
@@ -820,6 +824,111 @@
         #promptPickerBody #presetPickerGrid > div,
         #promptPickerBody #presetPickerStyleGrid > div { display:grid !important; grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)) !important; gap:12px !important; }
         #promptPickerBody .picker-grid { grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)) !important; gap:10px !important; }
+        #promptPickerBody .prompt-embedded,
+        #promptPickerBody .prompt-embedded > div { min-width:0 !important; min-height:0 !important; max-height:100% !important; }
+        /* ── 窄屏（手机 / 小平板）：分类栏转顶部横向 chips，卡片固定 2 列，文字放大 ── */
+        @media (max-width:840px) {
+            /* 主体改上下结构，让分类栏占顶部一行 */
+            #promptPickerBody div:has(> #presetPickerCategories),
+            #promptPickerBody div:has(> .picker-sidebar),
+            #promptPickerBody #artistPickerModal > div > div:nth-child(2) { flex-direction:column !important; }
+
+            #promptPickerBody .picker-sidebar,
+            #promptPickerBody #presetPickerCategories,
+            #promptPickerBody #artistPickerModal > div > div:nth-child(2) > div:first-child {
+                width:100% !important; flex:0 0 auto !important; flex-basis:auto !important;
+                display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+                align-items:center !important;
+                max-height:none !important;
+                padding:6px 8px !important;
+                gap:6px !important;
+                overflow-x:auto !important; overflow-y:hidden !important;
+                border-right:0 !important;
+                border-bottom:1px solid var(--ui-line, #343b4c) !important;
+                scrollbar-width:none;
+            }
+            #promptPickerBody .picker-sidebar::-webkit-scrollbar,
+            #promptPickerBody #presetPickerCategories::-webkit-scrollbar { display:none; }
+
+            #promptPickerBody #presetPickerCategories .preset-picker-cat,
+            #promptPickerBody .picker-sidebar button,
+            #promptPickerBody .picker-sidebar .picker-side-item {
+                flex:0 0 auto !important; white-space:nowrap !important;
+                padding:6px 10px !important; font-size:12.5px !important; line-height:1.2 !important;
+                justify-content:center !important;
+            }
+            #promptPickerBody #presetPickerCategories .preset-picker-subcat,
+            #promptPickerBody .picker-sidebar .picker-side-group { display:none !important; }
+
+            /* 画师 tab：180px 左侧栏 → 顶部横向 chips，隐藏标题与已选计数 */
+            #promptPickerBody #artistPickerModal div:has(> #artistPickerCategories) {
+                width:100% !important; flex:0 0 auto !important;
+                flex-direction:row !important; align-items:center !important;
+                background:transparent !important;
+                border-right:0 !important;
+                border-bottom:1px solid var(--ui-line, #343b4c) !important;
+                overflow:hidden !important;
+            }
+            #promptPickerBody #artistPickerModal div:has(> #artistPickerCategories) > div:not(#artistPickerCategories) { display:none !important; }
+            #promptPickerBody #artistPickerCategories {
+                display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+                align-items:center !important; gap:6px !important;
+                flex:1 1 auto !important; min-width:0 !important;
+                overflow-x:auto !important; overflow-y:hidden !important;
+                padding:6px 8px !important;
+                scrollbar-width:none;
+            }
+            #promptPickerBody #artistPickerCategories::-webkit-scrollbar { display:none; }
+            #promptPickerBody .artist-picker-cat {
+                flex:0 0 auto !important; white-space:nowrap !important;
+                flex-direction:row !important; align-items:center !important; gap:4px !important;
+                padding:6px 10px !important; font-size:12.5px !important;
+            }
+            /* 画师底部分页按钮不要被压成竖排 */
+            #promptPickerBody #artistPickerPrevBtn,
+            #promptPickerBody #artistPickerNextBtn,
+            #promptPickerBody #presetPickerPrevBtn,
+            #promptPickerBody #presetPickerNextBtn {
+                white-space:nowrap !important; flex-shrink:0 !important;
+                padding:6px 8px !important; font-size:11.5px !important;
+            }
+
+            /* 卡片固定 2 列，格子更大、文字更清楚 */
+            #promptPickerBody .picker-grid,
+            #promptPickerBody .artist-picker-grid,
+            #promptPickerBody #presetPickerGrid > div,
+            #promptPickerBody #presetPickerStyleGrid > div {
+                grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+                gap:8px !important;
+            }
+            #promptPickerBody #presetPickerGrid,
+            #promptPickerBody #presetPickerStyleGrid { padding:8px !important; }
+
+            /* 卡片内文字放大 */
+            #promptPickerBody .preset-picker-card { min-height:104px !important; }
+            #promptPickerBody .preset-picker-card-name { font-size:12.5px !important; line-height:1.35 !important; }
+            #promptPickerBody .preset-style-prompt,
+            #promptPickerBody .preset-picker-card-prompt { font-size:11.5px !important; line-height:1.4 !important; }
+            #promptPickerBody .picker-char-name { font-size:13px !important; }
+
+            /* 顶部工具栏换行：tab 一行、工具一行、搜索框独占一行 */
+            #promptPickerShell .prompt-picker-bar { flex-wrap:wrap !important; overflow:visible !important; padding:6px 8px !important; gap:4px !important; }
+            #promptPickerShell .prompt-picker-tools { gap:0 !important; }
+            #promptPickerShell .prompt-picker-tools button,
+            #promptPickerShell .prompt-picker-bar button[data-prompt-tab] { height:30px !important; padding:0 8px !important; font-size:12.5px !important; }
+            #promptPickerShell .prompt-picker-search { order:10; flex:1 1 auto !important; min-width:150px !important; max-width:none !important; margin-left:0 !important; height:32px !important; }
+            #promptPickerShell .prompt-picker-stat { order:11; }
+            #promptPickerShell .prompt-picker-x { order:12; }
+        }
+        /* 平板宽度（竖屏 iPad 等）：卡片 3 列更合适 */
+        @media (min-width:601px) and (max-width:840px) {
+            #promptPickerBody .picker-grid,
+            #promptPickerBody .artist-picker-grid,
+            #promptPickerBody #presetPickerGrid > div,
+            #promptPickerBody #presetPickerStyleGrid > div {
+                grid-template-columns:repeat(3, minmax(0, 1fr)) !important;
+            }
+        }
         #promptPickerBody .picker-char-card { position:relative !important; border-radius:12px !important; overflow:hidden !important; }
         #promptPickerBody .picker-char-cover { aspect-ratio:2 / 3 !important; background:var(--ui-soft, #252b38) !important; }
         #promptPickerBody .picker-char-cover img { object-fit:contain !important; object-position:center center !important; }
@@ -1006,11 +1115,19 @@
         .control-bar #seedToggle,
         .control-bar #seedInput { display:none !important; }
         #chatAdvancedPanel[hidden] { display:none !important; }
+        #chatAdvancedBtn svg { display:block !important; width:18px; height:18px; flex-shrink:0; }
+        @media(max-width:1024px) { #generationComposer #chatAdvancedBtn { width:44px; min-width:44px; padding:0 !important; } }
         html.engine-cloud #chatAdvancedBtn,
         html.engine-cloud #chatAdvancedPanel { display:none !important; }
-        #chatAdvancedPanel { position:fixed; z-index:10000; width:min(460px, calc(100vw - 24px)); box-sizing:border-box; overflow-y:auto; padding:16px; border:1px solid var(--ui-line); border-radius:16px; background:color-mix(in srgb, var(--ui-panel, #20242e) 82%, transparent); backdrop-filter:blur(24px) saturate(140%); -webkit-backdrop-filter:blur(24px) saturate(140%); box-shadow:0 12px 40px #0003; color:var(--ui-text); font-size:12px; }
-        #chatAdvancedPanel .chat-advanced-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-        #chatAdvancedPanel select { background:var(--ui-soft); color:var(--ui-text); border:1px solid var(--ui-line); border-radius:7px; padding:4px 6px; }
+        #chatAdvancedPanel { position:fixed; z-index:10000; box-sizing:border-box; overflow-y:auto; overscroll-behavior:contain; padding:20px; border:1px solid var(--ui-line); border-radius:18px; background:var(--ui-panel, #262626); box-shadow:0 12px 36px #0004; color:var(--ui-text); font-size:14px; }
+        #chatAdvancedPanel .chat-advanced-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+        #chatAdvancedPanel .chat-advanced-row>span:first-child { flex:0 0 100%; color:var(--ui-muted); font-size:13px; }
+        #chatAdvancedPanel .chat-advanced-negative { padding-top:16px; margin-bottom:18px; border-top:1px solid var(--ui-line); }
+        #chatAdvancedPanel .chat-advanced-negative>label { display:block; margin-bottom:10px; color:var(--ui-muted); font-size:13px; }
+        #chatAdvancedPanel select { background:var(--ui-soft); color:var(--ui-text); border:0; border-radius:9px; padding:8px 10px; min-height:40px; font:inherit; }
+        #chatAdvancedPanel textarea { width:100%; box-sizing:border-box; min-height:80px; margin:0 0 10px; padding:12px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-soft); color:var(--ui-text); font:inherit; line-height:1.6; resize:vertical; }
+        #chatAdvancedPanel .anima-ctrl,#chatAdvancedPanel .anima-ctrl-input { min-height:40px; font-size:13px; border-radius:9px; }
+        @media(max-width:600px) { #chatAdvancedPanel {padding:16px;} #chatAdvancedPanel .anima-ctrl,#chatAdvancedPanel .anima-ctrl-input,#chatAdvancedPanel select { min-height:44px; font-size:14px; } }
         #chatAdvancedPanel #extraNegPanel { display:block !important; margin:6px 0 10px; }
         #chatAdvancedPanel p { color:var(--ui-muted); margin:0; font-size:11px; }
         .chat-task-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:10px; color:var(--ui-muted); font-size:12px; }
@@ -1036,7 +1153,7 @@
     </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
 </head>
-<body class="antialiased">
+<body id="zimagePage" class="antialiased">
     <script>
         try {
             if (document.documentElement.classList.contains('studio-theme-dark')) {
@@ -1305,7 +1422,10 @@
                     'text2image/ideogram4-structured.json': 'Ideogram4',
                     'text2image/ideogram4.json': 'Ideogram4',
                     'text2image/boogu-base.json': 'Boogu',
-                    'text2image/boogu-turbo.json': 'Boogu'
+                    'text2image/boogu-turbo.json': 'Boogu',
+                    'text2image/moss-image-sft.json': 'MOSS-Image SFT',
+                    'text2image/moss-image-sft-fast.json': 'MOSS-Image SFT',
+                    'text2image/moss-image-sft-4step.json': 'MOSS-Image SFT'
                 };
                 var modelText = document.getElementById('modelText');
                 var workflow = localStorage.getItem('zimage_workflow') || '';
@@ -1517,8 +1637,23 @@
         // - extractArtistName(token)     : 从 @xxx / by xxx 中提取画师名（无前缀则返回 null）
         // - safeDbAvailable(name)        : 延迟安全检查全局 DB 是否已加载
         // 注：以下函数都是无副作用的纯函数，专门用于消解 updatePickerButtonsHighlight / syncPickerStatesFromPrompt 内的重复样板
-        function splitPrompt(text) {
-            if (!text) return [];
+        // 统一的响应 JSON 解析：空/截断的 200 响应不再抛 V8 含糊的
+        // "Unexpected end of JSON input"，而是指明是哪个接口、HTTP 状态和内容开头，
+        // 方便一眼定位是提交环节还是轮询保存环节出的问题。
+        async function parseJsonResponse(res, label) {
+            const raw = await res.text();
+            if (!raw.trim()) {
+                throw new Error((label || '接口') + ' 返回了空响应（HTTP ' + res.status + '），多为服务瞬时中断，请重试一次');
+            }
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                throw new Error((label || '接口') + ' 返回了无效 JSON（HTTP ' + res.status + '）：'
+                    + String(e.message) + ' | 内容开头: ' + raw.slice(0, 120));
+            }
+        }
+
+        function splitPrompt(text) {            if (!text) return [];
             return text.split(',').map(p => p.trim()).filter(Boolean);
         }
         function setPickerButtonState(btnId, textId, count, baseLabel) {
@@ -1649,36 +1784,78 @@
                 closePromptPicker();
             });
             window.addEventListener('resize', placePromptPickerIfOpen);
+            window.addEventListener('studio-ui-scale-change', placePromptPickerIfOpen);
             window.addEventListener('scroll', placePromptPickerIfOpen, true);
+            document.addEventListener('fullscreenchange', placePromptPickerIfOpen);
+            window.visualViewport?.addEventListener('resize', placePromptPickerIfOpen);
+            window.visualViewport?.addEventListener('scroll', placePromptPickerIfOpen);
+            const composer = document.getElementById('generationComposer');
+            if (composer && typeof ResizeObserver !== 'undefined') {
+                const observer = new ResizeObserver(placePromptPickerIfOpen);
+                observer.observe(composer);
+                if (composer.parentElement) observer.observe(composer.parentElement);
+            }
             return shell;
         }
         function placePromptPicker(animate) {
             const shell = document.getElementById('promptPickerShell');
-            const anchor = document.querySelector('.console-card') || document.getElementById('promptPickerBtn');
+            const anchor = document.getElementById('generationComposer') || document.getElementById('promptPickerBtn');
             if (!shell || !anchor) return;
             const rect = anchor.getBoundingClientRect();
             const up = document.body.classList.contains('chat-layout');
-            const left = Math.max(12, Math.round(rect.left));
-            const width = Math.max(320, Math.min(Math.round(rect.width), window.innerWidth - left - 12));
-            shell.style.left = left + 'px';
-            shell.style.width = width + 'px';
+            const viewport = window.visualViewport;
+            const viewLeft = viewport?.offsetLeft || 0;
+            const viewTop = viewport?.offsetTop || 0;
+            const viewWidth = viewport?.width || window.innerWidth;
+            const viewBottom = viewTop + (viewport?.height || window.innerHeight);
+            // 主题缩放会让 body 成为 fixed 定位的包含块。rect 是屏幕坐标，
+            // 写入面板前必须还原为 body 内部坐标，不能再次乘上页面缩放。
+            const bodyRect = document.body.getBoundingClientRect();
+            const scaledBody = getComputedStyle(document.body).transform !== 'none';
+            const scale = scaledBody && document.body.offsetWidth ? bodyRect.width / document.body.offsetWidth : 1;
+            const originX = scaledBody ? bodyRect.left : 0;
+            const originY = scaledBody ? bodyRect.top : 0;
+            // 窄屏（手机 / 小平板）：面板直接铺满可视区域，避免被输入框位置挤成矮条
+            if (viewWidth <= 840) {
+                const pad = 8;
+                const vh = viewport?.height || window.innerHeight;
+                const w = Math.max(240, viewWidth - pad * 2);
+                const h = Math.max(260, vh - pad * 2);
+                shell.style.left = ((viewLeft + pad - originX) / scale) + 'px';
+                shell.style.width = (w / scale) + 'px';
+                shell.style.right = 'auto';
+                shell.style.top = ((viewTop + pad - originY) / scale) + 'px';
+                shell.style.bottom = 'auto';
+                if (animate) {
+                    shell.style.height = '0px';
+                    requestAnimationFrame(placePromptPickerIfOpen);
+                } else if (shell.classList.contains('is-open')) {
+                    shell.style.height = (h / scale) + 'px';
+                }
+                return;
+            }
+            const width = Math.max(0, Math.min(Math.round(rect.width), viewWidth - 24));
+            const left = Math.max(viewLeft + 12, Math.min(Math.round(rect.left), viewLeft + viewWidth - width - 12));
+            shell.style.left = ((left - originX) / scale) + 'px';
+            shell.style.width = (width / scale) + 'px';
             shell.style.right = 'auto';
             let maxH;
             if (up) {
-                maxH = Math.max(220, Math.min(560, rect.top - 16));
+                const bottom = Math.max(viewTop + 12, Math.min(rect.top - 8, viewBottom - 12));
+                maxH = Math.max(0, Math.min(560, bottom - viewTop - 12));
                 shell.style.top = 'auto';
-                shell.style.bottom = Math.round(window.innerHeight - rect.top + 8) + 'px';
+                shell.style.bottom = (scaledBody ? document.body.clientHeight - (bottom - originY) / scale : window.innerHeight - bottom) + 'px';
             } else {
-                const top = Math.round(rect.bottom + 8);
-                maxH = Math.max(240, Math.min(560, window.innerHeight - top - 12));
+                const top = Math.max(viewTop + 12, Math.min(Math.round(rect.bottom + 8), viewBottom - 12));
+                maxH = Math.max(0, Math.min(560, viewBottom - top - 12));
                 shell.style.bottom = 'auto';
-                shell.style.top = top + 'px';
+                shell.style.top = ((top - originY) / scale) + 'px';
             }
             if (animate) {
                 shell.style.height = '0px';
-                requestAnimationFrame(() => { shell.style.height = maxH + 'px'; });
+                requestAnimationFrame(placePromptPickerIfOpen);
             } else if (shell.classList.contains('is-open')) {
-                shell.style.height = maxH + 'px';
+                shell.style.height = (maxH / scale) + 'px';
             }
         }
         function placePromptPickerIfOpen() {
@@ -2255,18 +2432,24 @@
             }
             for (const m of uniqueItems) {
                 const isBoogu = m.name.includes('boogu');
+                const isMoss = m.name.includes('moss-image');
                 const div = document.createElement('div');
                 div.className = 'anima-ctrl-menu-item';
                 if (isBoogu) {
                     div.setAttribute('data-model-key', 'Boogu');
                     div.onclick = () => selectBoogu();
+                } else if (isMoss) {
+                    div.setAttribute('data-model-key', 'MOSS-Image SFT');
+                    div.onclick = () => selectMoss();
                 } else {
                     div.setAttribute('data-model-key', m.name);
                     div.onclick = () => selectModel(m.name);
                 }
                 const isActive = isBoogu
                     ? currentWorkflow.toLowerCase().includes('boogu')
-                    : currentWorkflow === m.name;
+                    : isMoss
+                        ? currentWorkflow.toLowerCase().includes('moss-image')
+                        : currentWorkflow === m.name;
                 div.innerHTML = `<span class="ratio-icon" style="width:12px;height:12px;"></span>
                     <span class="ratio-label">${m.title}</span>
                     <span class="chk" style="opacity:${isActive ? 1 : 0}">✓</span>`;
@@ -2388,6 +2571,9 @@
                 negPanel.style.display = isLocal ? '' : 'none';
             }
             if (negToggle) negToggle.classList.remove('active');
+            // MOSS 质量档与实际工作流文件保持同步（历史复用/对话编辑等直接切工作流的场景，
+            // 避免 UI 显示"极速"但实际提交的是 25 步工作流）
+            if (typeof window._syncMossQualityFromWorkflow === 'function') window._syncMossQualityFromWorkflow(name);
             updateParamsUI();
         }
 
@@ -2778,6 +2964,22 @@
             { value: 'Base', label: '高' },
             { value: 'Turbo', label: '低' }
         ];
+        const MOSS_QUALITY_OPTIONS = [
+            { value: 'High', label: '高' },
+            { value: 'Fast', label: '低' },
+            { value: 'Turbo', label: '极速' }
+        ];
+        // MOSS 质量档 → 工作流文件
+        // 高   = 原版直连，画质优先
+        // 低   = LazyCache + SLG 加速版（实测约快 35-39%）
+        // 极速 = 6 步 Turbo LoRA（moss_image_sft_4_steps_lora_v2_600），步数 25→6，量级加速
+        const MOSS_QUALITY_FILES = {
+            High: 'text2image/moss-image-sft.json',
+            Fast: 'text2image/moss-image-sft-fast.json',
+            Turbo: 'text2image/moss-image-sft-4step.json'
+        };
+        // MOSS 各质量档的采样步数（与对应工作流文件内 KSampler 的 steps 保持一致）
+        const MOSS_STEPS = { High: 25, Fast: 25, Turbo: 6 };
 
         // 通用图标常量：消除各处重复粘贴的 SVG
         const ICON = {
@@ -2882,6 +3084,43 @@
             updateQualityDropdown({ menuId: 'booguQualityMenu', textId: 'booguQualityText', value: q, options: BOOGU_QUALITY_OPTIONS });
         }
 
+        // MOSS 质量切换（高=原版画质优先 / 低=加速版 LazyCache+SLG 实测约快 35-39% / 极速=6步 Turbo LoRA 量级加速）
+        let mossQuality = localStorage.getItem('moss_quality') || 'High';
+
+        // 从工作流文件名推导 MOSS 质量档：currentWorkflow 是唯一事实来源，
+        // mossQuality 仅作缓存，两者由 switchWorkflow 的同步钩子保持一致
+        function mossQualityOfWorkflow(wf) {
+            wf = String(wf || '');
+            if (/moss-image-sft-4step\.json$/i.test(wf)) return 'Turbo';
+            if (/moss-image-sft-fast\.json$/i.test(wf)) return 'Fast';
+            if (/moss-image-sft\.json$/i.test(wf)) return 'High';
+            return null;
+        }
+
+        // switchWorkflow 钩子：切到某个 MOSS 工作流时反向同步质量档与下拉 UI
+        window._syncMossQualityFromWorkflow = function (name) {
+            const q = mossQualityOfWorkflow(name);
+            if (q && q !== mossQuality) {
+                mossQuality = q;
+                localStorage.setItem('moss_quality', q);
+                updateQualityDropdown({ menuId: 'mossQualityMenu', textId: 'mossQualityText', value: q, options: MOSS_QUALITY_OPTIONS });
+            }
+        };
+
+        function selectMoss() {
+            selectModel(MOSS_QUALITY_FILES[mossQuality] || MOSS_QUALITY_FILES.High);
+        }
+
+        function setMossQuality(q) {
+            mossQuality = q;
+            localStorage.setItem('moss_quality', q);
+            // 如果当前是 MOSS 模型，热切换对应变体
+            if (currentWorkflow.toLowerCase().includes('moss-image')) {
+                selectModel(MOSS_QUALITY_FILES[q] || MOSS_QUALITY_FILES.High);
+            }
+            updateQualityDropdown({ menuId: 'mossQualityMenu', textId: 'mossQualityText', value: q, options: MOSS_QUALITY_OPTIONS });
+        }
+
         // local 模式比例/分辨率：复用通用 renderDropdown，选择逻辑仍走 GenerationControls 原生 selectRatio/selectRes
         // （它们负责更新按钮文字、active 态与关闭菜单）；这里只做薄封装把单值参数补全/转类型
         function toggleRatioMenu() { if (!compactRatioToggle()) toggleMenu('ratioMenu'); }
@@ -2900,6 +3139,7 @@
             const isLocal = currentEngine === 'local';
             const isIdeogram4 = currentWorkflow.toLowerCase().includes('ideogram4');
             const isBoogu = currentWorkflow.toLowerCase().includes('boogu');
+            const isMoss = currentWorkflow.toLowerCase().includes('moss-image');
             // Ideogram4 模式自动切换预设
             if (isIdeogram4 && typeof spPickerSelect === 'function') {
                 // 延迟执行，确保预设列表已加载
@@ -2954,6 +3194,23 @@
                             onChange: 'setBooguQuality',
                             toggleFn: 'toggleMenu'
                         })}`;
+                } else if (isMoss) {
+                    // 步数徽标与下拉选中值以 currentWorkflow 实际文件为准，避免与 mossQuality 缓存分叉
+                    const _mossQ = mossQualityOfWorkflow(currentWorkflow) || mossQuality;
+                    const _mossSteps = MOSS_STEPS[_mossQ] || 25;
+                    qualityHtml = `
+                        <!-- MOSS 质量控制（高=原版画质优先 / 低=加速版 / 极速=6步Turbo LoRA） -->
+                        ${renderQualityDropdown({
+                            btnId: 'mossQualityBtn',
+                            textId: 'mossQualityText',
+                            menuId: 'mossQualityMenu',
+                            menuClass: '',
+                            value: _mossQ,
+                            options: MOSS_QUALITY_OPTIONS,
+                            onChange: 'setMossQuality',
+                            toggleFn: 'toggleMenu'
+                        })}
+                        <span class="anima-ctrl" style="cursor:default;opacity:.8" title="当前质量档的采样步数（极速档=6步 Turbo LoRA，高/低档=25步）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${_mossSteps} 步</span></span>`;
                 }
                 const _gc = GenerationControls.getState();
                 const ratioOpts = CLOUD_RATIO_OPTIONS.map(function (r) {
@@ -3373,7 +3630,7 @@
         function refImageAutoSwitch() {
             var count = _refImgMgr ? _refImgMgr.getCount() : 0;
             var hasRef = count > 0;
-            if (/(qwen-image-2\.1|moss-image-sft|flux3-klein)\.json$/i.test(currentWorkflow)) return;
+            if (/(qwen-image-2\.1|moss-image-sft(?:-fast|-4step)?|flux3-klein)\.json$/i.test(currentWorkflow)) return;
             var isKrea2 = currentWorkflow.toLowerCase().includes('krea2');
             // Krea2 模式:导入参考图即走图片编辑工作流(单/双图),不切走模型
             if (isKrea2) {
@@ -3436,8 +3693,8 @@
 
         // 文生图和对话共用参考图编辑绑定，避免选中模型与实际工作流分叉。
         async function buildLocalReferenceWorkflow(name, refs, prompt, seed, size, batchCount) {
-            if (!refs.length || !/(qwen-image-2\.1|moss-image-sft|flux3-klein)\.json$/i.test(name)) return null;
-            const moss = /moss-image-sft\.json$/i.test(name);
+            if (!refs.length || !/(qwen-image-2\.1|moss-image-sft(?:-fast|-4step)?|flux3-klein)\.json$/i.test(name)) return null;
+            const moss = /moss-image-sft(?:-fast|-4step)?\.json$/i.test(name);
             if (moss && refs.length > 1) throw new Error('MOSS 图生图目前支持一张参考图，请仅保留一张');
             if (refs.length > 16) throw new Error('Qwen 2.1 最多支持 16 张参考图');
             const editName = 'image-edit/' + name.split('/').pop();
@@ -3472,6 +3729,28 @@
         }
 
         // === 主渲染逻辑 ===
+        // 多列（column-count）瀑布流在动态插入/移除卡片后，Chromium 常不重算列碎片，
+        // 导致新卡片与已有卡片视觉重叠。统一收口：插入或替换节点后强制重新分栏。
+        // 通过临时把 column-count 改为 1 → 读 offsetHeight 触发同步重排 → 还原，
+        // 整个过程在同一个任务内完成，不会产生中间帧（无闪烁）。
+        function forceMasonryReflow(container) {
+            if (!container || !container.isConnected) return;
+            const prev = container.style.columnCount;
+            container.style.columnCount = '1';
+            void container.offsetHeight;
+            container.style.columnCount = prev;
+        }
+
+        // 兜底自愈：任何路径往瀑布流里插/删节点，都自动触发一次重排（按帧去抖）
+        var _masonryReflowTimer = null;
+        function scheduleMasonryReflow() {
+            if (_masonryReflowTimer) return;
+            _masonryReflowTimer = requestAnimationFrame(() => {
+                _masonryReflowTimer = null;
+                forceMasonryReflow(document.getElementById('masonry'));
+            });
+        }
+
         function createStudioPlaceholder(ratio) {
             const placeholder = document.createElement('div');
             placeholder.className = 'masonry-item bg-gray-50 flex flex-col items-center justify-center border-dashed border-2 border-gray-200';
@@ -3545,7 +3824,9 @@
             const _aspectRatio = _aspectSize.width + ' / ' + _aspectSize.height;
             let chatPollTimer = null;
             const placeholder = createStudioPlaceholder(_aspectRatio);
-            document.getElementById('masonry').prepend(placeholder);
+            const _masonryEl = document.getElementById('masonry');
+            _masonryEl.prepend(placeholder);
+            forceMasonryReflow(_masonryEl);
 
             try {
                 const _gc = chatTask?.snapshot?.controls || GenerationControls.getState();
@@ -3562,7 +3843,7 @@
                 } else {
                     const wfRes = await fetch('/api/workflows/' + encodeURIComponent(lockedWorkflow));
                     if (!wfRes.ok) throw new Error('工作流加载失败');
-                    const wfEnvelope = await wfRes.json();
+                    const wfEnvelope = await parseJsonResponse(wfRes, '工作流 ' + lockedWorkflow);
                     window._wfCache[lockedWorkflow] = wfEnvelope.workflow || wfEnvelope;
                     workflow = JSON.parse(JSON.stringify(window._wfCache[lockedWorkflow]));
                 }
@@ -3572,7 +3853,7 @@
                 _applySelectedUnet(workflow, lockedUnetModel);
 
                 if (taskRefs?.length && !/(?:qwen-image-2\.1|moss-image-sft|flux3-klein|krea2)/i.test(lockedWorkflow)) throw new Error('当前模型未接入对话图片编辑，请选择 Qwen 2.1、MOSS、FLUX.3 Klein 或 Krea2');
-                const referenceNames = /(?:qwen-image-2\.1|moss-image-sft|flux3-klein)\.json$/i.test(lockedWorkflow) ? await ensureRefComfyNames(taskRefs) : [];
+                const referenceNames = /(?:qwen-image-2\.1|moss-image-sft(?:-fast|-4step)?|flux3-klein)\.json$/i.test(lockedWorkflow) ? await ensureRefComfyNames(taskRefs) : [];
                 const referenceEdit = await buildLocalReferenceWorkflow(lockedWorkflow, referenceNames, cleanPrompt, seed, (chatTask?.snapshot?.size || getAnimaSize()), _gc.batchCount);
                 if (referenceEdit) {
                     workflow = referenceEdit.workflow;
@@ -3585,7 +3866,8 @@
                     const artistTags = parts.filter(p => p.startsWith('by ') || p.startsWith('@')).map(p => '@' + p.replace(/^by /, '').replace(/^@/, '')).join(', ');
                     
                     const node51 = workflow["51"];
-                    if (node51?.inputs) {
+                    if (node51?.inputs && 'character_tags' in node51.inputs) {
+                        // 旧版工作流：AnimaCharacterTagSelector 节点存在时沿用原注入方式
                         node51.inputs.character_tags = charTags;
                         // 合并画师标签和预设提示词
                         const presetPrompts = getActivePresetPrompts();
@@ -3593,6 +3875,19 @@
                         if (artistTags) optParts.push(artistTags);
                         if (presetPrompts) optParts.push(presetPrompts);
                         node51.inputs.opt_prompt = optParts.length > 0 ? optParts.join(', ') + ', ' : '';
+                    } else {
+                        // 新版工作流：选择器节点已旁路，角色/画师/预设直接拼进正向 CLIPTextEncode(11)
+                        const presetPrompts = getActivePresetPrompts();
+                        let optParts = [];
+                        if (artistTags) optParts.push(artistTags);
+                        if (presetPrompts) optParts.push(presetPrompts);
+                        const node11 = workflow["11"];
+                        if (node11?.inputs) {
+                            node11.inputs.text = [
+                                optParts.length > 0 ? optParts.join(', ') : '',
+                                charTags
+                            ].filter(Boolean).join(', ');
+                        }
                     }
                     // 设置图片尺寸
                     const size = (chatTask?.snapshot?.size || getAnimaSize());
@@ -3765,7 +4060,7 @@
                     } catch (e) {}
                     throw new Error('提交失败：' + reason);
                 }
-                const submitResult = await submitRes.json();
+                const submitResult = await parseJsonResponse(submitRes, 'ComfyUI 任务提交');
                 const realPromptId = submitResult.prompt_id;
                 if (chatTask) {
                     chatTask.promptId = realPromptId; chatTask.clientId = CLIENT_ID;
@@ -3820,7 +4115,7 @@
                 _pollDone = true;
                 clearInterval(_pollTimer);
                 if (!res.ok) throw new Error('生成失败: ' + await res.text());
-                const data = await res.json();
+                const data = await parseJsonResponse(res, '生成结果轮询(/api/generate)');
                 if (data.error) throw new Error(data.error);
 
                 chatTask?.check();
@@ -3880,6 +4175,7 @@
                             const _sibling = placeholder.nextSibling;
                             _parent?.insertBefore(tempCard, _sibling);
                             placeholder.remove();
+                            forceMasonryReflow(_parent);
                             if (_fullImg.naturalWidth === 0) {
                                 _fullImg.style.opacity = '0.4';
                                 _fullImg.style.transition = 'opacity 0.15s ease';
@@ -4051,30 +4347,8 @@
             const btn = document.getElementById('unifiedModelBtn');
             if (!menu || !btn) return;
             if (menu.parentElement !== document.body) document.body.appendChild(menu);
-            const r = btn.getBoundingClientRect();
-            const gap = 8;
-            const margin = 12;
-            const width = Math.min(320, window.innerWidth - margin * 2);
-            let left = r.left;
-            if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width;
-            if (left < margin) left = margin;
-            const spaceAbove = Math.max(0, r.top - gap - margin);
-            const spaceBelow = Math.max(0, window.innerHeight - r.bottom - gap - margin);
-            const openUp = spaceAbove >= spaceBelow;
-            const maxH = Math.max(80, Math.min(openUp ? spaceAbove : spaceBelow, window.innerHeight - margin * 2));
-            menu.style.position = 'fixed';
-            menu.style.left = left + 'px';
-            menu.style.width = width + 'px';
-            menu.style.right = 'auto';
-            menu.style.maxHeight = maxH + 'px';
-            menu.style.zIndex = '220';
-            if (openUp) {
-                menu.style.top = 'auto';
-                menu.style.bottom = (window.innerHeight - r.top + gap) + 'px';
-            } else {
-                menu.style.bottom = 'auto';
-                menu.style.top = (r.bottom + gap) + 'px';
-            }
+            GenerationMenuPosition.place(menu, btn, {width:320});
+            menu.style.zIndex = '1100';
         }
         let _comfyReachable = null;
         let _comfyStatusTimer = 0;
@@ -4206,7 +4480,8 @@
             if (body.protocol !== 'webai2api') return;
             const providerId = body.provider_id;
             const model = body.model;
-            const response = await fetch('/api/providers/webai2api/sync?provider_id=' + encodeURIComponent(providerId) + '&refresh=true&model=' + encodeURIComponent(model), { method: 'POST', signal });
+            // 参数预检只读：复用访客可访问的状态接口，不写主机平台配置。
+            const response = await fetch('/api/providers/webai2api/status?provider_id=' + encodeURIComponent(providerId) + '&refresh=true&model=' + encodeURIComponent(model), { cache: 'no-store', signal });
             if (!response.ok) throw new Error('无法更新模型参数，请检查网关连接后重试');
             const data = await response.json();
             if (!data.online) throw new Error(data.message || '模型参数更新失败，已停止提交');
@@ -4270,10 +4545,13 @@
             if (!comfyOff) localWorkflowItems().forEach(function (m, i) {
                 if (i === 0) parts.push('<div class="unified-model-group"><span>COMFYUI</span></div>');
                 const isBoogu = String(m.name).indexOf('boogu') >= 0;
-                const key = isBoogu ? 'Boogu' : m.name;
+                const isMossWf = String(m.name).indexOf('moss-image') >= 0;
+                const key = isBoogu ? 'Boogu' : (isMossWf ? 'MOSS' : m.name);
                 const on = currentEngine !== 'cloud' && (isBoogu
                     ? String(currentWorkflow || '').toLowerCase().indexOf('boogu') >= 0
-                    : currentWorkflow === m.name);
+                    : (isMossWf
+                        ? String(currentWorkflow || '').toLowerCase().indexOf('moss-image') >= 0
+                        : currentWorkflow === m.name));
                 parts.push('<div class="anima-ctrl-menu-item' + (on ? ' active' : '') + '" data-kind="local" data-key="' + escMenuText(key) + '"><span>' + escMenuText(m.title) + '</span>' + (_hostSettingsAllowed ? _modelSettingsBtn : '') + modelMaxResBadge(m.title) + '<span class="chk" style="opacity:' + (on ? 1 : 0) + '">✓</span></div>');
             });
             menuProviders().forEach(function (p) {
@@ -4297,6 +4575,7 @@
                         const key = el.getAttribute('data-key');
                         if (currentEngine !== 'local') selectEngine('local');
                         if (key === 'Boogu') selectBoogu();
+                        else if (key === 'MOSS') { if (currentEngine !== 'local') selectEngine('local'); selectMoss(); }
                         else if (currentWorkflow !== key) selectModel(key);
                         openModelPicker();
                         return;
@@ -4332,6 +4611,7 @@
             if (kind === 'local') {
                 if (currentEngine !== 'local') selectEngine('local');
                 if (a === 'Boogu') selectBoogu();
+                else if (a === 'MOSS') selectMoss();
                 else selectModel(a);
             } else {
                 try {
@@ -4498,9 +4778,13 @@
         async function cloudRefreshModels() {
             const providerId = _cloudProviderId;
             if (!providerId) return;
-            if (cloudProtocol(providerId) === 'webai2api') {
+            const configured = _cloudProviders.find(p => p.id === providerId);
+            // 已保存的参数足够展示菜单；实际生图仍由 preflight 强制查询最新参数。
+            const hasParams = configured?.image_models?.length && configured.image_models.every(
+                model => configured.model_capabilities?.[model]?.generation_params?.status === 'ready');
+            if (cloudProtocol(providerId) === 'webai2api' && !hasParams) {
                 try {
-                    const response = await fetch('/api/providers/webai2api/sync?provider_id=' + encodeURIComponent(providerId), { method: 'POST' });
+                    const response = await fetch('/api/providers/webai2api/status?provider_id=' + encodeURIComponent(providerId), { cache: 'no-store' });
                     if (response.ok) {
                         const data = await response.json();
                         if (data.online) [_cloudCatalog, _cloudProviders].forEach(function (list) {
@@ -4559,7 +4843,8 @@
         }
         async function cloudLoadProviders() {
             try {
-                const cached = JSON.parse(localStorage.getItem('zimage_cloud_providers') || 'null');
+                let cached = null;
+                try { cached = JSON.parse(localStorage.getItem('zimage_cloud_providers') || 'null'); } catch (e) {}
                 if (Array.isArray(cached) && cached.length) applyCloudProviders(cached, false);
             } catch (e) {}
             try {
@@ -4655,7 +4940,10 @@
             const _aspectRatio = _aspectSize.width + ' / ' + _aspectSize.height;
             const placeholder = createStudioPlaceholder(_aspectRatio);
             const masonry = document.getElementById('masonry');
-            if (masonry) masonry.prepend(placeholder);
+            if (masonry) {
+                masonry.prepend(placeholder);
+                forceMasonryReflow(masonry);
+            }
             cloudReportProgress(placeholder, { stage: 'preparing', progress: null }, generationStartedAt, chatTask);
             try {
                 // 锁定本次提交的模型与参数，收集参考图期间切换面板不改变任务。
@@ -4747,6 +5035,7 @@
                             const _sibling = placeholder.nextSibling;
                             _parent?.insertBefore(tempCard, _sibling);
                             placeholder.remove();
+                            forceMasonryReflow(_parent);
                         } else {
                             const _parent = placeholder.parentNode;
                             const _sibling = placeholder.nextSibling;
@@ -5126,6 +5415,17 @@
         else updateParamsUI();
         ModelVisibility.subscribe(syncVisibleModels);
         loadBuiltinWorkflowMeta();
+        // 瀑布流自愈：任何路径往 #masonry 增删卡片都触发一次分栏重算（消除多列陈旧碎片导致的重叠）
+        (function watchMasonryReflow() {
+            const setup = () => {
+                const el = document.getElementById('masonry');
+                if (!el || el.dataset.reflowWatched) return;
+                el.dataset.reflowWatched = '1';
+                new MutationObserver(scheduleMasonryReflow).observe(el, { childList: true });
+            };
+            setup();
+            document.addEventListener('DOMContentLoaded', setup, { once: true });
+        })();
 
         // ============================================================
         //  LoRA 管理器（已提取为独立模块 static/modules/lora-manager.js）
@@ -5615,7 +5915,7 @@
     <script src="/static/modules/reverse-image.js?v=20261025018"></script>
     <script src="/static/modules/prompt-history.js?v=20261025025" defer></script>
     <script src="/static/modules/chat-tasks.js?v=20261026references" defer></script>
-    <script src="/static/modules/chat-composer.js?v=20261027adv" defer></script>
+    <script src="/static/modules/chat-composer.js?v=20261028021" defer></script>
     <script>
         ReverseImage.init({
             mountId: 'reverseImageMount',
@@ -6030,7 +6330,10 @@
                     imgs.className = 'chat-imgs';
                     pics.forEach((item, index) => {
                         const img = document.createElement('img');
-                        img.src = item.url;
+                        img.loading = 'lazy';
+                        img.decoding = 'async';
+                        img.setAttribute('data-original-src', item.url);
+                        img.src = chatPreviewSrc(item.url);
                         img.alt = item.name || '参考图';
                         const figure = document.createElement('div');
                         const number = document.createElement('span'); number.className = 'chat-ref-number'; number.textContent = '图 ' + (index + 1);
@@ -6740,17 +7043,24 @@
             }
             async function loadConversation(id) {
                 if (!id || chatBusy) return;
+                const loadStarted = performance.now();
                 lastChatError = '';
                 selectChatImage(null);
                 const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: chatHeaders() });
                 if (!res.ok) return;
                 const data = await res.json();
                 const conv = data.conversation || {};
+                window.ArtLoadLog?.measure('conversation:fetch+json', loadStarted, {messages: (conv.messages || []).length});
                 if (data.boot_id) appBootId = data.boot_id;
                 rememberConversation(conv.id || id);
                 seen.clear();
+                const renderStarted = performance.now();
                 renderSavedMessages(conv.messages || [], data.boot_id || '');
                 markExistingImages();
+                window.ArtLoadLog?.measure('conversation:render', renderStarted, {images: thread.querySelectorAll('img').length});
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    window.ArtLoadLog?.measure('conversation:next-paint', loadStarted);
+                }));
                 document.getElementById('chatHistory')?.classList.remove('open');
             }
             document.addEventListener('click', event => {
@@ -6995,7 +7305,13 @@
                         if (currentEngine !== parameterContext.engine || (currentEngine === 'local' ? currentWorkflow : _cloudModel) !== parameterContext.model) throw new Error('模型已切换，请按当前模型重新发送要求');
                         applyChatParameters(spec, bubble, parameterContext);
                     }
-                    else if (settingsOnly) applyChatParameters(JSON.parse(settingsOnly[1]), bubble, parameterContext);
+                    else if (settingsOnly) {
+                        try {
+                            applyChatParameters(JSON.parse(settingsOnly[1]), bubble, parameterContext);
+                        } catch (e) {
+                            throw new Error('对话返回的 PARAMS 参数块不是合法 JSON（多为模型输出被截断），请重新发送');
+                        }
+                    }
                     const preferenceOnly = !descriptionOnly && !spec && !settingsOnly && String(full).match(/PREFS\s*(\{[\s\S]*\})\s*$/i);
                     if (preferenceOnly) {
                         if (!ChatAssistant.isPreferenceRequest(typed)) throw new Error('请明确说“记住偏好”或“清除偏好”后再保存');
@@ -7110,5 +7426,18 @@
             }
         }
     </script>
+    <style>
+        #zimagePage .history-bulk-toolbar {
+            background:transparent !important;
+            border:0 !important;
+            box-shadow:none !important;
+            backdrop-filter:none !important;
+            -webkit-backdrop-filter:none !important;
+        }
+    </style>
+    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=20261028016">
+    <link rel="stylesheet" href="/static/css/generation-responsive.css?v=20261028019">
+    <script src="/static/modules/generation-options-panel.js?v=20261028020" defer></script>
+    <script src="/static/modules/canvas-composer-embed.js?v=20261028012" defer></script>
 </body>
 </html>

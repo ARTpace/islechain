@@ -117,21 +117,31 @@ html body :is(.anima-ctrl-menu, .chat-history, #chatModelMenu, #chatAdvancedPane
         background:var(--ui-panel, #20242e) !important;
     }
 }
-html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout) {
+    width:32px !important; height:32px !important; padding:0 !important;
+    border:0 !important; border-radius:50% !important;
+    background:rgba(255,255,255,.60) !important; color:#30343b !important;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow:0 1px 6px #0002 !important; filter:none !important;
     opacity:0 !important;
     pointer-events:none !important;
 }
-html body :is(.chat-image-card, .masonry-item):is(:hover, :focus-within) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout) svg { width:18px !important; height:18px !important; stroke-width:1.8; }
+html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout):hover { background:#30343b !important; color:#fff !important; }
+html body :is(.chat-image-card, .masonry-item) .gallery-download { right:12px !important; bottom:12px !important; }
+html body :is(.chat-image-card, .masonry-item) .gallery-cutout { right:12px !important; bottom:52px !important; }
+html body :is(.chat-image-card, .masonry-item) .gallery-fav.is-fav { color:#b77912 !important; }
+html body :is(.chat-image-card, .masonry-item):is(:hover, :focus-within) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout) {
     opacity:1 !important;
     pointer-events:auto !important;
 }
-html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download):focus-visible {
+html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout):focus-visible {
     outline:2px solid var(--ui-accent, #06b6d4);
     outline-offset:2px;
     border-radius:8px;
 }
 @media (hover:none) {
-    html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download) {
+    html body :is(.chat-image-card, .masonry-item) :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .gallery-download, .gallery-cutout) {
         opacity:1 !important;
         pointer-events:auto !important;
     }

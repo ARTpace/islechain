@@ -1,0 +1,64 @@
+/* Small screens reflow the composer instead of shrinking the desktop toolbar. */
+@media (max-width:1024px) {
+    html.studio-scale-managed { --studio-ui-scale:1 !important; }
+    #generationComposer { min-width:0; max-width:100%; }
+    #generationComposer .prompt-row { flex-wrap:wrap; gap:8px !important; }
+    #generationComposer .prompt-row .anima-ctrl {
+        height:44px; min-height:44px; padding:0 12px !important;
+        font-size:14px; gap:6px; flex-shrink:0;
+    }
+    #generationComposer #smartPromptContainer button { height:44px !important; min-height:44px; font-size:14px !important; padding:0 12px !important; }
+    #generationComposer .prompt-row .btn-text,
+    #generationComposer #refImageBtnText { display:inline !important; }
+    #generationComposer .prompt-row svg { width:18px; height:18px; flex-shrink:0; }
+    #generationComposer #prompt { font-size:16px !important; line-height:1.6; min-height:96px; }
+    #generationComposer .control-bar {
+        flex-direction:row !important; flex-wrap:wrap !important; overflow:visible;
+        gap:10px !important; padding:12px !important;
+    }
+    #generationComposer .control-bar>.ctrl-top-row {
+        width:100% !important; min-width:0; flex-wrap:wrap !important; gap:8px !important;
+    }
+    #generationComposer #unifiedModelWrap { flex:1 1 180px; min-width:0; max-width:100%; }
+    #generationComposer #unifiedModelWrap>.flex { flex:1; min-width:0; }
+    #generationComposer #unifiedModelWrap .anima-ctrl-wrap { width:100%; min-width:0; }
+    #generationComposer .control-bar #unifiedModelBtn {
+        width:100% !important; min-width:0 !important; max-width:none !important;
+    }
+    #generationComposer .control-bar #unifiedModelText { font-size:14px !important; }
+    #generationComposer .control-bar #unifiedModelWrap>span { font-size:13px; white-space:nowrap; }
+    #generationComposer .control-bar .gen-row {
+        width:100% !important; min-width:0; flex-wrap:wrap !important;
+        margin-left:0; gap:8px !important; justify-content:flex-start !important;
+    }
+    #generationComposer .control-bar .anima-ctrl,
+    #generationComposer .control-bar #mainGenBtn { height:44px; min-height:44px; font-size:14px; }
+    #generationComposer .control-bar .anima-ctrl-wrap:has(>.generation-options-source) { display:none; }
+    #generationComposer .control-bar .generation-options-trigger {
+        min-width:0; max-width:100%; min-height:44px; height:auto; white-space:normal;
+        padding:10px 12px !important; line-height:1.5;
+    }
+    #generationComposer .control-bar #randomPromptContainer button { width:44px; min-width:44px; min-height:44px; }
+    #generationComposer .control-bar #mainGenBtn {
+        flex:1 1 110px; min-width:110px !important; padding:0 16px !important; overflow:visible;
+    }
+    #generationComposer #mainGenBtn .btn-text { display:inline !important; font-size:14px; }
+    #generationComposer .control-bar #mainGenBtn svg { width:18px !important; height:18px !important; }
+    .generation-options-panel { padding:14px; border-radius:16px; overscroll-behavior:contain; }
+    .generation-options-panel .generation-options-section h3 { font-size:14px; line-height:1.5; font-weight:400; }
+    .generation-options-panel .generation-options-segments button { min-height:44px; font-size:14px; }
+}
+@media (max-width:600px) {
+    #generationComposer .control-bar>.ctrl-top-row { display:none !important; }
+    .generation-options-model #unifiedModelWrap { display:flex; width:100%; min-width:0; }
+    .generation-options-model #unifiedModelWrap>span { display:none; }
+    .generation-options-model #unifiedModelWrap>.flex,
+    .generation-options-model #unifiedModelWrap .anima-ctrl-wrap { width:100%; min-width:0; }
+    .generation-options-model #unifiedModelBtn { width:100% !important; min-width:0 !important; max-width:none !important; min-height:44px; font-size:14px; }
+    #generationComposer .prompt-row>.anima-ctrl,
+    #generationComposer .prompt-row>#smartPromptContainer { flex:1 1 calc(50% - 4px); min-width:0; }
+    #generationComposer .prompt-row>#smartPromptContainer button { width:100%; justify-content:center; }
+    #generationComposer .prompt-row>.anima-ctrl { justify-content:center; }
+    .generation-options-panel .generation-options-segments.is-ratio { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .generation-options-panel .generation-options-segments.is-ratio button { min-width:0; min-height:64px; }
+}
