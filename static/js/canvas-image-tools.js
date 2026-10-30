@@ -96,6 +96,9 @@ function renderImageSelectionTools() {
     button('抠图', 'scan-face', () => openCanvasMaskEditor(node));
     button('裁剪', 'crop', () => openImageEditor(node.id, 'crop'));
     button('绘制', 'paintbrush', () => openImageEditor(node.id, 'brush'));
+    button('画质修复', 'sparkles', () => openCanvasComfyEditDialog(node, {registryKey:'gaoqingxiufu', featureName:'画质修复', label:'画质修复'}));
+    button('AI扩图', 'maximize', () => openCanvasComfyEditDialog(node, {registryKey:'kuotu', featureName:'AI扩图', label:'AI扩图'}));
+    button('去水印', 'droplet', () => openCanvasComfyEditDialog(node, {registryKey:'watermarkRemoval', featureName:'去水印', label:'去水印'}));
     button('预览', 'expand', () => openImageEditor(node.id, 'preview'));
     button('下载', 'download', () => downloadUrl(node.url, node.name || 'image.png'));
     if(imageComposerEnabledFor===canvas.id+':'+node.id) renderImageEditComposer(node);
@@ -183,5 +186,104 @@ function imageSourceLinkSegments(items, selection) {
         const forward = b.x + b.w/2 >= a.x + a.w/2;
         return [{a:{x:forward ? a.x+a.w : a.x,y:a.y+a.h/2}, b:{x:forward ? b.x : b.x+b.w,y:b.y+b.h/2}, active:selection.has(source.id)||selection.has(node.id)}];
     });
+}
+
+// ponytail: surface the already-registered ComfyUI edit modules (高清修复 / 扩图 / 去水印) from the canvas selection toolbar.
+// They reuse the same derived-node + editMeta + source-link pattern as the cutout flow.
+
+function readComfyEditFields(container, synthetic) {
+    container.querySelectorAll('[data-field]').forEach(el => {
+        const field = el.dataset.field;
+        if (el.type === 'checkbox') synthetic[field] = el.checked;
+        else if (el.type === 'number') synthetic[field] = Number(el.value);
+        else synthetic[field] = el.value;
+    });
+    container.querySelectorAll('[data-toggle-field]').forEach(btn => {
+        synthetic[btn.dataset.toggleField] = btn.classList.contains('active');
+    });
+    return synthetic;
+}
+
+function insertCanvasComfyEditResult(url, source, operation, label, params) {
+    const existing = nodes.find(n => n.editMeta?.operation === operation && n.editMeta.sourceId === source.id && n.url === url);
+    if (existing) { selected.clear(); selected.add(existing.id); render(); return existing; }
+    pushUndo();
+    const siblings = nodes.filter(n => n.editMeta?.sourceId === source.id);
+    const bounds = estimatedNodeRect(source);
+    const next = addGeneratedImageNode({ url, name: label }, source, label, 0, {
+        x: bounds.x + bounds.w + 120, y: bounds.y + siblings.length * (bounds.h + 36),
+        prompt: source.prompt || '',
+        editMeta: { operation, sourceId: source.id, sourceUrl: source.url, taskId: '', model: params.model || '' }
+    });
+    next.w = source.w || bounds.w;
+    if (source.natural_w && source.natural_h) { next.natural_w = source.natural_w; next.natural_h = source.natural_h; }
+    render(); scheduleSave();
+    return next;
+}
+
+async function runCanvasComfyEdit(node, registryKey, featureName, params = {}) {
+    const registry = window.ComfyUIRegistry && window.ComfyUIRegistry[registryKey];
+    if (!registry || typeof registry.execute !== 'function') throw new Error('未找到编辑能力：' + registryKey);
+    const ref = { url: node.url, name: node.name || (registryKey + '-input.png') };
+    const result = await registry.execute({ ...params }, [ref], params._prompt || '', '');
+    const images = (result && result.images) || [];
+    if (!images.length) throw new Error('未返回图片');
+    return images;
+}
+
+function openCanvasComfyEditDialog(node, cfg) {
+    if (document.getElementById('canvasComfyEdit')) return;
+    const registry = window.ComfyUIRegistry && window.ComfyUIRegistry[cfg.registryKey];
+    if (!registry) { alert('未找到能力：' + cfg.label); return; }
+    const canvasId = canvas && canvas.id;
+    const dialog = document.createElement('dialog');
+    dialog.id = 'canvasComfyEdit';
+    dialog.style.cssText = 'margin:auto;padding:0;border:1px solid #475569;border-radius:16px;background:#17202c;color:#f8fafc;width:min(520px,94vw);box-shadow:0 20px 80px #0009;';
+    dialog.setAttribute('aria-label', cfg.label);
+    const body = typeof registry.settings === 'function' ? registry.settings({}) : '';
+    dialog.innerHTML = `
+        <div style="display:flex;flex-direction:column;max-height:92dvh">
+            <header style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #334155">
+                <div style="flex:1"><strong>${cfg.label}</strong><div style="font-size:12px;color:#b5c7da">基于选中图片生成，结果作为新节点</div></div>
+                <button type="button" data-close aria-label="取消" style="min-width:40px;min-height:40px;border:0;background:#243245;color:#fff;border-radius:8px">✕</button>
+            </header>
+            <div class="cce-body" style="padding:8px 16px;overflow:auto">${body}</div>
+            <div class="cce-footer" style="display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid #334155">
+                <span class="cce-status" role="status" style="font-size:12px;color:#b5c7da;flex:1">调整参数后点击生成</span>
+                <button type="button" class="cce-generate" data-generate style="min-height:44px;padding:8px 18px;background:#047857;color:#fff;border:0;border-radius:8px">${cfg.label}</button>
+            </div>
+        </div>`;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    refreshIcons();
+    const status = dialog.querySelector('.cce-status');
+    const generate = dialog.querySelector('[data-generate]');
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+    dialog.addEventListener('cancel', e => { if (generate.disabled) e.preventDefault(); });
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    dialog.querySelectorAll('[data-toggle-field]').forEach(btn => { btn.onclick = () => btn.classList.toggle('active'); });
+    dialog.querySelectorAll('input[type=range][data-field]').forEach(input => {
+        input.oninput = () => {
+            const val = input.parentElement && input.parentElement.querySelector('.range-val');
+            if (val) val.textContent = Number(input.value).toFixed(2);
+        };
+    });
+    generate.onclick = async () => {
+        if (generate.disabled) return;
+        const params = readComfyEditFields(dialog.querySelector('.cce-body'), {});
+        generate.disabled = true;
+        status.textContent = '正在生成，请稍候…';
+        try {
+            if (canvas && canvas.id !== canvasId) throw new Error('画布已切换，请返回原画布后重试');
+            const images = await runCanvasComfyEdit(node, cfg.registryKey, cfg.featureName, params);
+            let created = null;
+            images.forEach(url => { const n = insertCanvasComfyEditResult(url, node, cfg.registryKey, cfg.label, params); if (n) created = n; });
+            if (created) { selected.clear(); selected.add(created.id); render(); }
+            dialog.close();
+        } catch (error) {
+            status.textContent = error.message || '生成失败';
+            generate.disabled = false;
+        }
+    };
 }
 

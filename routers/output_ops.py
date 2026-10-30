@@ -5,6 +5,7 @@
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from typing import List
+from urllib.parse import quote
 from starlette.responses import Response
 import os, requests, subprocess, uuid
 from fastapi import APIRouter
@@ -12,6 +13,11 @@ from fastapi import APIRouter
 import main as _main
 
 router = APIRouter()
+
+
+def download_disposition(filename: str, inline: bool = False) -> str:
+    # 中文文件名使用 RFC 5987 编码，避免响应头的 Latin-1 编码失败。
+    return f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 @router.get("/api/view")
@@ -33,7 +39,7 @@ async def download_output(url: str, name: str = "", inline: bool = False):
     if path:
         filename = os.path.basename(name) if name else os.path.basename(path)
         return FileResponse(path, media_type=_main.content_type_for_path(path), filename=filename,
-            headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+            headers={"Content-Disposition": download_disposition(filename, inline)})
     # 远程 URL：proxy 下载
     if url and (url.startswith("http://") or url.startswith("https://")):
         import httpx
@@ -44,7 +50,7 @@ async def download_output(url: str, name: str = "", inline: bool = False):
                 content = resp.content
             filename = name or os.path.basename(url.split("?")[0]) or "image.png"
             return Response(content=content, media_type=resp.headers.get("content-type", "image/png"),
-                headers={"Content-Disposition": f"{'inline' if inline else 'attachment'}; filename=\"{filename}\""})
+                headers={"Content-Disposition": download_disposition(filename, inline)})
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"下载远程图片失败: {e}")
     raise HTTPException(status_code=404, detail="文件不存在")
