@@ -100,6 +100,14 @@ def fetch_manifest() -> dict:
 def check_version(manifest: dict) -> bool:
     """检查版本是否需要更新，返回 True 表示需要更新"""
     new_version = str(manifest.get("version", ""))
+    # 版本号相同不代表数据还在：characters.json 已移出版本库，换机器 clone、清理磁盘
+    # 都可能让「版本文件在、数据文件没了」。只比版本号会导致永远跳过、数据永远补不回来。
+    if not JSON_OUTPUT.exists():
+        print("[miss] 本地数据文件不存在，将重新下载")
+        return True
+    if JSON_OUTPUT.stat().st_size < 1024 * 1024:
+        print("[miss] 本地数据文件不完整（<1MB），将重新下载")
+        return True
     if VERSION_FILE.exists():
         try:
             with open(VERSION_FILE, "r", encoding="utf-8") as f:
@@ -214,6 +222,10 @@ def main():
             print(f"本地版本: {local.get('version')}")
             print(f"本地角色数: {local.get('char_count')}")
             print(f"更新时间: {local.get('updated_at')}")
+            if not JSON_OUTPUT.exists():
+                print(f"数据文件: 缺失（{JSON_OUTPUT}）→ 需要下载")
+            else:
+                print(f"数据文件: 存在 {JSON_OUTPUT.stat().st_size / 1024 / 1024:.1f} MB")
         else:
             print("本地无数据，需要下载")
         return
