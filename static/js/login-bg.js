@@ -176,10 +176,13 @@
         }
 
         /* 焦点收束入口：nx/ny 为归一化[0,1]坐标（由 login.js 传入输入框中心），
-           active 控制是否收束。坐标缺省时只切换 active 不移动焦点位置。 */
-        function setFocus(nx, ny, active) {
+           active 控制是否收束。坐标缺省时只切换 active 不移动焦点位置。
+           instant=true 时强度直接跳到目标态（无障碍：prefers-reduced-motion 下
+           不播收敛动画；截图/演示也能在一帧内成型，不依赖连续多帧爬升）。 */
+        function setFocus(nx, ny, active, instant) {
             if (typeof nx === 'number' && isFinite(nx)) { focusX = nx; focusY = ny; }
             focusTarget = active ? 1 : 0;
+            if (instant || reduceMotion) focusStrength = focusTarget;
         }
 
         function paintOrb(cx, cy, rx, ry, color, alpha) {
@@ -354,10 +357,10 @@
 
         current: function () { return state ? state.preset : null; },
 
-        /* 焦点收束（光之解锁）：nx/ny 归一化坐标，active 是否收束 */
-        setFocus: function (nx, ny, active) {
+        /* 焦点收束（光之解锁）：nx/ny 归一化坐标，active 是否收束，instant 是否瞬间成型 */
+        setFocus: function (nx, ny, active, instant) {
             if (!state || !state.impl || !state.impl.setFocus) return;
-            state.impl.setFocus(nx, ny, active);
+            state.impl.setFocus(nx, ny, active, instant);
         },
 
         stop: function () {
