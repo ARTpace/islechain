@@ -9,10 +9,11 @@
     <link rel="icon" href="/static/logo.png" type="image/png">
     <script src="/static/modules/model-visibility.js?v=20261024card"></script>
     <title>文生图 | ART AI</title>
+    <script src="/static/js/theme-default.js?v=20261031a"></script>
     <script>
         (function(){
             try {
-                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'light';
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || (window.STUDIO_DEFAULT_THEME || 'dark');
                 if(theme === 'dark') {
                     document.documentElement.classList.add('studio-theme-dark');
                     document.documentElement.classList.add('theme-dark');

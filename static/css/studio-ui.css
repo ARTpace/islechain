@@ -18,7 +18,10 @@
    ---------------------------------------------------------------------
    契约约定：
    - 组件类全部 opt-in（须带 .ui-* 类），不污染未接管元素。
-   - 颜色统一引用 var(--ui-*)；浅色为默认，深色由 .studio-theme-dark 触发，
+   - 颜色统一引用 var(--ui-*)；本文件内的变量字面量是浅色一套，深色由 .studio-theme-dark 覆盖。
+     注意：应用默认主题是深色（见 static/js/theme-default.js 的 STUDIO_DEFAULT_THEME），
+     页面加载时 theme.js 会立刻挂上 .studio-theme-dark，所以这里"浅色在前"只是声明顺序，
+     不代表用户默认看到浅色；
      与现有 theme.js（StudioTheme.set / studio_accent / studio-look-change）完全对齐。
    - 动效全部带 prefers-reduced-motion 降级。
    ===================================================================== */

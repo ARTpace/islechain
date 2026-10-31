@@ -1027,7 +1027,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
             emojiPickerCanvasId = null;
             renderCanvasList();
         });
-        window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || 'light'));
+        window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || (window.STUDIO_DEFAULT_THEME || 'dark')));
         modelManagerNewInput.addEventListener('keydown', e => {
             if(e.key === 'Enter') addManagedModel();
             if(e.key === 'Escape') closeModelManager();
@@ -4462,7 +4462,7 @@ function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
         }
 
         window.onload = async () => {
-            applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem(CANVAS_THEME_KEY) || 'light');
+            applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem(CANVAS_THEME_KEY) || (window.STUDIO_DEFAULT_THEME || 'dark'));
             if(window.outputNode) window.outputNode.init();
             applyViewport();
             await loadConfig();

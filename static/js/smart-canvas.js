@@ -17347,7 +17347,7 @@ window.addEventListener('resize', () => {
     if(cropState) syncImageEditOverflow();
     if(panoramaState.enabled) resizePanoramaViewer();
 });
-window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || 'light'));
+window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || (window.STUDIO_DEFAULT_THEME || 'dark')));
 try {
     const apiChannel = new BroadcastChannel('studio-api');
     apiChannel.onmessage = event => {
@@ -17361,7 +17361,7 @@ window.addEventListener('focus', () => {
 });
 window.addEventListener('message', event => {
     if(event.origin && event.origin !== location.origin) return;
-    if(event.data?.type === 'studio-theme') applyTheme(event.data.theme || 'light');
+    if(event.data?.type === 'studio-theme') applyTheme(event.data.theme || (window.STUDIO_DEFAULT_THEME || 'dark'));
     scheduleSmartConfigRefreshFromEvent(event.data);
     if(event.data?.type === 'asset_library_updated') handleAssetLibraryUpdatedMessage(event.data);
     if(event.data?.type === 'canvas_updated') handleCanvasUpdatedMessage(event.data);
@@ -17380,7 +17380,7 @@ window.addEventListener('studio-lang-change', () => {
     render();
 });
 window.onload = async () => {
-    applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'light');
+    applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || (window.STUDIO_DEFAULT_THEME || 'dark'));
     loadPromptPresets();
     loadPromptTemplateGroups();
     loadPromptTemplateOverrides();

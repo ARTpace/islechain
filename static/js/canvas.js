@@ -2355,7 +2355,7 @@ document.addEventListener('mousedown', e => {
 });
 gateCanvasList?.addEventListener('scroll', () => requestAnimationFrame(positionCanvasMetaPopover), {passive:true});
 window.addEventListener('resize', () => requestAnimationFrame(positionCanvasMetaPopover));
-window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || 'light'));
+window.addEventListener('studio-theme-change', event => applyTheme(event.detail?.theme || (window.STUDIO_DEFAULT_THEME || 'dark')));
 function cropDragModeFromPointer(event){
     const explicit = event.target.closest?.('[data-crop-handle]')?.dataset?.cropHandle;
     if(explicit) return `crop-${explicit}`;
@@ -14921,7 +14921,7 @@ function escapeHtml(str){ return String(str == null ? '' : str).replace(/[&<>"']
 function escapeAttr(str){ return escapeHtml(str); }
 
 window.onload = async () => {
-    applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem(CANVAS_THEME_KEY) || 'light');
+    applyTheme(localStorage.getItem('studio_theme') || localStorage.getItem(CANVAS_THEME_KEY) || (window.STUDIO_DEFAULT_THEME || 'dark'));
     applyQuickToolbarState();
     if(window.StudioI18n) StudioI18n.apply();
     document.title = tr('canvas.title');

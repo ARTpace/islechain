@@ -39,7 +39,7 @@
     const SCALE_OPTIONS = ['auto', '60', '65', '70', '75', '80', '85', '90', '95', '100', '115', '125', '140'];
 
     function currentTheme(){
-        return localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || 'light';
+        return localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || (window.STUDIO_DEFAULT_THEME || 'dark');
     }
 
     function applyTheme(theme){

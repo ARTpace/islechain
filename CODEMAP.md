@@ -92,6 +92,18 @@ core/                                                 公共底座
 
 独立 ComfyUI 应用在 `static/app/`：`zimage.html`（生图）、`klein.html`（编辑）、`angle.html`（3D 视角）、`cgstyle.html`、`2dstyle.html`、`rmbg.html`（抠图）、`yichuwuti.html`（移除物体）、`gaoqingxiufu.html`（高清修复）、`kuotu.html`（扩图）、`promptgen.html`（反推）、`textmatting.html`（文字抠图）、`watermark-removal.html`、`poster.html`、`tts.html`、`litevideo.html`、`training.html`、`generation-dashboard.html`、`chat-gen.html`、`studio-chat.html`。
 
+### 主题与外观 `static/js/`
+
+| 功能 | 文件 |
+|---|---|
+| 默认主题（**全站唯一配置点**，`window.STUDIO_DEFAULT_THEME`，改这一行即可换默认深/浅） | `theme-default.js` |
+| 完整主题引擎：`StudioTheme`（明暗）/ `StudioLook`（5 套调色板、强调色、扫描线）/ `StudioScale` | `theme.js` |
+| 登录页极光背景 | `login-bg.js` |
+
+> 新增或改造页面时，`<script src="/static/js/theme-default.js">` 必须排在**任何读取主题的脚本之前**，
+> 读取默认值统一写成 `localStorage.getItem('studio_theme') || (window.STUDIO_DEFAULT_THEME || 'dark')`。
+> 老页面若在内联脚本里直接写死 `'light'`，换默认主题时会被漏掉 —— 这正是本次收敛掉的问题。
+
 ### 关键模块 `static/modules/`
 
 | 功能 | 文件 |

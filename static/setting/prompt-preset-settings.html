@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>提示词预设管理</title>
     <script src="/static/modules/auth-token.js"></script>
-    <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'dark';if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
+    <script src="/static/js/theme-default.js?v=20261031a"></script>
+    <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark');if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
     <script src="/static/theme.js?v=20261024bar"></script>

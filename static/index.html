@@ -5,13 +5,14 @@
     <meta charset="UTF-8">
     <script src="/static/modules/load-log.js?v=20261027load"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/js/theme-default.js?v=20261031a"></script>
     <script>
         (function(){
             var P={ink:{d:['#14161c','#1c202a','#252b38','#343b4c','#445066'],l:['#f7f6f4','#fbfaf9','#f3f2ef','#e7e5de','#d9d6cc']},night:{d:['#0e1626','#162238','#1e2d48','#314466','#42587f'],l:['#f3f6fb','#f8fafd','#eaf0f8','#d5e0ee','#c3d0e4']},pine:{d:['#101916','#17241f','#20302a','#334840','#456056'],l:['#f3f7f4','#f8fbf8','#e7f0ea','#d3e2d8','#bdd0c4']},dusk:{d:['#16141f','#211c2e','#2c243d','#43385a','#574a72'],l:['#f6f4f9','#fbf9fd','#efeaf6','#ddd4ea','#cbbfdc']},sand:{d:['#1a1612','#262018','#32281e','#4a3c2e','#5e4e3c'],l:['#f8f5f1','#fbf9f6','#f3ece4','#e6d9cb','#d4c3b0']}};
             function hex(h){h=String(h||'').replace('#','');if(h.length===3)h=h.replace(/./g,function(c){return c+c;});if(!/^[0-9a-f]{6}$/i.test(h))return [26,39,68];var n=parseInt(h,16);return [(n>>16)&255,(n>>8)&255,n&255];}
             function ladder(h,dark){var base=hex(h),toward=dark?[8,10,16]:[247,246,244],steps=dark?[.34,.48,.62,.74,.84]:[.07,.03,.12,.2,.28];return steps.map(function(t){return '#'+toward.map(function(v,i){return Math.max(0,Math.min(255,Math.round(v+(base[i]-v)*t))).toString(16).padStart(2,'0');}).join('');});}
             var dark=false,key='ink',color='#1a2744';
-            try{dark=(localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'light')==='dark';key=localStorage.getItem('studio_palette')||'ink';color=localStorage.getItem('studio_palette_color')||'#1a2744';}catch(e){}
+            try{dark=(localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark'))==='dark';key=localStorage.getItem('studio_palette')||'ink';color=localStorage.getItem('studio_palette_color')||'#1a2744';}catch(e){}
             var root=document.documentElement;
             root.classList.toggle('studio-theme-dark',dark);
             root.classList.toggle('theme-dark',dark);

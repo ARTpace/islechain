@@ -4,7 +4,7 @@
     function hex(h){h=String(h||'').replace('#','');if(h.length===3)h=h.replace(/./g,function(c){return c+c;});if(!/^[0-9a-f]{6}$/i.test(h))return [26,39,68];var n=parseInt(h,16);return [(n>>16)&255,(n>>8)&255,n&255];}
     function ladder(h,dark){var base=hex(h),toward=dark?[8,10,16]:[247,246,244],steps=dark?[.34,.48,.62,.74,.84]:[.07,.03,.12,.2,.28];return steps.map(function(t){return '#'+toward.map(function(v,i){return Math.max(0,Math.min(255,Math.round(v+(base[i]-v)*t))).toString(16).padStart(2,'0');}).join('');});}
     var dark=false,key='ink',color='#1a2744';
-    try{dark=(localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||'light')==='dark';key=localStorage.getItem('studio_palette')||'ink';color=localStorage.getItem('studio_palette_color')||'#1a2744';}catch(e){}
+    try{dark=(localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark'))==='dark';key=localStorage.getItem('studio_palette')||'ink';color=localStorage.getItem('studio_palette_color')||'#1a2744';}catch(e){}
     var root=document.documentElement;
     root.classList.toggle('studio-theme-dark',dark);
     root.classList.toggle('theme-dark',dark);
