@@ -91,7 +91,7 @@ async def save_history(req: _main.SaveHistoryRequest, token: str = ""):
     return {"success": True, "timestamp": record["timestamp"]}
 
 @router.get("/api/history")
-async def get_history_api(type: str = None, token: str = "", page: int = None, page_size: int = 15, q: str = None):
+async def get_history_api(type: str = None, token: str = "", page: int = None, page_size: int = 15, q: str = None, mine: int = 0):
     username = _main.get_username_by_token(token)
     # 优先走进程内缓存,history.json 越大收益越明显
     data = list(_main._load_history_cached())  # 拷贝避免污染缓存
@@ -102,8 +102,16 @@ async def get_history_api(type: str = None, token: str = "", page: int = None, p
             data = [item for item in data if item.get("type", "zimage") in types]
         # 只返回当前登录用户自己的记录。没有用户标记的旧记录不对普通用户开放。
         is_admin = _main.is_admin_by_token(token)
+        # mine=1 时即使是管理员也只返回自己的记录（前端"仅看我的"开关用）
+        only_mine = False
+        try:
+            only_mine = bool(int(mine))
+        except (ValueError, TypeError):
+            only_mine = bool(mine)
         if not username:
             data = []
+        elif only_mine:
+            data = [item for item in data if item.get("user") == username]
         elif not is_admin:
             data = [item for item in data if item.get("user") == username]
         # Support image, text, audio and video outputs: keep records with images OR text OR audio OR videos

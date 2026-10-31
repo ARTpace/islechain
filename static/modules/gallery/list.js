@@ -82,7 +82,8 @@
         isBatchMode: false,
         container: null,
         trigger: null,
-        observer: null
+        observer: null,
+        scope: 'mine'   // 'mine' = 仅看自己的（默认，隐藏访客图）; 'all' = 全部（管理员总览）
     };
 
     /**
@@ -130,6 +131,72 @@
             bindBatchSelect();
         }
         bindObserver();
+        // 管理员可见的"仅看我的 / 查看全部"范围切换开关（默认仅看我的，隐藏其他用户的图）
+        injectScopeToggle();
+    }
+
+    /**
+     * 注入范围切换开关（仅管理员可见）。
+     * 默认 scope='mine'（仅看自己的图），切到 'all' 时调用 /api/history 不带 mine=1（管理员总览，含局域网访客）。
+     */
+    function injectScopeToggle() {
+        try {
+            const raw = localStorage.getItem('xy_auth_user');
+            let isAdmin = false;
+            if (raw) { const u = JSON.parse(raw); isAdmin = !!(u && u.is_admin); }
+            if (!isAdmin) return; // 非管理员本就只能看自己，无需开关
+            const mount = state.container ? state.container.parentNode : null;
+            if (!mount) return;
+            if (mount.querySelector('.gallery-scope-toggle')) return; // 防止重复注入
+
+            // 注入一次样式（自包含，不依赖外部 CSS）
+            if (!document.getElementById('gallery-scope-toggle-style')) {
+                const st = document.createElement('style');
+                st.id = 'gallery-scope-toggle-style';
+                st.textContent = `
+.gallery-scope-toggle{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--ui-text,#f6f6f4);}
+.gallery-scope-toggle .gst-label{opacity:.65;font-size:12px;margin-right:2px;}
+.gallery-scope-toggle .gst-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ui-line-strong,#343b4c) 42%,transparent);background:color-mix(in srgb,var(--ui-panel,#1c202a) 60%,transparent);color:var(--ui-text,#f6f6f4);padding:5px 13px;border-radius:999px;cursor:pointer;font-size:13px;line-height:1;transition:.18s;}
+.gallery-scope-toggle .gst-btn:hover{border-color:var(--ui-accent-glow,#0891b2);}
+.gallery-scope-toggle .gst-btn.active{background:var(--ui-accent,#0e7490);border-color:var(--ui-accent,#0e7490);color:#fff;}
+.gallery-scope-toggle .gst-btn svg{width:14px;height:14px;}
+`;
+                document.head.appendChild(st);
+            }
+
+            const bar = document.createElement('div');
+            bar.className = 'gallery-scope-toggle';
+            bar.innerHTML = `
+                <span class="gst-label">历史范围</span>
+                <button type="button" class="gst-btn" data-scope="mine">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    仅看我的
+                </button>
+                <button type="button" class="gst-btn" data-scope="all">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    查看全部
+                </button>`;
+            bar.querySelectorAll('.gst-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () { setScope(btn.dataset.scope); });
+            });
+            mount.insertBefore(bar, state.container);
+            updateScopeToggleUI(state.scope);
+        } catch (e) { /* 静默：开关失败不影响画廊核心功能 */ }
+    }
+
+    function updateScopeToggleUI(scope) {
+        document.querySelectorAll('.gallery-scope-toggle .gst-btn').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.scope === scope);
+        });
+    }
+
+    /** 切换展示范围：'mine' 仅看自己的；'all' 管理员查看全部（含局域网访客） */
+    function setScope(scope) {
+        if (scope !== 'mine' && scope !== 'all') return;
+        if (state.scope === scope) return;
+        state.scope = scope;
+        updateScopeToggleUI(scope);
+        load(0);
     }
 
     // === 自动加载匹配项（fav-mode / nsfw-mode / nsfw-only-mode 进入时） ===
@@ -266,7 +333,7 @@
                 state.currentPage = 0;
                 state.hasMore = true;
                 if (trigger) { trigger.classList.remove('hidden'); trigger.innerText = 'Loading Archives...'; }
-                const res = await fetch(`/api/history?type=${encodeURIComponent(state.type)}&page=0&page_size=${state.pageSize}`);
+                const res = await fetch(`/api/history?type=${encodeURIComponent(state.type)}&page=0&page_size=${state.pageSize}${state.scope === 'mine' ? '&mine=1' : ''}`);
                 if (!res.ok) throw new Error('History API ' + res.status);
                 const json = await res.json();
                 const norm = normalizeHistoryResponse(json);
@@ -288,7 +355,7 @@
                 if (trigger) trigger.innerText = 'Loading...';
                 await new Promise(r => setTimeout(r, 200));
                 const nextPage = state.currentPage + 1;
-                const res = await fetch(`/api/history?type=${encodeURIComponent(state.type)}&page=${nextPage}&page_size=${state.pageSize}`);
+                const res = await fetch(`/api/history?type=${encodeURIComponent(state.type)}&page=${nextPage}&page_size=${state.pageSize}${state.scope === 'mine' ? '&mine=1' : ''}`);
                 if (!res.ok) throw new Error('History API ' + res.status);
                 const json = await res.json();
                 const norm = normalizeHistoryResponse(json);
@@ -484,6 +551,7 @@
     global.GalleryList = {
         init,
         load,
+        setScope,
         pushNewImage,
         toggleBatchSelect,
         toggleItemSelection,
@@ -493,6 +561,7 @@
         get allHistory() { return state.allHistory; },
         set allHistory(v) { state.allHistory = v; },
         get type() { return state.type; },
-        get hasMore() { return state.hasMore; }
+        get hasMore() { return state.hasMore; },
+        get scope() { return state.scope; }
     };
 })(window);
