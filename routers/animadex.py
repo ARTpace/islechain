@@ -15,30 +15,26 @@ async def get_animadex_characters(
     copyright: str = "",
     limit: int = 200
 ):
-    """获取 animadex 角色数据(用于头像映射)"""
-    import time
+    """获取角色数据(用于头像映射)。
 
-    # 缓存 10 分钟。缓存本体定义在 main.py（_animadex_cache / _animadex_cache_time），
-    # 必须通过 _main. 赋值才能真正共享；此前用 global 声明只会写进本 router 模块，导致每次请求都重载且返回空列表。
-    if _main._animadex_cache is None or (time.time() - _main._animadex_cache_time) > 600:
-        try:
-            animadex_path = os.path.join(_main.STATIC_DIR, "app", "characters.json")
-            if os.path.exists(animadex_path):
-                with open(animadex_path, 'r', encoding='utf-8') as f:
-                    _main._animadex_cache = json.load(f)
-                    _main._animadex_cache_time = time.time()
-        except Exception as e:
-            print(f"加载 animadex 数据失败: {e}")
-            _main._animadex_cache = {"characters": []}
+    2026-10-31 起改走 character_packs 索引：不再整份加载 21MB 单文件，
+    也不再在内存里常驻整份 dict。字段名对前端保持兼容（补 slug / thumb_url）。
+    """
+    import character_packs as _chars
 
-    characters = _main._animadex_cache.get("characters", []) if _main._animadex_cache else []
+    items = _chars.merged_index().get("items") or []
 
     # 按 copyright 过滤
     if copyright:
-        characters = [c for c in characters if c.get("copyright") == copyright]
+        items = [c for c in items if c.get("copyright") == copyright]
 
-    # 限制数量
-    characters = characters[:limit]
+    characters = []
+    for item in items[:max(0, int(limit))]:
+        row = dict(item)
+        row.setdefault("slug", item.get("id"))
+        if not row.get("thumb_url"):
+            row["thumb_url"] = item.get("thumb") or _chars.thumb_url_of(item.get("trigger", ""))
+        characters.append(row)
 
     return {"characters": characters, "count": len(characters)}
 

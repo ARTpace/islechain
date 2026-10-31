@@ -11,26 +11,24 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List
 
-from .manifest import PackManifest, load_manifest
-from .paths import BUILTIN_PACKS_DIR, OVERLAY_FILE, SCHEMA_VERSION, USER_PACKS_DIR
+from content_packs.scanner import discover as _discover
+
+from .manifest import PackManifest
+from .paths import BUILTIN_PACKS_DIR, KIND, OVERLAY_FILE, SCHEMA_VERSION, USER_PACKS_DIR
 
 
 # === 包发现 ===
 
 def discover_packs() -> List[PackManifest]:
-    """扫描内置与用户两个目录，返回排好序的包清单（内置优先）。"""
-    packs: List[PackManifest] = []
-    for root, builtin in ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)):
-        if not root.is_dir():
-            continue
-        for child in sorted(root.iterdir(), key=lambda p: p.name):
-            if not child.is_dir():
-                continue
-            manifest = load_manifest(child, builtin=builtin)
-            if manifest:
-                packs.append(manifest)
-    packs.sort(key=lambda m: m.sort_key())
-    return packs
+    """扫描内置与用户两个目录，返回排好序的包清单（内置优先）。
+
+    目录在调用时才读取模块级常量，便于测试注入临时目录。
+    """
+    return _discover(
+        ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)),
+        kind=KIND,
+        log_tag="style_packs",
+    )
 
 
 def load_categories(pack: PackManifest) -> List[dict]:

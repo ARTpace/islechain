@@ -14,37 +14,35 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from content_packs.catalog import (
+    official_dir as _official_dir,
+    read_catalog as _read_catalog,
+    zip_path_of as _zip_path_of,
+)
+
 from .manifest import load_manifest
 from .packer import PackError, export_pack, import_pack
-from .paths import BASE_DIR, BUILTIN_PACKS_DIR, USER_PACKS_DIR, is_valid_pack_id
+from .paths import (
+    BASE_DIR,
+    BUILTIN_PACKS_DIR,
+    DIST_DIRNAME,
+    OFFICIAL_DIRNAME,
+    USER_PACKS_DIR,
+    is_valid_pack_id,
+)
 from .store import discover_packs, load_categories
 
-OFFICIAL_DIRNAME = "style-packs-official"
 CATALOG_NAME = "catalog.json"
 
 
 def official_dir() -> Optional[Path]:
     """官方包目录：安装版优先，开发版回退到 dist/。"""
-    for candidate in (BASE_DIR / "data" / OFFICIAL_DIRNAME, BASE_DIR / "dist" / "style-packs"):
-        if (candidate / CATALOG_NAME).is_file():
-            return candidate
-    return None
+    return _official_dir(BASE_DIR, official_dirname=OFFICIAL_DIRNAME, dist_dirname=DIST_DIRNAME)
 
 
 def read_catalog() -> Dict:
     """读官方包清单；目录或清单缺失时返回空结构（前端据此隐藏下载区）。"""
-    root = official_dir()
-    if not root:
-        return {"packs": [], "totalEntries": 0, "source": ""}
-    try:
-        with io.open(root / CATALOG_NAME, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as exc:
-        print("[style_packs] catalog 读取失败：%s" % exc)
-        return {"packs": [], "totalEntries": 0, "source": str(root)}
-    data["source"] = str(root)
-    data.setdefault("packs", [])
-    return data
+    return _read_catalog(official_dir(), log_tag="style_packs")
 
 
 def find_pack_dir(pack_id: str):
@@ -60,22 +58,7 @@ def find_pack_dir(pack_id: str):
 
 def zip_path_of(pack_id: str) -> Optional[Path]:
     """取官方包的 zip 路径（以 catalog 登记的 file 为准，找不到再按 id 兜底）。"""
-    if not is_valid_pack_id(pack_id):
-        return None
-    root = official_dir()
-    if not root:
-        return None
-    for entry in read_catalog().get("packs") or []:
-        if str(entry.get("packId")) != pack_id:
-            continue
-        name = str(entry.get("file") or "")
-        # catalog 里的 file 只允许单层文件名，防止被改造成越界路径
-        if name and "/" not in name and "\\" not in name and ".." not in name:
-            candidate = root / name
-            if candidate.is_file():
-                return candidate
-    fallback = root / (pack_id + ".zip")
-    return fallback if fallback.is_file() else None
+    return _zip_path_of(pack_id, official_dir(), read_catalog())
 
 
 def install_official(pack_id: str, replace: bool = False):

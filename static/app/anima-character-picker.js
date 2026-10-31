@@ -421,18 +421,71 @@ function pickerRemoveSelectedByChip(e, btn) {
 
 
 
+// 索引条目 -> 界面用的角色对象。
+// 索引只带轻字段（无 tags / 大图），缩略图由 trigger 推导，规则与后端 thumb_url_of 严格一致。
+function pickerQuote(text) {
+    // encodeURIComponent 与 Python quote(safe="()") 的差异：!'*
+    // 前者不编码，后者编码。必须对齐，否则缩略图会 404。
+    return encodeURIComponent(text)
+        .replace(/[!'*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+function pickerThumbFromTrigger(trigger) {
+    const text = String(trigger || '').replace(/:/g, '_').replace(/\//g, '_');
+    return 'https://blobs.animadex.net/Outputs/thumbs/' + pickerQuote(text) + '.webp';
+}
+
+function pickerAdaptIndex(payload) {
+    const raw = (payload && payload.items) || [];
+    return raw.map(e => ({
+        id: e.id,
+        slug: e.id,
+        name: e.name,
+        copyright: e.copyright,
+        post_count: e.post_count || 0,
+        gender: e.gender || '',
+        hair: e.hair || '',
+        eye: e.eye || '',
+        trigger: e.trigger || '',
+        feat: e.feat || [],
+        thumb_url: e.thumb || pickerThumbFromTrigger(e.trigger),
+        tags: [],              // 详情懒加载
+        img_url: '',
+        danbooru_url: '',
+        _detailLoaded: false
+    }));
+}
+
+// 点开详情时按需取重字段（tags / 大图 / 出处），失败不影响主流程
+function pickerEnsureDetail(char) {
+    if (!char || char._detailLoaded || !char.id) return Promise.resolve(false);
+    return fetch('/api/characters/detail?id=' + encodeURIComponent(char.id))
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+            if (!data || !data.character) return false;
+            const d = data.character;
+            char.tags = d.tags || [];
+            char.img_url = d.img_url || '';
+            char.danbooru_url = d.danbooru_url || '';
+            if (d.thumb_url) char.thumb_url = d.thumb_url;
+            char._detailLoaded = true;
+            return true;
+        })
+        .catch(() => false);
+}
+
 function pickerLoadData() {
     if (ANIMA_CHAR_DB.length > 0) return Promise.resolve();
 
-    // 单一数据源：/static/app/characters.json，与后端 random_source.py / routers/animadex.py 共用同一文件
-    return fetch('/static/app/characters.json')
+    // 单一数据源：/api/characters/index（由已装角色包合并而来，见 character_packs）
+    return fetch('/api/characters/index')
         .then(r => r.json())
         .then(payload => {
-            const list = Array.isArray(payload) ? payload : ((payload && payload.characters) || []);
+            const list = pickerAdaptIndex(payload);
             if (!list.length) return;
             ANIMA_CHAR_DB = list;
             window.ANIMA_CHAR_DB = ANIMA_CHAR_DB; // 暴露给同页脚本（zimage.html 等用 window[name] 读，避免 let 不挂 window 的问题）
-            console.log('[AnimaPicker] Loaded ' + ANIMA_CHAR_DB.length + ' characters');
+            console.log('[AnimaPicker] Loaded ' + ANIMA_CHAR_DB.length + ' characters (index)');
             pickerMigrateLocalData();
         })
         .catch(e => console.error('[AnimaPicker] Failed to load character data', e));
@@ -820,28 +873,18 @@ const PICKER_FEATURE_MAP = {
 function pickerExtractFeatures() {
 
 
-    const tagCounts = {};
+    // 索引已预计算 feat（拆包时按 data/character-features.json 生成），
+    // 这里不再扫描 tags —— 索引层不保留完整 tags
+    const featCounts = {};
 
 
     ANIMA_CHAR_DB.forEach(c => {
 
 
-        (c.tags || []).forEach(t => {
+        (c.feat || []).forEach(label => {
 
 
-            const tl = t.toLowerCase().trim();
-
-
-            if (PICKER_FEATURE_MAP[tl]) {
-
-
-                const key = PICKER_FEATURE_MAP[tl];
-
-
-                tagCounts[key] = (tagCounts[key] || 0) + 1;
-
-
-            }
+            featCounts[label] = (featCounts[label] || 0) + 1;
 
 
         });
@@ -853,7 +896,7 @@ function pickerExtractFeatures() {
     // 取出现 50 次以上的特征，按数量排序
 
 
-    return Object.entries(tagCounts)
+    return Object.entries(featCounts)
 
 
         .filter(([_, count]) => count >= 50)
@@ -1152,16 +1195,7 @@ function pickerFilterChars() {
             const feat = pickerCategory.replace('feat:', '');
 
 
-            return (c.tags || []).some(t => {
-
-
-                const mapped = PICKER_FEATURE_MAP[t.toLowerCase().trim()];
-
-
-                return mapped === feat;
-
-
-            });
+            return (c.feat || []).includes(feat);
 
 
         }
@@ -1388,7 +1422,9 @@ function pickerRenderGrid() {
             // 标签预览（最多显示 3 个）
 
 
-            const tagPreview = (c.tags || []).slice(0, 3).join(', ');
+            // 索引层不带 tags，卡片先用预计算特征名兜底；完整 tags 在详情面板里看
+            const previewTags = (c.tags && c.tags.length) ? c.tags : (c.feat || []);
+            const tagPreview = previewTags.slice(0, 3).join(', ');
 
 
             return '<div class="picker-char-card' + (sel ? ' is-selected' : '') + '" data-name="' + c.name.replace(/"/g, '&quot;') + '" onclick="pickerToggle(\'' + safeName + '\')" ondblclick="pickerDetailOpen(\'' + safeName + '\')">' +
@@ -1415,7 +1451,7 @@ function pickerRenderGrid() {
                 '<span class="picker-char-count" title="' + c.post_count.toLocaleString() + ' 插画投稿">' + pickerCompactNumber(c.post_count) + '</span></div>' +
 
 
-                (tagPreview ? '<div class="picker-char-tags" title="' + (c.tags || []).join(', ').replace(/"/g, '&quot;') + '">' + tagPreview + (c.tags && c.tags.length > 3 ? '…' : '') + '</div>' : '') +
+                (tagPreview ? '<div class="picker-char-tags" title="' + previewTags.join(', ').replace(/"/g, '&quot;') + '">' + tagPreview + (previewTags.length > 3 ? '…' : '') + '</div>' : '') +
 
 
                 '</div></div>';
@@ -1494,6 +1530,25 @@ function pickerDetailOpen(name) {
 
 
     if (!char) return;
+
+
+    // 详情懒加载：先用索引里的信息渲染，再异步补 tags / 大图，回来后重渲染一次
+    if (!char._detailLoaded) {
+
+
+        pickerEnsureDetail(char).then(ok => {
+
+
+            const cur = pickerDetailGetCurrentChar();
+
+
+            if (ok && cur && cur.name === name) pickerDetailOpen(name);
+
+
+        });
+
+
+    }
 
 
     const panel = document.getElementById('pickerDetailPanel');
@@ -1987,7 +2042,42 @@ function pickerGetApplyText() {
 
 
 
+// 批量补详情：「全部」应用模式需要一次拿到多个角色的 tags
+function pickerEnsureDetailsBatch(chars) {
+    const pending = (chars || []).filter(c => c && c.id && !c._detailLoaded);
+    if (!pending.length) return Promise.resolve();
+    return fetch('/api/characters/details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: pending.map(c => c.id) })
+    })
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+            const details = (data && data.details) || {};
+            pending.forEach(c => {
+                const d = details[c.id];
+                if (!d) return;
+                c.tags = d.tags || [];
+                c.img_url = d.img_url || '';
+                c.danbooru_url = d.danbooru_url || '';
+                c._detailLoaded = true;
+            });
+        })
+        .catch(() => {});
+}
+
 function pickerApply() {
+    const chars = pickerSelected
+        .map(name => ANIMA_CHAR_DB.find(c => c.name === name))
+        .filter(Boolean);
+    // 索引层不含 tags，只有「全部」模式需要它们：先补齐再落盘，失败也照常执行
+    const ready = (pickerApplyModeType === 'all' && chars.length)
+        ? pickerEnsureDetailsBatch(chars)
+        : Promise.resolve();
+    ready.then(pickerApplyCommit, pickerApplyCommit);
+}
+
+function pickerApplyCommit() {
     if (pickerSelected.length > 0) {
         pickerSelected.slice().reverse().forEach(name => {
             const idx = pickerHistory.indexOf(name);

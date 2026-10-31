@@ -21,6 +21,8 @@ const skipDirs = new Set([
   'assets',
   // 完整风格库源包（45MB）：只作拆料，永不进安装包，也不进 git
   'style-packs-source',
+  // 角色/画师数据源（21MB + 8MB）：只作拆料，产物是 data/character-packs 与 dist 官方包
+  'character-packs-source',
 ]);
 
 // 「父目录名 -> 该目录下要裁掉的子项」，用于精准剔除大体积素材而不丢代码。
@@ -37,6 +39,9 @@ const skipFiles = new Set([
   // 本机 API 提供商配置（含自定义中转地址，属个人数据）。
   // 缺失时后端会在用户目录自动生成默认配置，所以不用打进包。
   'api_providers.json',
+  // 角色数据已拆成角色包（data/character-packs 种子 + dist 官方包），
+  // 这份 21MB 单文件不再被前端加载，也不再进安装包。
+  'characters.json',
 ]);
 
 function skip(name) {
@@ -65,21 +70,35 @@ if (fs.existsSync(appDir)) fs.rmSync(appDir, {recursive: true, force: true});
 console.log('装配程序到 ' + appDir);
 copyDir(project, appDir, null);
 
-// 官方可选风格包：仓库与安装目录都不含完整数据，但发布包要带上，用户才能离线一键安装。
+// 官方可选内容包：仓库与安装目录都不含完整数据，但发布包要带上，用户才能离线一键安装。
 // 源目录 dist/ 已被 skipDirs 排除，这里按需单独搬 catalog + zip。
-const officialSrc = path.join(project, 'dist', 'style-packs');
-const officialDst = path.join(appDir, 'data', 'style-packs-official');
-if (fs.existsSync(officialSrc)) {
-  fs.mkdirSync(officialDst, {recursive: true});
-  for (const entry of fs.readdirSync(officialSrc, {withFileTypes: true})) {
+// 每种内容包（风格 / 角色 / 画师）走同一套搬运规则，新增类型只需在下面多调一次。
+function installOfficialBundles(distName, officialDirName, label, splitHint) {
+  const src = path.join(project, 'dist', distName);
+  const dst = path.join(appDir, 'data', officialDirName);
+  if (!fs.existsSync(src)) {
+    console.warn(
+      '提示：dist/' + distName + ' 不存在，安装包将不含可选' + label + '（先跑 ' + splitHint + '）'
+    );
+    return;
+  }
+  fs.mkdirSync(dst, {recursive: true});
+  for (const entry of fs.readdirSync(src, {withFileTypes: true})) {
     if (!entry.isFile()) continue;
     if (!entry.name.endsWith('.zip') && entry.name !== 'catalog.json') continue;
-    fs.copyFileSync(path.join(officialSrc, entry.name), path.join(officialDst, entry.name));
+    fs.copyFileSync(path.join(src, entry.name), path.join(dst, entry.name));
   }
-  console.log('官方可选风格包：' + fs.readdirSync(officialDst).length + ' 个文件已装入');
-} else {
-  console.warn('提示：dist/style-packs 不存在，安装包将不含可选风格包（先跑 python tools/style_pack_split.py split）');
+  console.log('官方可选' + label + '：' + fs.readdirSync(dst).length + ' 个文件已装入');
 }
+
+installOfficialBundles(
+  'style-packs', 'style-packs-official', '风格包',
+  'python tools/style_pack_split.py split',
+);
+installOfficialBundles(
+  'character-packs', 'character-packs-official', '角色包',
+  'python tools/character_pack_split.py split',
+);
 
 // 装配自检：这些是 main.py 顶层就要 import 的模块，缺一个服务就起不来。
 const required = [
@@ -97,6 +116,11 @@ const required = [
   'image_cutout.py',
   'preset_manager.py',
   'style_packs',
+  // 角色数据已拆成角色包：种子包缺失等于角色库全空，必须随包（约 1.3MB）
+  'data/character-packs/characters-seed/pack.json',
+  'character_packs',
+  'content_packs',
+  'routers/characters.py',
   'smart_prompt.py',
   'wildcard_engine.py',
   'genre_registry.py',
@@ -123,6 +147,8 @@ const forbidden = [
   'history.json',
   'global_config.json',
   '.env',
+  // 角色数据源（21MB 单文件）已改为角色包分发，不该再出现在安装包里
+  'static/app/characters.json',
 ];
 const leaked = forbidden.filter((rel) => fs.existsSync(path.join(appDir, rel)));
 // 素材/上传目录是运行期数据（落点在用户目录），源码里这份只是本机测试残留，不能进包。

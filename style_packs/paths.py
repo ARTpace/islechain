@@ -1,22 +1,37 @@
 """风格包的路径常量与安全校验。
 
 目录约定（命名与排序解耦）：
-    data/style-packs/<packId>/pack.json         清单：包元信息 + 分类顺序
-    data/style-packs/<packId>/<category_id>.json 一个分类一个文件，文件名恒等于分类 id
+    data/style-packs/<packId>/pack.json          清单：包元信息 + 分类顺序
+    data/style-packs/<packId>/<category_id>.json  一个分类一个文件，文件名恒等于分类 id
 
 内置包放在安装目录下（只读基线），用户包放在用户数据目录（可写、不进 git）。
+校验规则本身在 content_packs.paths，这里只是带路径的风格包专用入口。
 """
 
-import re
 from pathlib import Path
 
+from content_packs.paths import (
+    KIND_STYLES,
+    MANIFEST_NAME,
+    MAX_PACK_BYTES,
+    PACK_ID_PATTERN,
+    SAFE_FILENAME_PATTERN as CATEGORY_FILE_PATTERN,
+    SCHEMA_VERSION,
+    is_safe_filename,
+    is_valid_pack_id,
+)
 from user_paths import user_data_dir
+
+KIND = KIND_STYLES
 
 # style_packs/paths.py -> 工程根（或安装目录的 app/）
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 随包分发：只读基线
 BUILTIN_PACKS_DIR = BASE_DIR / "data" / "style-packs"
+# 官方 zip 的目录名（安装版 data/style-packs-official，开发版 dist/style-packs）
+OFFICIAL_DIRNAME = "style-packs-official"
+DIST_DIRNAME = "style-packs"
 
 # 用户可写层
 USER_ROOT = Path(user_data_dir())
@@ -26,30 +41,6 @@ OVERLAY_FILE = USER_ROOT / "data" / "style-overlay.json"
 LEGACY_PRESETS_FILE = BASE_DIR / "data" / "style-presets.json"
 # 老版本的"用户全量快照"：新体系不读它，启动时换算成增量层后归档
 LEGACY_USER_SNAPSHOT = USER_ROOT / "data" / "style-presets.json"
-
-# packId：小写字母数字与连字符，2~40 字符，必须以字母数字开头
-PACK_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,39}$")
-# 分类文件只允许"名字.json"，禁止任何路径分隔符
-CATEGORY_FILE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,80}\.json$")
-
-MANIFEST_NAME = "pack.json"
-SCHEMA_VERSION = 1
-
-# 单个包解压后的体积上限，防止恶意 zip 撑爆磁盘
-MAX_PACK_BYTES = 256 * 1024 * 1024
-
-
-def is_valid_pack_id(value):
-    """packId 是否合法（同时用于防目录穿越）。"""
-    return bool(value) and bool(PACK_ID_PATTERN.match(str(value)))
-
-
-def is_safe_filename(value):
-    """分类文件名是否安全：只允许单层文件名、必须 .json、不得含 ..。"""
-    text = str(value or "")
-    if not CATEGORY_FILE_PATTERN.match(text):
-        return False
-    return ".." not in text and "/" not in text and "\\" not in text
 
 
 def pack_dir_of(pack_id, builtin=False):

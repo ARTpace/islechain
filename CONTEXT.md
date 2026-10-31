@@ -139,6 +139,50 @@ dist/style-packs/                             # 同上，开发机生成位置�
 **迁移工具**：`python tools/style_pack_migrate.py split|merge|verify`（单文件 ⇄ 包，可逆）、
 `python tools/style_pack_split.py split|verify`（种子包 + 平台包，校验条目零丢失）。
 
+### 角色数据（角色包）
+
+角色数据（36,492 条 / 21 MB）同样改成了可分发包，但**不能照抄风格包的合并模式**：
+角色是「搜索 + 分页」型数据，全量下发不可行。因此拆成**索引层 + 详情层**：
+
+```
+data/character-packs/characters-seed/        # 种子包（进 git、进安装包，1.3 MB / 2,215 条）
+├── pack.json                                # 清单，files 里登记 index.json
+├── index.json                               # 索引层：搜索/列表要用的轻字段
+└── detail-<首字符>.json                     # 详情层：按 id 首字符分片，点开才加载
+
+dist/character-packs/*.zip + catalog.json    # 官方包（不进 git，进安装包）
+data/character-packs-official/               # 装配后的官方包位置
+%APPDATA%\art-canvas\character-packs/<packId>/  # 用户安装/导入的包
+static/app/characters.json                   # 老单文件：已不进 git、不进安装包，仅作拆料与回退
+```
+
+**索引字段**（`id/name/copyright/post_count/gender/hair/eye/trigger/feat`）—— 不含 tags、大图、出处。
+`thumb_url` 由 `trigger` 推导（实测 36,492/36,492 条完全一致，规则见 `character_packs.paths.thumb_url_of`），
+因此索引里不存 URL。`feat` 是拆包时按 `data/character-features.json` 预计算的中文特征，
+所以索引层不保留完整 tags 也能做「双马尾 / 眼镜」这类特征分类。
+
+**分档规则**（按 post_count，配置在 `tools/character_pack_split.py` 顶部）：
+
+| 包 | 规则 | 条目 | 体积 |
+|---|---|---|---|
+| `characters-seed`（随程序） | ≥ 1000 | 2,215 | 1.3 MB |
+| `characters-popular` | 100 ~ 999 | 13,115 | 7.2 MB → zip 1.2 MB |
+| `characters-longtail` | < 100 | 21,162 | 10.9 MB → zip 1.9 MB |
+
+**接口**：`GET /api/characters/index`（合并所有已装包的索引，带 ETag，二次请求 304）、
+`GET /api/characters/detail?id=`（**用 query 传 id**，因为有 73 个 slug 含 `/`，路径参数会断）、
+`POST /api/characters/details`（批量取详情，「全部」应用模式要用）、
+`GET /api/characters/packs`（已装 + 可装状态）。
+`/api/animadex/characters` 已改为走索引，不再整份加载 21 MB 单文件。
+
+**前端**：`anima-character-picker.js` 拉索引后适配成原有结构（补 `slug` / `thumb_url` / 空 `tags`），
+`tags` / 大图在打开详情面板时才异步补；卡片标签预览优先用 `tags`，没有时用 `feat` 兜底。
+
+**工具**：`python tools/character_pack_split.py split|verify`（拆包 + 校验「三包装齐 = 全量且字段逐一还原」）。
+
+**加一种新内容包类型**：通用机制在 `content_packs/`（清单校验、zip 导入导出、扫描、官方目录都不含内容语义），
+各类型只写自己的 paths + schema + store，新增类型不用改通用层。
+
 ## 文件隔离机制
 
 ### 用户级文件隔离

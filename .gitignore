@@ -158,3 +158,9 @@ desktop/dist/
 
 # 风格包分发产物（zip + catalog.json，由脚本生成，装入安装包但不进 git）
 /dist/
+
+# 角色数据源（21MB 单文件）不再进仓库：仓库只留 data/character-packs 种子包，
+# 完整数据由 tools/character_pack_split.py 拆成 dist/character-packs/*.zip 分发。
+# 本地保留这份文件用于拆料与老版本回退，但不跟踪、不进安装包。
+/static/app/characters.json
+/data/character-packs-source/

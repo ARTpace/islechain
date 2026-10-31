@@ -53,6 +53,7 @@ _SUBROUTERS = (
     "proxy_download",
     "workflows_legacy",
     "animadex",
+    "characters",
     "media_ops",
     "ideogram4",
     "restart",
