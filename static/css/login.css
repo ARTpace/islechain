@@ -1,0 +1,358 @@
+/* 登录页样式 —— 独立成文件，便于按"页面/样式/脚本"三块维护。
+ * 颜色全部走 studio-ui.css 的 --ui-* 变量，深浅两态自动跟随；
+ * 唯一的判断是 html[data-login-bg-dark="0"]（浅色背景态），由 login-bg.js 设置。
+ */
+
+    :root {
+        --login-max: 376px;
+        --login-radius: 22px;
+    }
+    html, body { overflow: hidden; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--ui-bg, #14161c);
+        color: var(--ui-text, #e6e5e0);
+        font-family: 'Inter', -apple-system, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        animation: pageIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) both;
+    }
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ---------- 背景层 ---------- */
+    #bgCanvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 0;
+        pointer-events: none;
+        /* 低分辨率缓冲放大后仍有圆形轮廓，再糊一层让光斑边界彻底消失；
+           scale 补偿 blur 在边缘留下的透明带 */
+        filter: blur(26px);
+        transform: scale(1.08);
+    }
+    .vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 26%, rgba(0, 0, 0, .52) 100%);
+    }
+    html[data-login-bg-dark="0"] .vignette {
+        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 30%, rgba(255, 255, 255, .42) 100%);
+    }
+    .grain {
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        pointer-events: none;
+        opacity: .038;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    html[data-login-bg-dark="0"] .grain { opacity: .022; }
+
+    /* ---------- 入场动效：全站统一一条曲线，位移 10px，不做闪烁 ---------- */
+    @keyframes riseIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes cardIn {
+        from { opacity: 0; transform: translate(-50%, -47%) scale(.985); }
+        to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* ---------- 品牌区 ---------- */
+    .brand {
+        position: fixed;
+        top: clamp(30px, 8vh, 74px);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        text-align: center;
+        pointer-events: none;
+        animation: brandRise .8s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) backwards;
+    }
+    @keyframes brandRise {
+        from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    /* 几何标记：双层菱形 + 光核，呼应背景极光的中心光源 */
+    .brand .mark {
+        display: block;
+        width: clamp(26px, 3vw, 32px);
+        height: clamp(26px, 3vw, 32px);
+        margin: 0 auto 16px;
+        color: var(--ui-accent, #0e7490);
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ui-accent, #0e7490) 34%, transparent));
+    }
+    .brand h1 {
+        margin: 0;
+        font-size: clamp(20px, 2.6vw, 25px);
+        /* 跟随项目字重体系：暗色主题自动降 40，避免暗底上发糊 */
+        font-weight: var(--ui-fw-semibold, 600);
+        /* 字距约为字号的 13%，再大字母就被拆成孤立个体 */
+        letter-spacing: 3.2px;
+        text-indent: 3.2px;
+        color: var(--ui-text, #e6e5e0);
+    }
+    .brand p {
+        margin: 8px 0 0;
+        font-size: 12px;
+        font-weight: var(--ui-fw-regular, 400);
+        letter-spacing: 1.2px;
+        text-indent: 1.2px;
+        color: var(--ui-muted, #828178);
+    }
+
+    /* ---------- 表单卡片 ---------- */
+    #loginForm {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        width: min(var(--login-max), 92vw);
+        padding: clamp(24px, 3.6vw, 34px);
+        box-sizing: border-box;
+        border-radius: var(--login-radius);
+        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 62%, transparent);
+        background: color-mix(in srgb, var(--ui-panel, #1c202a) 78%, transparent);
+        backdrop-filter: blur(26px) saturate(1.12);
+        -webkit-backdrop-filter: blur(26px) saturate(1.12);
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .04) inset,
+            0 24px 70px rgba(0, 0, 0, .40);
+        animation: cardIn .62s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) .06s backwards;
+    }
+    html[data-login-bg-dark="0"] #loginForm {
+        border-color: color-mix(in srgb, var(--ui-line-strong, #e7e5de) 88%, transparent);
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .8) inset,
+            0 18px 50px rgba(28, 32, 42, .10);
+    }
+
+    /* 卡片内元素依次浮现：位移只有 10px，间隔 55ms，避免"炫技感" */
+    .field, .btn-primary, .btn-link {
+        animation: riseIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) backwards;
+    }
+    /* 用相邻选择器而不是 nth-of-type —— 表单里还有防自动填充的隐藏 div，
+       nth-of-type 会被它挤位，导致延迟错序 */
+    .field { animation-delay: .18s; }
+    .field + .field { animation-delay: .235s; }
+    .btn-primary { animation-delay: .29s; }
+    .btn-link { animation-delay: .345s; }
+
+    /* ---------- 输入 ---------- */
+    .field { margin-bottom: 15px; }
+    .field label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 11.5px;
+        letter-spacing: .4px;
+        font-weight: var(--ui-fw-medium, 500);
+        color: var(--ui-faint, #9e9c93);
+    }
+    .field-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 74%, transparent);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--ui-soft, #252b38) 34%, transparent);
+        /* 只过渡颜色与阴影，不做位移/宽度动画 */
+        transition: border-color .2s var(--ui-ease, ease), box-shadow .2s var(--ui-ease, ease), background-color .2s var(--ui-ease, ease);
+    }
+    .field-box:hover {
+        border-color: color-mix(in srgb, var(--ui-line-strong, #343b4c) 55%, var(--ui-text, #e6e5e0));
+    }
+    .field-box:focus-within {
+        border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 40%, transparent);
+        background: color-mix(in srgb, var(--ui-soft, #252b38) 58%, transparent);
+        box-shadow: 0 0 0 3px var(--ui-accent-soft, rgba(14, 116, 144, .1));
+    }
+    .field-box input {
+        flex: 1;
+        min-width: 0;
+        height: 44px;
+        padding: 0 14px;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--ui-text, #e6e5e0);
+        font-family: inherit;
+        font-size: 14px;
+        letter-spacing: .2px;
+    }
+    .field-box input::placeholder { color: var(--ui-muted, #828178); opacity: .78; }
+    /* 去掉 Chrome 自动填充的黄底，保持卡片视觉统一 */
+    .field-box input:-webkit-autofill {
+        -webkit-text-fill-color: var(--ui-text, #e6e5e0);
+        transition: background-color 9999s ease-out;
+    }
+
+    /* 密码可见性：只换图标，不占额外布局 */
+    .reveal {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        margin-right: 4px;
+        border: 0;
+        border-radius: 9px;
+        background: none;
+        color: var(--ui-faint, #9e9c93);
+        cursor: pointer;
+        transition: color .18s var(--ui-ease, ease), background-color .18s var(--ui-ease, ease);
+    }
+    .reveal:hover {
+        color: var(--ui-text, #e6e5e0);
+        background: color-mix(in srgb, var(--ui-text, #e6e5e0) 7%, transparent);
+    }
+    .reveal:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 1px;
+    }
+    .reveal svg { width: 17px; height: 17px; }
+    .reveal .i-off { display: none; }
+    .reveal[aria-pressed="true"] .i-off { display: block; }
+    .reveal[aria-pressed="true"] .i-on { display: none; }
+
+    /* ---------- 错误提示 ---------- */
+    /* 用 0fr→1fr 折叠高度：默认不占位（否则密码框到按钮之间会留一段死空白），
+       出现时平滑撑开而不是硬切，按钮不会被"顶跳" */
+    #loginError {
+        display: grid;
+        grid-template-rows: 0fr;
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #ff6b7a;
+        opacity: 0;
+        transition: grid-template-rows .24s var(--ui-ease, ease),
+                    opacity .2s var(--ui-ease, ease),
+                    margin .24s var(--ui-ease, ease);
+    }
+    #loginError > span { overflow: hidden; min-height: 0; }
+    #loginError.is-on {
+        grid-template-rows: 1fr;
+        margin: 2px 0 10px;
+        opacity: 1;
+    }
+    html[data-login-bg-dark="0"] #loginError { color: #c22b45; }
+
+    /* ---------- 主操作 ---------- */
+    /* 用前景色而非品牌色填充：不与背景极光抢视线，品牌色只留给聚焦光晕与标记 */
+    .btn-primary {
+        position: relative;
+        width: 100%;
+        height: 46px;
+        margin-top: 6px;
+        border: 0;
+        border-radius: 13px;
+        background: var(--ui-text, #f6f6f4);
+        color: var(--ui-bg, #14161c);
+        font-family: inherit;
+        font-size: 13.5px;
+        font-weight: var(--ui-fw-semibold, 600);
+        letter-spacing: .5px;
+        cursor: pointer;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, .32);
+        transition: transform .16s var(--ui-ease, ease), box-shadow .22s var(--ui-ease, ease), opacity .2s;
+    }
+    html[data-login-bg-dark="0"] .btn-primary { box-shadow: 0 8px 22px rgba(24, 24, 23, .16); }
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .38);
+    }
+    html[data-login-bg-dark="0"] .btn-primary:hover:not(:disabled) {
+        box-shadow: 0 12px 28px rgba(24, 24, 23, .2);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0) scale(.992); }
+    .btn-primary:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 3px;
+    }
+    .btn-primary .label {
+        display: inline-block;
+        transition: opacity .14s var(--ui-ease, ease);
+    }
+    .btn-primary.is-busy .label { opacity: 0; }
+    .btn-primary.is-busy { cursor: default; }
+    /* 加载态：一圈 1.5px 弧线，只用文字色，不加额外颜色 */
+    .btn-primary::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, var(--ui-bg, #14161c) 26%, transparent);
+        border-top-color: var(--ui-bg, #14161c);
+        opacity: 0;
+    }
+    .btn-primary.is-busy::after {
+        opacity: 1;
+        animation: spin .68s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- 次要操作：注册降级为文字链接 ---------- */
+    .btn-link {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 9px 0 2px;
+        border: 0;
+        border-radius: 10px;
+        background: none;
+        color: var(--ui-muted, #828178);
+        font-family: inherit;
+        font-size: 12.5px;
+        letter-spacing: .3px;
+        cursor: pointer;
+        transition: color .18s var(--ui-ease, ease);
+    }
+    .btn-link b {
+        margin-left: 5px;
+        font-weight: var(--ui-fw-medium, 500);
+        color: var(--ui-text, #e6e5e0);
+        border-bottom: 1px solid transparent;
+        transition: border-color .18s var(--ui-ease, ease);
+    }
+    .btn-link:hover b { border-bottom-color: color-mix(in srgb, var(--ui-text, #e6e5e0) 45%, transparent); }
+    .btn-link:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 2px;
+    }
+    .btn-link[disabled] { opacity: .5; cursor: default; }
+
+    /* ---------- 页脚 ---------- */
+    .footer {
+        position: fixed;
+        left: 50%;
+        bottom: 26px;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 10.5px;
+        letter-spacing: 1.4px;
+        color: var(--ui-faint, #9e9c93);
+        opacity: .5;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+        .brand { top: 26px; }
+        /* 手机屏卡片占比大，居中会显得上方留白过宽，略下移平衡视觉重心 */
+        #loginForm { top: 53%; }
+        .footer { bottom: 16px; letter-spacing: 1.2px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        body, .brand, #loginForm, .field, .btn-primary, .btn-link { animation: none !important; }
+        .field-box, .reveal, .btn-primary, .btn-link, #loginError { transition: none !important; }
+        .btn-primary.is-busy::after { animation: none; }
+    }
