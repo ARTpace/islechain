@@ -83,7 +83,7 @@ input/{owner}/                       # 与 output 同级，跟随静态路由根
 **不进仓库、不进分发目录**，仓库和安装包只带精简种子包，其余按来源平台打成 zip 由用户自选安装：
 
 ```
-data/style-packs/art-canvas-seed/             # 随程序分发的种子包（进 git，约 2.5 MB / 1,872 条）
+data/style-packs/art-canvas-seed/             # 种子包（2026-10-31 起不进 git，随安装包；约 2.5 MB / 1,872 条）
 ├── pack.json                                 # 清单：包元信息 + 分类顺序，不存内容
 ├── painting.json                             # 一个分类一个文件，文件名恒等于分类 id
 └── ...
@@ -95,6 +95,13 @@ dist/style-packs/                             # 同上，开发机生成位置�
 %APPDATA%\art-canvas\style-packs/<packId>/    # 用户安装/导入的包（不进 git）
 %APPDATA%\art-canvas\data\style-overlay.json  # 用户自己加/改/删的单条（几 KB，不进 git）
 ```
+
+> **2026-10-31 起：所有内容资源外置。** 数据、预设、缩略图一律不进 git，
+> 仓库只保留代码与配置（`character-features.json` / `style-packs-config.json`
+> / `animadex-version.json` / `media-folders.json`）。
+> 离线资源包：`H:\AI-Tools\art-canvas-resources\art-canvas-data.zip` 与
+> `art-canvas-images.zip`，解压到项目根即恢复，程序按原路径读取，无需改配置。
+> 缺失时全部降级为空且不报错（已实测），构建脚本也会只警告不阻断。
 
 **命名规范**：文件名只表示「是什么」，恒等于分类 id；**排序只由 `pack.json` 的 `order` 决定**。
 调顺序永远不用重命名、也不用改数据文件，命名与排序彻底解耦。
@@ -112,7 +119,7 @@ dist/style-packs/                             # 同上，开发机生成位置�
 | 目的 | 改哪里 | 进 git |
 |---|---|---|
 | 自己用，改完立刻生效 | 界面或 `POST /api/style-presets/items` → 写 overlay | 否 |
-| 想让新风格随包出厂 | 改 `data/style-packs/art-canvas-seed/<分类>.json` | 是 |
+| 想让新风格随包出厂 | 改 `data/style-packs/art-canvas-seed/<分类>.json` | 否（本地资源，已外置） |
 | 整套分发 | 打成 zip 交用户导入，或放进 `%APPDATA%\art-canvas\style-packs\<packId>\` | 否 |
 
 **按平台拆分分发**：`tools/style_pack_split.py split` 读 `data/style-packs-config.json`
@@ -145,7 +152,7 @@ dist/style-packs/                             # 同上，开发机生成位置�
 角色是「搜索 + 分页」型数据，全量下发不可行。因此拆成**索引层 + 详情层**：
 
 ```
-data/character-packs/characters-seed/        # 种子包（进 git、进安装包，1.3 MB / 2,215 条）
+data/character-packs/characters-seed/        # 种子包（2026-10-31 起不进 git，随安装包；1.3 MB / 2,215 条）
 ├── pack.json                                # 清单，files 里登记 index.json
 ├── index.json                               # 索引层：搜索/列表要用的轻字段
 └── detail-<首字符>.json                     # 详情层：按 id 首字符分片，点开才加载

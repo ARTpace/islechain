@@ -171,3 +171,26 @@ desktop/dist/
 # 完整数据由 tools/artist_pack_fetch.py 拉取、tools/artist_pack_split.py 拆成
 # dist/artist-packs/*.zip 分发；图片由官方 CDN 直连，不落盘也不进包。
 /data/artist-packs-source/
+
+# ============================================================
+# 内容资源外置（2026-10-31）
+# 数据 / 预设 / 缩略图一律不进仓库，仓库只保留代码与配置。
+# 离线资源包在 H:/AI-Tools/art-canvas-resources/
+#   art-canvas-data.zip     data/ 下的数据与预设
+#   art-canvas-images.zip   风格与版式缩略图
+# 解压到项目根即可恢复，程序按原路径读取，无需改配置。
+# 保留在仓库的配置：character-features.json / style-packs-config.json
+#                  / animadex-version.json / media-folders.json
+# ============================================================
+/data/prompt_libraries.json
+/data/prompt-presets.yaml
+/data/style-i18n.json
+/data/fooocus_styles.json
+/data/layout_descriptions.json
+/data/presets/
+/data/wildcards/
+/data/style-packs/
+/data/character-packs/
+/data/artist-packs/
+/static/images/style_thumbnails/
+/static/images/poster_layouts/thumbnails/

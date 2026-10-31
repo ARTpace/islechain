@@ -116,8 +116,6 @@ const required = [
   'media_paths.py',
   'media_migration.py',
   'data/media-folders.json',
-  // 风格预设已拆成风格包：清单缺失等于预设库全空，必须随包（种子包，约 2.5MB）
-  'data/style-packs/art-canvas-seed/pack.json',
   'static/modules/model-features.js',
   'lan_sharing.py',
   'feature_access.py',
@@ -125,13 +123,9 @@ const required = [
   'image_cutout.py',
   'preset_manager.py',
   'style_packs',
-  // 角色数据已拆成角色包：种子包缺失等于角色库全空，必须随包（约 1.3MB）
-  'data/character-packs/characters-seed/pack.json',
   'character_packs',
   'content_packs',
   'routers/characters.py',
-  // 画师数据已拆成画师包：种子包缺失等于画师库全空，必须随包（约 47KB）
-  'data/artist-packs/artists-seed/pack.json',
   'artist_packs',
   'routers/artists.py',
   'smart_prompt.py',
@@ -150,6 +144,30 @@ if (missing.length) {
   console.error('以下必需文件/目录没有装配成功：');
   for (const item of missing) console.error('  - ' + item);
   process.exit(1);
+}
+
+// 内容资源已外置（不进 git）：本地有就打进安装包，没有只警告不阻断。
+// 离线资源包在 H:\AI-Tools\art-canvas-resources\，解压到项目根即可补齐。
+const optionalContent = [
+  ['data/style-packs/art-canvas-seed/pack.json', '风格种子包'],
+  ['data/character-packs/characters-seed/pack.json', '角色种子包'],
+  ['data/artist-packs/artists-seed/pack.json', '画师种子包'],
+  ['data/prompt_libraries.json', '提示词库'],
+  ['data/prompt-presets.yaml', '预设库'],
+  ['data/style-i18n.json', '风格翻译'],
+  ['data/presets', '预设目录'],
+  ['static/images/style_thumbnails', '风格缩略图'],
+  ['static/images/poster_layouts/thumbnails', '版式缩略图'],
+];
+const absentContent = optionalContent.filter(([rel]) => !fs.existsSync(path.join(appDir, rel)));
+if (absentContent.length) {
+  console.warn('');
+  console.warn('以下内容资源不在工作树中，安装包将不含它们（用户可自行导入）：');
+  for (const [rel, label] of absentContent) console.warn('  - ' + label + '：' + rel);
+  console.warn('  补齐方式：把 art-canvas-data.zip / art-canvas-images.zip 解压到项目根后重新构建。');
+  console.warn('');
+} else {
+  console.log('内容资源：' + optionalContent.length + ' 项全部随包');
 }
 
 // 反向安检：确认没有任何个人数据混进安装包。
