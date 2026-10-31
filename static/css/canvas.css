@@ -1263,6 +1263,11 @@ body.studio-theme-dark .comfy-random-btn.active,
 .theme-dark .canvas-item.active .canvas-preview-mark.icon-has-color:hover { background:color-mix(in srgb, var(--cc) 88%, #181817); color:#fbfaf9; border-color:transparent; }
 .theme-dark .asset-manager-modal { background:rgba(11, 11, 10, .66); }
 .theme-dark .asset-manager-panel { box-shadow:0 28px 80px rgba(0, 0, 0, .42); }
+/* 资产库弹窗的危险操作与拖拽遮罩：深色底下 #dc2626 只有 3.68:1、#86857c 只有 4.2:1，
+   都达不到 WCAG AA（正文级 4.5:1）—— 深色态换成提亮后的等价色。 */
+.theme-dark .asset-manager-tools button.danger,
+.theme-dark .asset-manager-card-actions button.danger { color:#f87171; }
+.theme-dark .drop-overlay { color:#e2e0d8; background:rgba(11, 11, 10, .72); }
 .shell:not(.no-canvas) .canvas-gate { display:none; }
 .shell.no-canvas .topbar { display:none; }
 .shell.no-canvas .editor-only { display:none; }

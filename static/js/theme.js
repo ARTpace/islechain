@@ -29,12 +29,17 @@
             light: ['#f8f5f1', '#fbf9f6', '#f3ece4', '#e6d9cb', '#d4c3b0']
         }
     };
+    /* 强调色表：[主色, 辉光色, 前景色]
+     * 主色用作实心背景，辉光色用作描边/光晕，前景色是压在该背景上的文字色。
+     * 前景色随主色走（不是随主题走）—— 5 套主色都是中深色调，
+     * 在浅底/深底上都需要高对比前景：青/琥珀/翠绿配深墨，紫/玫红配浅墨。
+     * 数值经 WCAG 对比度核算，正文级字号均 ≥ 4.5:1。 */
     const ACCENTS = {
-        cyan: ['#0891b2', '#06b6d4'],
-        violet: ['#7c3aed', '#a78bfa'],
-        amber: ['#d97706', '#fbbf24'],
-        emerald: ['#059669', '#34d399'],
-        rose: ['#e11d48', '#fb7185']
+        cyan:    ['#0891b2', '#06b6d4', '#10100f'],
+        violet:  ['#7c3aed', '#a78bfa', '#fbfaf9'],
+        amber:   ['#d97706', '#fbbf24', '#10100f'],
+        emerald: ['#059669', '#34d399', '#10100f'],
+        rose:    ['#e11d48', '#fb7185', '#fbfaf9']
     };
     const SCALE_OPTIONS = ['auto', '60', '65', '70', '75', '80', '85', '90', '95', '100', '115', '125', '140'];
 
@@ -393,7 +398,7 @@ ${surfaceCss(dark, 'html.studio-theme-dark body')}
         }
         const pair = ACCENTS[accent];
         const glow = pair[1];
-        style.textContent = `html, body, body.theme-dark, html.studio-theme-dark, html.studio-theme-dark body { --accent:${pair[0]}; --accent-glow:${glow}; --look-accent:${glow}; }
+        style.textContent = `html, body, body.theme-dark, html.studio-theme-dark, html.studio-theme-dark body { --accent:${pair[0]}; --accent-glow:${glow}; --accent-ink:${pair[2]}; --look-accent:${glow}; }
 body.studio-theme-dark .btn-render, body.theme-dark .btn-render, body.studio-theme-dark .anima-ctrl.active, body.theme-dark .anima-ctrl.active { color:#141414 !important; border-color:${glow} !important; background:${glow} !important; }`;
     }
 
