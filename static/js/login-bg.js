@@ -123,6 +123,11 @@
         var dark = true;
         var intensity = 0.5;
 
+        /* 焦点收束（光之解锁）：focusX/Y 为归一化目标坐标，strength 平滑 0→1。
+           不写死拉拽系数，留给策略层通过 setFocus 调节；这里只用保守默认值。 */
+        var focusX = 0.5, focusY = 0.45;
+        var focusStrength = 0, focusTarget = 0;
+
         /* 色相夹角（0-180），用于判断两色是否冷暖对撞 */
         function hueGap(x, y) {
             var hx = rgbToHsl(x)[0] * 360;
@@ -170,6 +175,13 @@
             }
         }
 
+        /* 焦点收束入口：nx/ny 为归一化[0,1]坐标（由 login.js 传入输入框中心），
+           active 控制是否收束。坐标缺省时只切换 active 不移动焦点位置。 */
+        function setFocus(nx, ny, active) {
+            if (typeof nx === 'number' && isFinite(nx)) { focusX = nx; focusY = ny; }
+            focusTarget = active ? 1 : 0;
+        }
+
         function paintOrb(cx, cy, rx, ry, color, alpha) {
             if (alpha <= 0.002) return;
             ctx.save();
@@ -195,12 +207,19 @@
             /* 深色用叠加发光；浅色用普通叠加，否则会全部冲白 */
             ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
 
+            // 焦点收束（光之解锁）：强度平滑过渡，光团向焦点轻拉
+            focusStrength += (focusTarget - focusStrength) * 0.08;
+            var fx = focusX * w, fy = focusY * h;
+            var pull = focusStrength * 0.5;
+
             var i, o, ang, cx, cy, breath;
             for (i = 0; i < ORBS.length; i++) {
                 o = ORBS[i];
                 ang = (t / o.period + o.phase) * Math.PI * 2;
                 cx = (o.x + Math.sin(ang) * o.ax + Math.sin(ang * 1.7 + 1.1) * o.ax * 0.45) * w;
                 cy = (o.y + Math.cos(ang * 0.8) * o.ay + Math.sin(ang * 2.3) * o.ay * 0.35) * h;
+                cx += (fx - w / 2) * pull;
+                cy += (fy - h / 2) * pull;
                 breath = 0.80 + 0.20 * Math.sin(ang * 1.3 + o.phase);
                 paintOrb(cx, cy, o.rx * w, o.ry * h, colors[o.c % colors.length], intensity * breath);
             }
@@ -214,10 +233,17 @@
                 paintOrb(cx, cy, o.rx * w, o.ry * h, colors[(o.c + 1) % colors.length], intensity * 0.30 * breath);
             }
 
+            // 焦点光环：在输入框背后聚出一道光，呼应「被光包住」的解锁仪式感
+            if (focusStrength > 0.01) {
+                var fr = (0.36 + 0.10 * (1 - focusStrength)) * w;
+                paintOrb(fx, fy, fr, fr * 1.22, colors[0], intensity * 0.92 * focusStrength);
+                paintOrb(fx, fy, fr * 0.52, fr * 0.6, colors[1] || colors[0], intensity * 0.66 * focusStrength);
+            }
+
             ctx.globalCompositeOperation = 'source-over';
         }
 
-        return { setPalette: setPalette, frame: frame };
+        return { setPalette: setPalette, frame: frame, setFocus: setFocus };
     }
 
     var PRESETS = {
@@ -327,6 +353,12 @@
         },
 
         current: function () { return state ? state.preset : null; },
+
+        /* 焦点收束（光之解锁）：nx/ny 归一化坐标，active 是否收束 */
+        setFocus: function (nx, ny, active) {
+            if (!state || !state.impl || !state.impl.setFocus) return;
+            state.impl.setFocus(nx, ny, active);
+        },
 
         stop: function () {
             if (state && state.raf) window.cancelAnimationFrame(state.raf);

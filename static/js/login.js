@@ -100,4 +100,27 @@ usernameInput.addEventListener('keydown', function (e) {
 passwordInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
 });
+
+/* 光之解锁：聚焦输入框时让背景极光收束包裹它；离开表单才散开 */
+function focusFieldAt(el) {
+    if (!window.LoginBg || !el) return;
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var nx = (r.left + r.width / 2) / window.innerWidth;
+    var ny = (r.top + r.height / 2) / window.innerHeight;
+    window.LoginBg.setFocus(nx, ny, true);
+}
+function maybeUnfocus() {
+    if (!window.LoginBg) return;
+    window.setTimeout(function () {
+        var a = document.activeElement;
+        if (a !== usernameInput && a !== passwordInput) {
+            window.LoginBg.setFocus(null, null, false);
+        }
+    }, 0);
+}
+usernameInput.addEventListener('focus', function () { focusFieldAt(usernameInput); });
+passwordInput.addEventListener('focus', function () { focusFieldAt(passwordInput); });
+usernameInput.addEventListener('blur', maybeUnfocus);
+passwordInput.addEventListener('blur', maybeUnfocus);
 })();
