@@ -2,765 +2,368 @@
 <html lang="zh-CN" data-studio-scale="off">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>登录 - ART AI</title>
     <link rel="stylesheet" href="/static/css/studio-ui.css">
     <script src="/static/js/theme.js"></script>
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background-color: #0c0c0c; 
-            font-family: 'Inter', -apple-system, sans-serif;
+        :root {
+            --login-max: 372px;
+            --login-radius: 26px;
         }
-        canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
-        
-        #promptText {
-            position: absolute;
-            top: 52px;
+        html, body { overflow: hidden; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--ui-bg, #14161c);
+            color: var(--ui-text, #e6e5e0);
+            font-family: 'Inter', -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            animation: pageIn .7s var(--ui-ease, cubic-bezier(.4,0,.2,1)) both;
+        }
+        @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ---------- 背景层 ---------- */
+        #bgCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 0;
+            pointer-events: none;
+            /* 低分辨率缓冲放大后仍有圆形轮廓，再糊一层让光斑边界彻底消失；
+               scale 补偿 blur 在边缘留下的透明带 */
+            filter: blur(26px);
+            transform: scale(1.08);
+        }
+        .vignette {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 26%, rgba(0, 0, 0, .52) 100%);
+        }
+        html[data-login-bg-dark="0"] .vignette {
+            background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 30%, rgba(255, 255, 255, .42) 100%);
+        }
+        .grain {
+            position: fixed;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            opacity: .038;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+        html[data-login-bg-dark="0"] .grain { opacity: .022; }
+
+        /* ---------- 品牌区 ---------- */
+        .brand {
+            position: fixed;
+            top: clamp(34px, 9vh, 84px);
             left: 50%;
             transform: translateX(-50%);
-            z-index: 5;
-            font-size: 26px;
-            font-weight: 600;
-            letter-spacing: 8px;
-            pointer-events: none;
-            transition: opacity 0.6s ease;
-            animation: textFlicker 3s forwards;
-        }
-        #promptText .line {
-            display: block;
+            z-index: 10;
             text-align: center;
-        }
-        #promptText .line-sub {
-            display: block;
-            text-align: center;
-            font-size: 13px;
-            letter-spacing: 10px;
-            margin-top: 6px;
-            font-weight: 400;
-        }
-        #promptText .cursor {
-            display: inline-block;
-            width: 2px;
-            height: 22px;
-            background: currentColor;
-            margin-left: 4px;
-            animation: cursorBlink 1s step-end infinite;
-            vertical-align: middle;
-        }
-        #promptText.hidden {
-            opacity: 0;
-        }
-        @keyframes cursorBlink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        @keyframes textFlicker {
-            0% { color: rgba(6, 182, 212, 0.35); text-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1); }
-            4% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
-            6% { color: rgba(6, 182, 212, 0.35); text-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1); }
-            9% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
-            100% { color: rgba(255, 200, 50, 0.9); text-shadow: 0 0 30px rgba(255, 200, 50, 0.8), 0 0 80px rgba(255, 200, 50, 0.4), 0 0 120px rgba(255, 150, 0, 0.2); }
-        }
-        #promptText .scanline {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.15), transparent);
-            animation: scanMove 4s linear infinite;
             pointer-events: none;
+            animation: brandIn 1.9s var(--ui-ease, cubic-bezier(.4,0,.2,1)) both;
         }
-        @keyframes scanMove {
-            0% { top: 0; opacity: 1; }
-            100% { top: 100%; opacity: 0; }
+        .brand h1 {
+            margin: 0;
+            font-size: clamp(22px, 3.2vw, 30px);
+            font-weight: 700;
+            letter-spacing: clamp(6px, 1.2vw, 13px);
+            text-indent: clamp(6px, 1.2vw, 13px);
+            color: var(--ui-text, #e6e5e0);
+            text-shadow: 0 0 32px var(--ui-accent-soft, rgba(14, 116, 144, .18));
+        }
+        .brand p {
+            margin: 10px 0 0;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: clamp(3px, .8vw, 7px);
+            text-indent: clamp(3px, .8vw, 7px);
+            color: var(--ui-faint, #9e9c93);
+            text-transform: uppercase;
+        }
+        .brand .rule {
+            display: block;
+            width: 46px;
+            height: 1px;
+            margin: 16px auto 0;
+            background: linear-gradient(90deg, transparent, var(--ui-accent, #0e7490), transparent);
+            opacity: .7;
+        }
+        @keyframes brandIn {
+            0%   { opacity: 0; filter: blur(6px); transform: translateX(-50%) translateY(-8px); }
+            55%  { opacity: .28; }
+            62%  { opacity: .95; }
+            68%  { opacity: .35; }
+            100% { opacity: 1; filter: blur(0); transform: translateX(-50%) translateY(0); }
         }
 
+        /* ---------- 表单卡片 ---------- */
         #loginForm {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -40%);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 10;
-            width: 310px;
-            padding: 40px;
-            background: rgba(23, 23, 23, 0.45);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-radius: 28px;
-            border: 1px solid rgba(6, 182, 212, 0.12);
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 50px rgba(6, 182, 212, 0.1), 0 0 100px rgba(6, 182, 212, 0.05);
-        }
-        
-        #loginForm.visible {
-            opacity: 1;
-            visibility: visible;
             transform: translate(-50%, -50%);
-            outline: 2px solid rgba(0, 240, 255, 0.5);
-            outline-offset: 2px;
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 50px rgba(6, 182, 212, 0.1), 0 0 100px rgba(6, 182, 212, 0.05), 0 0 30px rgba(0, 240, 255, 0.2);
+            z-index: 10;
+            width: min(var(--login-max), 92vw);
+            padding: clamp(26px, 4vw, 38px);
+            box-sizing: border-box;
+            border-radius: var(--login-radius);
+            border: 1px solid color-mix(in srgb, var(--ui-accent, #0e7490) 16%, transparent);
+            background: color-mix(in srgb, var(--ui-panel, #1c202a) 74%, transparent);
+            backdrop-filter: blur(26px) saturate(1.15);
+            -webkit-backdrop-filter: blur(26px) saturate(1.15);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, .05) inset,
+                0 24px 70px rgba(0, 0, 0, .38),
+                0 0 0 1px color-mix(in srgb, var(--ui-accent, #0e7490) 8%, transparent);
+            animation: cardIn .85s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) .12s both;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translate(-50%, -46%) scale(.97); }
+            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        html[data-login-bg-dark="0"] #loginForm {
+            border-color: var(--ui-line-strong, #d9d6cc);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, .8) inset,
+                0 18px 50px rgba(28, 32, 42, .10),
+                0 0 0 1px color-mix(in srgb, var(--ui-accent, #0e7490) 10%, transparent);
         }
 
-        .form-group {
-            margin-bottom: 22px;
-        }
+        .form-group { margin-bottom: 24px; }
         .form-group label {
             display: block;
-            color: rgba(6, 182, 212, 0.4);
+            color: var(--ui-faint, #9e9c93);
             font-size: 10px;
-            letter-spacing: 3px;
-            margin-bottom: 8px;
+            font-weight: 600;
+            letter-spacing: 2.6px;
+            margin-bottom: 9px;
             text-transform: uppercase;
         }
         .form-group input {
             width: 100%;
-            padding: 10px 0;
+            padding: 9px 0;
             background: transparent;
             border: none;
-            border-bottom: 1px solid rgba(6, 182, 212, 0.15);
-            color: #e7e5de;
-            font-size: 14px;
+            border-bottom: 1px solid var(--ui-line-strong, #343b4c);
+            color: var(--ui-text, #e6e5e0);
+            font-size: 14.5px;
+            letter-spacing: .3px;
             outline: none;
             box-sizing: border-box;
+            transition: border-color .28s;
         }
-        .form-group input::placeholder {
-            color: rgba(6, 182, 212, 0.15);
-        }
+        .form-group input::placeholder { color: var(--ui-faint, #9e9c93); opacity: .55; }
         .form-group .input-line {
             display: block;
-            height: 1px;
-            background: #06b6d4;
+            height: 1.5px;
+            margin-top: -1px;
+            background: var(--ui-accent, #0e7490);
             width: 0;
-            transition: width 0.5s ease;
+            border-radius: 2px;
+            transition: width .45s var(--ui-ease, cubic-bezier(.4,0,.2,1));
         }
-        .form-group input:focus + .input-line {
-            width: 100%;
-        }
+        .form-group input:focus + .input-line { width: 100%; }
 
         #loginError {
+            display: none;
             color: #ff5c6c;
             font-size: 12px;
-            margin-bottom: 16px;
-            display: none;
-            text-align: center;
+            line-height: 1.5;
+            margin: -8px 0 14px;
+            text-align: left;
         }
 
-        .btn-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
+        .btn-row { display: flex; gap: 10px; margin-top: 10px; }
         .btn-row .btn-action {
             flex: 1;
-            height: 44px;
-            border: 1px solid rgba(6, 182, 212, 0.2);
-            border-radius: 50px;
+            height: 46px;
+            border: 1px solid color-mix(in srgb, var(--ui-accent, #0e7490) 26%, transparent);
+            border-radius: 999px;
             background: transparent;
-            color: rgba(6, 182, 212, 0.6);
+            color: var(--ui-accent, #0e7490);
+            font-family: inherit;
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 4px;
+            text-indent: 4px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background .26s, color .26s, border-color .26s, box-shadow .26s, transform .12s;
         }
         .btn-action:hover {
-            border: none;
-            background: linear-gradient(135deg, #06b6d4, #0891b2);
-            color: #fbfaf9;
-            font-weight: 800;
-            letter-spacing: 4px;
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+            background: var(--ui-accent, #0e7490);
+            border-color: var(--ui-accent, #0e7490);
+            color: var(--ui-accent-ink, #fbfaf9);
+            box-shadow: 0 8px 26px color-mix(in srgb, var(--ui-accent, #0e7490) 42%, transparent);
         }
-        .btn-row .btn-action:active {
-            transform: scale(0.96);
+        .btn-action:active { transform: scale(.97); }
+        .btn-action:focus-visible { outline: 2px solid var(--ui-accent-glow, #0891b2); outline-offset: 3px; }
+        .btn-action[disabled] { opacity: .55; cursor: default; }
+
+        /* ---------- 角标 ---------- */
+        .stamp {
+            position: fixed;
+            top: 26px;
+            right: 30px;
+            z-index: 10;
+            font-size: 10px;
+            font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+            letter-spacing: .6px;
+            color: var(--ui-faint, #9e9c93);
+            opacity: .7;
+            pointer-events: none;
+        }
+        .footer {
+            position: fixed;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 10.5px;
+            letter-spacing: 2.4px;
+            color: var(--ui-faint, #9e9c93);
+            opacity: .55;
+            pointer-events: none;
+            white-space: nowrap;
         }
 
-        .timestamp {
-            position: absolute;
-            top: 40px;
-            right: 40px;
-            color: rgba(6, 182, 212, 0.15);
-            font-size: 10px;
-            font-family: monospace;
-        }
-    </style>
-    <style id="ui-responsive">
-        /* 登录页响应式 + 防横向滚动 */
-        html, body { overflow-x: hidden; }
-        #loginForm {
-            width: min(310px, 90vw);
-            padding: clamp(20px, 5vw, 40px);
-            box-sizing: border-box;
-        }
         @media (max-width: 640px) {
-            #promptText { font-size: 18px; letter-spacing: 4px; width: 90%; text-align: center; }
-            .timestamp { top: 16px; right: 16px; }
-            .btn-row .btn-action { height: 44px; }
-            #loginForm { width: min(340px, 92vw); }
+            .brand { top: 26px; }
+            /* 手机屏卡片占比大，居中会显得上方留白过宽，略下移平衡视觉重心 */
+            #loginForm { top: 53%; }
+            .stamp { display: none; }
+            .footer { bottom: 16px; letter-spacing: 1.6px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body, .brand, #loginForm { animation: none !important; }
         }
     </style>
 </head>
 <body>
-<div class="timestamp" id="timer"></div>
-<canvas id="sandCanvas"></canvas>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
 
-<div id="promptText">
-    <span class="scanline"></span>
-    <span class="line">鼠标移至中心<span class="cursor"></span></span>
-    <span class="line-sub">注 册 登 录</span>
-</div>
+<header class="brand">
+    <h1>ART AI</h1>
+    <p>创作工作台</p>
+    <span class="rule"></span>
+</header>
 
-<div id="loginForm">
+<form id="loginForm" autocomplete="off" novalidate>
     <div style="position:absolute;left:-9999px;top:-9999px;height:0;opacity:0;overflow:hidden;pointer-events:none;" aria-hidden="true">
         <input type="text" name="fakeusername" tabindex="-1" autocomplete="off">
         <input type="password" name="fakepassword" tabindex="-1" autocomplete="new-password">
     </div>
     <div class="form-group">
-        <label>用户名</label>
+        <label for="username">用户名</label>
         <input id="username" type="text" placeholder="输入用户名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
         <span class="input-line"></span>
     </div>
     <div class="form-group">
-        <label>密码</label>
+        <label for="password">密码</label>
         <input id="password" type="password" placeholder="输入密码" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
         <span class="input-line"></span>
     </div>
-    <div id="loginError"></div>
+    <div id="loginError" role="alert"></div>
     <div class="btn-row">
-        <button class="btn-action" id="loginBtn">登录</button>
-        <button class="btn-action" id="registerBtn">注册</button>
+        <button type="submit" class="btn-action" id="loginBtn">登录</button>
+        <button type="button" class="btn-action" id="registerBtn">注册</button>
     </div>
-</div>
+</form>
 
+<div class="stamp" id="timer"></div>
+<div class="footer">ART AI · 本地创作工作台</div>
+
+<script src="/static/js/login-bg.js"></script>
 <script>
-var canvas = document.getElementById('sandCanvas');
-var ctx = canvas.getContext('2d');
-var loginForm = document.getElementById('loginForm');
-var timerEl = document.getElementById('timer');
-var promptText = document.getElementById('promptText');
-var loginBtn = document.getElementById('loginBtn');
-var registerBtn = document.getElementById('registerBtn');
-var loginError = document.getElementById('loginError');
-var usernameInput = document.getElementById('username');
-var passwordInput = document.getElementById('password');
+(function () {
+    'use strict';
 
-var width, height, dpr = 1;
-var innerParticles = [], outerParticles = [], rays = [];
-// 基础量（实际数量按视口面积与实测帧率自适应缩放）
-var innerBase = 1500, outerBase = 4000;
-var innerCount = 1500, outerCount = 4000;
-var mouseThreshold = 220;
-var isHovering = false;
-var noiseTimer = 0, prevBreath = 0, radarAngle = 0;
-var stars = [], STAR_COUNT = 2500, starBase = 2500, focalLength = 350;
-// —— 性能自适应：帧率封顶 + 掉帧自动降级 ——
-var quality = 1;                       // 1 → 0.5 逐级降级
-var frameInterval = 1000 / 45;         // 目标 ~45fps
-var lastFrame = 0, slowFrames = 0;
-var radarGrad = null, radarGradR = 0;  // 雷达渐变缓存（仅 resize 时重建）
-var glowSprite = null;                 // 粒子发光 sprite（替代逐粒子 shadowBlur）
-var starSpeed = 2, targetSpeed = 2;
-var mouseX = 0, mouseY = 0;
-var scrollSpeedFactor = 1;
+    var loginForm = document.getElementById('loginForm');
+    var timerEl = document.getElementById('timer');
+    var loginBtn = document.getElementById('loginBtn');
+    var registerBtn = document.getElementById('registerBtn');
+    var loginError = document.getElementById('loginError');
+    var usernameInput = document.getElementById('username');
+    var passwordInput = document.getElementById('password');
 
-/* 粒子发光 sprite：预渲染一次，替代每个粒子的 shadowBlur（性能提升数量级） */
-function getGlowSprite() {
-    if (glowSprite) return glowSprite;
-    var s = 64;
-    var c = document.createElement('canvas');
-    c.width = s; c.height = s;
-    var g = c.getContext('2d');
-    var grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-    grd.addColorStop(0, 'rgba(150, 230, 250, 0.85)');
-    grd.addColorStop(0.28, 'rgba(90, 205, 240, 0.42)');
-    grd.addColorStop(1, 'rgba(0, 180, 216, 0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, s, s);
-    glowSprite = c;
-    return glowSprite;
-}
+    /* 背景引擎：预设由 login-bg.js 注册表提供（?bg= 或 localStorage 可切换） */
+    if (window.LoginBg) window.LoginBg.mount(document.getElementById('bgCanvas'));
 
-function updateTimer() {
-    var now = new Date();
-    timerEl.innerText = now.toLocaleString('en-GB').toUpperCase();
-}
-setInterval(updateTimer, 1000);
-
-window.addEventListener('resize', init);
-window.addEventListener('mousemove', function(e) {
-    var dx = e.clientX - width / 2;
-    var dy = e.clientY - height / 2;
-    isHovering = Math.sqrt(dx*dx + dy*dy) < mouseThreshold;
-    mouseX = (e.clientX / width - 0.5) * 2;
-    mouseY = (e.clientY / height - 0.5) * 2;
-});
-
-function isInsideRoundedSquare(px, py, cx, cy, halfSide, radius) {
-    var dx = Math.abs(px - cx);
-    var dy = Math.abs(py - cy);
-    if (dx > halfSide || dy > halfSide) return false;
-    if (dx > halfSide - radius && dy > halfSide - radius) {
-        var ox = dx - (halfSide - radius);
-        var oy = dy - (halfSide - radius);
-        return (ox * ox + oy * oy <= radius * radius);
+    function updateTimer() {
+        timerEl.textContent = new Date().toLocaleString('en-GB').toUpperCase();
     }
-    return true;
-}
+    updateTimer();
+    window.setInterval(updateTimer, 1000);
 
-function Particle(cfg) {
-    this.cfg = cfg;
-    this.init();
-}
-Particle.prototype.init = function() {
-    var cfg = this.cfg;
-    var angle = Math.random() * Math.PI * 2;
-    var r = cfg.initR[0] + Math.random() * cfg.initR[1];
-    this.x = width / 2 + Math.cos(angle) * r;
-    this.y = height / 2 + Math.sin(angle) * r;
-    this.vx = Math.cos(angle + (Math.random() - 0.5) * 0.5) * cfg.speed;
-    this.vy = Math.sin(angle + (Math.random() - 0.5) * 0.5) * cfg.speed;
-    this.size = cfg.size[0] + Math.random() * cfg.size[1];
-    this.alpha = cfg.alpha[0] + Math.random() * cfg.alpha[1];
-    this.isEscaping = false;
-};
-Particle.prototype.update = function(breath) {
-    var cx = width / 2, cy = height / 2;
-    var dx = this.x - cx;
-    var dy = this.y - cy;
-    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    var cfg = this.cfg;
-    if (isHovering) {
-        this.vx += (Math.random() - 0.5) * 4;
-        this.vy += (Math.random() - 0.5) * 4;
-    } else {
-        if (dist < cfg.repulsionR) {
-            var force = (cfg.repulsionR - dist) / cfg.repulsionR;
-            this.vx += (dx / dist) * force * 6;
-            this.vy += (dy / dist) * force * 6;
+    function showError(msg) {
+        loginError.textContent = msg;
+        loginError.style.display = 'block';
+    }
+    function hideError() {
+        loginError.style.display = 'none';
+    }
+    function setBusy(busy) {
+        loginBtn.disabled = busy;
+        registerBtn.disabled = busy;
+    }
+    function enterApp(data) {
+        window.localStorage.setItem('xy_auth_token', data.token);
+        window.localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
+        window.location.href = '/static/index.html';
+    }
+
+    async function submitAuth(path, label) {
+        var username = usernameInput.value.trim();
+        var password = passwordInput.value;
+        if (!username || !password) {
+            showError('请输入用户名和密码');
+            return;
         }
-        var pushBase = Math.pow(breath, 5) * 14;
-        var randomScatter = (Math.random() - 0.5) * pushBase * 0.5;
-        this.vx += (dx / dist) * pushBase + randomScatter;
-        this.vy += (dy / dist) * pushBase + randomScatter;
-        if (breath > 0.88 && Math.random() > 0.97) {
-            this.isEscaping = true;
-        }
-        if (!this.isEscaping) {
-            if (!isInsideRoundedSquare(this.x + this.vx, this.y + this.vy, cx, cy, cfg.side, cfg.cornerR)) {
-                this.vx *= -0.4;
-                this.vy *= -0.4;
-                this.vx += (Math.random() - 0.5) * 2;
-                this.vy += (Math.random() - 0.5) * 2;
+        hideError();
+        setBusy(true);
+        try {
+            var resp = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username, password: password })
+            });
+            if (!resp.ok) {
+                var err = await resp.json().catch(function () { return {}; });
+                showError(err.detail || (label + '失败'));
+                return;
             }
-            var pull = (cfg.targetR - dist) * 0.012;
-            this.vx += (dx / dist) * pull;
-            this.vy += (dy / dist) * pull;
-        }
-    }
-    this.x += this.vx;
-    this.y += this.vy;
-    var friction = this.isEscaping ? 0.98 : 0.86;
-    this.vx *= friction;
-    this.vy *= friction;
-    if (dist > width * 0.6 || (this.isEscaping && Math.abs(this.vx) < 0.05)) {
-        this.init();
-    }
-};
-Particle.prototype.draw = function(breath) {
-    var finalAlpha = this.isEscaping ? this.alpha * 0.4 : this.alpha;
-    ctx.fillStyle = 'rgba(0, ' + Math.round(140 + breath * 60) + ', ' + Math.round(180 + breath * 70) + ', ' + finalAlpha + ')';
-    ctx.fillRect(this.x, this.y, this.size, this.size);
-};
-
-function Ray(ringR) {
-    var angle = Math.random() * Math.PI * 2;
-    this.x = width / 2 + Math.cos(angle) * (ringR - 6 + Math.random() * 12);
-    this.y = height / 2 + Math.sin(angle) * (ringR - 6 + Math.random() * 12);
-    this.vx = Math.cos(angle + (Math.random() - 0.5) * 0.15) * (2 + Math.random() * 4);
-    this.vy = Math.sin(angle + (Math.random() - 0.5) * 0.15) * (2 + Math.random() * 4);
-    this.size = 0.8 + Math.random() * 1.8;
-    this.alpha = 0.3 + Math.random() * 0.4;
-    this.life = 1;
-    this.decay = 0.008 + Math.random() * 0.01;
-    this.length = 8 + Math.random() * 12;
-}
-Ray.prototype.update = function() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.life -= this.decay;
-};
-Ray.prototype.draw = function() {
-    if (this.life <= 0) return;
-    var alpha = this.alpha * this.life;
-    var headX = this.x, headY = this.y;
-    var len = Math.sqrt(this.vx * this.vx + this.vy * this.vy) || 1;
-    var tailX = this.x - (this.vx / len) * this.length;
-    var tailY = this.y - (this.vy / len) * this.length;
-    ctx.save();
-    var grad = ctx.createLinearGradient(headX, headY, tailX, tailY);
-    grad.addColorStop(0, 'rgba(100, 230, 255, ' + alpha + ')');
-    grad.addColorStop(0.4, 'rgba(0, 210, 245, ' + alpha * 0.5 + ')');
-    grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-    ctx.beginPath();
-    ctx.moveTo(headX, headY);
-    ctx.lineTo(tailX, tailY);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = this.size;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    ctx.restore();
-};
-
-function Star3D() {
-    var range = 2000;
-    this.x = (Math.random() - 0.5) * range;
-    this.y = (Math.random() - 0.5) * range;
-    this.z = Math.random() * range;
-    this.size = 0.4 + Math.random() * 1.8;
-    this.brightness = 0.4 + Math.random() * 0.6;
-    this.alpha = this.brightness;
-    this.px = 0;
-    this.py = 0;
-}
-Star3D.prototype.update = function(speed) {
-    this.z -= speed;
-    if (this.z < -focalLength) {
-        var range = 2000;
-        this.z = range * 0.9 + Math.random() * range * 0.1;
-        this.x = (Math.random() - 0.5) * range;
-        this.y = (Math.random() - 0.5) * range;
-        this.size = 0.4 + Math.random() * 1.8;
-        this.brightness = 0.4 + Math.random() * 0.6;
-    }
-    var depthFactor = this.z / 2000;
-    var offsetX = mouseX * depthFactor * 400;
-    var offsetY = mouseY * depthFactor * 400;
-    var viewX = this.x + offsetX;
-    var viewY = this.y + offsetY;
-    var scale = focalLength / (focalLength + this.z);
-    this.sx = viewX * scale + width / 2;
-    this.sy = viewY * scale + height / 2;
-    this.psize = Math.max(0.3, this.size * scale);
-    this.alpha = this.brightness * Math.min(1, Math.max(0, 1 - depthFactor * 0.7));
-};
-Star3D.prototype.draw = function(ctx, speed) {
-    if (this.alpha < 0.01 || this.sx < -50 || this.sx > width + 50 || this.sy < -50 || this.sy > height + 50) return;
-    var trailLen = Math.max(0, (speed - 3) * 1.5);
-    if (trailLen > 0.5 && this.px && this.py) {
-        var dx = this.sx - this.px;
-        var dy = this.sy - this.py;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 1 && dist < 200) {
-            ctx.beginPath();
-            ctx.moveTo(this.px, this.py);
-            ctx.lineTo(this.sx, this.sy);
-            ctx.strokeStyle = 'rgba(0, 220, 255, ' + (this.alpha * 0.25 * Math.min(1, trailLen / 5)) + ')';
-            ctx.lineWidth = this.psize * 0.6;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-    }
-    this.px = this.sx;
-    this.py = this.sy;
-    var r = Math.round(60 + this.brightness * 50);
-    var g = Math.round(190 + this.brightness * 50);
-    var b = Math.round(220 + this.brightness * 35);
-    if (this.psize > 1.8) {
-        // 用预渲染 sprite 替代逐粒子 shadowBlur（原本 5500 次/帧 → 0 次）
-        var gs = getGlowSprite();
-        var gr = this.psize * 3.4;
-        ctx.globalAlpha = Math.min(1, this.alpha * 0.55);
-        ctx.drawImage(gs, this.sx - gr / 2, this.sy - gr / 2, gr, gr);
-        ctx.globalAlpha = 1;
-    }
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    ctx.arc(this.sx, this.sy, this.psize * 0.5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + this.alpha + ')';
-    ctx.fill();
-    ctx.shadowBlur = 0;
-};
-
-window.addEventListener('wheel', function(e) {
-    e.preventDefault();
-    var delta = e.deltaY > 0 ? -0.3 : 0.3;
-    scrollSpeedFactor = Math.max(0.2, Math.min(3, scrollSpeedFactor + delta));
-}, { passive: false });
-
-function init() {
-    // 用 clientWidth/Height（排除滚动条），DPR 渲染但封顶 1.5，避免高分屏像素爆炸
-    width = document.documentElement.clientWidth || window.innerWidth;
-    height = document.documentElement.clientHeight || window.innerHeight;
-    dpr = Math.min(1.5, Math.max(1, window.devicePixelRatio || 1));
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 绘制坐标仍按 CSS px
-
-    // 数量自适应：视口越大适度减少，保证每帧总对象数在预算内
-    var area = width * height;
-    var budget = Math.max(0.7, Math.min(1.35, 900000 / Math.max(1, area)));
-    STAR_COUNT = Math.max(600, Math.round(starBase * budget * quality));
-    innerCount = Math.max(300, Math.round(innerBase * budget * quality));
-    outerCount = Math.max(800, Math.round(outerBase * budget * quality));
-
-    lastFrame = 0;
-    radarGrad = null;   // 渐变随尺寸变化失效
-    innerParticles = [];
-    outerParticles = [];
-    rays = [];
-    stars = [];
-    for (var i = 0; i < STAR_COUNT; i++) {
-        stars.push(new Star3D());
-    }
-    for (var i = 0; i < innerCount; i++) {
-        innerParticles.push(new Particle({
-            initR: [2, 8],
-            speed: 1.2,
-            size: [0.3, 1.0],
-            alpha: [0.2, 0.4],
-            side: 130,
-            cornerR: 52,
-            targetR: 95,
-            repulsionR: 30
-        }));
-    }
-    for (var i = 0; i < outerCount; i++) {
-        outerParticles.push(new Particle({
-            initR: [5, 16],
-            speed: 2.0,
-            size: [0.6, 2.2],
-            alpha: [0.08, 0.25],
-            side: 200,
-            cornerR: 75,
-            targetR: 140,
-            repulsionR: 40
-        }));
-    }
-}
-
-function drawCore(breath) {
-    if (isHovering) return;
-    var size = 18 + breath * 8;
-    var cx = width / 2, cy = height / 2;
-    ctx.save();
-    ctx.shadowBlur = quality > 0.7 ? 34 * breath : 0;
-    ctx.shadowColor = 'rgba(6, 182, 212, 0.7)';
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - size);
-    ctx.lineTo(cx + size * 0.7, cy);
-    ctx.lineTo(cx, cy + size);
-    ctx.lineTo(cx - size * 0.7, cy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-}
-
-var radarRingR = 195;
-function drawRadar() {
-    if (isHovering) return;
-    var cx = width / 2, cy = height / 2;
-    var r = radarRingR;
-    var beamAngle = 0.25;
-    ctx.save();
-
-    // 渐变缓存：颜色固定，仅尺寸变化时重建（省每帧 createRadialGradient）
-    if (!radarGrad || radarGradR !== r) {
-        radarGrad = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
-        radarGrad.addColorStop(0, 'rgba(6, 182, 212, 0)');
-        radarGrad.addColorStop(0.7, 'rgba(6, 182, 212, 0)');
-        radarGrad.addColorStop(0.85, 'rgba(6, 182, 212, 0.02)');
-        radarGrad.addColorStop(0.95, 'rgba(0, 240, 255, 0.06)');
-        radarGrad.addColorStop(1, 'rgba(0, 240, 255, 0.12)');
-        radarGradR = r;
-    }
-    var grad = radarGrad;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, radarAngle - beamAngle, radarAngle);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    var lineLen = r * 1.1;
-    ctx.shadowBlur = quality > 0.7 ? 18 : 0;
-    ctx.shadowColor = 'rgba(0, 240, 255, 0.8)';
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.7)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(radarAngle) * r * 0.6, cy + Math.sin(radarAngle) * r * 0.6);
-    ctx.lineTo(cx + Math.cos(radarAngle) * lineLen, cy + Math.sin(radarAngle) * lineLen);
-    ctx.stroke();
-
-    ctx.shadowBlur = quality > 0.7 ? 8 : 0;
-    ctx.shadowColor = 'rgba(0, 240, 255, 0.5)';
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
-    ctx.lineWidth = 0.5;
-    ctx.setLineDash([6, 8]);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.restore();
-
-    radarAngle += 0.012;
-    if (radarAngle > Math.PI * 2) radarAngle -= Math.PI * 2;
-}
-
-function showError(msg) {
-    loginError.textContent = msg;
-    loginError.style.display = 'block';
-}
-
-function hideError() {
-    loginError.style.display = 'none';
-}
-
-async function doLogin() {
-    var username = usernameInput.value.trim();
-    var password = passwordInput.value;
-    if (!username || !password) {
-        showError('请输入用户名和密码');
-        return;
-    }
-    hideError();
-    try {
-        var resp = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        });
-        if (!resp.ok) {
-            var err = await resp.json();
-            showError(err.detail || '登录失败');
-            return;
-        }
-        var data = await resp.json();
-        // 调试日志:登录成功后,后端返回的 JSON 完整打到 console,方便核对字段名
-        console.log('[login] /api/auth/login resp data =', data);
-        localStorage.setItem('xy_auth_token', data.token);
-        localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
-        window.location.href = '/static/index.html';
-    } catch (e) {
-        showError('网络错误，请稍后重试');
-    }
-}
-
-async function doRegister() {
-    var username = usernameInput.value.trim();
-    var password = passwordInput.value;
-    if (!username || !password) {
-        showError('请输入用户名和密码');
-        return;
-    }
-    hideError();
-    try {
-        var resp = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        });
-        if (!resp.ok) {
-            var err = await resp.json();
-            showError(err.detail || '注册失败');
-            return;
-        }
-        var data = await resp.json();
-        // 调试日志:注册成功后,后端返回的 JSON 完整打到 console
-        console.log('[register] /api/auth/register resp data =', data);
-        localStorage.setItem('xy_auth_token', data.token);
-        localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
-        window.location.href = '/static/index.html';
-    } catch (e) {
-        showError('网络错误，请稍后重试');
-    }
-}
-
-loginBtn.onclick = doLogin;
-registerBtn.onclick = doRegister;
-
-usernameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-passwordInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-
-function animate(now) {
-    // 帧率封顶 + 掉帧自动降级（连续变慢则减半对象量并关闭阴影）
-    if (!now) now = performance.now();
-    if (lastFrame && now - lastFrame < frameInterval) {
-        requestAnimationFrame(animate);
-        return;
-    }
-    var dt = lastFrame ? now - lastFrame : 16.7;
-    lastFrame = now;
-    if (dt > frameInterval * 1.8) {
-        slowFrames++;
-        if (slowFrames > 24 && quality > 0.5) { quality = 0.5; slowFrames = 0; init(); }
-    } else if (slowFrames > 0) {
-        slowFrames--;
-    }
-    starSpeed += (targetSpeed * scrollSpeedFactor - starSpeed) * 0.05;
-    ctx.fillStyle = 'rgba(6, 13, 26, ' + (0.25 - Math.min(1, starSpeed / 8) * 0.15) + ')';
-    ctx.fillRect(0, 0, width, height);
-
-    var i;
-    for (i = 0; i < stars.length; i++) {
-        stars[i].update(starSpeed);
-        stars[i].draw(ctx, starSpeed);
-    }
-
-    noiseTimer += 0.04;
-    var breath = Math.pow((Math.sin(noiseTimer) + 1) / 2, 2);
-
-    if (breath > 0.92 && prevBreath <= breath && Math.random() > 0.3) {
-        for (var k = 0; k < 20; k++) {
-            rays.push(new Ray(140));
-        }
-    }
-    prevBreath = breath;
-
-    if (isHovering) {
-        loginForm.classList.add('visible');
-        promptText.classList.add('hidden');
-    } else {
-        loginForm.classList.remove('visible');
-        promptText.classList.remove('hidden');
-    }
-
-    for (i = 0; i < innerParticles.length; i++) {
-        innerParticles[i].update(breath);
-        innerParticles[i].draw(breath);
-    }
-    for (i = 0; i < outerParticles.length; i++) {
-        outerParticles[i].update(breath);
-        outerParticles[i].draw(breath);
-    }
-    for (i = rays.length - 1; i >= 0; i--) {
-        rays[i].update();
-        rays[i].draw();
-        if (rays[i].life <= 0) {
-            rays.splice(i, 1);
+            enterApp(await resp.json());
+        } catch (e) {
+            showError('网络错误，请稍后重试');
+        } finally {
+            setBusy(false);
         }
     }
 
-    drawCore(breath);
-    drawRadar();
+    function doLogin() { return submitAuth('/api/auth/login', '登录'); }
+    function doRegister() { return submitAuth('/api/auth/register', '注册'); }
 
-    ctx.fillStyle = 'rgba(0, 180, 230, ' + (0.06 + Math.min(1, starSpeed / 6) * 0.08) + ')';
-    ctx.font = '10px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText('速度 ' + starSpeed.toFixed(1) + 'x', width - 20, height - 20);
+    loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        doLogin();
+    });
+    registerBtn.addEventListener('click', doRegister);
 
-    requestAnimationFrame(animate);
-}
-
-init();
-updateTimer();
-animate();
+    usernameInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+    });
+    passwordInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+    });
+})();
 </script>
 </body>
 </html>

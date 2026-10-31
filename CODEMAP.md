@@ -84,7 +84,7 @@ core/                                                 公共底座
 | 页面 | 文件 |
 |---|---|
 | 主控制台 | `index.html` |
-| 登录 | `login.html` |
+| 登录 | `login.html` + 背景引擎 `js/login-bg.js`（极光，预设注册表，颜色跟随主题调色板） |
 | 在线生图 | `online.html` |
 | 智能对话 | `gpt-chat.html` |
 | 无限画布 | `canvas.html`、`canvas-list.html`、`smart-canvas.html` |
