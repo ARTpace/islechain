@@ -453,3 +453,13 @@ async def api_cache_clear():
         except OSError:
             pass
     return {"message": f"已清理 {count} 个缓存文件", "cleared": count}
+
+
+@router.get("/api/media-registry")
+async def media_registry():
+    """生成物落盘的目录注册表：类型列表 + 每个 feature 的展示信息。
+
+    前端据此决定落盘 feature、画廊分类与筛选项，新增模型不必再改三元链。
+    """
+    import media_paths
+    return media_paths.public_registry()

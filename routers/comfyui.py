@@ -552,19 +552,13 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
         params = {"filename": filename, "subfolder": subfolder, "type": type}
         url = f"http://{target}/view"
 
-        # 存到用户文件夹: output/{user}/{feature}/YYYY-MM-DD/
+        # 存到统一层级: output/{owner}/{type}/{feature}/YYYY-MM-DD/
         ext = os.path.splitext(filename)[1] or ".png"
-        now = time.localtime()
         username = _main.get_username_by_token(token)
-        date_str = f"{now.tm_year:04d}-{now.tm_mon:02d}-{now.tm_mday:02d}"
-        if username:
-            user_dir = _main.get_user_dirname(username)
-            date_path = f"{user_dir}/{feature}/{date_str}"
-        else:
-            date_path = f"{feature}/{date_str}"
-        save_dir = os.path.join(_main.OUTPUT_DIR, date_path)
-        os.makedirs(save_dir, exist_ok=True)
-        local_name = f"{feature}_{uuid.uuid4().hex[:10]}{ext}"
+        owner = _main.get_user_dirname(username) or ""
+        save_dir, url_prefix = _main.media_paths.resolve_media_dir(
+            owner=owner, feature=feature, kind="image", ext=ext, root=_main.OUTPUT_DIR)
+        local_name = f"{_main.media_paths.sanitize_segment(feature)}_{uuid.uuid4().hex[:10]}{ext}"
         local_path = os.path.join(save_dir, local_name)
 
         _t_dl = _t.perf_counter()
@@ -586,7 +580,7 @@ async def save_comfyui_to_output(filename: str = "", subfolder: str = "", type: 
         # 复用统一 helper(同步版,可在事件循环内通过 to_thread 安全调用)
         asyncio.create_task(asyncio.to_thread(_main._prewarm_thumbnails, local_path, (600, 768, 1536)))
 
-        return {"url": f"/output/{date_path}/{local_name}", "path": local_path}
+        return {"url": f"{url_prefix}/{local_name}", "path": local_path}
     except HTTPException:
         raise
     except Exception as e:

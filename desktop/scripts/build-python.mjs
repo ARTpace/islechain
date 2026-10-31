@@ -44,6 +44,22 @@ if (!fs.existsSync(pyExe)) {
   fs.writeFileSync(pthPath, text);
 }
 
+// 嵌入式 Python 的 sys.path 完全由 ._pth 决定，既不含脚本目录也不含 cwd，
+// 因此必须显式登记 app 目录，否则 main.py 连 tools/user_paths 都 import 不到。
+// 这一步放在解压判断之外，保证幂等：python 已存在时也会补齐。
+{
+  const pth = fs.readdirSync(pyDir).find((name) => name.endsWith('._pth'));
+  if (!pth) {
+    console.error('嵌入式 Python 缺少 ._pth');
+    process.exit(1);
+  }
+  const pthPath = path.join(pyDir, pth);
+  let text = fs.readFileSync(pthPath, 'utf8');
+  if (!/^\.\.\\app$/m.test(text)) text = text.replace(/\s*$/, '') + '\n..\\app\n';
+  fs.writeFileSync(pthPath, text);
+  console.log('已把 app 目录登记进 ' + pth);
+}
+
 const getPip = path.join(pyDir, 'get-pip.py');
 if (!fs.existsSync(path.join(pyDir, 'Lib', 'site-packages', 'pip'))) {
   await download('https://bootstrap.pypa.io/get-pip.py', getPip);

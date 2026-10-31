@@ -36,10 +36,15 @@ echo [5] 编译桌面程序并生成 NSIS 安装包 ...
 call npm run build
 if errorlevel 1 ( echo tauri build 失败。 & pause & exit /b 1 )
 
+echo [6] 归档安装包到 desktop\dist ...
+if not exist dist\ mkdir dist
+copy /y src-tauri\target\release\bundle\nsis\*setup.exe dist\ >nul
+if errorlevel 1 ( echo 归档失败。 & pause & exit /b 1 )
+
 echo.
 echo ============================================================
 echo  完成。安装包：
-dir /b src-tauri\target\release\bundle\nsis\*setup.exe
+dir /b dist\*setup.exe
 echo ============================================================
 echo.
 pause

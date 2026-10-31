@@ -1079,12 +1079,15 @@
                 };
             }
 
+            // 模型 → 画廊分类：新增模型在这里加一行即可，不用再改三元链
+            var KLEIN_TYPE_MAP = { qwen: 'qwen_edit', qwen21: 'qwen_edit', moss: 'moss_img2img', boogu: 'boogu', krea2: 'krea2' };
+
             var res = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     workflow_data: workflowData,
-                    type: (model === 'qwen' || model === 'qwen21') ? 'qwen_edit' : (model === 'moss' ? 'moss_img2img' : (model === 'boogu' ? 'boogu' : (model === 'krea2' ? 'krea2' : 'klein_edit'))),
+                    type: (KLEIN_TYPE_MAP[model] || 'klein_edit'),
                     params: (model === 'qwen21' || model === 'moss') ? { '22': { seed: workflowData['22'].inputs.seed } } : {},
                     feature: '图片编辑',
                     client_id: CLIENT_ID,

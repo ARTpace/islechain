@@ -20,6 +20,7 @@
             } catch(e) {}
         })();
     </script>
+    <script src="/static/modules/model-features.js?v=20261031mf2"></script>
     <script src="/static/modules/auth-token.js"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js" defer></script>
@@ -3817,7 +3818,8 @@
             const lockedUnetModel = chatTask?.snapshot?.unet || selectedUnetModel;
             // 实际提交的工作流名: krea2 有参考图时会切换到 image-edit 工作流,这里记录真实使用的文件
             let actualWorkflowName = lockedWorkflow;
-            const lockedFeatureName = lockedWorkflow.toLowerCase().includes('anima') ? 'anima' : lockedWorkflow.toLowerCase().includes('krea2') ? 'krea2' : lockedWorkflow.toLowerCase().includes('ideogram4') ? 'ideogram4' : lockedWorkflow.toLowerCase().includes('boogu') ? 'boogu' : 'zimage';
+            // feature 由 model-features.js 决定：已登记的走映射表，未登记的按工作流名自动推导
+            const lockedFeatureName = (window.ModelFeatures && window.ModelFeatures.featureForWorkflow(lockedWorkflow)) || 'zimage';
 
             // 按当前生成分辨率设置 placeholder 宽高比，过渡时无尺寸跳变
             const _aspectSize = (chatTask?.snapshot?.size || getAnimaSize());
@@ -4103,7 +4105,7 @@
                         prompt: prompt,
                         width: chatTask?.snapshot?.region?.sourceWidth || _sz.width,
                         height: chatTask?.snapshot?.region?.sourceHeight || _sz.height,
-                        type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : lockedFeatureName === 'ideogram4' ? 'ideogram4' : lockedFeatureName === 'boogu' ? 'boogu' : 'zimage',
+                        type: lockedFeatureName,
                         client_id: CLIENT_ID,
                         workflow_data: workflow,
                         prompt_id: realPromptId,
@@ -4129,7 +4131,7 @@
                     timestamp: _qs,
                     prompt,
                     images: localUrls,
-                    type: lockedFeatureName === 'anima' ? 'anima' : lockedFeatureName === 'krea2' ? 'krea2' : lockedFeatureName === 'ideogram4' ? 'ideogram4' : lockedFeatureName === 'boogu' ? 'boogu' : 'zimage',
+                    type: lockedFeatureName,
                     model: lockedFeatureName.toUpperCase(),
                     genParams: {
                         generation_time_ms: Date.now() - generationStartedAt,
@@ -4959,6 +4961,10 @@
                 window.__chatRenderRefs = null;
                 const refs = Array.isArray(queuedRefs) ? queuedRefs : await cloudCollectRefs();
                 const size = chatTask?.snapshot?.body?.size || (chatTask?.snapshot?.size ? chatTask.snapshot.size.width + 'x' + chatTask.snapshot.size.height : selection.size);
+                // 在线模型按模型名分目录：output/{user}/image/online-{model}/{date}/
+                const _cloudFeature = (window.ModelFeatures && window.ModelFeatures.featureForCloudModel)
+                    ? window.ModelFeatures.featureForCloudModel(selection.model)
+                    : 'online';
                 const body = chatTask?.snapshot?.body ? ChatTasks.clone(chatTask.snapshot.body) : {
                     prompt: prompt,
                     model: selection.model || '',
@@ -4969,7 +4975,7 @@
                     reference_images: refs,
                     quality: selection.quality,
                     image_request_mode: '',
-                    feature: 'zimage'
+                    feature: _cloudFeature
                 };
                 body.conversation_id = chatTask?.chatBind?.conversation_id || '';
                 body.message_id = chatTask?.chatBind?.message_id || '';
@@ -4990,7 +4996,7 @@
                     timestamp: data.timestamp || Date.now(),
                     prompt: prompt,
                     images: imgs,
-                    type: 'zimage',
+                    type: _cloudFeature,
                     model: (_cloudProviderId || '') + (data.model ? ' · ' + data.model : ''),
                     genParams: {
                         generation_time_ms: Date.now() - generationStartedAt,
@@ -5196,13 +5202,17 @@
         // Lightbox functions are now in gallery-display.js
 
         // === 初始化（统一由 gallery-display.js 处理） ===
-        function bootZimageGallery() {
+        async function bootZimageGallery() {
             if (!window.GalleryDisplay) {
                 document.addEventListener('DOMContentLoaded', bootZimageGallery, { once: true });
                 return;
             }
+            // 先把后端注册表里已登记的模型并入画廊白名单：新模型零改代码也能出现在画廊
+            if (window.ModelFeatures && window.ModelFeatures.syncRegistry) {
+                try { await window.ModelFeatures.syncRegistry(); } catch (e) { /* 降级用 MAP + 缓存 */ }
+            }
         GalleryDisplay.init({
-            historyType: 'zimage,anima,krea2,ideogram4,boogu',
+            historyType: (window.ModelFeatures && window.ModelFeatures.historyType()) || 'zimage,anima,krea2,ideogram4,boogu',
             favoritesStorageKey: 'zimage_favorites',
             nsfwEnabled: true,
             galleryFeatures: { modelBadge: 'auto' },

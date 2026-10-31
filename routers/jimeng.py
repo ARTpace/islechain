@@ -147,12 +147,12 @@ async def jimeng_query_media(payload: _main.JimengQueryMediaRequest):
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
 # 内置工作流列表(workflows/ 根级 + text2image/ 子目录下的文生图生成器 + 提示词/ 子目录下的本地扩写工作流)
-BUILTIN_WORKFLOW_DIRS = [_main.WORKFLOW_DIR, os.path.join(_main.WORKFLOW_DIR, "text2image"), os.path.join(_main.WORKFLOW_DIR, "提示词"), os.path.join(_main.WORKFLOW_DIR, "video")]
+BUILTIN_WORKFLOW_DIRS = [_main.BUILTIN_WORKFLOW_DIR, os.path.join(_main.BUILTIN_WORKFLOW_DIR, "text2image"), os.path.join(_main.BUILTIN_WORKFLOW_DIR, "提示词"), os.path.join(_main.BUILTIN_WORKFLOW_DIR, "video")]
 BUILTIN_WORKFLOWS = set()
 for _wd in BUILTIN_WORKFLOW_DIRS:
     if not os.path.isdir(_wd):
         continue
     for fn in os.listdir(_wd):
         if fn.endswith('.json') and not fn.endswith('.config.json') and os.path.isfile(os.path.join(_wd, fn)):
-            rel = os.path.relpath(os.path.join(_wd, fn), _main.WORKFLOW_DIR).replace("\\", "/")
+            rel = os.path.relpath(os.path.join(_wd, fn), _main.BUILTIN_WORKFLOW_DIR).replace("\\", "/")
             BUILTIN_WORKFLOWS.add(rel)

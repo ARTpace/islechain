@@ -289,14 +289,13 @@ def parse_size_pair(size):
         return 0, 0
     return int(match.group(1)), int(match.group(2))
 
-async def save_remote_video_to_output(url, prefix="video_"):
-    """下载远程视频到 output 目录"""
+async def save_remote_video_to_output(url, prefix="video_", owner="", feature="video"):
+    """下载远程视频到 output（走统一层级 output/{owner}/video/{feature}/{date}/）。"""
     if not url:
         return ""
     if url.startswith("/output/") or url.startswith("/assets/"):
         return url
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.mp4"
-    path = os.path.join(OUTPUT_DIR, filename)
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.get(url)
@@ -306,16 +305,15 @@ async def save_remote_video_to_output(url, prefix="video_"):
             ext = os.path.splitext(clean_path)[1].lower()
             if ext in {".mp4", ".webm", ".mov"}:
                 filename = filename[:-4] + ext
-                path = os.path.join(OUTPUT_DIR, filename)
             elif "webm" in content_type:
                 filename = filename[:-4] + ".webm"
-                path = os.path.join(OUTPUT_DIR, filename)
             elif "quicktime" in content_type or "mov" in content_type:
                 filename = filename[:-4] + ".mov"
-                path = os.path.join(OUTPUT_DIR, filename)
-            with open(path, "wb") as f:
+            directory, url_prefix = media_paths.resolve_media_dir(
+                owner=owner, feature=feature, kind="video", ext=filename, root=OUTPUT_DIR)
+            with open(os.path.join(directory, filename), "wb") as f:
                 f.write(response.content)
-            return f"/output/{filename}"
+            return f"{url_prefix}/{filename}"
     except Exception as e:
         print(f"保存上游视频失败: {e}")
         return url
@@ -794,9 +792,12 @@ def jimeng_local_output_url(path, kind="image"):
         ext = ".mp4" if ct.startswith("video/") else ".png"
     prefix = "jimeng_video_" if kind == "video" else "jimeng_"
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
-    dest = os.path.join(OUTPUT_DIR, filename)
-    shutil.copyfile(path, dest)
-    return f"/output/{filename}"
+    # 即梦 CLI 落本地文件，按 kind 分开登记，避免图片/视频混进同一个目录
+    feature = {"video": "jimeng-video", "audio": "jimeng-audio"}.get(kind, "jimeng")
+    directory, url_prefix = media_paths.resolve_media_dir(
+        owner="", feature=feature, kind=kind, ext=ext, root=OUTPUT_DIR)
+    shutil.copyfile(path, os.path.join(directory, filename))
+    return f"{url_prefix}/{filename}"
 
 async def jimeng_store_output_value(value, kind="image"):
     text = str(value or "").strip()
@@ -812,7 +813,7 @@ async def jimeng_store_output_value(value, kind="image"):
         text = wsl_path_to_windows(text)
     if text.startswith(("http://", "https://")):
         if kind == "video":
-            return await save_remote_video_to_output(text, prefix="jimeng_video_")
+            return await save_remote_video_to_output(text, prefix="jimeng_video_", feature="jimeng-video")
         return await save_ai_image_to_output({"type": "url", "value": text}, prefix="jimeng_")
     if os.path.isfile(text):
         return jimeng_local_output_url(text, kind)
@@ -1054,12 +1055,15 @@ async def generate_jimeng_video(payload, provider):
 
 CLIENT_ID = str(uuid.uuid4())
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
-WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "text2image", "z-image.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 # 个人数据在系统用户目录；DATA_DIR 只放随工程发布的词库和风格包
 from user_paths import user_data_dir as _user_data_dir
+import media_paths
 USER_DATA_DIR = _user_data_dir()
+# 工作流：内置基线随包只读，运行时同步到用户目录；用户自建与 config 改动都留用户目录
+BUILTIN_WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
+WORKFLOW_DIR = os.path.join(USER_DATA_DIR, "workflows")
+WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "text2image", "z-image.json")
 OUTPUT_DIR = os.path.join(USER_DATA_DIR, "output")
 INPUT_DIR = os.path.join(USER_DATA_DIR, "input")
 HISTORY_FILE = os.path.join(USER_DATA_DIR, "history.json")
@@ -1078,19 +1082,105 @@ STATIC_PROMPT_TEMPLATE_MD = os.path.join(STATIC_DIR, "system-prompts", "infinite
 PROMPT_TEMPLATE_PATHS = [STATIC_PROMPT_TEMPLATE_MD]
 
 # --- 素材库配置 ---
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+# /assets/{path} 路由以 INPUT_DIR 为根，素材必须落在 INPUT_DIR 下才访问得到；
+# 同时不能写安装目录（Program Files 不可写、覆盖升级会冲掉、卸载连文件一起删）。
+ASSETS_DIR = INPUT_DIR
 OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 ASSET_LIBRARY_DIR = os.path.join(ASSETS_DIR, "library")
 LOCAL_UPLOAD_DIR = os.path.join(ASSETS_DIR, "uploads")
 ASSET_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "asset_library.json")
-PROMPT_LIBRARY_PATH = os.path.join(DATA_DIR, "prompt_libraries.json")
+BUILTIN_PROMPT_LIBRARY = os.path.join(DATA_DIR, "prompt_libraries.json")   # 随包基线，只读
+PROMPT_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "prompt_libraries.json")  # 用户覆盖层，可写
 SHARED_FOLDERS_FILE = os.path.join(USER_DATA_DIR, "shared_folders.json")
 MEDIA_PREVIEW_DIR = os.path.join(USER_DATA_DIR, "media_previews")
 LOCAL_IMAGE_IMPORT_MAX_BYTES = int(os.getenv("LOCAL_IMAGE_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
 LOCAL_IMAGE_IMPORT_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 RUNNINGHUB_WORKFLOW_STORE_FILE = os.path.join(USER_DATA_DIR, "runninghub_workflows.json")
 SEED_UINT32_MAX = 4294967295
+
+
+def _file_digest(path: str) -> str:
+    h = hashlib.md5()
+    try:
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                h.update(chunk)
+    except OSError:
+        return ""
+    return h.hexdigest()
+
+
+def migrate_legacy_assets():
+    """老版本把素材写在安装目录 assets/，搬到用户目录（目标已存在则不覆盖）。"""
+    legacy = os.path.join(BASE_DIR, "assets")
+    if os.path.abspath(legacy) == os.path.abspath(ASSETS_DIR) or not os.path.isdir(legacy):
+        return
+    moved = 0
+    for sub in ("library", "uploads", "input", "output"):
+        src_root = os.path.join(legacy, sub)
+        if not os.path.isdir(src_root):
+            continue
+        dst_root = os.path.join(ASSETS_DIR, sub)
+        for cur, _dirs, files in os.walk(src_root):
+            rel = os.path.relpath(cur, src_root)
+            dst_dir = dst_root if rel == "." else os.path.join(dst_root, rel)
+            try:
+                os.makedirs(dst_dir, exist_ok=True)
+            except OSError:
+                continue
+            for fn in files:
+                dst = os.path.join(dst_dir, fn)
+                if os.path.exists(dst):
+                    continue
+                try:
+                    shutil.copy2(os.path.join(cur, fn), dst)
+                    moved += 1
+                except OSError:
+                    pass
+    if moved:
+        print(f"[assets] 已从安装目录迁移 {moved} 个素材文件到 {ASSETS_DIR}")
+
+
+def sync_builtin_workflows():
+    """把随包内置工作流同步到用户目录。
+
+    内置工作流是程序资产（升级应带上新版），内容不同就以内置为准覆盖；
+    用户自建的 wf_*.json 不在内置集合里，不会被碰。工作流配置写 .config.json，
+    是独立文件，属于用户层，同样不受影响。
+    """
+    if not os.path.isdir(BUILTIN_WORKFLOW_DIR):
+        return
+    copied = 0
+    for cur, _dirs, files in os.walk(BUILTIN_WORKFLOW_DIR):
+        rel_dir = os.path.relpath(cur, BUILTIN_WORKFLOW_DIR)
+        dst_dir = WORKFLOW_DIR if rel_dir == "." else os.path.join(WORKFLOW_DIR, rel_dir)
+        try:
+            os.makedirs(dst_dir, exist_ok=True)
+        except OSError:
+            continue
+        for fn in files:
+            if not fn.endswith(".json") or fn.endswith(".config.json"):
+                continue
+            src = os.path.join(cur, fn)
+            dst = os.path.join(dst_dir, fn)
+            try:
+                if os.path.isfile(dst) and os.path.getsize(dst) == os.path.getsize(src) \
+                        and _file_digest(dst) == _file_digest(src):
+                    continue
+                shutil.copy2(src, dst)
+                copied += 1
+            except OSError:
+                pass
+    if copied:
+        print(f"[workflow] 已同步 {copied} 个内置工作流到 {WORKFLOW_DIR}")
+
+
+def prompt_library_read_path():
+    """提示词库当前生效的读取路径：用户目录优先，回退随包分发的基线。"""
+    if os.path.isfile(PROMPT_LIBRARY_PATH):
+        return PROMPT_LIBRARY_PATH
+    return BUILTIN_PROMPT_LIBRARY
 
 # === history.json 进程内缓存 ===
 # 第一次 GET 时读盘并缓存,save_to_history 写穿透更新(不再失效重读)
@@ -1127,7 +1217,25 @@ _preset_cache = None
 _preset_cache_mtime = 0
 
 # API 提供商配置文件路径
-API_PROVIDERS_FILE = os.path.join(BASE_DIR, "api_providers.json")
+# 放用户目录而非安装目录：perMachine 安装到 Program Files 后安装目录不可写，
+# 在界面里增删 provider 会失败，或被 Windows 静默重定向，导致改动不生效。
+API_PROVIDERS_FILE = os.path.join(USER_DATA_DIR, "api_providers.json")
+
+
+def migrate_api_providers_from_app_dir():
+    """把安装目录里的旧配置搬进用户目录。目标已存在则不覆盖，保留个人修改。"""
+    legacy = os.path.join(BASE_DIR, "api_providers.json")
+    if os.path.exists(API_PROVIDERS_FILE) or not os.path.exists(legacy):
+        return
+    try:
+        with open(legacy, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if not isinstance(data, list) or not data:
+            return
+        atomic_write_json(API_PROVIDERS_FILE, data, ensure_ascii=False, indent=2)
+        print(f"[art-canvas] 已从安装目录迁移 API 提供商配置: {API_PROVIDERS_FILE}")
+    except Exception as e:
+        print(f"[art-canvas] API 提供商配置迁移失败: {e}")
 
 def sanitize_folder_name(title, canvas_id):
     """生成安全的文件夹名称"""
@@ -1417,9 +1525,10 @@ def migrate_account_private_data() -> None:
         if os.path.isdir(src) and not os.path.exists(dst):
             shutil.move(src, dst)
     user_lib = os.path.join(root, "prompt_libraries.json")
-    if os.path.isfile(PROMPT_LIBRARY_PATH) and not os.path.isfile(user_lib):
+    source_lib = prompt_library_read_path()
+    if os.path.isfile(source_lib) and not os.path.isfile(user_lib):
         try:
-            with open(PROMPT_LIBRARY_PATH, "r", encoding="utf-8") as handle:
+            with open(source_lib, "r", encoding="utf-8") as handle:
                 data = json.load(handle)
             libs = data.get("libraries") if isinstance(data, dict) else []
             system, personal = [], []
@@ -1553,6 +1662,7 @@ def ensure_builtin_providers(providers):
 
 def load_api_providers():
     """从文件加载 API 提供商列表（内置平台自动补全）"""
+    migrate_api_providers_from_app_dir()
     if not os.path.exists(API_PROVIDERS_FILE):
         try:
             atomic_write_json(API_PROVIDERS_FILE, list(BUILTIN_PROVIDERS), ensure_ascii=False, indent=2)
@@ -1787,6 +1897,18 @@ os.makedirs(OUTPUT_OUTPUT_DIR, exist_ok=True)
 os.makedirs(ASSET_LIBRARY_DIR, exist_ok=True)
 os.makedirs(LOCAL_UPLOAD_DIR, exist_ok=True)
 os.makedirs(MEDIA_PREVIEW_DIR, exist_ok=True)
+# 素材与工作流落到用户目录：迁移老位置数据 + 同步随包内置工作流
+migrate_legacy_assets()
+sync_builtin_workflows()
+
+# 生成物目录升级到 output/{owner}/{type}/{feature}/{date}/：老文件搬到新层级并改写 history/画布 URL
+# 幂等，已经是新结构时只做一次目录扫描；失败不阻塞启动
+try:
+    import media_migration
+    media_migration.migrate(media_paths, OUTPUT_DIR, HISTORY_FILE, CANVAS_DIR)
+    _HISTORY_CACHE["data"] = None
+except Exception as _media_migrate_exc:
+    print(f"[media-migrate] 跳过: {_media_migrate_exc}")
 
 # Custom static files with no-cache headers for HTML files
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
@@ -1994,6 +2116,7 @@ class OnlineVideoRequest(BaseModel):
     provider_id: str = ""
     image_request_mode: str = ""
     reference_images: List[AIReference] = []
+    feature: str = ""   # 落盘子目录（注册表 key），留空按 "视频"
 
 class ChatRequest(BaseModel):
     conversation_id: str = ""
@@ -2307,21 +2430,18 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
     if src_ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
         src_ext = ".png"
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{src_ext}"
-    date_folder = datetime.now().strftime("%Y-%m-%d")
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
-    elif username and feature:
-        user_dir, _ = get_user_output_dir(username)
-        canvas_output_dir = os.path.join(user_dir, feature, date_folder)
-    elif username:
-        user_dir, _ = get_user_output_dir(username)
-        canvas_output_dir = os.path.join(user_dir, date_folder)
-    elif feature:
-        canvas_output_dir = os.path.join(OUTPUT_DIR, feature, date_folder)
+        os.makedirs(canvas_output_dir, exist_ok=True)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = build_output_url(canvas, filename, username)
     else:
-        canvas_output_dir = os.path.join(OUTPUT_DIR, date_folder)
-    os.makedirs(canvas_output_dir, exist_ok=True)
-    local_path = os.path.join(canvas_output_dir, filename)
+        # 统一落盘：output/{owner}/{type}/{feature}/{date}/，类型由注册表决定
+        owner = get_user_dirname(username) or ""
+        canvas_output_dir, url_prefix = media_paths.resolve_media_dir(
+            owner=owner, feature=feature or "other", kind="image", ext=src_ext, root=OUTPUT_DIR)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = f"{url_prefix}/{filename}"
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         if src_file:
@@ -2329,14 +2449,9 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
         else:
             with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
                 shutil.copyfileobj(response, out_file)
-        subfolder_parts = []
-        if feature:
-            subfolder_parts.append(feature)
-        subfolder_parts.append(date_folder)
-        subfolder = "/".join(subfolder_parts)
         # 缩略图放到后台生成，避免 4 张图都压完才把地址返回给页面
         threading.Thread(target=_prewarm_thumbnails, args=(local_path, (768, 600)), daemon=True).start()
-        return build_output_url(canvas, filename, username, subfolder=subfolder)
+        return url
     except Exception as e:
         print(f"下载图片失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -2344,8 +2459,8 @@ def download_image(comfy_address, comfy_url_path, prefix="studio_", canvas=None,
         return full_url
 
 
-def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, username=None, subfolder=None):
-    """从 ComfyUI 下载音频文件"""
+def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, username=None, subfolder=None, feature=""):
+    """从 ComfyUI 下载音频文件。落盘同样走 media_paths，与图片/视频同一套层级。"""
     # 根据 URL 推断扩展名
     ext = ".wav"
     if ".flac" in comfy_url_path.lower():
@@ -2358,20 +2473,21 @@ def download_audio(comfy_address, comfy_url_path, prefix="tts_", canvas=None, us
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
-    elif username:
-        canvas_output_dir, _ = get_user_output_dir(username)
+        os.makedirs(canvas_output_dir, exist_ok=True)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = build_output_url(canvas, filename, username)
     else:
-        canvas_output_dir = OUTPUT_DIR
-    # TTS 音频存到子文件夹
-    if subfolder:
-        canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
-    os.makedirs(canvas_output_dir, exist_ok=True)
-    local_path = os.path.join(canvas_output_dir, filename)
+        # subfolder 是旧参数，语义等同 feature（历史上只传 "tts"）
+        owner = get_user_dirname(username) or ""
+        canvas_output_dir, url_prefix = media_paths.resolve_media_dir(
+            owner=owner, feature=feature or subfolder or "tts", kind="audio", ext=ext, root=OUTPUT_DIR)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = f"{url_prefix}/{filename}"
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return build_output_url(canvas, filename, username, subfolder=subfolder)
+        return url
     except Exception as e:
         print(f"下载音频失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -2401,29 +2517,23 @@ def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, 
         ext = ".gif"
 
     filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
-    date_folder = datetime.now().strftime("%Y-%m-%d")
     if canvas:
-        base_dir = get_canvas_output_dir(canvas)
-    elif username:
-        user_dir, _ = get_user_output_dir(username)
-        base_dir = user_dir
+        canvas_output_dir = get_canvas_output_dir(canvas)
+        os.makedirs(canvas_output_dir, exist_ok=True)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = build_output_url(canvas, filename, username)
     else:
-        base_dir = OUTPUT_DIR
-
-    if feature:
-        canvas_output_dir = os.path.join(base_dir, feature, date_folder)
-        url_subfolder = f"{feature}/{date_folder}"
-    else:
-        # 向后兼容: 旧调用方仍用 subfolder(默认 'video')
-        canvas_output_dir = os.path.join(base_dir, subfolder) if subfolder else base_dir
-        url_subfolder = subfolder if subfolder else None
-    os.makedirs(canvas_output_dir, exist_ok=True)
-    local_path = os.path.join(canvas_output_dir, filename)
+        # subfolder 是旧参数（默认 "video"），语义等同 feature
+        owner = get_user_dirname(username) or ""
+        canvas_output_dir, url_prefix = media_paths.resolve_media_dir(
+            owner=owner, feature=feature or subfolder or "video", kind="video", ext=ext, root=OUTPUT_DIR)
+        local_path = os.path.join(canvas_output_dir, filename)
+        url = f"{url_prefix}/{filename}"
     full_url = f"http://{comfy_address}{comfy_url_path}"
     try:
         with urllib.request.urlopen(full_url) as response, open(local_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-        return build_output_url(canvas, filename, username, subfolder=url_subfolder)
+        return url
     except Exception as e:
         print(f"下载视频失败: {e}")
         if comfy_url_path.startswith("/view"):
@@ -2880,25 +2990,32 @@ def reference_to_data_url(ref):
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{content_type_for_path(path)};base64,{encoded}"
 
-async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, username=None, subfolder=None):
+async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, username=None, subfolder=None, feature="", kind="image"):
+    """把上游返回的图片存进 output。
+
+    落盘统一走 media_paths（output/{owner}/{type}/{feature}/{date}/）；
+    subfolder 仅保留向后兼容，新调用请用 feature。
+    """
     if canvas:
         canvas_output_dir = get_canvas_output_dir(canvas)
-    elif username:
-        canvas_output_dir, _ = get_user_output_dir(username)
-        if subfolder:
-            canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
+        url_prefix = ""
     else:
-        canvas_output_dir = OUTPUT_DIR
-        if subfolder:
-            canvas_output_dir = os.path.join(canvas_output_dir, subfolder)
+        owner = get_user_dirname(username) or ""
+        canvas_output_dir, url_prefix = media_paths.resolve_media_dir(
+            owner=owner, feature=feature or subfolder or "online", kind=kind, ext=".png", root=OUTPUT_DIR)
     os.makedirs(canvas_output_dir, exist_ok=True)
+
+    def _url(name):
+        if canvas:
+            return build_output_url(canvas, name, username)
+        return f"{url_prefix}/{name}"
 
     filename = f"{prefix}{uuid.uuid4().hex[:10]}.png"
     path = os.path.join(canvas_output_dir, filename)
     if image_data["type"] == "b64":
         with open(path, "wb") as f:
             f.write(base64.b64decode(image_data["value"]))
-        return build_output_url(canvas, filename, username, subfolder=subfolder)
+        return _url(filename)
     value = image_data["value"]
     if value.startswith("/output/"):
         # 已有 output URL：提取文件名并重新构建带子文件夹的 URL
@@ -2914,7 +3031,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
                 shutil.copy2(orig_path, os.path.join(canvas_output_dir, orig_filename))
             except Exception:
                 pass
-        return build_output_url(canvas, orig_filename, username, subfolder=subfolder)
+        return _url(orig_filename)
     try:
         async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
             response = await client.get(value)
@@ -2928,7 +3045,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
                 path = os.path.join(canvas_output_dir, filename)
             with open(path, "wb") as f:
                 f.write(response.content)
-            return build_output_url(canvas, filename, username, subfolder=subfolder)
+            return _url(filename)
     except Exception as e:
         print(f"保存上游图片失败: {e}")
         return value
@@ -5839,10 +5956,11 @@ def normalize_prompt_libraries(data):
     return {"active_library_id": active, "libraries": libraries, "updated_at": int(data.get("updated_at") or now_ms())}
 
 def _system_prompt_libraries():
-    if not os.path.exists(PROMPT_LIBRARY_PATH):
+    source = prompt_library_read_path()
+    if not os.path.exists(source):
         return normalize_prompt_libraries(default_prompt_libraries())
     try:
-        with open(PROMPT_LIBRARY_PATH, "r", encoding="utf-8") as f:
+        with open(source, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         data = default_prompt_libraries()
@@ -7561,14 +7679,14 @@ async def fetch_models_from_upstream(base_url: str, api_key: str, refresh: bool 
 WORKFLOW_NAME_RE = re.compile(r'^[\w\u4e00-\u9fff][\w\u4e00-\u9fff\.\-_\/ ]*\.json$')
 
 # 内置工作流列表（根目录及已登记的分类目录，包含抠图工作流）
-BUILTIN_WORKFLOW_DIRS = [WORKFLOW_DIR, os.path.join(WORKFLOW_DIR, "text2image"), os.path.join(WORKFLOW_DIR, "提示词"), os.path.join(WORKFLOW_DIR, "video"), os.path.join(WORKFLOW_DIR, "cutout")]
+BUILTIN_WORKFLOW_DIRS = [BUILTIN_WORKFLOW_DIR, os.path.join(BUILTIN_WORKFLOW_DIR, "text2image"), os.path.join(BUILTIN_WORKFLOW_DIR, "提示词"), os.path.join(BUILTIN_WORKFLOW_DIR, "video"), os.path.join(BUILTIN_WORKFLOW_DIR, "cutout")]
 BUILTIN_WORKFLOWS = set()
 for _wd in BUILTIN_WORKFLOW_DIRS:
     if not os.path.isdir(_wd):
         continue
     for fn in os.listdir(_wd):
         if fn.endswith('.json') and not fn.endswith('.config.json') and os.path.isfile(os.path.join(_wd, fn)):
-            rel = os.path.relpath(os.path.join(_wd, fn), WORKFLOW_DIR).replace("\\", "/")
+            rel = os.path.relpath(os.path.join(_wd, fn), BUILTIN_WORKFLOW_DIR).replace("\\", "/")
             BUILTIN_WORKFLOWS.add(rel)
 
 def update_env_values(updates):
@@ -9038,14 +9156,12 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         image_data, raw = await generate_ai_image(payload.prompt, payload.size, payload.quality, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, image_request_mode=mode, generation_params=payload.generation_params, on_progress=on_progress)
         if on_progress:
             on_progress({'source': 'local', 'stage': 'saving', 'progress': None})
-        # 组织子文件夹: {feature}/{日期} (feature 留空时回退 online/{日期})
-        date_str = time.strftime("%Y-%m-%d", time.localtime())
-        feature = (payload.feature or "").strip()
-        subfolder = f"{feature}/{date_str}" if feature else f"online/{date_str}"
-        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, subfolder=subfolder)
+        # 落盘交给 media_paths：output/{owner}/{type}/{feature}/{date}/
+        online_feature = (payload.feature or "").strip() or "online"
+        local_url = await save_ai_image_to_output(image_data, prefix="online_", username=username, feature=online_feature)
         local_images = [local_url]
         for extra_image in raw.get("_webai_images", [])[1:]:
-            local_images.append(await save_ai_image_to_output(extra_image, prefix="online_", username=username, subfolder=subfolder))
+            local_images.append(await save_ai_image_to_output(extra_image, prefix="online_", username=username, feature=online_feature))
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
         friendly = None

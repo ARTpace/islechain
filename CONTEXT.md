@@ -25,31 +25,49 @@
 
 ## 文件存储
 
-### 用户文件夹结构
+### 生成物落盘目录（统一入口 `media_paths.resolve_media_dir`）
+
+所有图片/视频/音频的落盘都必须走 `media_paths.resolve_media_dir()`，禁止在业务代码里手拼路径。
+唯一例外是画布内出图：它按 `output/{owner}/{画布标题}_{ID前8位}/` 归属（同一画布的产物聚在一起，便于画布资产浏览），不再切类型层。
 
 ```
-output/                     # 用户输出文件
-├── {safe_username}/        # 用户级子目录（safe_user_id 过滤）
-│   ├── {画布标题}_{画布ID前8位}/  # 画布专属输出文件夹
-│   ├── studio_xxx.png      # ComfyUI 应用输出
-│   ├── online_xxx.png      # 在线生图输出
-│   └── chat_xxx.png        # GPT 对话生图输出
-└── ...
-
-input/                      # 用户输入/资产文件
-├── {safe_username}/
-│   ├── {画布标题}_{画布ID前8位}/  # 画布资产文件夹
-│   ├── asset_xxx.png      # 在线生图/独立页面保存的资产
-│   └── ai_ref_xxx.png     # AI 参考图上传
-└── ...
+output/{owner}/{type}/{feature}/{YYYY-MM-DD}/{filename}
 ```
 
-| 概念 | 根目录 | 命名规则 | 用途 |
-|------|--------|---------|------|
-| 用户输出目录 | `output/{safe_username}/` | `safe_user_id(username)` | 用户所有生成的文件 |
-| 用户输入目录 | `input/{safe_username}/` | `safe_user_id(username)` | 用户上传的资产文件 |
-| 画布输出子目录 | `output/{safe_username}/{标题}_{ID前8位}/` | `sanitize_folder_name(title, id)` | 画布生成的文件 |
-| 画布资产子目录 | `input/{safe_username}/{标题}_{ID前8位}/` | `sanitize_folder_name(title, id)` | 画布资产文件 |
+| 段 | 取值 | 说明 |
+|----|------|------|
+| `owner` | `safe_user_id(username)` | 空串表示不分用户，此时该层省略 |
+| `type` | `image` / `video` / `audio` | 见下方类型判定优先级 |
+| `feature` | 注册表 `folder`，否则 feature id | 模型/功能标识，如 `zimage`、`cutout` |
+| `date` | `YYYY-MM-DD` | 落盘当天，便于按日清理 |
+
+**类型判定优先级**（`media_paths.type_of`）：
+1. 人工登记（`auto: false`）—— 权威，不被调用方覆盖
+2. 调用方显式传入的 `kind`
+3. 自动登记（`auto: true`）—— 首次落盘猜的，允许被显式 `kind` 纠正
+4. 文件扩展名（`.mp4`→video、`.wav`→audio、`.png`→image）
+5. 默认 `image`
+
+第 2 条排在第 3 条之前，是为了让「同一模型既出图又出视频」能正确分流到两个类型目录。
+
+**注册表**（`data/media-folders.json`）：
+- 随包只读基线 + `%APPDATA%\art-canvas\data\media-folders.json` 用户覆盖层（升级不丢）
+- 未登记的 feature **首次落盘时自动登记**（带 `auto: true`、`first_seen`、`sample`），零配置即可用
+- 想改中文展示名 / 分组 / latin 目录名，只改覆盖层，不动代码
+
+**新增模型/工作流要做什么**：
+- 什么都不做也能跑：落盘自动规范、自动登记、画廊自动发现（`/api/media-registry`）
+- 可选：在 `static/modules/model-features.js` 的 `MAP` 里加一行，指定画廊排序优先级与别名
+- 可选：在覆盖层注册表里补 `label` / `group` / `folder`（中文名建议给 latin folder）
+
+### 用户输入/资产目录
+
+```
+input/{owner}/                       # 与 output 同级，跟随静态路由根（ASSETS_DIR = INPUT_DIR）
+├── {画布标题}_{画布ID前8位}/          # 画布资产文件夹
+├── asset_xxx.png                    # 在线生图/独立页面保存的资产
+└── ai_ref_xxx.png                   # AI 参考图上传
+```
 
 ### 用户文件夹命名
 

@@ -357,16 +357,29 @@ def _rotate(target: Path):
             pass
 
 
+def _user_style_file() -> Path:
+    """风格预设的用户写入位置（不动随包分发的基线）。"""
+    return _USER_DATA / "data" / "style-presets.json"
+
+
+def _read_style_file() -> Path:
+    """读风格预设：用户目录优先，回退基线。"""
+    user = _user_style_file()
+    return user if user.is_file() else TARGET_FILE
+
+
 def load_presets() -> Dict[str, Any]:
-    if not TARGET_FILE.exists():
+    source = _read_style_file()
+    if not source.exists():
         return {"categories": []}
-    with open(TARGET_FILE, "r", encoding="utf-8") as f:
+    with open(source, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_presets(data: Dict[str, Any]) -> None:
-    TARGET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(TARGET_FILE, "w", encoding="utf-8") as f:
+    target = _user_style_file()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 

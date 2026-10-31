@@ -5,6 +5,7 @@
   "description": "ArtCanvas 桌面安装包（Tauri + NSIS）",
   "scripts": {
     "tauri": "tauri",
+    "prebuild": "node scripts/clean-bundle-resources.mjs",
     "build": "tauri build"
   },
   "devDependencies": {

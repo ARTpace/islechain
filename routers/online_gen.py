@@ -21,7 +21,8 @@ async def online_image(payload: _main.OnlineImageRequest, token: str = ""):
 
 @router.post("/api/online-video")
 async def online_video(payload: _main.OnlineVideoRequest, token: str = ""):
-    return await build_online_video_result(payload, username=token)
+    # 之前误把 token 当 username 传下去，会让落盘目录名变成一段令牌
+    return await build_online_video_result(payload, username=_main.get_username_by_token(token))
 
 async def build_online_video_result(payload: _main.OnlineVideoRequest, username: str = None):
     provider_id = payload.provider_id or "jimeng"
@@ -30,7 +31,10 @@ async def build_online_video_result(payload: _main.OnlineVideoRequest, username:
     refs = [ref.dict() for ref in payload.reference_images if ref.url]
     try:
         result = await generate_video(payload.prompt, payload.size, model, refs, protocol=payload.protocol, provider_id=provider_id, provider=prov, duration=payload.duration)
-        local_url = await _main.save_remote_video_to_output(result.get("value", ""), prefix="video_")
+        local_url = await _main.save_remote_video_to_output(
+            result.get("value", ""), prefix="video_",
+            owner=_main.get_user_dirname(username) or "",
+            feature=(getattr(payload, "feature", "") or "").strip() or "视频")
     except httpx.HTTPStatusError as exc:
         text = exc.response.text or ''
         friendly = "视频生成接口返回错误"

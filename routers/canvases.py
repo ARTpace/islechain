@@ -24,7 +24,8 @@ CANVAS_DIR = os.path.join(USER_DATA_DIR, "canvases")
 CONVERSATION_DIR = os.path.join(USER_DATA_DIR, "conversations")
 OUTPUT_DIR = os.path.join(USER_DATA_DIR, "output")
 INPUT_DIR = os.path.join(USER_DATA_DIR, "input")
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+# 与 main.ASSETS_DIR 保持一致：/assets/* 路由以 INPUT_DIR 为根，素材统一落用户目录
+ASSETS_DIR = INPUT_DIR
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 HISTORY_FILE = os.path.join(USER_DATA_DIR, "history.json")
 ASSET_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "asset_library.json")

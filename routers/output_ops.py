@@ -98,7 +98,10 @@ async def scan_output_folder(token: str = ""):
     if not username:
         raise HTTPException(status_code=401, detail="未登录")
     user_dir = _main.get_user_dirname(username)
-    scan_root = os.path.join(_main.OUTPUT_DIR, user_dir, "抠图")
+    # 目录名由注册表决定，不要在路由里写死中文目录
+    scan_root = os.path.join(
+        _main.OUTPUT_DIR, user_dir,
+        _main.media_paths.type_of("抠图"), _main.media_paths.folder_of("抠图"))
     if not os.path.isdir(scan_root):
         return {"images": []}
     images = []
