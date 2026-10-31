@@ -76,107 +76,114 @@ class RandomSource:
 
 
 class CharacterSource(RandomSource):
-    """角色随机源"""
-    
+    """角色随机源
+
+    数据取自角色包体系（character_packs.store.merged_index），
+    不再直接读 static/app/characters.json —— 该文件已不进仓库也不进安装包，
+    随机源若继续硬读它，新装机器上角色随机会是空的。
+    """
+
     def __init__(self):
         super().__init__("character", "角色", "👤")
-        # 单一数据源：static/app/characters.json 同时供后端（本类 / routers/animadex.py）
-        # 与前端（anima-character-picker.js fetch）使用，不再维护 character_data_full.js 副本
-        self.data_file = Path(__file__).parent / "static" / "app" / "characters.json"
-    
+
     def load(self):
-        """加载角色数据"""
+        """加载角色数据（来自所有已装角色包）"""
         try:
-            if not self.data_file.exists():
+            from character_packs import store as character_store
+
+            entries = character_store.merged_index().get("items") or []
+            if not entries:
+                print("[CharacterSource] 未发现角色包，角色随机源为空")
                 return
-            
-            raw = json.loads(self.data_file.read_text(encoding='utf-8'))
-            data = raw.get("characters", []) if isinstance(raw, dict) else raw
-            if data:
-                self.items = []
-                categories = set()
-                
-                for char in data:
-                    item = {
-                        "id": char.get("name", ""),
-                        "name": char.get("name", ""),
-                        "copyright": char.get("copyright", ""),
-                        "gender": char.get("gender", ""),
-                        "hair": char.get("hair", ""),
-                        "eye": char.get("eye", ""),
-                        "trigger": char.get("trigger", ""),
-                        "tags": char.get("tags", []),
-                        "categories": []
-                    }
-                    
-                    # 自动提取类别
-                    copyright = char.get("copyright", "")
-                    gender = char.get("gender", "")
-                    
-                    if gender:
-                        if "girl" in gender or "female" in gender:
-                            item["categories"].append("女性")
-                            categories.add("女性")
-                        elif "boy" in gender or "male" in gender:
-                            item["categories"].append("男性")
-                            categories.add("男性")
-                    
-                    if copyright:
-                        # 提取系列名
-                        series = copyright.replace("_", " ").title()
-                        item["categories"].append(series)
-                        categories.add(series)
-                    
-                    self.items.append(item)
-                
-                self.categories = sorted(list(categories))
-                
+
+            self.items = []
+            categories = set()
+
+            for entry in entries:
+                item = {
+                    "id": entry.get("id", ""),
+                    "name": entry.get("name", ""),
+                    "copyright": entry.get("copyright", ""),
+                    "gender": entry.get("gender", ""),
+                    "hair": entry.get("hair", ""),
+                    "eye": entry.get("eye", ""),
+                    "trigger": entry.get("trigger", ""),
+                    # 索引层不保留原始 tags，特征已预计算成中文标签
+                    "tags": list(entry.get("feat") or []),
+                    "categories": [],
+                }
+
+                # 自动提取类别
+                copyright_text = item["copyright"]
+                gender = item["gender"]
+
+                if gender:
+                    if "girl" in gender or "female" in gender:
+                        item["categories"].append("女性")
+                        categories.add("女性")
+                    elif "boy" in gender or "male" in gender:
+                        item["categories"].append("男性")
+                        categories.add("男性")
+
+                if copyright_text:
+                    # 提取系列名
+                    series = copyright_text.replace("_", " ").title()
+                    item["categories"].append(series)
+                    categories.add(series)
+
+                self.items.append(item)
+
+            self.categories = sorted(list(categories))
+
         except Exception as e:
             print(f"[CharacterSource] 加载失败: {e}")
 
 
 class ArtistSource(RandomSource):
-    """画师随机源"""
-    
+    """画师随机源
+
+    数据取自画师包体系（artist_packs.store.merged_index），
+    不再解析 static/app/artist_data.js —— 该文件已不进仓库也不进安装包。
+    索引层只有 id/tag/posts/img 四个字段，展示名由 tag 去掉 @ 得到。
+    """
+
+    # 与前端分档 UI 一致的展示名
+    TIER_LABELS = {
+        "legend": "传奇",
+        "famous": "知名",
+        "active": "活跃",
+        "rising": "新锐",
+        "newbie": "新人",
+    }
+
     def __init__(self):
         super().__init__("artist", "画师", "🎨")
-        self.data_file = Path(__file__).parent / "static" / "app" / "artist_data.js"
-    
+
     def load(self):
-        """加载画师数据"""
+        """加载画师数据（来自所有已装画师包）"""
         try:
-            if not self.data_file.exists():
+            from artist_packs import store as artist_store
+            from artist_packs.paths import tier_of
+
+            entries = artist_store.merged_index().get("items") or []
+            if not entries:
+                print("[ArtistSource] 未发现画师包，画师随机源为空")
                 return
-            
-            content = self.data_file.read_text(encoding='utf-8')
-            import re
-            match = re.search(r'const\s+.*?=\s*(\[.*?\]);', content, re.DOTALL)
-            if match:
-                data = json.loads(match.group(1))
-                self.items = []
-                
-                for artist in data:
-                    item = {
-                        "id": artist.get("id", ""),
-                        "name": artist.get("name", ""),
-                        "post_count": artist.get("post_count", 0),
-                        "danbooru_tag": artist.get("danbooru_tag", ""),
-                        "categories": []
-                    }
-                    
-                    # 按热度分类
-                    post_count = artist.get("post_count", 0)
-                    if post_count > 500:
-                        item["categories"].append("热门")
-                    elif post_count > 100:
-                        item["categories"].append("中等")
-                    else:
-                        item["categories"].append("小众")
-                    
-                    self.items.append(item)
-                
-                self.categories = ["热门", "中等", "小众"]
-                
+
+            self.items = []
+            for entry in entries:
+                tag = str(entry.get("tag") or "")
+                self.items.append({
+                    "id": entry.get("id", ""),
+                    "name": tag.lstrip("@") or str(entry.get("id") or ""),
+                    "post_count": int(entry.get("posts") or 0),
+                    "danbooru_tag": tag,
+                    "url": entry.get("url", ""),
+                    "categories": [self.TIER_LABELS.get(tier_of(entry.get("posts")), "新人")],
+                })
+
+            self.categories = list(self.TIER_LABELS.values())
+
         except Exception as e:
             print(f"[ArtistSource] 加载失败: {e}")
 
