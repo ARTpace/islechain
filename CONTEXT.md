@@ -77,6 +77,68 @@ input/{owner}/                       # 与 output 同级，跟随静态路由根
 - 截断到 80 字符
 - 例如：`admin`、`xingyue`、`---`（中文"魔搭"）
 
+### 风格预设（风格包）
+
+风格提示词不再是一个 41 MB 大文件，而是**可独立分发的包**。完整数据（22,248 条 / 45 MB）
+**不进仓库、不进分发目录**，仓库和安装包只带精简种子包，其余按来源平台打成 zip 由用户自选安装：
+
+```
+data/style-packs/art-canvas-seed/             # 随程序分发的种子包（进 git，约 2.5 MB / 1,872 条）
+├── pack.json                                 # 清单：包元信息 + 分类顺序，不存内容
+├── painting.json                             # 一个分类一个文件，文件名恒等于分类 id
+└── ...
+
+data/style-packs-source/art-canvas-core/      # 完整源包（切料，不进 git、不进安装包）
+data/style-packs-official/*.zip + catalog.json # 安装包内的可选平台包（进安装包，不进 git）
+dist/style-packs/                             # 同上，开发机生成位置（不进 git）
+
+%APPDATA%\art-canvas\style-packs/<packId>/    # 用户安装/导入的包（不进 git）
+%APPDATA%\art-canvas\data\style-overlay.json  # 用户自己加/改/删的单条（几 KB，不进 git）
+```
+
+**命名规范**：文件名只表示「是什么」，恒等于分类 id；**排序只由 `pack.json` 的 `order` 决定**。
+调顺序永远不用重命名、也不用改数据文件，命名与排序彻底解耦。
+
+**order 约定**：内置分类从 100 起、步长 10（插队用 105 这类值）；用户包默认 500；overlay 新建分类固定排末尾。
+
+**合并规则**（`style_packs.merged_categories()`）：
+1. 包优先级：内置包 > 用户包（各自按 `order`，再按 `packId`）
+2. 分类按 `order` 全局升序，同 id 只出现一次
+3. 子分类按 id 合并，预设按 id 去重——后出现的覆盖字段、保留首次出现位置
+4. overlay 最后应用：先删、再改、后加
+
+**新增/修改风格的三条路**：
+
+| 目的 | 改哪里 | 进 git |
+|---|---|---|
+| 自己用，改完立刻生效 | 界面或 `POST /api/style-presets/items` → 写 overlay | 否 |
+| 想让新风格随包出厂 | 改 `data/style-packs/art-canvas-seed/<分类>.json` | 是 |
+| 整套分发 | 打成 zip 交用户导入，或放进 `%APPDATA%\art-canvas\style-packs\<packId>\` | 否 |
+
+**按平台拆分分发**：`tools/style_pack_split.py split` 读 `data/style-packs-config.json`
+（种子分类清单 + 平台匹配规则）生成种子包与平台包。新增来源平台只改配置里的 `platforms`，不用改代码。
+
+| 包 | 条目 | zip 体积 |
+|---|---|---|
+| `art-canvas-seed`（随程序） | 1,872 | 2.5 MB |
+| `platform-chatgpt` | 8,880 | 7.6 MB |
+| `platform-nano-banana` | 8,065 | 4.9 MB |
+| `platform-pia` | 2,150 | 1.5 MB |
+| `platform-yuanbao` | 1,459 | 1.0 MB |
+| `platform-other` | 1,694 | 0.4 MB |
+
+装齐全部平台包 = 22,248 条全量（种子里的条目都在某个平台包内，按 id 去重不会重复计数）。
+
+**接口**：`GET /api/style-packs`（已装列表）、`GET /api/style-packs/catalog`（可安装的官方包 + 安装状态）、
+`POST /api/style-packs/install-official`（一键安装）、`POST /api/style-packs/import`（上传 zip）、
+`GET /api/style-packs/{packId}/download`（导出 zip）、`DELETE /api/style-packs/{packId}`（卸载，内置包不可卸）、
+`POST/PATCH/DELETE /api/style-presets/items`（单条扩展）。
+
+**界面**：资产库 → 「风格包」标签页（左侧已装包、右侧官方可选包一键安装、右上角导入 zip）。
+
+**迁移工具**：`python tools/style_pack_migrate.py split|merge|verify`（单文件 ⇄ 包，可逆）、
+`python tools/style_pack_split.py split|verify`（种子包 + 平台包，校验条目零丢失）。
+
 ## 文件隔离机制
 
 ### 用户级文件隔离

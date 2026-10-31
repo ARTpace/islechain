@@ -19,11 +19,16 @@ const skipDirs = new Set([
   'artifacts', 'scratch',
   // 素材/上传目录：运行期内容，落点在用户目录，源码里这份只可能是本机测试残留
   'assets',
+  // 完整风格库源包（45MB）：只作拆料，永不进安装包，也不进 git
+  'style-packs-source',
 ]);
 
 // 「父目录名 -> 该目录下要裁掉的子项」，用于精准剔除大体积素材而不丢代码。
 const prunedSubdirs = new Map([
   ['tools', new Set(['opennana-import'])],
+  // 完整风格库（44MB）不进安装包也不进仓库：仓库只留 art-canvas-seed 精简包，
+  // 完整数据由 dist/style-packs 下的平台包提供，用户按需在资产库一键安装。
+  ['style-packs', new Set(['art-canvas-core'])],
 ]);
 const skipFiles = new Set([
   'users.json', '_test_localstorage.json', 'translate-config.json',
@@ -60,6 +65,22 @@ if (fs.existsSync(appDir)) fs.rmSync(appDir, {recursive: true, force: true});
 console.log('装配程序到 ' + appDir);
 copyDir(project, appDir, null);
 
+// 官方可选风格包：仓库与安装目录都不含完整数据，但发布包要带上，用户才能离线一键安装。
+// 源目录 dist/ 已被 skipDirs 排除，这里按需单独搬 catalog + zip。
+const officialSrc = path.join(project, 'dist', 'style-packs');
+const officialDst = path.join(appDir, 'data', 'style-packs-official');
+if (fs.existsSync(officialSrc)) {
+  fs.mkdirSync(officialDst, {recursive: true});
+  for (const entry of fs.readdirSync(officialSrc, {withFileTypes: true})) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.endsWith('.zip') && entry.name !== 'catalog.json') continue;
+    fs.copyFileSync(path.join(officialSrc, entry.name), path.join(officialDst, entry.name));
+  }
+  console.log('官方可选风格包：' + fs.readdirSync(officialDst).length + ' 个文件已装入');
+} else {
+  console.warn('提示：dist/style-packs 不存在，安装包将不含可选风格包（先跑 python tools/style_pack_split.py split）');
+}
+
 // 装配自检：这些是 main.py 顶层就要 import 的模块，缺一个服务就起不来。
 const required = [
   'main.py',
@@ -67,12 +88,15 @@ const required = [
   'media_paths.py',
   'media_migration.py',
   'data/media-folders.json',
+  // 风格预设已拆成风格包：清单缺失等于预设库全空，必须随包（种子包，约 2.5MB）
+  'data/style-packs/art-canvas-seed/pack.json',
   'static/modules/model-features.js',
   'lan_sharing.py',
   'feature_access.py',
   'generation_data.py',
   'image_cutout.py',
   'preset_manager.py',
+  'style_packs',
   'smart_prompt.py',
   'wildcard_engine.py',
   'genre_registry.py',
@@ -104,6 +128,13 @@ const leaked = forbidden.filter((rel) => fs.existsSync(path.join(appDir, rel)));
 // 素材/上传目录是运行期数据（落点在用户目录），源码里这份只是本机测试残留，不能进包。
 // 内置工作流是程序资产，必须随包：workflows/ 不在此列。
 if (fs.existsSync(path.join(appDir, 'assets'))) leaked.push('assets/');
+// 完整风格库只存在于开发机，绝不能跟着安装包走（44MB，且仓库不跟踪）
+if (fs.existsSync(path.join(appDir, 'data', 'style-packs', 'art-canvas-core'))) {
+  leaked.push('data/style-packs/art-canvas-core/');
+}
+if (fs.existsSync(path.join(appDir, 'data', 'style-packs-source'))) {
+  leaked.push('data/style-packs-source/');
+}
 
 function findBakFiles(dir, rel) {
   const out = [];

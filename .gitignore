@@ -151,3 +151,10 @@ desktop/dist/
 !.env.sample
 !.env.template
 
+
+# 完整风格库（44MB/22248 条）不随仓库分发：仓库只保留 art-canvas-seed 精简包，
+# 完整数据由 tools/style_pack_split.py 从本地源包生成到 dist/，用户在资产库按需安装。
+/data/style-packs-source/
+
+# 风格包分发产物（zip + catalog.json，由脚本生成，装入安装包但不进 git）
+/dist/

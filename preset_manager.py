@@ -6,14 +6,17 @@
   2. 风格预设（prompt）：完整自然语言提示词，点击替换或追加
 
 数据文件：
-  - data/presets/*.json       → 标签预设（按大类分文件）
-  - data/style-presets.json   → 风格预设（新增）
-  - data/preset-i18n.json     → 中文名映射
-  - data/prompt-presets.yaml  → YAML 标签预设（可选，优先级低于 JSON）
+  - data/presets/*.json            → 标签预设（按大类分文件）
+  - data/style-packs/<packId>/     → 风格预设包（pack.json 清单 + 每分类一个 json）
+  - data/preset-i18n.json          → 中文名映射
+  - data/prompt-presets.yaml       → YAML 标签预设（可选，优先级低于 JSON）
 
 读写分层（2026-10-31）：
   工程 data/ 下的是**随包分发的只读基线**，用户编辑一律落到用户数据目录，
   避免装在 Program Files 时保存失败、以及覆盖升级把用户改动冲掉。
+
+风格预设的读取走 style_packs（内置包 + 用户包 + 用户增量层合并），
+用户自己新增/修改的条目只写增量层，升级安装包后新的内置风格依然可见。
 """
 
 import os
@@ -25,6 +28,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 from user_paths import user_data_dir
+import style_packs
 
 # === 路径配置 ===
 BASE_DIR = Path(__file__).resolve().parent
@@ -238,14 +242,9 @@ _cache = PresetCache()
 
 # === i18n 映射（直接从各预设文件构建，无需独立 i18n 文件）===
 def _get_presets_i18n_dir_mtime() -> float:
-    """获取 presets（用户层+基线）与风格预设的最新 mtime"""
+    """标签预设目录 + 风格包目录 + 用户增量层的最新 mtime"""
     stamps = list(presets_signature())
-    style = read_style_presets_file()
-    if style.is_file():
-        try:
-            stamps.append(os.path.getmtime(style))
-        except OSError:
-            pass
+    stamps.extend(style_packs.signature())
     return max(stamps) if stamps else 0.0
 
 
@@ -276,15 +275,9 @@ def load_preset_i18n() -> Dict[str, str]:
         except Exception:
             pass
 
-    # 从 style-presets.json 收集中文名（用户层优先）
-    style_file = read_style_presets_file()
-    if style_file.is_file():
-        try:
-            with open(style_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            _walk_and_merge(data, i18n)
-        except Exception:
-            pass
+    # 从风格包（内置 + 用户包 + 用户增量）收集中文名
+    for cat in get_style_presets().get("categories") or []:
+        _walk_and_merge(cat, i18n)
 
     _cache.i18n = i18n
     _cache.i18n_mtime = mtime
@@ -429,17 +422,37 @@ def get_tag_presets() -> Dict[str, Any]:
     return {"categories": []}
 
 
-# === 风格预设（新增体系）===
+# === 风格预设（风格包体系）===
 
-_STYLE_PRESETS_CACHE: Dict[str, Any] = {"mtime": 0.0, "data": None}
+_STYLE_PRESETS_CACHE: Dict[str, Any] = {"signature": (), "mtime": 0.0, "data": None}
 
 
 def get_style_presets() -> Dict[str, Any]:
-    """获取风格预设（完整提示词）
+    """获取风格预设（完整提示词）。
 
-    文件约 40MB，解析一次要几百毫秒。按 mtime 缓存，避免每次打开
-    风格选择器都重新解析（合并 PIA 数据后体积更大，必须缓存）。
+    数据来源按优先级：
+      1. 风格包目录（data/style-packs/ 内置包 + 用户包 + 用户增量层）
+      2. 老版本单文件 data/style-presets.json（仅在没有可用包时回退）
+
+    合并结果按所有相关文件的 mtime 签名缓存，避免每次打开风格选择器都重算。
     """
+    sig = style_packs.signature()
+    cached = _STYLE_PRESETS_CACHE.get("data")
+    if cached is not None and _STYLE_PRESETS_CACHE.get("signature") == sig:
+        return cached
+
+    if style_packs.has_packs():
+        try:
+            data = {"categories": style_packs.merged_categories()}
+            _STYLE_PRESETS_CACHE["signature"] = sig
+            _STYLE_PRESETS_CACHE["mtime"] = 0.0
+            _STYLE_PRESETS_CACHE["data"] = data
+            return data
+        except Exception as e:
+            print(f"[preset_manager] style packs merge error: {e}")
+            return {"categories": []}
+
+    # 回退：老单文件
     style_file = read_style_presets_file()
     if not style_file.is_file():
         return {"categories": []}
@@ -448,13 +461,13 @@ def get_style_presets() -> Dict[str, Any]:
         mtime = os.path.getmtime(style_file)
     except OSError:
         mtime = 0.0
-    cached = _STYLE_PRESETS_CACHE.get("data")
     if cached is not None and _STYLE_PRESETS_CACHE.get("mtime") == mtime:
         return cached
 
     try:
         with open(style_file, "r", encoding="utf-8") as f:
             data = json.load(f)
+        _STYLE_PRESETS_CACHE["signature"] = sig
         _STYLE_PRESETS_CACHE["mtime"] = mtime
         _STYLE_PRESETS_CACHE["data"] = data
         return data
@@ -464,15 +477,24 @@ def get_style_presets() -> Dict[str, Any]:
 
 
 def save_style_presets(data: Dict[str, Any]) -> bool:
-    """保存风格预设（写用户目录，不动随包分发的基线）"""
+    """保存风格预设。
+
+    兼容老接口的"整包覆盖"语义，但落盘内容改成**相对基线的差异**（用户增量层），
+    不再写一份全量快照 —— 否则升级后新内置风格会被自己的快照永久挡住。
+    """
     try:
-        target = user_style_presets_file()
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with open(target, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        if style_packs.has_packs():
+            ok = style_packs.replace_from_snapshot(data or {})
+        else:
+            target = user_style_presets_file()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            ok = True
+        _STYLE_PRESETS_CACHE["signature"] = ()
         _STYLE_PRESETS_CACHE["mtime"] = 0.0
         _STYLE_PRESETS_CACHE["data"] = None
-        return True
+        return ok
     except Exception as e:
         print(f"[preset_manager] style presets save error: {e}")
         return False

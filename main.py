@@ -1910,6 +1910,14 @@ try:
 except Exception as _media_migrate_exc:
     print(f"[media-migrate] 跳过: {_media_migrate_exc}")
 
+# 老版本把用户改过的风格预设写成一份全量快照，新体系改读风格包 + 增量层。
+# 这里把旧快照换算成增量并归档，否则升级后用户自己加/改的风格会凭空消失。
+try:
+    import style_packs as _style_packs
+    _style_packs.migrate_legacy_snapshot()
+except Exception as _style_pack_exc:
+    print(f"[style-packs] 旧快照迁移跳过: {_style_pack_exc}")
+
 # Custom static files with no-cache headers for HTML files
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 import mimetypes

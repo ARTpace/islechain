@@ -369,14 +369,33 @@ def _read_style_file() -> Path:
 
 
 def load_presets() -> Dict[str, Any]:
-    source = _read_style_file()
-    if not source.exists():
-        return {"categories": []}
-    with open(source, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """读当前合并后的风格列表（内置包 + 用户包 + 用户增量层）。"""
+    try:
+        from preset_manager import get_style_presets
+        return get_style_presets()
+    except Exception:
+        # 脱离主程序单独运行时回退到直接读文件
+        source = _read_style_file()
+        if not source.exists():
+            return {"categories": []}
+        with open(source, "r", encoding="utf-8") as f:
+            return json.load(f)
 
 
 def save_presets(data: Dict[str, Any]) -> None:
+    """写回导入结果。
+
+    只把相对基线的差异写进用户增量层，不再复制一份全量快照 ——
+    全量快照会永久遮蔽随包分发的新内置风格。
+    """
+    try:
+        from style_packs import replace_from_snapshot
+        if replace_from_snapshot(data):
+            return
+        print("[fooocus-import] 增量层写入失败，回退整体写入用户文件")
+    except Exception as exc:
+        print(f"[fooocus-import] 增量层不可用（{exc}），回退整体写入用户文件")
+
     target = _user_style_file()
     target.parent.mkdir(parents=True, exist_ok=True)
     with open(target, "w", encoding="utf-8") as f:
@@ -460,7 +479,12 @@ def import_fooocus_styles(
     print(f"[fooocus-import] sources={sources}  dry_run={dry_run}  skip_thumbs={skip_thumbs}")
     data = load_presets() if not dry_run else {"categories": []}
     if not dry_run:
-        backup_file(TARGET_FILE, label="fooocus")
+        # 备份用户增量层（几 KB），不再备份 40MB 的基线单文件
+        try:
+            from style_packs import OVERLAY_FILE as _overlay
+            backup_file(_overlay, label="fooocus")
+        except Exception:
+            backup_file(TARGET_FILE, label="fooocus")
 
     result: Dict[str, Any] = {
         "success": True,
@@ -509,7 +533,11 @@ def import_fooocus_styles(
 
     if not dry_run:
         save_presets(data)
-        print(f"\n[OK] 已写入 {TARGET_FILE}")
+        try:
+            from style_packs import OVERLAY_FILE as _overlay
+            print(f"\n[OK] 已写入用户增量层 {_overlay}")
+        except Exception:
+            print(f"\n[OK] 已写入 {TARGET_FILE}")
     else:
         print(f"\n[dry-run] 未写文件")
 

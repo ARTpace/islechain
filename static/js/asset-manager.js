@@ -1206,6 +1206,7 @@ function render(){
     else if(activeTab === 'workflows') renderWorkflowManager();
     else if(activeTab === 'local') renderLocalManager();
     else if(activeTab === 'canvas-assets') renderCanvasAssetsManager();
+    else if(activeTab === 'style-packs') renderStylePackManager();
     else renderAssetManager();
     refreshIcons();
     if(scrollState.length){
@@ -1830,6 +1831,11 @@ function renderAssetManager(){
         </aside>
         ${renderAssetMaintenanceDialog()}
     `;
+}
+function renderStylePackManager(){
+    // 风格包页自带独立模块，这里只做委派，避免把几百行 UI 塞进本文件
+    if(window.StylePackManager){ window.StylePackManager.render(root); return; }
+    root.innerHTML = '<div class="empty-state">风格包模块未加载，请刷新页面。</div>';
 }
 function renderWorkflowManager(){
     normalizeWorkflowState();
