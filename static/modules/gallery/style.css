@@ -151,3 +151,134 @@ html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound, .g
 @media (prefers-reduced-motion:reduce) {
     html body :is(.gallery-vpfab, .gallery-fav, .gallery-magnify, .gallery-sound) { transition:none; }
 }
+
+/* ============================================================
+   共享交互优化（2026-10-31）：丝滑下拉 / 滚动 / 按压 / 统一缓动
+   覆盖全站工具页 zimage / online / tts / rmbg / ...
+   核心：把 display 硬切换改为 opacity/visibility/transform 过渡，
+   并将三种展开信号 (.is-open / .open / .force-open) 统一映射到同一套动画。
+   按压反馈用独立 scale 属性（不覆盖按钮自身的 transform 位移）。
+   ============================================================ */
+html body {
+    --ui-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --ui-dur: 0.18s;
+    --ui-dur-slow: 0.26s;
+    /* 菜单与触发按钮的垂直避让间距：页面在自己的 .anima-ctrl-menu 规则里
+       用 calc(100% + var(--ui-menu-gap)) 消费，改一处即全站生效。 */
+    --ui-menu-gap: 12px;
+}
+
+/* —— 下拉菜单：用过渡替代 display 硬切换 ——
+   菜单本体为 absolute/fixed（脱离文档流），常驻不占布局；
+   收起态靠 opacity/visibility/pointer-events 屏蔽，展开态三信号统一。 */
+html body .anima-ctrl-menu {
+    display: block !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px) scale(0.985);
+    transform-origin: bottom center;
+    pointer-events: none;
+    transition: opacity var(--ui-dur) var(--ui-ease),
+                transform var(--ui-dur) var(--ui-ease),
+                visibility var(--ui-dur) var(--ui-ease);
+}
+/* 定位模式缝：各页自行声明 bottom，共享表不覆盖 ——
+   页面定位上下文差异很大（absolute 相对 wrap / fixed 由 JS 写 inline top /
+   fixed 由脚本按视口计算），共享表统一写 bottom 会压过页面自身规则：
+   absolute 菜单会被顶出视口，fixed 菜单会因 top+bottom 双重约束被压扁高度
+   （实测 306px → 13px）。此处只提供 --ui-menu-gap 供页面自行消费。 */
+html body .anima-ctrl-menu.anima-ctrl-menu-grid { display: grid !important; }
+/* 三种展开信号统一映射为可见态 */
+html body .anima-ctrl-menu.is-open,
+html body .anima-ctrl-menu.open,
+html body .anima-ctrl-menu.force-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+/* 菜单项按压回弹 */
+html body .anima-ctrl-menu-item { transition: all var(--ui-dur) var(--ui-ease); }
+html body .anima-ctrl-menu-item:active { scale: 0.98; }
+
+/* —— 通用按钮按压回弹 —— */
+html body :is(
+    .anima-ctrl, .text-tag, .toolbar-btn, .ref-icon-btn, .ref-play-btn-lg,
+    .chat-top-btn, .chat-icon-btn, .chat-user-act, .prompt-corner-btn,
+    .tts-corner-btn, .speaker-audio-btn, .audio-preview-action-btn,
+    .btn-ghost, .btn-primary, .btn-secondary, .reverse-modal-opt,
+    .mode-btn, .gen-btn, .size-fit-btn, .preset-dropdown-btn, .btn-render,
+    .picker-apply-mode-btn, .asset-picker-close
+) {
+    transition: all var(--ui-dur) var(--ui-ease);
+}
+html body .anima-ctrl-wrap > button {
+    transition: all var(--ui-dur) var(--ui-ease);
+}
+/* 触屏上 :active 会粘滞，仅在真·hover 设备上启用按压与图标反馈 */
+@media (hover: hover) {
+    html body :is(
+        .anima-ctrl, .text-tag, .toolbar-btn, .ref-icon-btn, .ref-play-btn-lg,
+        .chat-top-btn, .chat-icon-btn, .chat-user-act, .prompt-corner-btn,
+        .tts-corner-btn, .speaker-audio-btn, .audio-preview-action-btn,
+        .btn-ghost, .btn-primary, .btn-secondary, .reverse-modal-opt,
+        .mode-btn, .gen-btn, .size-fit-btn, .preset-dropdown-btn, .btn-render,
+        .picker-apply-mode-btn, .asset-picker-close
+    ):active { scale: 0.96; }
+    html body .anima-ctrl-wrap > button:active { scale: 0.96; }
+    /* 图标按键：悬停时图标微放大（scale 独立属性，不覆盖自身 transform） */
+    html body :is(
+        .anima-ctrl, .text-tag, .toolbar-btn, .ref-icon-btn, .ref-play-btn-lg,
+        .chat-top-btn, .chat-icon-btn, .chat-user-act, .prompt-corner-btn,
+        .tts-corner-btn, .speaker-audio-btn, .audio-preview-action-btn,
+        .btn-ghost, .btn-primary, .btn-secondary, .reverse-modal-opt,
+        .mode-btn, .gen-btn, .size-fit-btn, .preset-dropdown-btn, .btn-render,
+        .picker-apply-mode-btn, .asset-picker-close
+    ) svg { transition: scale var(--ui-dur) var(--ui-ease); }
+    html body :is(
+        .anima-ctrl, .text-tag, .toolbar-btn, .ref-icon-btn, .ref-play-btn-lg,
+        .chat-top-btn, .chat-icon-btn, .chat-user-act, .prompt-corner-btn,
+        .tts-corner-btn, .speaker-audio-btn, .audio-preview-action-btn,
+        .btn-ghost, .btn-primary, .btn-secondary, .reverse-modal-opt,
+        .mode-btn, .gen-btn, .size-fit-btn, .preset-dropdown-btn, .btn-render,
+        .picker-apply-mode-btn, .asset-picker-close
+    ):hover svg { scale: 1.08; }
+    html body :is(
+        .anima-ctrl, .text-tag, .toolbar-btn, .ref-icon-btn, .ref-play-btn-lg,
+        .chat-top-btn, .chat-icon-btn, .chat-user-act, .prompt-corner-btn,
+        .tts-corner-btn, .speaker-audio-btn, .audio-preview-action-btn,
+        .btn-ghost, .btn-primary, .btn-secondary, .reverse-modal-opt,
+        .mode-btn, .gen-btn, .size-fit-btn, .preset-dropdown-btn, .btn-render,
+        .picker-apply-mode-btn, .asset-picker-close
+    ):active svg { scale: 1; }
+}
+
+/* —— 滚动平滑 + 触控动量 —— */
+html body main,
+html body .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+html body :is(.anima-ctrl-menu, .chat-history, #chatModelMenu, #chatAdvancedPanel, .preset-dropdown-menu, .ratio-dropdown-menu, .res-dropdown-menu) {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+/* 无障碍：尊重「减少动效」偏好 */
+@media (prefers-reduced-motion: reduce) {
+    html body .anima-ctrl-menu,
+    html body .anima-ctrl-menu * { transition: none !important; }
+    html body main,
+    html body .smooth-scroll,
+    html body :is(.anima-ctrl-menu, .chat-history, #chatModelMenu, #chatAdvancedPanel, .preset-dropdown-menu, .ratio-dropdown-menu, .res-dropdown-menu) {
+        scroll-behavior: auto;
+    }
+    html body .anima-ctrl-menu,
+    html body .anima-ctrl-menu-item,
+    html body .anima-ctrl,
+    html body .text-tag,
+    html body .btn-render,
+    html body .size-fit-btn { transform: none !important; scale: 1 !important; }
+}

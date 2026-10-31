@@ -23,7 +23,7 @@
     <script src="/static/lucide.min.js"></script>
     <script src="/static/theme.js?v=20261024bar"></script>
     <script src="/static/history-bulk-manager.js"></script>
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261025unified">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
     <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
     <script src="/static/modules/gallery/list.js?v=20261031b"></script>
@@ -72,6 +72,14 @@
         /* === 下拉菜单（复用 zimage） === */
         .anima-ctrl-wrap { position:relative; }
         .anima-ctrl-menu { display:none; position:fixed; background:#2a2a2a; border-radius:12px; padding:6px; z-index:9999; min-width:140px; box-shadow:0 8px 24px rgba(0, 0, 0, 0.3); max-height:70vh; overflow-y:auto; }
+        /* tts 菜单向下弹出：入场方向改为自上方滑入，缩放原点置顶（与 zimage 向上弹出相反） */
+        html body .anima-ctrl-menu { transform-origin: top center; }
+        html body .anima-ctrl-menu:not(.is-open):not(.open):not(.force-open) { transform: translateY(-6px) scale(0.985); }
+        /* 定位模式：tts 菜单是 fixed，由 toggleMenu 写 inline top/left 做边界翻转。
+           bottom 必须保持 auto —— 若被写成 calc(100% + Npx)，fixed 元素的百分比基准
+           是视口而非 .anima-ctrl-wrap，会与 top 双重约束把菜单高度压扁成一条
+           （实测 306px → 13px）。这里显式声明，防止后续误加。 */
+        html body .anima-ctrl-menu { bottom: auto; }
         .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:#999999; font-size:12px; transition:all 0.15s; }
         .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:#fbfaf9; }
         .anima-ctrl-menu-item.active { color:#fbfaf9; background:rgba(74, 222, 128, 0.10); }
@@ -1638,11 +1646,15 @@
     // ==================== 模式切换 ====================
     function toggleMenu(menuId) {
         const menu = document.getElementById(menuId);
-        const isOpen = menu.style.display === 'block';
+        if (!menu) return;
+        const isOpen = menu.classList.contains('is-open');
         // 关闭所有菜单
-        document.querySelectorAll('.anima-ctrl-menu').forEach(m => m.style.display = 'none');
+        document.querySelectorAll('.anima-ctrl-menu').forEach(m => {
+            m.classList.remove('is-open');
+            if (m.style.display) m.style.display = '';
+        });
         if (!isOpen) {
-            menu.style.display = 'block';
+            menu.classList.add('is-open');
             // 定位到触发按钮下方
             const btn = menu.previousElementSibling || menu.parentElement.querySelector('button');
             if (btn) {
@@ -1677,7 +1689,7 @@
             design: '智能配音',
             multi: '多人对话'
         }[mode];
-        document.getElementById('modeMenu').style.display = 'none';
+        document.getElementById('modeMenu').classList.remove('is-open');
         updateModeUI();
     }
 
@@ -2817,7 +2829,7 @@
         if (!text) { alert('请先输入要转换的内容'); return; }
         
         // 关闭菜单
-        document.getElementById('genreMenu').style.display = 'none';
+        document.getElementById('genreMenu').classList.remove('is-open');
         
         const btn = document.getElementById('genreBtn');
         const btnText = document.getElementById('genreBtnText');
@@ -2923,7 +2935,7 @@
             item.classList.toggle('active', i + 1 === n);
             item.querySelector('.chk').style.opacity = i + 1 === n ? '1' : '0';
         });
-        document.getElementById('speakerCountMenu').style.display = 'none';
+        document.getElementById('speakerCountMenu').classList.remove('is-open');
         renderSpeakerCards();
     }
 
@@ -3431,7 +3443,7 @@
             item.classList.toggle('active', i + 1 === count);
             item.querySelector('.chk').style.opacity = i + 1 === count ? '1' : '0';
         });
-        document.getElementById('batchMenu').style.display = 'none';
+        document.getElementById('batchMenu').classList.remove('is-open');
     }
 
     // ==================== 工具栏功能 ====================
@@ -4375,7 +4387,7 @@
         setCheckbox('postprocessCheck', p.postprocess);
         // 更新按钮文字
         document.getElementById('presetText').textContent = p.label;
-        document.getElementById('presetMenu').style.display = 'none';
+        document.getElementById('presetMenu').classList.remove('is-open');
     }
 
     function setSlider(sliderId, valueId, value) {
@@ -4474,7 +4486,10 @@
     // ==================== 点击菜单外部关闭 ====================
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.anima-ctrl-wrap')) {
-            document.querySelectorAll('.anima-ctrl-menu').forEach(m => m.style.display = 'none');
+            document.querySelectorAll('.anima-ctrl-menu').forEach(m => {
+                m.classList.remove('is-open');
+                if (m.style.display) m.style.display = '';
+            });
         }
     });
     </script>

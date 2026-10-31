@@ -63,23 +63,41 @@
         if (Array.isArray(ids)) _allMenuIds = ids;
     }
 
+    /**
+     * 菜单显隐统一走 class 驱动（2026-10-31）。
+     * 共享样式表已用 display/opacity/visibility 接管 .anima-ctrl-menu 的显隐，
+     * 内联 style.display 会被其 !important 压制而失效，故此处只切 class。
+     */
+    function setMenuOpen(menu, open) {
+        if (!menu) return;
+        menu.classList.toggle('is-open', !!open);
+        if (!open) {
+            // zimage 的统一模型菜单用 force-open 作为展开信号，关闭时一并清除
+            menu.classList.remove('force-open');
+        }
+        // 清除可能残留的内联 display，交回样式表控制
+        if (menu.style.display) menu.style.display = '';
+    }
+
+    function isMenuOpen(menu) {
+        return !!menu && menu.classList.contains('is-open');
+    }
+
     function toggleMenu(menuId) {
         const menu = document.getElementById(menuId);
         if (!menu) return;
-        const isOpen = menu.style.display === 'block' || menu.style.display === 'grid';
+        const wasOpen = isMenuOpen(menu);
         closeAllMenus();
         // 强制关闭自身：即使 menuId 不在 _allMenuIds 列表中也能收起，
         // 避免某些菜单（如 booguQualityMenu）点选后无法关闭的问题
-        menu.style.display = 'none';
-        if (!isOpen) {
-            menu.style.display = menu.classList.contains('anima-ctrl-menu-grid') ? 'grid' : 'block';
-        }
+        setMenuOpen(menu, false);
+        if (!wasOpen) setMenuOpen(menu, true);
     }
 
     function closeAllMenus() {
         _allMenuIds.forEach(id => {
             const m = document.getElementById(id);
-            if (m) m.style.display = 'none';
+            if (m) setMenuOpen(m, false);
         });
     }
 

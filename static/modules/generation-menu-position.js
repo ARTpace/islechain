@@ -23,7 +23,8 @@
             width:width/scale+'px',maxWidth:width/scale+'px',
             maxHeight:Math.max(1,available)/scale+'px',overflowY:'auto'
         });
-        const height=menu.getBoundingClientRect().height;
+        // 用 offsetHeight（布局高度）而非 getBoundingClientRect，避免菜单缩放动画影响测量
+        const height=menu.offsetHeight;
         const openUp=options.preferAbove&&above>=height || above>below;
         const left=Math.max(leftEdge+margin,Math.min(leftEdge+viewWidth-width-margin,options.align==='end'?r.right-width:r.left));
         const top=Math.max(topEdge+margin,Math.min(topEdge+viewHeight-height-margin,openUp?r.top-gap-height:r.bottom+gap));

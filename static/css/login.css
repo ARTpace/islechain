@@ -6,6 +6,26 @@
     :root {
         --login-max: 376px;
         --login-radius: 22px;
+
+        /* ---------- 墨色阶梯（登录页专用） ----------
+         * 从 --ui-text / --ui-bg 现场派生，明暗两态自动跟随主题：
+         *   暗色 --ui-text #f6f6f4 混 --ui-bg #14161c → 浅灰
+         *   浅色 --ui-text #1a1a19 混 --ui-bg #f7f6f4 → 中灰
+         * 不用 --ui-muted / --ui-faint：那是全站灰阶，浅色底上只有
+         * 3.6:1 / 2.5:1，小字（副标题、label、页脚）会发虚、达不到 AA。
+         *
+         * 比例按明暗分开定：浅色底要够暗才够 4.5:1；暗色底本来就易读，
+         * 混得太多会跟标题（--ui-text）拉得太近、层级被压平。
+         */
+        --login-ink:       color-mix(in srgb, var(--ui-text) 74%, var(--ui-bg));
+        --login-ink-faint: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
+    }
+    /* 暗色底：比例比浅色低一档，避免跟标题（--ui-text）拉得太近、层级被压平；
+       但不能更低 —— 暗底的对比度余量本来就小（灰阶本来就亮），
+       实测 56% 会让 night 调色板的 placeholder 掉到 4.47:1（不及 AA）。 */
+    html.studio-theme-dark {
+        --login-ink:       color-mix(in srgb, var(--ui-text) 66%, var(--ui-bg));
+        --login-ink-faint: color-mix(in srgb, var(--ui-text) 58%, var(--ui-bg));
     }
     html, body { overflow: hidden; }
     body {
@@ -104,7 +124,7 @@
         font-weight: var(--ui-fw-regular, 400);
         letter-spacing: 1.2px;
         text-indent: 1.2px;
-        color: var(--ui-muted, #828178);
+        color: var(--login-ink);
     }
 
     /* ---------- 表单卡片 ---------- */
@@ -149,7 +169,7 @@
         font-size: 11.5px;
         letter-spacing: .4px;
         font-weight: var(--ui-fw-medium, 500);
-        color: var(--ui-faint, #9e9c93);
+        color: var(--login-ink);
     }
     .field-box {
         position: relative;
@@ -185,7 +205,9 @@
         font-size: 14px;
         letter-spacing: .2px;
     }
-    .field-box input::placeholder { color: var(--ui-muted, #828178); opacity: .78; }
+    /* placeholder 是提示不是正文：给 faint 档，但去掉 opacity 二次衰减，
+       否则浅色底上会掉到 2:1 以下 */
+    .field-box input::placeholder { color: var(--login-ink-faint); }
     /* 去掉 Chrome 自动填充的黄底，保持卡片视觉统一 */
     .field-box input:-webkit-autofill {
         -webkit-text-fill-color: var(--ui-text, #e6e5e0);
@@ -202,7 +224,7 @@
         border: 0;
         border-radius: 9px;
         background: none;
-        color: var(--ui-faint, #9e9c93);
+        color: var(--login-ink-faint);
         cursor: pointer;
         transition: color .18s var(--ui-ease, ease), background-color .18s var(--ui-ease, ease);
     }
@@ -308,7 +330,7 @@
         border: 0;
         border-radius: 10px;
         background: none;
-        color: var(--ui-muted, #828178);
+        color: var(--login-ink);
         font-family: inherit;
         font-size: 12.5px;
         letter-spacing: .3px;
@@ -338,8 +360,9 @@
         z-index: 10;
         font-size: 10.5px;
         letter-spacing: 1.4px;
-        color: var(--ui-faint, #9e9c93);
-        opacity: .5;
+        color: var(--login-ink-faint);
+        /* 层级靠 token 的明度差表达，不再叠 opacity ——
+           opacity 会把对比度二次砍半，浅色底上直接掉到 2:1 以下 */
         pointer-events: none;
         white-space: nowrap;
     }

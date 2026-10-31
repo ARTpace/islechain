@@ -29,7 +29,7 @@
     <script src="/static/history-bulk-manager.js?v=20261024tone" defer></script>
     <script src="/static/modules/interrogator.js" defer></script>
     <script src="/static/modules/ref-image-manager.js?v=20261026paste" defer></script>
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261028026">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/modules/image-viewer.js?v=20261028full" defer></script>
 <script src="/static/modules/gallery/bundle.js?v=20261031b" defer></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20261024001">
@@ -53,8 +53,8 @@
     <script src="/static/js/prompt-translate.js?v=20261024001" defer></script>
     <script src="/static/js/translate-queue.js?v=20261024001" defer></script>
     <script src="/static/js/incremental-translator.js?v=20261024001" defer></script>
-    <script src="/static/modules/generation-controls.js?v=20261026res"></script>
-    <script src="/static/modules/generation-menu-position.js?v=20261028020"></script>
+    <script src="/static/modules/generation-controls.js?v=20261031ui2"></script>
+    <script src="/static/modules/generation-menu-position.js?v=20261031ui2"></script>
     <style>
         :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0b0b0a; }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
@@ -205,7 +205,10 @@
         body.studio-theme-dark .anima-ctrl-input { background:var(--ui-soft, #252b38); color:var(--ui-text, #f6f6f4); }
         body.studio-theme-dark .anima-ctrl-input::placeholder { color:#7c7b73; }
         .anima-ctrl-wrap { position:relative; }
-        .anima-ctrl-menu { display:none; position:absolute; bottom:calc(100% + 4px); left:0; background:#2a2a2a; border-radius:12px; padding:6px; z-index:100; min-width:124px; box-shadow:0 -8px 24px rgba(0, 0, 0, 0.3); }
+        .anima-ctrl-menu { display:none; position:absolute; bottom:calc(100% + var(--ui-menu-gap, 4px)); left:0; background:#2a2a2a; border-radius:12px; padding:6px; z-index:100; min-width:124px; box-shadow:0 -8px 24px rgba(0, 0, 0, 0.3); }
+        /* 靠右的菜单改为右对齐弹出，避免遮挡右侧的「生成」按钮 */
+        #batchCountWrap .anima-ctrl-menu { left:auto; right:0; }
+        #cloudGenControls .anima-ctrl-wrap:last-child .anima-ctrl-menu { left:auto; right:0; }
         /* 多列网格菜单（比例等选项多的场景） */
         .anima-ctrl-menu.anima-ctrl-menu-grid { display:none; grid-template-columns:1fr 1fr; gap:2px; min-width:200px; padding:6px; }
         .anima-ctrl-menu.anima-ctrl-menu-grid .anima-ctrl-menu-item { padding:6px 10px; }
@@ -345,7 +348,9 @@
         /* === Control bar: always one row === */
         .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; padding:8px 12px; justify-content:space-between; }
         /* 紧凑模式：下拉变切换 */
-        .compact-toggle .anima-ctrl-menu { display:none!important; }
+        /* 选择器需压过共享样式表的 html body .anima-ctrl-menu.anima-ctrl-menu-grid !important */
+        html body .compact-toggle .anima-ctrl-menu { display:none!important; }
+        html body .compact-toggle .anima-ctrl-menu.anima-ctrl-menu-grid { display:none!important; }
         .compact-toggle #unifiedModelMenu.force-open { display:block !important; }
         #engineSection, #modelSection, #cloudModelWrap { display:none !important; }
         #unifiedModelMenu { width:min(320px, calc(100vw - 24px)); min-width:0; max-width:min(320px, calc(100vw - 24px)); overflow:auto; z-index:220; box-sizing:border-box; }
@@ -1735,7 +1740,8 @@
                 if (path.includes(menu) || (wrap && path.includes(wrap))) return;
                 if (menu.id === 'unifiedModelMenu' && inside('#unifiedModelBtn')) return;
                 menu.classList.remove('force-open');
-                menu.style.display = 'none';
+                menu.classList.remove('is-open');
+                if (menu.style.display) menu.style.display = '';
             });
             if (!inside('#promptPickerShell, #promptPickerBtn, #prompt, .prompt-wrapper, #promptTagsWrap') && typeof closePromptPicker === 'function') closePromptPicker();
         }
@@ -4343,7 +4349,8 @@
             const menu = document.getElementById('unifiedModelMenu');
             if (!menu) return;
             menu.classList.remove('force-open');
-            menu.style.display = 'none';
+            menu.classList.remove('is-open');
+            if (menu.style.display) menu.style.display = '';
         }
         function placeUnifiedModelMenu() {
             const menu = document.getElementById('unifiedModelMenu');
@@ -4597,7 +4604,8 @@
             if (open) { closeUnifiedModelMenu(); return; }
             renderUnifiedModelMenu();
             menu.classList.add('force-open');
-            menu.style.display = 'block';
+            menu.classList.add('is-open');
+            if (menu.style.display) menu.style.display = '';
             placeUnifiedModelMenu();
         }
         window.addEventListener('resize', function () {
@@ -4673,7 +4681,7 @@
             cloudBuildProviderMenu();
             cloudRefreshModels();
             const menu = document.getElementById('cloudProviderMenu');
-            if (menu) { menu.style.display = 'none'; }
+            if (menu) { menu.classList.remove('is-open'); if (menu.style.display) menu.style.display = ''; }
             try { localStorage.setItem('zimage_cloud_provider', id); } catch (e) {}
         }
 
@@ -4685,7 +4693,7 @@
             updateUnifiedModelLabel();
             refreshCloudResMenu();
             const menu = document.getElementById('cloudModelMenu');
-            if (menu) { menu.style.display = 'none'; }
+            if (menu) { menu.classList.remove('is-open'); if (menu.style.display) menu.style.display = ''; }
             try { localStorage.setItem('zimage_cloud_model', m || ''); } catch (e) {}
         }
 
@@ -4751,7 +4759,7 @@
             try { localStorage.setItem('zimage_cloud_quality', q); } catch (e) {}
             updateQualityDropdown({ menuId: 'cloudQualityMenu', textId: 'cloudQualityText', value: q, options: CLOUD_QUALITY_OPTIONS });
             const menu = document.getElementById('cloudQualityMenu');
-            if (menu) menu.style.display = 'none';
+            if (menu) { menu.classList.remove('is-open'); if (menu.style.display) menu.style.display = ''; }
         }
 
         // 在线API 生成控制栏（比例/质量/分辨率）统一由 renderDropdown 动态渲染
@@ -4891,7 +4899,7 @@
         document.addEventListener('click', function (e) {
             if (e.target.closest && e.target.closest('.anima-ctrl-wrap')) return;
             setTimeout(function () {
-                document.querySelectorAll('.cloud-menu').forEach(function (m) { m.style.display = 'none'; });
+                document.querySelectorAll('.cloud-menu').forEach(function (m) { m.classList.remove('is-open'); if (m.style.display) m.style.display = ''; });
             }, 0);
         }, true);
 

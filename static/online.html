@@ -42,7 +42,7 @@
     <script src="/static/js/incremental-translator.js?v=20261024001"></script>
     <script src="/static/modules/prompt-translate-ui.js?v=20261024001"></script>
     <!-- Gallery 模块 -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261025unified">
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/history-bulk-manager.js?v=20261024001"></script>
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
 <script src="/static/modules/gallery/bundle.js?v=20261028imageedit1"></script>
@@ -299,10 +299,12 @@
         body.studio-theme-dark .btn-render { background:rgba(0, 240, 255, 0.1)!important; color:#00f0ff!important; border-color:rgba(0, 240, 255, 0.2)!important; }
         body.studio-theme-dark .btn-render:hover { background:rgba(0, 240, 255, 0.18)!important; }
         .anima-ctrl-wrap { position:relative; display:inline-block; }
+        /* 避让间距固定 4px：online 的比例菜单是 2×4 网格（高 264px）向上弹出，
+           用共享的 --ui-menu-gap(12px) 会把顶边顶出视口 5px。 */
         .anima-ctrl-menu { display:none; position:absolute; bottom:calc(100% + 4px); left:0; background:#2a2a2a; border-radius:12px; padding:6px; z-index:100; min-width:124px; box-shadow:0 -8px 24px rgba(0, 0, 0, 0.3); }
         .anima-ctrl-menu.open { display:block !important; }
-        .anima-ctrl-menu.anima-ctrl-menu-grid:not(.open) { display:none; }
-        .anima-ctrl-menu.anima-ctrl-menu-grid.open { display:grid !important; grid-template-columns:1fr 1fr; gap:2px; min-width:200px; padding:6px; }
+        .anima-ctrl-menu.anima-ctrl-menu-grid { grid-template-columns:1fr 1fr; gap:2px; min-width:200px; padding:6px; }
+        .anima-ctrl-menu.anima-ctrl-menu-grid.open { display:grid !important; }
         .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:#999999; font-size:12px; transition:all 0.15s; }
         .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:#fbfaf9; }
         .anima-ctrl-menu-item.active { color:#fbfaf9; background:rgba(74, 222, 128, 0.10); }
