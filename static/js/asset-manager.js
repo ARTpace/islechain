@@ -1207,6 +1207,7 @@ function render(){
     else if(activeTab === 'local') renderLocalManager();
     else if(activeTab === 'canvas-assets') renderCanvasAssetsManager();
     else if(activeTab === 'style-packs') renderStylePackManager();
+    else if(activeTab === 'content-packs') renderContentPackManager();
     else renderAssetManager();
     refreshIcons();
     if(scrollState.length){
@@ -1836,6 +1837,11 @@ function renderStylePackManager(){
     // 风格包页自带独立模块，这里只做委派，避免把几百行 UI 塞进本文件
     if(window.StylePackManager){ window.StylePackManager.render(root); return; }
     root.innerHTML = '<div class="empty-state">风格包模块未加载，请刷新页面。</div>';
+}
+function renderContentPackManager(){
+    // 角色包 / 画师包共用一个模块（配置驱动），同样只做委派
+    if(window.ContentPackManager){ window.ContentPackManager.render(root); return; }
+    root.innerHTML = '<div class="empty-state">内容包模块未加载，请刷新页面。</div>';
 }
 function renderWorkflowManager(){
     normalizeWorkflowState();

@@ -244,6 +244,13 @@ https://cdn.mooshieblob.com/<release>/images/<imageId>.avif     图片（不用�
 各类型只写自己的 paths + schema + store，新增类型不用改通用层。
 现有三种：`style_packs`（风格包）、`character_packs`（角色包）、`artist_packs`（画师包）。
 
+**包管理路由**：角色包与画师包的「列表 / 导入 / 安装官方包 / 导出 / 卸载」完全同构，
+抽在 `routers/content_pack_routes.py` 的 `register_pack_routes(router, module, prefix, 展示名)`，
+两边各调一次即可，不用复制两份。
+
+**界面**：资产库 → 「内容包」标签页（`static/modules/content-pack-manager.js`），
+一个页面同时管角色包与画师包，由 `KINDS` 配置驱动 —— 再加一种内容包只需在 `KINDS` 里加一条。
+
 ## 文件隔离机制
 
 ### 用户级文件隔离

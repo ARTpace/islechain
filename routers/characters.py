@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 
 import character_packs as _chars
+from routers.content_pack_routes import register_pack_routes
 
 router = APIRouter()
 
@@ -64,11 +65,5 @@ def characters_details(payload: dict):
     return {"details": details, "count": len(details)}
 
 
-@router.get("/api/characters/packs")
-def characters_packs():
-    """已装包 + 官方可下载包 + 目录位置，供资产库「角色包」页使用。"""
-    return {
-        "installed": _chars.installed_packs(),
-        "official": _chars.official_with_status(),
-        "stats": _chars.stats(),
-    }
+# 包管理（列表 / 导入 / 安装官方包 / 导出 / 卸载）与画师包同构，走同一个工厂
+register_pack_routes(router, _chars, "/api/characters", "角色包")
