@@ -272,7 +272,9 @@ const PromptTags = (function() {
         if (type === 'artist') {
             if (typeof ANIMA_ARTIST_DB === 'undefined' || !ANIMA_ARTIST_DB.length) return '';
             const item = ANIMA_ARTIST_DB.find(a => a.name && a.name.toLowerCase() === name.toLowerCase());
-            return item && item.name ? '/api/animadex/artist-thumb?name=' + encodeURIComponent(item.name) : '';
+            if (!item) return '';
+            // 优先 CDN 直连地址（浏览器缓存一年），没有则回退本机代理
+            return item.imageUrl || ('/api/artists/thumb?slug=' + encodeURIComponent(item.id || item.name));
         }
         if (type === 'char') {
             if (typeof ANIMA_CHAR_DB === 'undefined' || !ANIMA_CHAR_DB.length) return '';

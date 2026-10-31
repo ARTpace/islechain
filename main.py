@@ -9235,7 +9235,7 @@ from routers import chat, history, gallery, smart_prompt, angle, modelscope
 from routers import presets, output_ops, canvas_tasks, cli_tools, lora_scan
 from routers import asset_library, static_files, canvas_workflows, smart_canvas
 from routers import ms_generate
-from routers import canvas_comfy, proxy_download, workflows_legacy, animadex, characters
+from routers import canvas_comfy, proxy_download, workflows_legacy, animadex, characters, artists
 from routers import media_ops, ideogram4, restart, interrogate
 from routers import online_gen, output_zip, user_assets
 from routers import training
@@ -9278,6 +9278,7 @@ app.include_router(proxy_download)
 app.include_router(workflows_legacy)
 app.include_router(animadex)
 app.include_router(characters)
+app.include_router(artists)
 app.include_router(media_ops)
 app.include_router(ideogram4)
 app.include_router(restart)

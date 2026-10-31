@@ -21,8 +21,10 @@ const skipDirs = new Set([
   'assets',
   // 完整风格库源包（45MB）：只作拆料，永不进安装包，也不进 git
   'style-packs-source',
-  // 角色/画师数据源（21MB + 8MB）：只作拆料，产物是 data/character-packs 与 dist 官方包
+  // 角色数据源（21MB）：只作拆料，产物是 data/character-packs 与 dist 官方包
   'character-packs-source',
+  // 画师全量 release（6MB search.json + 分桶明细）：只作拆料
+  'artist-packs-source',
 ]);
 
 // 「父目录名 -> 该目录下要裁掉的子项」，用于精准剔除大体积素材而不丢代码。
@@ -42,6 +44,9 @@ const skipFiles = new Set([
   // 角色数据已拆成角色包（data/character-packs 种子 + dist 官方包），
   // 这份 21MB 单文件不再被前端加载，也不再进安装包。
   'characters.json',
+  // 画师数据同样已拆成画师包（data/artist-packs 种子 + dist 官方包），
+  // 这份 8MB 的 JS 变量文件不再被加载。
+  'artist_data.js',
 ]);
 
 function skip(name) {
@@ -99,6 +104,10 @@ installOfficialBundles(
   'character-packs', 'character-packs-official', '角色包',
   'python tools/character_pack_split.py split',
 );
+installOfficialBundles(
+  'artist-packs', 'artist-packs-official', '画师包',
+  'python tools/artist_pack_split.py split',
+);
 
 // 装配自检：这些是 main.py 顶层就要 import 的模块，缺一个服务就起不来。
 const required = [
@@ -121,6 +130,10 @@ const required = [
   'character_packs',
   'content_packs',
   'routers/characters.py',
+  // 画师数据已拆成画师包：种子包缺失等于画师库全空，必须随包（约 47KB）
+  'data/artist-packs/artists-seed/pack.json',
+  'artist_packs',
+  'routers/artists.py',
   'smart_prompt.py',
   'wildcard_engine.py',
   'genre_registry.py',
@@ -149,6 +162,8 @@ const forbidden = [
   '.env',
   // 角色数据源（21MB 单文件）已改为角色包分发，不该再出现在安装包里
   'static/app/characters.json',
+  // 画师数据源（8MB）同样改为画师包分发
+  'static/app/artist_data.js',
 ];
 const leaked = forbidden.filter((rel) => fs.existsSync(path.join(appDir, rel)));
 // 素材/上传目录是运行期数据（落点在用户目录），源码里这份只是本机测试残留，不能进包。
@@ -160,6 +175,10 @@ if (fs.existsSync(path.join(appDir, 'data', 'style-packs', 'art-canvas-core'))) 
 }
 if (fs.existsSync(path.join(appDir, 'data', 'style-packs-source'))) {
   leaked.push('data/style-packs-source/');
+}
+// 画师全量 release 只存在于开发机（6MB+），绝不能跟着安装包走
+if (fs.existsSync(path.join(appDir, 'data', 'artist-packs-source'))) {
+  leaked.push('data/artist-packs-source/');
 }
 
 function findBakFiles(dir, rel) {

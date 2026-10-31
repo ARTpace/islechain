@@ -163,4 +163,11 @@ desktop/dist/
 # 完整数据由 tools/character_pack_split.py 拆成 dist/character-packs/*.zip 分发。
 # 本地保留这份文件用于拆料与老版本回退，但不跟踪、不进安装包。
 /static/app/characters.json
+/static/app/artist_data.js
 /data/character-packs-source/
+
+# 画师数据源（8.6MB 老单文件 / 6MB 官方 release）同样不进仓库：
+# 仓库只留 data/artist-packs 种子包（47KB），
+# 完整数据由 tools/artist_pack_fetch.py 拉取、tools/artist_pack_split.py 拆成
+# dist/artist-packs/*.zip 分发；图片由官方 CDN 直连，不落盘也不进包。
+/data/artist-packs-source/

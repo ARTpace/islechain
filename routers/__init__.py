@@ -54,6 +54,7 @@ _SUBROUTERS = (
     "workflows_legacy",
     "animadex",
     "characters",
+    "artists",
     "media_ops",
     "ideogram4",
     "restart",

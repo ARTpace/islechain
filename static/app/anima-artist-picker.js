@@ -52,36 +52,76 @@ const ARTIST_CATEGORIES = [
 // 画师数据
 let ANIMA_ARTIST_DB = [];
 
-// 原图床 cdn.mooshieblob.com 已失效。缩略图改由本机接口取该画师的一张作品预览。
+// 索引接口：所有已装画师包合并后的结果，带 ETag，包没变时走 304
+const ARTIST_INDEX_URL = '/api/artists/index';
+
+// 图片优先直连官方 CDN —— CDN 声明了 cache-control: immutable / 一年，
+// 浏览器缓存后二次访问零延迟；只有直连失败才回退本机代理（后端落盘缓存）。
 function artistPickerImgUrl(item) {
-    const name = (item && item.name) || '';
-    if (!name) return '';
-    return '/api/animadex/artist-thumb?name=' + encodeURIComponent(name);
+    if (!item) return '';
+    if (item.imageUrl) return item.imageUrl;
+    const slug = item.id || item.name || '';
+    if (!slug) return '';
+    return '/api/artists/thumb?slug=' + encodeURIComponent(slug);
 }
 
 function artistPickerImgError(img) {
-    if (!img || img.dataset.fb === 'done') return;
+    if (!img) return;
     if (img.naturalWidth > 0) return;
+    // 第一层回退：CDN 直连失败 -> 走本机代理（后端会下载并缓存到磁盘）
+    if (img.dataset.fb !== 'proxy') {
+        const slug = img.dataset.slug || '';
+        if (slug) {
+            img.dataset.fb = 'proxy';
+            img.src = '/api/artists/thumb?slug=' + encodeURIComponent(slug);
+            return;
+        }
+    }
+    // 第二层回退：代理也失败 -> 显示首字母头像，不留破图
     img.dataset.fb = 'done';
     img.style.display = 'none';
     if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
 }
 
+// 索引条目（id/tag/posts/img）-> 界面沿用多年的结构（name/post_count/image_url）。
+// 这样渲染、排序、收藏、历史、批量应用全部不用改，只换数据来源。
+function artistPickerMapEntry(raw, imageBase, imageExt) {
+    const tag = raw.tag || ('@' + raw.id);
+    const name = tag.replace(/^@/, '');
+    let imageUrl = raw.url || '';
+    if (!imageUrl && raw.img && imageBase) {
+        imageUrl = imageBase + raw.img + (imageExt || '.avif');
+    }
+    return {
+        id: raw.id,
+        tag: tag,
+        name: name,
+        post_count: raw.posts || 0,
+        image_url: imageUrl,
+        imageUrl: imageUrl
+    };
+}
+
 // 加载画师数据
 function artistPickerLoadData() {
     if (ANIMA_ARTIST_DB.length > 0) return Promise.resolve();
-    return fetch('/static/app/artist_data.js')
-        .then(r => r.text())
-        .then(text => {
-            const startIdx = text.indexOf('[');
-            const endIdx = text.lastIndexOf(']');
-            if (startIdx !== -1 && endIdx !== -1) {
-                ANIMA_ARTIST_DB = JSON.parse(text.substring(startIdx, endIdx + 1));
-                window.ANIMA_ARTIST_DB = ANIMA_ARTIST_DB; // 暴露给同页脚本
-                console.log('[AnimaArtistPicker] Loaded ' + ANIMA_ARTIST_DB.length + ' artists');
+    return fetch(ARTIST_INDEX_URL)
+        .then(r => r.json())
+        .then(payload => {
+            const items = (payload && payload.items) || [];
+            if (!items.length) {
+                console.warn('[AnimaArtistPicker] 没有任何画师包，请在资产库安装画师包');
+                return;
             }
+            const base = (payload && payload.imageBase) || '';
+            const ext = (payload && payload.imageExt) || '.avif';
+            ANIMA_ARTIST_DB = items.map(x => artistPickerMapEntry(x, base, ext));
+            window.ANIMA_ARTIST_DB = ANIMA_ARTIST_DB; // 暴露给同页脚本
+            const packs = (payload && payload.packs) || [];
+            console.log('[AnimaArtistPicker] Loaded ' + ANIMA_ARTIST_DB.length +
+                ' artists from ' + packs.length + ' pack(s)' + (payload && payload.legacy ? ' (legacy)' : ''));
         })
-        .catch(e => console.error('[AnimaArtistPicker] Failed to load artist data', e));
+        .catch(e => console.error('[AnimaArtistPicker] Failed to load artist index', e));
 }
 
 // 渲染分类
@@ -172,7 +212,7 @@ function artistPickerRenderGrid() {
             const danbooruUrl = 'https://safebooru.org/index.php?page=post&s=list&tags=' + encodeURIComponent(a.name.replace(/ /g, '_'));
             const safeName = a.name.replace(/"/g, '&quot;').replace(/'/g, "\\'");
             return '<div class="artist-picker-card' + (sel ? ' selected' : '') + '" onclick="artistPickerToggle(\'' + safeName + '\')">' +
-                '<img src="' + imgUrl + '" alt="' + safeName + '" title="' + safeName + '" loading="lazy" onerror="artistPickerImgError(this)">' +
+                '<img src="' + imgUrl + '" alt="' + safeName + '" title="' + safeName + '" data-slug="' + (a.id || '') + '" loading="lazy" onerror="artistPickerImgError(this)">' +
                 '<div class="artist-picker-avatar" style="display: none;">' + a.name.charAt(0).toUpperCase() + '</div>' +
                 '<div class="artist-picker-info">' +
                 '<div class="artist-picker-name" title="' + a.name.replace(/"/g, '&quot;') + '">' + a.name + '</div>' +

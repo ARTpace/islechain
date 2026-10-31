@@ -180,8 +180,69 @@ static/app/characters.json                   # 老单文件：已不进 git、�
 
 **工具**：`python tools/character_pack_split.py split|verify`（拆包 + 校验「三包装齐 = 全量且字段逐一还原」）。
 
+### 画师数据（画师包）
+
+画师数据（42,189 条）与前两个包又不同：**没有详情层**。
+
+每个画师的全部信息只有 `id / tag / posts / img` 四个字段（几十字节），
+拆成「索引 + 详情」只会在点开时白多一次请求，所以只有一个 `index.json`。
+真正占体积的是**图片**（42,189 张 × 约 115 KB ≈ 4.8 GB），这部分不落本地、不进包：
+
+```
+data/artist-packs/artists-seed/              # 种子包（进 git、进安装包，47 KB / 533 条）
+├── pack.json                                # 清单，files 里登记 index.json
+└── index.json                               # {imageBase, imageExt, dataVersion, items:[...]}
+
+dist/artist-packs/*.zip + catalog.json       # 官方包（不进 git，进安装包）
+data/artist-packs-official/                  # 装配后的官方包位置
+%APPDATA%\art-canvas\artist-packs/<packId>/  # 用户安装/导入的包
+%APPDATA%\art-canvas\artist-thumbs/          # 图片兜底缓存（最多 800 个，约 90 MB，按访问时间淘汰）
+data/artist-packs-source/<release>/          # 官方 release 原料（不进 git、不进安装包，仅拆料）
+static/app/artist_data.js                    # 老单文件：已不进 git、不进安装包，仅作回退
+```
+
+**数据来源**：官方站点 `anima.mooshieblob.com`（Anima Style Explorer）。抓取路径：
+
+```
+站点首页 /assets/index-*.js  ->  manifest 地址（release 更新会自动跟随）
+https://cdn.mooshieblob.com/<release>/indices/manifest.json     release / 图片前缀 / 分桶
+https://cdn.mooshieblob.com/<release>/indices/search.json       全量索引（本工具只下这一个，5.7 MB）
+https://cdn.mooshieblob.com/<release>/images/<imageId>.avif     图片（不用下，直连）
+```
+
+`python tools/artist_pack_fetch.py show|fetch`（自动发现 release 并下载到 source 目录）。
+
+**画师提示词**就是 `tag` 字段，形如 `@dairi` / `@qp:flapper`，直接粘进提示词即可生效。
+
+**图片地址**：`<imageBase><imageId><imageExt>`，`imageBase` 写在 `index.json` **顶层**而不是每条目里
+（4 万条重复前缀会白白多出 3 MB）。前端 `img` 优先直连 CDN —— CDN 声明了
+`cache-control: public, max-age=31536000, immutable`，浏览器缓存后二次访问零延迟；
+`onerror` 才回退到 `/api/artists/thumb?slug=`，由后端代取并落盘缓存（断网/被墙也能看已看过的）。
+
+**分档规则**（按投稿数，与前端 UI 的分类一致，配置在 `tools/artist_pack_split.py` 顶部）：
+
+| 包 | 规则 | 条目 | 体积 |
+|---|---|---|---|
+| `artists-seed`（随程序） | ≥ 1000 | 533 | 47 KB |
+| `artists-active` | 100 ~ 999 | 21,236 | zip 0.48 MB |
+| `artists-rising` | < 100 | 20,420 | zip 0.46 MB |
+
+**接口**：`GET /api/artists/index`（合并索引，带 ETag）、`GET /api/artists/detail?id=`、
+`GET /api/artists/thumb?slug=`（图片兜底，命中本地缓存直接返回）、
+`GET /api/artists/packs`、`POST /api/artists/packs/import`、`POST /api/artists/packs/install-official`、
+`GET /api/artists/packs/{id}/download`、`DELETE /api/artists/packs/{id}`。
+`/api/animadex/artist-thumb` 保留兼容，内部转调新实现。
+
+**前端**：`anima-artist-picker.js` 拉索引后映射成原有结构（`name` = tag 去掉 `@`、`post_count` = posts），
+渲染 / 排序 / 搜索 / 收藏 / 历史全部沿用原逻辑，只换数据来源。
+图片两级回退：CDN 直连 → 本机代理 → 首字母头像。
+
+**工具**：`python tools/artist_pack_fetch.py`（抓取）+ `python tools/artist_pack_split.py split|verify`
+（拆包 + 校验「所有包装齐 = 全量且字段逐一还原」）。
+
 **加一种新内容包类型**：通用机制在 `content_packs/`（清单校验、zip 导入导出、扫描、官方目录都不含内容语义），
 各类型只写自己的 paths + schema + store，新增类型不用改通用层。
+现有三种：`style_packs`（风格包）、`character_packs`（角色包）、`artist_packs`（画师包）。
 
 ## 文件隔离机制
 
