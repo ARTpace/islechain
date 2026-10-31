@@ -5,7 +5,8 @@
 from typing import Any, Dict, Optional
 from pydantic import BaseModel
 from fastapi import HTTPException
-import asyncio, httpx, json, os, smart_tts as smart_tts_module, time
+import asyncio, httpx, json, os, time
+from core import smart_tts as smart_tts_module
 from fastapi import APIRouter
 
 import main as _main

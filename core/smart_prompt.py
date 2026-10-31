@@ -10,16 +10,17 @@ import urllib.error
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# 知识库路径（随工程发布）
-KNOWLEDGE_DIR = Path(__file__).resolve().parent / "data"
+# 知识库路径（随工程发布）；本模块位于 core/，项目根在其上一层
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+KNOWLEDGE_DIR = _PROJECT_ROOT / "data"
 KNOWLEDGE_FILE = KNOWLEDGE_DIR / "anima-knowledge.txt"
 # API 平台配置路径
-API_PROVIDERS_FILE = Path(__file__).resolve().parent / "api_providers.json"
+API_PROVIDERS_FILE = _PROJECT_ROOT / "api_providers.json"
 import sys
-_ROOT = str(Path(__file__).resolve().parent)
+_ROOT = str(_PROJECT_ROOT)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
-from user_paths import user_data_dir
+from .user_paths import user_data_dir
 _USER_DATA = Path(user_data_dir())
 
 # 默认配置
@@ -333,7 +334,7 @@ def generate_smart_prompt(user_input: str, config: Optional[Dict[str, Any]] = No
                 pass
         # 从 api_providers.json 读取 base_url
         try:
-            with open(Path(__file__).resolve().parent / 'api_providers.json', 'r', encoding='utf-8') as f:
+            with open(_PROJECT_ROOT / 'api_providers.json', 'r', encoding='utf-8') as f:
                 providers = json.load(f)
             for p in providers:
                 if p.get('id') == spid:

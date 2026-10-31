@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-import media_paths
+from core import media_paths
 
 
 class MediaPathsTest(unittest.TestCase):

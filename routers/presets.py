@@ -5,8 +5,9 @@
 from fastapi.responses import FileResponse
 from fastapi import HTTPException, File, UploadFile
 from starlette.background import BackgroundTask
-from preset_manager import get_all_presets, get_preset_bidir, get_style_presets, get_tag_presets, load_preset_i18n, save_style_presets, save_tag_presets
-import json, os, preset_manager, shutil, tempfile, uuid
+from core.preset_manager import get_all_presets, get_preset_bidir, get_style_presets, get_tag_presets, load_preset_i18n, save_style_presets, save_tag_presets
+import json, os, shutil, tempfile, uuid
+from core import preset_manager
 import logging
 from fastapi import APIRouter
 

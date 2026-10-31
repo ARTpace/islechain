@@ -27,11 +27,12 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 
-from user_paths import user_data_dir
+from .user_paths import user_data_dir
 import style_packs
 
 # === 路径配置 ===
-BASE_DIR = Path(__file__).resolve().parent
+# 本模块位于 core/，项目根在其上一层
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 # 内置基线：随安装包分发，只读
 BASE_DATA_DIR = BASE_DIR / "data"

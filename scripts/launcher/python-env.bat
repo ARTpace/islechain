@@ -1,5 +1,6 @@
 @echo off
-set PROJECT_DIR=%~dp0
+rem 本脚本位于 scripts/launcher/，项目根在上两级
+set PROJECT_DIR=%~dp0..\..
 set PYTHON_EXE=%PROJECT_DIR%python\python.exe
 set PIP_EXE=%PROJECT_DIR%python\Scripts\pip.exe
 

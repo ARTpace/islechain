@@ -22,7 +22,7 @@ import threading
 import time
 from typing import Any, Dict, Optional, Tuple
 
-from user_paths import user_data_dir
+from .user_paths import user_data_dir
 
 MEDIA_TYPES = ("image", "video", "audio")
 DEFAULT_FEATURE = "other"
@@ -45,7 +45,8 @@ _cache: Dict[str, Any] = {"stamp": None, "data": None}
 # --- 路径 ---
 
 def project_root() -> str:
-    return os.path.dirname(os.path.abspath(__file__))
+    # 本模块位于 core/，项目根在其上一层
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def output_root() -> str:

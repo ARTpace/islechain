@@ -194,8 +194,10 @@ class PresetSource(RandomSource):
     def __init__(self):
         super().__init__("preset", "预设", "⚙️")
         # 兼容:旧单文件 path;实际加载以 data/presets/*.json 多文件为准
-        self.data_file = Path(__file__).parent / "data" / "prompt-presets.json"
-        self.presets_dir = Path(__file__).parent / "data" / "presets"
+        # 本模块位于 core/，项目根在其上一层
+        _root = Path(__file__).resolve().parents[1]
+        self.data_file = _root / "data" / "prompt-presets.json"
+        self.presets_dir = _root / "data" / "presets"
 
     def load(self):
         """加载预设数据(优先 data/presets/*.json 多文件,旧单文件作 fallback)"""

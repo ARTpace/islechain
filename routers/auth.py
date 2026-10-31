@@ -11,7 +11,7 @@ router = APIRouter()
 
 # --- 认证相关配置 ---
 SUPER_ADMIN_USERNAME = "admin"
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 USERS_FILE = os.path.join(user_data_dir(), "users.json")
 
 

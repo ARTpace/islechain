@@ -54,7 +54,7 @@ DATA_DIR = ART_CANVAS_DIR / "data"
 TARGET_FILE = DATA_DIR / "style-presets.json"
 if str(ART_CANVAS_DIR) not in sys.path:
     sys.path.insert(0, str(ART_CANVAS_DIR))
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 _USER_DATA = Path(user_data_dir())
 THUMBS_DIR = _USER_DATA / "thumbnails"
 BACKUP_DIR = _USER_DATA / "backups"
@@ -371,7 +371,7 @@ def _read_style_file() -> Path:
 def load_presets() -> Dict[str, Any]:
     """读当前合并后的风格列表（内置包 + 用户包 + 用户增量层）。"""
     try:
-        from preset_manager import get_style_presets
+        from core.preset_manager import get_style_presets
         return get_style_presets()
     except Exception:
         # 脱离主程序单独运行时回退到直接读文件

@@ -319,7 +319,7 @@ async def guard(request, call_next):
         return JSONResponse({"detail": "局域网访客不能修改主机设置"}, status_code=403)
     if path == '/api/feature-access' and request.method not in {'GET', 'HEAD'}:
         return JSONResponse({"detail": "访客权限只能在主机本地修改"}, status_code=403)
-    from feature_access import guest_disabled, required_modules
+    from .feature_access import guest_disabled, required_modules
     required = await required_modules(request)
     if required and required <= guest_disabled():
         return JSONResponse({"detail": "主机未向局域网访客开放此功能"}, status_code=403)

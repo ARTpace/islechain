@@ -30,7 +30,7 @@ import sys
 _ROOT = str(MODULE_DIR.parent)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 _USER_DATA = Path(user_data_dir())
 OLD_PRESETS_DIR = _USER_DATA / "smart-prompt-presets"
 OLD_CONFIG_PATH = _USER_DATA / "smart-prompt-config.json"

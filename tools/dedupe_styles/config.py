@@ -24,7 +24,7 @@ import sys
 _project = str(ART_CANVAS_DIR.parent)
 if _project not in sys.path:
     sys.path.insert(0, _project)
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 THUMBS_DIR = Path(user_data_dir()) / "thumbnails"
 CONFIG_FILE = DATA_DIR / "dedupe-config.json"
 

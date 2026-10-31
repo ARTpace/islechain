@@ -10,7 +10,7 @@ import uuid
 from fastapi import APIRouter
 
 import main as _main
-import preset_manager
+from core import preset_manager
 
 router = APIRouter()
 

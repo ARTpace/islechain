@@ -16,7 +16,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 # 静态变量与路径常量定义。个人数据跟 main 一样走系统用户目录。
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USER_DATA_DIR = user_data_dir()
 DATA_DIR = os.path.join(BASE_DIR, "data")

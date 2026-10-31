@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 
 MAX_CACHE_FILES = 800
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) art-canvas"

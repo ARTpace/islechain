@@ -32,7 +32,8 @@ class WildcardEngine:
             wildcard_dir: 通配符文件目录，默认为 data/wildcards/
         """
         if wildcard_dir is None:
-            self.wildcard_dir = Path(__file__).parent / "data" / "wildcards"
+            # 本模块位于 core/，项目根在其上一层
+            self.wildcard_dir = Path(__file__).resolve().parents[1] / "data" / "wildcards"
         else:
             self.wildcard_dir = Path(wildcard_dir)
         self.wildcard_dir.mkdir(parents=True, exist_ok=True)
@@ -367,8 +368,8 @@ class WildcardEngine:
         支持直链 .txt 和 .zip
         """
         try:
-            # 下载到临时目录
-            temp_dir = Path(__file__).parent / "temp"
+            # 下载到临时目录（本模块位于 core/，项目根在其上一层）
+            temp_dir = Path(__file__).resolve().parents[1] / "temp"
             temp_dir.mkdir(parents=True, exist_ok=True)
 
             # 从 URL 推断文件名

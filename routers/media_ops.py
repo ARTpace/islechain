@@ -11,7 +11,7 @@ from fastapi import APIRouter
 import main as _main
 
 router = APIRouter()
-from image_cutout import router as cutout_router
+from core.image_cutout import router as cutout_router
 router.include_router(cutout_router)
 
 

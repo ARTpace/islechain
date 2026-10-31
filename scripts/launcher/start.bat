@@ -5,7 +5,8 @@ echo   XYMap Project Startup
 echo ========================================
 echo.
 
-cd /d "%~dp0"
+rem 本脚本位于 scripts/launcher/，项目根在上两级
+cd /d "%~dp0..\.."
 
 rem Prefer Python installed on this machine, fall back to PATH
 set PY_EXE=

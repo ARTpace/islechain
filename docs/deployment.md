@@ -2,7 +2,7 @@
 
 > **2026-10-22 实测更新**：以下事实已经运行验证，可放心引用：
 > - 启动端口为 **7000**（main.py 末尾 `uvicorn.run(..., port=7000)` 硬编码，非 8000）
-> - 运行环境为**系统 Python 3.13**（`C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python313`），本地启动用 `start.bat`
+> - 运行环境为**系统 Python 3.13**（`C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python313`），本地启动用 `启动.bat`（根目录）或 `scripts\launcher\start.bat`
 > - **不可多 worker**：JSON 文件存储 + 进程内队列/锁（RUNNINGHUB_WORKFLOW_LOCK 等）不支持，必须 `workers=1`
 >
 > **仍未验收**：embeddable Python 手动搭建路径、systemd/Nginx 生产段、SQLite 片段为未完成示意，不可操作真实数据。以 [文档入口](README.md) 的验收规则为准。
@@ -35,10 +35,10 @@ git clone <repo-url>
 cd art-canvas
 
 # 2. 运行 bootstrap 脚本（自动下载 Python + 安装依赖）
-.\bootstrap-python.ps1
+.\scripts\launcher\bootstrap-python.ps1
 
 # 3. 验证环境
-.\python-env.bat version
+.\scripts\launcher\python-env.bat version
 ```
 
 ### 2.2 手动搭建（如 bootstrap 失败）
@@ -63,15 +63,15 @@ echo "import site" >> python\python311._pth
 
 ```powershell
 # 检查 Python 环境
-.\python-env.bat python --version
+.\scripts\launcher\python-env.bat python --version
 # 期望输出：Python 3.11.9
 
 # 检查依赖
-.\python-env.bat python -c "import fastapi, httpx, bcrypt; print('OK')"
+.\scripts\launcher\python-env.bat python -c "import fastapi, httpx, bcrypt; print('OK')"
 # 期望输出：OK
 
 # 启动服务
-.\python-env.bat python main.py
+.\scripts\launcher\python-env.bat python main.py
 # 期望输出：Uvicorn running on http://127.0.0.1:7000
 ```
 
@@ -165,7 +165,7 @@ ADMIN_TOKEN=your_secure_token
 **解决**：
 ```powershell
 # 运行 bootstrap 脚本
-.\bootstrap-python.ps1
+.\scripts\launcher\bootstrap-python.ps1
 
 # 或手动下载
 Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip" -OutFile "python.zip"
@@ -405,7 +405,7 @@ app.add_middleware(
 ## 9. 常见问题 FAQ
 
 **Q: 为什么 Python 环境会丢失？**
-A: `python/` 目录被 .gitignore 排除，新克隆需运行 `bootstrap-python.ps1`。
+A: `python/` 目录被 .gitignore 排除，新克隆需运行 `scripts\launcher\bootstrap-python.ps1`。
 
 **Q: 如何切换 ComfyUI 实例？**
 A: 修改 `data/api_providers.json` 或调用 `/api/comfyui/instances` API。

@@ -20,7 +20,7 @@ from content_packs.paths import (
     is_safe_filename,
     is_valid_pack_id,
 )
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 
 KIND = KIND_STYLES
 

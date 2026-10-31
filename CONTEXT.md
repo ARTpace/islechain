@@ -1,12 +1,29 @@
 # art-canvas AI — 领域术语表
 
+## 代码分层（改动前先确认落点）
+
+依赖方向永远向下，不得倒置：
+
+```
+main.py / routers/            API 层：路由与请求编排
+        ↓
+style_packs/ character_packs/ artist_packs/    业务包：内容包体系
+        ↓
+core/                         公共底座：路径、配置、跨层共用逻辑
+```
+
+- `core/` 只依赖标准库与第三方库，**绝不反向 import 业务包**。
+- 一个模块被两个以上业务包引用、且不涉及具体业务概念时，才放进 `core/`；否则放对应业务包内。
+- `tools/`、`tests/` 可以引用任意层，但 `core/` 内不得出现测试代码。
+- 功能 → 文件的完整索引见根目录 `CODEMAP.md`。
+
 ## 核心概念
 
 ### 无限画布 (Canvas)
 用户创作的无限大虚拟空间，支持节点编辑、连接管理、视口缩放/平移。数据以 JSON 格式存储在 `data/canvases/` 目录。
 
 ### 节点 (Node)
-画布上的基本组成单元，包含 14 种类型：`image`（图像节点）、`text`（文本节点）、`prompt`（提示词节点）、`llm`（LLM 节点）、`generator`（API 生成器节点）、`msgen`（ModelScope 生成器节点）、`comfy`（ComfyUI 工作流节点）、`output`（输出节点）、`loop`（循环节点）、`video`（视频节点）、`ltxDirector`（LTX Director 多段视频导演台节点，依赖工作流 `LTXDirectorv2-API.json`，需要 ComfyUI 装 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点）、`ps`（Photoshop 节点）、`group`（图像组节点）、`promptGroup`（提示词组节点）。LTX Director 集成细节见 `LTXDirector集成方案.md`。
+画布上的基本组成单元，包含 14 种类型：`image`（图像节点）、`text`（文本节点）、`prompt`（提示词节点）、`llm`（LLM 节点）、`generator`（API 生成器节点）、`msgen`（ModelScope 生成器节点）、`comfy`（ComfyUI 工作流节点）、`output`（输出节点）、`loop`（循环节点）、`video`（视频节点）、`ltxDirector`（LTX Director 多段视频导演台节点，依赖工作流 `LTXDirectorv2-API.json`，需要 ComfyUI 装 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点）、`ps`（Photoshop 节点）、`group`（图像组节点）、`promptGroup`（提示词组节点）。LTX Director 集成细节见 `docs/reports/LTXDirector集成方案.md`。
 
 ### 输出文件夹 (Output Folder)
 每个画布在 `output/` 目录下拥有的专属子文件夹，命名规则为 `画布标题_画布ID前8位`。画布生成的所有文件存入该文件夹，实现多用户文件隔离。

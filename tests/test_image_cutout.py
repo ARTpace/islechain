@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import image_cutout as cutout
+from core import image_cutout as cutout
 
 
 def png():
@@ -187,7 +187,7 @@ class CutoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(exc.exception.status_code, 400)
 
     async def test_guest_route_requires_cutout_permission(self):
-        from feature_access import required_modules
+        from core.feature_access import required_modules
         request = types.SimpleNamespace(url=types.SimpleNamespace(path='/api/image-cutout/task'))
         self.assertEqual(await required_modules(request), {'rmbg'})
 

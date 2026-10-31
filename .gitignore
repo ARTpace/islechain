@@ -47,6 +47,11 @@ docs/*
 !docs/migration-guide.md
 !docs/p2-roadmap.md
 !docs/framework-evaluation.md
+# 一次性调研报告与集成方案（纯文本、体积小，属项目决策记录，需进版本库）
+!docs/reports/
+!docs/reports/**
+# 面向用户的简要运行说明（README 引用）
+!docs/运行说明.txt
 
 # 独立 Python 环境（类似 ComfyUI 整合包）
 python/

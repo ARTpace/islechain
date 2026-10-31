@@ -8,7 +8,7 @@ import urllib.request
 import urllib.error
 from typing import Optional, Dict, Any
 from pathlib import Path
-from smart_prompt import load_config
+from .smart_prompt import load_config
 import logging
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 class LanDiagnosticsTests(unittest.TestCase):
     def setUp(self):
-        spec = importlib.util.spec_from_file_location('lan_under_test', Path(__file__).parents[1] / 'lan_sharing.py')
+        spec = importlib.util.spec_from_file_location('lan_under_test', Path(__file__).parents[1] / 'core' / 'lan_sharing.py')
         self.lan = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {'main': types.ModuleType('main')}):
             spec.loader.exec_module(self.lan)

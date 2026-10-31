@@ -11,7 +11,7 @@ from uuid import uuid4
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 
 
 def clean_name(value):

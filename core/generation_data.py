@@ -10,7 +10,7 @@ import time
 import uuid
 from pathlib import Path
 
-from user_paths import user_data_dir
+from .user_paths import user_data_dir
 
 _active = contextvars.ContextVar('generation_record', default=None)
 _identity = contextvars.ContextVar('generation_identity', default='')

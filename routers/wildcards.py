@@ -18,7 +18,7 @@ log = logging.getLogger("uvicorn.error")
 # - 创建 / 更新 / 删除用户通配符（每行一条提示词）
 # - 随机组合：选多个类型，每个类型随机抽一条拼接
 # ============================================================
-from wildcard_engine import get_engine as _wc_engine
+from core.wildcard_engine import get_engine as _wc_engine
 
 @router.get("/api/wildcards")
 async def api_wildcards_list():

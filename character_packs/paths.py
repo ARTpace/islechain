@@ -16,7 +16,7 @@ from pathlib import Path
 
 from content_packs.paths import KIND_CHARACTERS
 from content_packs.paths import is_safe_filename as _is_safe_filename
-from user_paths import user_data_dir
+from core.user_paths import user_data_dir
 
 KIND = KIND_CHARACTERS
 

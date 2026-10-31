@@ -58,7 +58,7 @@ tests/                     4 个 pytest 测试（P1 新增）
 | 交付物 | 说明 |
 |---|---|
 | `requirements.lock` | 依赖版本锁定 |
-| `bootstrap-python.ps1` | 一键环境复现脚本 |
+| `scripts/launcher/bootstrap-python.ps1` | 一键环境复现脚本 |
 | `bcrypt` 升级 | `hash_password` / `verify_password` 兼容旧用户 |
 | `.github/workflows/ci.yml` | GitHub Actions CI（lint + test + typecheck）|
 | `ruff.toml` | 代码风格检查配置 |

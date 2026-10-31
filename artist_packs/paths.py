@@ -34,7 +34,7 @@ DIST_DIRNAME = "artist-packs"
 SOURCE_DIRNAME = "artist-packs-source"
 
 # 用户可写层
-from user_paths import user_data_dir  # noqa: E402
+from core.user_paths import user_data_dir  # noqa: E402
 
 USER_ROOT = Path(user_data_dir())
 USER_PACKS_DIR = USER_ROOT / "artist-packs"

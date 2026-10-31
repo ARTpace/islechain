@@ -1,12 +1,13 @@
 @echo off
-cd /d "%~dp0"
+rem 本脚本位于 scripts/launcher/，项目根在上两级
+cd /d "%~dp0..\.."
 
 echo ============================================
 echo   Install Dependencies
 echo ============================================
 echo.
 
-set "PYEXE=%~dp0python\python.exe"
+set "PYEXE=%~dp0..\..\python\python.exe"
 
 if exist "%PYEXE%" (
     echo [OK] Using bundled Python
@@ -28,16 +29,16 @@ echo.
 "%PYEXE%" -m pip --version >nul 2>&1
 if errorlevel 1 (
     echo [1/3] Installing pip via get-pip.py...
-    if not exist "%~dp0get-pip.py" (
+    if not exist "%~dp0..\..\get-pip.py" (
         echo Downloading get-pip.py...
-        powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%~dp0get-pip.py'" 2>nul
-        if not exist "%~dp0get-pip.py" (
+        powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%~dp0..\..\get-pip.py'" 2>nul
+        if not exist "%~dp0..\..\get-pip.py" (
             echo [ERROR] Failed to download get-pip.py. Check network connection.
             pause
             exit /b 1
         )
     )
-    "%PYEXE%" "%~dp0get-pip.py" --quiet
+    "%PYEXE%" "%~dp0..\..\get-pip.py" --quiet
     if errorlevel 1 (
         echo [ERROR] Failed to install pip.
         pause

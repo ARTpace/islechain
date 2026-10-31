@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 
-from user_paths import user_data_dir
+from .user_paths import user_data_dir
 
 MODULES = frozenset(('chat-gen','training','generation-dashboard','canvas','asset-manager',
     'zimage','klein','angle','cgstyle','2dstyle','watermark-removal','rmbg','gaoqingxiufu',
@@ -33,13 +33,13 @@ def guest_disabled():
 
 @router.get('/api/feature-access')
 async def get_feature_access(request: Request):
-    from lan_sharing import _is_local
+    from .lan_sharing import _is_local
     return {'visitor': not _is_local(request), 'guest_disabled': sorted(guest_disabled())}
 
 
 @router.post('/api/feature-access')
 async def set_feature_access(request: Request):
-    from lan_sharing import _is_local
+    from .lan_sharing import _is_local
     import main
     if not _is_local(request):
         raise HTTPException(403, '访客权限只能在主机本地修改')

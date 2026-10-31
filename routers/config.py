@@ -461,5 +461,5 @@ async def media_registry():
 
     前端据此决定落盘 feature、画廊分类与筛选项，新增模型不必再改三元链。
     """
-    import media_paths
+    from core import media_paths
     return media_paths.public_registry()

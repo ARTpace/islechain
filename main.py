@@ -62,7 +62,7 @@ try:
     _log_lines.append(f"  CWD={os.getcwd()}")
     _log_lines.append(f"  httpx_version={httpx.__version__}")
     import platform; _log_lines.append(f"  platform={platform.platform()}")
-    from user_paths import user_data_dir, migrate_project_user_data
+    from core.user_paths import user_data_dir, migrate_project_user_data
     _project_dir = os.path.dirname(os.path.abspath(__file__))
     _user_home = user_data_dir()
     try:
@@ -179,7 +179,7 @@ async def lifespan(app: FastAPI):
         print(f"修复双重扩展名素材失败: {exc}")
     print("Application startup complete.")
     try:
-        import lan_sharing
+        from core import lan_sharing
         await asyncio.to_thread(lan_sharing.sync_listeners)
     except Exception as exc:
         print(f"局域网共享启动失败: {exc}")
@@ -211,7 +211,7 @@ app.add_middleware(RequestTokenMiddleware)
 
 class LanShareMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        import lan_sharing
+        from core import lan_sharing
         return await lan_sharing.guard(request, call_next)
 
 app.add_middleware(LanShareMiddleware)
@@ -1057,8 +1057,8 @@ CLIENT_ID = str(uuid.uuid4())
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 # 个人数据在系统用户目录；DATA_DIR 只放随工程发布的词库和风格包
-from user_paths import user_data_dir as _user_data_dir
-import media_paths
+from core.user_paths import user_data_dir as _user_data_dir
+from core import media_paths
 USER_DATA_DIR = _user_data_dir()
 # 工作流：内置基线随包只读，运行时同步到用户目录；用户自建与 config 改动都留用户目录
 BUILTIN_WORKFLOW_DIR = os.path.join(BASE_DIR, "workflows")
@@ -1904,7 +1904,7 @@ sync_builtin_workflows()
 # 生成物目录升级到 output/{owner}/{type}/{feature}/{date}/：老文件搬到新层级并改写 history/画布 URL
 # 幂等，已经是新结构时只做一次目录扫描；失败不阻塞启动
 try:
-    import media_migration
+    from core import media_migration
     media_migration.migrate(media_paths, OUTPUT_DIR, HISTORY_FILE, CANVAS_DIR)
     _HISTORY_CACHE["data"] = None
 except Exception as _media_migrate_exc:
@@ -6469,8 +6469,8 @@ def _url_to_output_path(url: str) -> Optional[str]:
 
 # --- 提示词预设(委托 preset_manager 模块)---
 
-import preset_manager
-from preset_manager import (
+from core import preset_manager
+from core.preset_manager import (
     load_preset_i18n, get_preset_bidir,
     get_tag_presets, save_tag_presets,
     get_style_presets, save_style_presets,
@@ -6488,8 +6488,8 @@ if USE_NEW_PROMPT_MODULE:
     from prompt import load_config
     from prompt.core import call_llm as _sp_call_llm
 else:
-    from smart_prompt import generate_smart_prompt, load_config
-    from smart_prompt import call_llm as _sp_call_llm
+    from core.smart_prompt import generate_smart_prompt, load_config
+    from core.smart_prompt import call_llm as _sp_call_llm
 
 class SmartPromptRequest(BaseModel):
     prompt: str = ""
@@ -8810,7 +8810,7 @@ class Ideogram4JsonRequest(BaseModel):
 
 # 导入随机源管理器
 try:
-    from random_source import get_manager
+    from core.random_source import get_manager
     random_manager = get_manager()
     print("[RandomSource] 随机源管理器已注册（数据懒加载，首次调用时解析）")
 except Exception as e:
@@ -9287,12 +9287,12 @@ app.include_router(online_gen)
 app.include_router(output_zip)
 app.include_router(user_assets)
 app.include_router(training)
-import lan_sharing
+from core import lan_sharing
 app.include_router(lan_sharing.router)
-from feature_access import router as feature_access_router
+from core.feature_access import router as feature_access_router
 app.include_router(feature_access_router)
 
-from generation_data import install as install_generation_data
+from core.generation_data import install as install_generation_data
 install_generation_data(app)
 
 

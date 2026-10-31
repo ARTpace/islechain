@@ -47,7 +47,7 @@ class WebaiGatewayTests(unittest.TestCase):
         self.assertEqual(len(saved), 2)
 
     def test_guest_can_read_parameters_but_cannot_change_providers(self):
-        source = ast.parse(Path('lan_sharing.py').read_text(encoding='utf-8'))
+        source = ast.parse(Path('core/lan_sharing.py').read_text(encoding='utf-8'))
         node = next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == '_host_only')
         context = {}
         exec(compile(ast.Module(body=[node], type_ignores=[]), '<permissions>', 'exec'), context)

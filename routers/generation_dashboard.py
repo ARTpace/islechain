@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from generation_data import store
+from core.generation_data import store
 
 router = APIRouter()
 

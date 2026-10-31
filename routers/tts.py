@@ -26,8 +26,8 @@ async def convert_to_podcast(
     word_count: int = Form(500)
 ):
     """将文本转换为播客对话格式"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
+    from core.smart_tts import call_llm_direct
+    from core.smart_prompt import load_config
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="文本不能为空")
@@ -281,8 +281,8 @@ async def convert_to_solo_podcast(
     word_count: int = Form(500)
 ):
     """将文本转换为单人播客风格"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
+    from core.smart_tts import call_llm_direct
+    from core.smart_prompt import load_config
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="文本不能为空")
@@ -367,7 +367,7 @@ async def convert_to_solo_podcast(
 @router.get("/genres")
 async def get_genres():
     """获取所有可用的语音节目类型"""
-    from genre_registry import list_genres
+    from core.genre_registry import list_genres
     return {"genres": list_genres()}
 @router.post("/to-genre")
 async def convert_to_genre(
@@ -378,9 +378,9 @@ async def convert_to_genre(
     word_count: int = Form(500),
 ):
     """统一类型转换接口"""
-    from smart_tts import call_llm_direct
-    from smart_prompt import load_config
-    from genre_registry import get_genre, build_user_prompt, get_system_prompt, clean_stage_directions
+    from core.smart_tts import call_llm_direct
+    from core.smart_prompt import load_config
+    from core.genre_registry import get_genre, build_user_prompt, get_system_prompt, clean_stage_directions
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="文本不能为空")

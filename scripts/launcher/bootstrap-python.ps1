@@ -1,9 +1,9 @@
 # bootstrap-python.ps1
 # 一键引导：使用系统已安装的标准 Python 创建项目 .venv，可选安装依赖。
 # 用法：
-#   pwsh -File bootstrap-python.ps1                    # 仅创建 .venv，不装依赖
-#   pwsh -File bootstrap-python.ps1 -Install           # 创建 .venv 并安装 requirements.txt
-#   pwsh -File bootstrap-python.ps1 -PythonExe "C:\Python311\python.exe" -Install  # 指定 Python 解释器
+#   pwsh -File scripts/launcher/bootstrap-python.ps1                    # 仅创建 .venv，不装依赖
+#   pwsh -File scripts/launcher/bootstrap-python.ps1 -Install           # 创建 .venv 并安装 requirements.txt
+#   pwsh -File scripts/launcher/bootstrap-python.ps1 -PythonExe "C:\Python311\python.exe" -Install  # 指定 Python 解释器
 #
 # 区别于 python-env.bat（旧入口，基于 python/ embeddable 环境）；
 # 本脚本产出标准 .venv，后续启动：.venv\Scripts\Activate.ps1 后 python main.py
@@ -17,8 +17,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# 以脚本所在目录为项目根
-$PROJECT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
+# 本脚本位于 scripts/launcher/，项目根在上两级
+$PROJECT_DIR = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition))
 $PROJECT_DIR = (Get-Item $PROJECT_DIR).FullName
 $VENV_DIR    = Join-Path $PROJECT_DIR ".venv"
 $REQ_FILE    = Join-Path $PROJECT_DIR "requirements.txt"

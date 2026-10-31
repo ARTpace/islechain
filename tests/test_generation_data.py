@@ -10,7 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-import generation_data as gd
+from core import generation_data as gd
 from routers.generation_dashboard import router
 
 

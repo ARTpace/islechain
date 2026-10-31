@@ -17,7 +17,7 @@ http://localhost:7000
 - **账号系统**：支持注册、登录、Token 校验、管理员用户管理，用户数据保存在 [data/users.json](data/users.json)。
 - **主控制台**：侧边栏 + iframe 多页面工作台，支持主题切换、在线状态、队列状态和应用切换。
 - **ComfyUI 图像应用**：集成图片编辑、3D 视角变换、CG 细化、2D 风格细化、抠图、扩图、高清修复、图像反推、文字抠图、万物移除等应用。
-- **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点（含 **LTX Director 多段视频导演台**：`workflows/LTXDirectorv2-API.json`，提供 timeline_data / segment_lengths / guide_strength / audioSegments 多段拼镜能力，依赖 ComfyUI 侧 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点，详情见 `LTXDirector集成方案.md`）、PS 节点、日志面板、小导航栏和资产库。
+- **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点（含 **LTX Director 多段视频导演台**：`workflows/LTXDirectorv2-API.json`，提供 timeline_data / segment_lengths / guide_strength / audioSegments 多段拼镜能力，依赖 ComfyUI 侧 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点，详情见 `docs/reports/LTXDirector集成方案.md`）、PS 节点、日志面板、小导航栏和资产库。
 - **在线生图**：通过 COMFLY / OpenAI 兼容协议调用在线图像模型，支持参考图、提示词预设和历史记录。
 - **提示词方案 (Prompt Plan)**：可创建 / 编辑 / 应用多个提示词组合方案（角色 + 画师 + 预设 + 固定提示词 + LoRA），支持随机 / 顺序两种抽取模式。面板从文生图页的 🎲 按钮打开。
 - **自动生成**：在提示词方案面板中可设置自动按方案生成图片——计次模式（生成 N 次后停止）或定时模式（每 N 分钟 × N 轮）。⚡ 主按钮长按可同步启动 / 停止自动生成，运行中按钮显示倒计时或进度。
@@ -52,10 +52,10 @@ http://localhost:7000
 
 ### 1. 安装依赖
 
-如果是首次运行，可按项目脚本创建环境：
+如果是首次运行，可按项目脚本创建环境（Windows）：
 
-```bash
-setup.bat
+```text
+scripts\launcher\安装依赖.bat
 ```
 
 也可以直接安装 Python 依赖：
@@ -148,6 +148,29 @@ ws://127.0.0.1:8188/ws
 ```text
 art-canvas/
 ├── main.py                         # FastAPI 后端主入口，包含认证、生成、对话、画布、资产、工作流等 API
+├── core/                           # 公共底座：被 routers 与各内容包共同依赖（只依赖标准库/第三方）
+│   ├── user_paths.py               #   用户数据目录（%APPDATA%\art-canvas）与项目内路径
+│   ├── media_paths.py              #   媒体落盘路径推导：owner/type/feature/date
+│   ├── media_migration.py          #   旧版媒体目录结构迁移
+│   ├── preset_manager.py           #   提示词预设库读写（基线 + 用户覆盖层）
+│   ├── feature_access.py           #   功能开关与访客模式降级
+│   ├── smart_prompt.py             #   提示词增强（LLM 改写）
+│   ├── wildcard_engine.py          #   通配符（wildcards）展开
+│   ├── random_source.py            #   随机数据源（角色/画师/预设，走内容包体系）
+│   ├── generation_data.py          #   生成记录与统计
+│   ├── genre_registry.py           #   TTS 音色/体裁注册表
+│   ├── smart_tts.py                #   语音合成
+│   ├── image_cutout.py             #   图像抠图
+│   └── lan_sharing.py              #   局域网共享与访问控制
+├── routers/                        # API 路由，按业务拆成独立模块
+├── style_packs/                    # 风格包体系（清单校验/拆包/官方包安装）
+├── character_packs/                # 角色包体系（索引 + 详情分片双轨）
+├── artist_packs/                   # 画师包体系（单索引层 + 缩略图代理）
+├── content_packs/                  # 内容包通用层（导入导出/扫描/官方目录，纯逻辑）
+├── tools/                          # 打包、拆包、导入导出等工具脚本
+├── tests/                          # 单元测试，目录结构镜像源码
+├── scripts/
+│   └── launcher/                   # 启动与环境脚本：start.bat / 安装依赖 / bootstrap
 ├── requirements.txt                # Python 依赖
 ├── API/.env                        # API Key、模型和 ComfyUI 实例配置
 ├── api_providers.json              # API 提供商配置
@@ -189,15 +212,16 @@ art-canvas/
 ├── docs/                           # 技术文档
 │   ├── README.md                   # 文档索引
 │   ├── architecture.md             # 架构说明
-│   ├── api-reference.md            # API 参考
-│   ├── frontend-architecture.md    # 前端架构
-│   ├── deployment-guide.md         # 部署指南
-│   ├── kaifa.md                    # 开发更新日志
+│   ├── api.md                      # API 参考
+│   ├── deployment.md               # 部署指南
+│   ├── frontend-modules.md         # 前端模块说明
 │   ├── random_guide.md             # 提示词方案使用指南
-│   └── modules/                    # 模块文档
-├── setup.bat                       # 环境初始化脚本
-├── 启动.bat                        # Windows 启动脚本
-├── 运行说明.txt                    # 简要运行说明
+│   ├── reports/                    # 一次性调研报告与集成方案（带日期）
+│   ├── research/                   # 外部方案调研资料
+│   └── 运行说明.txt                # 简要运行说明
+├── CODEMAP.md                      # 功能 → 文件索引，AI 定位代码时先读这个
+├── CONTEXT.md                      # 项目上下文与约定
+├── 启动.bat                        # Windows 双击启动（唯一保留在根目录的脚本）
 └── CLAUDE.md                       # AI 助手协作规则
 ```
 

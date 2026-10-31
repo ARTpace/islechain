@@ -14,7 +14,7 @@ import httpx
 from fastapi import FastAPI
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import feature_access as features
+from core import feature_access as features
 
 
 class FeatureAccessTests(unittest.TestCase):
@@ -25,9 +25,13 @@ class FeatureAccessTests(unittest.TestCase):
             atomic_write_json=lambda path,data,**kwargs:Path(path).write_text(json.dumps(data),encoding='utf-8'),
             ensure_same_origin_request=lambda request:None)
         self.main_patch=patch.dict(sys.modules,{'main':fake});self.main_patch.start()
-        spec=importlib.util.spec_from_file_location('test_lan_guard','lan_sharing.py')
-        self.lan=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.lan)
-        self.lan_patch=patch.dict(sys.modules,{'lan_sharing':self.lan});self.lan_patch.start()
+        spec=importlib.util.spec_from_file_location('test_lan_guard','core/lan_sharing.py')
+        self.lan=importlib.util.module_from_spec(spec)
+        # 模块已迁入 core 包，内部用相对导入（from .feature_access import ...）；
+        # 隔离加载时补上包上下文，否则触发 relative import with no known parent package。
+        self.lan.__package__='core'
+        spec.loader.exec_module(self.lan)
+        self.lan_patch=patch.dict(sys.modules,{'core.lan_sharing':self.lan});self.lan_patch.start()
         self.policy_patch=patch.object(features,'policy_path',lambda:self.path);self.policy_patch.start()
         self.lan.load_config=lambda:{'enabled':True}
         self.lan._clients=lambda:{}
