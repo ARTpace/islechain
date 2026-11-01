@@ -11,6 +11,29 @@ import urllib.parse
 router = APIRouter()
 
 
+@router.post('/api/asset-library/maintenance/invalid-images')
+def clean_invalid_local_images(payload: dict, request: Request):
+    from core.unified_asset_storage import invalid_local_images
+    _main.ensure_same_origin_request(request)
+    lib = _main.load_asset_library()
+    library_id = str(payload.get('library_id') or '')
+    library = next((x for x in lib.get('libraries', []) if x.get('id') == library_id), None)
+    if not library or library.get('repository_source'):
+        raise HTTPException(status_code=400, detail='请选择本地资产库')
+    invalid = invalid_local_images(library, _main.asset_library_item_path, _main.asset_library_media_kind)
+    requested = set(str(x) for x in payload.get('ids', []) if x)
+    ids = {x['id'] for x in invalid} & requested
+    if ids:
+        # 清理前备份索引，只移除记录，不删除源文件；提交时重新检查避免误删已恢复图片。
+        import shutil
+        path = _main.asset_library_path()
+        shutil.copy2(path, path + '.before-invalid-images.bak')
+        for cat in library.get('categories', []):
+            cat['items'] = [x for x in cat.get('items', []) if x.get('id') not in ids]
+        _main.save_asset_library(lib)
+    return {'items': invalid, 'removed': len(ids), 'library': lib}
+
+
 @router.post("/api/user/assets/save-from-url")
 async def save_user_asset_from_url(payload: _main.UserAssetSaveRequest, token: str = "", request: Request = None):
     """保存在线图片到用户级别的资产文件夹 input/{username}/"""
@@ -773,6 +796,8 @@ async def scan_asset_library_maintenance(payload: _main.AssetLibraryMaintenanceS
             for item in cat.get("items") or []:
                 if not isinstance(item, dict):
                     continue
+                if item.get('repository_source'):
+                    continue  # 远程素材不参加本地缺失文件清理。
                 path = _main.asset_library_item_path(item.get("url"))
                 exists = bool(path) and os.path.isfile(path)
                 size = 0

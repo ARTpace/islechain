@@ -1,9 +1,12 @@
 /* 生成图库与资产库共用展示区，复用资产库现有交互。 */
 document.addEventListener('DOMContentLoaded', () => {
-    const overlay = document.getElementById('assetLibraryOverlay');
     const gallery = document.querySelector('main');
-    if (!overlay || !gallery) return;
-    const originalHost = overlay.parentElement;
+    if (!window.AssetLibrary || !gallery) return;
+    const frame = document.createElement('iframe');
+    frame.title = '资产库';
+    frame.className = 'gallery-assets-embedded';
+    frame.hidden = true;
+    frame.style.cssText = 'width:100%;flex:1;min-height:0;border:0;';
     let active = false;
     function showAssets(on) {
         active = on;
@@ -12,18 +15,26 @@ document.addEventListener('DOMContentLoaded', () => {
         gallery.hidden = on;
         gallery.style.display = on ? 'none' : '';
         if (on) {
-            gallery.after(overlay);
-            overlay.classList.add('gallery-assets-embedded');
-            overlay.querySelector('.ap-panel').setAttribute('aria-modal', 'false');
-            AssetLibrary.open({ kind:'image' });
-            document.body.classList.remove('ap-overlay-open');
+            gallery.after(frame);
+            if (!frame.hasAttribute('src')) frame.src = '/static/asset-manager.html?picker=image';
+            frame.hidden = false;
         } else {
-            AssetLibrary.close();
-            overlay.classList.remove('gallery-assets-embedded');
-            overlay.querySelector('.ap-panel').setAttribute('aria-modal', 'true');
-            originalHost.appendChild(overlay);
+            frame.hidden = true;
         }
     }
+    // 两个生成模式都进入真实资产库，保留原来的参考图导入流程。
+    AssetLibrary.open = () => {
+        showAssets(true);
+        document.querySelector('.chat-drawer')?.classList.add('open');
+        document.getElementById('chatGalleryBtn')?.classList.add('active');
+    };
+    AssetLibrary.close = () => showAssets(false);
+    window.addEventListener('message', event => {
+        if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
+        if (event.data?.type !== 'asset-library:apply' || typeof event.data.url !== 'string') return;
+        if (typeof applyAssetToRef === 'function') applyAssetToRef(event.data.url, event.data.name);
+        showAssets(false);
+    });
     function mountToggle() {
         const favorite = document.querySelector('[data-extra-btn="fav-toggle"]');
         if (!favorite || document.getElementById('galleryAssetsToggle')) return;
@@ -38,9 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
         favorite.after(button);
     }
     new MutationObserver(mountToggle).observe(document.body, { childList:true, subtree:true });
-    new MutationObserver(() => {
-        if (active && !overlay.classList.contains('open')) showAssets(false);
-    }).observe(overlay, { attributes:true, attributeFilter:['class'] });
     // 原资产入口也进入统一展示区，收藏则返回生成图筛选。
     document.getElementById('refImageAssetBtn')?.addEventListener('click', event => {
         event.preventDefault();

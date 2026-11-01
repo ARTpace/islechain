@@ -26,12 +26,12 @@
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js" defer></script>
     <script src="/static/theme.js?v=20261024bar"></script>
-    <script src="/static/history-bulk-manager.js?v=20261024tone" defer></script>
+    <script src="/static/history-bulk-manager.js?v=20261102wide" defer></script>
     <script src="/static/modules/interrogator.js" defer></script>
     <script src="/static/modules/ref-image-manager.js?v=20261026paste" defer></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/modules/image-viewer.js?v=20261028full" defer></script>
-<script src="/static/modules/gallery/bundle.js?v=20261101stablemasonry" defer></script>
+<script src="/static/modules/gallery/bundle.js?v=20261102scopebtn" defer></script>
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20261024001">
     <script src="/static/app/anima-character-picker.js?v=20261027caret" defer></script>
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20261024001">
@@ -39,14 +39,17 @@
     <script src="/static/modules/random-prompt.js?v=20261024001" defer></script>
     <script src="/prompt/static/prompt-module.js?v=20261027set" defer></script>
     <script src="/static/modules/card-progress.js?v=20261026image-ready" defer></script>
-    <script src="/static/modules/lora-manager.js?v=20261027caret"></script>
+    <script src="/static/modules/lora-manager.js?v=20261102lorabtn"></script>
     <script src="/static/modules/prompt-tags.js?v=20261027thumb"></script>
     <script src="/static/modules/prompt-translate-ui.js?v=20261024001" defer></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20261027stylecard">
     <script src="/static/app/preset-thumbnails.js?v=20261027" defer></script>
     <script src="/static/app/preset-picker.js?v=20261028classify" defer></script>
+    <script src="/static/modules/generation-prompt-library.js?v=20261101sharedprompts" defer></script>
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261028155">
-    <script src="/static/app/lora-picker.js?v=20261028155" defer></script>
+    <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedprompts" defer></script>
+    <script src="/static/app/lora-picker.js?v=20261101sharedprompts" defer></script>
+    <link rel="stylesheet" href="/static/css/library-gallery-ui.css?v=20261101sharedprompts">
     <link rel="stylesheet" href="/static/app/style-preset-panel.css">
     <script src="/static/app/style-preset-panel.js?v=20261027thumbqueue" defer></script>
     <!-- smart-prompt-picker.js / smart-prompt-manager.js 已合并到 prompt-module.js -->
@@ -56,14 +59,17 @@
     <script src="/static/modules/generation-controls.js?v=20261031ui2"></script>
     <script src="/static/modules/generation-menu-position.js?v=20261031ui2"></script>
     <style>
-        :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0b0b0a; }
+        /* 与提示词库（.asset-page：max-width 1880 / 左右 20px）保持一致，两个界面切换时左右边缘对齐 */
+        :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1880px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0b0b0a;
+            /* 历史工具条（独立注入到 body 的 toolbar）跟随页面内容宽度，保持一致 */
+            --history-toolbar-max: var(--max-w); --history-toolbar-pad: 20px; }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
         *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
         *::-webkit-scrollbar-thumb { background-color:var(--scrollbar, #b7b6ae)!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
         *::-webkit-scrollbar-thumb:hover { background-color:var(--scrollbar-hover, #8d8c84)!important; }
         * { scrollbar-width:thin!important; scrollbar-color:var(--scrollbar, #b7b6ae) transparent!important; }
         body { background-color:var(--bg-base); font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--text-main); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-        .layout-container { max-width:var(--max-w); margin:0 auto; padding:0 40px; }
+        .layout-container { max-width:var(--max-w); margin:0 auto; padding:0 20px; }
         @media(max-width:768px){ .layout-container{ padding:0 16px; } }
         @media(max-width:640px){ .layout-container{ padding:0 12px; } }
         .console-card { background:#fbfaf9; border:1px solid rgba(0, 0, 0, 0.08); box-shadow:0 2px 10px rgba(0, 0, 0, 0.02); }
@@ -84,6 +90,9 @@
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
         @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
         @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
+        /* 页面变宽后补列数，避免单张缩略图被拉得过大 */
+        @media(min-width:1440px){ .masonry-grid{ column-count:5; } }
+        @media(min-width:1800px){ .masonry-grid{ column-count:6; } }
         /* 缩略图尺寸模式 */
         .masonry-grid.thumb-large{ column-count:2!important; column-gap:14px!important; }
         .masonry-grid.thumb-medium{ /* 默认 */ }
@@ -96,7 +105,11 @@
         .masonry-item { border-radius:24px; overflow:hidden; background:#eeeeee; border:1px solid #f7f7f5; transition:transform .16s ease, box-shadow .16s ease; position:relative; break-inside:avoid; margin-bottom:12px; }
         #promptTags { transition: max-height 0.2s ease; }
         #promptTagsToggle svg { transition: transform 0.2s ease; }
-        .masonry-item:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(0, 0, 0, 0.08); }
+        /* 悬停不再位移卡片本体：.masonry-grid 是 CSS 多列布局，哪怕 1~2px 的 transform
+           也会让浏览器重新分栏，卡片会自己换列/换顺序；改成只加阴影 + 内图轻微放大 */
+        .masonry-item:hover { box-shadow:0 10px 24px rgba(0, 0, 0, 0.12); border-color:rgba(0,0,0,.06); }
+        .masonry-item > img, .masonry-item video, .masonry-item .relative img { transition:transform .32s cubic-bezier(.22,.61,.36,1); }
+        .masonry-item:hover > img, .masonry-item:hover video, .masonry-item:hover .relative img { transform:scale(1.025); }
         .lightbox-thumb { width:60px; height:60px; border-radius:8px; overflow:hidden; cursor:pointer; opacity:0.5; transition:all 0.2s; flex-shrink:0; border:2px solid transparent; }
         .lightbox-thumb:hover { opacity:0.8; }
         .lightbox-thumb.active { opacity:1; border-color:#06b6d4; box-shadow:0 0 12px rgba(6, 182, 212, 0.5); }
@@ -1110,10 +1123,6 @@
         }
 
         body.gallery-assets-active main { display:none !important; }
-        html body .gallery-assets-embedded.ap-overlay { position:relative; inset:auto; flex:1; min-height:0; width:100%; padding:0; background:transparent; backdrop-filter:none; z-index:1; }
-        html body .gallery-assets-embedded .ap-panel { width:100%; max-width:none; height:100%; max-height:none; min-height:0; border-radius:0; border:0; box-shadow:none; background:var(--ui-panel); }
-        html body .gallery-assets-embedded .ap-head { padding:10px 14px; }
-        html body .gallery-assets-embedded .ap-body { min-height:0; flex:1; }
         #galleryAssetsToggle[aria-pressed="true"] { border-color:var(--ui-accent, #06b6d4); color:var(--ui-accent, #06b6d4); }
 
         body.chat-layout #refImageAssetBtn,
@@ -1159,6 +1168,15 @@
         }
     </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+    <style id="prompt-picker-flatten">
+        /* 提示词选择器不再套第二层界面：没有标题栏/关闭键，提示词库界面直接铺满整块面板 */
+        #promptPickerShell .prompt-picker-bar { display:none !important; }
+        #promptPickerShell.is-open { border:1px solid var(--ui-line, #343b4c); box-shadow:0 24px 64px rgba(0,0,0,.42); }
+        #promptPickerShell #promptPickerBody { flex:1 1 auto; min-height:0; height:100%; overflow:hidden; border-radius:15px; }
+        #promptPickerShell #promptPickerBody > * { height:100%; }
+        /* LoRA 独立按键：选中 LoRA 时给个提示色 */
+        #loraBtn.has-lora { color:#f5b942; border-color:color-mix(in srgb, #f5b942 45%, transparent); }
+    </style>
 </head>
 <body id="zimagePage" class="antialiased">
     <script>
@@ -1196,7 +1214,7 @@
                     </div>
                     <div class="flex items-center gap-2 mb-2 prompt-row">
                         <div id="smartPromptContainer"></div>
-                        <button onclick="togglePromptPicker()" id="promptPickerBtn" class="anima-ctrl" title="风格、角色、画师、标签和 LoRA">
+                        <button onclick="togglePromptPicker()" id="promptPickerBtn" class="anima-ctrl" title="提示词库（风格、画师、角色、姿势、衣装、人像）">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h16"/></svg><span class="btn-text" id="promptPickerBtnText"> 提示词</span>
                         </button>
                         <button onclick="initRefImageManager();_refImgMgr.upload()" id="refImageBtn" class="anima-ctrl" title="添加参考图" aria-label="添加参考图">
@@ -1676,9 +1694,8 @@
         let promptPickerIgnoreClick = false;
         let promptPickerClosing = false;
         function promptPickerAllowed() {
-            const tabs = ['style', 'char', 'artist', 'preset'];
-            if (typeof currentEngine !== 'undefined' && currentEngine === 'local' && _comfyReachable !== false) tabs.push('lora');
-            return tabs;
+            // LoRA 已拆成独立按钮，不再占用提示词选择器的标签
+            return ['style', 'char', 'artist', 'preset'];
         }
         function syncPromptPickerComfy() {
             const shell = document.getElementById('promptPickerShell');
@@ -1756,7 +1773,8 @@
             shell = document.createElement('div');
             shell.id = 'promptPickerShell';
             shell.className = 'prompt-picker-shell';
-            shell.innerHTML = '<div class="prompt-picker-bar"><button type="button" data-prompt-tab="style">风格</button><button type="button" data-prompt-tab="char">角色</button><button type="button" data-prompt-tab="artist">画师</button><button type="button" data-prompt-tab="preset">标签</button><button type="button" data-prompt-tab="lora">LoRA</button><span class="prompt-picker-tools"><button type="button" data-prompt-act="sort" id="promptPickerSort">热度</button><button type="button" data-prompt-act="sortdir" id="promptPickerSortDir" title="升降序">↓</button><button type="button" data-prompt-act="selected" id="promptPickerSelected">已选</button><button type="button" data-prompt-act="all">全选</button><button type="button" data-prompt-act="invert">反选</button><button type="button" data-prompt-act="copy">复制</button><button type="button" data-prompt-act="clear">清空</button><select id="promptPickerApply" title="角色提示词插入方式" aria-label="角色提示词插入方式" hidden><option value="name">角色名</option><option value="trigger">触发词</option><option value="all">全部（触发词 + 标签）</option></select></span><span id="promptPickerStat" class="prompt-picker-stat"></span><input id="promptPickerSearch" class="prompt-picker-search" type="text" placeholder="搜索" autocomplete="off"><button type="button" class="prompt-picker-x" title="关闭">×</button></div><div id="promptPickerBody"></div>';
+            // 不再套任何外壳：没有标签栏、工具条，也没有关闭标题栏，提示词库界面直接铺满（点外面关闭）
+            shell.innerHTML = '<div id="promptPickerBody"></div>';
             document.body.appendChild(shell);
             shell.querySelectorAll('[data-prompt-tab]').forEach((btn) => {
                 btn.onclick = (event) => {
@@ -1764,11 +1782,8 @@
                     promptPickerShowTab(btn.getAttribute('data-prompt-tab'));
                 };
             });
-            shell.querySelector('.prompt-picker-x').onclick = (event) => {
-                event.stopPropagation();
-                closePromptPicker();
-            };
-            shell.querySelector('#promptPickerApply').addEventListener('change', (event) => {
+            const applySel = shell.querySelector('#promptPickerApply');
+            if (applySel) applySel.addEventListener('change', (event) => {
                 const item = document.querySelector('#pickerApplyModeList [data-mode="' + event.target.value + '"]');
                 if (!item) return;
                 item.click();
@@ -1776,8 +1791,10 @@
                 promptPickerSyncStatus();
             });
             const search = shell.querySelector('#promptPickerSearch');
-            search.addEventListener('input', () => promptPickerSyncSearch());
-            search.addEventListener('click', (event) => event.stopPropagation());
+            if (search) {
+                search.addEventListener('input', () => promptPickerSyncSearch());
+                search.addEventListener('click', (event) => event.stopPropagation());
+            }
             shell.querySelectorAll('[data-prompt-act]').forEach((btn) => {
                 btn.onclick = (event) => {
                     event.stopPropagation();
@@ -1850,12 +1867,12 @@
             let maxH;
             if (up) {
                 const bottom = Math.max(viewTop + 12, Math.min(rect.top - 8, viewBottom - 12));
-                maxH = Math.max(0, Math.min(560, bottom - viewTop - 12));
+                maxH = Math.max(0, bottom - viewTop - 12);
                 shell.style.top = 'auto';
                 shell.style.bottom = (scaledBody ? document.body.clientHeight - (bottom - originY) / scale : window.innerHeight - bottom) + 'px';
             } else {
                 const top = Math.max(viewTop + 12, Math.min(Math.round(rect.bottom + 8), viewBottom - 12));
-                maxH = Math.max(0, Math.min(560, viewBottom - top - 12));
+                maxH = Math.max(0, viewBottom - top - 12);
                 shell.style.bottom = 'auto';
                 shell.style.top = ((top - originY) / scale) + 'px';
             }
@@ -1872,7 +1889,9 @@
         }
         function promptPickerMount() {
             const host = document.getElementById('promptPickerBody');
-            const map = { char: 'characterPickerModal', artist: 'artistPickerModal', preset: 'presetPickerModal', lora: 'loraPickerShell' };
+            const library = document.getElementById('generationPromptLibrary');
+            if (library) library.style.display = 'block';
+            const map = { char: 'characterPickerModal', artist: 'artistPickerModal', preset: 'presetPickerModal' };
             Object.entries(map).forEach(([tab, id]) => {
                 const el = document.getElementById(id);
                 if (!el || !host) return;
@@ -1892,6 +1911,7 @@
         }
         function promptPickerApplyRaw(tab) {
             if (tab === 'lora') { loraPickerClose(); return; }
+            if (window.GenerationPromptLibrary) return;
             const name = tab === 'char' ? 'pickerClose' : tab === 'artist' ? 'artistPickerClose' : 'presetPickerClose';
             const orig = window['__orig_' + name] || window[name];
             if (typeof orig !== 'function') return;
@@ -1905,7 +1925,8 @@
             if (promptPickerTab !== tab && !samePresetPane && promptPickerVisited.has(promptPickerTab)) promptPickerApplyRaw(promptPickerTab);
             promptPickerTab = tab;
             promptPickerVisited.add(tab);
-            if (tab === 'char' && typeof pickerOpen === 'function') pickerOpen();
+            if (tab !== 'lora' && window.GenerationPromptLibrary) GenerationPromptLibrary.mount(tab);
+            else if (tab === 'char' && typeof pickerOpen === 'function') pickerOpen();
             else if (tab === 'artist' && typeof artistPickerOpen === 'function') artistPickerOpen();
             else if (tab === 'lora') {
                 loraPickerInit();
@@ -1932,6 +1953,7 @@
             }, 160);
         }
         function promptPickerSyncSearch() {
+            if (window.GenerationPromptLibrary) return;
             const box = document.getElementById('promptPickerSearch');
             if (!box) return;
             const id = promptPickerTab === 'char' ? 'pickerSearch' : promptPickerTab === 'artist' ? 'artistPickerSearch' : promptPickerTab === 'lora' ? 'loraPickerSearch' : 'presetPickerSearch';
@@ -1973,8 +1995,20 @@
             }
         }
         function promptPickerSyncTools(resetSelected) {
-            document.querySelector('.prompt-picker-tools').hidden = promptPickerTab === 'lora';
-            document.getElementById('promptPickerStat').hidden = promptPickerTab === 'lora';
+            if (window.GenerationPromptLibrary) {
+                // 外层工具条已移除，直接由提示词库自己的界面接管
+                const tools = document.querySelector('.prompt-picker-tools');
+                const stat = document.getElementById('promptPickerStat');
+                const search = document.getElementById('promptPickerSearch');
+                if (tools) tools.hidden = true;
+                if (stat) stat.hidden = true;
+                if (search) search.hidden = true;
+                return;
+            }
+            const toolsEl = document.querySelector('.prompt-picker-tools');
+            const statEl = document.getElementById('promptPickerStat');
+            if (toolsEl) toolsEl.hidden = promptPickerTab === 'lora';
+            if (statEl) statEl.hidden = promptPickerTab === 'lora';
             if (promptPickerTab === 'lora') return;
             const apply = document.getElementById('promptPickerApply');
             if (apply) apply.hidden = promptPickerTab !== 'char';
@@ -5529,7 +5563,7 @@
                 }
             } catch (_) {}
             setPickerButtonState('presetPickerBtn', 'presetPickerBtnText', presetCount, ' 预设');
-            setPickerButtonState('promptPickerBtn', 'promptPickerBtnText', charCount + artistCount + presetCount, ' 提示词');
+            setPickerButtonState('promptPickerBtn', 'promptPickerBtnText', window.GenerationPromptLibrary ? GenerationPromptLibrary.count() : charCount + artistCount + presetCount, ' 提示词');
 
             // ---- 参考图 ----
             var refCount = (typeof _refImgMgr !== 'undefined' && _refImgMgr) ? _refImgMgr.getCount() : 0;
@@ -5952,7 +5986,7 @@
 <!-- ── 资产库选择面板（独立模块） ── -->
     <div id="assetLibraryMount"></div>
     <script src="/static/modules/asset-library.js?v=20261026guest"></script>
-    <script src="/static/modules/gallery-assets.js?v=20261025017" defer></script>
+    <script src="/static/modules/gallery-assets.js?v=20261101sharedassets" defer></script>
     <script>
         AssetLibrary.init({
             mountId: 'assetLibraryMount',

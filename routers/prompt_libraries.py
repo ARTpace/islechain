@@ -72,11 +72,21 @@ def _style_source(preset):
 def _slim_style_item(preset, cat_id, sub_id, index):
     # 正文给全文：一页 150 条约 400KB，本地访问无压力；
     # 截断过会导致「搜索命中不到长尾词 + 弹窗要二次补全文」两个麻烦。
+    memberships = [{"id": sub_id, "name": ""}]
+    classification = preset.get("classification") or {}
+    if isinstance(classification, dict):
+        saved_memberships = classification.get("subcategories")
+        for entry in saved_memberships if isinstance(saved_memberships, list) else []:
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].startswith(cat_id + "_") and entry["id"] not in {m["id"] for m in memberships}:
+                memberships.append({"id": entry["id"], "name": str(entry.get("name") or entry["id"])})
+            elif isinstance(entry, dict) and entry.get("id") == sub_id:
+                memberships[0]["name"] = str(entry.get("name") or "")
     return {
         "id": preset.get("id") or "",
         "name": preset.get("name") or "",
         "category": cat_id,
         "subcategory": sub_id,
+        "subcategories": memberships,
         "scene": "",
         "positive": preset.get("prompt") or "",
         "negative": preset.get("negative_prompt") or "",
@@ -119,9 +129,12 @@ def _style_catalog():
                 by_id[pid] = preset
                 index += 1
                 cat_count += 1
-                if display_sub_id:
-                    group = subcategories.setdefault(display_sub_id, {"id": display_sub_id, "name": display_sub_name or sub.get("name") or display_sub_id, "count": 0})
-                    group["count"] += 1
+                for membership in slim["subcategories"]:
+                    member_id = membership["id"]
+                    if member_id:
+                        name = membership["name"] or (display_sub_name or sub.get("name") if member_id == display_sub_id else member_id)
+                        group = subcategories.setdefault(member_id, {"id": member_id, "name": name or member_id, "count": 0})
+                        group["count"] += 1
                 src = slim["params"]["来源"]
                 if src:
                     source_counts[src] = source_counts.get(src, 0) + 1
@@ -187,7 +200,7 @@ def list_style_prompt_items(category: str = "", source: str = "", q: str = "", s
     if category and category != "all":
         pool = [item for item in pool if item["category"] == category]
     if subcategory:
-        pool = [item for item in pool if item["subcategory"] == subcategory]
+        pool = [item for item in pool if any(group["id"] == subcategory for group in item["subcategories"])]
     if source:
         normalized_source = source if source in {'其他来源', '未标注来源', '风格预设', '通义 Z-Image', '手动创建'} else _style_source({'description': source})
         pool = [item for item in pool if item["params"]["来源"] == normalized_source]

@@ -1,5 +1,32 @@
 """统一素材存储；旧上传目录仅保留为迁移备份。"""
 import hashlib
+
+
+def invalid_local_images(library, resolve_path, media_kind):
+    """仅检查本地图片；远程链接、视频和音频不参与图片失效清理。"""
+    from PIL import Image
+    from pathlib import Path
+    invalid = []
+    for cat in library.get('categories', []):
+        for item in cat.get('items', []):
+            url = str(item.get('url') or '')
+            if item.get('repository_source') or url.startswith(('http://', 'https://')):
+                continue
+            if (item.get('kind') or media_kind(url)) != 'image':
+                continue
+            path = resolve_path(url) if url else None
+            reason = ''
+            if not path or not Path(path).is_file():
+                reason = '图片文件缺失'
+            else:
+                try:
+                    with Image.open(path) as image:
+                        image.verify()
+                except (OSError, ValueError, Image.DecompressionBombError):
+                    reason = '图片损坏或格式无效'
+            if reason:
+                invalid.append({'id': item.get('id'), 'name': item.get('name') or '未命名图片', 'reason': reason})
+    return invalid
 from pathlib import Path
 import shutil
 import threading

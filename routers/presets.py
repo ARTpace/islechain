@@ -177,11 +177,57 @@ def api_disconnect_style_repository():
 @router.post("/api/style-packs/repository/install")
 def api_install_repository_style_pack(data: dict):
     try:
-        pack = style_repository.install_repository_pack(str(data.get('packId') or ''), replace=bool(data.get('replace')))
+        pack = style_repository.install_repository_pack(
+            str(data.get('packId') or ''),
+            replace=bool(data.get('replace')),
+            repo_id=str(data.get('repoId') or ''),
+        )
     except style_packs.PackError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     _invalidate_style_cache()
     return {'success': True, 'pack': _pack_to_dict(pack)}
+
+
+# === 多仓库：可以同时挂多个 GitHub 内容仓库 ===
+
+@router.get("/api/content-repositories")
+def api_list_content_repositories(check: bool = False):
+    try:
+        return style_repository.check_repository() if check else style_repository.repository_status()
+    except style_packs.PackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/api/content-repositories")
+def api_add_content_repository(data: dict):
+    try:
+        return style_repository.add_repository(str(data.get('url') or ''))
+    except (style_packs.PackError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/api/content-repositories/{repo_id}/refresh")
+def api_refresh_content_repository(repo_id: str):
+    try:
+        return style_repository.refresh_repository(repo_id=repo_id)
+    except (style_packs.PackError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/api/content-repositories/{repo_id}/enabled")
+def api_toggle_content_repository(repo_id: str, data: dict):
+    try:
+        return style_repository.set_repository_enabled(repo_id, bool((data or {}).get('enabled', True)))
+    except (style_packs.PackError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.delete("/api/content-repositories/{repo_id}")
+def api_remove_content_repository(repo_id: str):
+    try:
+        return style_repository.remove_repository(repo_id)
+    except (style_packs.PackError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/api/style-packs/install-official")

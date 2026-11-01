@@ -2102,14 +2102,19 @@ body.studio-theme-dark .lightbox-thumb.active {
                     node.style.width = `${fullWidth ? grid.clientWidth : width}px`;
                     node.style.left = `${fullWidth ? 0 : column * (width + gap)}px`;
                     node.style.top = `${top}px`;
-                    const bottom = top + node.getBoundingClientRect().height + gap;
+                    // 用 offsetHeight 而不是 getBoundingClientRect：后者会把 hover 时的 transform（放大/位移）算进去，
+                    // 高度一旦抖动就会重新分列，卡片看起来像自己换了顺序。
+                    const bottom = top + (node.offsetHeight || node.getBoundingClientRect().height) + gap;
                     if (fullWidth) heights.fill(bottom);
                     else heights[column] = bottom;
                 }
                 grid.style.height = `${Math.max(0, ...heights)}px`;
             };
+            // 只监听网格自身的 class（大/中/小图切换）和子节点增删。
+            // 之前开了 subtree:true，卡片 hover 时给悬浮按钮加 .show 也会触发重排，
+            // 悬停即重算列高，卡片看起来会自己换位置——这里收窄观察范围即可。
             const mutations = new MutationObserver(schedule);
-            mutations.observe(grid, {childList:true, attributes:true, attributeFilter:['class'], subtree:true});
+            mutations.observe(grid, {childList:true, attributes:true, attributeFilter:['class'], subtree:false});
             resize.observe(grid);
             // 收藏和敏感内容过滤通过 body class 控制，也需要重新计算可见布局。
             const filters = new MutationObserver(schedule);
@@ -3611,46 +3616,62 @@ body.studio-theme-dark .lightbox-thumb.active {
             if (!isAdmin) return; // 非管理员本就只能看自己，无需开关
             const mount = state.container ? state.container.parentNode : null;
             if (!mount) return;
-            if (mount.querySelector('.gallery-scope-toggle')) return; // 防止重复注入
+            if (document.querySelector('.gallery-scope-btn')) return; // 防止重复注入
 
-            // 注入一次样式（自包含，不依赖外部 CSS）
             if (!document.getElementById('gallery-scope-toggle-style')) {
                 const st = document.createElement('style');
                 st.id = 'gallery-scope-toggle-style';
                 st.textContent = `
-.gallery-scope-toggle{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--ui-text,#f6f6f4);}
-.gallery-scope-toggle .gst-label{opacity:.65;font-size:12px;margin-right:2px;}
-.gallery-scope-toggle .gst-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ui-line-strong,#343b4c) 42%,transparent);background:color-mix(in srgb,var(--ui-panel,#1c202a) 60%,transparent);color:var(--ui-text,#f6f6f4);padding:5px 13px;border-radius:999px;cursor:pointer;font-size:13px;line-height:1;transition:.18s;}
-.gallery-scope-toggle .gst-btn:hover{border-color:var(--ui-accent-glow,#0891b2);}
-.gallery-scope-toggle .gst-btn.active{background:var(--ui-accent,#0e7490);border-color:var(--ui-accent,#0e7490);color:#fff;}
-.gallery-scope-toggle .gst-btn svg{width:14px;height:14px;}
+.gallery-scope-btn{width:32px;padding:0!important;justify-content:center;gap:0!important;flex:0 0 auto;}
+.gallery-scope-btn svg{width:15px;height:15px;transition:transform .22s cubic-bezier(.22,.61,.36,1);}
+.gallery-scope-btn:active svg{transform:scale(.86);}
+.gallery-scope-btn.is-on{background:color-mix(in srgb,var(--ui-accent,#0e7490) 88%,#000)!important;border-color:var(--ui-accent,#0e7490)!important;color:#fff!important;}
 `;
                 document.head.appendChild(st);
             }
 
-            const bar = document.createElement('div');
-            bar.className = 'gallery-scope-toggle';
-            bar.innerHTML = `
-                <span class="gst-label">历史范围</span>
-                <button type="button" class="gst-btn" data-scope="mine">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    仅看我的
-                </button>
-                <button type="button" class="gst-btn" data-scope="all">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    查看全部
-                </button>`;
-            bar.querySelectorAll('.gst-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () { setScope(btn.dataset.scope); });
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'history-bulk-btn gallery-scope-btn';
+            btn.addEventListener('click', function () {
+                setScope(btn.dataset.scope === 'mine' ? 'all' : 'mine');
             });
-            mount.insertBefore(bar, state.container);
-            updateScopeToggleUI(state.scope);
+            // 挂到工具栏「收藏」按钮右边；工具栏是历史区渲染后才生成的，找不到就轮询等它出现
+            const place = function () {
+                const favBtn = document.querySelector('.history-bulk-toolbar [data-extra-btn="fav-toggle"]');
+                if (favBtn) { favBtn.after(btn); updateScopeToggleUI(state.scope); return true; }
+                return false;
+            };
+            if (!place()) {
+                let tries = 0;
+                const timer = setInterval(function () {
+                    if (place() || ++tries > 40) {
+                        clearInterval(timer);
+                        if (tries > 40 && !btn.isConnected) {
+                            const tb = document.querySelector('.history-bulk-toolbar');
+                            if (tb) tb.appendChild(btn);
+                            else mount.insertBefore(btn, state.container);
+                            updateScopeToggleUI(state.scope);
+                        }
+                    }
+                }, 250);
+            }
         } catch (e) { /* 静默：开关失败不影响画廊核心功能 */ }
     }
 
+    // 范围切换图标：单人 = 仅看我的；多人 = 查看全部（含访客）
+    const SCOPE_ICON_MINE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+    const SCOPE_ICON_ALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+
     function updateScopeToggleUI(scope) {
-        document.querySelectorAll('.gallery-scope-toggle .gst-btn').forEach(function (b) {
-            b.classList.toggle('active', b.dataset.scope === scope);
+        const all = scope === 'all';
+        document.querySelectorAll('.gallery-scope-btn').forEach(function (b) {
+            b.dataset.scope = all ? 'all' : 'mine';
+            b.classList.toggle('is-on', all);
+            b.innerHTML = all ? SCOPE_ICON_ALL : SCOPE_ICON_MINE;
+            b.title = all ? '当前：所有人的图 · 点击只看我的' : '当前：仅看我的 · 点击查看全部';
+            b.setAttribute('aria-label', b.title);
+            b.setAttribute('aria-pressed', all ? 'true' : 'false');
         });
     }
 

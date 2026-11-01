@@ -7,6 +7,29 @@ import re
 
 
 class PromptStyleCatalogTests(unittest.TestCase):
+    def test_multiple_subcategory_filters_do_not_duplicate_items(self):
+        path = Path(__file__).parents[1] / 'routers' / 'prompt_libraries.py'
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        names = {'_style_source', '_slim_style_item', '_style_catalog', '_system_library_payload', '_display_style_subcategory', 'list_style_prompt_items'}
+        functions = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
+        for fn in functions:
+            fn.decorator_list = []
+        groups = next(n for n in tree.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == '_PHOTO_GROUPS' for t in n.targets))
+        item = {'id':'one', 'name':'时尚人像摄影', 'prompt':'unchanged', 'classification':{'stage':'title', 'subcategories':[{'id':'photography_portrait','name':'人物肖像'},{'id':'photography_fashion','name':'时尚摄影'},{'id':'photography_fashion','name':'时尚摄影'}]}}
+        source = {'categories':[{'id':'photography','name':'摄影','subcategories':[{'id':'photography_portrait','name':'人物肖像','presets':[item]}]}]}
+        env = {'preset_manager':SimpleNamespace(get_style_presets=lambda:source),'re':re,'_STYLE_CATALOG_CACHE':{'source':None,'catalog':None}}
+        exec(compile(ast.Module(body=[groups]+functions,type_ignores=[]),str(path),'exec'),env)
+        catalog=env['_style_catalog']()
+        self.assertEqual(catalog['total'],1)
+        self.assertEqual(catalog['categories'][0]['count'],1)
+        self.assertEqual({s['id']:s['count'] for s in catalog['categories'][0]['subcategories']},{'photography_portrait':1,'photography_fashion':1})
+        for sub in ['photography_portrait','photography_fashion']:
+            result=env['list_style_prompt_items'](category='photography',subcategory=sub,sort='name')
+            self.assertEqual(result['total'],1)
+            self.assertEqual(result['items'][0]['positive'],'unchanged')
+        self.assertEqual(env['list_style_prompt_items'](category='photography',sort='name')['total'],1)
+        self.assertEqual(env['list_style_prompt_items'](subcategory='photography_macro')['total'],0)
+
     def test_catalog_tracks_preset_source_instead_of_legacy_file(self):
         path = Path(__file__).parents[1] / 'routers' / 'prompt_libraries.py'
         tree = ast.parse(path.read_text(encoding='utf-8'))

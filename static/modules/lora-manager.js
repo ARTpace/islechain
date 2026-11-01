@@ -560,7 +560,10 @@ const LoraManager = (function() {
         const show = hasEngine
             ? currentEngine === 'local'
             : (wf.includes('anima') || wf.includes('z-image') || wf.includes('z_image') || wf.includes('krea2') || wf.includes('ideogram4'));
+        btn.hidden = !show;
         btn.style.display = show ? '' : 'none';
+        // 已挂载 LoRA 时按钮亮一下，提示当前有 LoRA 生效
+        btn.classList.toggle('has-lora', Array.isArray(state.active) && state.active.length > 0);
         const btnText = document.getElementById('loraBtnText');
         const count = state.active.length;
         if (btnText) btnText.textContent = count > 0 ? ` LoRA(${count})` : ' LoRA';

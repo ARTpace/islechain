@@ -213,7 +213,7 @@
     var n = escAttr(item.name || 'asset');
     if (kind === 'video') return '<video src="' + u + '" muted preload="metadata" playsinline controls></video>';
     if (kind === 'audio') return '<audio src="' + u + '" preload="metadata" controls></audio>';
-    return '<img src="' + u + '" alt="' + n + '" loading="lazy">';
+    return '<img src="' + escAttr(item.thumbnail || item.url || '') + '" alt="' + n + '" loading="lazy" decoding="async">';
   }
   function flattenItems(library) {
     var out = [];

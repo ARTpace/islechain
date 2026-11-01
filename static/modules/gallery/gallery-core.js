@@ -217,14 +217,16 @@ body.studio-theme-dark .lightbox-thumb.active {
                     node.style.width = `${fullWidth ? grid.clientWidth : width}px`;
                     node.style.left = `${fullWidth ? 0 : column * (width + gap)}px`;
                     node.style.top = `${top}px`;
-                    const bottom = top + node.getBoundingClientRect().height + gap;
+                    // 用 offsetHeight 而不是 getBoundingClientRect：后者会把 hover 时的 transform（放大/位移）算进去，
+                    // 高度一旦抖动就会重新分列，卡片看起来像自己换了顺序。
+                    const bottom = top + (node.offsetHeight || node.getBoundingClientRect().height) + gap;
                     if (fullWidth) heights.fill(bottom);
                     else heights[column] = bottom;
                 }
                 grid.style.height = `${Math.max(0, ...heights)}px`;
             };
             const mutations = new MutationObserver(schedule);
-            mutations.observe(grid, {childList:true, attributes:true, attributeFilter:['class'], subtree:true});
+            mutations.observe(grid, {childList:true, attributes:true, attributeFilter:['class'], subtree:false});
             resize.observe(grid);
             // 收藏和敏感内容过滤通过 body class 控制，也需要重新计算可见布局。
             const filters = new MutationObserver(schedule);

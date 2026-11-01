@@ -11,6 +11,43 @@ import main as _main
 router = APIRouter()
 
 
+@router.post('/api/asset-library/repository')
+def connect_asset_repository(payload: dict, request: Request):
+    from core.asset_repository import build_libraries, merge_libraries
+    from style_packs.packer import PackError
+    _main.ensure_same_origin_request(request)
+    url = str(payload.get('url') or '').strip()
+    try:
+        incoming = build_libraries(url)
+    except (PackError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail='接入失败：' + str(exc)) from exc
+    # 网络请求全部成功后再修改索引，失败不影响已有资产。
+    lib = _main.load_asset_library()
+    count = merge_libraries(lib, incoming)
+    lib['active_library_id'] = incoming[0]['id']
+    _main.save_asset_library(lib)
+    return {'library': lib, 'count': count}
+
+
+@router.get('/api/asset-library/repository/thumb/{item_id}')
+def get_repository_thumbnail(item_id: str):
+    from core.asset_repository import cache_thumbnail
+    from fastapi.responses import FileResponse
+    from style_packs.packer import PackError
+    lib = _main.load_asset_library()
+    source = next((item.get('repository_thumb') for library in lib.get('libraries', [])
+                   for cat in library.get('categories', []) for item in cat.get('items', [])
+                   if item.get('id') == item_id), None)
+    if not source:
+        raise HTTPException(status_code=404, detail='缩略图不存在')
+    try:
+        path = cache_thumbnail(source, os.path.join(_main.MEDIA_PREVIEW_DIR, 'asset_repository'))
+    except (OSError, ValueError, PackError) as exc:
+        # 缩略图失败不回退到高清图，避免列表意外下载大文件。
+        raise HTTPException(status_code=502, detail='缩略图暂时不可用') from exc
+    return FileResponse(path, media_type='image/webp', headers={'Cache-Control': 'private, max-age=2592000'})
+
+
 @router.get("/api/local-assets")
 async def list_local_assets():
     tree, items = _main._local_upload_tree_and_items()
@@ -105,6 +142,10 @@ def _annotate_asset_file_meta(lib):
         for cat in library.get("categories") or []:
             for item in cat.get("items") or []:
                 if not isinstance(item, dict):
+                    continue
+                if item.get('repository_source'):
+                    item.pop('file_exists', None)
+                    item['size'] = 0
                     continue
                 path = _main.asset_library_item_path(item.get("url"))
                 size, exists = 0, False

@@ -4072,6 +4072,7 @@ def migrate_asset_item_registrations(item):
         item.pop(key, None)
 
 def normalize_asset_library(lib):
+    from core.asset_repository import normalize_repository_title
     if not isinstance(lib, dict):
         lib = default_asset_library()
     legacy_categories = lib.get("categories") if isinstance(lib.get("categories"), list) else None
@@ -4091,6 +4092,7 @@ def normalize_asset_library(lib):
             cats.append({"id": "workflows", "name": "工作流", "type": "workflow", "items": []})
         for cat in cats:
             for item in (cat.get("items") or []):
+                normalize_repository_title(item)
                 migrate_asset_item_registrations(item)
         library["categories"] = cats
     active = str(lib.get("active_library_id") or libraries[0].get("id") or "default")

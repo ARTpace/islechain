@@ -186,3 +186,55 @@
     line-height: 1.7;
     white-space: pre-wrap;
 }
+
+/* ===== 多仓库：仓库列表 + 启用开关 ===== */
+#assetManagerRoot .cp-repo-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+#assetManagerRoot .cp-repo {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; border-radius:12px;
+    border:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    background:color-mix(in srgb, var(--text) 4%, transparent);
+    transition:border-color .2s ease, background .2s ease, opacity .2s ease;
+}
+#assetManagerRoot .cp-repo:hover { border-color:color-mix(in srgb, var(--text) 18%, var(--line)); }
+#assetManagerRoot .cp-repo.is-off { opacity:.55; }
+#assetManagerRoot .cp-repo-main { min-width:0; flex:1 1 auto; display:flex; flex-direction:column; gap:2px; }
+#assetManagerRoot .cp-repo-main strong { color:var(--text); font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#assetManagerRoot .cp-repo-main span { color:var(--faint); font-size:11px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#assetManagerRoot .cp-repo-meta { flex:0 0 auto; color:var(--muted); font-size:11.5px; font-weight:800; white-space:nowrap; }
+#assetManagerRoot .cp-repo-actions { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+#assetManagerRoot .cp-mini {
+    height:26px; padding:0 10px; border-radius:8px;
+    border:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    background:transparent; color:var(--muted);
+    font-size:11.5px; font-weight:800; cursor:pointer;
+    transition:background .18s ease, color .18s ease, border-color .18s ease;
+}
+#assetManagerRoot .cp-mini:hover { color:var(--text); border-color:color-mix(in srgb, var(--text) 24%, var(--line)); background:color-mix(in srgb, var(--text) 6%, transparent); }
+#assetManagerRoot .cp-mini.danger:hover { color:#ef4444; border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.08); }
+#assetManagerRoot .cp-mini:disabled { opacity:.45; cursor:not-allowed; }
+/* 开关 */
+#assetManagerRoot .cp-switch { flex:0 0 auto; display:inline-flex; align-items:center; cursor:pointer; }
+#assetManagerRoot .cp-switch input { position:absolute; opacity:0; width:1px; height:1px; }
+#assetManagerRoot .cp-switch-track {
+    position:relative; width:34px; height:20px; border-radius:999px;
+    background:color-mix(in srgb, var(--text) 16%, transparent);
+    transition:background .22s cubic-bezier(.22,.61,.36,1);
+}
+#assetManagerRoot .cp-switch-track::after {
+    content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:999px;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3);
+    transition:transform .22s cubic-bezier(.22,.61,.36,1);
+}
+#assetManagerRoot .cp-switch input:checked + .cp-switch-track { background:var(--strong); }
+#assetManagerRoot .cp-switch input:checked + .cp-switch-track::after { transform:translateX(14px); }
+#assetManagerRoot .cp-switch input:focus-visible + .cp-switch-track { box-shadow:0 0 0 3px color-mix(in srgb, var(--text) 16%, transparent); }
+#assetManagerRoot .cp-switch input:disabled + .cp-switch-track { opacity:.45; }
+/* 仓库来源徽章与停用卡片 */
+#assetManagerRoot .sp-badge.repo { border-color:color-mix(in srgb, var(--am-accent, var(--text)) 35%, var(--line-2)); color:var(--muted); }
+#assetManagerRoot .sp-card.is-off { opacity:.6; }
+@media (max-width:760px) {
+    #assetManagerRoot .cp-repo { flex-wrap:wrap; gap:8px 10px; }
+    #assetManagerRoot .cp-repo-main { flex-basis:calc(100% - 90px); }
+    #assetManagerRoot .cp-repo-actions { margin-left:auto; }
+}

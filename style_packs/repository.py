@@ -95,16 +95,63 @@ def _validate_catalog(data):
     return data
 
 
+def _repo_id(url):
+    return 'repo_' + hashlib.sha256(url.encode()).hexdigest()[:12]
+
+
+def _repo_name(url):
+    """owner/repo，便于在列表里认出来自哪。"""
+    parts = [part for part in urlsplit(url).path.split('/') if part]
+    return '/'.join(parts[:2]) if len(parts) >= 2 else url
+
+
+def _normalize_repo(entry):
+    url = catalog_url(entry['url'])
+    return {
+        'id': str(entry.get('id') or _repo_id(url)),
+        'url': url,
+        'catalog': _validate_catalog(entry['catalog']),
+        'checkedAt': float(entry.get('checkedAt') or 0),
+        'enabled': bool(entry.get('enabled', True)),
+    }
+
+
 def _read_state():
+    """统一读成 {'repos': [...]}；旧的单仓库配置文件会在读的时候自动升级。"""
     if not STATE_FILE.exists():
-        return {}
+        return {'repos': []}
     try:
         data = json.loads(STATE_FILE.read_text(encoding='utf-8'))
-        data['url'] = catalog_url(data['url'])
-        _validate_catalog(data['catalog'])
-        return data
+        if not isinstance(data, dict):
+            raise ValueError('state')
+        if isinstance(data.get('repos'), list):
+            return {'repos': [_normalize_repo(entry) for entry in data['repos']]}
+        if data.get('url'):
+            return {'repos': [_normalize_repo(data)]}
+        return {'repos': []}
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        raise PackError('仓库配置损坏，请重新设置仓库来源') from exc
+        raise PackError('仓库配置损坏，请重新添加仓库') from exc
+
+
+def _write_state(state):
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp = STATE_FILE.with_suffix('.tmp')
+    temp.write_text(json.dumps({'schema': 2, 'repos': state['repos']}, ensure_ascii=False, indent=2), encoding='utf-8')
+    temp.replace(STATE_FILE)
+
+
+def _find_repo(state, repo_id='', pack_id=''):
+    if repo_id:
+        repo = next((item for item in state['repos'] if item['id'] == repo_id), None)
+        if not repo:
+            raise PackError('仓库不存在，请刷新列表后重试')
+        return repo
+    hits = [item for item in state['repos'] if any(pack['packId'] == pack_id for pack in item['catalog']['packs'])]
+    if not hits:
+        raise PackError('仓库清单中找不到此包，请先加载仓库')
+    if len(hits) > 1:
+        raise PackError('多个仓库包含同名包，请指定来源仓库')
+    return hits[0]
 
 
 def _content_module(kind):
@@ -132,62 +179,144 @@ def _pack_root(kind, pack_id):
 
 def repository_status():
     state = _read_state()
-    local_by_kind = {kind: {p['packId']: p for p in _installed(kind)} for kind in {e.get('kind', 'styles') for e in state.get('catalog', {}).get('packs', [])}}
+    repos = state['repos']
+    local_by_kind = {kind: {p['packId']: p for p in _installed(kind)} for kind in {e.get('kind', 'styles') for r in repos for e in r['catalog']['packs']}}
     packs = []
-    for entry in state.get('catalog', {}).get('packs', []):
-        kind = entry.get('kind', 'styles')
-        local = local_by_kind[kind]
-        installed = local.get(entry['packId'])
-        update = False
-        if installed:
-            remote_version, local_version = entry['version'], installed['version']
-            semver = r'(\d+)\.(\d+)\.(\d+)'
-            remote_match, local_match = re.fullmatch(semver, remote_version), re.fullmatch(semver, local_version)
-            if remote_match and local_match:
-                update = tuple(map(int, remote_match.groups())) > tuple(map(int, local_match.groups()))
-            else:
-                update = remote_version != local_version
-            if remote_version == local_version:
-                root = _pack_root(kind, entry['packId'])
-                update = root is None or any(
-                    not (root / name).is_file() or hashlib.sha256((root / name).read_bytes()).hexdigest() != expected
-                    for name, expected in entry['sha256'].items())
-        packs.append({**entry, 'kind': kind, 'builtin': bool(installed and installed.get('builtin')), 'available': True, 'installed': bool(installed),
-                      'installedVersion': installed['version'] if installed else '',
-                      'blockedBy': [pid for pid in entry.get('replaces', []) if pid in local],
-                      'updateAvailable': update})
-    return {'url': state.get('url', ''), 'packs': packs, 'checkedAt': state.get('checkedAt', 0),
-            'updateCount': sum(p['updateAvailable'] for p in packs)}
+    for repo in repos:
+        for entry in repo['catalog']['packs']:
+            kind = entry.get('kind', 'styles')
+            local = local_by_kind[kind]
+            installed = local.get(entry['packId'])
+            update = False
+            if installed:
+                remote_version, local_version = entry['version'], installed['version']
+                semver = r'(\d+)\.(\d+)\.(\d+)'
+                remote_match, local_match = re.fullmatch(semver, remote_version), re.fullmatch(semver, local_version)
+                if remote_match and local_match:
+                    update = tuple(map(int, remote_match.groups())) > tuple(map(int, local_match.groups()))
+                else:
+                    update = remote_version != local_version
+                if remote_version == local_version:
+                    root = _pack_root(kind, entry['packId'])
+                    update = root is None or any(
+                        not (root / name).is_file() or hashlib.sha256((root / name).read_bytes()).hexdigest() != expected
+                        for name, expected in entry['sha256'].items())
+            packs.append({**entry, 'kind': kind, 'builtin': bool(installed and installed.get('builtin')), 'available': True, 'installed': bool(installed),
+                          'installedVersion': installed['version'] if installed else '',
+                          'blockedBy': [pid for pid in entry.get('replaces', []) if pid in local],
+                          'updateAvailable': update,
+                          # 多仓库：每张包卡片都带上来源，安装时按 repoId 定位
+                          'repoId': repo['id'], 'repoName': _repo_name(repo['url']), 'repoUrl': repo['url'],
+                          'repoEnabled': repo['enabled']})
+    return {
+        'repos': [{'id': repo['id'], 'url': repo['url'], 'name': _repo_name(repo['url']),
+                   'checkedAt': repo['checkedAt'], 'enabled': repo['enabled'],
+                   'packCount': len(repo['catalog']['packs'])} for repo in repos],
+        'packs': packs,
+        'connected': bool(repos),
+        # 兼容旧字段：界面未升级前仍能读到第一个仓库
+        'url': repos[0]['url'] if repos else '',
+        'checkedAt': max((repo['checkedAt'] for repo in repos), default=0),
+        'updateCount': sum(pack['updateAvailable'] for pack in packs),
+    }
 
 
 def check_repository():
+    """检查所有过期仓库；单个仓库失败不影响其他仓库。"""
     state = _read_state()
-    if state and time.time() - state.get('checkedAt', 0) >= CHECK_INTERVAL:
+    now = time.time()
+    changed, errors = False, []
+    for repo in state['repos']:
+        if now - repo['checkedAt'] < CHECK_INTERVAL:
+            continue
         try:
-            return refresh_repository(state['url'])
+            repo['catalog'] = _validate_catalog(_json(_fetch(repo['url'], 4 * 1024 * 1024)))
+            repo['checkedAt'] = now
+            changed = True
         except PackError as exc:
-            return {**repository_status(), 'checkError': str(exc)}
+            errors.append('%s：%s' % (_repo_name(repo['url']), exc))
+    if changed:
+        _write_state(state)
+    status = repository_status()
+    if errors:
+        status['checkError'] = '；'.join(errors)
+    return status
+
+
+def add_repository(url, enabled=True):
+    """添加或刷新一个仓库；同一个地址重复添加不会产生副本。"""
+    url = catalog_url(url)
+    catalog = _validate_catalog(_json(_fetch(url, 4 * 1024 * 1024)))
+    state = _read_state()
+    repo = next((item for item in state['repos'] if item['url'] == url), None)
+    if repo:
+        repo['catalog'] = catalog
+        repo['checkedAt'] = time.time()
+        repo['enabled'] = True if enabled else repo['enabled']
+    else:
+        state['repos'].append({'id': _repo_id(url), 'url': url, 'catalog': catalog,
+                               'checkedAt': time.time(), 'enabled': bool(enabled)})
+    _write_state(state)
     return repository_status()
 
 
-def refresh_repository(url):
-    url = catalog_url(url)
-    catalog = _validate_catalog(_json(_fetch(url, 4 * 1024 * 1024)))
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temp = STATE_FILE.with_suffix('.tmp')
-    temp.write_text(json.dumps({'url': url, 'catalog': catalog, 'checkedAt': time.time()}, ensure_ascii=False, indent=2), encoding='utf-8')
-    temp.replace(STATE_FILE)
+def refresh_repository(url='', repo_id=''):
+    """无参刷新全部；给 url 就添加/刷新该仓库；给 repoId 只刷新那一个。"""
+    if repo_id:
+        state = _read_state()
+        repo = _find_repo(state, repo_id=repo_id)
+        try:
+            repo['catalog'] = _validate_catalog(_json(_fetch(repo['url'], 4 * 1024 * 1024)))
+            repo['checkedAt'] = time.time()
+        except PackError:
+            _write_state(state)
+            raise
+        _write_state(state)
+        return repository_status()
+    if url:
+        return add_repository(url)
+    state = _read_state()
+    errors = []
+    for repo in state['repos']:
+        try:
+            repo['catalog'] = _validate_catalog(_json(_fetch(repo['url'], 4 * 1024 * 1024)))
+            repo['checkedAt'] = time.time()
+        except PackError as exc:
+            errors.append('%s：%s' % (_repo_name(repo['url']), exc))
+    _write_state(state)
+    status = repository_status()
+    if errors:
+        status['checkError'] = '；'.join(errors)
+    return status
+
+
+def set_repository_enabled(repo_id, enabled):
+    state = _read_state()
+    repo = _find_repo(state, repo_id=repo_id)
+    repo['enabled'] = bool(enabled)
+    _write_state(state)
+    return repository_status()
+
+
+def remove_repository(repo_id):
+    state = _read_state()
+    before = len(state['repos'])
+    state['repos'] = [item for item in state['repos'] if item['id'] != repo_id]
+    if len(state['repos']) == before:
+        raise PackError('仓库不存在，请刷新列表后重试')
+    _write_state(state)
     return repository_status()
 
 
 def disconnect_repository():
     STATE_FILE.unlink(missing_ok=True)
-    return {'url': '', 'packs': []}
+    return repository_status()
 
 
-def install_repository_pack(pack_id, replace=False):
+def install_repository_pack(pack_id, replace=False, repo_id=''):
     state = _read_state()
-    entry = next((p for p in state.get('catalog', {}).get('packs', []) if p['packId'] == pack_id), None)
+    repo = _find_repo(state, repo_id=repo_id, pack_id=pack_id)
+    entry = next((p for p in repo['catalog']['packs'] if p['packId'] == pack_id), None)
     if not entry:
         raise PackError('仓库清单中找不到此包，请先加载仓库')
     kind = entry.get('kind', 'styles')
@@ -195,7 +324,7 @@ def install_repository_pack(pack_id, replace=False):
     blocked = [pid for pid in entry.get('replaces', []) if pid in installed_ids]
     if blocked:
         raise PackError('请先导出备份并卸载旧整库包 %s，再按需安装平台包，避免重复加载' % '、'.join(blocked))
-    base = state['url'].rsplit('/', 1)[0] + '/' + entry['path'] + '/'
+    base = repo['url'].rsplit('/', 1)[0] + '/' + entry['path'] + '/'
     used = 0
 
     def fetch_file(name):

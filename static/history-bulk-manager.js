@@ -34,10 +34,10 @@
             .history-bulk-toolbar{
                 display:flex;align-items:center;gap:10px;
                 margin:0 auto 12px;
-                padding:8px 40px;
+                padding:8px var(--history-toolbar-pad, 40px);
                 min-height:34px;
                 position:sticky;top:0;z-index:25;
-                max-width:1280px;width:100%;
+                max-width:var(--history-toolbar-max, 1280px);width:100%;
                 box-sizing:border-box;
                 background:var(--ui-panel, var(--bg-base, #f8f8f8));
                 border-bottom:1px solid var(--ui-line, transparent);

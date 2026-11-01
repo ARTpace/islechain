@@ -384,7 +384,8 @@
             width: fit-content;
             min-width: 150px;
             max-height: calc(100vh - 32px);
-            overflow: visible;
+            overflow-y: auto;
+            overflow-x: hidden;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
             will-change: opacity;
         }
@@ -845,7 +846,7 @@
             .nav-text, .nav-arrow { display: none !important; }
             .nav-parent .nav-arrow { display: none !important; }
             /* submenu 在移动端改为底部抽屉 */
-            #comfyui-submenu {
+            #comfyui-submenu, #asset-submenu {
                 left: 0 !important;
                 right: 0 !important;
                 top: auto !important;
@@ -910,11 +911,14 @@
                     </svg>
                     <span class="nav-text" data-i18n="nav.canvas">无限画布</span>
                 </div>
-                <div class="nav-item" data-module="asset-manager" onclick="switchUI(this, 'asset-manager')" title="素材库">
+                <div class="nav-item nav-parent" id="nav-asset" data-module="asset-manager" onclick="toggleAssetSubmenu(this)" title="素材库">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span class="nav-text" data-i18n="nav.assetManager">素材库</span>
+                    <svg class="nav-arrow w-4 h-4 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
                 </div>
             </nav>
 
@@ -982,6 +986,26 @@
                 </div>
             </div>
 
+            <!-- 素材库子菜单：挂在「素材库」按钮上 -->
+            <div id="asset-submenu" class="submenu">
+                <div class="nav-item nav-child" data-asset-tab="assets" onclick="switchAssetTab(this, 'assets')" title="素材资产">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <span class="nav-text">素材资产</span>
+                </div>
+                <div class="nav-item nav-child" data-asset-tab="workflows" onclick="switchAssetTab(this, 'workflows')" title="工作流管理">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"></rect><path d="M7 11v4a2 2 0 0 0 2 2h4"></path><rect x="13" y="13" width="8" height="8" rx="2"></rect></svg>
+                    <span class="nav-text">工作流管理</span>
+                </div>
+                <div class="nav-item nav-child" data-asset-tab="prompts" onclick="switchAssetTab(this, 'prompts')" title="提示词库">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"></path><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"></path><path d="M5 16H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1"></path><path d="M13 8h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7"></path><path d="M9 7v10"></path></svg>
+                    <span class="nav-text">提示词库</span>
+                </div>
+                <div class="nav-item nav-child" data-asset-tab="canvas-assets" onclick="switchAssetTab(this, 'canvas-assets')" title="画布资产">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+                    <span class="nav-text">画布资产</span>
+                </div>
+            </div>
+
             <!-- 底部功能按钮 -->
             <div class="sidebar-bottom">
                 <!-- 分隔线 -->
@@ -999,7 +1023,7 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261027guest"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261102scopebtn"></iframe>
             <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261024008"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261024008"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261024008"></iframe>
@@ -1016,7 +1040,7 @@
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
     <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261024009"></iframe>
             <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261029001"></iframe>
-            <iframe id="frame-asset-manager" data-src="/static/asset-manager.html"></iframe>
+            <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=20261102fit3"></iframe>
             <iframe id="frame-training" data-src="/static/app/training.html?v=20261025"></iframe>
             <iframe id="frame-generation-dashboard" data-src="/static/app/generation-dashboard.html"></iframe>
             <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261026cli"></iframe>
@@ -1299,6 +1323,112 @@
             return true;
         };
 
+        // 素材库视图切换：「素材库」按钮展开的子菜单里的四个入口
+        function switchAssetTab(el, tab) {
+            var navAsset = document.getElementById('nav-asset');
+            var frame = document.getElementById('frame-asset-manager');
+            // 首次进入直接把视图写进 URL，之后走 postMessage，不用重载页面
+            if (frame && !frame.getAttribute('src')) {
+                frame.dataset.src = '/static/asset-manager.html?v=20261102fit3&tab=' + encodeURIComponent(tab);
+            }
+            switchUI(navAsset || el, 'asset-manager');
+            if (navAsset) navAsset.classList.add('active');
+            document.querySelectorAll('#asset-submenu [data-asset-tab]').forEach(function (node) {
+                node.classList.toggle('submenu-active', node === el);
+            });
+            closeAssetFlyout();
+            if (!frame) return;
+            var post = function () {
+                try { frame.contentWindow.postMessage({ type: 'asset-manager-tab', tab: tab }, '*'); } catch (e) {}
+            };
+            post();
+            if (frame.dataset.ready !== '1') {
+                frame.addEventListener('load', function () {
+                    frame.dataset.ready = '1';
+                    post();
+                }, { once: true });
+            }
+        }
+
+        // ===== 「素材库」按钮的子菜单 =====
+        function positionAssetFlyout() {
+            var menu = document.getElementById('asset-submenu');
+            var nav = document.getElementById('nav-asset');
+            var sidebar = document.querySelector('.sidebar');
+            if (!menu || !sidebar) return;
+            var sideRect = sidebar.getBoundingClientRect();
+            var navRect = (nav || sidebar).getBoundingClientRect();
+            var top = navRect.top - 8;
+            var maxTop = window.innerHeight - menu.offsetHeight - 16;
+            if (top > maxTop) top = Math.max(16, maxTop);
+            menu.style.left = (sideRect.right + 2) + 'px';
+            menu.style.top = top + 'px';
+        }
+
+        function closeAssetFlyout() {
+            var menu = document.getElementById('asset-submenu');
+            var nav = document.getElementById('nav-asset');
+            if (menu) menu.classList.remove('expanded');
+            if (nav) nav.classList.remove('expanded');
+        }
+
+        function toggleAssetSubmenu(el) {
+            var menu = document.getElementById('asset-submenu');
+            if (!menu) return;
+            var willOpen = !menu.classList.contains('expanded');
+            // 同一时间只展开一个浮动菜单
+            var comfyMenu = document.getElementById('comfyui-submenu');
+            if (comfyMenu) comfyMenu.classList.remove('expanded');
+            var comfyNav = document.getElementById('nav-comfy');
+            if (comfyNav) comfyNav.classList.remove('expanded');
+            if (!willOpen) { closeAssetFlyout(); return; }
+            positionAssetFlyout();
+            menu.classList.add('expanded');
+            el.classList.add('expanded');
+        }
+
+        (function initAssetFlyout() {
+            var nav = document.getElementById('nav-asset');
+            var menu = document.getElementById('asset-submenu');
+            if (!nav || !menu) return;
+            var openTimer = null, closeTimer = null;
+            function openSoon() {
+                clearTimeout(openTimer);
+                openTimer = setTimeout(function () {
+                    if (menu.classList.contains('expanded')) return;
+                    var comfyMenu = document.getElementById('comfyui-submenu');
+                    if (comfyMenu) comfyMenu.classList.remove('expanded');
+                    var comfyNav = document.getElementById('nav-comfy');
+                    if (comfyNav) comfyNav.classList.remove('expanded');
+                    positionAssetFlyout();
+                    menu.classList.add('expanded');
+                    nav.classList.add('expanded');
+                }, 800);
+            }
+            function closeSoon() {
+                clearTimeout(closeTimer);
+                closeTimer = setTimeout(function () {
+                    if (!menu.classList.contains('expanded')) return;
+                    var mr = menu.getBoundingClientRect(), nr = nav.getBoundingClientRect(), pad = 20;
+                    var inNav = lastMouseX >= nr.left - pad && lastMouseX <= nr.right + pad && lastMouseY >= nr.top - pad && lastMouseY <= nr.bottom + pad;
+                    var inMenu = lastMouseX >= mr.left - pad && lastMouseX <= mr.right + pad && lastMouseY >= mr.top - pad && lastMouseY <= mr.bottom + pad;
+                    if (!inNav && !inMenu) closeAssetFlyout();
+                }, 150);
+            }
+            nav.addEventListener('mouseenter', openSoon);
+            nav.addEventListener('mouseleave', function () { clearTimeout(openTimer); closeSoon(); });
+            menu.addEventListener('mouseenter', function () { clearTimeout(openTimer); clearTimeout(closeTimer); });
+            menu.addEventListener('mouseleave', closeSoon);
+            document.addEventListener('pointerdown', function (e) {
+                if (!menu.classList.contains('expanded')) return;
+                if (e.target.closest && (e.target.closest('#asset-submenu') || e.target.closest('#nav-asset'))) return;
+                closeAssetFlyout();
+            });
+            window.addEventListener('resize', function () {
+                if (menu.classList.contains('expanded')) positionAssetFlyout();
+            });
+        })();
+
         function switchUI(el, id, parentId) {
             if (window.FeatureModules && !FeatureModules.isOn(id)) return;
             // Clear all nav item active states
@@ -1393,6 +1523,7 @@
             if (!submenu) return;
 
             const isExpanded = submenu.classList.contains('expanded');
+            if (!isExpanded && typeof closeAssetFlyout === 'function') closeAssetFlyout();
 
             if (isExpanded) {
                 submenu.classList.remove('expanded');
@@ -1448,6 +1579,7 @@
                 if (submenu && !submenu.classList.contains('expanded')) {
                     submenuPinned = false;
                     comfyHoverTimer = setTimeout(() => {
+                        if (typeof closeAssetFlyout === 'function') closeAssetFlyout();
                         positionSubmenu();
                         submenuPinned = true;
                         submenu.classList.add('expanded');

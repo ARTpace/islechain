@@ -20,8 +20,9 @@
     <script src="/static/js/theme.js?v=20261101unifiedassets"></script>
     <link rel="stylesheet" href="/static/css/theme.css?v=20261024001">
     <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/asset-manager.css?v=20261101subcategories">
-    <link rel="stylesheet" href="/static/css/style-pack-manager.css?v=20261101unifiedassets">
+    <link rel="stylesheet" href="/static/css/asset-manager.css?v=20261102nohover">
+    <link rel="stylesheet" href="/static/css/library-gallery-ui.css?v=20261101prompttabs">
+    <link rel="stylesheet" href="/static/css/style-pack-manager.css?v=20261101mediatabs">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -39,64 +40,19 @@
 </head>
 <body>
     <div class="asset-page">
-        <header class="asset-page-head">
-            <div>
-                <div class="asset-title">素材库管理</div>
-                <div class="asset-sub">按库、分组、内容和预览管理素材与提示词。</div>
-            </div>
-            <div class="asset-head-actions">
-                <div id="assetStatus" class="asset-status">准备就绪</div>
-                <button id="themeToggleBtn" class="asset-btn" type="button" title="切换深色/浅色主题">
-                    <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                    <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    <span>主题</span>
-                </button>
-                <button id="refreshBtn" class="asset-btn" type="button"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
-            </div>
-        </header>
-
-        <div class="asset-tabs">
-            <button id="assetTabAssets" class="active" type="button" data-tab="assets"><i data-lucide="image"></i><span>素材资产</span></button>
-            <button id="assetTabWorkflows" type="button" data-tab="workflows"><i data-lucide="workflow"></i><span>工作流管理</span></button>
-            <button id="assetTabPrompts" type="button" data-tab="prompts"><i data-lucide="text-cursor-input"></i><span>提示词库</span></button>
-            <button id="assetTabCanvasAssets" type="button" data-tab="canvas-assets"><i data-lucide="layout-dashboard"></i><span>画布资产</span></button>
-        </div>
+        <!-- 视图切换交给主界面侧边栏「应用」展开菜单（素材资产 / 工作流管理 / 提示词库 / 画布资产），页面内不再放标签与页头按钮 -->
+        <div id="assetStatus" class="asset-status" style="display:none"></div>
 
         <main id="assetManagerRoot" class="asset-manager-root"></main>
     </div>
 
     <input id="assetUploadInput" type="file" accept="image/*,video/*,audio/*,.json,.zip,application/json,application/zip" multiple hidden>
     <script src="/static/modules/style-pack-manager.js?v=20261101platformupdates"></script>
-    <script src="/static/modules/content-pack-manager.js?v=20261031cp1"></script>
-    <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedgallery"></script>
-    <script src="/static/modules/prompt-content-library.js?v=20261101sharedgallery"></script>
-    <script src="/static/js/asset-manager.js?v=20261101sources"></script>
-    <script>
-        (function(){
-            function updateIcon(theme) {
-                var sun = document.getElementById('themeIconSun');
-                var moon = document.getElementById('themeIconMoon');
-                if (!sun || !moon) return;
-                if (theme === 'dark') {
-                    sun.style.display = ''; moon.style.display = 'none';
-                } else {
-                    sun.style.display = 'none'; moon.style.display = '';
-                }
-            }
-            var btn = document.getElementById('themeToggleBtn');
-            btn.addEventListener('click', function(){
-                var current = window.StudioTheme ? window.StudioTheme.get() : 'dark';
-                var next = current === 'dark' ? 'light' : 'dark';
-                if (window.StudioTheme) window.StudioTheme.set(next);
-                updateIcon(next);
-            });
-            window.addEventListener('studio-theme-change', function(e){
-                updateIcon(e.detail && e.detail.theme);
-            });
-            // init
-            var theme = window.StudioTheme ? window.StudioTheme.get() : 'dark';
-            updateIcon(theme);
-        })();
-    </script>
+    <script src="/static/modules/content-pack-manager.js?v=20261101mediatabs"></script>
+    <script src="/static/modules/prompt-gallery-ui.js?v=20261102fit"></script>
+    <script src="/static/modules/asset-library-view.js?v=20261102anchorpop"></script>
+    <script src="/static/modules/prompt-content-library.js?v=20261102anchorpop"></script>
+    <script src="/static/modules/prompt-library-picker.js?v=20261101prompttabs"></script>
+    <script src="/static/js/asset-manager.js?v=20261102fit"></script>
 </body>
 </html>

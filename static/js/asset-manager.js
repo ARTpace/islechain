@@ -3,6 +3,7 @@ const statusEl = document.getElementById('assetStatus');
 const refreshBtn = document.getElementById('refreshBtn');
 const uploadInput = document.getElementById('assetUploadInput');
 
+const assetImagePicker = window.parent !== window && new URLSearchParams(window.location.search).get('picker') === 'image';
 const LOCAL_CAPTION_SETTINGS_KEY = 'asset_manager_local_caption_settings_v1';
 function readLocalCaptionSettings(){
     try {
@@ -24,7 +25,13 @@ function writeLocalCaptionSettings(){
 }
 const savedLocalCaptionSettings = readLocalCaptionSettings();
 
-let activeTab = 'assets';
+// 视图（素材资产 / 工作流管理 / 提示词库 / 画布资产）由主界面侧边栏「应用」菜单决定：
+// 首次可通过 ?tab=xxx 指定，之后由父窗口 postMessage('asset-manager-tab') 切换。
+const ASSET_TABS = ['assets', 'workflows', 'prompts', 'canvas-assets'];
+const requestedTab = (() => {
+    try { return new URLSearchParams(location.search).get('tab') || ''; } catch(_) { return ''; }
+})();
+let activeTab = ASSET_TABS.includes(requestedTab) ? requestedTab : (window.PromptLibraryPicker?.enabled ? 'prompts' : 'assets');
 let assetLibrary = {libraries:[], categories:[]};
 let promptLibrary = {libraries:[]};
 let apiProviders = [];
@@ -32,10 +39,19 @@ let avatarRegisterProvider = '';
 let avatarBusyId = '';
 let activeAssetLibraryId = '';
 let activeAssetCategoryId = '';
+let assetDialogId = '';
+let activeAssetSeries = '';
+let activeAssetAngle = '';
 let activeAssetClassFilter = '';
-let activeAssetKindFilter = 'all';
+let activeAssetKindFilter = assetImagePicker ? 'image' : 'all';
 let openAssetClassGroup = 'environment';
-let assetGridSize = 160;
+const GALLERY_SIZE_STORAGE_KEY = 'artCanvas.gallery.cardSize.v1';
+let galleryCardSize = (() => {
+    try {
+        const size = Number(localStorage.getItem(GALLERY_SIZE_STORAGE_KEY));
+        return Number.isInteger(size) && size >= 140 && size <= 480 && size % 20 === 0 ? size : 240;
+    } catch (_) { return 240; }
+})();
 let activeWorkflowLibraryId = '';
 let activeWorkflowCategoryId = '';
 let activePromptLibraryId = '';
@@ -198,10 +214,27 @@ function formatFileSize(bytes=0){
     const idx = Math.min(units.length - 1, Math.floor(Math.log(size) / Math.log(1024)));
     return `${(size / Math.pow(1024, idx)).toFixed(idx ? 1 : 0)} ${units[idx]}`;
 }
+// 直连资产仓库（PoseAtlas 等）：不需要安装卸载，用启用开关管理，状态存本地
+const ASSET_REPO_OFF_KEY = 'artCanvas.assetRepoDisabled.v1';
+function disabledAssetRepos(){
+    try {
+        const list = JSON.parse(localStorage.getItem(ASSET_REPO_OFF_KEY) || '[]');
+        return new Set(Array.isArray(list) ? list : []);
+    } catch (_) { return new Set(); }
+}
+function setAssetRepoEnabled(id, enabled){
+    const off = disabledAssetRepos();
+    if (enabled) off.delete(id); else off.add(id);
+    try { localStorage.setItem(ASSET_REPO_OFF_KEY, JSON.stringify([...off])); } catch (_) {}
+    window.dispatchEvent(new Event('asset-repos-changed'));
+}
+window.AssetRepoPrefs = {disabled: disabledAssetRepos, set: setAssetRepoEnabled};
 function assetLibraries(){
-    return Array.isArray(assetLibrary.libraries) && assetLibrary.libraries.length
+    const off = disabledAssetRepos();
+    const raw = Array.isArray(assetLibrary.libraries) && assetLibrary.libraries.length
         ? assetLibrary.libraries
         : [{id:'default', name:'默认资产库', categories:assetLibrary.categories || []}];
+    return raw.filter(lib => !off.has(lib.id));
 }
 function activeAssetLibrary(){
     const libs = assetLibraries();
@@ -261,7 +294,7 @@ function assetViewTitle(){
     if(assetUnclassifiedOnly) return '未分类素材';
     const entry = activeAssetClassEntry();
     if(entry) return entry.tag || '智能分类';
-    return activeAssetCategory()?.name || '图片资产';
+    return activeAssetCategoryId === 'all' ? (activeAssetSeries || activeAssetLibrary()?.name || '素材资产') : (activeAssetCategory()?.name || '素材资产');
 }
 function assetViewSubtitle(items){
     const libName = activeAssetLibrary()?.name || '资产库';
@@ -508,7 +541,7 @@ function assetThumb(item){
     if(kind === 'video') return `<video class="asset-video-thumb" src="${escapeAttr(item.url)}" muted preload="metadata" playsinline controls></video>`;
     if(kind === 'audio') return `<audio class="asset-audio-thumb" src="${escapeAttr(item.url)}" preload="metadata" controls></audio>`;
     if(kind === 'text') return `<div class="asset-file-icon"><i data-lucide="file-text"></i><span>文本</span></div>`;
-    return `<img src="${escapeAttr(item.url)}" alt="${escapeAttr(item.name || 'asset')}" loading="lazy">`;
+    return `<img src="${escapeAttr(item.thumbnail || item.url)}" alt="${escapeAttr(item.name || 'asset')}" loading="lazy" decoding="async">`;
 }
 function workflowThumb(item){
     return `<div class="asset-file-icon workflow-file-icon"><i data-lucide="workflow"></i><span>${escapeHtml(workflowKindLabel(item))}</span></div>`;
@@ -713,14 +746,13 @@ async function openSharedFolder(folderId){
 }
 function currentAssetItems(){
     const query = assetQuery.trim().toLowerCase();
-    const source = assetUnclassifiedOnly
-        ? assetUnclassifiedItems()
-        : activeAssetClassFilter
-            ? assetItemsForClassFilter(activeAssetClassFilter)
-            : query
-                ? assetCategories().flatMap(cat => cat.items || [])
-                : (activeAssetCategory()?.items || []);
+    const source = assetUnclassifiedOnly ? assetUnclassifiedItems()
+        : activeAssetCategoryId === 'all' ? assetCategories().flatMap(cat => cat.items || [])
+        : (activeAssetCategory()?.items || []);
     const filtered = source.filter(item => {
+        if(activeAssetSeries && assetPoseSeries(item) !== activeAssetSeries) return false;
+        if(activeAssetAngle && assetPoseAngle(item) !== activeAssetAngle) return false;
+        if(activeAssetClassFilter && !assetClassificationFlat(item).some(entry => assetClassFilterKey(entry) === activeAssetClassFilter)) return false;
         if(activeAssetKindFilter !== 'all' && assetKind(item) !== activeAssetKindFilter) return false;
         if(!query) return true;
         return [item.name, item.url, item.caption, assetKindLabel(item), assetClassificationSearchText(item)].join(' ').toLowerCase().includes(query);
@@ -907,15 +939,6 @@ function promptMetaOf(item){
     promptMetaCache.set(key, {updated_at:item?.updated_at, data});
     return data;
 }
-function promptSourceOptions(){
-    const counts = new Map();
-    for(const item of (activePromptLibrary()?.items || [])){
-        const src = promptMetaOf(item).source;
-        if(!src) continue;
-        counts.set(src, (counts.get(src) || 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-}
 function promptSourceLabel(value){
     const labels = {promptsref:'PromptsRef', promptimageatlas:'PromptImageAtlas', pia:'PromptImageAtlas', opennana:'OpenNana', manual:'手动创建'};
     return labels[value] || value;
@@ -935,14 +958,16 @@ function promptRandomWeight(id){
 // 筛选条件一变就重置池子重新拉第一页，滚动到底再续一页。
 let promptDataRevision = 0;
 function promptServerKey(lib){
-    return [lib?.id || '', activePromptCategory, currentPromptSubcategory(), promptSourceFilter, promptQuery.trim().toLowerCase(), promptSortMode, promptRandomSeed, promptDataRevision].join('|');
+    return [lib?.id || '', activePromptCategory, currentPromptSubcategory(), promptSourceFilter, promptQueryTokens().join(' '), promptSortMode, promptRandomSeed, promptDataRevision].join('|');
 }
 function promptServerUrl(offset, limit){
     const params = new URLSearchParams();
     if(activePromptCategory && activePromptCategory !== 'all') params.set('category', activePromptCategory);
     if(currentPromptSubcategory()) params.set('subcategory', currentPromptSubcategory());
     if(promptSourceFilter) params.set('source', promptSourceFilter);
-    if(promptQuery.trim()) params.set('q', promptQuery.trim());
+    // 服务端按空格切词并做「全包含」匹配，多词组统一成空格串发送
+    const query = promptQueryTokens().join(' ');
+    if(query) params.set('q', query);
     params.set('sort', promptSortMode);
     params.set('seed', String(promptRandomSeed));
     params.set('offset', String(offset));
@@ -1007,10 +1032,27 @@ function promptServerLoading(){
 function promptServerTotal(){
     return promptServerPool.total || 0;
 }
+// 搜索栏支持多词组：空格 / 逗号 / 顿号 / 分号都能断词，双引号可锁定一个短语。
+function promptQueryTokens(raw = promptQuery){
+    const text = String(raw || '').trim();
+    if(!text) return [];
+    const tokens = [];
+    // 先摘出引号里的整段，避免「金色 长发」被拆成两个词
+    const rest = text.replace(/["“「]([^"”」]+)["”」]/g, (_all, phrase) => {
+        const value = String(phrase || '').trim();
+        if(value) tokens.push(value.toLowerCase());
+        return ' ';
+    });
+    rest.split(/[\s,，、;；]+/).forEach(token => {
+        const value = token.trim().toLowerCase();
+        if(value) tokens.push(value);
+    });
+    return [...new Set(tokens)];
+}
 function currentPromptItems(){
     const lib = activePromptLibrary();
     if(lib?.paged) return currentPromptServerItems();
-    const tokens = promptQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const tokens = promptQueryTokens();
     const list = (lib?.items || []).filter(item => {
         if(activePromptCategory !== 'all' && (item.category || 'custom') !== activePromptCategory) return false;
         if(promptSourceFilter && promptMetaOf(item).source !== promptSourceFilter) return false;
@@ -1118,7 +1160,7 @@ function normalizeAssetState(){
     const libs = assetLibraries();
     if(!activeAssetLibraryId || !libs.some(lib => lib.id === activeAssetLibraryId)) activeAssetLibraryId = assetLibrary.active_library_id || libs[0]?.id || '';
     const cats = assetCategories();
-    if(!activeAssetCategoryId || !cats.some(cat => cat.id === activeAssetCategoryId)) activeAssetCategoryId = cats[0]?.id || '';
+    if(!activeAssetCategoryId || (activeAssetCategoryId !== 'all' && !cats.some(cat => cat.id === activeAssetCategoryId))) activeAssetCategoryId = 'all';
     if(activeAssetClassFilter && !activeAssetClassEntry()) activeAssetClassFilter = '';
     // 未分类与智能分类筛选互斥：两者都改数据源，同时开着会互相打架
     if(assetUnclassifiedOnly && activeAssetClassFilter) assetUnclassifiedOnly = false;
@@ -1174,7 +1216,7 @@ function normalizeCanvasAssetState(){
 async function loadAll(){
     setStatus('加载中...');
     const [assetData, promptData, providerData, canvasAssetData] = await Promise.all([
-        apiJson('/api/asset-library'),
+        apiJson('/api/asset-library').catch(() => ({library:{libraries:[]}})),
         apiJson('/api/prompt-libraries'),
         apiJson('/api/providers').catch(() => ({providers:[]})),
         apiJson('/api/canvas-assets').catch(() => ({categories:[], canvases:[], items:[]})),
@@ -1182,6 +1224,7 @@ async function loadAll(){
     ]);
     assetLibrary = assetData.library || {libraries:[], categories:[]};
     promptLibrary = promptData.library || {libraries:[]};
+    await window.PromptLibraryPicker?.extendLibrary(promptLibrary).catch(err => setStatus(err.message));
     promptDataRevision++;
     apiProviders = Array.isArray(providerData.providers) ? providerData.providers : [];
     canvasAssetsData = {
@@ -1195,6 +1238,7 @@ async function loadAll(){
     activeWorkflowLibraryId = (libs.find(lib => lib.id === 'default') || libs[0])?.id || '';
     activeAssetCategoryId = '';
     activeWorkflowCategoryId = '';
+    activeAssetSeries = ''; activeAssetAngle = ''; assetDialogId = '';
     selectedAssetId = '';
     selectedWorkflowId = '';
     selectedAssetIds.clear();
@@ -1203,6 +1247,7 @@ async function loadAll(){
     selectedCanvasAssetIds.clear();
     render();
     setStatus('准备就绪');
+    if (window.PromptLibraryPicker?.enabled) window.parent.postMessage({type:'prompt-library:ready'}, location.origin);
 }
 function render(){
     window.PromptGalleryUI.unmount();
@@ -1215,6 +1260,7 @@ function render(){
     document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
     // 提示词标签页改成「左侧树 + 全宽瀑布流」，右侧详情让位给弹窗
     root.classList.toggle('prompt-gallery-mode', activeTab === 'prompts');
+    root.classList.toggle('asset-gallery-mode', activeTab === 'assets' || activeTab === 'local');
     if(activeTab === 'prompts') renderPromptManager();
     else if(activeTab === 'workflows') renderWorkflowManager();
     else if(activeTab === 'local'){ activeTab = 'assets'; renderAssetManager(); }
@@ -1749,6 +1795,49 @@ function renderLocalDetail(item){
         </div>
     `;
 }
+function renderGallerySizeControl(id, value){
+    return window.PromptGalleryUI.sizeControl(id, value);
+}
+// 提示词卡片三档尺寸：点一下图标循环切换（对齐文生图展示区的缩略图尺寸按钮）
+// 三档都取 20 的倍数，与 PromptGalleryUI.cardSize() 的校验保持一致，否则会回落到默认 240
+const PROMPT_CARD_SIZES = [280, 200, 160];
+const PROMPT_CARD_SIZE_LABELS = ['大卡片', '中等卡片', '小卡片'];
+const PROMPT_CARD_SIZE_SVGS = [
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>',
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="3" width="10" height="10" rx="2"/><rect x="12" y="3" width="3" height="5" rx="1" opacity="0.4"/><rect x="12" y="9" width="3" height="4" rx="1" opacity="0.4"/></svg>',
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="7" y="1" width="5" height="5" rx="1" opacity="0.6"/><rect x="1" y="7" width="5" height="5" rx="1" opacity="0.6"/><rect x="7" y="7" width="5" height="5" rx="1" opacity="0.4"/></svg>'
+];
+// 素材页滑块可能留下任意尺寸，就近落档
+function promptCardSizeIndex(){
+    const exact = PROMPT_CARD_SIZES.indexOf(galleryCardSize);
+    if(exact >= 0) return exact;
+    let best = 1;
+    let bestDiff = Infinity;
+    PROMPT_CARD_SIZES.forEach((size, index) => {
+        const diff = Math.abs(size - galleryCardSize);
+        // 距离相同时取更小的档位：整体观感更紧凑
+        if(diff <= bestDiff){ best = index; bestDiff = diff; }
+    });
+    return best;
+}
+// 启动时把历史尺寸（例如旧的 240）对齐到最近的档位，让三档整体更紧凑
+galleryCardSize = PROMPT_CARD_SIZES[promptCardSizeIndex()];
+try { localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(galleryCardSize)); } catch (_) {}
+function renderPromptSizeToggle(){
+    // 尺寸三档控件和画师/角色/姿势等标签共用同一套实现（PromptGalleryUI.sizeToggle）
+    if(window.PromptGalleryUI?.sizeToggle) return window.PromptGalleryUI.sizeToggle('data-prompt-size-toggle');
+    const index = promptCardSizeIndex();
+    return `<button class="prompt-chip prompt-icon-chip" type="button" data-prompt-size-toggle title="切换卡片尺寸（当前${PROMPT_CARD_SIZE_LABELS[index]}）" aria-label="切换卡片尺寸">${PROMPT_CARD_SIZE_SVGS[index]}</button>`;
+}
+// 多词组搜索的可视化：搜索框下方列出命中的关键词，点一下就能摘掉一个
+function renderPromptQueryTags(){
+    const tokens = promptQueryTokens();
+    if(tokens.length < 2) return '';
+    return `<div class="prompt-query-tags" aria-label="当前搜索的多个关键词">
+        ${tokens.map((token, index) => `<button class="prompt-query-tag" type="button" data-prompt-query-token="${index}" title="移除「${escapeAttr(token)}」"><span>${escapeHtml(token)}</span><i data-lucide="x"></i></button>`).join('')}
+        <span class="prompt-query-hint">同时包含这 ${tokens.length} 个关键词</span>
+    </div>`;
+}
 function renderAssetManager(){
     normalizeAssetState();
     normalizeLocalCaptionSettings();
@@ -1763,7 +1852,7 @@ function renderAssetManager(){
     root.innerHTML = `
         <aside class="asset-panel asset-nav">
             <div class="panel-head">
-                <div class="panel-title"><strong>资产层级</strong><span>先选库，再选分组</span></div>
+                <div class="panel-title"><strong>素材资产</strong><span>按大类浏览素材</span></div>
                 <div class="panel-actions compact-actions">
                     ${assetTreeEdit?.placement === 'head' ? '' : '<button class="asset-icon-btn" type="button" data-asset-lib-new title="新建资产库"><i data-lucide="plus"></i></button>'}
                     ${renderHeadTreeInlineEdit(assetTreeEdit, 'assetTreeEditInput', 'data-asset-tree-edit-save', 'data-asset-tree-edit-cancel')}
@@ -1771,8 +1860,16 @@ function renderAssetManager(){
             </div>
             <div class="nav-scroll">
                 <div class="nav-tree">
-                    ${libs.map(item => renderAssetTreeBranch(item)).join('')}
+                    ${renderAssetSourceNavigation()}
+                    ${assetManageMode ? renderAssetTreeActionBar('library') : ''}
                 </div>
+            </div>
+            <div class="prompt-sidebar-tools">
+                ${!lib?.repository_source ? '<button class="asset-btn" type="button" data-asset-clean-invalid><i data-lucide="image-off"></i><span>清理失效图片</span></button>' : ''}
+                <button class="asset-btn" type="button" data-asset-upload><i data-lucide="upload"></i><span>导入素材</span></button>
+                <button class="asset-btn" type="button" data-asset-repository><i data-lucide="github"></i><span>接入 Git 仓库</span></button>
+                ${lib?.repository_url ? '<button class="asset-btn" type="button" data-asset-repository-update><i data-lucide="refresh-cw"></i><span>更新仓库索引</span></button>' : ''}
+                <button class="asset-btn ${assetManageMode ? 'primary' : ''}" type="button" data-asset-manage><i data-lucide="list-checks"></i><span>${assetManageMode ? '完成管理' : '批量管理'}</span></button>
             </div>
         </aside>
         <section class="asset-panel asset-content ${assetManageMode ? 'manage-on' : ''}">
@@ -1781,24 +1878,23 @@ function renderAssetManager(){
                     <strong>${escapeHtml(assetViewTitle())}</strong>
                     <span>${assetViewSubtitle(items)}</span>
                 </div>
-                <div class="asset-tools">
-                    <div class="asset-kind-filter" role="tablist" aria-label="素材类型筛选">
-                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'all' ? 'active' : ''}" data-asset-kind-filter="all">全部</button>
-                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'image' ? 'active' : ''}" data-asset-kind-filter="image">图片</button>
-                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'video' ? 'active' : ''}" data-asset-kind-filter="video">视频</button>
-                        <button type="button" class="asset-kind-pill ${activeAssetKindFilter === 'audio' ? 'active' : ''}" data-asset-kind-filter="audio">音频</button>
-                    </div>
-                    <label class="asset-size-wrap" title="调整卡片大小"><i data-lucide="minimize-2"></i><input id="assetGridSize" class="asset-size-range" type="range" min="72" max="320" step="8" value="${assetGridSize}"></label>
-                    <label class="asset-search-wrap"><i data-lucide="search"></i><input id="assetSearch" class="asset-search" type="search" value="${escapeAttr(assetQuery)}" placeholder="搜索素材"></label>
-                    <select id="assetSort" class="asset-sort-select" title="排序方式">
-                        <option value="newest" ${assetSortMode === 'newest' ? 'selected' : ''}>最新优先</option>
-                        <option value="oldest" ${assetSortMode === 'oldest' ? 'selected' : ''}>最早优先</option>
-                        <option value="name" ${assetSortMode === 'name' ? 'selected' : ''}>按名称</option>
-                        <option value="size" ${assetSortMode === 'size' ? 'selected' : ''}>按大小</option>
-                    </select>
-                    <button class="asset-btn ${assetManageMode ? 'primary' : ''}" type="button" data-asset-manage><i data-lucide="list-checks"></i><span>${assetManageMode ? '完成管理' : '批量管理'}</span></button>
-                </div>
             </div>
+            ${renderAssetPrimaryCategories()}
+            <div class="prompt-filter-bar asset-gallery-filters">
+                <label class="asset-search-wrap"><i data-lucide="search"></i><input id="assetSearch" class="asset-search" type="search" value="${escapeAttr(assetQuery)}" placeholder="输入关键词，或描述你想找的素材"></label>
+                <label class="prompt-select"><span>类型</span><select id="assetKindFilter">
+                    ${[['all','全部类型'],['image','图片'],['video','视频'],['audio','音频']].map(([value,label]) => `<option value="${value}" ${activeAssetKindFilter === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select></label>
+                <label class="prompt-select"><span>排序</span><select id="assetSort">
+                    <option value="newest" ${assetSortMode === 'newest' ? 'selected' : ''}>最新优先</option>
+                    <option value="oldest" ${assetSortMode === 'oldest' ? 'selected' : ''}>最早优先</option>
+                    <option value="name" ${assetSortMode === 'name' ? 'selected' : ''}>按名称</option>
+                    <option value="size" ${assetSortMode === 'size' ? 'selected' : ''}>按大小</option>
+                </select></label>
+                ${renderAssetFacetFilter()}
+                ${renderGallerySizeControl('assetGridSize', galleryCardSize)}
+            </div>
+            ${renderAssetSubcategories()}
             ${renderAssetClipboardBar()}
             ${renderLocalClipboardBar()}
             <div class="manage-tools">
@@ -1834,18 +1930,16 @@ function renderAssetManager(){
                 </div>
             </div>
             <div class="content-scroll">
-                <div class="asset-grid" style="--asset-card-min:${assetGridSize}px">
-                    ${activeAssetClassFilter ? '' : renderUploadCard(cat)}
+                <div class="prompt-masonry asset-gallery-grid">
                     ${items.map(item => renderAssetCard(item)).join('')}
-                    ${items.length ? '' : '<div class="empty-state">当前分组还没有素材，可以上传图片/视频/音频，或从智能画布输出保存到素材库。</div>'}
                 </div>
+                ${items.length ? '' : '<div class="empty-state">没有符合条件的素材，可以调整分类或上传素材。</div>'}
             </div>
         </section>
-        <aside class="asset-panel asset-detail">
-            ${renderAssetDetail(detail)}
-        </aside>
+        ${renderAssetDialog()}
         ${renderAssetMaintenanceDialog()}
     `;
+    window.PromptGalleryUI.mount(root.querySelector('.asset-gallery-grid'), {cardWidth:galleryCardSize});
 }
 function renderStylePackManager(){
     // 风格包页自带独立模块，这里只做委派，避免把几百行 UI 塞进本文件
@@ -2014,52 +2108,88 @@ function renderAssetClipboardBar(){
         </div>
     </div>`;
 }
-function renderAssetTreeBranch(lib){
-    const isActiveLib = lib.id === activeAssetLibraryId;
-    const cats = (lib.categories || []).filter(cat => (cat.type || 'image') === 'image');
-    const smartClasses = isActiveLib ? assetClassificationEntriesForLibrary(lib) : [];
-    const smartGroups = groupedAssetClassificationEntries(smartClasses);
-    const activeClassEntry = isActiveLib ? activeAssetClassEntry() : null;
-    const activeClassGroup = activeClassEntry ? assetClassificationEntryGroup(activeClassEntry)?.id : '';
-    const showLibActions = isActiveLib && assetTreeFocus === 'library';
-    return `<div class="tree-branch ${isActiveLib ? 'expanded' : ''}">
-        <button class="tree-row tree-parent ${isActiveLib ? 'contains-active' : ''} ${showLibActions ? 'active' : ''}" type="button" data-asset-lib="${escapeAttr(lib.id)}">
-            <span class="tree-row-icon"><i data-lucide="${isActiveLib ? 'folder-open' : 'folder'}"></i></span>
-            <span class="tree-row-name">${escapeHtml(lib.name || '资产库')}</span>
-            <span class="tree-row-count">${assetCountForLibrary(lib)}</span>
-        </button>
-        ${showLibActions ? renderAssetTreeActionBar('library') : ''}
-        <div class="tree-children">
-            ${cats.length ? cats.map(cat => `<button class="tree-row tree-child ${isActiveLib && cat.id === activeAssetCategoryId && assetTreeFocus === 'category' ? 'active' : ''}" type="button" data-asset-cat="${escapeAttr(cat.id)}" data-asset-cat-lib="${escapeAttr(lib.id)}" data-asset-cat-type="${escapeAttr(cat.type || 'image')}" draggable="true">
-                <span class="tree-elbow"></span>
-                <span class="tree-row-icon"><i data-lucide="image"></i></span>
-                <span class="tree-row-name">${escapeHtml(cat.name || '分组')}</span>
-                <span class="tree-row-count">${(cat.items || []).length}</span>
-            </button>${isActiveLib && cat.id === activeAssetCategoryId && assetTreeFocus === 'category' ? renderAssetTreeActionBar('category') : ''}`).join('') : '<div class="tree-empty">暂无分组</div>'}
-            ${isActiveLib ? `<div class="tree-smart-class">
-                <button class="tree-row tree-parent ${assetUnclassifiedOnly ? 'active' : ''}" type="button" data-asset-unclassified="${escapeAttr(lib.id)}" title="还没打上智能分类标签的素材">
-                    <span class="tree-row-icon"><i data-lucide="circle-dashed"></i></span>
-                    <span class="tree-row-name">未分类</span>
-                    <span class="tree-row-count">${assetUnclassifiedItems().length}</span>
-                </button>
-                <button class="tree-row tree-parent ${activeAssetClassFilter ? 'contains-active' : ''}" type="button" data-asset-class-root="${escapeAttr(lib.id)}">
-                    <span class="tree-row-icon"><i data-lucide="tags"></i></span>
-                    <span class="tree-row-name">智能分类</span>
-                    <span class="tree-row-count">${smartGroups.length}</span>
-                </button>
-                ${smartGroups.length ? smartGroups.map(group => `<div class="smart-class-group">
-                    <button class="smart-class-group-btn ${openAssetClassGroup === group.id ? 'open' : ''} ${activeClassGroup === group.id ? 'active' : ''}" type="button" data-asset-class-group="${escapeAttr(group.id)}">
-                        <span>${escapeHtml(group.name)}</span><small>${group.entries.length}</small><i data-lucide="${openAssetClassGroup === group.id ? 'chevron-up' : 'chevron-down'}"></i>
-                    </button>
-                    ${openAssetClassGroup === group.id ? `<div class="smart-class-pills">
-                        ${group.entries.map(entry => `<button class="smart-class-pill ${activeAssetClassFilter === entry.key ? 'active' : ''}" type="button" data-asset-class-filter="${escapeAttr(entry.key)}" data-asset-class-lib="${escapeAttr(lib.id)}" title="${escapeAttr(entry.label)}">
-                            <span>${escapeHtml(entry.tag)}</span><small>${entry.count}</small>
-                        </button>`).join('')}
-                    </div>` : ''}
-                </div>`).join('') : '<div class="tree-empty">暂无分类，先选择图片点“智能分类”</div>'}
-            </div>` : ''}
-        </div>
+function assetSourceKey(lib){
+    return lib?.repository_source || 'local';
+}
+function assetPoseSeries(item){
+    // ponytail: 既有导入索引已保留原站系列标签，直接复用，无需重新下载或迁移素材。
+    return item.pose_id ? String(item.repository_series || item.classification?.tags?.[1] || '') : '';
+}
+function assetPoseAngle(item){
+    return item.pose_id ? item.repository_angle || String(item.repository_id || '').split(':')[1] || '' : '';
+}
+function assetSeriesEntries(){
+    const counts = new Map();
+    assetCategories().flatMap(cat => cat.items || []).forEach(item => {
+        const series = assetPoseSeries(item);
+        if(series) counts.set(series, (counts.get(series) || 0) + 1);
+    });
+    return [...counts].map(([id,count]) => ({id,count}));
+}
+function renderAssetSourceNavigation(){
+    return `<nav class="asset-source-nav" aria-label="素材分类">${assetLibraries().map(lib => {
+        const name = lib.repository_source ? (lib.name || '素材').replace(/^PoseAtlas\s*·\s*/, '') : (lib.name === '默认资产库' ? '本地资产' : lib.name || '本地资产');
+        return `<button class="tree-row ${lib.id === activeAssetLibraryId ? 'active' : ''}" type="button" data-asset-lib="${escapeAttr(lib.id)}" aria-pressed="${lib.id === activeAssetLibraryId}">
+            <span class="tree-row-icon"><i data-lucide="${lib.repository_source ? 'images' : 'folder'}"></i></span>
+            <span class="tree-row-name">${escapeHtml(name)}</span><span class="tree-row-count">${assetCountForLibrary(lib)}</span>
+        </button>`;
+    }).join('')}</nav>`;
+}
+function renderAssetPrimaryCategories(){
+    const series = assetSeriesEntries();
+    if(series.length){
+        return `<nav class="prompt-subcategories asset-primary-categories" aria-label="姿势系列">
+            <button class="prompt-chip ${!activeAssetSeries ? 'is-on' : ''}" type="button" data-asset-series="" aria-pressed="${!activeAssetSeries}">全部系列</button>
+            ${series.map(entry => `<button class="prompt-chip ${activeAssetSeries === entry.id ? 'is-on' : ''}" type="button" data-asset-series="${escapeAttr(entry.id)}" aria-pressed="${activeAssetSeries === entry.id}">${escapeHtml(entry.id)} <span>${entry.count}</span></button>`).join('')}
+        </nav>`;
+    }
+    return `<nav class="prompt-subcategories asset-primary-categories" aria-label="素材分类">
+        <button class="prompt-chip ${activeAssetCategoryId === 'all' && !assetUnclassifiedOnly ? 'is-on' : ''}" type="button" data-asset-cat="all" data-asset-cat-lib="${escapeAttr(activeAssetLibraryId)}">全部 <span>${assetCountForLibrary(activeAssetLibrary())}</span></button>
+        ${assetCategories().map(cat => `<button class="prompt-chip ${cat.id === activeAssetCategoryId && !assetUnclassifiedOnly ? 'is-on' : ''}" type="button" data-asset-cat="${escapeAttr(cat.id)}" data-asset-cat-lib="${escapeAttr(activeAssetLibraryId)}">${escapeHtml(cat.name)} <span>${(cat.items || []).length}</span></button>`).join('')}
+        <button class="prompt-chip ${assetUnclassifiedOnly ? 'is-on' : ''}" type="button" data-asset-unclassified="${escapeAttr(activeAssetLibraryId)}">未分类</button>
+    </nav>${assetManageMode && activeAssetCategoryId !== 'all' ? renderAssetTreeActionBar('category') : ''}`;
+}
+function renderAssetFacetFilter(){
+    const series = assetSeriesEntries();
+    if(series.length){
+        const cats = assetCategories().map(cat => ({...cat, count:(cat.items || []).filter(item => !activeAssetSeries || assetPoseSeries(item) === activeAssetSeries).length})).filter(cat => cat.count);
+        return `<label class="prompt-select"><span>姿态</span><select id="assetPoseCategory" aria-label="姿态分类"><option value="all">全部姿态</option>${cats.map(cat => `<option value="${escapeAttr(cat.id)}" ${cat.id === activeAssetCategoryId ? 'selected' : ''}>${escapeHtml(cat.name)} (${cat.count})</option>`).join('')}</select></label>`;
+    }
+    const items = assetUnclassifiedOnly ? assetUnclassifiedItems() : activeAssetCategoryId === 'all'
+        ? assetCategories().flatMap(cat => cat.items || []) : (activeAssetCategory()?.items || []);
+    const entries = assetClassificationEntriesForItems(items);
+    if(!entries.length) return '';
+    return `<label class="prompt-select"><span>标签</span><select id="assetTagFilter" aria-label="素材标签"><option value="">全部标签</option>${entries.map(entry => `<option value="${escapeAttr(entry.key)}" ${activeAssetClassFilter === entry.key ? 'selected' : ''}>${escapeHtml(entry.tag)} (${entry.count})</option>`).join('')}</select></label>`;
+}
+function renderAssetSubcategories(){
+    if(!assetSeriesEntries().length) return '';
+    const items = (activeAssetCategoryId === 'all' ? assetCategories().flatMap(cat => cat.items || []) : (activeAssetCategory()?.items || []))
+        .filter(item => !activeAssetSeries || assetPoseSeries(item) === activeAssetSeries);
+    const angles = [...new Set(items.map(assetPoseAngle).filter(Boolean))];
+    const names = {front:'正面',diagonal:'斜侧',side:'侧面',high:'俯视',low:'仰视'};
+    return `<nav class="prompt-subcategories asset-angle-filters" aria-label="拍摄角度"><span>角度</span>
+        <button class="prompt-chip ${!activeAssetAngle ? 'is-on' : ''}" type="button" data-asset-angle="">全部角度</button>
+        ${angles.map(angle => `<button class="prompt-chip ${activeAssetAngle === angle ? 'is-on' : ''}" type="button" data-asset-angle="${escapeAttr(angle)}">${escapeHtml(names[angle] || angle)}</button>`).join('')}
+    </nav>`;
+}
+function renderAssetDialog(){
+    const item = assetDialogId ? findAssetItem(assetDialogId) : null;
+    if(!item) return '';
+    return `<div class="prompt-dialog-backdrop" data-asset-dialog-backdrop>
+        <section class="prompt-dialog asset-dialog" role="dialog" aria-modal="true" aria-label="素材详情">
+            <button class="prompt-dialog-close" type="button" data-asset-dialog-close aria-label="关闭素材详情">×</button>
+            <div class="prompt-dialog-media" data-asset-preview="${escapeAttr(item.id)}" title="点击放大">
+                ${assetKind(item) === 'image' ? `<img src="${escapeAttr(item.url)}" alt="${escapeAttr(item.name || '素材')}" decoding="async">` : assetThumb(item)}
+            </div>
+            <div class="asset-dialog-detail">${renderAssetDetail(item)}</div>
+        </section>
     </div>`;
+}
+function closeAssetDialog(){
+    assetDialogId = '';
+    assetEditMode = false;
+    render();
+    root.querySelector(`[data-asset-card="${CSS.escape(selectedAssetId)}"]`)?.focus();
 }
 function renderAssetTreeActionBar(kind){
     const editHtml = renderAssetTreeInlineEdit(kind);
@@ -2152,6 +2282,31 @@ function renderAssetMaintenanceDialog(){
         </div>
     </div>`;
 }
+let invalidImageCleanupBusy = false;
+async function cleanInvalidLocalImages(){
+    if(invalidImageCleanupBusy) return;
+    invalidImageCleanupBusy = true;
+    const libraryId = activeAssetLibraryId;
+    const request = ids => apiJson('/api/asset-library/maintenance/invalid-images', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({library_id:libraryId, ids:ids || []})
+    });
+    setStatus('正在检查本地图片…');
+    try {
+        const scan = await request();
+        const items = scan.items || [];
+        if(!items.length){ setStatus('没有缺失或损坏的本地图片'); return; }
+        const preview = items.slice(0, 8).map(x => `${x.name}：${x.reason}`).join('\n');
+        if(!window.confirm(`发现 ${items.length} 张失效图片：\n${preview}${items.length > 8 ? '\n…' : ''}\n\n确定清理这些资产记录？源文件保留，索引会先备份。`)){
+            setStatus('已取消清理'); return;
+        }
+        const result = await request(items.map(x => x.id));
+        assetLibrary = result.library || assetLibrary;
+        selectedAssetId = ''; selectedAssetIds.clear(); assetDialogId = '';
+        render(); setStatus(`已清理 ${result.removed} 条失效图片记录`);
+    } catch(err){ setStatus(err?.message || '清理失败'); }
+    finally { invalidImageCleanupBusy = false; }
+}
 async function runAssetMaintenanceScan(){
     if(assetMaintenanceBusy) return;
     assetMaintenanceBusy = true;
@@ -2195,11 +2350,19 @@ async function cleanAssetMaintenance(kind){
 }
 function renderAssetCard(item){
     const isImg = assetKind(item) === 'image';
-    return `<article class="asset-card ${isImg ? 'asset-card--image' : ''} ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}" data-asset-kind="${escapeAttr(assetKind(item))}" draggable="true">
+    if(isImg){
+        return window.PromptGalleryUI.card({id:item.id, name:item.name || '素材', thumbnail:item.thumbnail || item.url}, {
+            attribute:'data-asset-card', className:'asset-card asset-card--image',
+            label:item.file_exists === false ? '文件缺失' : item.repository_id || assetKindLabel(item),
+            active:item.id === selectedAssetId, selectable:true, checked:selectedAssetIds.has(item.id),
+            checkAttribute:'data-asset-check', checkClass:'asset-card-check', draggable:true
+        });
+    }
+    return `<article class="asset-card prompt-card ${item.id === selectedAssetId ? 'active' : ''}" data-asset-card="${escapeAttr(item.id)}" data-asset-kind="${escapeAttr(assetKind(item))}" draggable="true">
         <input class="asset-card-check" type="checkbox" data-asset-check="${escapeAttr(item.id)}" ${selectedAssetIds.has(item.id) ? 'checked' : ''}>
-        <div class="asset-thumb">${assetThumb(item)}</div>
-        <div class="asset-card-body">
-            <div class="asset-card-name" title="${escapeAttr(item.name || '')}">${escapeHtml(item.name || 'asset')}</div>
+        <div class="asset-thumb prompt-card-media">${assetThumb(item)}</div>
+        <div class="asset-card-body prompt-card-caption">
+            <button type="button" data-asset-card="${escapeAttr(item.id)}" title="查看详情">${escapeHtml(item.name || 'asset')}</button>
             <div class="asset-card-meta">${escapeHtml(assetKindLabel(item))} · ${escapeHtml(formatDate(item.created_at))}</div>
             ${item.file_exists === false ? '<div class="asset-card-warn" title="源文件已丢失，只剩这条记录"><i data-lucide="alert-triangle"></i><span>文件缺失</span></div>' : ''}
         </div>
@@ -2304,6 +2467,7 @@ function renderAssetDetail(item){
         <div class="panel-head">
             <div class="panel-title"><strong>素材预览</strong><span>${escapeHtml(assetKindLabel(item))}</span></div>
             <div class="panel-actions">
+                ${assetImagePicker && isImage ? `<button class="asset-btn primary" type="button" data-asset-apply="${escapeAttr(item.id)}">用作参考图</button>` : ''}
                 <button class="asset-icon-btn" type="button" data-asset-download="${escapeAttr(item.id)}" title="下载素材"><i data-lucide="download"></i></button>
                 <button class="asset-icon-btn" type="button" data-asset-edit-start="${escapeAttr(item.id)}" title="编辑"><i data-lucide="pencil"></i></button>
                 <button class="asset-icon-btn danger ${pendingDeleteAssetId === item.id ? 'detail-confirm' : ''}" type="button" data-asset-delete="${escapeAttr(item.id)}" title="${pendingDeleteAssetId === item.id ? '再次点击确认删除' : '删除'}"><i data-lucide="trash-2"></i></button>
@@ -2338,96 +2502,237 @@ function renderAssetDetail(item){
     `;
 }
 let promptContentKind = '';
-function renderPromptContentNavigation(){
-    return `<div class="prompt-content-navigation">${[['', '提示词'], ['artists', '画师库'], ['characters', '角色库'], ['packs', '内容包管理']].map(([key, label]) => `<button class="asset-btn ${promptContentKind === key ? 'primary' : ''}" type="button" data-prompt-content-kind="${key}">${label}</button>`).join('')}</div>`;
+// 标签栏：左侧库名、中间标签组、右侧条数，两侧各一份轻量信息夹住居中的标签
+// 直连资产仓库（PoseAtlas）每个库单独占一个标签：姿势 / 衣装 / 人像
+function assetKindTabs(){
+    return assetLibraries().filter(lib => lib.repository_source).map(lib => {
+        const label = String(lib.name || '').replace(/^PoseAtlas\s*·\s*/, '').split('·').pop().trim() || '资产';
+        const icon = /姿势|pose/i.test(label) ? 'person-standing'
+            : /衣装|服装|costume/i.test(label) ? 'shirt'
+            : /人像|肖像|face|portrait/i.test(label) ? 'scan-face' : 'image';
+        return ['media:' + lib.id, icon, label];
+    });
+}
+function assetKindTitle(kind){
+    const id = String(kind || '').replace(/^media:/, '');
+    const lib = assetLibraries().find(item => item.id === id);
+    return String(lib?.name || '').replace(/^PoseAtlas\s*·\s*/, '').split('·').pop().trim() || '资产库';
+}
+function renderPromptKindTabs(metaHtml = '', countHtml = ''){
+    const tabs = [['', 'palette', '风格'], ['artists', 'brush', '画师'], ['characters', 'users', '角色'], ...assetKindTabs(), ['packs', 'package', '管理']];
+    return `<div class="prompt-kind-tabs">
+        ${metaHtml ? `<span class="prompt-kind-meta">${metaHtml}</span>` : '<span class="prompt-kind-side" aria-hidden="true"></span>'}
+        <nav class="prompt-kind-tab-group">${tabs.map(([key, icon, label]) => `<button class="prompt-kind-tab ${promptContentKind === key ? 'is-on' : ''}" type="button" data-prompt-content-kind="${key}" aria-pressed="${promptContentKind === key}"><i data-lucide="${icon}"></i><span>${label}</span></button>`).join('')}</nav>
+        ${countHtml ? `<span class="prompt-kind-count">${countHtml}</span>` : '<span class="prompt-kind-side" aria-hidden="true"></span>'}
+    </div>`;
+}
+// 分类下拉：替代原侧边栏分类树，放在搜索栏左侧
+function renderPromptCategorySelect(){
+    const libs = promptLibraries();
+    if(!libs.length) return '';
+    // 所有宽度统一用筛选图标打开面板：桌面/平板浮层，手机底部抽屉
+    const active = activePromptCategory && activePromptCategory !== 'all';
+    return `<button class="prompt-chip prompt-icon-chip prompt-filter-open ${active ? 'is-on' : ''}" type="button" data-prompt-filter-sheet aria-label="筛选分类" title="筛选分类"><i data-lucide="sliders-horizontal"></i></button>`;
+}
+// 风格库筛选：分类树。左右两列（左选分类 / 右选子分类），选中即刷新列表，面板保持打开
+function openPromptCategorySheet(anchor){
+    const libs = promptLibraries();
+    if(!libs.length) return;
+    let focusLib = activePromptLibraryId || libs[0].id;
+    let focusCat = activePromptCategory;
+    let preview = '';
+    const chev = '<svg class="pt-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+    const libOf = libId => libs.find(entry => entry.id === libId) || null;
+    const catOf = (libId, catId) => promptCategoriesFor(libOf(libId)).find(cat => cat.id === catId) || null;
+    // 左列：词库下的分类（全部提示词 + 各分类）
+    const catsHtml = () => {
+        const lib = libOf(focusLib);
+        const allOn = focusLib === activePromptLibraryId && activePromptCategory === 'all';
+        const rows = [`<div class="pt-row pt-row-all ${allOn ? 'is-on' : ''}" data-tree-all="${escapeAttr(focusLib)}"><span class="pt-bullet"></span><span class="pt-name">全部提示词</span><em>${promptCountForCategory('all', lib)}</em></div>`];
+        promptCategoriesFor(lib).forEach(cat => {
+            const on = focusLib === activePromptLibraryId && cat.id === activePromptCategory;
+            const hasSubs = Array.isArray(cat.subcategories) && cat.subcategories.length > 0;
+            rows.push(`<div class="pt-row ${on ? 'is-on' : ''}" data-tree-cat="${escapeAttr(focusLib)}::${escapeAttr(cat.id)}">${hasSubs ? `<span class="pt-hint">${chev}</span>` : '<span class="pt-bullet"></span>'}<span class="pt-name">${escapeHtml(cat.name || promptCategoryLabel(cat.id))}</span><em>${promptCountForCategory(cat.id, lib)}</em></div>`);
+        });
+        return rows.join('');
+    };
+    // 右列：当前（或悬停）分类的子分类
+    const subsHtml = () => {
+        const catId = preview || focusCat;
+        if(!catId || catId === 'all') return '<p class="pt-side-empty">选左侧分类，这里列出它的子分类。</p>';
+        const cat = catOf(focusLib, catId);
+        const subs = Array.isArray(cat?.subcategories) ? cat.subcategories : [];
+        const activeSub = currentPromptSubcategory();
+        if(!subs.length) return '<p class="pt-side-empty">这个分类没有子分类，直接看分类全部内容就行。</p>';
+        const head = `<div class="pt-side-head">${escapeHtml(cat.name || promptCategoryLabel(catId))}</div>`;
+        const clearOn = catId === activePromptCategory && !activeSub;
+        const clear = `<div class="pt-row pt-row-sub ${clearOn ? 'is-on' : ''}" data-tree-sub="${escapeAttr(focusLib)}::${escapeAttr(catId)}::"><span class="pt-name">全部子分类</span><em>${promptCountForCategory(catId, libOf(focusLib))}</em></div>`;
+        const rows = subs.map(sub => {
+            const subOn = catId === activePromptCategory && String(sub.id) === String(activeSub);
+            return `<div class="pt-row pt-row-sub ${subOn ? 'is-on' : ''}" data-tree-sub="${escapeAttr(focusLib)}::${escapeAttr(catId)}::${escapeAttr(sub.id)}"><span class="pt-name">${escapeHtml(sub.name || sub.id)}</span><em>${Number(sub.count) || 0}</em></div>`;
+        }).join('');
+        return head + clear + rows;
+    };
+    const libsHtml = libs.map(libItem => `<button class="pt-lib ${libItem.id === focusLib ? 'is-open' : ''}" type="button" data-tree-lib="${escapeAttr(libItem.id)}">${chev}<span>${escapeHtml(libItem.name || '提示词库')}</span></button>`).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'filter-sheet-backdrop';
+    overlay.innerHTML = `<div class="filter-sheet is-auto" role="dialog" aria-modal="true" aria-label="筛选分类">
+        <div class="filter-sheet-body"><div class="prompt-tree">
+            <div class="pt-libs">${libsHtml}</div>
+            <div class="pt-body">
+                <div class="pt-col pt-col-cats" data-tree-cats></div>
+                <div class="pt-col pt-col-subs" data-tree-subs></div>
+            </div>
+        </div></div>
+    </div>`;
+    const close = () => { overlay.remove(); document.documentElement.classList.remove('filter-sheet-open'); };
+    document.body.appendChild(overlay);
+    document.documentElement.classList.add('filter-sheet-open');
+    window.PromptGalleryUI?.anchorSheet?.(overlay, overlay.querySelector('.filter-sheet'), anchor);
+    window.lucide?.createIcons();
+    const catsHost = overlay.querySelector('[data-tree-cats]');
+    const subsHost = overlay.querySelector('[data-tree-subs]');
+    const paintSubs = () => { subsHost.innerHTML = subsHtml(); };
+    const paint = () => {
+        catsHost.innerHTML = `<div class="pt-side-head">分类</div>${catsHtml()}`;
+        paintSubs();
+    };
+    paint();
+    // 选中后只刷新列表，面板留着继续点
+    const pick = (libId, catId, subId = '') => {
+        if(libId) activePromptLibraryId = libId;
+        activePromptCategory = catId || 'all';
+        promptSubcategory = subId || '';
+        promptSubcategoryScope = `${activePromptLibraryId}|${activePromptCategory}`;
+        promptTreeFocus = 'category';
+        selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; promptDialogId = '';
+        selectedPromptIds.clear();
+        render();
+        root.querySelector('.prompt-gallery-scroll')?.scrollTo(0, 0);
+        paint();
+    };
+    // 悬停左列分类 → 右列即时预览它的子分类（不改筛选）
+    catsHost.addEventListener('mouseover', event => {
+        const row = event.target.closest('[data-tree-cat]');
+        if(!row) return;
+        const catId = String(row.dataset.treeCat || '').split('::')[1] || '';
+        if(preview === catId) return;
+        preview = catId;
+        paintSubs();
+    });
+    catsHost.addEventListener('mouseleave', () => { preview = ''; paintSubs(); });
+    overlay.addEventListener('click', event => {
+        if(event.target === overlay || event.target.closest('[data-sheet-close]')){ close(); return; }
+        const libBtn = event.target.closest('[data-tree-lib]');
+        if(libBtn){
+            focusLib = libBtn.dataset.treeLib;
+            focusCat = 'all'; preview = '';
+            pick(focusLib, 'all');
+            return;
+        }
+        const allNode = event.target.closest('[data-tree-all]');
+        if(allNode){ preview = ''; focusCat = 'all'; pick(allNode.dataset.treeAll, 'all'); return; }
+        const subNode = event.target.closest('[data-tree-sub]');
+        if(subNode){
+            const [libId, catId, subId] = String(subNode.dataset.treeSub || '').split('::');
+            preview = ''; focusLib = libId; focusCat = catId;
+            pick(libId, catId, subId);
+            return;
+        }
+        const catNode = event.target.closest('[data-tree-cat]');
+        if(catNode){
+            const [libId, catId] = String(catNode.dataset.treeCat || '').split('::');
+            preview = ''; focusLib = libId; focusCat = catId;
+            pick(libId, catId);
+        }
+    });
+}
+// 管理页工具条：原侧边栏底部的导入/导出/新增/批量管理，外加词库与分组维护
+function renderPromptManageToolbar(){
+    const lib = activePromptLibrary();
+    const readonly = Boolean(lib?.readonly);
+    const catEditable = activePromptCategory !== 'all';
+    const catConfirm = pendingTreeDelete === `prompt-cat:${activePromptCategory}`;
+    const libConfirm = pendingTreeDelete === `prompt-lib:${lib?.id || ''}`;
+    return `<div class="prompt-manage-toolbar">
+        <div class="prompt-manage-main">
+            <button class="asset-btn" type="button" data-prompt-import><i data-lucide="upload"></i><span>导入</span></button>
+            <button class="asset-btn" type="button" data-prompt-export><i data-lucide="download"></i><span>导出</span></button>
+            <button class="asset-btn primary" type="button" data-prompt-new ${readonly ? 'disabled' : ''}><i data-lucide="file-plus-2"></i><span>新增提示词</span></button>
+            <button class="asset-btn" type="button" data-prompt-manage-goto><i data-lucide="list-checks"></i><span>批量管理</span></button>
+        </div>
+        <div class="prompt-manage-sub">
+            <span>词库与分组</span>
+            <button type="button" data-prompt-cat-new ${readonly ? 'disabled' : ''}>新分组</button>
+            <button type="button" data-prompt-cat-rename ${catEditable ? '' : 'disabled'}>重命名分组</button>
+            <button type="button" class="danger ${catConfirm ? 'is-confirm' : ''}" data-prompt-cat-delete ${catEditable ? '' : 'disabled'}>${catConfirm ? '确认删除分组' : '删除分组'}</button>
+            <button type="button" data-prompt-lib-new>新建词库</button>
+            <button type="button" data-prompt-lib-rename>重命名词库</button>
+            ${isSystemPromptLibrary(lib) ? '' : `<button type="button" class="danger ${libConfirm ? 'is-confirm' : ''}" data-prompt-lib-delete>${libConfirm ? '确认删除词库' : '删除词库'}</button>`}
+        </div>
+        ${promptTreeEdit ? renderPromptTreeInlineEdit('library') : ''}
+    </div>`;
 }
 function renderPromptManager(){
     const subcategoryScope = `${activePromptLibraryId}|${activePromptCategory}`;
     if(promptSubcategoryScope !== subcategoryScope){ promptSubcategory = ''; promptSubcategoryScope = subcategoryScope; }
     if(promptContentKind){
-        root.innerHTML = `<aside class="asset-panel asset-nav"><div class="panel-head"><div class="panel-title"><strong>提示词库</strong><span>提示词、画师与角色</span></div></div><div class="nav-scroll">${renderPromptContentNavigation()}<div class="prompt-content-categories" id="promptContentCategories"></div></div></aside><section class="asset-panel asset-content" id="promptContentLibrary"></section>`;
+        const isPacks = promptContentKind === 'packs';
+        const isMedia = !isPacks && promptContentKind.startsWith('media:');
+        // 切换视图时重新读一次卡片尺寸，画师/角色页改过的档位能带回风格页
+        galleryCardSize = PROMPT_CARD_SIZES[promptCardSizeIndex()];
+        const kindTitle = isMedia ? assetKindTitle(promptContentKind) : ({artists:'画师库', characters:'角色库'}[promptContentKind] || '');
+        root.innerHTML = `<section class="asset-panel asset-content prompt-flat-panel">
+            ${renderPromptKindTabs(isPacks ? '' : `<strong>${kindTitle}</strong>`, isPacks ? '' : '<span data-content-kind-count>加载中…</span>')}
+            ${isPacks ? renderPromptManageToolbar() : ''}
+            <div class="prompt-flat-content" id="promptContentLibrary"></div>
+        </section>`;
         const host = document.getElementById('promptContentLibrary');
-        if(promptContentKind === 'style-packs'){
-            host.className = 'prompt-style-pack-host';
-            window.ContentPackManager.render(host);
-        }
-        else if(promptContentKind === 'packs'){
-            host.className = 'prompt-content-pack-host';
-            window.ContentPackManager.render(host);
-        }
-        else window.PromptContentLibrary.render(host, promptContentKind, document.getElementById('promptContentCategories'));
+        host.className = 'prompt-flat-content';
+        if(isPacks) window.ContentPackManager.render(host);
+        else if(isMedia) window.AssetLibraryView.render(host, assetLibraries(), promptContentKind.slice(6));
+        else window.PromptContentLibrary.render(host, promptContentKind, null);
         return;
     }
     normalizePromptState();
-    const libs = promptLibraries();
     const lib = activePromptLibrary();
     const readonly = Boolean(lib?.readonly);
     const cats = activePromptCategories();
     const items = currentPromptItems();
     const isPaged = Boolean(lib?.paged);
     const subcategories = isPaged ? (cats.find(cat => cat.id === activePromptCategory)?.subcategories || []) : [];
-    const sources = isPaged
-        ? (lib?.sources || []).map(entry => [entry.id, entry.count])
-        : promptSourceOptions();
     const totalCount = isPaged ? promptServerTotal() : items.length;
     // 首次进入 / 筛选刚变时池子还没数据，这段时间要显示加载态而不是"没内容"
     const loadingFirstPage = isPaged && promptServerLoading();
     // 服务端分页的库：当前数组就是这一页，不再按 promptRenderLimit 二次截断
     const visibleItems = isPaged ? items : items.slice(0, promptRenderLimit);
     const hasMore = isPaged ? Boolean(promptServerPool.hasMore) : items.length > promptRenderLimit;
-    const hasFilter = Boolean(promptQuery.trim() || promptSourceFilter || promptFavOnly || activePromptCategory !== 'all');
-    const sourceOptionsHtml = ['<option value="">全部来源</option>']
-        .concat(sources.map(([value, count]) => `<option value="${escapeAttr(value)}" ${value === promptSourceFilter ? 'selected' : ''}>${escapeHtml(promptSourceLabel(value))}（${count}）</option>`))
-        .join('');
+    const hasFilter = Boolean(promptQuery.trim() || promptFavOnly || activePromptCategory !== 'all');
     const sortOptionsHtml = [['random', '随机推荐'], ['newest', '最新入库'], ['likes', '点赞最多'], ['name', '名称排序']]
         .map(([value, text]) => `<option value="${value}" ${value === promptSortMode ? 'selected' : ''}>${text}</option>`)
         .join('');
     const emptyTitle = hasFilter ? '没有找到匹配提示词' : '这个分类还没有提示词';
     const emptyHint = hasFilter ? '换一个关键词，或者清空筛选后再试试。' : '可以点「新增」手写一条，或用「导入」批量导入 JSON / JSONL。';
     root.innerHTML = `
-        <aside class="asset-panel asset-nav">
-            <div class="panel-head">
-                <div class="panel-title"><strong>提示词库</strong><span>可创建多个词库</span></div>
-                <div class="panel-actions compact-actions">
-                    ${promptTreeEdit?.placement === 'head' ? '' : '<button class="asset-icon-btn" type="button" data-prompt-lib-new title="新建提示词库"><i data-lucide="plus"></i></button>'}
-                    ${renderHeadTreeInlineEdit(promptTreeEdit, 'promptTreeEditInput', 'data-prompt-tree-edit-save', 'data-prompt-tree-edit-cancel')}
-                </div>
-            </div>
-            <div class="nav-scroll">
-                <div class="nav-tree">
-                    ${renderPromptContentNavigation()}
-                    ${libs.map(item => renderPromptTreeBranch(item)).join('')}
-                </div>
-            </div>
-                <div class="prompt-sidebar-tools">
-                    <button class="asset-icon-btn" type="button" data-prompt-import title="导入提示词文件（JSON / JSONL）"><i data-lucide="upload"></i><span>导入</span></button>
-                    <button class="asset-icon-btn" type="button" data-prompt-export title="导出当前提示词库"><i data-lucide="download"></i><span>导出</span></button>
-                    <button class="asset-btn primary" type="button" data-prompt-new ${readonly ? 'disabled' : ''}><i data-lucide="file-plus-2"></i><span>新增</span></button>
-                    <button class="asset-btn ${promptManageMode ? 'primary' : ''}" type="button" data-prompt-manage><i data-lucide="list-checks"></i><span>${promptManageMode ? '完成管理' : '批量管理'}</span></button>
-                </div>
-        </aside>
-        <section class="asset-panel asset-content ${promptManageMode ? 'manage-on' : ''}">
-            <div class="content-toolbar">
-                <div class="content-heading">
-                    <strong>${escapeHtml(lib?.name || '提示词库')}</strong>
-                    <span>共 ${totalCount} 条提示词${promptFavOnly ? '（仅收藏）' : ''}</span>
-                </div>
-
-            </div>
+        <section class="asset-panel asset-content prompt-flat-panel ${promptManageMode ? 'manage-on' : ''}">
+            ${renderPromptKindTabs(`<strong>${escapeHtml(lib?.name || '提示词库')}</strong>`, `共 ${totalCount} 条${promptFavOnly ? ' · 仅收藏' : ''}`)}
             <div class="prompt-filter-bar">
-                <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="输入关键词，或描述你想找的画面"></label>
-                <label class="prompt-select"><span>来源</span><select id="promptSourceFilter">${sourceOptionsHtml}</select></label>
-                <label class="prompt-select"><span>排序</span><select id="promptSort">${sortOptionsHtml}</select></label>
-                <button class="prompt-chip ${promptFavOnly ? 'is-on' : ''}" type="button" data-prompt-fav-only aria-pressed="${promptFavOnly}"><i data-lucide="star"></i><span>只看收藏 ${promptFavorites.size}</span></button>
+                ${renderPromptCategorySelect()}
+                <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="${window.innerWidth <= 760 ? '搜索' : '搜索关键词，空格分隔多个'}"></label>
+                ${window.PromptGalleryUI?.sortSelect ? window.PromptGalleryUI.sortSelect(promptSortMode, [['random', '随机推荐'], ['newest', '最新入库'], ['likes', '点赞最多'], ['name', '名称排序']], 'id="promptSort" data-gallery-sort') : `<label class="prompt-select prompt-sort-select" title="排序方式"><select id="promptSort" aria-label="排序方式">${sortOptionsHtml}</select></label>`}
+                ${renderPromptSizeToggle()}
+                ${window.PromptGalleryUI?.favToggle ? window.PromptGalleryUI.favToggle(promptFavOnly, `只看收藏（${promptFavorites.size} 条）`, 'data-prompt-fav-only') : `<button class="prompt-chip prompt-icon-chip ${promptFavOnly ? 'is-on' : ''}" type="button" data-prompt-fav-only aria-pressed="${promptFavOnly}" title="只看收藏（${promptFavorites.size} 条）"><i data-lucide="heart"></i></button>`}
                 ${hasFilter ? '<button class="prompt-chip" type="button" data-prompt-filter-reset><i data-lucide="rotate-ccw"></i><span>清空筛选</span></button>' : ''}
             </div>
-            ${subcategories.length ? `<nav class="prompt-subcategories" aria-label="子分类"><button type="button" class="prompt-chip ${!currentPromptSubcategory() ? 'is-on' : ''}" data-prompt-subcategory="" aria-pressed="${!currentPromptSubcategory()}">全部子分类</button>${subcategories.map(sub => `<button type="button" class="prompt-chip ${currentPromptSubcategory() === sub.id ? 'is-on' : ''}" data-prompt-subcategory="${escapeAttr(sub.id)}" aria-pressed="${currentPromptSubcategory() === sub.id}">${escapeHtml(sub.name)} <span>${sub.count}</span></button>`).join('')}</nav>` : ''}
+            ${renderPromptQueryTags()}
+            <!-- 子分类已收进筛选面板的分类树，页面内不再占一行 -->
             <div class="manage-tools">
                 <span>已选择 ${selectedPromptIds.size} 条提示词，支持拖拽框选或逐个勾选。</span>
                 <div class="asset-tools">
                     <button class="asset-btn" type="button" data-prompt-select-all ${items.length && !readonly ? '' : 'disabled'}><i data-lucide="check-square"></i><span>全选</span></button>
                     <button class="asset-btn" type="button" data-prompt-clear-selection ${selectedPromptIds.size ? '' : 'disabled'}><i data-lucide="square"></i><span>清空</span></button>
                     <button class="asset-btn danger ${pendingBatchDelete === 'prompt' ? 'detail-confirm' : ''}" type="button" data-prompt-delete-selected ${readonly || !selectedPromptIds.size ? 'disabled' : ''}><i data-lucide="trash-2"></i><span>${pendingBatchDelete === 'prompt' ? '确认删除' : '删除所选'}</span></button>
+                    <button class="asset-btn" type="button" data-prompt-manage><i data-lucide="x"></i><span>退出管理</span></button>
                 </div>
             </div>
             <div class="content-scroll prompt-gallery-scroll">
@@ -2448,7 +2753,7 @@ function renderPromptManager(){
 }
 // 固定列内顺序：续载只在各列底部追加，不让 CSS columns 重新平衡旧卡片。
 function mountPromptMasonry(){
-    window.PromptGalleryUI.mount(root.querySelector('.prompt-masonry'));
+    window.PromptGalleryUI.mount(root.querySelector('.prompt-masonry'), {cardWidth:galleryCardSize});
 }
 // 滚过一屏才显示「回到顶部」，避免一直挂在画面上
 function mountPromptBackTop(){
@@ -2506,8 +2811,9 @@ function openPromptImageViewer(item){
     overlay.dataset.scale = '1';
     overlay.dataset.x = '0';
     overlay.dataset.y = '0';
-    overlay.innerHTML = `<div class="asset-lightbox-inner" role="dialog" aria-modal="true" aria-label="图片预览"><img class="asset-lightbox-image" src="${escapeAttr(url)}" alt="${escapeAttr(item.name || '提示词配图')}" draggable="false"></div>`;
+    overlay.innerHTML = `<div class="asset-lightbox-inner" role="dialog" aria-modal="true" aria-label="图片预览"><img class="asset-lightbox-image" src="${escapeAttr(url)}" alt="${escapeAttr(item.name || '提示词配图')}" draggable="false">${window.PromptLibraryPicker?.button(`prompt:${activePromptLibraryId}:${item.id}`, item) || ''}</div>`;
     document.body.appendChild(overlay);
+    window.lucide?.createIcons();
     document.body.classList.add('asset-lightbox-open');
 }
 function closePromptDialog(){
@@ -2590,6 +2896,7 @@ function renderPromptDialog(lib, readonly){
                     </div>
                 </header>
                 <div class="prompt-dialog-actions">
+                    ${window.PromptLibraryPicker?.button(`prompt:${lib?.id}:${item.id}`, item) || ''}
                     <button class="prompt-action ${liked ? 'is-on' : ''}" type="button" data-prompt-like="${escapeAttr(item.id)}" aria-pressed="${liked}"><i data-lucide="heart"></i><span>点赞 ${likeCount || ''}</span></button>
                     <button class="prompt-action ${faved ? 'is-on' : ''}" type="button" data-prompt-fav="${escapeAttr(item.id)}" aria-pressed="${faved}"><i data-lucide="star"></i><span>${faved ? '已收藏' : '收藏'}</span></button>
                     <button class="prompt-action primary" type="button" data-prompt-copy="${escapeAttr(item.id)}"><i data-lucide="copy"></i><span>复制</span></button>
@@ -2615,61 +2922,6 @@ function renderPromptDialog(lib, readonly){
             <button class="prompt-dialog-close" type="button" data-prompt-dialog-close aria-label="关闭">×</button>
             ${body}
         </section>
-    </div>`;
-}
-function renderPromptTreeBranch(lib){
-    const isActiveLib = lib.id === activePromptLibraryId;
-    // 每个库渲染自己的分类，不再回退到激活库/系统库的分类（修复新库错显系统分类）。
-    const cats = promptCategoriesFor(lib);
-    const libId = escapeAttr(lib.id);
-    const readonly = Boolean(lib.readonly);
-    const showLibActions = isActiveLib && promptTreeFocus === 'library';
-    return `<div class="tree-branch ${isActiveLib ? 'expanded' : ''}">
-        <button class="tree-row tree-parent ${isActiveLib ? 'contains-active' : ''} ${showLibActions ? 'active' : ''}" type="button" data-prompt-lib="${libId}">
-            <span class="tree-row-icon"><i data-lucide="${lib.id === 'system' ? 'sparkles' : 'book-open'}"></i></span>
-            <span class="tree-row-name">${escapeHtml(lib.name || '提示词库')}</span>
-            <span class="tree-row-count">${lib.paged ? Number(lib.total) || 0 : (lib.items || []).length}</span>
-        </button>
-        ${showLibActions ? renderPromptTreeActionBar('library') : ''}
-        <div class="tree-children">
-            <button class="tree-row tree-child ${isActiveLib && activePromptCategory === 'all' && promptTreeFocus === 'category' ? 'active' : ''}" type="button" data-prompt-cat="all" data-prompt-cat-lib="${libId}">
-                <span class="tree-elbow"></span>
-                <span class="tree-row-icon"><i data-lucide="layout-list"></i></span>
-                <span class="tree-row-name">全部提示词</span>
-                <span class="tree-row-count">${promptCountForCategory('all', lib)}</span>
-            </button>
-            ${cats.map(cat => {
-                const active = isActiveLib && cat.id === activePromptCategory && promptTreeFocus === 'category';
-                return `<button class="tree-row tree-child ${active ? 'active' : ''}" type="button" data-prompt-cat="${escapeAttr(cat.id)}" data-prompt-cat-lib="${libId}">
-                <span class="tree-elbow"></span>
-                <span class="tree-row-icon"><i data-lucide="tag"></i></span>
-                <span class="tree-row-name">${escapeHtml(cat.name || promptCategoryLabel(cat.id))}</span>
-                <span class="tree-row-count">${promptCountForCategory(cat.id, lib)}</span>
-            </button>${active ? renderPromptTreeActionBar('category') : ''}`;
-            }).join('')}
-        </div>
-    </div>`;
-}
-function renderPromptTreeActionBar(kind){
-    const editHtml = renderPromptTreeInlineEdit(kind);
-    if(editHtml) return editHtml;
-    if(kind === 'library'){
-        const lib = activePromptLibrary();
-        const isSystem = isSystemPromptLibrary(lib);
-        const deleteKey = `prompt-lib:${lib?.id || ''}`;
-        return `<div class="tree-action-bar library-actions">
-            <button type="button" data-prompt-cat-new><i data-lucide="folder-plus"></i><span>新分组</span></button>
-            <button type="button" data-prompt-lib-rename><i data-lucide="pencil"></i><span>重命名</span></button>
-            ${isSystem ? '' : `<button type="button" class="danger ${pendingTreeDelete === deleteKey ? 'detail-confirm' : ''}" data-prompt-lib-delete><i data-lucide="trash-2"></i><span>${pendingTreeDelete === deleteKey ? '确认删除' : '删除库'}</span></button>`}
-        </div>`;
-    }
-    if(activePromptCategory === 'all'){
-        return `<div class="tree-action-bar child-actions muted-actions"><span><i data-lucide="lock"></i>请选择具体分组后编辑</span></div>`;
-    }
-    const deleteKey = `prompt-cat:${activePromptCategory}`;
-    return `<div class="tree-action-bar child-actions">
-        <button type="button" data-prompt-cat-rename><i data-lucide="pencil"></i><span>重命名</span></button>
-        <button type="button" class="danger ${pendingTreeDelete === deleteKey ? 'detail-confirm' : ''}" data-prompt-cat-delete><i data-lucide="trash-2"></i><span>${pendingTreeDelete === deleteKey ? '确认删除' : '删除'}</span></button>
     </div>`;
 }
 function renderPromptTreeInlineEdit(kind){
@@ -2756,6 +3008,7 @@ async function exportPromptLibrary(){
 }
 function renderPromptRow(item, readonly){
     return window.PromptGalleryUI.card(item, {
+        actionHtml: window.PromptLibraryPicker?.button(`prompt:${activePromptLibraryId}:${item.id}`, item) || '',
         label: promptCategoryLabel(item.category || 'custom'),
         src: `/api/prompt-libraries/thumb/${encodeURIComponent(item.id)}?width=420`,
         active: item.id === selectedPromptId,
@@ -2900,6 +3153,29 @@ function copySelectedAssetsToCanvas(){
         return;
     }
     setStatus(`已复制 ${items.length} 个素材，去智能画布按 Ctrl+V 粘贴`);
+}
+let assetRepositoryBusy = false;
+async function connectAssetRepository(update=false){
+    if(assetRepositoryBusy) return;
+    const current = activeAssetLibrary()?.repository_url || '';
+    const url = update ? current : window.prompt('输入公开 GitHub 仓库地址（支持 RuiC-PoseAtlas 格式）。仅接入索引，浏览时缓存缩略图，不预下载高清图。', current || 'https://github.com/HRuiCcc/RuiC-PoseAtlas');
+    if(!url?.trim()) return;
+    assetRepositoryBusy = true;
+    setStatus('正在读取仓库索引…');
+    try {
+        const data = await apiJson('/api/asset-library/repository', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url:url.trim()})});
+        assetLibrary = data.library;
+        activeAssetSeries = ''; activeAssetAngle = '';
+        activeAssetLibraryId = assetLibrary.active_library_id;
+        activeAssetCategoryId = activeAssetLibrary()?.categories?.[0]?.id || '';
+        selectedAssetId = '';
+        selectedAssetIds.clear();
+        activeAssetClassFilter = '';
+        assetQuery = '';
+        render();
+        setStatus(`仓库已接入，新增 ${data.count} 张素材；浏览仅缓存缩略图，放大或使用时加载原图。`);
+    } catch(err){ setStatus(err?.message || '接入仓库失败'); }
+    finally { assetRepositoryBusy = false; }
 }
 async function downloadSelectedAssets(){
     const items = [...selectedAssetIds].map(id => findAssetItem(id)).filter(it => it?.url);
@@ -3397,14 +3673,30 @@ async function saveLocalUploadCaption(id){
     }
 }
 async function handleClick(event){
+    if(event.target.closest?.('[data-asset-clean-invalid]')){ await cleanInvalidLocalImages(); return; }
+    const seriesTarget = event.target.closest?.('[data-asset-series]');
+    if(seriesTarget){
+        activeAssetSeries = seriesTarget.dataset.assetSeries || ''; activeAssetCategoryId = 'all';
+        activeAssetAngle = ''; activeAssetClassFilter = ''; assetUnclassifiedOnly = false;
+        selectedAssetId = ''; selectedAssetIds.clear(); render(); return;
+    }
+    const angleTarget = event.target.closest?.('[data-asset-angle]');
+    if(angleTarget){ activeAssetAngle = angleTarget.dataset.assetAngle || ''; selectedAssetIds.clear(); render(); return; }
+
+    if(event.target.closest?.('[data-asset-check]')) return;
+    if(event.target.closest?.('[data-asset-dialog-close]') || event.target.matches?.('[data-asset-dialog-backdrop]')){ closeAssetDialog(); return; }
+    if(event.target.closest?.('[data-asset-subcategory-all]')){ activeAssetClassFilter = ''; render(); return; }
     const target = event.target;
     const subcategory = target.closest?.('[data-prompt-subcategory]');
     if(subcategory){ promptSubcategory = subcategory.dataset.promptSubcategory || ''; promptSubcategoryScope = `${activePromptLibraryId}|${activePromptCategory}`; selectedPromptIds.clear(); render(); root.querySelector('.prompt-gallery-scroll')?.scrollTo(0, 0); return; }
+    if(target.closest?.('[data-prompt-filter-sheet]')){ openPromptCategorySheet(target.closest('[data-prompt-filter-sheet]')); return; }
     const contentKind = target.closest?.('[data-prompt-content-kind]');
     if(contentKind){ promptContentKind = contentKind.dataset.promptContentKind; promptDialogId = ''; render(); return; }
     const tabBtn = target.closest?.('[data-tab]');
-    if(tabBtn){ activeTab = tabBtn.dataset.tab || 'assets'; promptDialogId = ''; promptCreateMode = false; promptEditMode = false; selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear(); selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear(); render(); return; }
+    if(tabBtn){ activeTab = tabBtn.dataset.tab || 'assets'; assetDialogId = ''; promptDialogId = ''; promptCreateMode = false; promptEditMode = false; selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear(); selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear(); render(); return; }
     if(target.closest?.('#refreshBtn')){ await loadAll(); return; }
+    if(target.closest?.('[data-asset-repository]')){ await connectAssetRepository(); return; }
+    if(target.closest?.('[data-asset-repository-update]')){ await connectAssetRepository(true); return; }
     const assetPreview = target.closest?.('[data-asset-preview]');
     if(assetPreview){ showDetailPreview('asset', assetPreview.dataset.assetPreview || ''); return; }
     const canvasAssetPreview = target.closest?.('[data-canvas-asset-preview]');
@@ -3739,7 +4031,7 @@ async function handleClick(event){
         await deleteAssetCategory(); return;
     }
     const assetLib = target.closest?.('[data-asset-lib]');
-    if(assetLib){ activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; assetUnclassifiedOnly = false; activeAssetKindFilter = 'all'; activeAssetCategoryId = assetCategories()[0]?.id || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
+    if(assetLib){ activeAssetSeries = ''; activeAssetAngle = ''; activeAssetLibraryId = assetLib.dataset.assetLib || ''; assetTreeFocus = 'library'; activeAssetClassFilter = ''; assetUnclassifiedOnly = false; activeAssetKindFilter = 'all'; activeAssetCategoryId = 'all'; assetDialogId = ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetUnclassifiedRow = target.closest?.('[data-asset-unclassified]');
     if(assetUnclassifiedRow){
         activeAssetLibraryId = assetUnclassifiedRow.dataset.assetUnclassified || activeAssetLibraryId;
@@ -3790,7 +4082,17 @@ async function handleClick(event){
     const assetCat = target.closest?.('[data-asset-cat]');
     if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; assetUnclassifiedOnly = false; activeAssetKindFilter = 'all'; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetCard = target.closest?.('[data-asset-card]');
-    if(assetCard){ selectedAssetId = assetCard.dataset.assetCard || ''; assetEditMode = false; pendingDeleteAssetId = ''; render(); return; }
+    if(assetCard){
+        selectedAssetId = assetCard.dataset.assetCard || '';
+        assetEditMode = false; pendingDeleteAssetId = '';
+        if(assetManageMode){
+            if(selectedAssetIds.has(selectedAssetId)) selectedAssetIds.delete(selectedAssetId);
+            else selectedAssetIds.add(selectedAssetId);
+        } else assetDialogId = selectedAssetId;
+        render();
+        if(assetDialogId) root.querySelector('[data-asset-dialog-close]')?.focus();
+        return;
+    }
 
     const promptEditSave = target.closest?.('[data-prompt-edit-save]');
     if(promptEditSave){ await savePromptEdit(promptEditSave.dataset.promptEditSave || ''); return; }
@@ -3809,7 +4111,26 @@ async function handleClick(event){
     if(promptLikeBtn){ togglePromptLike(promptLikeBtn.dataset.promptLike || ''); return; }
     const promptFavBtn = target.closest?.('[data-prompt-fav]');
     if(promptFavBtn){ togglePromptFavorite(promptFavBtn.dataset.promptFav || ''); return; }
+    const promptSizeToggle = target.closest?.('[data-prompt-size-toggle]');
+    if(promptSizeToggle){
+        const next = (promptCardSizeIndex() + 1) % PROMPT_CARD_SIZES.length;
+        galleryCardSize = PROMPT_CARD_SIZES[next];
+        try { localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(galleryCardSize)); } catch (_) {}
+        promptSizeToggle.innerHTML = PROMPT_CARD_SIZE_SVGS[next];
+        promptSizeToggle.title = `切换卡片尺寸（当前${PROMPT_CARD_SIZE_LABELS[next]}）`;
+        mountPromptMasonry();
+        return;
+    }
     if(target.closest?.('[data-prompt-fav-only]')){ promptFavOnly = !promptFavOnly; promptRenderLimit = PROMPT_RENDER_STEP; render(); return; }
+    const queryTag = target.closest?.('[data-prompt-query-token]');
+    if(queryTag){
+        const drop = Number(queryTag.dataset.promptQueryToken);
+        promptQuery = promptQueryTokens().filter((_, index) => index !== drop).join(' ');
+        promptRenderLimit = PROMPT_RENDER_STEP;
+        render();
+        document.getElementById('promptSearch')?.focus();
+        return;
+    }
     if(target.closest?.('[data-prompt-filter-reset]')){
         promptQuery = ''; promptSourceFilter = ''; promptFavOnly = false;
         activePromptCategory = 'all'; promptRenderLimit = PROMPT_RENDER_STEP; render(); return;
@@ -3821,6 +4142,13 @@ async function handleClick(event){
     if(target.closest?.('[data-prompt-dialog-close]') || target.matches?.('[data-prompt-dialog-backdrop]')){ closePromptDialog(); return; }
     if(target.closest?.('[data-prompt-import]')){ await importPromptLibraryFile(); return; }
     if(target.closest?.('[data-prompt-export]')){ await exportPromptLibrary(); return; }
+    if(target.closest?.('[data-prompt-manage-goto]')){
+        promptContentKind = '';
+        promptManageMode = true;
+        pendingBatchDelete = '';
+        render();
+        return;
+    }
     if(target.closest?.('[data-prompt-manage]')){
         promptManageMode = !promptManageMode;
         pendingBatchDelete = '';
@@ -3843,7 +4171,7 @@ async function handleClick(event){
         if(catRow){ activePromptLibraryId = catRow.dataset.promptCatLib || activePromptLibraryId; activePromptCategory = catRow.dataset.promptCat || activePromptCategory; }
         promptCreateMode = true; promptEditMode = false; promptDialogId = ''; pendingDeletePromptId = ''; render(); return;
     }
-    if(target.closest?.('[data-prompt-lib-new]')){ promptTreeFocus = 'library'; promptTreeEdit = {kind:'library-new', placement:'head', value:'新提示词库', label:'提示词库名称'}; render(); focusTreeEditInput('promptTreeEditInput'); return; }
+    if(target.closest?.('[data-prompt-lib-new]')){ promptTreeFocus = 'library'; promptTreeEdit = {kind:'library-new', placement:'toolbar', value:'新提示词库', label:'提示词库名称'}; render(); focusTreeEditInput('promptTreeEditInput'); return; }
     if(target.closest?.('[data-prompt-cat-new]')){
         const libRow = target.closest('[data-prompt-lib]');
         if(libRow) activePromptLibraryId = libRow.dataset.promptLib || activePromptLibraryId;
@@ -4826,16 +5154,38 @@ async function reorderAssetCategory(libraryId, dragCategoryId, targetCategoryId)
     setStatus('分组顺序已保存');
 }
 root.addEventListener('dragstart', handleAssetDragStart);
+window.addEventListener('storage', event => {
+    if (event.key !== GALLERY_SIZE_STORAGE_KEY) return;
+    galleryCardSize = window.PromptGalleryUI.cardSize();
+    if (activeTab === 'assets' || activeTab === 'prompts') render();
+});
 root.addEventListener('dragover', handleAssetDragOver);
 root.addEventListener('drop', handleAssetDrop);
 root.addEventListener('dragend', () => { assetDragState = null; resetAssetDragVisuals(); });
 root.addEventListener('click', event => {
+    const apply = event.target.closest?.('[data-asset-apply]');
+    if (assetImagePicker && apply) {
+        const item = findAssetItem(apply.dataset.assetApply);
+        if (item && assetKind(item) === 'image' && item.url) {
+            window.parent.postMessage({type:'asset-library:apply', url:item.url, name:item.name || ''}, window.location.origin);
+        }
+        return;
+    }
     handleClick(event).catch(err => setStatus(err.message || '操作失败'));
 });
 document.addEventListener('click', event => {
     if(event.target.closest?.('.asset-lightbox') && !event.target.closest?.('.asset-lightbox-image,.asset-lightbox-video')) closeDetailPreview();
 });
 document.addEventListener('keydown', event => {
+    if(assetDialogId && activeTab === 'assets'){
+        if(event.key === 'Escape' && !document.querySelector('.asset-lightbox')){ event.preventDefault(); closeAssetDialog(); return; }
+        if(event.key === 'Tab'){
+            const nodes = [...root.querySelectorAll('.asset-dialog button,.asset-dialog input,.asset-dialog textarea,.asset-dialog select')].filter(el => !el.disabled && el.getClientRects().length);
+            const first = nodes[0], last = nodes[nodes.length - 1];
+            if(event.shiftKey && document.activeElement === first){ event.preventDefault(); last?.focus(); }
+            else if(!event.shiftKey && document.activeElement === last){ event.preventDefault(); first?.focus(); }
+        }
+    }
     if(event.key === 'Escape' && root.querySelector?.('[data-prompt-dialog-backdrop]')){
         closePromptDialog();
         return;
@@ -4878,10 +5228,16 @@ root.addEventListener('compositionend', event => {
 });
 root.addEventListener('input', event => {
     const searchId = event.target?.id || '';
-    if(searchId === 'assetGridSize'){
-        assetGridSize = parseInt(event.target.value, 10) || 160;
-        const grid = root.querySelector('.asset-grid');
-        if(grid) grid.style.setProperty('--asset-card-min', assetGridSize + 'px');
+    if(searchId === 'assetGridSize' || searchId === 'promptGridSize'){
+        const size = parseInt(event.target.value, 10) || 240;
+        galleryCardSize = size;
+        try { localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(size)); } catch (_) {}
+        event.target.parentElement.querySelector('output').textContent = size + 'px';
+        if(searchId === 'assetGridSize'){
+            window.PromptGalleryUI.mount(root.querySelector('.asset-gallery-grid'), {cardWidth:size});
+        } else {
+            mountPromptMasonry();
+        }
         return;
     }
     if(SEARCH_INPUT_IDS.has(searchId)){
@@ -4901,14 +5257,16 @@ root.addEventListener('input', event => {
     }
 });
 root.addEventListener('change', event => {
-    // 瀑布流筛选：来源 / 排序
-    if(event.target?.id === 'promptSourceFilter'){
-        promptSourceFilter = event.target.value || '';
-        promptRenderLimit = PROMPT_RENDER_STEP;
+    if(event.target?.id === 'promptCategorySelect'){
+        const [libId, catId] = String(event.target.value || '').split('::');
+        if(libId) activePromptLibraryId = libId;
+        activePromptCategory = catId || 'all';
+        promptTreeFocus = 'category';
+        selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; promptDialogId = ''; selectedPromptIds.clear();
         render();
         return;
     }
-    if(event.target?.id === 'promptSort'){
+    if(event.target?.id === 'promptSort' || event.target?.matches?.('[data-gallery-sort]')){
         promptSortMode = event.target.value || 'random';
         promptRandomSeed = Date.now();
         promptRenderLimit = PROMPT_RENDER_STEP;
@@ -4937,6 +5295,17 @@ root.addEventListener('change', event => {
             setStatus('已保存工作流名称');
         }).catch(err => setStatus(err.message || '保存失败'));
         return;
+    }
+    if(event.target.id === 'assetPoseCategory'){
+        activeAssetCategoryId = event.target.value || 'all'; activeAssetAngle = ''; activeAssetClassFilter = '';
+        selectedAssetId = ''; selectedAssetIds.clear(); render(); return;
+    }
+    if(event.target.id === 'assetTagFilter'){
+        activeAssetClassFilter = event.target.value || ''; selectedAssetId = ''; selectedAssetIds.clear(); render(); return;
+    }
+    if(event.target.id === 'assetKindFilter'){
+        activeAssetKindFilter = event.target.value || 'all';
+        selectedAssetId = ''; selectedAssetIds.clear(); render(); return;
     }
     const assetCheck = event.target.closest?.('[data-asset-check]');
     if(assetCheck){
@@ -5066,7 +5435,22 @@ window.addEventListener('style-packs-changed', async () => {
         if(activeTab === 'prompts' && !promptContentKind) render();
     } catch(err) { setStatus(err.message || '更新提示词库失败，请刷新'); }
 });
+// 由父窗口（主界面侧边栏「应用」菜单）切换视图
+function applyAssetTab(tab){
+    activeTab = ASSET_TABS.includes(tab) ? tab : 'assets';
+    assetDialogId = ''; promptDialogId = ''; promptCreateMode = false; promptEditMode = false;
+    selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear();
+    selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear();
+    pendingBatchDelete = '';
+    render();
+}
 window.addEventListener('message', event => {
-    if(event.data?.type === 'studio-theme') window.StudioTheme?.apply?.(event.data.theme);
+    const type = event.data?.type;
+    if(type === 'studio-theme') window.StudioTheme?.apply?.(event.data.theme);
+    else if(type === 'asset-manager-tab') applyAssetTab(String(event.data.tab || ''));
+});
+// 管理页切换直连仓库开关后，素材资产页与提示词库的「资产」标签同步刷新
+window.addEventListener('asset-repos-changed', () => {
+    if(activeTab === 'assets' || promptContentKind.startsWith('media:')) render();
 });
 document.addEventListener('DOMContentLoaded', () => loadAll().catch(err => setStatus(err.message || '加载失败')));

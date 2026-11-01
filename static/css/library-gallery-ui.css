@@ -1,0 +1,22 @@
+/* 素材库与生成页 LoRA 共用的控件。LoRA 只映射主题变量，保留业务 DOM。 */
+.prompt-library-picker :is(.asset-page-head, .asset-tabs) { display:none; }
+.prompt-library-picker .asset-page { padding:12px; }
+.gallery-size-control { display:flex; align-items:center; gap:8px; height:44px; padding:0 12px; flex:0 0 auto; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:12px; background:var(--soft); }
+.gallery-size-control .asset-size-range { width:90px; min-width:60px; }
+.gallery-size-control output { min-width:38px; color:var(--text); font-size:11px; font-variant-numeric:tabular-nums; }
+#loraPickerShell { --line:var(--ui-line); --muted:var(--ui-muted); --text:var(--ui-text); --soft:var(--ui-soft); --panel:var(--ui-panel); }
+#promptPickerBody #loraPickerShell .lora-picker-header { padding:14px 20px; gap:12px; flex-wrap:wrap; }
+#promptPickerBody #loraPickerShell #loraPickerSearch { display:block !important; flex:1; min-width:150px; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 14px; background:var(--soft); color:var(--text); }
+#promptPickerBody #loraPickerShell :is(.lora-picker-header select, .library-reset-btn) { height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--line); background:var(--soft); color:var(--text); }
+#loraPickerShell #loraPickerSizeBtn { display:none; }
+#loraPickerShell .lora-picker-sidebar { width:260px; padding:18px 14px; border-right:1px solid var(--line); }
+#loraPickerShell .lora-cat-item { min-height:42px; margin:4px 0; padding:10px 14px; border-radius:12px; color:var(--muted); }
+#loraPickerShell .lora-cat-item.active { background:var(--soft); color:var(--text); font-weight:700; }
+#loraPickerShell .lora-picker-grid { gap:24px; padding:20px; grid-auto-rows:auto; }
+#loraPickerShell .prompt-masonry-column { display:flex; flex-direction:column; gap:24px; min-width:0; }
+#loraPickerShell .lora-card-item { height:auto; min-height:0; border-radius:20px; overflow:hidden; border:1px solid var(--line); background:var(--soft); content-visibility:visible; contain:none; }
+#loraPickerShell .lora-card-item.selected { border-color:var(--ui-accent, #d99016); box-shadow:0 0 0 1px var(--ui-accent, #d99016); }
+#loraPickerShell .lora-card-img { height:auto; min-height:160px; object-fit:contain; background:var(--soft); }
+#loraPickerShell .lora-card-strength { height:auto; }
+.asset-lightbox-inner > .prompt-import-btn { position:absolute; bottom:24px; right:24px; z-index:2; }
+@media(max-width:760px) { #loraPickerShell .lora-picker-sidebar { width:160px; } #loraPickerShell .lora-picker-grid, #loraPickerShell .prompt-masonry-column { gap:14px; } }

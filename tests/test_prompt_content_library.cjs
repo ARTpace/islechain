@@ -42,6 +42,15 @@ test('共用卡片转义名称和地址，同时保留选择、收藏与各库�
     const text = context.window.PromptGalleryUI.card({id:'p', name:'文字卡片'}, {selectable:true, checked:true, readonly:true});
     assert.match(text, /is-text/);
     assert.match(text, /checked disabled/);
+    const asset = context.window.PromptGalleryUI.card({id:'asset-1', name:'姿势', thumbnail:'/cached-thumb.webp'}, {
+        attribute:'data-asset-card', className:'asset-card asset-card--image', selectable:true,
+        checked:true, checkAttribute:'data-asset-check', checkClass:'asset-card-check', draggable:true
+    });
+    assert.match(asset, /data-asset-card="asset-1"/);
+    assert.match(asset, /class="asset-card-check"[^>]*data-asset-check="asset-1" checked/);
+    assert.match(asset, /draggable="true"/);
+    assert.match(asset, /src="\/cached-thumb.webp"/);
+    assert.doesNotMatch(asset, /data-prompt-check|prompt-row-check/);
 });
 test('共享列布局保留顺序，图片加载不重新分配，切换时释放观察器', () => {
     let resize;

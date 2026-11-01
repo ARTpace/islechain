@@ -453,6 +453,8 @@ function loraPickerInit() {
             <div class="lora-picker-header">
                 <span class="lora-picker-title">⚡ LoRA 选择器</span>
                 <input type="text" class="lora-picker-search" id="loraPickerSearch" placeholder="搜索 LoRA 名称、标签..." oninput="loraPickerOnSearch(this.value)">
+                ${window.PromptGalleryUI?.sizeControl('loraGallerySize', undefined, 'loraPickerSetGallerySize(this)') || ''}
+                <button class="library-reset-btn" type="button" onclick="loraPickerResetFilters()">清空筛选</button>
                 <div class="lora-picker-sort">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.7"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
                     <select id="loraPickerSortSel" onchange="loraPickerOnSortChange(this.value)" title="排序方式">
@@ -727,6 +729,24 @@ function loraPickerClose() {
 }
 
 // ── 搜索 ─────────────────────────────────────────────────────────
+function loraPickerSetGallerySize(input) {
+    const size = window.PromptGalleryUI.cardSize(input.value);
+    input.parentElement.querySelector('output').textContent = size + 'px';
+    loraPickerRenderGrid();
+}
+window.addEventListener('storage', event => {
+    if (event.key !== 'artCanvas.gallery.cardSize.v1' || !window.PromptGalleryUI) return;
+    const input = document.getElementById('loraGallerySize');
+    if (!input) return;
+    input.value = window.PromptGalleryUI.cardSize();
+    input.parentElement.querySelector('output').textContent = input.value + 'px';
+    if (document.getElementById('loraPickerShell')?.classList.contains('is-open')) loraPickerRenderGrid();
+});
+function loraPickerResetFilters() {
+    loraPickerSearch = '';
+    document.getElementById('loraPickerSearch').value = '';
+    loraPickerSelectModel('all');
+}
 function loraPickerOnSearch(val) {
     loraPickerSearch = val.trim().toLowerCase();
     loraPickerPage = 1;
@@ -1340,7 +1360,7 @@ function loraPickerBuildCardHtml(item) {
     }
 
     // 卡片基础结构:名称浮在封面底部,不占用额外空间
-    const html = '<div data-key="' + key + '" class="lora-card-item' + (item.isGroup ? ' is-group' : '') + (item.isNsfw && !loraPickerNsfwRevealed.has(loraPickerCardKey(item)) ? ' is-nsfw' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')"' +
+    const html = '<div data-key="' + key + '" class="lora-card-item prompt-card' + (item.isGroup ? ' is-group' : '') + (item.isNsfw && !loraPickerNsfwRevealed.has(loraPickerCardKey(item)) ? ' is-nsfw' : '') + '" onclick="loraPickerToggleItem(\'' + safeName + '\')"' +
         (dataDesc ? ' data-desc="' + dataDesc.replace(/"/g,'&quot;') + '" onmouseenter="loraPickerShowTooltip(event,this)" onmouseleave="loraPickerHideTooltip()"' : ' title="' + hoverTitle.replace(/"/g,'&quot;') + '"') + '>' +
         '<div class="lora-card-img-wrap" style="position:relative;overflow:hidden;">' +
             mediaHtml +
@@ -1602,6 +1622,7 @@ function loraPickerBuildStrengthHtml(selIdx, strength) {
 
 // ── 渲染卡片网格（只渲染卡片，分页条交给 renderPager） ──────────────
 function loraPickerRenderGrid() {
+    window.PromptGalleryUI?.unmount();
     const el = document.getElementById('loraPickerGrid');
     if (!el) return;
     // 卡片尺寸 class（sm/md/lg），驱动 CSS 网格列宽和卡片高度
@@ -1645,6 +1666,7 @@ function loraPickerRenderGrid() {
     }
 
     el.innerHTML = html;
+    window.PromptGalleryUI?.mount(el, {cardWidth:window.PromptGalleryUI.cardSize()});
     // 独立渲染分页条（在网格下方固定可见，不随滚动消失）
     loraPickerRenderPager();
 }
