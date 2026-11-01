@@ -1,10 +1,10 @@
 """官方可选风格包：清单读取、一键安装、导出下载。
 
-仓库不存完整风格数据（44MB），仓库里只有 art-canvas-seed 精简包。
-完整的平台包以 zip 形式放在：
+风格数据和采集／发布工具统一在 Art-prompt-library 维护，主工具不再内置种子包。
+本模块兼容离线 ZIP；在线 GitHub 来源见 style_packs.repository。离线包目录：
     安装版：<app>/data/style-packs-official/
     开发版：<project>/dist/style-packs/
-两处都有 catalog.json，由 tools/style_pack_split.py 生成。
+两处都有 catalog.json，可从独立提示词仓库的历史 ZIP 分发工具生成。
 
 安装后落在用户目录，成为普通用户包：可卸载、升级不丢、不进 git。
 """
@@ -49,7 +49,7 @@ def find_pack_dir(pack_id: str):
     """在用户层与内置层里定位一个已安装的包。"""
     if not is_valid_pack_id(pack_id):
         return None, False
-    for root, builtin in ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)):
+    for root, builtin in ((USER_PACKS_DIR, False),):
         target = root / pack_id
         if (target / "pack.json").is_file():
             return target, builtin

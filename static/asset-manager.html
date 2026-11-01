@@ -17,11 +17,11 @@
         })();
     </script>
     <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script src="/static/js/theme.js?v=20261031am1"></script>
+    <script src="/static/js/theme.js?v=20261101unifiedassets"></script>
     <link rel="stylesheet" href="/static/css/theme.css?v=20261024001">
     <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/asset-manager.css?v=20261031am1">
-    <link rel="stylesheet" href="/static/css/style-pack-manager.css?v=20261031sp1">
+    <link rel="stylesheet" href="/static/css/asset-manager.css?v=20261101subcategories">
+    <link rel="stylesheet" href="/static/css/style-pack-manager.css?v=20261101unifiedassets">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -56,22 +56,21 @@
         </header>
 
         <div class="asset-tabs">
-            <button id="assetTabAssets" class="active" type="button" data-tab="assets"><i data-lucide="image"></i><span>图片资产</span></button>
+            <button id="assetTabAssets" class="active" type="button" data-tab="assets"><i data-lucide="image"></i><span>素材资产</span></button>
             <button id="assetTabWorkflows" type="button" data-tab="workflows"><i data-lucide="workflow"></i><span>工作流管理</span></button>
             <button id="assetTabPrompts" type="button" data-tab="prompts"><i data-lucide="text-cursor-input"></i><span>提示词库</span></button>
-            <button id="assetTabStylePacks" type="button" data-tab="style-packs"><i data-lucide="package"></i><span>风格包</span></button>
-            <button id="assetTabContentPacks" type="button" data-tab="content-packs"><i data-lucide="users"></i><span>内容包</span></button>
             <button id="assetTabCanvasAssets" type="button" data-tab="canvas-assets"><i data-lucide="layout-dashboard"></i><span>画布资产</span></button>
-            <button id="assetTabLocal" type="button" data-tab="local"><i data-lucide="folder-open"></i><span>本地素材</span></button>
         </div>
 
         <main id="assetManagerRoot" class="asset-manager-root"></main>
     </div>
 
     <input id="assetUploadInput" type="file" accept="image/*,video/*,audio/*,.json,.zip,application/json,application/zip" multiple hidden>
-    <script src="/static/modules/style-pack-manager.js?v=20261031sp1"></script>
+    <script src="/static/modules/style-pack-manager.js?v=20261101platformupdates"></script>
     <script src="/static/modules/content-pack-manager.js?v=20261031cp1"></script>
-    <script src="/static/js/asset-manager.js?v=20261031sp1"></script>
+    <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedgallery"></script>
+    <script src="/static/modules/prompt-content-library.js?v=20261101sharedgallery"></script>
+    <script src="/static/js/asset-manager.js?v=20261101sources"></script>
     <script>
         (function(){
             function updateIcon(theme) {

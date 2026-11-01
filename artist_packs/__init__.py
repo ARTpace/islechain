@@ -7,7 +7,7 @@
 
 没有详情层：每个画师只有 id/tag/posts/img 四个字段，拆层反而多一次请求。
 
-数据抓取见 tools/artist_pack_fetch.py，拆包见 tools/artist_pack_split.py。
+数据抓取见 ../Art-prompt-library/tools/artist_pack_fetch.py，拆包见 ../Art-prompt-library/tools/artist_pack_split.py。
 """
 
 from .catalog import (

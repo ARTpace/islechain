@@ -43,7 +43,7 @@ from .store import (
 def signature():
     """所有相关文件的 mtime 签名，任何增删改都会让它变化。"""
     stamps = []
-    for root in (BUILTIN_PACKS_DIR, USER_PACKS_DIR):
+    for root in (USER_PACKS_DIR,):
         if not root.is_dir():
             continue
         try:
@@ -62,7 +62,7 @@ def signature():
                     stamps.append(os.path.getmtime(path))
                 except OSError:
                     pass
-    for extra in (OVERLAY_FILE, LEGACY_PRESETS_FILE):
+    for extra in (OVERLAY_FILE,):
         if extra.is_file():
             try:
                 stamps.append(os.path.getmtime(extra))

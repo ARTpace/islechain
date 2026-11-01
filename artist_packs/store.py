@@ -33,7 +33,6 @@ from .paths import (
     image_url_of,
     tier_of,
 )
-from .schema import split_artists
 
 _index_cache: Dict = {"sig": None, "payload": None}
 _index_by_id: Dict[str, dict] = {}
@@ -50,9 +49,9 @@ def _read_json(path) -> Optional[dict]:
 
 
 def discover_packs() -> List[ContentManifest]:
-    """扫描内置与用户两个目录（内置优先）。"""
+    """仅扫描用户安装的内容包；精华包也必须显式安装。"""
     return _discover(
-        ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)),
+        ((USER_PACKS_DIR, False),),
         kind=KIND,
         log_tag="artist_packs",
         required_files=REQUIRED_FILES,
@@ -62,7 +61,7 @@ def discover_packs() -> List[ContentManifest]:
 def _signature():
     """包目录与索引文件的 mtime 快照，任何增删改都会让它变化。"""
     stamps = []
-    for root in (BUILTIN_PACKS_DIR, USER_PACKS_DIR):
+    for root in (USER_PACKS_DIR,):
         if not root.is_dir():
             continue
         try:
@@ -79,27 +78,8 @@ def _signature():
             index = child / INDEX_FILE
             if index.is_file():
                 stamps.append((child.name + "/index", os.path.getmtime(index)))
-    if LEGACY_ARTISTS_FILE.is_file():
-        stamps.append(("legacy", os.path.getmtime(LEGACY_ARTISTS_FILE)))
     return tuple(stamps)
 
-
-def _load_legacy() -> List[dict]:
-    """老单文件是 JS 变量形式，取出其中的 JSON 数组再规范化。"""
-    try:
-        text = LEGACY_ARTISTS_FILE.read_text(encoding="utf-8")
-    except Exception as exc:
-        print("[artist_packs] 读取老画师文件失败：%s" % exc)
-        return []
-    start, end = text.find("["), text.rfind("]")
-    if start < 0 or end <= start:
-        return []
-    try:
-        raw = json.loads(text[start:end + 1])
-    except Exception as exc:
-        print("[artist_packs] 解析老画师文件失败：%s" % exc)
-        return []
-    return split_artists(raw)
 
 
 def _load_pack_index(pack: ContentManifest) -> Optional[dict]:
@@ -132,7 +112,7 @@ def merged_index(force: bool = False) -> Dict:
         base = str(data.get("imageBase") or "").strip()
         ext = str(data.get("imageExt") or DEFAULT_IMAGE_EXT).strip()
         if not image_base:
-            # 第一个包（内置种子）决定整体地址前缀
+            # 第一个已安装包决定整体地址前缀
             image_base, image_ext = base or DEFAULT_IMAGE_BASE, ext
         same_base = (base or DEFAULT_IMAGE_BASE) == image_base and ext == image_ext
 
@@ -160,12 +140,6 @@ def merged_index(force: bool = False) -> Dict:
         })
 
     legacy = False
-    if not items and LEGACY_ARTISTS_FILE.is_file():
-        items = _load_legacy()
-        legacy = bool(items)
-        if items:
-            print("[artist_packs] 未发现画师包，回退读取老单文件（%d 条）" % len(items))
-
     tiers: Dict[str, int] = {}
     for entry in items:
         key = tier_of(entry.get("posts"))

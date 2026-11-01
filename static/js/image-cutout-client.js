@@ -1,5 +1,7 @@
 // Shared by gallery and canvas; the backend owns model selection and task caching.
 (function (global) {
+    const requiresTarget = model => ['SAM3', 'segment-anything-ultra-v2', 'segment-anything-ultra-v3',
+        'auto-sdmatte', 'transparent-material-sdmatte'].includes(model);
     async function cutoutRequest(url, options) {
         const response = await fetch(url, { ...options, signal: AbortSignal.timeout(90000) });
         const data = await response.json();
@@ -48,7 +50,7 @@
             body: JSON.stringify({ url: imageUrl, prompt: String(prompt).slice(0, 20000), model: options.model || 'auto', retry, client_id: options.clientId, target: String(options.target || '').slice(0, 2000) })
         });
         let result = await submit(!!options.retry);
-        const differs = state => options.model && options.model !== 'auto' && (state.model !== options.model || (options.model === 'SAM3' && String(state.target || '').trim() !== String(options.target || '').trim()));
+        const differs = state => options.model && options.model !== 'auto' && (state.model !== options.model || (requiresTarget(options.model) && String(state.target || '').trim() !== String(options.target || '').trim()));
         // The backend caches by source image. A different model/target needs a new attempt, not that cached PNG.
         if (!options.retry && result.status === 'done' && (differs(result) || (options.model === 'auto' && result.selection === 'manual'))) {
             result = await submit(true);
@@ -71,5 +73,5 @@
         if (differs(result)) throw new Error('抠图结果与所选模型或主体不一致，请重新识别');
         return result;
     }
-    global.ImageCutoutClient = { request: cutoutRequest, run: runCutout };
+    global.ImageCutoutClient = { request: cutoutRequest, run: runCutout, requiresTarget };
 })(window);

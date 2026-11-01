@@ -5,7 +5,7 @@
     detail     点开某个角色时按 id 读一个分片，不加载全量
     pack       一个可独立分发的目录（pack.json + index.json + detail-*.json）
 
-拆包与官方包生成见 tools/character_pack_split.py。
+拆包与官方包生成见 ../Art-prompt-library/tools/character_pack_split.py。
 """
 
 from .catalog import (

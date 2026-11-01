@@ -1,0 +1,5740 @@
+{
+  "last_node_id": 93,
+  "last_link_id": 88,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Note",
+      "pos": [
+        30,
+        20
+      ],
+      "size": [
+        760,
+        290
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "1. 在左侧“共享原图”上传图片，所有分支共用它。\n2. 默认仅 BEN2 启用；其他分支为 Never（静音），不是 Bypass。\n3. 切换模型：框选旧分支的处理和输出节点，右键 Mode → Never；再将目标分支节点设为 Always。说明便签无需切换。\n4. 同时启用多个分支可对比结果，会分别计算。仅分组不会隔离执行。\n5. 原图 input.png 是占位，请先上传；缺失节点需安装原工作流相应插件和模型。\n6. SDMatte 还需上传与原图对齐的遮罩。各分支结果通过 SaveImage 保存透明 PNG。\n工具调用：由 extra.cutout.branches 定位分支；节点 properties.widget_names 对应 widgets_values 参数名。维护时保留这些映射，新增或删除节点需同步更新。"
+      ],
+      "title": "使用说明｜多模型抠图合集",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        30,
+        370
+      ],
+      "size": [
+        360,
+        360
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            3,
+            5,
+            7,
+            9,
+            11,
+            26,
+            28,
+            30,
+            32,
+            34,
+            44,
+            49,
+            51,
+            53,
+            56,
+            57,
+            63,
+            64,
+            68,
+            71,
+            73,
+            76,
+            82,
+            83,
+            87
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "widget_names": [
+          "image"
+        ]
+      },
+      "widgets_values": [
+        "input.png",
+        "image"
+      ],
+      "title": "共享原图｜上传一次供所有分支使用"
+    },
+    {
+      "id": 3,
+      "type": "Note",
+      "pos": [
+        900,
+        30
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "通用自动抠图；RMBG 节点，模型 BEN2。背景设为 Alpha；process_res 控制处理分辨率。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "BEN2｜默认启用｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "RMBG",
+      "pos": [
+        900,
+        250
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "process_res",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "BEN2",
+        1,
+        1024,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "去除背景 (RMBG)"
+    },
+    {
+      "id": 5,
+      "type": "SaveImage",
+      "pos": [
+        1330,
+        250
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/BEN2"
+      ],
+      "title": "保存透明 PNG｜BEN2｜默认启用"
+    },
+    {
+      "id": 6,
+      "type": "Note",
+      "pos": [
+        2800,
+        30
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "通用自动抠图；与 BEN2 共用 RMBG 节点，通过 model 选择。背景 Alpha 保留透明。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "RMBG-2.0｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 7,
+      "type": "RMBG",
+      "pos": [
+        2800,
+        250
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "process_res",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "RMBG-2.0",
+        1,
+        1024,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "去除背景 (RMBG)"
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        3230,
+        250
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/RMBG-1.4"
+      ],
+      "title": "保存透明 PNG｜RMBG-2.0"
+    },
+    {
+      "id": 9,
+      "type": "Note",
+      "pos": [
+        900,
+        1080
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "通用主体抠图。依赖 BiRefNetRMBG 节点和对应模型；背景设为 Alpha。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "BiRefNet-general｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 10,
+      "type": "BiRefNetRMBG",
+      "pos": [
+        900,
+        1300
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNetRMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet-general",
+        1,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "BiRefNetRMBG"
+    },
+    {
+      "id": 11,
+      "type": "SaveImage",
+      "pos": [
+        1330,
+        1300
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/BiRefNet-general"
+      ],
+      "title": "保存透明 PNG｜BiRefNet-general"
+    },
+    {
+      "id": 12,
+      "type": "Note",
+      "pos": [
+        2800,
+        1080
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "高分辨率边缘抠图；具体效果依模型与输入。依赖 BiRefNetRMBG 节点和对应模型；背景设为 Alpha。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "BiRefNet-HR-matting｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 13,
+      "type": "BiRefNetRMBG",
+      "pos": [
+        2800,
+        1300
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNetRMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet-HR-matting",
+        1,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "BiRefNetRMBG"
+    },
+    {
+      "id": 14,
+      "type": "SaveImage",
+      "pos": [
+        3230,
+        1300
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/BiRefNet-HR-matting"
+      ],
+      "title": "保存透明 PNG｜BiRefNet-HR-matting"
+    },
+    {
+      "id": 15,
+      "type": "Note",
+      "pos": [
+        900,
+        2130
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "卡通、插画方向的主体抠图。依赖 BiRefNetRMBG 节点和对应模型；背景设为 Alpha。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "BiRefNet_toonout｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 16,
+      "type": "BiRefNetRMBG",
+      "pos": [
+        900,
+        2350
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNetRMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet_toonout",
+        1,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "BiRefNetRMBG"
+    },
+    {
+      "id": 17,
+      "type": "SaveImage",
+      "pos": [
+        1330,
+        2350
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/BiRefNet_toonout"
+      ],
+      "title": "保存透明 PNG｜BiRefNet_toonout"
+    },
+    {
+      "id": 18,
+      "type": "Note",
+      "pos": [
+        2800,
+        2130
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "Lucida 模型抠图。依赖 BiRefNetRMBG 节点和对应模型；背景设为 Alpha。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "Lucida｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 19,
+      "type": "BiRefNetRMBG",
+      "pos": [
+        2800,
+        2350
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNetRMBG",
+        "widget_names": [
+          "model",
+          "sensitivity",
+          "mask_blur",
+          "mask_offset",
+          "invert_output",
+          "refine_foreground",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "Lucida",
+        1,
+        0,
+        0,
+        false,
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "BiRefNetRMBG"
+    },
+    {
+      "id": 20,
+      "type": "SaveImage",
+      "pos": [
+        3230,
+        2350
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/Lucida"
+      ],
+      "title": "保存透明 PNG｜Lucida"
+    },
+    {
+      "id": 21,
+      "type": "Note",
+      "pos": [
+        900,
+        3180
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "填写 SAM3Segment 的 prompt（如 person、cat），保留指定对象。使用已安装的 SAM3Segment 与 sam3.1_multiplex_fp16；不再通过 CheckpointLoaderSimple 加载。默认静音，启用本组处理及保存节点后运行。"
+      ],
+      "title": "文字抠图｜SAM3｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 25,
+      "type": "SAM3Segment",
+      "pos": [
+        2190,
+        3400
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            33
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "BBOXES",
+          "type": "BBOX",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM3Segment",
+        "widget_names": [
+          "model_name",
+          "prompt",
+          "output_mode",
+          "confidence_threshold",
+          "max_segments",
+          "segment_pick",
+          "mask_blur",
+          "mask_offset",
+          "device",
+          "invert_output",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "sam3.1_multiplex_fp16",
+        "person",
+        "Merged",
+        0.5,
+        0,
+        0,
+        0,
+        0,
+        "Auto",
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "文字抠图｜SAM3Segment"
+    },
+    {
+      "id": 26,
+      "type": "SaveImage",
+      "pos": [
+        900,
+        3780
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/文字抠图"
+      ],
+      "title": "保存透明 PNG｜文字抠图｜SAM3"
+    },
+    {
+      "id": 27,
+      "type": "Note",
+      "pos": [
+        2800,
+        3180
+      ],
+      "size": [
+        1700,
+        150
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "额外输入：上传与原图同尺寸、对齐的遮罩，沿用原流程的 red 通道。依赖 SDMatteApply、LayerStyle 的裁切/反转节点及 SDMatte_plus.safetensors。注意：结果沿用原工作流，会裁切到遮罩区域，并非原图尺寸。\n启用：将本组处理及保存节点 Mode 设为 Always；停用设为 Never。"
+      ],
+      "title": "半透明精细抠图｜SDMatte｜使用说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 28,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        2800,
+        3400
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha",
+        "widget_names": []
+      },
+      "widgets_values": [],
+      "title": "合并图像Alpha"
+    },
+    {
+      "id": 29,
+      "type": "SaveImage",
+      "pos": [
+        3230,
+        3400
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/半透明精细抠图"
+      ],
+      "title": "保存透明 PNG｜半透明精细抠图｜SDMatte"
+    },
+    {
+      "id": 30,
+      "type": "SDMatteApply",
+      "pos": [
+        3660,
+        3400
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "trimap",
+          "type": "MASK",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "alpha_mask",
+          "type": "MASK",
+          "links": [
+            25
+          ]
+        },
+        {
+          "name": "matted_image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDMatteApply",
+        "widget_names": [
+          "ckpt_name",
+          "inference_size",
+          "is_transparent",
+          "output_mode",
+          "mask_refine",
+          "trimap_constraint",
+          "force_cpu"
+        ]
+      },
+      "widgets_values": [
+        "SDMatte_plus.safetensors",
+        1024,
+        false,
+        "matted_rgb",
+        true,
+        0.8,
+        false
+      ],
+      "title": "应用SDMatte"
+    },
+    {
+      "id": 31,
+      "type": "LayerMask: MaskInvert",
+      "pos": [
+        4090,
+        3400
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: MaskInvert",
+        "widget_names": []
+      },
+      "widgets_values": [],
+      "title": "图层遮罩：遮罩反转"
+    },
+    {
+      "id": 32,
+      "type": "LayerUtility: CropByMask V2",
+      "pos": [
+        2800,
+        3780
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 26
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "croped_image",
+          "type": "IMAGE",
+          "links": [
+            20,
+            23
+          ]
+        },
+        {
+          "name": "croped_mask",
+          "type": "MASK",
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "crop_box",
+          "type": "BOX",
+          "links": []
+        },
+        {
+          "name": "box_preview",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: CropByMask V2",
+        "widget_names": [
+          "invert_mask",
+          "detect",
+          "top_reserve",
+          "bottom_reserve",
+          "left_reserve",
+          "right_reserve",
+          "round_to_multiple"
+        ]
+      },
+      "widgets_values": [
+        false,
+        "mask_area",
+        20,
+        20,
+        20,
+        20,
+        "8"
+      ],
+      "title": "图层工具：遮罩裁剪_V2"
+    },
+    {
+      "id": 33,
+      "type": "LoadImageMask",
+      "pos": [
+        3230,
+        3780
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImageMask",
+        "widget_names": [
+          "image",
+          "channel"
+        ]
+      },
+      "widgets_values": [
+        "input.png",
+        "red",
+        "image"
+      ],
+      "title": "额外输入｜上传对齐原图的遮罩"
+    },
+    {
+      "id": 34,
+      "type": "Note",
+      "pos": [
+        900,
+        4230
+      ],
+      "size": [
+        650,
+        160
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note",
+        "widget_names": []
+      },
+      "widgets_values": [
+        "FeyNoBg：用于图片卡片抠图。需安装对应自定义节点。SAM3 需填写保留目标；运行时按本机节点参数补齐兼容字段。默认静音。"
+      ],
+      "title": "FeyNoBg｜使用说明"
+    },
+    {
+      "id": 35,
+      "type": "ArtCanvasFeyNoBg",
+      "pos": [
+        900,
+        4450
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            29
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ArtCanvasFeyNoBg",
+        "widget_names": [
+          "refine_foreground",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        true,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "FeyNoBg"
+    },
+    {
+      "id": 36,
+      "type": "SaveImage",
+      "pos": [
+        1350,
+        4450
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/FeyNoBg"
+      ],
+      "title": "保存透明 PNG｜FeyNoBg"
+    },
+    {
+      "id": 37,
+      "type": "Note",
+      "pos": [
+        2800,
+        4230
+      ],
+      "size": [
+        650,
+        160
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note",
+        "widget_names": []
+      },
+      "widgets_values": [
+        "SAM3：用于图片卡片抠图。需安装对应自定义节点。SAM3 需填写保留目标；运行时按本机节点参数补齐兼容字段。默认静音。"
+      ],
+      "title": "SAM3｜使用说明"
+    },
+    {
+      "id": 38,
+      "type": "SAM3Segment",
+      "pos": [
+        2800,
+        4450
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            31
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "MASK_IMAGE",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "BBOXES",
+          "type": "BBOX",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM3Segment",
+        "widget_names": [
+          "model_name",
+          "prompt",
+          "output_mode",
+          "confidence_threshold",
+          "max_segments",
+          "segment_pick",
+          "mask_blur",
+          "mask_offset",
+          "device",
+          "invert_output",
+          "unload_model",
+          "background",
+          "background_color"
+        ]
+      },
+      "widgets_values": [
+        "sam3.1_multiplex_fp16",
+        "person",
+        "Merged",
+        0.5,
+        0,
+        0,
+        0,
+        0,
+        "Auto",
+        false,
+        false,
+        "Alpha",
+        "#222222"
+      ],
+      "title": "SAM3"
+    },
+    {
+      "id": 39,
+      "type": "SaveImage",
+      "pos": [
+        3250,
+        4450
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 31
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/SAM3"
+      ],
+      "title": "保存透明 PNG｜SAM3"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            47
+          ],
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "size": [
+        343.3042297363281,
+        82
+      ],
+      "pos": [
+        941.7619995117187,
+        6553.115008163452
+      ],
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "unet_name"
+          },
+          "name": "unet_name",
+          "type": "COMBO",
+          "localized_name": "UNET名称"
+        },
+        {
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "localized_name": "剪枝类型"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 40,
+      "type": "UNETLoader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "UNETLoader",
+        "widget_names": [
+          "unet_name",
+          "weight_dtype"
+        ]
+      },
+      "order": 36,
+      "title": "Qwen 2.1｜主模型（原版 BF16）"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "links": [
+            36
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "size": [
+        339.9865417480469,
+        106
+      ],
+      "pos": [
+        943.7128829956055,
+        6710.461340332031
+      ],
+      "widgets_values": [
+        "qwen3vl_8b_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "clip_name"
+          },
+          "name": "clip_name",
+          "type": "COMBO",
+          "localized_name": "CLIP名称"
+        },
+        {
+          "widget": {
+            "name": "type"
+          },
+          "name": "type",
+          "type": "COMBO",
+          "localized_name": "类型"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "shape": 7,
+          "name": "device",
+          "type": "COMBO",
+          "localized_name": "设备"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 41,
+      "type": "CLIPLoader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPLoader",
+        "widget_names": [
+          "clip_name",
+          "type",
+          "device"
+        ]
+      },
+      "order": 37,
+      "title": "Qwen 2.1｜文本编码器"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "VAE",
+          "links": [
+            35,
+            42
+          ],
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "size": [
+        341.47296142578125,
+        65.21537017822266
+      ],
+      "pos": [
+        940.6521469116211,
+        6897.926330566406
+      ],
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "vae_name"
+          },
+          "name": "vae_name",
+          "type": "COMBO",
+          "localized_name": "vae名称"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 42,
+      "type": "VAELoader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAELoader",
+        "widget_names": [
+          "vae_name"
+        ]
+      },
+      "order": 38,
+      "title": "Qwen 2.1｜VAE"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "links": [
+            41
+          ],
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        }
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "pos": [
+        2117.2092407226564,
+        6685.838864135742
+      ],
+      "widgets_values": [
+        268896275271165,
+        "randomize",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 37,
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "positive",
+          "link": 38,
+          "label": "正面条件",
+          "type": "CONDITIONING",
+          "localized_name": "正面条件"
+        },
+        {
+          "name": "negative",
+          "link": 39,
+          "label": "负面条件",
+          "type": "CONDITIONING",
+          "localized_name": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "link": 40,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent图像"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "type": "INT",
+          "localized_name": "随机种"
+        },
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "type": "INT",
+          "localized_name": "步数"
+        },
+        {
+          "widget": {
+            "name": "cfg"
+          },
+          "name": "cfg",
+          "type": "FLOAT",
+          "localized_name": "CFG"
+        },
+        {
+          "widget": {
+            "name": "sampler_name"
+          },
+          "name": "sampler_name",
+          "type": "COMBO",
+          "localized_name": "采样器"
+        },
+        {
+          "widget": {
+            "name": "scheduler"
+          },
+          "name": "scheduler",
+          "type": "COMBO",
+          "localized_name": "调度器"
+        },
+        {
+          "widget": {
+            "name": "denoise"
+          },
+          "name": "denoise",
+          "type": "FLOAT",
+          "localized_name": "降噪"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 43,
+      "type": "KSampler",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "KSampler",
+        "widget_names": [
+          "seed",
+          null,
+          "steps",
+          "cfg",
+          "sampler_name",
+          "scheduler",
+          "denoise"
+        ]
+      },
+      "order": 39,
+      "title": "KSampler"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            43
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "pos": [
+        2167.8630798339846,
+        6562.282205200196
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 41,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        },
+        {
+          "name": "vae",
+          "link": 42,
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 44,
+      "type": "VAEDecode",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode",
+        "widget_names": []
+      },
+      "order": 40,
+      "title": "VAEDecode"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            45
+          ]
+        }
+      ],
+      "size": [
+        343.2049865722656,
+        452.010986328125
+      ],
+      "pos": [
+        1531.4473388671877,
+        5834.086669921875
+      ],
+      "widgets_values": [
+        "cutout/Qwen-Image-2.1"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 43,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 45,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage",
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "order": 41,
+      "title": "Qwen 2.1｜保存生成结果"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "image_urls",
+          "dir": 4,
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "shape": 3,
+          "name": "images",
+          "dir": 4,
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "size": [
+        336.20294189453125,
+        459.02899169921875
+      ],
+      "pos": [
+        2086.300634765625,
+        5829.049951171875
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "image_a",
+          "link": 45,
+          "label": "图像_A",
+          "dir": 3,
+          "type": "IMAGE"
+        },
+        {
+          "name": "image_b",
+          "link": 44,
+          "label": "图像_B",
+          "dir": 3,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 46,
+      "type": "Image Comparer (rgthree)",
+      "properties": {
+        "comparer_mode": "Slide",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "order": 42,
+      "title": "Qwen 2.1｜原图与生成结果对比"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "p0",
+          "links": [
+            46
+          ],
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        1602.557666015625,
+        6834.601849365235
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "pwd"
+          },
+          "name": "pwd",
+          "label": "pwd",
+          "type": "STRING",
+          "localized_name": "pwd"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 47,
+      "type": "RHHiddenNodes",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHHiddenNodes",
+        "info": "Z0FBQUFBQnEwYnJ6WFk4c0ZVQXQtTlVfNWxYQXdrSC1yZ1JKMS1oaDR4SlFmbzJ2Nks3TDdVZlpwQmVqS1FCOXNtenVhN25VZkJBdFVMOUlRWmdrbkNhWTJwMWk4bEZoTk5wRnZoTXhzc1VWRU5LbVkxbmpSUlNhSHhtVFgtZy0xMzBkUGREdjJCSzVZWnY3MWItNWRiOTFaTW44czlqQ1dGcndNSV9OcjdDOG1vUlY4VlZkRXZVczIwbjJmX2h5bFhvMmkxTENPNEhIVVNmT2hYeEVaanNyTzFMVzBjQi1RMm1KSkxzdU05dlhlQ3lZTnpmVHVMcmFaY0xYN19QUTIxbVlPZ2txMXJVV1hjVHpFY3NEYXE0ZW82Mmx2anc5REx1WFdGZ0R4VTkybUNOSG5VNzBzUms5ZlJIQUxJanp5ZlN1YWlCYTF2dDFUbVlSd3M3LXVqRWdFTEdJUUEzT1pYNFh4bWlOV2FnVmhwYVJ1bFZub19uRUJlNEhUVTEtMjNSNy1iWnJRbFhWM05na3VlajMyYVdVWlZsc3QtRlVpSll4eHFjVnZfdnR6V01hQ3dIUHhYYUxtT2xDUGxETC1icncxTUtvWWxrUmdRNWFtOTBTY05ma2hZZ3UzeV9fVUd6elltMnhHUWFiUGhvOFU0c3ZQSENLUXBZVkRNLXl0eUJzYzJ2bWFSeWlLSGtNZFN4Y0RoRnZUSzNFRlJ3SThFc0NsQ0FGZVdIM1JieVpISkx3Rm9fSFk1WWdEMFJGem5Ia1RZUjVUX0MxMnJJNmdveXJSMWtoRXh0OW1VczJKeVR4dFZWakVGZFBpT2xiSk1IbEd5alZpeDFnRVQwd09iQkc1RUVCeGEyNS1wM0ttMVppeXJJRnMwMW85dkJjQl9QSE9yRF9hZmE2dE5vQTVQczRXM25ha2RqQktpMGQ2Z1BkeDMzMUJyU3g4NlNoSmtWd3pHR2NDbkxLdFAxcEQ0bTJJZ2VqSnZFRHpkazlkbUNQZjkxUWowbjJtQkVDWXFKM3FFWlhSODhpS0JSZ1hScEp2RS1qREtvdDBOalFEbGp0bGpzOXVRM1dyMDB5Z1ZHb205MENyZEhMMmZmdV9CNkFSQ0czS05veTE2X0xUMU56M3h6ZW9NOFhQREJrTFE9PQ==",
+        "ref_info": "Z0FBQUFBQnEwYnJ6SnJCNzlUUmlRX1NFQkNUbFFiSjlINnVlNVYwNENlMGJwbm9qbVQzSVFLZ25NMndST2hjX29GcWJyb09nRWlvckk3YkxQZlFmemtaT0g0MkpyUzA2eWc9PQ==",
+        "widget_names": [
+          "pwd"
+        ]
+      },
+      "order": 43,
+      "title": "加密核心｜需原作者解密"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "positive",
+          "links": [
+            38
+          ],
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "links": [
+            39
+          ],
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent",
+          "links": [
+            40
+          ],
+          "label": "latent",
+          "type": "LATENT",
+          "localized_name": "latent"
+        }
+      ],
+      "size": [
+        317.2330017089844,
+        246
+      ],
+      "pos": [
+        1527.1247680664064,
+        6711.314245605468
+      ],
+      "widgets_values": [
+        "透明的背景。",
+        "",
+        1024
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 36,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "shape": 7,
+          "name": "images.image_1",
+          "link": 34,
+          "label": "参考图 1 (Image-1)",
+          "type": "IMAGE",
+          "localized_name": "参考图 1 (Image-1)"
+        },
+        {
+          "shape": 7,
+          "name": "images.image_2",
+          "label": "参考图 2 (Image-2)",
+          "type": "IMAGE",
+          "localized_name": "参考图 2 (Image-2)"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "link": 35,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 46,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "name": "negative_prompt",
+          "label": "negative_prompt",
+          "type": "STRING",
+          "localized_name": "negative_prompt"
+        },
+        {
+          "widget": {
+            "name": "resolution"
+          },
+          "name": "resolution",
+          "label": "resolution",
+          "type": "INT",
+          "localized_name": "resolution"
+        }
+      ],
+      "flags": {},
+      "id": 48,
+      "type": "TextEncodeQwenImage21",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "widget_names": [
+          "prompt",
+          "negative_prompt",
+          "resolution"
+        ]
+      },
+      "order": 44,
+      "title": "TextEncodeQwenImage21"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "p0",
+          "links": [
+            48
+          ],
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        1614.566354370117,
+        6589.34207611084
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "pwd"
+          },
+          "name": "pwd",
+          "label": "pwd",
+          "type": "STRING",
+          "localized_name": "pwd"
+        },
+        {
+          "name": "model_1",
+          "link": 47,
+          "label": "model_1",
+          "type": "MODEL"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 49,
+      "type": "RHHiddenNodes",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHHiddenNodes",
+        "info": "Z0FBQUFBQnEwYjZKMWNfWUZaOTIzYzh6aXA4dXpRRWp2MFhWLVVGVG9wdlFIbFF1aDF3ejBTazNYQ0ZpTnpqNERmYWtKaDE1NlM1cVMwZmtEdEtvVzhhRFJMT1ZNNFp5QUV4ZzluNVVLMUF0WGtOUm9Lc2hsdDR4STZjU1dNV1lENnB4TU5BNWhnR3pZSkRnLUZqeTdUSkFfd1BoSC1Vd3hzT29fMmlmWDdaSTBid29wbzF6c0tJNFh3bGdBRy0zOE03ZXhQOHozczZnd2RXcTJqYXZOMGYxN0o4aDhQdTMtWHI5VUViUXhuOUI3OFJGemp0N3hpeEJucVRveFQwSGJuVHFTcVFtWTR0YTdBdkJsd3lucG1QVDNNV2NjT0NqRzNKQ2J1NlF6RXpjZjhGcWRxMGNfS1RkR0dyR3BrUXRKc2RzN3FNSUQ4SEZyakh0ZXR3WDVyRlpOUWhXNkw2dXlnTjdhNm01anZjLThNMENGLVFMMURQRkZOOHN5R1R2QWJuczFPRWRfdURJSlhPOGZ6bDE5d0ZaaWhGRUVfUmlvNlRCelhtS1ZpVWZRTTJZWEVEU3pMWlJBdTFMTkM4Wk1RWTVNQmhjdVVhQVVIbjJFYjNoeWtINWxxalRMaFQxUlFzb2NvV3JQY05OeWVVeWlIamNYQXR6OEk4MHgtbnhnamtqU0ZmN1ItNTFQek9RbnYtdXM1RTRTaE9NTUcwQlA5dHhVa1FuRnJGTEdXRWFXbVZ2dlpqNVpRNFhxM2dud0htZW02WjdackYtSENXUGhqbDZsZDhkSlZFM2EyejVuV0JkWGdITDVMYVZMcVlQN3RteEhKZjhmZE9HVVIwb3VpRVdIaV8xZGZjQ0wtdkFuUkFfSzVnaFBfUjNYT3dfeDB5ZHgweTU3bEtrLWE5SXkwaENZa2UzdG1RcmItNkZsNXJMVEdvSV91eDBxMjJqaHYwbDRWb1JVM0FvYjZEdy0tRTlNSVZSMTRhQzdXcFNwbk1SWnY3TUFYMXRrMFFMN3N0RDVUdzY1ZW9nTXpXaUVKWF8wcXhKZzVFTXlsYnNvUHpacEk0YUhuSVRfUXRJc2FwT21HNEVIRkQtRzZieXhiQ1IzUzljcW8tclZjSjJxSWE5cHBFeVBfOExSNUYtVlJ5UE1RUHlOamZUSmc5ZHBOaGVyLVZWM3lLdEg3M3AtdHhWLW1ZeGFVSkx6Yy1NTThzMFNmR3Q5RVV6QkdwRHdkaFNnUno5R1ZRdlhYNGRodFNWaTBCQURBZm9hREgxM0RXVFQ1OUdrckEzVkJyZXYweEZWWTJqMnJmTFVlUzU3Y0ZkZVNmOFl4VVlMX3QtSk41NTIxc2J1ckpFQzdvR05YUUQxZ3VZMmFKVklSRlBNTHVTQTU4SEZ6OHVsMkFLYkNtaGpBQloxam10YVh2UFFJQkdzcVVkNFZxTTVEajktTS1VbVVkc0c3VGNadXZHcEEzSFVzVmZPTXFhaU9uVlI1bDFmREhWcDhxQTJrU1I5QzFEcXhxWlBwd2xwRXo5WDdDXzMtNC1uMmtEeUpBYnQ3STA2THBDV0RzNGdrTkZ0MXF4Ung0MkxObkpGcGQwRVpSaHdPWT0=",
+        "ref_info": "Z0FBQUFBQnEwYjZKRWh1R0ZjUTF0MDVYeERrTGRvNXhkSXRFLXM1MVpQclc3SmRaVldDUFhlOENtSjhjQmpwSTlUR2tQTktvVlB3RHVwYTlRbUdVT3hQTFVTQVRsRUpQM3c9PQ==",
+        "widget_names": [
+          "pwd"
+        ]
+      },
+      "order": 45,
+      "title": "加密核心｜需原作者解密"
+    },
+    {
+      "mode": 2,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            37
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "size": [
+        288.8537292480469,
+        82.77887725830078
+      ],
+      "pos": [
+        1540.8181549072265,
+        6554.350492858886
+      ],
+      "widgets_values": [
+        "auto",
+        "default"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 48,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "name": "device",
+          "label": "device",
+          "type": "COMBO",
+          "localized_name": "device"
+        },
+        {
+          "widget": {
+            "name": "dtype"
+          },
+          "name": "dtype",
+          "label": "dtype",
+          "type": "COMBO",
+          "localized_name": "dtype"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 50,
+      "type": "QwenImage21Cache",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "QwenImage21Cache",
+        "widget_names": [
+          "device",
+          "dtype"
+        ]
+      },
+      "order": 46,
+      "title": "QwenImage21Cache"
+    },
+    {
+      "id": 51,
+      "type": "Note",
+      "pos": [
+        900,
+        5330
+      ],
+      "size": [
+        1720,
+        310
+      ],
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "Qwen-Image-2.1｜使用说明与当前限制",
+      "widgets_values": [
+        "来源：用户提供的 Qwen-Image-2.1 抠图 / 透明背景 / 人像 / 产品换背景工作流。\n共用左侧原图输入。本组为生成式编辑，不同于传统分割抠图，可能改变主体细节。\n当前状态：待解密，默认 Never；暂未接入工具模型菜单。两处 RHHiddenNodes 隐藏了核心提示词与模型处理，必须取得解密密码及节点，或未加密版本后才能验证。不要直接删除或跳过它们。\n原版模型：diffusion_models/qwen_image_2.1_bf16.safetensors；text_encoders/qwen3vl_8b_bf16.safetensors；vae/qwen_image_2.1_vae_bf16.safetensors。本机前两者缺失，虽有量化模型，尚未验证替换兼容性。\n依赖：TextEncodeQwenImage21、QwenImage21Cache、RHHiddenNodes；rgthree 对比节点仅用于预览。\n待核心节点解密后，确认透明度确实存在于 PNG Alpha 通道，再启用本组处理及保存节点进行验证；“透明背景”提示词本身不能保证透明通道。"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "LayerMask: TransparentBackgroundUltra",
+      "pos": [
+        900,
+        7610
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 48,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 49
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            50
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: TransparentBackgroundUltra",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "model",
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "device",
+          "max_megapixels"
+        ]
+      },
+      "widgets_values": [
+        "InSPyReNet_SwinB_Plus_Ultra.pth",
+        "VITMatte",
+        4,
+        4,
+        0.010000000000000002,
+        0.99,
+        true,
+        "cuda",
+        2
+      ],
+      "widgets_values_named": {
+        "model": "InSPyReNet_SwinB_Plus_Ultra.pth",
+        "detail_method": "VITMatte",
+        "detail_erode": 4,
+        "detail_dilate": 4,
+        "black_point": 0.010000000000000002,
+        "white_point": 0.99,
+        "process_detail": true,
+        "device": "cuda",
+        "max_megapixels": 2
+      },
+      "color": "rgba(27, 80, 119, 0.7)",
+      "title": "LayerMask: TransparentBackgroundUltra"
+    },
+    {
+      "id": 53,
+      "type": "SaveImage",
+      "pos": [
+        1320,
+        7610
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 49,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 50
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/transparent-background-ultra"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 54,
+      "type": "Note",
+      "pos": [
+        900,
+        7375
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "透明背景 Ultra｜使用说明",
+      "widgets_values": [
+        "InSPyReNet Plus Ultra + VITMatte 边缘精修。节点及 InSPyReNet_SwinB_Plus_Ultra.pth 已安装，已实际运行并确认 PNG Alpha 通道。\n已接入工具方案列表，手动使用默认关闭，与其他分支共用原图。使用说明与验证记录见 README.md。"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "LayerMask: SegmentAnythingUltra V2",
+      "pos": [
+        2800,
+        7610
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 51
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            52
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: SegmentAnythingUltra V2",
+        "hasSecondTab": false,
+        "cnr_id": "ComfyUI_LayerStyle_Advance",
+        "ver": "5f8c6f29c484100245bc6f8ea66277f53e23cdbe",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "detail_dilate": true,
+            "detail_erode": true,
+            "threshold": true,
+            "max_megapixels": true,
+            "sam_model": true,
+            "detail_method": true,
+            "black_point": true,
+            "process_detail": true,
+            "grounding_dino_model": true,
+            "white_point": true,
+            "cache_model": true,
+            "prompt": true,
+            "device": true
+          }
+        },
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10,
+        "widget_names": [
+          "sam_model",
+          "grounding_dino_model",
+          "threshold",
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "prompt",
+          "device",
+          "max_megapixels",
+          "cache_model"
+        ]
+      },
+      "widgets_values": [
+        "sam_vit_h (2.56GB)",
+        "GroundingDINO_SwinT_OGC (694MB)",
+        0.3,
+        "VITMatte",
+        6,
+        6,
+        0.15,
+        0.99,
+        true,
+        "subject",
+        "cuda",
+        2,
+        false
+      ],
+      "widgets_values_named": {
+        "sam_model": "sam_vit_h (2.56GB)",
+        "grounding_dino_model": "GroundingDINO_SwinT_OGC (694MB)",
+        "threshold": 0.3,
+        "detail_method": "VITMatte",
+        "detail_erode": 6,
+        "detail_dilate": 6,
+        "black_point": 0.15,
+        "white_point": 0.99,
+        "process_detail": true,
+        "prompt": "subject",
+        "device": "cuda",
+        "max_megapixels": 2,
+        "cache_model": false
+      },
+      "color": "rgba(27, 80, 119, 0.7)",
+      "title": "LayerMask: SegmentAnythingUltra V2"
+    },
+    {
+      "id": 56,
+      "type": "SaveImage",
+      "pos": [
+        3220,
+        7610
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 52
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/segment-anything-ultra-v2"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 57,
+      "type": "Note",
+      "pos": [
+        2800,
+        7375
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "文字抠图｜SAM + GroundingDINO Ultra V2｜使用说明",
+      "widgets_values": [
+        "填写 SegmentAnythingUltra V2 的 prompt（英文，如 person、product）。SAM 定位分割，GroundingDINO 按语义找目标，VITMatte 细化边缘。所需模型已下载。\n已安装相应节点与模型并接入工具方案列表，手动使用仍默认关闭。所有分支共用原图；语义方案直接填写英文 prompt，无需云端翻译。已实际推理成功，并确认 PNG 含有效 Alpha 通道；效果请结合素材判断。"
+      ]
+    },
+    {
+      "id": 58,
+      "type": "LayerMask: SegmentAnythingUltra V3",
+      "pos": [
+        900,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 53
+        },
+        {
+          "name": "sam_models",
+          "type": "LS_SAM_MODELS",
+          "link": 54
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            55
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: SegmentAnythingUltra V3",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "threshold",
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "prompt",
+          "device",
+          "max_megapixels"
+        ]
+      },
+      "widgets_values": [
+        0.3,
+        "VITMatte",
+        6,
+        6,
+        0.15,
+        0.99,
+        true,
+        "subject",
+        "cuda",
+        2
+      ],
+      "widgets_values_named": {
+        "threshold": 0.3,
+        "detail_method": "VITMatte",
+        "detail_erode": 6,
+        "detail_dilate": 6,
+        "black_point": 0.15,
+        "white_point": 0.99,
+        "process_detail": true,
+        "prompt": "subject",
+        "device": "cuda",
+        "max_megapixels": 2
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "LayerMask: SegmentAnythingUltra V3"
+    },
+    {
+      "id": 59,
+      "type": "LayerMask: LoadSegmentAnythingModels",
+      "pos": [
+        1320,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 55,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sam_models",
+          "type": "LS_SAM_MODELS",
+          "links": [
+            54
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: LoadSegmentAnythingModels",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "sam_model",
+          "grounding_dino_model"
+        ]
+      },
+      "widgets_values": [
+        "sam_vit_h (2.56GB)",
+        "GroundingDINO_SwinT_OGC (694MB)"
+      ],
+      "widgets_values_named": {
+        "sam_model": "sam_vit_h (2.56GB)",
+        "grounding_dino_model": "GroundingDINO_SwinT_OGC (694MB)"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "LayerMask: LoadSegmentAnythingModels"
+    },
+    {
+      "id": 60,
+      "type": "SaveImage",
+      "pos": [
+        1740,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 56,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 55
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/segment-anything-ultra-v3"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 61,
+      "type": "Note",
+      "pos": [
+        900,
+        8825
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 57,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "文字抠图｜SAM + GroundingDINO Ultra V3｜使用说明",
+      "widgets_values": [
+        "填写 SegmentAnythingUltra V3 的 prompt（英文）。独立模型加载节点便于复用 SAM 与 GroundingDINO；输出经 VITMatte 精修。所需模型已下载。\n已安装相应节点与模型并接入工具方案列表，手动使用仍默认关闭。所有分支共用原图；语义方案直接填写英文 prompt，无需云端翻译。已实际推理成功，并确认 PNG 含有效 Alpha 通道；效果请结合素材判断。"
+      ]
+    },
+    {
+      "id": 62,
+      "type": "LayerMask: SegmentAnythingUltra V2",
+      "pos": [
+        2800,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 58,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 56
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            60
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            58
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: SegmentAnythingUltra V2",
+        "hasSecondTab": false,
+        "cnr_id": "ComfyUI_LayerStyle_Advance",
+        "ver": "5f8c6f29c484100245bc6f8ea66277f53e23cdbe",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "detail_dilate": true,
+            "detail_erode": true,
+            "threshold": true,
+            "max_megapixels": true,
+            "sam_model": true,
+            "detail_method": true,
+            "black_point": true,
+            "process_detail": true,
+            "grounding_dino_model": true,
+            "white_point": true,
+            "cache_model": true,
+            "prompt": true,
+            "device": true
+          }
+        },
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10,
+        "widget_names": [
+          "sam_model",
+          "grounding_dino_model",
+          "threshold",
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "prompt",
+          "device",
+          "max_megapixels",
+          "cache_model"
+        ]
+      },
+      "widgets_values": [
+        "sam_vit_h (2.56GB)",
+        "GroundingDINO_SwinT_OGC (694MB)",
+        0.3,
+        "VITMatte",
+        6,
+        6,
+        0.15,
+        0.99,
+        true,
+        "subject",
+        "cuda",
+        2,
+        false
+      ],
+      "widgets_values_named": {
+        "sam_model": "sam_vit_h (2.56GB)",
+        "grounding_dino_model": "GroundingDINO_SwinT_OGC (694MB)",
+        "threshold": 0.3,
+        "detail_method": "VITMatte",
+        "detail_erode": 6,
+        "detail_dilate": 6,
+        "black_point": 0.15,
+        "white_point": 0.99,
+        "process_detail": true,
+        "prompt": "subject",
+        "device": "cuda",
+        "max_megapixels": 2,
+        "cache_model": false
+      },
+      "color": "rgba(27, 80, 119, 0.7)",
+      "title": "LayerMask: SegmentAnythingUltra V2"
+    },
+    {
+      "id": 63,
+      "type": "SDMatteApply",
+      "pos": [
+        3220,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 59,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 57
+        },
+        {
+          "name": "trimap",
+          "type": "MASK",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "alpha_mask",
+          "type": "MASK",
+          "links": [
+            59
+          ]
+        },
+        {
+          "name": "matted_image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDMatteApply",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": [
+          "ckpt_name",
+          "inference_size",
+          "is_transparent",
+          "output_mode",
+          "mask_refine",
+          "trimap_constraint",
+          "force_cpu"
+        ]
+      },
+      "widgets_values": [
+        "SDMatte.safetensors",
+        1024,
+        false,
+        "alpha_only",
+        true,
+        0.8,
+        false
+      ],
+      "widgets_values_named": {
+        "model_name": "SDMatte.pth",
+        "inference_size": 1024,
+        "is_transparent": false,
+        "output_mode": "alpha_only",
+        "mask_refine": true,
+        "trimap_constraint": 0.8,
+        "force_cpu": false
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "SDMatteApply"
+    },
+    {
+      "id": 64,
+      "type": "Mask Invert",
+      "pos": [
+        3640,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 60,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "masks",
+          "type": "MASK",
+          "link": 59
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASKS",
+          "type": "MASK",
+          "links": [
+            61
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Mask Invert",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": []
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "Mask Invert",
+      "widgets_values": []
+    },
+    {
+      "id": 65,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        4060,
+        9060
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 61,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 60
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 61
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            62
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": []
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "JoinImageWithAlpha",
+      "widgets_values": []
+    },
+    {
+      "id": 66,
+      "type": "SaveImage",
+      "pos": [
+        2800,
+        9500
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 62,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/auto-sdmatte"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 67,
+      "type": "Note",
+      "pos": [
+        2800,
+        8825
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 63,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "自动分割 → SDMatte 精修｜使用说明",
+      "widgets_values": [
+        "填写分割节点的英文 prompt。先生成主体遮罩，再由 SDMatte 精修；无需额外上传手绘遮罩。沿用来源流程的遮罩反转与 Alpha 合并，已使用人像样图实际推理，确认输出为 RGBA 且有有效透明度。\n已安装相应节点与模型并接入工具方案列表，手动使用仍默认关闭。所有分支共用原图；语义方案直接填写英文 prompt，无需云端翻译。所需 SDMatte 权重已下载并通过 SHA-256 校验，已实际推理成功并检查 PNG Alpha 通道。复杂透明材质效果仍需结合实际素材判断。"
+      ]
+    },
+    {
+      "id": 68,
+      "type": "LayerMask: SegmentAnythingUltra V2",
+      "pos": [
+        900,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 64,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            65
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: SegmentAnythingUltra V2",
+        "hasSecondTab": false,
+        "cnr_id": "ComfyUI_LayerStyle_Advance",
+        "ver": "5f8c6f29c484100245bc6f8ea66277f53e23cdbe",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "detail_dilate": true,
+            "detail_erode": true,
+            "threshold": true,
+            "max_megapixels": true,
+            "sam_model": true,
+            "detail_method": true,
+            "black_point": true,
+            "process_detail": true,
+            "grounding_dino_model": true,
+            "white_point": true,
+            "cache_model": true,
+            "prompt": true,
+            "device": true
+          }
+        },
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10,
+        "widget_names": [
+          "sam_model",
+          "grounding_dino_model",
+          "threshold",
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "prompt",
+          "device",
+          "max_megapixels",
+          "cache_model"
+        ]
+      },
+      "widgets_values": [
+        "sam_vit_h (2.56GB)",
+        "GroundingDINO_SwinT_OGC (694MB)",
+        0.3,
+        "VITMatte",
+        6,
+        6,
+        0.15,
+        0.99,
+        true,
+        "subject",
+        "cuda",
+        2,
+        false
+      ],
+      "widgets_values_named": {
+        "sam_model": "sam_vit_h (2.56GB)",
+        "grounding_dino_model": "GroundingDINO_SwinT_OGC (694MB)",
+        "threshold": 0.3,
+        "detail_method": "VITMatte",
+        "detail_erode": 6,
+        "detail_dilate": 6,
+        "black_point": 0.15,
+        "white_point": 0.99,
+        "process_detail": true,
+        "prompt": "subject",
+        "device": "cuda",
+        "max_megapixels": 2,
+        "cache_model": false
+      },
+      "color": "#233",
+      "bgcolor": "#355",
+      "title": "LayerMask: SegmentAnythingUltra V2"
+    },
+    {
+      "id": 69,
+      "type": "SDMatteApply",
+      "pos": [
+        1320,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 65,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 64
+        },
+        {
+          "name": "trimap",
+          "type": "MASK",
+          "link": 65
+        }
+      ],
+      "outputs": [
+        {
+          "name": "alpha_mask",
+          "type": "MASK",
+          "links": [
+            66
+          ]
+        },
+        {
+          "name": "matted_image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDMatteApply",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "ckpt_name",
+          "inference_size",
+          "is_transparent",
+          "output_mode",
+          "mask_refine",
+          "trimap_constraint",
+          "force_cpu"
+        ]
+      },
+      "widgets_values": [
+        "SDMatte_plus.safetensors",
+        1024,
+        false,
+        "matted_rgb",
+        false,
+        0.8,
+        false
+      ],
+      "widgets_values_named": {
+        "model_name": "SDMatte_plus.pth",
+        "inference_size": 1024,
+        "is_transparent": true,
+        "output_mode": "matted_rgb",
+        "mask_refine": false,
+        "trimap_constraint": 0.8,
+        "force_cpu": false
+      },
+      "color": "#233",
+      "bgcolor": "#355",
+      "title": "SDMatteApply"
+    },
+    {
+      "id": 70,
+      "type": "GrowMaskWithBlur",
+      "pos": [
+        1740,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 66,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 66
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            67
+          ]
+        },
+        {
+          "name": "mask_inverted",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GrowMaskWithBlur",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "expand",
+          "incremental_expandrate",
+          "tapered_corners",
+          "flip_input",
+          "blur_radius",
+          "lerp_alpha",
+          "decay_factor",
+          "fill_holes"
+        ]
+      },
+      "widgets_values": [
+        0,
+        0,
+        true,
+        false,
+        0.5,
+        1,
+        1,
+        false
+      ],
+      "widgets_values_named": {
+        "expand": 0,
+        "incremental_expandrate": 0,
+        "tapered_corners": true,
+        "flip_input": false,
+        "blur_radius": 0.5,
+        "lerp_alpha": 1,
+        "decay_factor": 1,
+        "fill_holes": false
+      },
+      "color": "#233",
+      "bgcolor": "#355",
+      "title": "GrowMaskWithBlur"
+    },
+    {
+      "id": 71,
+      "type": "Mask Invert",
+      "pos": [
+        2160,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 67,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "masks",
+          "type": "MASK",
+          "link": 67
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASKS",
+          "type": "MASK",
+          "links": [
+            69
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Mask Invert",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "color": "#233",
+      "bgcolor": "#355",
+      "title": "Mask Invert",
+      "widgets_values": []
+    },
+    {
+      "id": 72,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        900,
+        10950
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 68,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 68
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 69
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            70
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "color": "#233",
+      "bgcolor": "#355",
+      "title": "JoinImageWithAlpha",
+      "widgets_values": []
+    },
+    {
+      "id": 73,
+      "type": "SaveImage",
+      "pos": [
+        1320,
+        10950
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 69,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/transparent-material-sdmatte"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#332922",
+      "bgcolor": "#593930",
+      "title": "SaveImage"
+    },
+    {
+      "id": 74,
+      "type": "Note",
+      "pos": [
+        900,
+        10275
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 70,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "透明材质｜分割 + SDMatte Plus｜使用说明",
+      "widgets_values": [
+        "面向玻璃、薄纱等半透明目标。先自动分割，再经 SDMatte Plus、GrowMaskWithBlur 和 Alpha 合并。输入普通不透明原图时关闭 is_transparent；开启只表示输入本身已有透明通道。效果需用实际素材验证。\n已安装相应节点与模型并接入工具方案列表，手动使用仍默认关闭。所有分支共用原图；语义方案直接填写英文 prompt，无需云端翻译。所需 SDMatte 权重已下载并通过 SHA-256 校验，已实际推理成功并检查 PNG Alpha 通道。复杂透明材质效果仍需结合实际素材判断。"
+      ]
+    },
+    {
+      "id": 75,
+      "type": "LayerMask: BiRefNetUltraV2",
+      "pos": [
+        2800,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 71,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 71
+        },
+        {
+          "name": "birefnet_model",
+          "type": "BIREFNET_MODEL",
+          "link": 72
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            74
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: BiRefNetUltraV2",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "detail_method",
+          "detail_erode",
+          "detail_dilate",
+          "black_point",
+          "white_point",
+          "process_detail",
+          "device",
+          "max_megapixels"
+        ]
+      },
+      "widgets_values": [
+        "VITMatte",
+        4,
+        2,
+        0.01,
+        0.99,
+        true,
+        "cuda",
+        2
+      ],
+      "widgets_values_named": {
+        "detail_method": "VITMatte",
+        "detail_erode": 4,
+        "detail_dilate": 2,
+        "black_point": 0.01,
+        "white_point": 0.99,
+        "process_detail": false,
+        "device": "cuda",
+        "max_megapixels": 2
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "LayerMask: BiRefNetUltraV2"
+    },
+    {
+      "id": 76,
+      "type": "LayerMask: LoadBiRefNetModel",
+      "pos": [
+        3220,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 72,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "birefnet_model",
+          "type": "BIREFNET_MODEL",
+          "links": [
+            72
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: LoadBiRefNetModel",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "model"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet-general-epoch_244.pth"
+      ],
+      "widgets_values_named": {
+        "model": "BiRefNet-general-epoch_244.pth"
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "LayerMask: LoadBiRefNetModel"
+    },
+    {
+      "id": 77,
+      "type": "LayerUtility: ImageCombineAlpha",
+      "pos": [
+        3640,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 73,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "RGB_image",
+          "type": "IMAGE",
+          "link": 73
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "RGBA_image",
+          "type": "IMAGE",
+          "links": [
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: ImageCombineAlpha",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "LayerUtility: ImageCombineAlpha",
+      "widgets_values": []
+    },
+    {
+      "id": 78,
+      "type": "SaveImage",
+      "pos": [
+        4060,
+        10510
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 74,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 75
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/birefnet-ultra-v2"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "SaveImage"
+    },
+    {
+      "id": 79,
+      "type": "Note",
+      "pos": [
+        2800,
+        10275
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 75,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "BiRefNet Ultra V2｜VITMatte 精修｜使用说明",
+      "widgets_values": [
+        "BiRefNet 输出遮罩，再经 VITMatte 精修并与原图合成透明 PNG。默认开启 process_detail，可调整腐蚀/膨胀与黑白点。模型选择沿用本机可用的 BiRefNet-general-epoch_244.pth。\n已安装相应节点与模型并接入工具方案列表，手动使用仍默认关闭。所有分支共用原图；语义方案直接填写英文 prompt，无需云端翻译。已实际推理成功，并确认 PNG 含有效 Alpha 通道；效果请结合素材判断。"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "BiRefNet_Hugo",
+      "pos": [
+        900,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 76,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            78
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            77
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNet_Hugo",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": [
+          "model",
+          "load_local_model",
+          "background_color_name",
+          "device",
+          "local_model_path"
+        ]
+      },
+      "widgets_values": [
+        "ZhengPeng7/BiRefNet",
+        true,
+        "transparency",
+        "auto",
+        "H:/AI-Tools/ComfyUI_TE/ComfyUI/models/BiRefNet/Hugo-General"
+      ],
+      "widgets_values_named": {
+        "background_color_name": "transparency",
+        "device": "auto"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "BiRefNet_Hugo"
+    },
+    {
+      "id": 81,
+      "type": "GrowMaskWithBlur",
+      "pos": [
+        1320,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 77,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 77
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            79
+          ]
+        },
+        {
+          "name": "mask_inverted",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GrowMaskWithBlur",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": [
+          "expand",
+          "incremental_expandrate",
+          "tapered_corners",
+          "flip_input",
+          "blur_radius",
+          "lerp_alpha",
+          "decay_factor",
+          "fill_holes"
+        ]
+      },
+      "widgets_values": [
+        -2,
+        0,
+        true,
+        false,
+        0,
+        1,
+        1,
+        false
+      ],
+      "widgets_values_named": {
+        "expand": -2,
+        "incremental_expandrate": 0,
+        "tapered_corners": true,
+        "flip_input": false,
+        "blur_radius": 0,
+        "lerp_alpha": 1,
+        "decay_factor": 1,
+        "fill_holes": false
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "GrowMaskWithBlur"
+    },
+    {
+      "id": 82,
+      "type": "EG_ZZ_TMTX",
+      "pos": [
+        1740,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 78,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 78
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 79
+        }
+      ],
+      "outputs": [
+        {
+          "name": "透明图像",
+          "type": "IMAGE",
+          "links": [
+            80
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EG_ZZ_TMTX",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": [
+          "遮罩反转"
+        ]
+      },
+      "widgets_values": [
+        "no"
+      ],
+      "widgets_values_named": {
+        "遮罩反转": "no"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "EG_ZZ_TMTX"
+    },
+    {
+      "id": 83,
+      "type": "SaveImage",
+      "pos": [
+        2160,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 79,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 80
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/birefnet-hugo-refine"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 84,
+      "type": "Note",
+      "pos": [
+        900,
+        11725
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 80,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "BiRefNet Hugo｜遮罩微调｜使用说明",
+      "widgets_values": [
+        "BiRefNet Hugo + GrowMaskWithBlur 遮罩微调。使用本地 BiRefNet/Hugo-General 模型目录，已实际运行并确认 PNG Alpha 通道。\n已接入工具方案列表，手动使用默认关闭，与其他分支共用原图。使用说明与验证记录见 README.md。"
+      ]
+    },
+    {
+      "id": 85,
+      "type": "BiRefNet_Zho",
+      "pos": [
+        2800,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 81,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "birefnetmodel",
+          "type": "BRNMODEL",
+          "link": 81
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 82
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            84
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNet_Zho",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "BiRefNet_Zho",
+      "widgets_values": []
+    },
+    {
+      "id": 86,
+      "type": "BiRefNet_ModelLoader_Zho",
+      "pos": [
+        3220,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 82,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "birefnetmodel",
+          "type": "BRNMODEL",
+          "links": [
+            81
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNet_ModelLoader_Zho",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "birefnet_model"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet-ep480.pth"
+      ],
+      "widgets_values_named": {
+        "birefnet_model": "BiRefNet-ep480.pth"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "BiRefNet_ModelLoader_Zho"
+    },
+    {
+      "id": 87,
+      "type": "LayerUtility: ImageCombineAlpha",
+      "pos": [
+        3640,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 83,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "RGB_image",
+          "type": "IMAGE",
+          "link": 83
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 84
+        }
+      ],
+      "outputs": [
+        {
+          "name": "RGBA_image",
+          "type": "IMAGE",
+          "links": [
+            85
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: ImageCombineAlpha",
+        "widget_ue_connectable": {},
+        "widget_names": []
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "LayerUtility: ImageCombineAlpha",
+      "widgets_values": []
+    },
+    {
+      "id": 88,
+      "type": "SaveImage",
+      "pos": [
+        4060,
+        11960
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 84,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 85
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/birefnet-zho"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 89,
+      "type": "Note",
+      "pos": [
+        2800,
+        11725
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 85,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "BiRefNet Zho｜独立加载｜使用说明",
+      "widgets_values": [
+        "BiRefNet Zho 节点实现，复用 BiRefNet-ep480.pth。已实际运行并确认 PNG Alpha 通道。插件已补相对导入兼容修正，升级插件后需保留。\n已接入工具方案列表，手动使用默认关闭，与其他分支共用原图。使用说明与验证记录见 README.md。"
+      ]
+    },
+    {
+      "id": 90,
+      "type": "RembgByBiRefNet",
+      "pos": [
+        900,
+        13410
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 86,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIREFNET",
+          "link": 86
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            88
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RembgByBiRefNet",
+        "cnr_id": "comfyui_birefnet_ll",
+        "ver": "5443a2aa16cfbd98bb2f7dcc8bdcb70439e08529",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": []
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "RembgByBiRefNet",
+      "widgets_values": []
+    },
+    {
+      "id": 91,
+      "type": "LoadRembgByBiRefNetModel",
+      "pos": [
+        1320,
+        13410
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 87,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "BIREFNET",
+          "links": [
+            86
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadRembgByBiRefNetModel",
+        "cnr_id": "comfyui_birefnet_ll",
+        "ver": "5443a2aa16cfbd98bb2f7dcc8bdcb70439e08529",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#535",
+          "groupcolor": "#a1309b",
+          "color": "#323"
+        },
+        "widget_names": [
+          "model",
+          "device",
+          "use_weight",
+          "dtype"
+        ]
+      },
+      "widgets_values": [
+        "BiRefNet-general.safetensors",
+        "AUTO",
+        false,
+        "float32"
+      ],
+      "widgets_values_named": {
+        "model": "BiRefNet-general.safetensors",
+        "device": "AUTO",
+        "use_weight": false
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "LoadRembgByBiRefNetModel"
+    },
+    {
+      "id": 92,
+      "type": "SaveImage",
+      "pos": [
+        1740,
+        13410
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 88,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 88
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.56",
+        "widget_ue_connectable": {},
+        "widget_names": [
+          "filename_prefix"
+        ]
+      },
+      "widgets_values": [
+        "cutout/birefnet-rembg"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "ComfyUI"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "SaveImage"
+    },
+    {
+      "id": 93,
+      "type": "Note",
+      "pos": [
+        900,
+        13175
+      ],
+      "size": [
+        1700,
+        190
+      ],
+      "flags": {},
+      "order": 89,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "title": "BiRefNet｜Rembg 独立加载｜使用说明",
+      "widgets_values": [
+        "RembgByBiRefNet 独立模型加载与推理，复用 BiRefNet-general.safetensors。已实际运行并确认 PNG Alpha 通道。\n已接入工具方案列表，手动使用默认关闭，与其他分支共用原图。使用说明与验证记录见 README.md。"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      4,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      2,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      10,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      2,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      13,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      9,
+      2,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      16,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      2,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      19,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      32,
+      0,
+      28,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      31,
+      0,
+      28,
+      1,
+      "MASK"
+    ],
+    [
+      22,
+      28,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      32,
+      0,
+      30,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      32,
+      1,
+      30,
+      1,
+      "MASK"
+    ],
+    [
+      25,
+      30,
+      0,
+      31,
+      0,
+      "MASK"
+    ],
+    [
+      26,
+      2,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      33,
+      0,
+      32,
+      1,
+      "MASK"
+    ],
+    [
+      28,
+      2,
+      0,
+      35,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      35,
+      0,
+      36,
+      0,
+      "IMAGE"
+    ],
+    [
+      30,
+      2,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      31,
+      38,
+      0,
+      39,
+      0,
+      "IMAGE"
+    ],
+    [
+      32,
+      2,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      33,
+      25,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      34,
+      2,
+      0,
+      48,
+      1,
+      "IMAGE"
+    ],
+    [
+      35,
+      42,
+      0,
+      48,
+      3,
+      "VAE"
+    ],
+    [
+      36,
+      41,
+      0,
+      48,
+      0,
+      "CLIP"
+    ],
+    [
+      37,
+      50,
+      0,
+      43,
+      0,
+      "MODEL"
+    ],
+    [
+      38,
+      48,
+      0,
+      43,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      39,
+      48,
+      1,
+      43,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      40,
+      48,
+      2,
+      43,
+      3,
+      "LATENT"
+    ],
+    [
+      41,
+      43,
+      0,
+      44,
+      0,
+      "LATENT"
+    ],
+    [
+      42,
+      42,
+      0,
+      44,
+      1,
+      "VAE"
+    ],
+    [
+      43,
+      44,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      44,
+      2,
+      0,
+      46,
+      1,
+      "IMAGE"
+    ],
+    [
+      45,
+      45,
+      0,
+      46,
+      0,
+      "IMAGE"
+    ],
+    [
+      46,
+      47,
+      0,
+      48,
+      4,
+      "STRING"
+    ],
+    [
+      47,
+      40,
+      0,
+      49,
+      1,
+      "MODEL"
+    ],
+    [
+      48,
+      49,
+      0,
+      50,
+      0,
+      "MODEL"
+    ],
+    [
+      49,
+      2,
+      0,
+      52,
+      0,
+      "IMAGE"
+    ],
+    [
+      50,
+      52,
+      0,
+      53,
+      0,
+      "IMAGE"
+    ],
+    [
+      51,
+      2,
+      0,
+      55,
+      0,
+      "IMAGE"
+    ],
+    [
+      52,
+      55,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      53,
+      2,
+      0,
+      58,
+      0,
+      "IMAGE"
+    ],
+    [
+      54,
+      59,
+      0,
+      58,
+      1,
+      "LS_SAM_MODELS"
+    ],
+    [
+      55,
+      58,
+      0,
+      60,
+      0,
+      "IMAGE"
+    ],
+    [
+      56,
+      2,
+      0,
+      62,
+      0,
+      "IMAGE"
+    ],
+    [
+      57,
+      2,
+      0,
+      63,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      62,
+      1,
+      63,
+      1,
+      "MASK"
+    ],
+    [
+      59,
+      63,
+      0,
+      64,
+      0,
+      "MASK"
+    ],
+    [
+      60,
+      62,
+      0,
+      65,
+      0,
+      "IMAGE"
+    ],
+    [
+      61,
+      64,
+      0,
+      65,
+      1,
+      "MASK"
+    ],
+    [
+      62,
+      65,
+      0,
+      66,
+      0,
+      "IMAGE"
+    ],
+    [
+      63,
+      2,
+      0,
+      68,
+      0,
+      "IMAGE"
+    ],
+    [
+      64,
+      2,
+      0,
+      69,
+      0,
+      "IMAGE"
+    ],
+    [
+      65,
+      68,
+      1,
+      69,
+      1,
+      "MASK"
+    ],
+    [
+      66,
+      69,
+      0,
+      70,
+      0,
+      "MASK"
+    ],
+    [
+      67,
+      70,
+      0,
+      71,
+      0,
+      "MASK"
+    ],
+    [
+      68,
+      2,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      69,
+      71,
+      0,
+      72,
+      1,
+      "MASK"
+    ],
+    [
+      70,
+      72,
+      0,
+      73,
+      0,
+      "IMAGE"
+    ],
+    [
+      71,
+      2,
+      0,
+      75,
+      0,
+      "IMAGE"
+    ],
+    [
+      72,
+      76,
+      0,
+      75,
+      1,
+      "BIREFNET_MODEL"
+    ],
+    [
+      73,
+      2,
+      0,
+      77,
+      0,
+      "IMAGE"
+    ],
+    [
+      74,
+      75,
+      1,
+      77,
+      1,
+      "MASK"
+    ],
+    [
+      75,
+      77,
+      0,
+      78,
+      0,
+      "IMAGE"
+    ],
+    [
+      76,
+      2,
+      0,
+      80,
+      0,
+      "IMAGE"
+    ],
+    [
+      77,
+      80,
+      1,
+      81,
+      0,
+      "MASK"
+    ],
+    [
+      78,
+      80,
+      0,
+      82,
+      0,
+      "IMAGE"
+    ],
+    [
+      79,
+      81,
+      0,
+      82,
+      1,
+      "MASK"
+    ],
+    [
+      80,
+      82,
+      0,
+      83,
+      0,
+      "IMAGE"
+    ],
+    [
+      81,
+      86,
+      0,
+      85,
+      0,
+      "BRNMODEL"
+    ],
+    [
+      82,
+      2,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      83,
+      2,
+      0,
+      87,
+      0,
+      "IMAGE"
+    ],
+    [
+      84,
+      85,
+      1,
+      87,
+      1,
+      "MASK"
+    ],
+    [
+      85,
+      87,
+      0,
+      88,
+      0,
+      "IMAGE"
+    ],
+    [
+      86,
+      91,
+      0,
+      90,
+      0,
+      "BIREFNET"
+    ],
+    [
+      87,
+      2,
+      0,
+      90,
+      1,
+      "IMAGE"
+    ],
+    [
+      88,
+      90,
+      0,
+      92,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "01 · BEN2｜默认启用 [ON]",
+      "bounding": [
+        875,
+        -10,
+        1790,
+        980
+      ],
+      "color": "#3f789e",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "02 · RMBG-2.0 [OFF]",
+      "bounding": [
+        2775,
+        -10,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "03 · BiRefNet-general [OFF]",
+      "bounding": [
+        875,
+        1040,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "04 · BiRefNet-HR-matting [OFF]",
+      "bounding": [
+        2775,
+        1040,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "05 · BiRefNet_toonout [OFF]",
+      "bounding": [
+        875,
+        2090,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "06 · Lucida [OFF]",
+      "bounding": [
+        2775,
+        2090,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "07 · 文字抠图｜SAM3 [OFF]",
+      "bounding": [
+        875,
+        3140,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "08 · 半透明精细抠图｜SDMatte [OFF]",
+      "bounding": [
+        2775,
+        3140,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "FeyNoBg [OFF]",
+      "bounding": [
+        875,
+        4190,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "SAM3 [OFF]",
+      "bounding": [
+        2775,
+        4190,
+        1790,
+        980
+      ],
+      "color": "#695d8a",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "11 · Qwen-Image-2.1｜生成式抠图 / 换背景 [待解密 · OFF]",
+      "bounding": [
+        850,
+        5270,
+        1900,
+        1850
+      ],
+      "color": "#9a6b35",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "title": "12 · 透明背景 Ultra [已接入工具 · OFF]",
+      "bounding": [
+        875,
+        7320,
+        1790,
+        1380
+      ],
+      "color": "#9a6b35",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "13 · 文字抠图｜SAM + GroundingDINO Ultra V2 [已接入工具 · OFF]",
+      "bounding": [
+        2775,
+        7320,
+        1790,
+        1380
+      ],
+      "color": "#4d7a67",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "14 · 文字抠图｜SAM + GroundingDINO Ultra V3 [已接入工具 · OFF]",
+      "bounding": [
+        875,
+        8770,
+        1790,
+        1380
+      ],
+      "color": "#4d7a67",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "15 · 自动分割 → SDMatte 精修 [已接入工具 · OFF]",
+      "bounding": [
+        2775,
+        8770,
+        1790,
+        1380
+      ],
+      "color": "#4d7a67",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "16 · 透明材质｜分割 + SDMatte Plus [已接入工具 · OFF]",
+      "bounding": [
+        875,
+        10220,
+        1790,
+        1380
+      ],
+      "color": "#4d7a67",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "17 · BiRefNet Ultra V2｜VITMatte 精修 [已接入工具 · OFF]",
+      "bounding": [
+        2775,
+        10220,
+        1790,
+        1380
+      ],
+      "color": "#4d7a67",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "18 · BiRefNet Hugo｜遮罩微调 [已接入工具 · OFF]",
+      "bounding": [
+        875,
+        11670,
+        1790,
+        1380
+      ],
+      "color": "#9a6b35",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "19 · BiRefNet Zho｜独立加载 [已接入工具 · OFF]",
+      "bounding": [
+        2775,
+        11670,
+        1790,
+        1380
+      ],
+      "color": "#9a6b35",
+      "font_size": 25,
+      "flags": {}
+    },
+    {
+      "title": "20 · BiRefNet｜Rembg 独立加载 [已接入工具 · OFF]",
+      "bounding": [
+        875,
+        13120,
+        1790,
+        1380
+      ],
+      "color": "#9a6b35",
+      "font_size": 25,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.35,
+      "offset": [
+        60,
+        70
+      ]
+    },
+    "cutout": {
+      "branches": {
+        "BEN2": {
+          "nodes": {
+            "1": 4,
+            "3": 2,
+            "5": 5
+          },
+          "output": 5
+        },
+        "BiRefNet-general": {
+          "nodes": {
+            "1": 10,
+            "3": 2,
+            "5": 11
+          },
+          "output": 11
+        },
+        "BiRefNet-HR-matting": {
+          "nodes": {
+            "1": 13,
+            "3": 2,
+            "5": 14
+          },
+          "output": 14
+        },
+        "BiRefNet_toonout": {
+          "nodes": {
+            "1": 16,
+            "3": 2,
+            "5": 17
+          },
+          "output": 17
+        },
+        "Lucida": {
+          "nodes": {
+            "1": 19,
+            "3": 2,
+            "5": 20
+          },
+          "output": 20
+        },
+        "textmatting": {
+          "nodes": {
+            "5": 2,
+            "8": 25,
+            "9": 26
+          },
+          "output": 26
+        },
+        "sdmatte": {
+          "nodes": {
+            "1": 2,
+            "4": 28,
+            "8": 29,
+            "54": 30,
+            "56": 31,
+            "72": 32,
+            "73": 33
+          },
+          "output": 29
+        },
+        "FeyNoBg": {
+          "nodes": {
+            "1": 35,
+            "3": 2,
+            "5": 36
+          },
+          "output": 36
+        },
+        "SAM3": {
+          "nodes": {
+            "1": 38,
+            "3": 2,
+            "5": 39
+          },
+          "output": 39
+        },
+        "RMBG-2.0": {
+          "nodes": {
+            "1": 7,
+            "3": 2,
+            "5": 8
+          },
+          "output": 8
+        },
+        "segment-anything-ultra-v2": {
+          "nodes": {
+            "417": 2,
+            "407": 55,
+            "418": 56
+          },
+          "output": 56,
+          "tool": {
+            "label": "文字抠图｜SAM + GroundingDINO Ultra V2",
+            "requires_target": true
+          }
+        },
+        "segment-anything-ultra-v3": {
+          "nodes": {
+            "412": 2,
+            "394": 58,
+            "395": 59,
+            "416": 60
+          },
+          "output": 60,
+          "tool": {
+            "label": "文字抠图｜SAM + GroundingDINO Ultra V3",
+            "requires_target": true
+          }
+        },
+        "auto-sdmatte": {
+          "nodes": {
+            "417": 2,
+            "407": 62,
+            "410": 63,
+            "380": 64,
+            "379": 65,
+            "418": 66
+          },
+          "output": 66,
+          "tool": {
+            "label": "自动分割 → SDMatte 精修",
+            "requires_target": true
+          }
+        },
+        "transparent-material-sdmatte": {
+          "nodes": {
+            "480": 2,
+            "475": 68,
+            "477": 69,
+            "488": 70,
+            "486": 71,
+            "487": 72,
+            "479": 73
+          },
+          "output": 73,
+          "tool": {
+            "label": "透明材质｜分割 + SDMatte Plus",
+            "requires_target": true
+          }
+        },
+        "birefnet-ultra-v2": {
+          "nodes": {
+            "378": 2,
+            "388": 75,
+            "471": 76,
+            "390": 77,
+            "375": 78
+          },
+          "output": 78,
+          "tool": {
+            "label": "BiRefNet Ultra V2｜VITMatte 精修",
+            "requires_target": false
+          }
+        },
+        "transparent-background-ultra": {
+          "nodes": {
+            "413": 2,
+            "383": 52,
+            "414": 53
+          },
+          "output": 53,
+          "tool": {
+            "label": "透明背景 Ultra",
+            "requires_target": false
+          }
+        },
+        "birefnet-hugo-refine": {
+          "nodes": {
+            "401": 2,
+            "397": 80,
+            "459": 81,
+            "398": 82,
+            "415": 83
+          },
+          "output": 83,
+          "tool": {
+            "label": "BiRefNet Hugo｜遮罩微调",
+            "requires_target": false
+          }
+        },
+        "birefnet-zho": {
+          "nodes": {
+            "378": 2,
+            "453": 85,
+            "473": 86,
+            "391": 87,
+            "377": 88
+          },
+          "output": 88,
+          "tool": {
+            "label": "BiRefNet Zho｜独立加载",
+            "requires_target": false
+          }
+        },
+        "birefnet-rembg": {
+          "nodes": {
+            "403": 2,
+            "396": 90,
+            "421": 91,
+            "404": 92
+          },
+          "output": 92,
+          "tool": {
+            "label": "BiRefNet｜Rembg 独立加载",
+            "requires_target": false
+          }
+        }
+      },
+      "pending_branches": {
+        "qwen-image-2.1": {
+          "nodes": {
+            "7": 2,
+            "1": 40,
+            "2": 41,
+            "3": 42,
+            "10": 43,
+            "11": 44,
+            "12": 45,
+            "13": 46,
+            "23": 47,
+            "5": 48,
+            "26": 49,
+            "9": 50
+          },
+          "output": 45,
+          "status": "requires_decryption",
+          "reason": "RHHiddenNodes is unavailable locally; two original model filenames are absent.",
+          "source_filename": "Qwen-Image-2.1+一键抠图｜透明背景｜人像抠图+_+产品换背景.json"
+        }
+      }
+    }
+  },
+  "version": 0.4
+}

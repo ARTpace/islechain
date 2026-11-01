@@ -16,10 +16,57 @@ router = APIRouter()
 
 
 # === 系统提示词库（只读真源）===
-# 数据来自 data/style-presets.json —— 与生成页「风格预设」同一份数据，
+# 数据来自已安装风格包及用户增量层 —— 与生成页「风格预设」同一份数据，
 # 保证两处看到的风格提示词完全一致。2.2 万条不可能一次性下发，
 # 这里产出精简索引 + 服务端分页查询。
-_STYLE_CATALOG_CACHE = {"mtime": 0.0, "catalog": None}
+_STYLE_CATALOG_CACHE = {"source": None, "catalog": None}
+
+# 旧风格包把摄影全放在同名子类；仅在展示索引中按标题补充分组，不改包内容。
+_PHOTO_GROUPS = [
+    ("food", "美食饮品", r"美食|食物|饮品|咖啡|甜品|蛋糕|菜肴|餐饮|水果|food|drink|cuisine"),
+    ("product", "产品静物", r"产品|商品|静物|香水|化妆品|护肤|珠宝|首饰|手表|腕表|瓶|product|still.life|jewelry"),
+    ("architecture", "建筑空间", r"建筑|室内|家居|客厅|卧室|酒店|空间|architecture|interior"),
+    ("nature", "自然风景", r"风景|山水|雪山|山川|森林|海滩|海岸|日落|日出|星空|landscape|scenery|nature"),
+    ("animal", "动物宠物", r"宠物|动物|猫|狗|鸟|狐狸|熊猫|animal|pet\b|cat\b|dog\b"),
+    ("fashion", "时尚服饰", r"时尚|服饰|穿搭|服装|汉服|礼服|婚纱|杂志|fashion|editorial"),
+    ("sport", "运动汽车", r"运动|体育|足球|篮球|赛车|汽车|跑车|摩托|sport|automotive|car\b"),
+    ("street", "街头旅行", r"街头|街拍|旅行|旅游|城市|纪实|street|travel|documentary"),
+    ("portrait", "人物肖像", r"人像|人物|肖像|写真|自拍|女孩|少女|美女|女性|男孩|男性|情侣|夫妻|儿童|宝宝|portrait|woman|girl|man\b|boy"),
+];
+
+
+def _display_style_subcategory(preset, category, subcategory):
+    if category != "photography" or subcategory != category:
+        return subcategory, ""
+    title = str(preset.get("name") or "")
+    for key, label, pattern in _PHOTO_GROUPS:
+        if re.search(pattern, title, re.I):
+            return "photography-" + key, label
+    return "photography-other", "其他摄影"
+
+
+def _style_source(preset):
+    """来源只表达平台/预设集合；使用说明仍保留在原 description 中。"""
+    structured = preset.get('source')
+    provider = structured.get('provider') if isinstance(structured, dict) else ''
+    value = str(provider or preset.get('description') or '').strip()
+    if not value:
+        return '未标注来源'
+    head = re.split(r'\s*[·｜|]\s*', value, maxsplit=1)[0].strip().casefold()
+    aliases = {
+        'chatgpt': 'ChatGPT', 'openai': 'ChatGPT',
+        'nano banana': 'Nano Banana', 'nano banana pro': 'Nano Banana', 'nano banana 2': 'Nano Banana',
+        'promptimageatlas': 'PromptImageAtlas', 'pia': 'PromptImageAtlas',
+        '腾讯元宝': '腾讯元宝', 'yuanbao': '腾讯元宝',
+        'comfyui style': 'ComfyUI', 'comfyui': 'ComfyUI',
+        'grok': 'Grok', '即梦': '即梦', '通义z-image-turbo': '通义 Z-Image',
+        'fooocus 官方风格': 'Fooocus', 'fooocus': 'Fooocus',
+        'opennana': 'OpenNana', 'ccprompt': 'CCPrompt', 'promptsref': 'PromptsRef',
+        'manual': '手动创建', 'self': '手动创建',
+        'sai 风格 风格': '风格预设', 'diva 电影感 风格': '风格预设',
+        'marc k3nt3l 风格': '风格预设', 'twri sdxl 风格': '风格预设', 'mre 风格 风格': '风格预设',
+    }
+    return aliases.get(head, '其他来源')
 
 
 def _slim_style_item(preset, cat_id, sub_id, index):
@@ -33,7 +80,7 @@ def _slim_style_item(preset, cat_id, sub_id, index):
         "scene": "",
         "positive": preset.get("prompt") or "",
         "negative": preset.get("negative_prompt") or "",
-        "params": {"来源": preset.get("description") or ""},
+        "params": {"来源": _style_source(preset), "来源说明": preset.get("description") or ""},
         "thumbnail": preset.get("thumbnail") or "",
         "readonly": True,
         "created_at": index,
@@ -43,15 +90,12 @@ def _slim_style_item(preset, cat_id, sub_id, index):
 
 def _style_catalog():
     """构建（并缓存）系统库索引：分类树 + 精简条目 + id→原文映射。"""
-    try:
-        mtime = os.path.getmtime(preset_manager.STYLE_PRESETS_FILE)
-    except OSError:
-        mtime = 0.0
+    # preset_manager 已按风格包及增量层签名缓存；复用其数据身份，避免只监测旧单文件。
+    data = preset_manager.get_style_presets()
     cached = _STYLE_CATALOG_CACHE.get("catalog")
-    if cached is not None and _STYLE_CATALOG_CACHE.get("mtime") == mtime:
+    if cached is not None and _STYLE_CATALOG_CACHE.get("source") is data:
         return cached
 
-    data = preset_manager.get_style_presets()
     items = []
     by_id = {}
     categories = []
@@ -62,21 +106,26 @@ def _style_catalog():
         if not cat_id:
             continue
         cat_count = 0
+        subcategories = {}
         for sub in cat.get("subcategories") or []:
             sub_id = str(sub.get("id") or "")
             for preset in sub.get("presets") or []:
                 pid = str(preset.get("id") or "")
                 if not pid:
                     continue
-                slim = _slim_style_item(preset, cat_id, sub_id, index)
+                display_sub_id, display_sub_name = _display_style_subcategory(preset, cat_id, sub_id)
+                slim = _slim_style_item(preset, cat_id, display_sub_id, index)
                 items.append(slim)
                 by_id[pid] = preset
                 index += 1
                 cat_count += 1
+                if display_sub_id:
+                    group = subcategories.setdefault(display_sub_id, {"id": display_sub_id, "name": display_sub_name or sub.get("name") or display_sub_id, "count": 0})
+                    group["count"] += 1
                 src = slim["params"]["来源"]
                 if src:
                     source_counts[src] = source_counts.get(src, 0) + 1
-        categories.append({"id": cat_id, "name": cat.get("name") or cat_id, "count": cat_count})
+        categories.append({"id": cat_id, "name": cat.get("name") or cat_id, "count": cat_count, "subcategories": list(subcategories.values())})
 
     catalog = {
         "items": items,
@@ -85,7 +134,7 @@ def _style_catalog():
         "sources": sorted(source_counts.items(), key=lambda kv: -kv[1]),
         "total": len(items),
     }
-    _STYLE_CATALOG_CACHE["mtime"] = mtime
+    _STYLE_CATALOG_CACHE["source"] = data
     _STYLE_CATALOG_CACHE["catalog"] = catalog
     return catalog
 
@@ -129,7 +178,7 @@ async def get_prompt_libraries():
 
 
 @router.get("/api/prompt-libraries/items")
-def list_style_prompt_items(category: str = "", source: str = "", q: str = "", sort: str = "random", seed: str = "", offset: int = 0, limit: int = 120):
+def list_style_prompt_items(category: str = "", source: str = "", q: str = "", sort: str = "random", seed: str = "", offset: int = 0, limit: int = 120, subcategory: str = ""):
     """系统库分页查询：分类 / 来源 / 关键词 / 排序。"""
     import hashlib
 
@@ -137,14 +186,18 @@ def list_style_prompt_items(category: str = "", source: str = "", q: str = "", s
     pool = catalog["items"]
     if category and category != "all":
         pool = [item for item in pool if item["category"] == category]
+    if subcategory:
+        pool = [item for item in pool if item["subcategory"] == subcategory]
     if source:
-        pool = [item for item in pool if item["params"]["来源"] == source]
+        normalized_source = source if source in {'其他来源', '未标注来源', '风格预设', '通义 Z-Image', '手动创建'} else _style_source({'description': source})
+        pool = [item for item in pool if item["params"]["来源"] == normalized_source]
     tokens = [token for token in (q or "").lower().split() if token]
     if tokens:
         def match(item):
             hay = " ".join([
                 item.get("name") or "", item.get("positive") or "",
                 item.get("negative") or "", item["params"]["来源"] or "",
+                item["params"].get("来源说明") or "",
             ]).lower()
             return all(token in hay for token in tokens)
         pool = [item for item in pool if match(item)]
@@ -185,7 +238,8 @@ def get_style_prompt_item(item_id: str):
         "name": preset.get("name") or "",
         "positive": preset.get("prompt") or "",
         "negative": preset.get("negative_prompt") or "",
-        "source": preset.get("description") or "",
+        "source": _style_source(preset),
+        "source_description": preset.get("description") or "",
         "thumbnail": preset.get("thumbnail") or "",
     }
 

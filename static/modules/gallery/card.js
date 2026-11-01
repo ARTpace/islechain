@@ -644,7 +644,7 @@
         // ponytail: load the same small client lazily instead of adding it to every gallery page.
         if (!cutoutClientLoading) cutoutClientLoading = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = '/static/js/image-cutout-client.js?v=20261028007';
+            script.src = '/static/js/image-cutout-client.js?v=20261101cutoutmethods';
             script.onload = () => resolve(global.ImageCutoutClient);
             script.onerror = () => { cutoutClientLoading = null; script.remove(); reject(new Error('抠图组件加载失败，请重试')); };
             document.head.appendChild(script);
@@ -705,11 +705,11 @@
         const targetLabel = document.createElement('label');
         targetLabel.hidden = true;
         targetLabel.style.cssText = 'width:100%;font-size:12px;';
-        targetLabel.innerHTML = 'SAM3 保留目标<input data-target type="text" maxlength="2000" placeholder="英文描述，例如 person、cat、logo；只保留匹配的目标" style="display:block;width:100%;min-height:44px;padding:8px;border:1px solid #54647a;border-radius:8px;background:#243245;color:white">';
+        targetLabel.innerHTML = '保留目标<input data-target type="text" maxlength="2000" placeholder="英文描述，例如 person、cat、logo；只保留匹配的目标" style="display:block;width:100%;min-height:44px;padding:8px;border:1px solid #54647a;border-radius:8px;background:#243245;color:white">';
         controls.appendChild(targetLabel);
         const target = targetLabel.querySelector('[data-target]');
         target.value = result.target || '';
-        const toggleTarget = () => { targetLabel.hidden = models.value !== 'SAM3'; };
+        const toggleTarget = () => { targetLabel.hidden = !global.ImageCutoutClient.requiresTarget(models.value); };
         models.onchange = toggleTarget;
         const progress = createCutoutProgress();
         progress.element.style.cssText = 'width:100%;color:#b5c7da;';
@@ -721,10 +721,10 @@
             node.textContent = label;
             return node;
         };
-        const populateModels = available => {
+        const populateModels = (available, labels = {}) => {
             available = available?.length ? available : cutoutDefaultModels;
             const selected = models.value || result.model;
-            models.replaceChildren(option('auto', '自动选择'), ...available.map(model => option(model, model)));
+            models.replaceChildren(option('auto', '自动选择'), ...available.map(model => option(model, labels[model] || model)));
             models.value = available.includes(selected) ? selected : 'auto';
             toggleTarget();
         };
@@ -742,11 +742,11 @@
         populateModels(result.available_models || []);
         populateVersions(result);
         versions.onchange = selectVersion;
-        cutoutRequest('/api/image-cutout/models').then(data => populateModels(data.models)).catch(error => {
+        cutoutRequest('/api/image-cutout/models').then(data => populateModels(data.models, data.labels)).catch(error => {
             if (!retry.disabled) status.textContent = '模型列表读取失败：' + error.message + '。当前显示常用或已缓存模型，重新抠图时会校验是否支持。';
         });
         retry.onclick = async () => {
-            if (models.value === 'SAM3' && !target.value.trim()) {
+            if (global.ImageCutoutClient.requiresTarget(models.value) && !target.value.trim()) {
                 status.textContent = '请填写 SAM3 要保留的目标，例如 person、cat 或 logo。';
                 target.focus();
                 return;

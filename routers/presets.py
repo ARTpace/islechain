@@ -13,6 +13,7 @@ from fastapi import APIRouter
 
 import main as _main
 import style_packs
+from style_packs import repository as style_repository
 
 router = APIRouter()
 
@@ -26,14 +27,13 @@ STYLE_I18N_FILE = os.path.join(_main.DATA_DIR, "style-i18n.json")
 
 @router.get("/api/style-i18n")
 def api_style_i18n():
-    """返回风格预设中文名映射表"""
-    if os.path.exists(STYLE_I18N_FILE):
-        try:
-            with open(STYLE_I18N_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"categories": {}, "subcategories": {}, "presets": {}}
+    """名称直接来自已安装包，不读取旧风格翻译数据。"""
+    data = get_style_presets()
+    return {
+        'categories': {cat['id']: cat.get('name', cat['id']) for cat in data.get('categories', [])},
+        'subcategories': {sub['id']: sub.get('name', sub['id']) for cat in data.get('categories', []) for sub in cat.get('subcategories', [])},
+        'presets': {item['id']: item.get('name', item['id']) for cat in data.get('categories', []) for sub in cat.get('subcategories', []) for item in sub.get('presets', [])},
+    }
 
 @router.get("/api/preset-bidir")
 def api_preset_bidir():
@@ -72,35 +72,8 @@ async def api_save_style_presets(data: dict):
 
 @router.post("/api/import/fooocus-styles")
 async def api_import_fooocus_styles(payload: dict = None):
-    """
-    一键导入 Fooocus 官方风格包到 style-presets.json
-
-    Body 参数:
-      - sources: List[str]  要导入的源 key,默认全部
-        可选: fooocus, sai, diva, marc_k3nt3l, twri, mre
-      - dry_run: bool       预览模式,不写文件
-      - skip_thumbs: bool   不下载缩略图
-    """
-    payload = payload or {}
-    try:
-        from tools.fooocus_importer import import_fooocus_styles
-    except ImportError as e:
-        raise HTTPException(status_code=500, detail=f"fooocus_importer 加载失败: {e}")
-
-    sources = payload.get("sources")  # None=全部
-    dry_run = bool(payload.get("dry_run", False))
-    skip_thumbs = bool(payload.get("skip_thumbs", False))
-
-    try:
-        result = import_fooocus_styles(
-            sources=sources,
-            dry_run=dry_run,
-            skip_thumbs=skip_thumbs,
-        )
-        return result
-    except Exception as e:
-        logging.getLogger(__name__).exception("Fooocus 导入失败: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    """旧采集入口已迁至独立仓库；主工具通过包管理安装发布资产。"""
+    raise HTTPException(status_code=410, detail="提示词采集已迁至 https://github.com/ARTpace/Art-prompt-library 。请在风格包管理中检查仓库并安装平台包。")
 
 @router.get("/api/all-presets")
 async def api_get_all_presets():
@@ -174,6 +147,41 @@ async def api_list_style_packs():
 async def api_style_pack_catalog():
     """官方可选风格包清单（含是否已安装）。仓库不含完整数据，这里列出可一键装的包。"""
     return style_packs.official_with_status()
+
+
+@router.get("/api/content-packs/repository")
+@router.get("/api/style-packs/repository")
+def api_style_repository(check: bool = False):
+    try:
+        return style_repository.check_repository() if check else style_repository.repository_status()
+    except style_packs.PackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/api/content-packs/repository")
+@router.post("/api/style-packs/repository")
+def api_refresh_style_repository(data: dict):
+    try:
+        return style_repository.refresh_repository(str(data.get('url') or ''))
+    except (style_packs.PackError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.delete("/api/content-packs/repository")
+@router.delete("/api/style-packs/repository")
+def api_disconnect_style_repository():
+    return style_repository.disconnect_repository()
+
+
+@router.post("/api/content-packs/repository/install")
+@router.post("/api/style-packs/repository/install")
+def api_install_repository_style_pack(data: dict):
+    try:
+        pack = style_repository.install_repository_pack(str(data.get('packId') or ''), replace=bool(data.get('replace')))
+    except style_packs.PackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    _invalidate_style_cache()
+    return {'success': True, 'pack': _pack_to_dict(pack)}
 
 
 @router.post("/api/style-packs/install-official")
@@ -308,3 +316,18 @@ async def api_remove_style_item(preset_id: str):
         raise HTTPException(status_code=500, detail="写入用户增量层失败")
     _invalidate_style_cache()
     return {"success": True, "id": preset_id}
+
+
+@router.get('/api/tag-packs')
+def api_tag_packs():
+    import tag_packs
+    return {'packs': tag_packs.installed_packs()}
+
+
+@router.delete('/api/tag-packs/{pack_id}')
+def api_uninstall_tag_pack(pack_id: str):
+    import tag_packs
+    try:
+        return {'success': tag_packs.uninstall_pack(pack_id)}
+    except style_packs.PackError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

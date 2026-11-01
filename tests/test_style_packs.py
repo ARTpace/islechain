@@ -53,23 +53,8 @@ def _make_pack(root, pack_id, order, categories):
 class BuiltinPackTest(unittest.TestCase):
     """随包分发的只有精简种子包；完整 44MB 数据不进仓库、不进分发目录。"""
 
-    def test_seed_pack_present(self):
-        packs = [p for p in style_packs.discover_packs() if p.builtin]
-        self.assertTrue(packs, "没有发现内置风格包")
-        seed = next((p for p in packs if p.pack_id == "art-canvas-seed"), None)
-        self.assertIsNotNone(seed, "缺少 art-canvas-seed 内置包")
-        self.assertGreater(len(seed.categories), 0, "种子包不能是空壳")
-
-        merged = style_packs.base_categories(packs)
-        self.assertGreater(len(merged), 0)
-        self.assertGreater(style_packs.category_total(merged), 0)
-
-    def test_seed_pack_declares_entry_count(self):
-        """清单里预存条目数，列表页才不用为显示数字去解析内容。"""
-        seed = next((p for p in style_packs.discover_packs() if p.pack_id == "art-canvas-seed"), None)
-        self.assertIsNotNone(seed)
-        real = style_packs.category_total(style_packs.base_categories([seed]))
-        self.assertEqual(seed.entry_count, real, "pack.json 的 entryCount 与实际条数不一致")
+    def test_no_builtin_style_assets(self):
+        self.assertFalse([p for p in style_packs.discover_packs() if p.builtin])
 
     def test_full_pack_not_in_distribution_dir(self):
         """完整源包只能放在 style-packs-source 下作切料，不能混进分发目录。"""
@@ -102,7 +87,7 @@ class MergeTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_order_and_priority(self):
-        _make_pack(self.builtin, "core", 100, [
+        _make_pack(self.user, "core", 100, [
             ("b_cat", _category("b_cat", "乙分类", "b_cat", [{"id": "b1", "name": "乙1", "prompt": "x"}])),
             ("a_cat", _category("a_cat", "甲分类", "a_cat", [{"id": "a1", "name": "甲1", "prompt": "y"}])),
         ])
@@ -115,7 +100,7 @@ class MergeTest(unittest.TestCase):
         self.assertEqual([c["id"] for c in merged], ["c_cat", "b_cat", "a_cat"])
 
     def test_same_category_merges_and_keeps_position(self):
-        _make_pack(self.builtin, "core", 100, [
+        _make_pack(self.user, "core", 100, [
             ("photo", _category("photo", "摄影", "photo", [
                 {"id": "p1", "name": "一", "prompt": "old"},
                 {"id": "p2", "name": "二", "prompt": "two"},
@@ -143,8 +128,9 @@ class OverlayTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.builtin = self.root / "builtin"
+        self.user = self.root / "user"
         self.overlay = self.root / "overlay.json"
-        _make_pack(self.builtin, "core", 100, [
+        _make_pack(self.user, "core", 100, [
             ("photo", _category("photo", "摄影", "photo", [
                 {"id": "p1", "name": "一", "prompt": "old"},
                 {"id": "p2", "name": "二", "prompt": "two"},

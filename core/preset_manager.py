@@ -1,23 +1,4 @@
-"""
-预设管理模块 - 统一管理标签预设和风格预设
-
-支持两套预设体系：
-  1. 标签预设（tag）：单个 Danbooru 标签，点击追加到提示词
-  2. 风格预设（prompt）：完整自然语言提示词，点击替换或追加
-
-数据文件：
-  - data/presets/*.json            → 标签预设（按大类分文件）
-  - data/style-packs/<packId>/     → 风格预设包（pack.json 清单 + 每分类一个 json）
-  - data/preset-i18n.json          → 中文名映射
-  - data/prompt-presets.yaml       → YAML 标签预设（可选，优先级低于 JSON）
-
-读写分层（2026-10-31）：
-  工程 data/ 下的是**随包分发的只读基线**，用户编辑一律落到用户数据目录，
-  避免装在 Program Files 时保存失败、以及覆盖升级把用户改动冲掉。
-
-风格预设的读取走 style_packs（内置包 + 用户包 + 用户增量层合并），
-用户自己新增/修改的条目只写增量层，升级安装包后新的内置风格依然可见。
-"""
+"""预设统一入口：风格与标签均来自显式安装的内容包，编辑写用户层。"""
 
 import os
 import json
@@ -29,6 +10,7 @@ from enum import Enum
 
 from .user_paths import user_data_dir
 import style_packs
+import tag_packs
 
 # === 路径配置 ===
 # 本模块位于 core/，项目根在其上一层
@@ -73,9 +55,6 @@ def read_preset_files() -> List[Path]:
     这样用户只改了一个分类，其余分类仍然来自基线。
     """
     merged: Dict[str, Path] = {}
-    if PRESETS_DIR.is_dir():
-        for path in PRESETS_DIR.glob("*.json"):
-            merged[path.name] = path
     user_dir = user_presets_dir()
     if user_dir.is_dir():
         for path in user_dir.glob("*.json"):
@@ -89,7 +68,7 @@ def read_preset_files() -> List[Path]:
 def presets_signature() -> Tuple[float, ...]:
     """两个目录及其文件的 mtime 签名，用于缓存失效判断。"""
     stamps: List[float] = []
-    for folder in (PRESETS_DIR, user_presets_dir()):
+    for folder in (user_presets_dir(),):
         if not folder.is_dir():
             continue
         try:
@@ -250,39 +229,11 @@ def _get_presets_i18n_dir_mtime() -> float:
 
 
 def load_preset_i18n() -> Dict[str, str]:
-    """加载预设中文名映射表（直接从 presets/*.json + style-presets.json 构建）"""
-    mtime = _get_presets_i18n_dir_mtime()
-    if _cache.i18n and _cache.i18n_mtime == mtime:
-        return _cache.i18n
-
-    i18n = {}
-
-    # 从 presets/*.json 收集中文名（用户层覆盖基线）
-    preset_files = read_preset_files()
-    if preset_files:
-        for fpath in preset_files:
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                _walk_and_merge(data, i18n)
-            except Exception:
-                pass
-    elif PROMPT_PRESETS_JSON.exists():
-        # 向后兼容：旧单文件
-        try:
-            with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            _walk_and_merge(data, i18n)
-        except Exception:
-            pass
-
-    # 从风格包（内置 + 用户包 + 用户增量）收集中文名
-    for cat in get_style_presets().get("categories") or []:
-        _walk_and_merge(cat, i18n)
-
-    _cache.i18n = i18n
-    _cache.i18n_mtime = mtime
-    return i18n
+    """从当前已安装提示词构建名称映射，不加载旧翻译表。"""
+    result = {}
+    _walk_and_merge(get_style_presets(), result)
+    _walk_and_merge(get_tag_presets(), result)
+    return result
 
 
 def _walk_and_merge(node, i18n: Dict[str, str]):
@@ -319,108 +270,9 @@ def _normalize_key(raw_id: str) -> str:
 
 # === 标签预设（原有体系）===
 
-def _parse_yaml_presets() -> Dict[str, Any]:
-    """解析 YAML 标签预设文件"""
-    try:
-        import yaml
-    except ImportError:
-        print("[preset_manager] PyYAML not installed")
-        return {"categories": []}
-
-    if not PROMPT_PRESETS_YAML.exists():
-        return {"categories": []}
-
-    if _cache.is_fresh(PROMPT_PRESETS_YAML) and _cache.data:
-        return _cache.data
-
-    try:
-        with open(PROMPT_PRESETS_YAML, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-    except Exception as e:
-        print(f"[preset_manager] YAML parse error: {e}")
-        return {"categories": []}
-
-    if not data:
-        return {"categories": []}
-
-    i18n = load_preset_i18n()
-    categories = []
-
-    for cat_key, cat_value in data.items():
-        if not isinstance(cat_value, dict):
-            continue
-        cat_name = cat_value.pop("_name", None) or cat_key.replace("_", " ").title()
-        category = Category(id=cat_key, name=cat_name, type=PresetType.TAG)
-
-        for sub_key, sub_value in cat_value.items():
-            if not isinstance(sub_value, dict):
-                continue
-            sub_name = sub_value.pop("_name", None) or sub_key.replace("_", " ").title()
-            sub = SubCategory(id=sub_key, name=sub_name)
-
-            for preset_key, preset_value in sub_value.items():
-                yaml_name = None
-                prompt_text = None
-                if isinstance(preset_value, str):
-                    prompt_text = preset_value
-                elif isinstance(preset_value, dict):
-                    yaml_name = preset_value.get("name")
-                    prompt_text = preset_value.get("tag") or preset_value.get("prompt")
-
-                if prompt_text is None:
-                    continue
-
-                display_name = yaml_name or i18n.get(preset_key) or preset_key.replace("_", " ").title()
-                sub.presets.append(PresetItem(
-                    id=preset_key,
-                    name=display_name,
-                    prompt=prompt_text,
-                    type=PresetType.TAG,
-                ))
-
-            if sub.presets:
-                category.subcategories.append(sub)
-
-        if category.subcategories:
-            categories.append(category)
-
-    result = {"categories": [c.to_dict() for c in categories]}
-    _cache.data = result
-    try:
-        _cache.mtime = os.path.getmtime(PROMPT_PRESETS_YAML)
-    except OSError:
-        pass
-    return result
-
-
-def _load_json_presets() -> Dict[str, Any]:
-    """从 presets/*.json 加载所有标签预设（多文件版，用户层覆盖基线）"""
-    # 多文件目录优先
-    if read_preset_files():
-        if _cache.is_fresh():
-            return {"categories": _cache.categories}
-        _cache.refresh()
-        return {"categories": _cache.categories}
-
-    # 向后兼容：旧单文件
-    if not PROMPT_PRESETS_JSON.exists():
-        return {"categories": []}
-    try:
-        with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
-    except Exception as e:
-        print(f"[preset_manager] JSON load error: {e}")
-        return {"categories": []}
-
-
 def get_tag_presets() -> Dict[str, Any]:
-    """获取标签预设（多文件 presets/ 优先，JSON 单文件次之，YAML 为废弃备用）"""
-    if read_preset_files() or PROMPT_PRESETS_JSON.exists():
-        return _load_json_presets()
-    if PROMPT_PRESETS_YAML.exists():
-        return _parse_yaml_presets()
-    return {"categories": []}
+    """标签选择器仅消费已安装标签包，不再读取旧工程预设。"""
+    return tag_packs.get_presets()
 
 
 # === 风格预设（风格包体系）===
@@ -429,75 +281,24 @@ _STYLE_PRESETS_CACHE: Dict[str, Any] = {"signature": (), "mtime": 0.0, "data": N
 
 
 def get_style_presets() -> Dict[str, Any]:
-    """获取风格预设（完整提示词）。
-
-    数据来源按优先级：
-      1. 风格包目录（data/style-packs/ 内置包 + 用户包 + 用户增量层）
-      2. 老版本单文件 data/style-presets.json（仅在没有可用包时回退）
-
-    合并结果按所有相关文件的 mtime 签名缓存，避免每次打开风格选择器都重算。
-    """
+    """仅合并已安装风格包与用户增量；无包时不回退旧文件。"""
     sig = style_packs.signature()
     cached = _STYLE_PRESETS_CACHE.get("data")
     if cached is not None and _STYLE_PRESETS_CACHE.get("signature") == sig:
         return cached
-
-    if style_packs.has_packs():
-        try:
-            data = {"categories": style_packs.merged_categories()}
-            _STYLE_PRESETS_CACHE["signature"] = sig
-            _STYLE_PRESETS_CACHE["mtime"] = 0.0
-            _STYLE_PRESETS_CACHE["data"] = data
-            return data
-        except Exception as e:
-            print(f"[preset_manager] style packs merge error: {e}")
-            return {"categories": []}
-
-    # 回退：老单文件
-    style_file = read_style_presets_file()
-    if not style_file.is_file():
-        return {"categories": []}
-
-    try:
-        mtime = os.path.getmtime(style_file)
-    except OSError:
-        mtime = 0.0
-    if cached is not None and _STYLE_PRESETS_CACHE.get("mtime") == mtime:
-        return cached
-
-    try:
-        with open(style_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _STYLE_PRESETS_CACHE["signature"] = sig
-        _STYLE_PRESETS_CACHE["mtime"] = mtime
-        _STYLE_PRESETS_CACHE["data"] = data
-        return data
-    except Exception as e:
-        print(f"[preset_manager] style presets load error: {e}")
-        return {"categories": []}
+    data = {"categories": style_packs.merged_categories()}
+    _STYLE_PRESETS_CACHE.update(signature=sig, mtime=0.0, data=data)
+    return data
 
 
 def save_style_presets(data: Dict[str, Any]) -> bool:
-    """保存风格预设。
-
-    兼容老接口的"整包覆盖"语义，但落盘内容改成**相对基线的差异**（用户增量层），
-    不再写一份全量快照 —— 否则升级后新内置风格会被自己的快照永久挡住。
-    """
+    """编辑统一写入用户增量层，不再生成旧全量文件。"""
     try:
-        if style_packs.has_packs():
-            ok = style_packs.replace_from_snapshot(data or {})
-        else:
-            target = user_style_presets_file()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with open(target, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            ok = True
-        _STYLE_PRESETS_CACHE["signature"] = ()
-        _STYLE_PRESETS_CACHE["mtime"] = 0.0
-        _STYLE_PRESETS_CACHE["data"] = None
+        ok = style_packs.replace_from_snapshot(data or {})
+        _STYLE_PRESETS_CACHE.update(signature=(), mtime=0.0, data=None)
         return ok
-    except Exception as e:
-        print(f"[preset_manager] style presets save error: {e}")
+    except Exception as exc:
+        print(f"[preset_manager] style presets save error: {exc}")
         return False
 
 
@@ -515,66 +316,11 @@ def get_all_presets() -> Dict[str, Any]:
 
 
 def save_tag_presets(data: Dict[str, Any]) -> bool:
-    """保存标签预设（多文件版：按大类拆分保存，写用户目录）"""
-    try:
-        target_dir = user_presets_dir()
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        categories = data.get("categories", [])
-        for cat in categories:
-            cid = cat.get("id", "")
-            if not cid:
-                continue
-            fpath = target_dir / f"{cid}.json"
-            with open(fpath, "w", encoding="utf-8") as f:
-                json.dump({"categories": [cat]}, f, ensure_ascii=False, indent=2)
-
-        _cache.invalidate()
-        return True
-    except Exception as e:
-        print(f"[preset_manager] tag presets save error: {e}")
-        return False
+    return tag_packs.save_presets(data)
 
 
 # === 双向映射（兼容旧接口）===
 
 def get_preset_bidir() -> Tuple[Dict[str, str], Dict[str, str]]:
-    """获取 id↔name 双向映射（多文件版）"""
-    id_to_name, name_to_id = {}, {}
-
-    def walk(node):
-        if isinstance(node, list):
-            for item in node:
-                walk(item)
-        elif isinstance(node, dict):
-            if "id" in node and "name" in node and isinstance(node["name"], str):
-                if any("\u4e00" <= c <= "\u9fa5" for c in node["name"]):
-                    pid = str(node["id"])
-                    pname = node["name"]
-                    id_to_name[pid] = pname
-                    name_to_id[pname] = pid
-            for v in node.values():
-                walk(v)
-
-    # 多文件版（用户层覆盖基线）
-    preset_files = read_preset_files()
-    if preset_files:
-        try:
-            for fpath in preset_files:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                for cat in data.get("categories", []):
-                    walk(cat)
-        except Exception as e:
-            print(f"[preset_manager] bidir load error: {e}")
-    elif PROMPT_PRESETS_JSON.exists():
-        # 向后兼容
-        try:
-            with open(PROMPT_PRESETS_JSON, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            for cat in data.get("categories", []):
-                walk(cat)
-        except Exception as e:
-            print(f"[preset_manager] bidir load error: {e}")
-
-    return id_to_name, name_to_id
+    id_to_name = load_preset_i18n()
+    return id_to_name, {name: pid for pid, name in id_to_name.items()}

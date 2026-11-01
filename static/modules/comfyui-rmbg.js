@@ -13,7 +13,7 @@ function rmbgSettings(node) {
                 <div class="setting-title">抠图模型</div>
                 <select class="setting-input" data-field="rmbgModel">
                     <option value="BEN2"${node.rmbgModel === 'BEN2' ? ' selected' : ''}>BEN2</option>
-                    <option value="RMBG-1.4"${node.rmbgModel === 'RMBG-1.4' ? ' selected' : ''}>RMBG-1.4</option>
+                    <option value="RMBG-2.0"${node.rmbgModel === 'RMBG-2.0' ? ' selected' : ''}>RMBG-2.0</option>
                 </select>
             </label>
         </div>
@@ -40,35 +40,23 @@ function rmbgSettings(node) {
 async function rmbgExecute(node, refs, prompt, promptId) {
     const inputName = await comfyNameForRef(refs[0]);
     
-    const workflowData = {
-        "1": {
-            "inputs": {
-                "model": node.rmbgModel || "BEN2",
-                "sensitivity": 1,
-                "process_res": Number(node.rmbgRes || 1024),
-                "mask_blur": 0,
-                "mask_offset": 0,
-                "invert_output": false,
-                "refine_foreground": false,
-                "background": node.rmbgBackground || "Alpha",
-                "background_color": "#222222",
-                "image": ["3", 0]
-            },
-            "class_type": "RMBG",
-            "_meta": { "title": "去除背景 (RMBG)" }
-        },
-        "3": {
-            "inputs": { "image": inputName },
-            "class_type": "LoadImage",
-            "_meta": { "title": "加载图像" }
-        },
-        "5": {
-            "inputs": { "images": ["1", 0] },
-            "class_type": "PreviewImage",
-            "_meta": { "title": "预览图像" }
-        }
-    };
-    
+    const response = await fetch('/api/image-cutout/workflow', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            branch: node.rmbgModel === 'RMBG-2.0' ? 'RMBG-2.0' : 'BEN2',
+            params: {
+                "3": { image: inputName },
+                "1": {
+                    model: node.rmbgModel === 'RMBG-1.4' ? 'RMBG-2.0' : (node.rmbgModel || 'BEN2'),
+                    background: node.rmbgBackground || 'Alpha',
+                    process_res: Number(node.rmbgRes || 1024)
+                }
+            }
+        })
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || '抠图工作流加载失败');
+    const workflowData = (await response.json()).workflow;
+
     const result = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,7 +67,7 @@ async function rmbgExecute(node, refs, prompt, promptId) {
             params: {
                 "3": { image: inputName },
                 "1": {
-                    model: node.rmbgModel || "BEN2",
+                    model: node.rmbgModel === 'RMBG-1.4' ? 'RMBG-2.0' : (node.rmbgModel || "BEN2"),
                     background: node.rmbgBackground || "Alpha",
                     process_res: Number(node.rmbgRes || 1024)
                 }

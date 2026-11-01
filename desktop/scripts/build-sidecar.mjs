@@ -25,14 +25,16 @@ const skipDirs = new Set([
   'character-packs-source',
   // 画师全量 release（6MB search.json + 分桶明细）：只作拆料
   'artist-packs-source',
+  // 内容资产全部由 GitHub 安装，不随程序分发。
+  'style-packs', 'tag-packs', 'artist-packs', 'character-packs', 'artist-packs-official', 'character-packs-official',
 ]);
 
 // 「父目录名 -> 该目录下要裁掉的子项」，用于精准剔除大体积素材而不丢代码。
 const prunedSubdirs = new Map([
-  ['tools', new Set(['opennana-import'])],
-  // 完整风格库（44MB）不进安装包也不进仓库：仓库只留 art-canvas-seed 精简包，
-  // 完整数据由 dist/style-packs 下的平台包提供，用户按需在资产库一键安装。
-  ['style-packs', new Set(['art-canvas-core'])],
+  // 风格数据由可卸载的平台包提供，旧核心包和种子包均不随程序内置。
+  ['style-packs', new Set(['art-canvas-core', 'art-canvas-seed'])],
+  ['data', new Set(['presets', 'wildcards'])],
+  ['images', new Set(['style_thumbnails'])],
 ]);
 const skipFiles = new Set([
   'users.json', '_test_localstorage.json', 'translate-config.json',
@@ -47,6 +49,8 @@ const skipFiles = new Set([
   // 画师数据同样已拆成画师包（data/artist-packs 种子 + dist 官方包），
   // 这份 8MB 的 JS 变量文件不再被加载。
   'artist_data.js',
+  'prompt_libraries.json', 'prompt-presets.yaml', 'prompt-presets.json',
+  'style-i18n.json', 'fooocus_styles.json',
 ]);
 
 function skip(name) {
@@ -78,37 +82,6 @@ copyDir(project, appDir, null);
 // 官方可选内容包：仓库与安装目录都不含完整数据，但发布包要带上，用户才能离线一键安装。
 // 源目录 dist/ 已被 skipDirs 排除，这里按需单独搬 catalog + zip。
 // 每种内容包（风格 / 角色 / 画师）走同一套搬运规则，新增类型只需在下面多调一次。
-function installOfficialBundles(distName, officialDirName, label, splitHint) {
-  const src = path.join(project, 'dist', distName);
-  const dst = path.join(appDir, 'data', officialDirName);
-  if (!fs.existsSync(src)) {
-    console.warn(
-      '提示：dist/' + distName + ' 不存在，安装包将不含可选' + label + '（先跑 ' + splitHint + '）'
-    );
-    return;
-  }
-  fs.mkdirSync(dst, {recursive: true});
-  for (const entry of fs.readdirSync(src, {withFileTypes: true})) {
-    if (!entry.isFile()) continue;
-    if (!entry.name.endsWith('.zip') && entry.name !== 'catalog.json') continue;
-    fs.copyFileSync(path.join(src, entry.name), path.join(dst, entry.name));
-  }
-  console.log('官方可选' + label + '：' + fs.readdirSync(dst).length + ' 个文件已装入');
-}
-
-installOfficialBundles(
-  'style-packs', 'style-packs-official', '风格包',
-  'python tools/style_pack_split.py split',
-);
-installOfficialBundles(
-  'character-packs', 'character-packs-official', '角色包',
-  'python tools/character_pack_split.py split',
-);
-installOfficialBundles(
-  'artist-packs', 'artist-packs-official', '画师包',
-  'python tools/artist_pack_split.py split',
-);
-
 // 装配自检：这些是 main.py 顶层就要 import 的模块，缺一个服务就起不来。
 // core/ 是公共底座包（路径、配置、跨层共用逻辑），被 routers / 各内容包共同依赖。
 const required = [
@@ -132,6 +105,7 @@ const required = [
   'content_packs',
   'routers/characters.py',
   'artist_packs',
+  'tag_packs',
   'routers/artists.py',
   'tools/performance_timing.py',
   'tools/api_compat.py',
@@ -151,14 +125,6 @@ if (missing.length) {
 // 内容资源已外置（不进 git）：本地有就打进安装包，没有只警告不阻断。
 // 离线资源包在 H:\AI-Tools\art-canvas-resources\，解压到项目根即可补齐。
 const optionalContent = [
-  ['data/style-packs/art-canvas-seed/pack.json', '风格种子包'],
-  ['data/character-packs/characters-seed/pack.json', '角色种子包'],
-  ['data/artist-packs/artists-seed/pack.json', '画师种子包'],
-  ['data/prompt_libraries.json', '提示词库'],
-  ['data/prompt-presets.yaml', '预设库'],
-  ['data/style-i18n.json', '风格翻译'],
-  ['data/presets', '预设目录'],
-  ['static/images/style_thumbnails', '风格缩略图'],
   ['static/images/poster_layouts/thumbnails', '版式缩略图'],
 ];
 const absentContent = optionalContent.filter(([rel]) => !fs.existsSync(path.join(appDir, rel)));

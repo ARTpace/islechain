@@ -61,6 +61,14 @@ async def required_modules(request):
         module = Path(path).stem
         return {module} if module in MODULES else set()
     pages = {'/static/canvas.html':'canvas', '/static/asset-manager.html':'asset-manager'}
+    if path == '/api/image-cutout/workflow':
+        try:
+            body = await request.json()
+        except ValueError:
+            return {'rmbg', 'textmatting', 'canvas'}
+        if not isinstance(body, dict):
+            return {'rmbg', 'textmatting', 'canvas'}
+        return {'textmatting'} if body.get('branch') == 'textmatting' else {'rmbg', 'canvas'}
     if path == '/api/image-cutout' or path.startswith('/api/image-cutout/'):
         return {'rmbg'}
     if path in pages:

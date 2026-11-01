@@ -27,7 +27,6 @@ from .paths import (
     detail_filename,
     detail_shard_of,
 )
-from .schema import split_characters
 
 _index_cache: Dict = {"sig": None, "payload": None}
 _index_by_id: Dict[str, dict] = {}
@@ -44,9 +43,9 @@ def _read_json(path) -> Optional[dict]:
 
 
 def discover_packs() -> List[ContentManifest]:
-    """扫描内置与用户两个目录（内置优先）。"""
+    """仅扫描用户安装的内容包；精华包也必须显式安装。"""
     return _discover(
-        ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)),
+        ((USER_PACKS_DIR, False),),
         kind=KIND,
         log_tag="character_packs",
         required_files=REQUIRED_FILES,
@@ -56,7 +55,7 @@ def discover_packs() -> List[ContentManifest]:
 def _signature():
     """包目录与索引文件的 mtime 快照，任何增删改都会让它变化。"""
     stamps = []
-    for root in (BUILTIN_PACKS_DIR, USER_PACKS_DIR):
+    for root in (USER_PACKS_DIR,):
         if not root.is_dir():
             continue
         try:
@@ -73,17 +72,8 @@ def _signature():
             index = child / INDEX_FILE
             if index.is_file():
                 stamps.append((child.name + "/index", os.path.getmtime(index)))
-    if LEGACY_CHARACTERS_FILE.is_file():
-        stamps.append(("legacy", os.path.getmtime(LEGACY_CHARACTERS_FILE)))
     return tuple(stamps)
 
-
-def _load_legacy() -> Dict:
-    """老单文件：整份读进来拆成索引与详情，仅在没有任何包时使用。"""
-    data = _read_json(LEGACY_CHARACTERS_FILE) or {}
-    characters = data.get("characters") if isinstance(data, dict) else data
-    items, shards = split_characters(characters or [])
-    return {"items": items, "shards": shards, "version": (data or {}).get("version", "")}
 
 
 def merged_index(force: bool = False) -> Dict:
@@ -122,11 +112,6 @@ def merged_index(force: bool = False) -> Dict:
         })
 
     legacy = False
-    if not packs and LEGACY_CHARACTERS_FILE.is_file():
-        items = _load_legacy()["items"]
-        legacy = True
-        print("[character_packs] 未发现角色包，回退读取老单文件（%d 条）" % len(items))
-
     payload = {
         "items": items,
         "count": len(items),
@@ -171,14 +156,6 @@ def get_detail(char_id: str) -> Optional[dict]:
         if entry:
             return dict(entry, id=cid)
 
-    # 回退：老单文件
-    if not discover_packs() and LEGACY_CHARACTERS_FILE.is_file():
-        legacy = _detail_cache["legacy"]
-        if not legacy:
-            legacy.update(_load_legacy()["shards"].get(shard) or {})
-        entry = legacy.get(cid)
-        if entry:
-            return dict(entry, id=cid)
     return None
 
 

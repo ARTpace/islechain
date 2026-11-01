@@ -8,6 +8,7 @@ from typing import List
 from urllib.parse import quote
 from starlette.responses import Response
 import os, requests, subprocess, uuid
+import mimetypes
 from fastapi import APIRouter
 
 import main as _main
@@ -18,6 +19,16 @@ router = APIRouter()
 def download_disposition(filename: str, inline: bool = False) -> str:
     # 中文文件名使用 RFC 5987 编码，避免响应头的 Latin-1 编码失败。
     return f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(filename, safe='')}"
+
+
+def download_filename(name: str, source: str, content_type: str = '') -> str:
+    filename = os.path.basename(name or source) or 'image'
+    # ponytail: display names (including model names ending in .0) are not file extensions.
+    if not mimetypes.guess_type(filename)[0]:
+        extension = os.path.splitext(source)[1] if mimetypes.guess_type(source)[0] else ''
+        extension = extension or mimetypes.guess_extension(content_type.split(';')[0].strip()) or ''
+        filename += extension
+    return filename
 
 
 @router.get("/api/view")
@@ -37,7 +48,7 @@ def view_image(filename: str, type: str = "input", subfolder: str = ""):
 async def download_output(url: str, name: str = "", inline: bool = False):
     path = _main.output_file_from_url(url)
     if path:
-        filename = os.path.basename(name) if name else os.path.basename(path)
+        filename = download_filename(name, path, _main.content_type_for_path(path))
         return FileResponse(path, media_type=_main.content_type_for_path(path), filename=filename,
             headers={"Content-Disposition": download_disposition(filename, inline)})
     # 远程 URL：proxy 下载
@@ -48,7 +59,7 @@ async def download_output(url: str, name: str = "", inline: bool = False):
                 resp = await client.get(url)
                 resp.raise_for_status()
                 content = resp.content
-            filename = name or os.path.basename(url.split("?")[0]) or "image.png"
+            filename = download_filename(name, url.split("?")[0], resp.headers.get('content-type', 'image/png'))
             return Response(content=content, media_type=resp.headers.get("content-type", "image/png"),
                 headers={"Content-Disposition": download_disposition(filename, inline)})
         except Exception as e:

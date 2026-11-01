@@ -174,8 +174,8 @@ class TestImageUrl(unittest.TestCase):
 
 
 class TestStoreMerge(TempRoots):
-    def test_merge_dedup_and_builtin_first(self):
-        write_pack(self.builtin, "artists-seed",
+    def test_merge_dedup_by_pack_order(self):
+        write_pack(self.user, "artists-seed",
                    [make_artist("a_one"), make_artist("b_two")], order=100)
         write_pack(self.user, "artists-extra",
                    [make_artist("b_two", posts=999), make_artist("c_three")], order=500)
@@ -183,13 +183,13 @@ class TestStoreMerge(TempRoots):
         payload = store_mod.merged_index(force=True)
         self.assertEqual(payload["count"], 3, "同 id 只保留一条")
         ids = [e["id"] for e in payload["items"]]
-        self.assertEqual(ids[0], "a_one", "内置包排在前")
+        self.assertEqual(ids[0], "a_one", "低 order 包排在前")
         self.assertEqual(payload["items"][1]["posts"], 500, "重复 id 保留首次出现")
         self.assertEqual(payload["imageBase"], BASE_A)
         self.assertFalse(payload["legacy"])
 
     def test_tier_counts(self):
-        write_pack(self.builtin, "artists-seed", [
+        write_pack(self.user, "artists-seed", [
             make_artist("legend", 6000), make_artist("famous", 1200),
             make_artist("active", 300), make_artist("rising", 20),
         ])
@@ -197,15 +197,15 @@ class TestStoreMerge(TempRoots):
         self.assertEqual(tiers, {"legend": 1, "famous": 1, "active": 1, "rising": 1})
 
     def test_entry_image_url_uses_top_level_base(self):
-        write_pack(self.builtin, "artists-seed", [make_artist("dairi")])
+        write_pack(self.user, "artists-seed", [make_artist("dairi")])
         entry = store_mod.index_entry("dairi")
         self.assertEqual(store_mod.entry_image_url(entry),
                          BASE_A + "dairi-deadbeef-p1.avif")
 
     def test_conflicting_base_degrades_to_full_url(self):
         """两个包图床不同时，后装包的条目要降级成完整 URL，否则会拼错。"""
-        write_pack(self.builtin, "artists-seed", [make_artist("a_one")], image_base=BASE_A)
-        write_pack(self.user, "artists-extra", [make_artist("b_two")], image_base=BASE_B)
+        write_pack(self.user, "artists-seed", [make_artist("a_one")], image_base=BASE_A)
+        write_pack(self.user, "artists-extra", [make_artist("b_two")], image_base=BASE_B, order=500)
 
         payload = store_mod.merged_index(force=True)
         by_id = {e["id"]: e for e in payload["items"]}
@@ -220,20 +220,20 @@ class TestStoreMerge(TempRoots):
                          BASE_B + "b_two-deadbeef-p1.avif")
 
     def test_find_artist_by_id_and_tag(self):
-        write_pack(self.builtin, "artists-seed", [make_artist("dairi")])
+        write_pack(self.user, "artists-seed", [make_artist("dairi")])
         self.assertEqual(store_mod.find_artist("dairi")["id"], "dairi")
         self.assertEqual(store_mod.find_artist("@dairi")["id"], "dairi")
         self.assertEqual(store_mod.find_artist("DAIRI")["id"], "dairi")
         self.assertIsNone(store_mod.find_artist("nobody"))
 
     def test_pack_without_index_is_skipped(self):
-        write_pack(self.builtin, "broken", [make_artist("x")], drop_index=True)
+        write_pack(self.user, "broken", [make_artist("x")], drop_index=True)
         payload = store_mod.merged_index(force=True)
         self.assertEqual(payload["count"], 0)
         self.assertEqual(payload["packs"], [], "索引缺失的包不参与合并")
 
-    def test_legacy_fallback_when_no_packs(self):
-        """没有任何包时回退读老单文件，避免升级瞬间画师全空。"""
+    def test_no_legacy_fallback_when_no_packs(self):
+        """没有任何已安装包时保持空库，不恢复旧数据。"""
         self.legacy.parent.mkdir(parents=True, exist_ok=True)
         legacy_rows = [{
             "id": "old_one", "name": "old_one", "post_count": 321,
@@ -244,27 +244,24 @@ class TestStoreMerge(TempRoots):
             encoding="utf-8")
 
         payload = store_mod.merged_index(force=True)
-        self.assertTrue(payload["legacy"])
-        self.assertEqual(payload["count"], 1)
-        entry = payload["items"][0]
-        self.assertEqual(entry["id"], "old_one")
-        self.assertEqual(entry["posts"], 321)
-        self.assertEqual(store_mod.entry_image_url(entry, payload), "https://x/old.webp")
+        self.assertFalse(payload["legacy"])
+        self.assertEqual(payload["count"], 0)
+        self.assertIsNone(store_mod.find_artist("old_one"))
 
     def test_packs_win_over_legacy(self):
         self.legacy.parent.mkdir(parents=True, exist_ok=True)
         self.legacy.write_text("const A = %s;" % json.dumps([
             {"id": "old_one", "name": "old_one", "post_count": 1}]), encoding="utf-8")
-        write_pack(self.builtin, "artists-seed", [make_artist("new_one")])
+        write_pack(self.user, "artists-seed", [make_artist("new_one")])
 
         payload = store_mod.merged_index(force=True)
         self.assertFalse(payload["legacy"], "有包就不该回退老文件")
         self.assertEqual([e["id"] for e in payload["items"]], ["new_one"])
 
     def test_version_token_changes_with_pack(self):
-        write_pack(self.builtin, "artists-seed", [make_artist("a_one")])
+        write_pack(self.user, "artists-seed", [make_artist("a_one")])
         first = store_mod.version_token()
-        write_pack(self.builtin, "artists-seed", [make_artist("a_one"), make_artist("b_two")])
+        write_pack(self.user, "artists-seed", [make_artist("a_one"), make_artist("b_two")])
         self.assertNotEqual(first, store_mod.version_token(), "包变化必须让 ETag 变")
 
 
@@ -321,12 +318,12 @@ class TestImportSafety(TempRoots):
         with self.assertRaises(PackError):
             catalog_mod.import_pack(zip_path)
 
-    def test_builtin_pack_cannot_be_uninstalled(self):
-        from content_packs.packer import PackError
-
+    def test_seed_can_be_uninstalled_and_builtin_is_ignored(self):
         write_pack(self.builtin, "artists-seed", [make_artist("a_one")])
-        with self.assertRaises(PackError):
-            catalog_mod.uninstall_pack("artists-seed")
+        write_pack(self.user, "artists-seed", [make_artist("a_one")])
+        self.assertFalse(store_mod.discover_packs()[0].builtin)
+        self.assertTrue(catalog_mod.uninstall_pack("artists-seed"))
+        self.assertEqual(store_mod.merged_index(force=True)["count"], 0)
 
     def test_uninstall_user_pack(self):
         write_pack(self.user, "artists-extra", [make_artist("x")])
@@ -334,7 +331,7 @@ class TestImportSafety(TempRoots):
         self.assertFalse((self.user / "artists-extra").exists())
 
     def test_official_status_marks_installed(self):
-        write_pack(self.builtin, "artists-seed", [make_artist("a_one")])
+        write_pack(self.user, "artists-seed", [make_artist("a_one")])
         dist = Path(self._tmp.name) / "dist" / "artist-packs"
         dist.mkdir(parents=True, exist_ok=True)
         (dist / "catalog.json").write_text(json.dumps({
@@ -348,7 +345,7 @@ class TestImportSafety(TempRoots):
         status = catalog_mod.official_with_status()
         by_id = {p["packId"]: p for p in status["packs"]}
         self.assertTrue(by_id["artists-seed"]["installed"])
-        self.assertTrue(by_id["artists-seed"]["installedBuiltin"])
+        self.assertFalse(by_id["artists-seed"]["installedBuiltin"])
         self.assertFalse(by_id["artists-active"]["installed"])
         self.assertTrue(by_id["artists-active"]["available"])
 

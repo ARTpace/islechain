@@ -25,7 +25,7 @@ def discover_packs() -> List[PackManifest]:
     目录在调用时才读取模块级常量，便于测试注入临时目录。
     """
     return _discover(
-        ((BUILTIN_PACKS_DIR, True), (USER_PACKS_DIR, False)),
+        ((USER_PACKS_DIR, False),),
         kind=KIND,
         log_tag="style_packs",
     )

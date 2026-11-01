@@ -147,7 +147,6 @@ desktop/dist/
 /artifacts/
 
 # 导入工具运行报告（脚本与工作流仍提交）
-/tools/opennana-import/last-update-report.json
 
 # 本地环境变量与凭据，保留可分享的配置模板
 .env
@@ -157,8 +156,8 @@ desktop/dist/
 !.env.template
 
 
-# 完整风格库（44MB/22248 条）不随仓库分发：仓库只保留 art-canvas-seed 精简包，
-# 完整数据由 tools/style_pack_split.py 从本地源包生成到 dist/，用户在资产库按需安装。
+# 风格数据与采集／分类／发布工具已迁移到独立 Art-prompt-library 仓库。
+# 主工具不内置种子包，遗留本地数据仍保持忽略。
 /data/style-packs-source/
 
 # 风格包分发产物（zip + catalog.json，由脚本生成，装入安装包但不进 git）
@@ -184,7 +183,7 @@ desktop/dist/
 #   art-canvas-data.zip     data/ 下的数据与预设
 #   art-canvas-images.zip   风格与版式缩略图
 # 解压到项目根即可恢复，程序按原路径读取，无需改配置。
-# 保留在仓库的配置：character-features.json / style-packs-config.json
+# 保留在仓库的配置：character-features.json
 #                  / animadex-version.json / media-folders.json
 # ============================================================
 /data/prompt_libraries.json

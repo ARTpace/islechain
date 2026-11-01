@@ -28,7 +28,7 @@ async def serve_local_upload(path: str):
         ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
         ".webp": "image/webp", ".gif": "image/gif",
         ".mp4": "video/mp4", ".webm": "video/webm",
-    }.get(ext, "application/octet-stream")
+    }.get(ext, _main.content_type_for_path(full_path))
     return StarletteFileResponse(full_path, media_type=media_type)
 
 @router.get("/assets/library/{path:path}")
@@ -36,6 +36,7 @@ async def serve_asset_library(path: str):
     clean_path = path.replace("\\", "/")
     if ".." in clean_path:
         raise HTTPException(status_code=404, detail="File not found")
+    _main.assert_account_media(clean_path)
     full_path = os.path.abspath(os.path.join(_main.ASSET_LIBRARY_DIR, clean_path))
     root = os.path.abspath(_main.ASSET_LIBRARY_DIR)
     if not full_path.startswith(root):
@@ -48,5 +49,5 @@ async def serve_asset_library(path: str):
         ".webp": "image/webp", ".gif": "image/gif",
         ".json": "application/json",
         ".zip": "application/zip",
-    }.get(ext, "application/octet-stream")
+    }.get(ext, _main.content_type_for_path(full_path))
     return StarletteFileResponse(full_path, media_type=media_type)

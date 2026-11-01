@@ -5694,9 +5694,10 @@ function beginAssetInlineRename(assetId){
                 localAssetLibrary = {items:Array.isArray(data.items) ? data.items : localAssetLibrary.items, tree:data.tree || localAssetLibrary.tree};
                 activeAssetCategoryId = data.item?.folder || activeAssetCategoryId;
                 if(data.old_path && data.item?.url){
-                    const oldUrl = `/assets/uploads/${String(data.old_path).split('/').map(encodeURIComponent).join('/')}`;
+                    const oldPath = String(data.old_path).split('/').map(encodeURIComponent).join('/');
+                    const oldUrls = [`/assets/uploads/${oldPath}`, `/assets/library/_local/${oldPath}`];
                     nodes.forEach(node => (node.images || []).forEach(img => {
-                        if(img?.url !== oldUrl) return;
+                        if(!oldUrls.includes(img?.url)) return;
                         img.url = data.item.url;
                         img.name = data.item.name || img.name;
                         copyMediaSizeFields(data.item, img);

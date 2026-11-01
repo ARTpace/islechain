@@ -51,126 +51,25 @@ async function sdmatteExecute(node, refs, prompt, promptId) {
         maskName = null;
     }
     
-    const workflowData = {
-        "1": {
-            "inputs": {
-                "image": inputName
+    const response = await fetch('/api/image-cutout/workflow', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            branch: 'sdmatte',
+            params: {
+                "1": { image: inputName },
+                "54": {
+                    inference_size: Number(node.sdmatteInferenceSize || 1024),
+                    mask_refine: node.sdmatteMaskRefine !== 'false',
+                    trimap_constraint: Number(node.sdmatteTrimapConstraint || 0.8)
+                },
+                ...(maskName ? { "73": { image: maskName } } : {})
             },
-            "class_type": "LoadImage",
-            "_meta": {
-                "title": "加载图像"
-            }
-        },
-        "4": {
-            "inputs": {
-                "image": [
-                    "72",
-                    0
-                ],
-                "alpha": [
-                    "56",
-                    0
-                ]
-            },
-            "class_type": "JoinImageWithAlpha",
-            "_meta": {
-                "title": "合并图像Alpha"
-            }
-        },
-        "8": {
-            "inputs": {
-                "filename_prefix": "透明2",
-                "images": [
-                    "4",
-                    0
-                ]
-            },
-            "class_type": "SaveImage",
-            "_meta": {
-                "title": "保存图像"
-            }
-        },
-        "54": {
-            "inputs": {
-                "ckpt_name": "SDMatte_plus.safetensors",
-                "inference_size": Number(node.sdmatteInferenceSize || 1024),
-                "is_transparent": false,
-                "output_mode": "matted_rgb",
-                "mask_refine": node.sdmatteMaskRefine !== 'false',
-                "trimap_constraint": Number(node.sdmatteTrimapConstraint || 0.8),
-                "force_cpu": false,
-                "image": [
-                    "72",
-                    0
-                ],
-                "trimap": [
-                    "72",
-                    1
-                ]
-            },
-            "class_type": "SDMatteApply",
-            "_meta": {
-                "title": "应用SDMatte"
-            }
-        },
-        "56": {
-            "inputs": {
-                "mask": [
-                    "54",
-                    0
-                ]
-            },
-            "class_type": "LayerMask: MaskInvert",
-            "_meta": {
-                "title": "图层遮罩：遮罩反转"
-            }
-        },
-        "72": {
-            "inputs": {
-                "invert_mask": false,
-                "detect": "mask_area",
-                "top_reserve": 20,
-                "bottom_reserve": 20,
-                "left_reserve": 20,
-                "right_reserve": 20,
-                "round_to_multiple": "8",
-                "image": [
-                    "1",
-                    0
-                ],
-                "mask": [
-                    "73",
-                    0
-                ]
-            },
-            "class_type": "LayerUtility: CropByMask V2",
-            "_meta": {
-                "title": "图层工具：遮罩裁剪_V2"
-            }
-        },
-        "73": maskName ? {
-            "inputs": {
-                "image": maskName,
-                "channel": "red"
-            },
-            "class_type": "LoadImageMask",
-            "_meta": {
-                "title": "加载图像遮罩"
-            }
-        } : {
-            "inputs": {
-                "masks": [
-                    "1",
-                    1
-                ]
-            },
-            "class_type": "Mask Fill Holes",
-            "_meta": {
-                "title": "遮罩填充漏洞"
-            }
-        }
-    };
-    
+            use_image_mask: !maskName
+        })
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || '抠半透明工作流加载失败');
+    const workflowData = (await response.json()).workflow;
+
     const result = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

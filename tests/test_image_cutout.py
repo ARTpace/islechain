@@ -22,6 +22,82 @@ def png():
 
 
 class CutoutTests(unittest.IsolatedAsyncioTestCase):
+    def test_new_still_image_methods_have_isolated_local_graphs(self):
+        import json
+        from core.cutout_workflow import WORKFLOW_PATH, load_branch
+        canvas = json.loads(WORKFLOW_PATH.read_text(encoding='utf-8'))
+        expected = {'segment-anything-ultra-v2', 'segment-anything-ultra-v3',
+                    'auto-sdmatte', 'transparent-material-sdmatte', 'birefnet-ultra-v2'}
+        for branch in expected:
+            graph = load_branch(branch)
+            types = [n['class_type'] for n in graph.values()]
+            self.assertNotIn('RH_Translator', types)
+            self.assertNotIn('ChinesePrompt_Mix', types)
+            self.assertEqual(types.count('LoadImage'), 1)
+            self.assertEqual(types.count('SaveImage'), 1)
+        for branch in ('transparent-background-ultra', 'birefnet-hugo-refine',
+                       'birefnet-zho', 'birefnet-rembg'):
+            self.assertIn('tool', canvas['extra']['cutout']['branches'][branch])
+            self.assertTrue(load_branch(branch))
+        self.assertFalse(any(n['type'].startswith('VHS_') or 'Video' in n['type']
+                             for n in canvas['nodes']))
+        self.assertEqual(sum(n['type'] == 'SaveImage' and n['mode'] == 0
+                             for n in canvas['nodes']), 1)
+
+    def test_tool_method_sets_uploaded_image_and_target(self):
+        graph = cutout.workflow('upload/photo.png', 'auto-sdmatte', {}, 'workflow', 'person')
+        image = next(n for n in graph.values() if n['class_type'] == 'LoadImage')
+        segment = next(n for n in graph.values() if n['class_type'] == 'LayerMask: SegmentAnythingUltra V2')
+        self.assertEqual(image['inputs']['image'], 'upload/photo.png')
+        self.assertEqual(segment['inputs']['prompt'], 'person')
+        with self.assertRaises(HTTPException):
+            cutout.workflow('photo.png', 'auto-sdmatte', {}, 'workflow')
+
+    def test_method_catalog_rejects_missing_or_incompatible_nodes(self):
+        node = {'class_type': 'Example', 'inputs': {'model': 'missing'}}
+        self.assertFalse(cutout._compatible_node(node, None))
+        schema = {'input': {'required': {'model': [['installed']]}}}
+        self.assertFalse(cutout._compatible_node(node, schema))
+        node['inputs']['model'] = 'installed'
+        self.assertTrue(cutout._compatible_node(node, schema))
+
+    def test_encrypted_qwen_branch_is_inert_and_not_callable(self):
+        import json
+        from core.cutout_workflow import WORKFLOW_PATH, load_branch
+        canvas = json.loads(WORKFLOW_PATH.read_text(encoding='utf-8'))
+        spec = canvas['extra']['cutout']['pending_branches']['qwen-image-2.1']
+        self.assertEqual(spec['status'], 'requires_decryption')
+        with self.assertRaises(KeyError):
+            load_branch('qwen-image-2.1')
+        nodes = {n['id']: n for n in canvas['nodes']}
+        members = [nodes[nid] for old, nid in spec['nodes'].items() if old != '7']
+        self.assertTrue(all(n['mode'] == 2 for n in members))
+        self.assertEqual(sum(n['type'] == 'RHHiddenNodes' for n in members), 2)
+        for link_id, source, slot, target, socket, kind in canvas['links']:
+            self.assertIn(link_id, nodes[source]['outputs'][slot]['links'])
+            self.assertEqual(nodes[target]['inputs'][socket]['link'], link_id)
+
+    def test_comfyui_widget_order_matches_installed_rmbg_schema(self):
+        import json
+        from core.cutout_workflow import WORKFLOW_PATH
+        canvas = json.loads(WORKFLOW_PATH.read_text(encoding='utf-8'))
+        expected = {
+            'RMBG': ['model', 'sensitivity', 'process_res', 'mask_blur', 'mask_offset',
+                     'invert_output', 'refine_foreground', 'unload_model', 'background', 'background_color'],
+            'BiRefNetRMBG': ['model', 'sensitivity', 'mask_blur', 'mask_offset',
+                           'invert_output', 'refine_foreground', 'unload_model', 'background', 'background_color'],
+            'SAM3Segment': ['model_name', 'prompt', 'output_mode', 'confidence_threshold',
+                            'max_segments', 'segment_pick', 'mask_blur', 'mask_offset', 'device',
+                            'invert_output', 'unload_model', 'background', 'background_color'],
+        }
+        for node in canvas['nodes']:
+            if node['type'] not in expected:
+                continue
+            names = node['properties']['widget_names']
+            self.assertEqual(names, expected[node['type']])
+            self.assertEqual(len(names), len(node['widgets_values']))
+            self.assertEqual(node['widgets_values'][names.index('background')], 'Alpha')
+
     def test_progress_reports_actual_queue_state(self):
         queue = {'queue_pending': [[1, 'other'], [2, 'mine']], 'queue_running': [[0, 'running']]}
         waiting = cutout._task_progress(queue, 'mine')
@@ -140,17 +216,16 @@ class CutoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(cutout._versions({**old, 'versions': versions})), 1)
 
     def test_new_model_workflows(self):
-        import json
-        root = Path(__file__).parents[1] / 'workflows' / 'cutout'
-        expected = {'lucida': 'BiRefNetRMBG', 'birefnet-general': 'BiRefNetRMBG',
-                    'birefnet-hr-matting': 'BiRefNetRMBG', 'birefnet-toonout': 'BiRefNetRMBG',
-                    'fey-no-bg': 'ArtCanvasFeyNoBg', 'sam3': 'SAM3Segment'}
+        from core.cutout_workflow import load_branch
+        expected = {'Lucida': 'BiRefNetRMBG', 'BiRefNet-general': 'BiRefNetRMBG',
+                    'BiRefNet-HR-matting': 'BiRefNetRMBG', 'BiRefNet_toonout': 'BiRefNetRMBG',
+                    'FeyNoBg': 'ArtCanvasFeyNoBg', 'SAM3': 'SAM3Segment'}
         for name, node_type in expected.items():
-            graph = json.loads((root / (name + '.json')).read_text(encoding='utf-8'))
+            graph = load_branch(name)
             self.assertEqual(graph['1']['class_type'], node_type)
             self.assertEqual(graph['1']['inputs']['background'], 'Alpha')
             self.assertEqual(graph['5']['inputs']['images'], ['1', 0])
-        sam = json.loads((root / 'sam3.json').read_text(encoding='utf-8'))
+        sam = load_branch('SAM3')
         self.assertEqual(sam['1']['inputs']['model_name'], 'sam3.1_multiplex_fp16')
         with self.assertRaises(HTTPException):
             cutout.workflow('x.png', 'SAM3', {'required': {'image': ['IMAGE']}}, 'SAM3Segment')
@@ -160,11 +235,50 @@ class CutoutTests(unittest.IsolatedAsyncioTestCase):
         root = Path(__file__).parents[1]
         source = (root / 'main.py').read_text(encoding='utf-8')
         registration = source[source.index('BUILTIN_WORKFLOW_DIRS ='):source.index('\ndef update_env_values(')]
-        namespace = {'os': os, 'WORKFLOW_DIR': str(root / 'workflows')}
+        namespace = {'os': os, 'BUILTIN_WORKFLOW_DIR': str(root / 'workflows')}
         exec(registration, namespace)
         exports = {str(path.relative_to(root / 'workflows')).replace('\\', '/') for path in (root / 'workflows' / 'cutout').glob('*.json') if not path.name.endswith('.config.json')}
-        self.assertEqual(len(exports), 6)
+        self.assertIn('cutout/matting.json', exports)
         self.assertTrue(exports <= namespace['BUILTIN_WORKFLOWS'])
+
+    def test_integrated_branches_are_isolated_and_preserve_parameters(self):
+        import json
+        from core.cutout_workflow import load_branch, WORKFLOW_PATH
+        canvas = json.loads(WORKFLOW_PATH.read_text(encoding='utf-8'))
+        for branch in canvas['extra']['cutout']['branches']:
+            graph = load_branch(branch)
+            self.assertEqual(sum(n['class_type'] == 'SaveImage' for n in graph.values()), 1)
+            self.assertEqual(sum(n['class_type'] == 'LoadImage' for n in graph.values()), 1)
+            self.assertFalse(any(n['class_type'] == 'Note' for n in graph.values()))
+            for node in graph.values():
+                for value in node['inputs'].values():
+                    if isinstance(value, list):
+                        self.assertIn(value[0], graph)
+        self.assertEqual(load_branch('RMBG-2.0')['1']['inputs']['model'], 'RMBG-2.0')
+        self.assertEqual(load_branch('BiRefNet-general')['1']['class_type'], 'BiRefNetRMBG')
+        self.assertEqual(load_branch('textmatting')['8']['inputs']['prompt'], 'person')
+        self.assertEqual(load_branch('sdmatte')['54']['inputs']['ckpt_name'], 'SDMatte_plus.safetensors')
+        # Changes to the managed canvas, including widget values, reach callers.
+        with tempfile.TemporaryDirectory() as directory:
+            spec = canvas['extra']['cutout']['branches']['BEN2']
+            node = next(n for n in canvas['nodes'] if n['id'] == spec['nodes']['1'])
+            node['widgets_values'][node['properties']['widget_names'].index('process_res')] = 2048
+            path = Path(directory) / 'matting.json'
+            path.write_text(json.dumps(canvas), encoding='utf-8')
+            self.assertEqual(load_branch('BEN2', path)['1']['inputs']['process_res'], 2048)
+
+    async def test_prepare_workflow_overrides_and_image_mask(self):
+        main = types.SimpleNamespace(account_dirname=lambda: 'owner')
+        with patch.dict(sys.modules, main=main):
+            result = await cutout.prepare_workflow(cutout.WorkflowRequest(
+                branch='sdmatte', params={'1': {'image': 'photo.png'}, '54': {'inference_size': 1536}},
+                use_image_mask=True))
+            graph = result['workflow']
+            self.assertEqual(graph['1']['inputs']['image'], 'photo.png')
+            self.assertEqual(graph['54']['inputs']['inference_size'], 1536)
+            self.assertEqual(graph['73']['inputs']['masks'], ['1', 1])
+            with self.assertRaises(HTTPException):
+                await cutout.prepare_workflow(cutout.WorkflowRequest(branch='missing'))
 
     async def test_catalog_combines_actual_nodes(self):
         async def info(client, method, url, **kwargs):
@@ -190,6 +304,13 @@ class CutoutTests(unittest.IsolatedAsyncioTestCase):
         from core.feature_access import required_modules
         request = types.SimpleNamespace(url=types.SimpleNamespace(path='/api/image-cutout/task'))
         self.assertEqual(await required_modules(request), {'rmbg'})
+
+    async def test_branch_loader_keeps_feature_permissions(self):
+        from core.feature_access import required_modules
+        async def body():
+            return {'branch': 'textmatting'}
+        request = types.SimpleNamespace(url=types.SimpleNamespace(path='/api/image-cutout/workflow'), json=body)
+        self.assertEqual(await required_modules(request), {'textmatting'})
 
 
 if __name__ == '__main__':

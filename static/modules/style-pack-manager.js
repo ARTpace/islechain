@@ -1,8 +1,7 @@
 /**
  * 资产库 · 风格包管理
  *
- * 完整风格数据不随仓库分发：程序内置一个精简种子包，其余按来源平台打成 zip，
- * 用户在资产库这里一键安装或导入自己的包。安装后落在用户目录，可卸载、升级不丢。
+ * 支持本地风格包和公开 GitHub 资产仓库，安装后落在用户目录，可卸载、升级不丢。
  *
  * 对外只有 StylePackManager.render(rootEl) 一个入口，由 asset-manager.js 在
  * activeTab === 'style-packs' 时调用。
@@ -15,6 +14,7 @@
         catalog: '/api/style-packs/catalog',
         install: '/api/style-packs/install-official',
         importZip: '/api/style-packs/import',
+        repository: '/api/style-packs/repository',
         uninstall: (id) => '/api/style-packs/' + encodeURIComponent(id),
         download: (id) => '/api/style-packs/' + encodeURIComponent(id) + '/download',
     };
@@ -26,6 +26,8 @@
         packs: [],
         overlay: null,
         catalog: { packs: [], totalEntries: 0, source: '' },
+        repository: { url: '', packs: [] },
+        repositoryError: '',
         selected: '',
         busy: '',
         notice: '',
@@ -62,22 +64,27 @@
         return data;
     }
 
-    async function load(force) {
+    async function load(force, checkOnOpen = false) {
         if (state.loading) return;
-        if (state.loaded && !force) return;
+        if (state.loaded && !force && !checkOnOpen) return;
         state.loading = true;
         state.error = '';
+        state.repositoryError = '';
         paint();
         try {
-            const [installed, catalog] = await Promise.all([
+            const [installed, catalog, repository] = await Promise.all([
                 getJson(API.installed),
                 getJson(API.catalog).catch(() => ({ packs: [] })),
+                getJson(API.repository + '?check=true').catch((err) => { state.repositoryError = err.message; return { url: '', packs: [] }; }),
             ]);
             state.packs = installed.packs || [];
             state.overlay = installed.overlay || null;
             state.catalog = catalog || { packs: [] };
+            state.repository = repository;
+            state.repositoryError = repository.checkError || state.repositoryError;
             if (!state.selected && state.packs.length) state.selected = state.packs[0].packId;
             state.loaded = true;
+            if (force) window.dispatchEvent(new Event('style-packs-changed'));
         } catch (err) {
             state.error = err.message || '风格包列表加载失败';
         } finally {
@@ -95,6 +102,7 @@
     }
 
     async function installPack(packId) {
+        if (state.busy) return;
         state.busy = packId;
         state.notice = '';
         paint();
@@ -111,6 +119,7 @@
     }
 
     async function uninstallPack(packId) {
+        if (state.busy) return;
         if (!window.confirm('卸载风格包 ' + packId + '？\n\n该包里的风格条目会一并移除，你自己新增的单条风格不受影响。')) return;
         state.busy = packId;
         state.notice = '';
@@ -128,8 +137,42 @@
         }
     }
 
+    async function repositoryAction(action, packId) {
+        if (state.busy) return;
+        let url = state.repository.url;
+        if (action === 'set') {
+            url = window.prompt('公开 GitHub 仓库地址（默认 main 分支），或 catalog.json 原始地址：', url || '');
+            if (!url || !url.trim()) return;
+        }
+        const pack = state.repository.packs.find((p) => p.packId === packId);
+        if (action === 'install' && pack && pack.blockedBy?.length) return;
+        if (action === 'install' && pack && pack.installed && !window.confirm('更新 ' + pack.name + '：' + pack.installedVersion + ' → ' + pack.version + '？\n仅替换这个平台包，其他包和用户增量修改会保留。')) return;
+        state.busy = 'repository';
+        state.notice = action === 'install' ? '正在下载并安装风格包…' : '正在读取仓库…';
+        state.repositoryError = '';
+        paint();
+        try {
+            if (action === 'disconnect') {
+                state.repository = await getJson(API.repository, { method: 'DELETE' });
+                state.notice = '已断开仓库，已安装的风格包保留';
+            } else if (action === 'install') {
+                await postJson(API.repository + '/install', { packId, replace: !!(pack && pack.installed) });
+                state.notice = (pack && pack.installed ? '已更新 ' : '已安装 ') + packId;
+                await load(true);
+            } else {
+                state.repository = await postJson(API.repository, { url: url.trim() });
+                state.notice = '仓库检查完成，共 ' + state.repository.packs.length + ' 个包，' + (state.repository.updateCount || 0) + ' 个可更新';
+            }
+        } catch (err) {
+            state.notice = '仓库操作失败：' + err.message;
+        } finally {
+            state.busy = '';
+            paint();
+        }
+    }
+
     async function importZip(file) {
-        if (!file) return;
+        if (!file || state.busy) return;
         state.busy = 'import';
         state.notice = '正在导入 ' + file.name + '…';
         paint();
@@ -182,12 +225,15 @@
         </aside>`;
     }
 
-    function renderOfficialCard(pack) {
-        const busy = state.busy === pack.packId;
-        const action = pack.installed
+    function renderOfficialCard(pack, repository = false) {
+        const busy = repository ? !!state.busy : state.busy === pack.packId;
+        const blocked = repository && pack.blockedBy?.length;
+        const action = blocked
+            ? '<button class="asset-btn" type="button" disabled>请先卸载旧整库包</button>'
+            : pack.installed && !pack.updateAvailable
             ? `<button class="asset-btn" type="button" disabled><i data-lucide="check"></i><span>已安装</span></button>`
-            : `<button class="asset-btn primary" type="button" data-sp-install="${esc(pack.packId)}" ${busy || !pack.available ? 'disabled' : ''}>
-                   <i data-lucide="${busy ? 'loader' : 'download'}"></i><span>${busy ? '安装中' : (pack.available ? '安装' : '未随包分发')}</span>
+            : `<button class="asset-btn primary" type="button" ${repository ? 'data-sp-repo-install' : 'data-sp-install'}="${esc(pack.packId)}" ${busy || !pack.available ? 'disabled' : ''}>
+                   <i data-lucide="${busy ? 'loader' : 'download'}"></i><span>${busy ? '处理中' : (pack.updateAvailable ? '更新此包' : pack.available ? '安装' : '未随包分发')}</span>
                </button>`;
         return `<div class="sp-card">
             <div class="sp-card-head">
@@ -195,12 +241,13 @@
                     <strong>${esc(pack.name)}</strong>
                     <span class="sp-badge">${esc(pack.version)}</span>
                     ${pack.installed ? '<span class="sp-badge ok">已安装</span>' : ''}
+                    ${repository && pack.updateAvailable ? `<span class="sp-badge">可更新 ${esc(pack.installedVersion)} → ${esc(pack.version)}</span>` : ''}
                 </div>
             </div>
             <div class="sp-card-desc">${esc(pack.description || '按来源平台拆分的风格扩展包')}</div>
             <div class="sp-card-meta">
                 <span><i data-lucide="layers"></i>${fmtNum(pack.entryCount)} 条</span>
-                <span><i data-lucide="folder-tree"></i>${pack.categoryCount} 分类</span>
+                <span><i data-lucide="folder-tree"></i>${fmtNum(pack.categoryCount)} 分类</span>
                 <span><i data-lucide="hard-drive"></i>${fmtSize(pack.sizeBytes)}</span>
             </div>
             <div class="sp-card-actions">${action}</div>
@@ -224,6 +271,21 @@
             <div class="content-scroll">
                 ${state.notice ? `<div class="sp-notice">${esc(state.notice)}</div>` : ''}
                 ${state.error ? `<div class="sp-notice error">${esc(state.error)}</div>` : ''}
+                <div class="sp-section">
+                    <div class="sp-section-head">
+                        <strong>GitHub 风格资产仓库</strong>
+                        <button class="asset-btn" type="button" data-sp-repo="set" ${state.busy ? 'disabled' : ''}>${state.repository.url ? '更换仓库' : '添加仓库'}</button>
+                    </div>
+                    ${state.repositoryError ? `<div class="sp-notice error">${esc(state.repositoryError)}</div>` : ''}
+                    ${state.repository.url ? `<div class="sp-hint">${esc(state.repository.url)}</div>
+                        <div class="sp-card-actions">
+                            <button class="asset-btn" type="button" data-sp-repo="refresh" ${state.busy ? 'disabled' : ''}>检查更新</button>
+                            <button class="asset-btn" type="button" data-sp-repo="disconnect" ${state.busy ? 'disabled' : ''}>断开来源</button>
+                        </div>
+                        ${state.repository.packs.some((pack) => pack.blockedBy?.length) ? '<div class="sp-notice">检测到旧整库包 art-canvas-core。请在左侧选中它，先导出备份、再卸载，然后按需安装下方平台包。原始数据和用户增量修改会保留。</div>' : ''}
+                        <div class="sp-grid">${state.repository.packs.map((pack) => renderOfficialCard(pack, true)).join('')}</div>`
+                        : '<div class="sp-hint">添加公开 GitHub 仓库，按需安装其中的风格包；无需手动下载 ZIP。</div>'}
+                </div>
                 <div class="sp-section">
                     <div class="sp-section-head">
                         <strong>官方可选风格包</strong>
@@ -289,9 +351,13 @@
     }
 
     function onClick(event) {
-        const target = event.target.closest('[data-sp-select],[data-sp-install],[data-sp-uninstall],[data-sp-export],[data-sp-import],[data-sp-refresh]');
+        const target = event.target.closest('[data-sp-select],[data-sp-install],[data-sp-uninstall],[data-sp-export],[data-sp-import],[data-sp-refresh],[data-sp-repo],[data-sp-repo-install]');
         if (!target) return;
-        if (target.dataset.spSelect) {
+        if (target.hasAttribute('data-sp-repo')) {
+            repositoryAction(target.dataset.spRepo);
+        } else if (target.dataset.spRepoInstall) {
+            repositoryAction('install', target.dataset.spRepoInstall);
+        } else if (target.dataset.spSelect) {
             state.selected = target.dataset.spSelect;
             paint();
         } else if (target.dataset.spInstall) {
@@ -313,7 +379,7 @@
             rootEl.__spBound = true;
             rootEl.addEventListener('click', onClick);
         }
-        load(false);
+        load(false, true);
         paint();
     }
 

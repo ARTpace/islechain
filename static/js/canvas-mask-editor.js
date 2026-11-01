@@ -103,9 +103,9 @@ async function openCanvasMaskEditor(node) {
         }
     };
     model.onchange = () => {
-        dialog.querySelector('[data-model-name]').textContent=model.value==='auto'?'自动':model.value;
-        dialog.querySelector('[data-target-label]').hidden=model.value!=='SAM3';renderModels();
-        if(model.value==='SAM3'){showMenu(true);target.focus();}
+        dialog.querySelector('[data-model-name]').textContent=model.selectedOptions?.[0]?.text || model.value;
+        dialog.querySelector('[data-target-label]').hidden=!ImageCutoutClient.requiresTarget(model.value);renderModels();
+        if(ImageCutoutClient.requiresTarget(model.value)){showMenu(true);target.focus();}
         else{showMenu(false);autoSelect();}
     };
     const chooseTool = value => {
@@ -148,7 +148,7 @@ async function openCanvasMaskEditor(node) {
     display.onpointerleave=()=>cursor.hidden=true;
     const autoSelect = async () => {
         if(busy||drawing)return;
-        if(model.value==='SAM3'&&!target.value.trim()){showMenu(true);feedback.textContent='请输入需要保留的主体';target.focus();return;}
+        if(ImageCutoutClient.requiresTarget(model.value)&&!target.value.trim()){showMenu(true);feedback.textContent='请输入需要保留的主体';target.focus();return;}
         const progress = dialog.querySelector('.mask-progress');
         progress.hidden=false;progress.removeAttribute('value');
         setBusy(true);feedback.textContent='正在自动识别主体…';
@@ -190,7 +190,7 @@ async function openCanvasMaskEditor(node) {
         mask=document.createElement('canvas');mask.width=display.width=Math.max(1,Math.round(image.naturalWidth*scale));mask.height=display.height=Math.max(1,Math.round(image.naturalHeight*scale));
         history=createMaskHistory(mask);history.save();fit();renderMask();setBusy(false);
         renderModels();
-        ImageCutoutClient.request('/api/image-cutout/models').then(data=>{if(!closed){for(const name of data.models||[])model.add(new Option(name,name));renderModels();}}).catch(error=>{if(!closed)feedback.textContent='模型列表读取失败：'+error.message;});
+        ImageCutoutClient.request('/api/image-cutout/models').then(data=>{if(!closed){for(const name of data.models||[])model.add(new Option(data.labels?.[name] || name,name));renderModels();}}).catch(error=>{if(!closed)feedback.textContent='模型列表读取失败：'+error.message;});
         await autoSelect();
     }catch(error){if(!closed){feedback.textContent=error.message;setBusy(true);}}
 }

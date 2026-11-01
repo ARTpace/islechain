@@ -296,6 +296,7 @@ async def delete_local_assets(payload: dict, request: Request):
                 cls_path = _main._local_upload_classification_path(rel)
                 if os.path.isfile(cls_path):
                     os.remove(cls_path)
+                _main.update_unified_local_reference(rel)
                 deleted.append(rel)
             except OSError:
                 pass
@@ -337,6 +338,7 @@ async def move_local_assets(payload: dict, request: Request):
             ):
                 if os.path.isfile(src_sib) and not os.path.exists(dst_sib):
                     os.rename(src_sib, dst_sib)
+            _main.update_unified_local_reference(rel, new_rel)
             moved += 1
         except OSError:
             continue
@@ -530,6 +532,66 @@ async def delete_asset_library_category(category_id: str, library_id: str = ""):
     library["categories"] = remaining
     _main.save_asset_library(lib)
     return {"library": lib}
+@router.post('/api/asset-library/upload')
+async def upload_asset_library_files(files: List[UploadFile] = File(...), library_id: str = Form(''), category_id: str = Form('')):
+    lib = _main.load_asset_library()
+    library, category = _main.find_asset_category_with_library(lib, category_id, library_id)
+    if not category or category.get('type') == 'workflow':
+        raise HTTPException(status_code=400, detail='请先选择一个素材分组')
+    folder = category.get('dir') or _main.unique_asset_category_dir(library, category.get('name') or '素材')
+    namespace = _main.account_dirname()
+    if not folder.replace('\\', '/').startswith(namespace + '/'):
+        folder = namespace + '/' + folder.replace('\\', '/')
+    root = os.path.realpath(_main.ASSET_LIBRARY_DIR)
+    destination = os.path.realpath(os.path.join(root, folder))
+    if os.path.commonpath([root, destination]) != root:
+        raise HTTPException(status_code=400, detail='非法分组目录')
+    category['dir'] = folder
+    os.makedirs(destination, exist_ok=True)
+    added = []
+    for file in files:
+        kind, ext = _main._local_upload_kind_ext(file.filename, file.content_type)
+        if not kind:
+            continue
+        content = await file.read()
+        if not content:
+            continue
+        name = _main.sanitize_asset_name(os.path.splitext(os.path.basename(file.filename or '素材'))[0], '素材')
+        filename = f'asset_{uuid.uuid4().hex[:16]}{ext}'
+        with open(os.path.join(destination, filename), 'wb') as handle:
+            handle.write(content)
+        item = {'id':f'asset_{uuid.uuid4().hex[:12]}', 'name':name, 'kind':kind,
+                'url':'/assets/library/' + urllib.parse.quote(folder.replace(os.sep, '/') + '/' + filename, safe='/'),
+                'created_at':_main.now_ms(), 'size':len(content)}
+        category.setdefault('items', []).append(item)
+        added.append(item)
+    _main.save_asset_library(lib)
+    return {'library':lib, 'items':added, 'files':added}
+
+
+@router.post('/api/asset-library/items/caption')
+async def caption_asset_library_items(payload: _main.AssetLibraryClassifyRequest):
+    lib = _main.load_asset_library()
+    results = []
+    for item_id in (payload.ids or [])[:100]:
+        result = {'id':item_id, 'ok':False, 'error':''}
+        try:
+            item = _main.find_asset_item_in_library(lib, item_id, payload.library_id)
+            if not item or item.get('kind') != 'image':
+                raise HTTPException(status_code=400, detail='仅支持图片素材反推提示词')
+            path = _main.output_file_from_url(item.get('url') or '')
+            if not path or not os.path.isfile(path):
+                raise HTTPException(status_code=404, detail='图片文件不存在')
+            caption, model = await _main.caption_image_with_provider(path, payload.prompt.strip() or '描述图片', payload.provider, payload.model, payload.ms_model)
+            _main.write_asset_caption(item, caption)
+            result.update(ok=True, caption=caption, model=model)
+        except Exception as exc:
+            result['error'] = str(getattr(exc, 'detail', '') or exc)
+        results.append(result)
+    _main.save_asset_library(lib)
+    return {'library':lib, 'items':results, 'count':sum(x['ok'] for x in results)}
+
+
 @router.post("/api/asset-library/items")
 async def add_asset_library_item(payload: _main.AssetLibraryAddRequest):
     lib = _main.load_asset_library()

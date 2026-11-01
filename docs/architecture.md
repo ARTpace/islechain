@@ -32,7 +32,7 @@ static/                    159 个文件
   modules/                 20+ 个功能模块
   app/                     10+ 个子页面
 docs/                      新建文档套件
-tools/                     3 个子包（dedupe_styles, translate_styles, opennana-import）
+tools/                     主工具辅助脚本；提示词采集／整理工具已迁至 Art-prompt-library
 tests/                     4 个 pytest 测试（P1 新增）
 ```
 

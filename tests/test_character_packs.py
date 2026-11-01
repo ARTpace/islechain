@@ -127,8 +127,8 @@ class TestSplitRoundTrip(unittest.TestCase):
 
 
 class TestStoreMerge(TempRoots):
-    def test_merge_dedup_and_builtin_first(self):
-        write_pack(self.builtin, "characters-seed", [make_char("a_one"), make_char("b_two")], order=100)
+    def test_merge_dedup_by_pack_order(self):
+        write_pack(self.user, "characters-seed", [make_char("a_one"), make_char("b_two")], order=100)
         write_pack(self.user, "characters-extra",
                    [make_char("b_two", post_count=999), make_char("c_three")], order=500)
 
@@ -140,13 +140,13 @@ class TestStoreMerge(TempRoots):
         self.assertEqual(payload["items"][1]["post_count"], 500)
 
     def test_get_detail_by_shard(self):
-        write_pack(self.builtin, "characters-seed", [make_char("a_one"), make_char("b_two")])
+        write_pack(self.user, "characters-seed", [make_char("a_one"), make_char("b_two")])
         detail = store_mod.get_detail("a_one")
         self.assertTrue(detail)
         self.assertIn("glasses", detail["tags"])
         self.assertIsNone(store_mod.get_detail("no_such"))
 
-    def test_legacy_fallback_when_no_packs(self):
+    def test_no_legacy_fallback_when_no_packs(self):
         self.legacy.parent.mkdir(parents=True, exist_ok=True)
         self.legacy.write_text(json.dumps({
             "version": "test", "count": 1,
@@ -154,15 +154,14 @@ class TestStoreMerge(TempRoots):
         }, ensure_ascii=False), encoding="utf-8")
 
         payload = store_mod.merged_index(force=True)
-        self.assertTrue(payload["legacy"], "没有包时应回退老单文件")
-        self.assertEqual(payload["count"], 1)
-        detail = store_mod.get_detail("legacy_one")
-        self.assertTrue(detail and detail["tags"])
+        self.assertFalse(payload["legacy"], "卸载后不能回退加载旧文件")
+        self.assertEqual(payload["count"], 0)
+        self.assertIsNone(store_mod.get_detail("legacy_one"))
 
 
 class TestPackZip(TempRoots):
     def _zip(self, name, pack_id, chars, with_index=True, absolute=False):
-        pack_dir = write_pack(self.builtin, pack_id, chars)
+        pack_dir = write_pack(Path(self._tmp.name) / "source", pack_id, chars)
         zip_path = Path(self._tmp.name) / name
         with zipfile.ZipFile(zip_path, "w") as zf:
             for path in sorted(pack_dir.rglob("*.json")):
@@ -189,10 +188,15 @@ class TestPackZip(TempRoots):
         with self.assertRaises(character_packs.catalog.PackError):
             character_packs.import_pack(zip_path)
 
-    def test_uninstall_builtin_refused(self):
+    def test_seed_can_be_uninstalled_and_builtin_is_ignored(self):
         write_pack(self.builtin, "characters-seed", [make_char("a_one")])
-        with self.assertRaises(character_packs.catalog.PackError):
-            character_packs.uninstall_pack("characters-seed")
+        write_pack(self.user, "characters-seed", [make_char("a_one")])
+        self.legacy.parent.mkdir(parents=True, exist_ok=True)
+        self.legacy.write_text(json.dumps({'characters':[make_char('old_one')]}), encoding='utf-8')
+        self.assertFalse(store_mod.discover_packs()[0].builtin)
+        self.assertTrue(character_packs.uninstall_pack("characters-seed"))
+        self.assertEqual(store_mod.merged_index(force=True)["count"], 0)
+        self.assertIsNone(store_mod.get_detail("old_one"))
 
     def test_uninstall_user_pack(self):
         write_pack(self.user, "characters-mine", [make_char("m_one")])

@@ -15,12 +15,13 @@ def load_download(main):
     source = Path(__file__).parents[1] / 'routers' / 'output_ops.py'
     tree = ast.parse(source.read_text(encoding='utf-8'))
     functions = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                 and node.name in ('download_disposition', 'download_output')]
+                 and node.name in ('download_disposition', 'download_filename', 'download_output')]
     for node in functions:
         node.decorator_list = []
     from urllib.parse import quote
     import os
-    namespace = dict(_main=main, os=os, quote=quote, FileResponse=FileResponse,
+    import mimetypes
+    namespace = dict(_main=main, os=os, mimetypes=mimetypes, quote=quote, FileResponse=FileResponse,
                      Response=Response, HTTPException=HTTPException)
     exec(compile(ast.Module(body=functions, type_ignores=[]), str(source), 'exec'), namespace)
     return namespace['download_output']
@@ -39,6 +40,18 @@ def test_local_chinese_download(tmp_path):
         assert response.headers['content-type'] == 'image/png'
 
 
+def test_cutout_display_names_get_source_extension(tmp_path):
+    image = tmp_path / 'cutout.png'
+    image.write_bytes(b'png')
+    download = load_download(SimpleNamespace(output_file_from_url=lambda url: str(image),
+                                            content_type_for_path=lambda path: 'image/png'))
+    for name in ('抠图 · BEN2', '抠图 · RMBG-2.0', '原图'):
+        response = asyncio.run(download('/output/cutout.png', name))
+        assert unquote(response.headers['content-disposition'].split("UTF-8''")[1]) == name + '.png'
+    response = asyncio.run(download('/output/cutout.png', 'result.png'))
+    assert unquote(response.headers['content-disposition'].split("UTF-8''")[1]) == 'result.png'
+
+
 def test_remote_chinese_download():
     download = load_download(SimpleNamespace(output_file_from_url=lambda url: None))
     remote = SimpleNamespace(content=b'png', headers={'content-type': 'image/png'},
@@ -50,3 +63,14 @@ def test_remote_chinese_download():
     assert response.status_code == 200
     assert response.body == b'png'
     assert unquote(response.headers['content-disposition'].split("UTF-8''")[1]) == '抠图.png'
+
+
+def test_remote_extensionless_url_uses_content_type():
+    download = load_download(SimpleNamespace(output_file_from_url=lambda url: None))
+    remote = SimpleNamespace(content=b'webp', headers={'content-type': 'image/webp; charset=binary'},
+                             raise_for_status=lambda: None)
+    client = AsyncMock()
+    client.__aenter__.return_value.get.return_value = remote
+    with patch('httpx.AsyncClient', return_value=client):
+        response = asyncio.run(download('https://example.com/image', '抠图 · BEN2'))
+    assert unquote(response.headers['content-disposition'].split("UTF-8''")[1]) == '抠图 · BEN2.webp'

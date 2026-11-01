@@ -72,7 +72,7 @@
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
     <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
     <script src="/static/modules/gallery/list.js?v=20261031b"></script>
-<script src="/static/modules/gallery/card.js?v=20261028imageedit1"></script>
+<script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
     <script src="/static/modules/gallery/display.js?v=20261031b"></script>
 <style id="ui-responsive">
@@ -162,75 +162,10 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         const WORKFLOW_CONFIG = {
             name: "文字抠图",
             type: "textmatting",
-            workflow: {
-                "4": {
-                    "inputs": {
-                        "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
-                    },
-                    "class_type": "CheckpointLoaderSimple",
-                    "_meta": {
-                        "title": "Checkpoint大模型加载器(简易)"
-                    }
-                },
-                "5": {
-                    "inputs": {
-                        "image": "uploaded_image.png"
-                    },
-                    "class_type": "LoadImage",
-                    "_meta": {
-                        "title": "加载图像"
-                    }
-                },
-                "6": {
-                    "inputs": {
-                        "threshold": 0.5,
-                        "refine_iterations": 2,
-                        "individual_masks": false,
-                        "model": ["4", 0],
-                        "image": ["5", 0],
-                        "conditioning": ["8", 0]
-                    },
-                    "class_type": "SAM3_Detect",
-                    "_meta": {
-                        "title": "SAM3 检测"
-                    }
-                },
-                "7": {
-                    "inputs": {
-                        "opacity": 100,
-                        "invert_mask": false,
-                        "image": ["5", 0],
-                        "mask": ["6", 0]
-                    },
-                    "class_type": "LayerUtility: ImageOpacity",
-                    "_meta": {
-                        "title": "图层工具：不透明"
-                    }
-                },
-                "8": {
-                    "inputs": {
-                        "text": "Rockets",
-                        "嵌入提示词": null,
-                        "clip": ["4", 1]
-                    },
-                    "class_type": "CLIPTextEncode",
-                    "_meta": {
-                        "title": "CLIP文本编码器"
-                    }
-                },
-                "9": {
-                    "inputs": {
-                        "images": ["7", 0]
-                    },
-                    "class_type": "PreviewImage",
-                    "_meta": {
-                        "title": "预览图像"
-                    }
-                }
-            },
+            workflow: {},
             nodeMappings: {
                 "5": { param: "image", label: "输入图像", type: "upload" },
-                "8": { param: "text", label: "抠图文字", type: "textarea" }
+                "8": { param: "prompt", label: "抠图文字", type: "textarea" }
             },
             apiEndpoint: "/api/generate"
         };
@@ -454,11 +389,17 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             const placeholder = createPlaceholder("文字抠图");
             document.getElementById('masonry').prepend(placeholder);
             try {
-                const workflowData = JSON.parse(JSON.stringify(WORKFLOW_CONFIG.workflow));
+                const workflowResponse = await fetch('/api/image-cutout/workflow', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ branch: 'textmatting' })
+                });
+                if (!workflowResponse.ok) throw new Error((await workflowResponse.json()).detail || '抠图工作流加载失败');
+                const workflowData = (await workflowResponse.json()).workflow;
+                WORKFLOW_CONFIG.workflow = workflowData;
                 const promptText = promptInput.value.trim() || "Rockets";
 
                 workflowData["5"]["inputs"]["image"] = uploadedImageName;
-                workflowData["8"]["inputs"]["text"] = promptText;
+                workflowData["8"]["inputs"]["prompt"] = promptText;
 
                 currentPromptId = generateUUID();
 

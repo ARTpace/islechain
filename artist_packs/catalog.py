@@ -3,7 +3,7 @@
 官方包以 zip 随程序分发：
     安装版：<app>/data/artist-packs-official/
     开发版：<project>/dist/artist-packs/
-两处都有 catalog.json，由 tools/artist_pack_split.py 生成。
+两处都有 catalog.json，由 ../Art-prompt-library/tools/artist_pack_split.py 生成。
 
 安装后落在用户目录，成为普通用户包：可卸载、升级不丢、不进 git。
 """
@@ -67,7 +67,7 @@ def import_pack(zip_path, replace: bool = False):
 
 def export_pack_zip(pack_id: str, out_path) -> Path:
     """导出已安装的包（内置或用户），用于分发或备份。"""
-    for root in (USER_PACKS_DIR, BUILTIN_PACKS_DIR):
+    for root in (USER_PACKS_DIR,):
         src = root / pack_id
         if (src / "pack.json").is_file():
             return export_pack_dir(src, pack_id, out_path)
@@ -75,9 +75,7 @@ def export_pack_zip(pack_id: str, out_path) -> Path:
 
 
 def uninstall_pack(pack_id: str) -> bool:
-    """卸载用户包（内置包不可卸载）。"""
-    if (BUILTIN_PACKS_DIR / pack_id).is_dir():
-        raise PackError("内置画师包不可卸载：%s" % pack_id)
+    """卸载用户安装的内容包，包括精华包。"""
     target = USER_PACKS_DIR / pack_id
     if not target.is_dir():
         return False

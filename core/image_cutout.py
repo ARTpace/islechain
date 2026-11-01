@@ -13,6 +13,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
+from core.cutout_workflow import load_branch, workflow_methods
 
 router = APIRouter(prefix='/api/image-cutout')
 _locks = {}
@@ -58,12 +59,20 @@ def choose_model(image_bytes, prompt, available):
 
 
 def workflow(name, model, schema, node_type='RMBG', target=''):
-    values = {'model': model, 'sensitivity': 1, 'process_res': 1024,
-              'mask_blur': 0, 'mask_offset': 0, 'invert_output': False,
-              'refine_foreground': False, 'background': 'Alpha',
-              'background_color': '#222222', 'image': ['3', 0]}
-    if node_type == 'ArtCanvasFeyNoBg':
-        values['refine_foreground'] = True
+    if node_type == 'workflow':
+        graph = load_branch(model)
+        method = workflow_methods()[model]
+        if method.get('requires_target') and not target.strip():
+            raise HTTPException(400, '请填写要保留的目标，例如 person、cat、product')
+        for node in graph.values():
+            if node['class_type'] == 'LoadImage':
+                node['inputs']['image'] = name
+            if 'prompt' in node['inputs'] and method.get('requires_target'):
+                node['inputs']['prompt'] = target.strip()
+        return graph
+    branch = model if node_type != 'RMBG' or model == 'RMBG-2.0' else 'BEN2'
+    graph = load_branch(branch)
+    values = {**graph['1']['inputs'], 'model': model}
     if node_type == 'SAM3Segment':
         if not target.strip():
             raise HTTPException(400, 'SAM3 需要填写要保留的目标，例如 person、cat、logo')
@@ -85,9 +94,61 @@ def workflow(name, model, schema, node_type='RMBG', target=''):
             inputs[key] = values[key]
     if (node_type in ('RMBG', 'BiRefNetRMBG') and 'model' not in inputs) or 'image' not in inputs or inputs.get('background') != 'Alpha':
         raise HTTPException(503, '当前 RMBG 节点不支持此透明背景工作流，请更新节点')
-    return {'1': {'class_type': node_type, 'inputs': inputs},
-            '3': {'class_type': 'LoadImage', 'inputs': {'image': name}},
-            '5': {'class_type': 'PreviewImage', 'inputs': {'images': ['1', 0]}}}
+    graph['1']['inputs'] = inputs
+    graph['3']['inputs']['image'] = name
+    return graph
+
+
+class WorkflowRequest(BaseModel):
+    branch: str = 'BEN2'
+    params: dict[str, dict] = Field(default_factory=dict)
+    use_image_mask: bool = False
+    model: str = ''
+    image: str = ''
+    target: str = ''
+    background: str = 'Alpha'
+    mask_blur: int = 0
+    mask_offset: int = 0
+    invert_output: bool = False
+    refine_foreground: bool = False
+
+
+@router.post('/workflow')
+async def prepare_workflow(payload: WorkflowRequest):
+    """Load only the requested branch; preserve legacy node IDs for callers."""
+    import main
+    main.account_dirname()
+    if payload.model:
+        async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
+            catalog, _ = await _models(client, 'http://' + main.COMFYUI_ADDRESS)
+        selected = catalog.get(payload.model)
+        if not selected:
+            raise HTTPException(400, '所选抠图方案当前不可用，请检查节点与模型')
+        graph = workflow(payload.image, payload.model, selected['schema'], selected['node_type'], payload.target)
+        if selected['node_type'] == 'workflow':
+            if payload.background != 'Alpha':
+                raise HTTPException(400, '此精修方案输出透明 PNG，请选择透明背景')
+        else:
+            inputs = graph['1']['inputs']
+            for key in ('mask_blur', 'mask_offset', 'invert_output', 'refine_foreground'):
+                if key in inputs:
+                    inputs[key] = getattr(payload, key)
+            inputs['background'] = 'Alpha' if payload.background == 'Alpha' else 'Color'
+            inputs['background_color'] = '#fbfaf9' if payload.background == 'White' else '#0b0b0a'
+        return {'workflow': graph}
+    try:
+        graph = load_branch(payload.branch)
+    except KeyError as exc:
+        raise HTTPException(400, '抠图工作流分支不存在') from exc
+    for node_id, values in payload.params.items():
+        if node_id not in graph or any(key not in graph[node_id]['inputs'] for key in values):
+            raise HTTPException(400, '抠图参数不存在')
+        if any(isinstance(value, (dict, list)) for value in values.values()):
+            raise HTTPException(400, '抠图参数只支持普通值')
+        graph[node_id]['inputs'].update(values)
+    if payload.branch == 'sdmatte' and payload.use_image_mask:
+        graph['73'] = {'class_type': 'Mask Fill Holes', 'inputs': {'masks': ['1', 1]}}
+    return {'workflow': graph}
 
 
 def _paths(main, source):
@@ -126,10 +187,37 @@ async def _models(client, base):
         for name in names:
             if node_type == 'BiRefNetRMBG' and name not in choices:
                 continue
-            catalog[name] = {'node_type': node_type, 'schema': schema}
+            catalog[name] = {'node_type': node_type, 'schema': schema, 'requires_target': name == 'SAM3'}
+    methods = workflow_methods()
+    needed = sorted({node['class_type'] for key in methods for node in load_branch(key).values()})
+    extra = await asyncio.gather(*(_json(client, 'GET', base + '/object_info/' + node) for node in needed))
+    available = {key: value for info in extra for key, value in info.items()}
+    for key, method in methods.items():
+        graph = load_branch(key)
+        if all(_compatible_node(node, available.get(node['class_type'])) for node in graph.values()):
+            catalog[key] = {'node_type': 'workflow', 'schema': {}, **method}
     if not catalog:
         raise HTTPException(503, '未检测到支持的抠图节点，请安装 ComfyUI-RMBG')
     return catalog, list(catalog)
+
+
+def _compatible_node(node, info):
+    if not info:
+        return False
+    schema = info.get('input', {})
+    specs = {**schema.get('required', {}), **schema.get('optional', {})}
+    if not set(schema.get('required', {})) <= node['inputs'].keys():
+        return False
+    for name, value in node['inputs'].items():
+        spec = specs.get(name)
+        if not spec:
+            return False
+        if node['class_type'] == 'LoadImage' and name == 'image':
+            continue
+        options = spec[0] if isinstance(spec[0], list) else (spec[1].get('options') if len(spec) > 1 else None)
+        if options is not None and value not in options:
+            return False
+    return True
 
 
 def _task_progress(queue, prompt_id):
@@ -205,14 +293,17 @@ async def start_cutout(payload: CutoutRequest, request: Request):
                 if len(data) > 40 * 1024 * 1024:
                     raise HTTPException(413, '抠图原图不能超过 40 MB')
                 if payload.model == 'auto':
-                    model, kind = await asyncio.to_thread(choose_model, data, payload.prompt, models)
+                    automatic = [name for name in models if not catalog[name].get('requires_target')]
+                    model, kind = await asyncio.to_thread(choose_model, data, payload.prompt, automatic)
                 else:
-                    model, kind = payload.model, '指定目标' if payload.model == 'SAM3' else '手动抠图'
+                    model, kind = payload.model, '指定目标' if catalog[payload.model].get('requires_target') else '手动抠图'
                 selected = catalog[model]
                 graph = workflow('pending.png', model, selected['schema'], selected['node_type'], payload.target)
                 uploaded = await _json(client, 'POST', base + '/upload/image', files={'image': ('cutout_' + key + '.png', data, 'application/octet-stream')}, data={'overwrite': 'true'})
                 name = '/'.join(filter(None, [uploaded.get('subfolder'), uploaded['name']]))
-                graph['3']['inputs']['image'] = name
+                for node in graph.values():
+                    if node['class_type'] == 'LoadImage':
+                        node['inputs']['image'] = name
                 task = await _json(client, 'POST', base + '/prompt', json={'prompt': graph, 'client_id': payload.client_id or uuid.uuid4().hex})
                 if not task.get('prompt_id') or task.get('node_errors'):
                     raise HTTPException(502, 'ComfyUI 拒绝了抠图工作流：' + str(task.get('node_errors', '无任务 ID'))[:400])
@@ -220,7 +311,7 @@ async def start_cutout(payload: CutoutRequest, request: Request):
                           'model': model, 'kind': kind, 'created_at': time.time(), 'server': base,
                           'selection': 'auto' if payload.model == 'auto' else 'manual',
                           'attempt': uuid.uuid4().hex, 'versions': versions, 'available_models': models,
-                          'target': payload.target.strip() if model == 'SAM3' else '',
+                          'target': payload.target.strip() if selected.get('requires_target') else '',
                           'progress': {'stage': 'queued', 'label': '已提交，等待 ComfyUI 处理'}}
                 main.atomic_write_json(str(manifest), result, ensure_ascii=False)
                 return result
@@ -238,8 +329,10 @@ async def cutout_models():
         raise HTTPException(503, '请先启动并配置 ComfyUI')
     try:
         async with httpx.AsyncClient(timeout=15, trust_env=False) as client:
-            _, models = await _models(client, 'http://' + main.COMFYUI_ADDRESS)
-            return {'models': models}
+            catalog, models = await _models(client, 'http://' + main.COMFYUI_ADDRESS)
+            return {'models': models, 'labels': {name: item.get('label', name) for name, item in catalog.items()},
+                    'target_models': [name for name, item in catalog.items() if item.get('requires_target')],
+                    'workflow_models': [name for name, item in catalog.items() if item['node_type'] == 'workflow']}
     except HTTPException:
         raise
     except Exception as exc:

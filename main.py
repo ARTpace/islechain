@@ -170,6 +170,7 @@ async def lifespan(app: FastAPI):
         print(f"账号数据拆分失败: {exc}")
     # 启动时整理资产库
     try:
+        await asyncio.to_thread(migrate_unified_asset_storage)
         await asyncio.to_thread(migrate_asset_library_into_dirs)
     except Exception as exc:
         print(f"资产库分组整理失败: {exc}")
@@ -1088,7 +1089,8 @@ ASSETS_DIR = INPUT_DIR
 OUTPUT_INPUT_DIR = os.path.join(ASSETS_DIR, "input")
 OUTPUT_OUTPUT_DIR = os.path.join(ASSETS_DIR, "output")
 ASSET_LIBRARY_DIR = os.path.join(ASSETS_DIR, "library")
-LOCAL_UPLOAD_DIR = os.path.join(ASSETS_DIR, "uploads")
+LEGACY_LOCAL_UPLOAD_DIR = os.path.join(ASSETS_DIR, "uploads")
+LOCAL_UPLOAD_DIR = os.path.join(ASSET_LIBRARY_DIR, "_local")
 ASSET_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "asset_library.json")
 BUILTIN_PROMPT_LIBRARY = os.path.join(DATA_DIR, "prompt_libraries.json")   # 随包基线，只读
 PROMPT_LIBRARY_PATH = os.path.join(USER_DATA_DIR, "prompt_libraries.json")  # 用户覆盖层，可写
@@ -1177,10 +1179,8 @@ def sync_builtin_workflows():
 
 
 def prompt_library_read_path():
-    """提示词库当前生效的读取路径：用户目录优先，回退随包分发的基线。"""
-    if os.path.isfile(PROMPT_LIBRARY_PATH):
-        return PROMPT_LIBRARY_PATH
-    return BUILTIN_PROMPT_LIBRARY
+    """仅供个人数据迁移使用，不回退工程内旧提示词库。"""
+    return PROMPT_LIBRARY_PATH
 
 # === history.json 进程内缓存 ===
 # 第一次 GET 时读盘并缓存,save_to_history 写穿透更新(不再失效重读)
@@ -1910,13 +1910,7 @@ try:
 except Exception as _media_migrate_exc:
     print(f"[media-migrate] 跳过: {_media_migrate_exc}")
 
-# 老版本把用户改过的风格预设写成一份全量快照，新体系改读风格包 + 增量层。
-# 这里把旧快照换算成增量并归档，否则升级后用户自己加/改的风格会凭空消失。
-try:
-    import style_packs as _style_packs
-    _style_packs.migrate_legacy_snapshot()
-except Exception as _style_pack_exc:
-    print(f"[style-packs] 旧快照迁移跳过: {_style_pack_exc}")
+# 不再自动导入旧风格快照；运行数据仅来自显式安装的内容包与用户增量。
 
 # Custom static files with no-cache headers for HTML files
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
@@ -2004,6 +1998,10 @@ async def serve_asset_file(path: str):
     if ".." in clean_path or clean_path.startswith("/"):
         raise HTTPException(status_code=404, detail="File not found")
     assert_account_media(clean_path)
+    if clean_path.startswith("library/"):
+        assert_account_media(clean_path[len("library/"):])
+    if clean_path.startswith("uploads/"):
+        clean_path = "library/_local/" + clean_path[len("uploads/"):]
 
     full_path = os.path.abspath(os.path.join(INPUT_DIR, clean_path))
     input_root = os.path.abspath(INPUT_DIR)
@@ -2022,7 +2020,7 @@ async def serve_asset_file(path: str):
         ".webp": "image/webp",
         ".gif": "image/gif",
         ".txt": "text/plain",
-    }.get(ext, "application/octet-stream")
+    }.get(ext, content_type_for_path(full_path))
 
     is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif')
     if is_media:
@@ -2292,6 +2290,7 @@ class SharedFolderImport(BaseModel):
 class AssetLibraryRenameRequest(BaseModel):
     name: str = ""
     library_id: str = ""
+    caption: Optional[str] = None
 
 class AssetLibraryBatchDeleteRequest(BaseModel):
     ids: List[str] = []
@@ -3921,6 +3920,8 @@ def output_file_from_url(url):
     if clean.startswith("/assets/"):
         root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
         rel = clean[len("/assets/"):]
+        if rel.startswith("uploads/"):
+            rel = "library/_local/" + rel[len("uploads/"):]
     else:
         root = OUTPUT_DIR
         rel = clean[len("/output/"):]
@@ -3948,6 +3949,8 @@ def asset_library_item_path(url):
     if clean.startswith("/assets/"):
         root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
         rel = clean[len("/assets/"):]
+        if rel.startswith("uploads/"):
+            rel = "library/_local/" + rel[len("uploads/"):]
     else:
         root = OUTPUT_DIR
         rel = clean[len("/output/"):]
@@ -4132,10 +4135,16 @@ def load_asset_library():
             lib = json.load(f)
     except Exception:
         lib = default_asset_library()
-    return normalize_asset_library(lib)
+    lib = normalize_asset_library(lib)
+    if synchronize_asset_storage(lib):
+        backup_asset_index(path)
+        atomic_write_json(path, lib, ensure_ascii=False, indent=2)
+    return lib
 
 def save_asset_library(lib):
     lib = normalize_asset_library(lib)
+    from core.unified_asset_storage import canonicalize_items
+    canonicalize_items(lib, ASSET_LIBRARY_DIR, output_file_from_url, account_dirname())
     sort_asset_library_items(lib)
     lib["updated_at"] = now_ms()
     path = asset_library_path()
@@ -5157,6 +5166,69 @@ def find_asset_item_in_library(lib, item_id, library_id=""):
                     return item
     return None
 
+def update_unified_local_reference(old, new=None):
+    from core.unified_asset_storage import update_local_reference
+    owner = private_data_owner()
+    if not owner:
+        return
+    path = os.path.join(USER_DATA_DIR, 'accounts', safe_user_id(owner, None), 'asset_library.json')
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding='utf-8') as handle:
+        lib = normalize_asset_library(json.load(handle))
+    if update_local_reference(lib, old, new):
+        atomic_write_json(path, lib, ensure_ascii=False, indent=2)
+
+
+def write_asset_caption(item, caption):
+    path = output_file_from_url(item.get('url') or '')
+    if not path or not os.path.isfile(path) or item.get('kind') != 'image':
+        raise HTTPException(status_code=400, detail='仅支持为已归档的图片保存提示词')
+    caption = str(caption or '')[:100000]
+    txt_path = os.path.splitext(path)[0] + '.txt'
+    with open(txt_path, 'w', encoding='utf-8', newline='') as handle:
+        handle.write(caption)
+    item['caption'] = caption
+    item['caption_file'] = os.path.basename(txt_path)
+    item['sidecar_mtime'] = os.path.getmtime(txt_path)
+
+
+def backup_asset_index(path):
+    if os.path.isfile(path) and not os.path.exists(path + '.before-unified-assets.bak'):
+        shutil.copy2(path, path + '.before-unified-assets.bak')
+
+
+def synchronize_asset_storage(lib, include_local=None):
+    from core.unified_asset_storage import canonicalize_items, import_local_entries
+    username = get_username_by_token('') or private_data_owner()
+    namespace = safe_user_id(username, None) if username else ''
+    changed = canonicalize_items(lib, ASSET_LIBRARY_DIR, output_file_from_url, namespace)
+    if include_local is None:
+        include_local = get_username_by_token('') == private_data_owner()
+    if include_local:
+        _, entries = _local_upload_tree_and_items()
+        changed = import_local_entries(lib, entries) or changed
+    return changed
+
+
+def migrate_unified_asset_storage():
+    from core.unified_asset_storage import migrate_upload_directory
+    migrate_upload_directory(LEGACY_LOCAL_UPLOAD_DIR, LOCAL_UPLOAD_DIR)
+    owner = private_data_owner()
+    if not owner:
+        return
+    path = os.path.join(USER_DATA_DIR, 'accounts', safe_user_id(owner, None), 'asset_library.json')
+    if os.path.isfile(path):
+        with open(path, encoding='utf-8') as handle:
+            lib = normalize_asset_library(json.load(handle))
+    else:
+        lib = default_asset_library()
+    if synchronize_asset_storage(lib, include_local=True):
+        backup_asset_index(path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        atomic_write_json(path, lib, ensure_ascii=False, indent=2)
+
+
 def migrate_asset_library_into_dirs():
     owner = private_data_owner()
     if not owner:
@@ -5650,11 +5722,12 @@ def _local_upload_item(filename):
         "id": rel,
         "file": rel,
         "name": _local_upload_display_name(rel),
-        "url": f"/assets/uploads/{urllib.parse.quote(rel, safe='/')}",
+        "url": f"/assets/library/_local/{urllib.parse.quote(rel, safe='/')}",
         "kind": kind or "image",
         "size": size,
         "created_at": created_at,
         "folder": os.path.dirname(rel).replace("\\", "/"),
+        "sidecar_mtime": max((os.path.getmtime(p) for p in (_local_upload_caption_path(rel), _local_upload_classification_path(rel)) if os.path.isfile(p)), default=0),
     }
     if kind == "image":
         try:
@@ -5964,20 +6037,9 @@ def normalize_prompt_libraries(data):
     return {"active_library_id": active, "libraries": libraries, "updated_at": int(data.get("updated_at") or now_ms())}
 
 def _system_prompt_libraries():
-    source = prompt_library_read_path()
-    if not os.path.exists(source):
-        return normalize_prompt_libraries(default_prompt_libraries())
-    try:
-        with open(source, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        data = default_prompt_libraries()
-    normalized = normalize_prompt_libraries(data if isinstance(data, dict) else default_prompt_libraries())
-    normalized["libraries"] = [
-        lib for lib in normalized.get("libraries") or []
-        if lib.get("id") == "system" or lib.get("system") is True
-    ]
-    return normalized
+    # 系统内容由 routers.prompt_libraries 从已安装风格包提供；旧快照不再加载。
+    return default_prompt_libraries()
+
 
 def _account_prompt_libraries():
     path = account_prompt_libraries_path()
@@ -8029,27 +8091,16 @@ def _load_poster_layouts():
 
 
 def _load_poster_styles():
-    styles_file = os.path.join(POSTER_DATA_DIR, "fooocus_styles.json")
-    if not os.path.exists(styles_file):
-        return []
-    with open(styles_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    styles = []
-    for item in data:
-        thumb_url = item.get('thumbnail', '')
-        local_path = ''
-        if thumb_url:
-            url_filename = thumb_url.split('/')[-1]
-            local_path = f'/static/images/style_thumbnails/{url_filename}'
-        styles.append({
-            'name': item.get('name', ''),
-            'name_cn': item.get('name_cn', item.get('name', '')),
-            'prompt': item.get('prompt', ''),
-            'thumbnail': local_path
-        })
-    return styles
-
-
+    """海报风格与提示词库使用同一份已安装资产。"""
+    from core.preset_manager import get_style_presets
+    return [
+        {'name': item.get('id') or item.get('name', ''),
+         'name_cn': item.get('name', ''), 'prompt': item.get('prompt', ''),
+         'thumbnail': item.get('thumbnail') or item.get('image') or ''}
+        for category in get_style_presets().get('categories', [])
+        for sub in category.get('subcategories', [])
+        for item in sub.get('presets', [])
+    ]
 
 
 # ==================== TTS API 路由 ====================

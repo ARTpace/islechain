@@ -79,7 +79,8 @@
 .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 /* === Masonry Grid（共享样式，覆盖所有页面） === */
-.masonry-grid { column-count:2; column-gap:12px; }
+.masonry-grid { position:relative; column-count:2; column-gap:12px; }
+.masonry-grid.stable-masonry > * { position:absolute; box-sizing:border-box; }
 .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
 .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0,0,0,0.08); }
 .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
@@ -175,11 +176,67 @@ body.studio-theme-dark .lightbox-thumb.active {
             if (this._initialized) return;
             this.injectCSS();
             this.injectLoadMoreTrigger(config);
+            this.mountMasonry(config);
             this._initialized = true;
             if (!config.skipSelfTest) this._runSelfTests();
         },
 
-        destroy() { this._initialized = false; },
+        destroy() {
+            this._masonryCleanup?.();
+            this._initialized = false;
+        },
+
+        mountMasonry(config = {}) {
+            const grid = document.querySelector(config.masonrySelector || '#masonry');
+            if (!grid) return;
+            grid.classList.add('stable-masonry');
+            let frame = 0;
+            const observed = new Set();
+            const schedule = () => {
+                if (!frame) frame = requestAnimationFrame(layout);
+            };
+            const resize = new ResizeObserver(schedule);
+            const layout = () => {
+                frame = 0;
+                const style = getComputedStyle(grid);
+                const count = Math.max(1, parseInt(style.columnCount, 10) || 1);
+                const gap = parseFloat(style.columnGap) || 12;
+                const width = (grid.clientWidth - gap * (count - 1)) / count;
+                if (width <= 0) return;
+                const heights = Array(count).fill(0);
+                const children = [...grid.children];
+                for (const node of observed) {
+                    if (!children.includes(node)) { resize.unobserve(node); observed.delete(node); }
+                }
+                for (const node of children) {
+                    if (!observed.has(node)) { observed.add(node); resize.observe(node); }
+                    if (getComputedStyle(node).display === 'none') continue;
+                    const fullWidth = !node.classList.contains('masonry-item');
+                    const column = heights.indexOf(Math.min(...heights));
+                    const top = fullWidth ? Math.max(...heights) : heights[column];
+                    node.style.width = `${fullWidth ? grid.clientWidth : width}px`;
+                    node.style.left = `${fullWidth ? 0 : column * (width + gap)}px`;
+                    node.style.top = `${top}px`;
+                    const bottom = top + node.getBoundingClientRect().height + gap;
+                    if (fullWidth) heights.fill(bottom);
+                    else heights[column] = bottom;
+                }
+                grid.style.height = `${Math.max(0, ...heights)}px`;
+            };
+            const mutations = new MutationObserver(schedule);
+            mutations.observe(grid, {childList:true, attributes:true, attributeFilter:['class'], subtree:true});
+            resize.observe(grid);
+            // 收藏和敏感内容过滤通过 body class 控制，也需要重新计算可见布局。
+            const filters = new MutationObserver(schedule);
+            filters.observe(document.body, {attributes:true, attributeFilter:['class']});
+            grid.addEventListener('load', schedule, true);
+            this._masonryCleanup = () => {
+                resize.disconnect(); mutations.disconnect(); filters.disconnect();
+                grid.removeEventListener('load', schedule, true);
+                cancelAnimationFrame(frame);
+            };
+            schedule();
+        },
 
         injectCSS() {
             if (document.getElementById('gallery-display-css')) return;

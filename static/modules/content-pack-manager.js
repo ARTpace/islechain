@@ -1,307 +1,104 @@
-/**
- * 资产库 · 内容包管理（角色包 / 画师包）
- *
- * 角色与画师的全量数据都不随仓库分发：程序内置一个精简种子包，其余按热度分档
- * 打成 zip，用户在这里一键安装或导入自己的包。安装后落在用户目录，可卸载、
- * 升级不丢，也不进 git。
- *
- * 两种包的接口完全同构（列表 / 导入 / 安装 / 导出 / 卸载），所以本模块用
- * KINDS 配置驱动：新增一种内容包只在这里加一条，不用再写一遍 UI。
- *
- * 对外只有 ContentPackManager.render(rootEl) 一个入口，
- * 由 asset-manager.js 在 activeTab === 'content-packs' 时调用。
- */
+/* 所有内容包共用 GitHub 清单与安全安装器；本地资产只展示安装状态。 */
 (function () {
     'use strict';
-
-    const KINDS = [
-        {
-            key: 'characters',
-            label: '角色包',
-            unit: '角色',
-            api: '/api/characters',
-            hint: '支撑角色选择器的搜索与列表；点开某个角色才加载 tags 与出处。',
-        },
-        {
-            key: 'artists',
-            label: '画师包',
-            unit: '画师',
-            api: '/api/artists',
-            hint: '画师提示词与预览图；图片直连官方 CDN，不占本地空间。',
-        },
+    const API = '/api/content-packs/repository';
+    const kinds = [
+        {key:'tags', label:'标签包', installed:'/api/tag-packs', remove:'/api/tag-packs/'},
+        {key:'styles', label:'风格包', installed:'/api/style-packs', remove:'/api/style-packs/'},
+        {key:'artists', label:'画师包', installed:'/api/artists/packs', remove:'/api/artists/packs/'},
+        {key:'characters', label:'角色包', installed:'/api/characters/packs', remove:'/api/characters/packs/'},
     ];
-
-    const state = {
-        loaded: false,
-        loading: false,
-        error: '',
-        notice: '',
-        busy: '',
-        data: {},   // kind -> {installed, official, stats}
-    };
-
-    function esc(value) {
-        return String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-        }[c]));
-    }
-
-    function fmtSize(bytes) {
-        const n = Number(bytes || 0);
-        if (!n) return '—';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
-        return (n / 1024 / 1024).toFixed(1) + ' MB';
-    }
-
-    function fmtNum(n) {
-        return Number(n || 0).toLocaleString('zh-CN');
-    }
-
-    function icons() {
-        if (window.lucide && typeof window.lucide.createIcons === 'function') {
-            try { window.lucide.createIcons(); } catch (e) { /* 图标失败不影响功能 */ }
-        }
-    }
-
-    async function getJson(url, options) {
-        const res = await fetch(url, options);
-        let data = {};
-        try { data = await res.json(); } catch (e) { data = {}; }
-        if (!res.ok) throw new Error(data.detail || data.message || ('请求失败 ' + res.status));
+    const state = {repository:{url:'', packs:[]}, installed:{}, category:'all', busy:false, loaded:false, notice:''};
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let host;
+    async function request(url, method, body) {
+        const res = await fetch(url, method ? {method, headers:{'Content-Type':'application/json'}, ...(body ? {body:JSON.stringify(body)} : {})} : undefined);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '请求失败');
         return data;
     }
-
-    async function loadKind(kind) {
-        try {
-            state.data[kind.key] = await getJson(kind.api + '/packs');
-        } catch (err) {
-            state.data[kind.key] = { error: err.message || '加载失败' };
-        }
+    async function load(check = false) {
+        const results = await Promise.all([request(API + (check ? '?check=true' : '')), ...kinds.map(k => request(k.installed))]);
+        state.repository = results[0];
+        kinds.forEach((kind, i) => { state.installed[kind.key] = results[i + 1].installed || results[i + 1].packs || []; });
+        state.loaded = true;
+        if (state.repository.checkError) state.notice = state.repository.checkError;
     }
-
-    async function load(force) {
-        if (state.loading) return;
-        if (state.loaded && !force) return;
-        state.loading = true;
-        state.error = '';
-        paint();
-        try {
-            await Promise.all(KINDS.map(loadKind));
-            state.loaded = true;
-        } catch (err) {
-            state.error = err.message || '内容包列表加载失败';
-        } finally {
-            state.loading = false;
-            paint();
-        }
+    async function act(fn) {
+        if (state.busy) return;
+        state.busy = true; state.notice = ''; paint();
+        try { await fn(); }
+        catch (err) { state.notice = err.message; }
+        finally { state.busy = false; paint(); }
     }
-
-    async function act(key, kind, fn, okText, failText) {
-        state.busy = key;
-        state.notice = '';
-        paint();
-        try {
-            await fn();
-            state.notice = okText;
-            await load(true);
-        } catch (err) {
-            state.notice = failText + '：' + (err.message || '未知错误');
-        } finally {
-            state.busy = '';
-            paint();
-        }
+    function card(kind, pack, remote) {
+        const local = (state.installed[kind.key] || []).find(p => p.packId === pack.packId);
+        const installed = !!local;
+        const update = remote && pack.updateAvailable;
+        const blocked = pack.blockedBy?.length;
+        const disabled = state.busy ? 'disabled' : '';
+        return `<div class="sp-card"><div class="sp-card-head"><div class="sp-card-title"><strong>${esc(pack.name || pack.packId)}</strong><span class="sp-badge">${esc(pack.version)}</span>${installed ? '<span class="sp-badge ok">已安装</span>' : ''}</div></div>
+            <div class="sp-card-desc">${esc(pack.description || '')}</div><div class="sp-card-meta"><span>${Number(pack.entryCount || 0).toLocaleString('zh-CN')} 条</span>${pack.sizeBytes ? `<span>${(pack.sizeBytes / 1048576).toFixed(1)} MB</span>` : ''}${update ? `<span>当前 ${esc(local.version)}</span>` : ''}</div>
+            ${blocked ? `<div class="sp-hint">请先卸载旧整库包：${esc(pack.blockedBy.join('、'))}</div>` : ''}
+            <div class="sp-card-actions">${remote && (!installed || update) ? `<button class="asset-btn primary" data-cp-action="install" data-id="${esc(pack.packId)}" data-kind="${kind.key}" ${disabled} ${blocked ? 'disabled' : ''}>${update ? '更新此包' : '从仓库安装'}</button>` : ''}
+            ${installed ? `<button class="asset-btn danger" data-cp-action="uninstall" data-id="${esc(pack.packId)}" data-kind="${kind.key}" ${disabled}>卸载</button>` : ''}</div></div>`;
     }
-
-    function installPack(kind, packId) {
-        return act(packId, kind, () => getJson(kind.api + '/packs/install-official', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ packId: packId, replace: false }),
-        }), '已安装 ' + packId, '安装失败');
+    function section(kind) {
+        const remote = state.repository.packs.filter(p => (p.kind || 'styles') === kind.key);
+        const ids = new Set(remote.map(p => p.packId));
+        const local = (state.installed[kind.key] || []).filter(p => !ids.has(p.packId));
+        return `<section class="sp-section"><div class="sp-section-head"><strong>${kind.label}</strong><span>${remote.length} 个仓库包 · 已安装 ${(state.installed[kind.key] || []).length} 个包</span></div><div class="sp-grid">${remote.map(p => card(kind,p,true)).join('')}${local.map(p => card(kind,p,false)).join('')}</div>${!remote.length && !local.length ? '<div class="empty-state">暂无内容，请加载 GitHub 仓库。</div>' : ''}</section>`;
     }
-
-    function uninstallPack(kind, packId) {
-        if (!window.confirm('卸载' + kind.label + ' ' + packId + '？\n\n包里的' + kind.unit +
-            '数据会一并移除，你自己添加的条目不受影响。')) return Promise.resolve();
-        return act(packId, kind, () => getJson(
-            kind.api + '/packs/' + encodeURIComponent(packId), { method: 'DELETE' }),
-            '已卸载 ' + packId, '卸载失败');
-    }
-
-    function importZip(kind, file) {
-        if (!file) return Promise.resolve();
-        const form = new FormData();
-        form.append('file', file);
-        return act('import-' + kind.key, kind, () => getJson(
-            kind.api + '/packs/import?replace=false', { method: 'POST', body: form }),
-            '已导入 ' + file.name, '导入失败');
-    }
-
-    function pickZipFile(kind) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.zip,application/zip';
-        input.addEventListener('change', () => importZip(kind, input.files && input.files[0]));
-        input.click();
-    }
-
-    function installedOf(kind) {
-        const data = state.data[kind.key] || {};
-        return data.installed || [];
-    }
-
-    function officialOf(kind) {
-        const data = state.data[kind.key] || {};
-        return (data.official && data.official.packs) || [];
-    }
-
-    function totalOf(kind) {
-        return installedOf(kind).reduce((sum, p) => sum + Number(p.entryCount || 0), 0);
-    }
-
-    function renderInstalledCard(kind, pack) {
-        const busy = state.busy === pack.packId;
-        const action = pack.builtin
-            ? '<button class="asset-btn" type="button" disabled title="内置包不可卸载"><i data-lucide="lock"></i><span>内置</span></button>'
-            : `<button class="asset-btn danger" type="button" data-cp-uninstall="${esc(pack.packId)}" data-cp-kind="${kind.key}" ${busy ? 'disabled' : ''}>
-                   <i data-lucide="trash-2"></i><span>${busy ? '处理中' : '卸载'}</span>
-               </button>`;
-        return `<div class="sp-card">
-            <div class="sp-card-head">
-                <div class="sp-card-title">
-                    <strong>${esc(pack.name)}</strong>
-                    <span class="sp-badge">${esc(pack.version)}</span>
-                    <span class="sp-badge ok">已安装</span>
-                </div>
-            </div>
-            <div class="sp-card-desc">${esc(pack.description || ('随程序的' + kind.label))}</div>
-            <div class="sp-card-meta">
-                <span><i data-lucide="layers"></i>${fmtNum(pack.entryCount)} 个${esc(kind.unit)}</span>
-                <span><i data-lucide="${pack.builtin ? 'package' : 'package-plus'}"></i>${pack.builtin ? '随程序' : '用户安装'}</span>
-            </div>
-            <div class="sp-card-actions">
-                <button class="asset-btn" type="button" data-cp-export="${esc(pack.packId)}" data-cp-kind="${kind.key}"><i data-lucide="download"></i><span>导出</span></button>
-                ${action}
-            </div>
-        </div>`;
-    }
-
-    function renderOfficialCard(kind, pack) {
-        const busy = state.busy === pack.packId;
-        const action = pack.installed
-            ? '<button class="asset-btn" type="button" disabled><i data-lucide="check"></i><span>已安装</span></button>'
-            : `<button class="asset-btn primary" type="button" data-cp-install="${esc(pack.packId)}" data-cp-kind="${kind.key}" ${busy || !pack.available ? 'disabled' : ''}>
-                   <i data-lucide="${busy ? 'loader' : 'download'}"></i><span>${busy ? '安装中' : (pack.available ? '安装' : '未随包分发')}</span>
-               </button>`;
-        return `<div class="sp-card">
-            <div class="sp-card-head">
-                <div class="sp-card-title">
-                    <strong>${esc(pack.name)}</strong>
-                    <span class="sp-badge">${esc(pack.version)}</span>
-                </div>
-            </div>
-            <div class="sp-card-desc">${esc(pack.description || '按热度拆分的扩展包')}</div>
-            <div class="sp-card-meta">
-                <span><i data-lucide="layers"></i>${fmtNum(pack.entryCount)} 个${esc(kind.unit)}</span>
-                <span><i data-lucide="hard-drive"></i>${fmtSize(pack.sizeBytes)}</span>
-            </div>
-            <div class="sp-card-actions">${action}</div>
-        </div>`;
-    }
-
-    function renderKind(kind) {
-        const data = state.data[kind.key];
-        if (!data) return '';
-        if (data.error) {
-            return `<div class="sp-section">
-                <div class="sp-section-head"><strong>${kind.label}</strong></div>
-                <div class="sp-notice error">${esc(data.error)}</div>
-            </div>`;
-        }
-
-        const installed = installedOf(kind);
-        const official = officialOf(kind);
-        const installable = official.filter((p) => !p.installed).length;
-
-        const installedCards = installed.map((p) => renderInstalledCard(kind, p)).join('');
-        const officialCards = official
-            .filter((p) => !p.installed)
-            .map((p) => renderOfficialCard(kind, p)).join('');
-
-        return `<div class="sp-section">
-            <div class="sp-section-head">
-                <strong>${kind.label}</strong>
-                <span>已装 ${installed.length} 个包 · ${fmtNum(totalOf(kind))} 个${kind.unit}${installable ? ' · 还有 ' + installable + ' 个可装' : ''}</span>
-                <span style="margin-left:auto">
-                    <button class="asset-btn" type="button" data-cp-import="${kind.key}"><i data-lucide="upload"></i><span>导入 zip</span></button>
-                </span>
-            </div>
-            <div class="sp-hint">${esc(kind.hint)}</div>
-            ${installedCards ? `<div class="sp-grid">${installedCards}</div>` : '<div class="empty-state">还没有安装任何' + kind.label + '</div>'}
-            ${officialCards ? `<div class="sp-section-head" style="margin-top:16px"><strong>可安装</strong><span>装哪个只占哪个的体积</span></div>
-                <div class="sp-grid">${officialCards}</div>` : ''}
-        </div>`;
-    }
-
-    let rootEl = null;
-
     function paint() {
-        if (!rootEl) return;
-        if (!state.loaded && state.loading) {
-            rootEl.innerHTML = '<div class="sp-loading">正在读取内容包…</div>';
-            return;
-        }
-        rootEl.innerHTML = `<section class="asset-panel asset-content">
-            <div class="content-toolbar">
-                <div class="content-heading">
-                    <strong>内容包</strong>
-                    <span>角色与画师数据按需安装，随用随装，不进仓库</span>
-                </div>
-                <div class="asset-tools">
-                    <button class="asset-btn" type="button" data-cp-refresh><i data-lucide="refresh-cw"></i><span>刷新</span></button>
-                </div>
-            </div>
-            <div class="content-scroll">
-                ${state.notice ? `<div class="sp-notice">${esc(state.notice)}</div>` : ''}
-                ${state.error ? `<div class="sp-notice error">${esc(state.error)}</div>` : ''}
-                ${KINDS.map(renderKind).join('')}
-            </div>
-        </section>`;
-        icons();
+        if (!host) return;
+        const disabled = state.busy ? 'disabled' : '';
+        host.innerHTML = `<section class="asset-panel asset-content"><div class="content-toolbar"><div class="content-heading"><strong>内容包管理</strong><span>风格、画师、角色 · 按包安装与更新</span></div></div><div class="content-scroll">
+            <section class="sp-section"><div class="sp-section-head"><strong>GitHub 资产仓库</strong><span>${esc(state.repository.url || '尚未连接仓库')}</span></div><div class="asset-tools">
+            <button class="asset-btn primary" data-cp-action="connect" ${disabled}>${state.repository.url ? '更换仓库' : '加载仓库'}</button>
+            ${state.repository.url ? `<button class="asset-btn" data-cp-action="check" ${disabled}>检查更新${state.repository.updateCount ? '（' + state.repository.updateCount + '）' : ''}</button><button class="asset-btn" data-cp-action="disconnect" ${disabled}>断开仓库</button>` : ''}</div></section>
+            <div class="prompt-filter-bar">${[['all','全部'], ...kinds.map(k => [k.key,k.label])].map(([key,label]) => `<button class="prompt-chip ${state.category === key ? 'is-on' : ''}" data-cp-category="${key}">${label}</button>`).join('')}</div>
+            ${state.notice ? `<div class="sp-notice">${esc(state.notice)}</div>` : ''}${!state.loaded && state.busy ? '<div class="sp-loading">正在读取内容包…</div>' : ''}
+            ${kinds.filter(k => state.category === 'all' || state.category === k.key).map(section).join('')}</div></section>`;
     }
-
-    function kindOf(key) {
-        return KINDS.find((k) => k.key === key);
+    function changed() {
+        window.dispatchEvent(new Event('style-packs-changed'));
+        window.dispatchEvent(new Event('content-packs-changed'));
     }
-
     function onClick(event) {
-        const target = event.target.closest(
-            '[data-cp-install],[data-cp-uninstall],[data-cp-export],[data-cp-import],[data-cp-refresh]');
-        if (!target) return;
-
-        const kind = kindOf(target.dataset.cpKind);
-        if (target.dataset.cpInstall && kind) {
-            installPack(kind, target.dataset.cpInstall);
-        } else if (target.dataset.cpUninstall && kind) {
-            uninstallPack(kind, target.dataset.cpUninstall);
-        } else if (target.dataset.cpExport && kind) {
-            window.open(kind.api + '/packs/' + encodeURIComponent(target.dataset.cpExport) + '/download', '_blank');
-        } else if (target.dataset.cpImport) {
-            pickZipFile(kindOf(target.dataset.cpImport));
-        } else if (target.hasAttribute('data-cp-refresh')) {
-            load(true);
+        const category = event.target.closest('[data-cp-category]');
+        if (category) { state.category = category.dataset.cpCategory; paint(); return; }
+        const button = event.target.closest('[data-cp-action]');
+        if (!button || state.busy) return;
+        const action = button.dataset.cpAction, id = button.dataset.id;
+        const kind = kinds.find(k => k.key === button.dataset.kind);
+        let url = state.repository.url;
+        if (action === 'connect') {
+            url = window.prompt('公开 GitHub 资产仓库地址：', url || 'https://github.com/ARTpace/Art-prompt-library');
+            if (!url?.trim()) return;
         }
+        const pack = state.repository.packs.find(p => p.packId === id);
+        if (action === 'install' && pack?.installed && !window.confirm('更新「' + pack.name + '」？仅替换此包，其他包保留。')) return;
+        if (action === 'uninstall' && !window.confirm('卸载这个内容包？')) return;
+        act(async () => {
+            if (action === 'connect' || action === 'check') {
+                state.repository = await request(API, 'POST', {url:url.trim()});
+                state.notice = '仓库检查完成';
+            } else if (action === 'disconnect') {
+                state.repository = await request(API, 'DELETE');
+                state.notice = '已断开仓库，已安装内容保留';
+            } else if (action === 'install') {
+                await request(API + '/install', 'POST', {packId:id, replace:!!pack?.installed});
+                await load(); changed(); state.notice = '已安装／更新 ' + id;
+            } else if (action === 'uninstall' && kind) {
+                await request(kind.remove + encodeURIComponent(id), 'DELETE');
+                await load(); changed(); state.notice = '已卸载 ' + id;
+            }
+        });
     }
-
     function render(root) {
-        rootEl = root;
-        if (!rootEl.__cpBound) {
-            rootEl.__cpBound = true;
-            rootEl.addEventListener('click', onClick);
-        }
-        load(false);
-        paint();
+        host = root;
+        if (!host.__cpBound) { host.__cpBound = true; host.addEventListener('click', onClick); }
+        paint(); act(() => load(true));
     }
-
-    window.ContentPackManager = { render, reload: () => load(true) };
+    window.ContentPackManager = {render, reload:() => act(() => load(true))};
 })();

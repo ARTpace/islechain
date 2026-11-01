@@ -202,51 +202,40 @@ class PresetSource(RandomSource):
     def load(self):
         """加载预设数据(优先 data/presets/*.json 多文件,旧单文件作 fallback)"""
         try:
-            # 1) 多文件目录(data/presets/*.json)优先
-            files = []
-            if self.presets_dir.exists():
-                files = sorted(self.presets_dir.glob("*.json"))
-            # 2) 兼容旧单文件
-            if not files and self.data_file.exists():
-                files = [self.data_file]
-            if not files:
-                print(f"[PresetSource] 未找到预设数据: 既无 {self.presets_dir} 也无 {self.data_file}")
-                return
-
+            from core.preset_manager import get_all_presets
+            all_data = get_all_presets()
+            data = {'categories': all_data['tag_presets'] + all_data['style_presets']}
             self.items = []
             categories = set()
             seen_keys = set()  # 跨文件去重 name_key
 
-            for fpath in files:
-                with open(fpath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                for category in data.get('categories', []):
-                    category_id = category.get('id', '') or ''
-                    category_name = category.get('name', '') or ''
-                    for subcategory in category.get('subcategories', []):
-                        subcategory_name = subcategory.get('name', '') or ''
-                        for preset in subcategory.get('presets', []):
-                            pid = preset.get('id', '') or ''
-                            pname = preset.get('name', '') or ''
-                            # 跨文件唯一键:category_id::preset_id;无 id 时退回 name
-                            name_key = (f"{category_id}::{pid}" if (category_id and pid) else (pid or pname)).strip()
-                            if not name_key or name_key in seen_keys:
-                                continue
-                            seen_keys.add(name_key)
-                            item = {
-                                "id": pid,
-                                "name": pname,
-                                "name_key": name_key,   # 后端按 name_key 严格匹配,避免同名串号
-                                "prompt": preset.get("prompt", ""),
-                                "categories": []
-                            }
-                            if category_name:
-                                item["categories"].append(category_name)
-                                categories.add(category_name)
-                            if subcategory_name:
-                                item["categories"].append(subcategory_name)
-                                categories.add(subcategory_name)
-                            self.items.append(item)
+            for category in data.get('categories', []):
+                category_id = category.get('id', '') or ''
+                category_name = category.get('name', '') or ''
+                for subcategory in category.get('subcategories', []):
+                    subcategory_name = subcategory.get('name', '') or ''
+                    for preset in subcategory.get('presets', []):
+                        pid = preset.get('id', '') or ''
+                        pname = preset.get('name', '') or ''
+                        # 跨文件唯一键:category_id::preset_id;无 id 时退回 name
+                        name_key = (f"{category_id}::{pid}" if (category_id and pid) else (pid or pname)).strip()
+                        if not name_key or name_key in seen_keys:
+                            continue
+                        seen_keys.add(name_key)
+                        item = {
+                            "id": pid,
+                            "name": pname,
+                            "name_key": name_key,   # 后端按 name_key 严格匹配,避免同名串号
+                            "prompt": preset.get("prompt", ""),
+                            "categories": []
+                        }
+                        if category_name:
+                            item["categories"].append(category_name)
+                            categories.add(category_name)
+                        if subcategory_name:
+                            item["categories"].append(subcategory_name)
+                            categories.add(subcategory_name)
+                        self.items.append(item)
 
             self.categories = sorted(list(categories))
         except Exception as e:
@@ -294,6 +283,11 @@ class RandomSourceManager:
 
     def _ensure_loaded(self):
         """按需加载各源数据——避免 import 阶段解析 10 万+ 条数据拖慢启动"""
+        import style_packs, tag_packs
+        signature = (style_packs.signature(), tag_packs.signature())
+        if getattr(self, '_preset_signature', None) != signature:
+            self._loaded_ids.discard('preset')
+            self._preset_signature = signature
         for sid, source in self.sources.items():
             if sid in self._loaded_ids:
                 continue

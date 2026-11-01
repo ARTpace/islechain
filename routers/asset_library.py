@@ -31,6 +31,7 @@ async def rename_local_asset_folder(payload: _main.LocalAssetFolderRequest, requ
     if os.path.exists(new_abs):
         raise HTTPException(status_code=400, detail="同名文件夹已存在")
     os.rename(abs_path, new_abs)
+    _main.update_unified_local_reference(rel, new_rel)
     tree, items = _main._local_upload_tree_and_items()
     return {"ok": True, "folder": {"path": new_rel, "name": name}, "tree": tree, "items": items}
 
@@ -62,6 +63,7 @@ async def rename_local_asset_item(payload: _main.LocalAssetRenameRequest, reques
     new_classification = _main._local_upload_classification_path(new_rel)
     if os.path.isfile(old_classification) and not os.path.exists(new_classification):
         os.rename(old_classification, new_classification)
+    _main.update_unified_local_reference(rel, new_rel)
     tree, items = _main._local_upload_tree_and_items()
     return {"ok": True, "item": _main._local_upload_item(new_rel), "old_path": rel, "tree": tree, "items": items}
 
@@ -143,6 +145,8 @@ async def rename_asset_library_item(item_id: str, payload: _main.AssetLibraryRen
             for item in cat.get("items", []):
                 if item.get("id") == item_id:
                     item["name"] = _main.sanitize_asset_name(payload.name, item.get("name") or "asset")
+                    if payload.caption is not None:
+                        _main.write_asset_caption(item, payload.caption)
                     _main.save_asset_library(lib)
                     return {"library": lib, "item": item}
     raise HTTPException(status_code=404, detail="资产不存在")

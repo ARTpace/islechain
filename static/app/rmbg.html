@@ -16,7 +16,7 @@
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
     <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
     <script src="/static/modules/gallery/list.js?v=20261031b"></script>
-<script src="/static/modules/gallery/card.js?v=20261028imageedit1"></script>
+<script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
     <script src="/static/modules/gallery/display.js?v=20261031b"></script>
     <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261024008">
@@ -295,6 +295,9 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                                     <option value="">加载模型...</option>
                                 </select>
                                 <div id="modelDescription" class="text-[10px] text-gray-500 mt-1 leading-tight"></div>
+                                <label id="cutoutTargetLabel" hidden class="text-xs mt-2">保留目标（英文）
+                                    <input id="cutoutTarget" class="model-select w-full mt-1" maxlength="2000" placeholder="例如 person、cat、product">
+                                </label>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-bold text-gray-400 uppercase mb-1">背景选项</span>
@@ -368,34 +371,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         const WORKFLOW_CONFIG = {
             name: "一键抠图",
             type: "rmbg",
-            workflow: {
-                "1": {
-                    "inputs": {
-                        "model": "BEN2",
-                        "sensitivity": 1,
-                        "process_res": 1024,
-                        "mask_blur": 0,
-                        "mask_offset": 0,
-                        "invert_output": false,
-                        "refine_foreground": false,
-                        "background": "Alpha",
-                        "background_color": "#222222",
-                        "image": ["3", 0]
-                    },
-                    "class_type": "RMBG",
-                    "_meta": { "title": "去除背景 (RMBG)" }
-                },
-                "3": {
-                    "inputs": { "image": "uploaded_image.png" },
-                    "class_type": "LoadImage",
-                    "_meta": { "title": "加载图像" }
-                },
-                "5": {
-                    "inputs": { "images": ["1", 0] },
-                    "class_type": "PreviewImage",
-                    "_meta": { "title": "预览图像" }
-                }
-            },
+            workflow: {},
             nodeMappings: {
                 "3": { param: "image", label: "输入图像", type: "upload" },
                 "1": {
@@ -508,32 +484,18 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         });
         let uploadedImageName = null;
 
+        let cutoutTargetModels = new Set();
+        let cutoutWorkflowModels = new Set();
         async function loadRMBGModels() {
-            // 硬编码 ComfyUI 中实际可用的 RMBG 模型
-            // 来自 /object_info 端点查询结果
-            const allModels = [
-                { 
-                    node: 'RMBG', 
-                    model: 'BEN2', 
-                    description: '发丝抠图专家，支持4K处理和视频分割，边缘细节处理最佳' 
-                },
-                { 
-                    node: 'RMBG', 
-                    model: 'BEN', 
-                    description: 'BEN2基础版本，适合一般抠图需求，显存占用较低' 
-                },
-                { 
-                    node: 'RMBG', 
-                    model: 'RMBG-2.0', 
-                    description: '通用型模型，电商/广告/游戏场景表现稳定，适合商业用途' 
-                },
-                { 
-                    node: 'RMBG', 
-                    model: 'INSPYRENET', 
-                    description: '复杂背景抠图能手，头发/胡须等细节过渡自然，支持商用' 
-                }
-            ];
-            
+            const response = await fetch('/api/image-cutout/models');
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || '抠图模型读取失败');
+            cutoutTargetModels = new Set(data.target_models || []);
+            cutoutWorkflowModels = new Set(data.workflow_models || []);
+            const allModels = (data.models || []).map(model => ({
+                model, label: data.labels?.[model] || model,
+                description: cutoutTargetModels.has(model) ? '按英文描述提取指定目标；输出透明 PNG' : '自动提取主体；精修方案输出透明 PNG'
+            }));
             // 创建模型描述映射
             const modelDescriptions = {};
             allModels.forEach(({ model, description }) => {
@@ -545,10 +507,10 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             const defaultModel = 'BEN2';
             let hasDefaultModel = false;
             
-            allModels.forEach(({ node, model, description }) => {
+            allModels.forEach(({ node, model, label, description }) => {
                 const option = document.createElement('option');
                 option.value = model;
-                option.textContent = model;
+                option.textContent = label;
                 option.title = `${model}: ${description}`;  // 鼠标悬停显示完整描述
                 modelSelect.appendChild(option);
                 
@@ -570,6 +532,14 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                 const description = modelDescriptions[selectedModel] || '';
                 modelDescEl.textContent = description;
                 modelDescEl.title = description;
+                document.getElementById('cutoutTargetLabel').hidden = !cutoutTargetModels.has(selectedModel);
+                const workflowModel = cutoutWorkflowModels.has(selectedModel);
+                document.getElementById('bgSelect').disabled = workflowModel;
+                document.getElementById('advToggle').disabled = workflowModel;
+                if (workflowModel) {
+                    document.getElementById('bgSelect').value = 'Alpha';
+                    document.getElementById('advPanel').classList.remove('open');
+                }
             };
             
             // 监听模型选择变化
@@ -578,7 +548,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             // 初始化描述显示
             updateModelDescription();
             
-            console.log('已加载硬编码 RMBG 模型列表:', allModels);
+            console.log('已加载可用抠图方案:', allModels);
         }
 
         const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/stats`);
@@ -741,34 +711,23 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             const placeholder = createPlaceholder("抠图处理中");
             document.getElementById('masonry').prepend(placeholder);
             try {
-                const workflowData = JSON.parse(JSON.stringify(WORKFLOW_CONFIG.workflow));
                 const model = modelSelect.value;
                 const background = bgSelect.value;
-
-                workflowData["3"]["inputs"]["image"] = uploadedImageName;
-                workflowData["1"]["inputs"]["model"] = model;
-                
-                // 处理背景类型转换
-                let backgroundType = background;
-                let backgroundColor = workflowData["1"]["inputs"]["background_color"];
-                
-                if (background === 'White') {
-                    backgroundType = 'Color';
-                    backgroundColor = '#fbfaf9';
-                } else if (background === 'Black') {
-                    backgroundType = 'Color';
-                    backgroundColor = '#0b0b0a';
-                } else if (background === 'Alpha') {
-                    backgroundType = 'Alpha';
-                }
-                
-                workflowData["1"]["inputs"]["background"] = backgroundType;
-                workflowData["1"]["inputs"]["background_color"] = backgroundColor;
-                
-                workflowData["1"]["inputs"]["mask_blur"] = parseInt(document.getElementById('maskBlurVal').textContent);
-                workflowData["1"]["inputs"]["mask_offset"] = parseInt(document.getElementById('maskOffsetVal').textContent);
-                workflowData["1"]["inputs"]["invert_output"] = document.getElementById('invertOutputBtn').classList.contains('on');
-                workflowData["1"]["inputs"]["refine_foreground"] = document.getElementById('refineFgBtn').classList.contains('on');
+                const target = document.getElementById('cutoutTarget').value.trim();
+                if (cutoutTargetModels.has(model) && !target) throw new Error('请填写要保留的英文目标');
+                const workflowResponse = await fetch('/api/image-cutout/workflow', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model, image: uploadedImageName, target, background,
+                        mask_blur: parseInt(document.getElementById('maskBlurVal').textContent),
+                        mask_offset: parseInt(document.getElementById('maskOffsetVal').textContent),
+                        invert_output: document.getElementById('invertOutputBtn').classList.contains('on'),
+                        refine_foreground: document.getElementById('refineFgBtn').classList.contains('on')
+                    })
+                });
+                if (!workflowResponse.ok) throw new Error((await workflowResponse.json()).detail || '抠图工作流加载失败');
+                const workflowData = (await workflowResponse.json()).workflow;
+                WORKFLOW_CONFIG.workflow = workflowData;
 
                 currentPromptId = generateUUID();
                 const wsUrl = buildWsUrl();
