@@ -21,6 +21,8 @@ _SCRIPT = (
     "uvicorn.run = lambda *a, **k: None\n"
     "g = runpy.run_path('main.py', run_name='__main__')\n"
     "print('ROUTES', len(g['app'].routes))\n"
+    "paths = {getattr(route, 'path', '') for route in g['app'].routes}\n"
+    "assert {'/api/mcp/node-catalog', '/api/mcp/node-run', '/api/mcp/comfy-builds', '/api/generate'} <= paths\n"
 )
 
 
@@ -34,7 +36,8 @@ def test_script_entry_startup():
         timeout=300,
     )
     assert r.returncode == 0, "脚本直跑失败:\n" + r.stderr[-2000:]
-    assert "ROUTES 288" in r.stdout, "路由数与基线不符:\n" + r.stdout[-1000:]
+    # Exact route counts are covered by test_route_inventory; feature additions must not break startup.
+    assert "ROUTES " in r.stdout, "未得到完整路由表:\n" + r.stdout[-1000:]
 
 
 def test_main_alias_registered_before_router_import():

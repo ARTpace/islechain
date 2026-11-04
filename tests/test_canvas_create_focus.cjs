@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const src=fs.readFileSync('static/js/canvas.js','utf8');
+let tick,saved=0,removed=0,reduced=false;
+const c={window:{matchMedia:()=>({matches:reduced}),devicePixelRatio:1},board:{style:{backgroundImage:''},getBoundingClientRect:()=>({width:1200,height:800})},viewport:{x:0,y:0,scale:1},estimatedNodeRect:n=>n,document:{createElement:()=>({getContext:()=>null,setAttribute(){},style:{},remove(){removed++}})},getComputedStyle:()=>({getPropertyValue:()=>''}),performance:{now:()=>0},requestAnimationFrame:f=>(tick=f,1),cancelAnimationFrame(){tick=null},applyViewport(){},scheduleViewportSave(){saved++},Math};
+vm.createContext(c);vm.runInContext(src.slice(src.indexOf('let createdNodeEffect ='),src.indexOf('function closeCreateMenu(')),c);
+const node={x:1000,y:800,w:300,h:200};c.focusCreatedNode(node);tick(240);
+assert(c.viewport.x<0&&c.viewport.x>-550,'focus interpolates rather than jumping');
+tick(1000);assert.equal(c.viewport.x,-550);assert.equal(c.viewport.y,-500);assert.equal(saved,1);assert.equal(removed,1);
+c.focusCreatedNode(node);c.stopCreatedNodeEffect();assert.equal(tick,null,'manual interaction cancels animation');
+reduced=true;c.focusCreatedNode({...node,w:2000});assert(c.viewport.scale<1,'large cards fit without animation when reduced motion is enabled');
+console.log('CANVAS_CREATE_FOCUS_OK');

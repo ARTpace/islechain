@@ -1,0 +1,98 @@
+{
+ "title": "四视图",
+ "description": "一张角色图 → 正视 / 侧视 / 背视 / 人脸特写四张纯白背景设定图，约 50 秒",
+ "fields": [
+  {
+   "id": "image",
+   "name": "角色参考图",
+   "type": "image",
+   "node": "8",
+   "input": "image"
+  },
+  {
+   "id": "prompt_front",
+   "name": "正视图提示词",
+   "type": "textarea",
+   "node": "100",
+   "input": "prompt",
+   "default": "创建该角色的正视图，纯白色背景上的全身站姿，双眼平视镜头，双臂自然下垂。严格保持参考图人物的面部五官、发色发型、服装款式与材质、身体纹样完全一致。",
+   "standalone": true
+  },
+  {
+   "id": "prompt_side",
+   "name": "侧视图提示词",
+   "type": "textarea",
+   "node": "110",
+   "input": "prompt",
+   "default": "创建该角色的右侧面视图，纯白色背景上的全身站姿，身体朝向画面右侧。严格保持参考图人物的面部五官、发色发型、服装款式与材质、身体纹样完全一致。",
+   "standalone": true
+  },
+  {
+   "id": "prompt_back",
+   "name": "背视图提示词",
+   "type": "textarea",
+   "node": "120",
+   "input": "prompt",
+   "default": "创建该角色的背视图，纯白色背景上的全身站姿，背对镜头，身形挺直。双臂自然下垂贴在身体两侧，双手垂在身后，不要抬手臂。严格保持参考图人物的发型、服装背面款式与材质、身体纹样完全一致。",
+   "standalone": true
+  },
+  {
+   "id": "prompt_face",
+   "name": "人脸特写提示词",
+   "type": "textarea",
+   "node": "130",
+   "input": "prompt",
+   "default": "创建该角色的人脸特写正视图，纯白色背景，面部占满画面。严格保持参考图人物的五官比例、肤色、发色与发型完全一致。",
+   "standalone": true
+  },
+  {
+   "id": "lora_strength",
+   "name": "一致性强度",
+   "type": "number",
+   "node": "2",
+   "input": "strength_model",
+   "default": 0.85,
+   "min": 0,
+   "max": 2,
+   "step": 0.05
+  },
+  {
+   "id": "steps",
+   "name": "每张步数",
+   "type": "number",
+   "node": [
+    "102",
+    "112",
+    "122",
+    "132"
+   ],
+   "input": "steps",
+   "default": 4,
+   "min": 4,
+   "max": 20,
+   "step": 1
+  },
+  {
+   "id": "width",
+   "name": "宽",
+   "type": "number",
+   "node": "11",
+   "input": "width",
+   "default": 832,
+   "min": 512,
+   "max": 2048,
+   "step": 64
+  },
+  {
+   "id": "height",
+   "name": "高",
+   "type": "number",
+   "node": "11",
+   "input": "height",
+   "default": 1216,
+   "min": 512,
+   "max": 2048,
+   "step": 64
+  }
+ ]
+}

@@ -75,14 +75,12 @@ async def run_canvas_image_task(task_id: str, payload: _main.OnlineImageRequest,
 @router.post("/api/canvas-image-tasks")
 async def create_canvas_image_task(payload: _main.OnlineImageRequest, token: str = ""):
     task_id = f"canvas_img_{uuid.uuid4().hex}"
-    username = _main.require_valid_token(token) if token else None
-    try:
-        user_id = _main.account_dirname()
-    except Exception:
-        user_id = ""
+    username = _main.require_valid_token(token)
+    user_id = _main.account_dirname(username)
     with _main.CANVAS_TASK_LOCK:
         _main.CANVAS_TASKS[task_id] = {
             "id": task_id,
+            "owner": username,
             "type": "online-image",
             "status": "queued",
             "progress": {"source": "local", "stage": "queued", "progress": None},
@@ -95,11 +93,14 @@ async def create_canvas_image_task(payload: _main.OnlineImageRequest, token: str
     return {"task_id": task_id, "status": "queued"}
 
 @router.get("/api/canvas-image-tasks/{task_id}")
-async def get_canvas_image_task(task_id: str):
+async def get_canvas_image_task(task_id: str, token: str = ""):
+    username = _main.require_valid_token(token)
     with _main.CANVAS_TASK_LOCK:
         task = dict(_main.CANVAS_TASKS.get(task_id) or {})
     if not task:
         raise HTTPException(status_code=404, detail="画布任务不存在,可能服务已重启或任务已过期")
+    if task.get('owner') != username:
+        raise HTTPException(status_code=403, detail="无权访问此图片任务")
     task['elapsed_ms'] = max(0, round(((task.get('updated_at') if task['status'] in ('succeeded', 'failed') else time.time()) - task['created_at']) * 1000))
     return task
 
@@ -115,6 +116,28 @@ async def canvas_llm(payload: _main.CanvasLLMRequest):
         if role in {"user", "assistant"} and content:
             upstream_messages.append({"role": role, "content": content})
     upstream_messages.append({"role": "user", "content": payload.message})
+    # 画布节点连过来的参考图（/assets/... 或 /output/...）转成 data URL，走多模态 content
+    image_parts = []
+    for url in (payload.images or [])[:6]:
+        url = str(url or "")
+        if url.startswith(("http://", "https://", "data:")):
+            image_parts.append({"type": "image_url", "image_url": {"url": url}})
+            continue
+        path = _main.output_file_from_url(url)
+        if not path:
+            continue
+        try:
+            image_parts.append({"type": "image_url", "image_url": {"url": _main.image_path_to_data_url(path, max_size=1024)}})
+        except Exception as exc:
+            print(f"canvas-llm 参考图读取失败 {url}: {exc}")
+    text = payload.message
+    if payload.videos:
+        names = [os.path.basename(str(url).split("?")[0]) for url in payload.videos[:6]]
+        text = f"{text}\n\n（已连接的视频参考：{'、'.join(names)}；当前模型无法直接观看视频画面）"
+    if image_parts:
+        upstream_messages[-1]["content"] = [{"type": "text", "text": text}, *image_parts]
+    elif text != payload.message:
+        upstream_messages[-1]["content"] = text
     try:
         async with httpx.AsyncClient(timeout=_main.AI_REQUEST_TIMEOUT) as client:
             response = await client.post(

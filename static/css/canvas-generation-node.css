@@ -1,0 +1,88 @@
+.imageGen-node .node-body{padding:0 14px 12px}
+.imageGen-node{min-width:340px}
+.imagegen-composer{display:flex;flex-direction:column;gap:10px;color:var(--text);font-size:12px}
+.imagegen-control{font:inherit;color:var(--text);background:var(--soft);border:1px solid var(--line);border-radius:8px;min-height:32px;padding:6px 10px;cursor:pointer;text-align:left;transition:background .15s,border-color .15s}
+.imagegen-control:hover{background:var(--soft-2);border-color:var(--line-2)}
+.imagegen-control:disabled{opacity:.45;cursor:not-allowed}
+.imagegen-control:focus-visible,.imagegen-panel input:focus-visible,.imagegen-panel textarea:focus-visible,.imagegen-panel select:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+.imagegen-model{min-width:0;background:transparent;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imagegen-input{display:flex;flex-direction:column;gap:8px;min-height:128px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.imagegen-input:focus-within{border-color:var(--muted)}
+.imagegen-prompt{display:block;width:100%;min-height:100px;resize:vertical;border:0;border-radius:0;padding:0;background:transparent;color:var(--text);font:inherit;line-height:1.65;user-select:text}
+.imagegen-input.has-inputs .imagegen-prompt{min-height:44px}
+.imagegen-prompt::placeholder{color:var(--faint)}
+.imagegen-tools,.imagegen-bottom{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.imagegen-tools .imagegen-control{background:transparent;border-color:transparent;min-height:28px;color:var(--muted);padding:4px 8px}
+.imagegen-tools .imagegen-control:hover{background:var(--soft)}
+.imagegen-bottom{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.imagegen-summary{font-size:11px;font-variant-numeric:tabular-nums}
+.imagegen-generate{background:var(--strong);color:var(--strong-text);border-color:var(--strong);min-width:64px;text-align:center;font-weight:600}
+.imagegen-generate:hover{background:var(--strong);filter:brightness(.9);border-color:var(--strong)}
+.imagegen-status,.imagegen-context,.imagegen-hint{color:var(--faint);font-size:11px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.imagegen-context{white-space:pre-wrap;max-height:96px;overflow:auto;color:var(--text);font-size:12px;line-height:1.65;user-select:text}
+.imagegen-context[hidden]{display:none}
+.imagegen-references{display:flex;gap:8px;flex-wrap:wrap}
+.imagegen-references[hidden]{display:none}
+.imagegen-reference{position:relative;width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
+.imagegen-reference img{width:100%;height:100%;object-fit:cover;border-radius:7px}
+.imagegen-reference span{position:absolute;bottom:0;left:0;right:0;text-align:center;background:var(--card-solid);color:var(--muted);font-size:9px}
+.imagegen-remove{position:absolute;top:-6px;right:-6px;border-radius:50%;padding:0;width:19px;min-height:19px;text-align:center;background:var(--card-solid);font-size:12px}
+.imagegen-composer.is-drop-target{outline:2px dashed var(--muted);outline-offset:4px;border-radius:10px}
+.imagegen-panel{position:fixed;z-index:30000;background:var(--card-solid);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 60px var(--shadow);font:12px/1.5 Inter,-apple-system,sans-serif;display:flex;flex-direction:column;max-height:calc(100vh - 24px);overflow:hidden}
+.imagegen-panel header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--line);gap:12px;flex-shrink:0}
+.imagegen-panel header strong{display:block;font-size:14px;font-weight:600}
+.imagegen-panel header small{display:block;color:var(--faint);margin-top:3px;font-size:11px}
+.imagegen-panel-close{border:0;background:transparent;font-size:20px;padding:0 8px;flex-shrink:0}
+.imagegen-panel-content{overflow:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
+.imagegen-floating{top:50%;left:50%;transform:translate(-50%,-50%);width:min(1000px,calc(100vw - 40px));height:min(680px,calc(100vh - 100px));max-height:calc(100vh - 32px)}
+.imagegen-floating .imagegen-panel-content{flex:1}
+.imagegen-library-host{padding:0;overflow:hidden}
+.imagegen-library-host iframe{width:100%;height:100%;flex:1;border:0;display:block;background:var(--card-solid)}
+.imagegen-lora-host{padding:0;overflow:hidden}
+.imagegen-lora-host #loraPickerShell{position:relative;inset:auto;width:100%;height:100%;flex:1;min-height:0;padding:0;background:transparent;backdrop-filter:none;z-index:auto}
+.imagegen-lora-host .lora-picker-window{width:100%;height:100%;max-height:none;max-width:none;border:0;border-radius:0;box-shadow:none;background:var(--card-solid);color:var(--text);animation:none}
+.imagegen-lora-host .lora-picker-header,.imagegen-lora-host .lora-picker-sidebar,.imagegen-lora-host .lora-picker-footer,.imagegen-lora-host .lora-picker-selected-bar{background:var(--soft);border-color:var(--line);color:var(--text)}
+.imagegen-lora-host .lora-picker-search{background:var(--card-solid);color:var(--text);border-color:var(--line)}
+.imagegen-section{margin:0 0 16px}
+.imagegen-section:last-child{margin-bottom:0}
+.imagegen-section h4{font-size:11px;letter-spacing:.02em;color:var(--muted);margin:0 0 9px;font-weight:500;overflow-wrap:anywhere}
+.imagegen-choices{display:flex;flex-wrap:wrap;gap:6px}
+.imagegen-choices .imagegen-control{min-width:50px;text-align:center;background:transparent}
+.imagegen-panel [aria-pressed="true"]{border-color:var(--strong);color:var(--strong);background:var(--soft-2)}
+.imagegen-field{display:flex;flex-direction:column;gap:7px;margin:10px 0}
+.imagegen-field span{font-size:11px;color:var(--muted)}
+.imagegen-panel input,.imagegen-panel select,.imagegen-panel textarea{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--text);padding:9px 10px;font:inherit;min-width:0}
+.imagegen-panel textarea{min-height:96px;resize:vertical}
+.imagegen-panel input[type="file"][hidden]{display:none}
+.imagegen-model-option{display:block;width:100%;margin:4px 0;background:transparent;overflow-wrap:anywhere}
+.imagegen-asset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.imagegen-asset{padding:4px;aspect-ratio:1;overflow:hidden}
+.imagegen-asset img{width:100%;height:100%;object-fit:contain;border-radius:5px}
+.imagegen-prompt-list{display:flex;flex-direction:column;gap:10px}
+.imagegen-prompt-item{padding:12px;border:1px solid var(--line);border-radius:10px}
+.imagegen-prompt-item strong{font-weight:600}
+.imagegen-prompt-item p{color:var(--muted);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:130px;overflow:auto}
+@media(max-width:600px){.imagegen-floating{width:calc(100vw - 16px);height:calc(100vh - 100px)}}
+
+.imagegen-model-dropdown{border-radius:9px;box-shadow:0 6px 20px var(--shadow);max-height:min(480px,calc(100vh - 24px))}
+.imagegen-model-dropdown .imagegen-panel-content{padding:8px;gap:8px;overflow:hidden}
+.imagegen-model-search{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.imagegen-model-search .imagegen-search{flex:1}
+.imagegen-model-refresh{flex-shrink:0;width:34px;min-height:34px;padding:0;text-align:center;font-size:20px}
+.imagegen-model-list{overflow:auto;min-height:0;overscroll-behavior:contain}
+.imagegen-model-list .imagegen-section{margin-bottom:12px}
+.imagegen-model-list h4{padding:4px 8px;margin:0}
+.imagegen-model-option{border-color:transparent;margin:0;border-radius:5px;padding:7px 9px;min-height:32px}
+
+.imagegen-model-option{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.imagegen-model-badge{flex-shrink:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 6px;border-radius:20px;background:var(--soft-2);color:var(--muted);font-size:10px;font-weight:600}
+
+.imagegen-options-panel{--ui-panel:var(--card-solid);--ui-text:var(--text);--ui-muted:var(--muted);--ui-line:var(--line);--ui-soft:var(--soft);padding:0;z-index:30000}
+.imagegen-options-panel .imagegen-panel-content{padding:16px;gap:18px}
+.imagegen-options-panel .imagegen-section{margin:0}
+.imagegen-options-panel .imagegen-section:has(>.generation-options-section)>h4{display:none}
+.imagegen-options-panel .generation-options-section h3{font-size:12px;color:var(--muted)}
+.imagegen-options-panel .generation-options-segments [aria-pressed="true"]{color:inherit;border:0;background:color-mix(in srgb,currentColor 13%,transparent)}
+
+/* The outer input owns the focus indicator; suppress the theme textarea ring. */
+html body .shell .imagegen-input .imagegen-prompt:focus{outline:none !important;border:0 !important;box-shadow:none !important}

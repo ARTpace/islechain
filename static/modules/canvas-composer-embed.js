@@ -1,6 +1,6 @@
 // Loaded only by the canvas embed; all controls and generation still belong to zimage.html.
 (function () {
-    if(new URLSearchParams(location.search).get('canvasComposer')!=='1' || parent===window)return;
+    if(new URLSearchParams(location.search).get('canvasComposer')!=='1' || new URLSearchParams(location.search).get('imageNode')==='1' || parent===window)return;
     let context=null,active=null,loading=false;
     const send=data=>parent.postMessage(data,location.origin);
     const prompt=document.getElementById('prompt');

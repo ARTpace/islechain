@@ -451,7 +451,6 @@ html.studio-theme-dark body .gate-create-row,
 html.studio-theme-dark body .gate-actions,
 html.studio-theme-dark body .trash-note,
 html.studio-theme-dark body .emoji-picker,
-html.studio-theme-dark body .create-menu,
 html.studio-theme-dark body .selection-hub,
 html.studio-theme-dark body .output-preview,
 body.studio-theme-dark .canvas-preview-mark,
@@ -464,7 +463,6 @@ body.studio-theme-dark .gate-create-row,
 body.studio-theme-dark .gate-actions,
 body.studio-theme-dark .trash-note,
 body.studio-theme-dark .emoji-picker,
-body.studio-theme-dark .create-menu,
 body.studio-theme-dark .selection-hub,
 body.studio-theme-dark .output-preview {
     background: #161616 !important;
@@ -1658,4 +1656,39 @@ html.studio-theme-dark body .shell .comfy-random-btn.active svg,
 body.studio-theme-dark .shell .comfy-random-btn.active svg {
     fill: none !important;
     stroke: #171717 !important;
+}
+
+/* ===== 画布右键菜单：面板底色 + 外观强调色（--accent），替掉 UA 深色块 ===== */
+html.studio-theme-dark body .create-menu,
+body.studio-theme-dark .create-menu {
+    --cm-accent: var(--accent, var(--ui-accent, #06b6d4));
+    background: var(--ui-panel, #14161c) !important;
+    border-color: color-mix(in srgb, var(--cm-accent) 16%, var(--ui-line-strong, #2b3140)) !important;
+    box-shadow: 0 22px 54px rgba(0, 0, 0, .58), 0 0 26px color-mix(in srgb, var(--cm-accent) 10%, transparent) !important;
+}
+html.studio-theme-dark body .create-menu .menu-btn,
+body.studio-theme-dark .create-menu .menu-btn {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: var(--ui-text, #e9e7e1) !important;
+}
+html.studio-theme-dark body .create-menu .menu-btn i,
+body.studio-theme-dark .create-menu .menu-btn i,
+html.studio-theme-dark body .create-menu .menu-btn svg,
+body.studio-theme-dark .create-menu .menu-btn svg {
+    color: color-mix(in srgb, var(--cm-accent) 42%, var(--ui-text, #e9e7e1)) !important;
+    stroke: color-mix(in srgb, var(--cm-accent) 42%, var(--ui-text, #e9e7e1)) !important;
+}
+html.studio-theme-dark body .create-menu .menu-section-title,
+body.studio-theme-dark .create-menu .menu-section-title {
+    color: var(--ui-muted, #8b8b84) !important;
+}
+html.studio-theme-dark body .create-menu .menu-divider,
+body.studio-theme-dark .create-menu .menu-divider {
+    background: color-mix(in srgb, var(--cm-accent) 18%, transparent) !important;
+}
+html.studio-theme-dark body .create-menu .menu-btn:hover:not(:disabled),
+body.studio-theme-dark .create-menu .menu-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--cm-accent) 18%, transparent) !important;
+    color: color-mix(in srgb, var(--cm-accent) 62%, #ffffff) !important;
 }

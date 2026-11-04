@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+class Element{constructor(tag){this.tag=tag;this.children=[];this.style={};this.value='';}append(...items){this.children.push(...items);}setAttribute(key,value){this[key]=value;}}
+const definition={typeId:'audio.copy',version:'1.0.0',fields:[],execution:{kind:'worker.python',media:true},ports:{inputs:[{id:'sound',type:'audio'}],outputs:[{id:'sound',type:'audio'}]}};
+const videoDefinition={...definition,typeId:'video.copy',ports:{inputs:[{id:'clip',type:'video'}],outputs:[{id:'clip',type:'video'}]}};
+const ref={id:'audio-id',kind:'audio',url:'/output/sound.wav',frames:800};let request;
+const c={window:{},document:{createElement:tag=>new Element(tag),addEventListener(){}},nodes:[],connections:[],render(){},scheduleSave(){},pushUndo(){},crypto:{randomUUID:()=> 'run'},
+fetch:async(url,options)=>{if(url.endsWith('node-catalog'))return {ok:true,json:async()=>({definitions:[definition,videoDefinition],hashes:{'audio.copy@1.0.0':'hash','video.copy@1.0.0':'video-hash'}})};request=JSON.parse(options.body);return {ok:true,json:async()=>({outputs:{text:'',images:[],ports:{sound:ref}}})};}};
+vm.createContext(c);vm.runInContext(fs.readFileSync('static/js/canvas-node-catalog.js','utf8'),c);
+(async()=>{const api=c.window.CanvasNodeCatalog;await api.load();const node={id:'target',type:'extension'};api.initialize(node,definition);c.nodes.push(node);node.extensionPortInputs={sound:ref};
+assert.equal(api.mappedInputs(node).sound.id,'audio-id');await api.execute(node);assert.equal(request.portInputs.sound,'audio-id');
+const body=api.body(node);assert(body.children.some(child=>child.tag==='audio'&&child.src===ref.url));assert(body.children.some(child=>child.children?.some(item=>item.type==='file'&&item.accept.includes('.wav'))));
+const upstream={...node,id:'source'};node.extensionPortInputs={};c.nodes.push(upstream);c.connections.push({from:'source',to:'target',bindings:[{source:'sound',target:'sound'}]});assert.equal(api.mappedInputs(node).sound.kind,'audio');
+const media={id:'media',type:'image',mediaKind:'audio',url:'/output/imported.wav'};c.nodes.push(media);c.connections=[{from:'media',to:'target',bindings:[{source:'audio',target:'sound'}]}];
+assert.equal(api.ports(media,'outputs')[0].type,'audio');assert.equal(api.mappedInputs(node).sound.url,media.url);
+const speech={id:'speech',type:'gameSpeech',projectId:'project',audioAssetId:'asset'};c.nodes.push(speech);
+c.window.GamePipeline={project:{id:'project',mediaAssets:[{id:'asset',contentHash:'first'}]}};
+c.connections=[{from:'speech',to:'target',bindings:[{source:'audio',target:'sound'}]}];
+assert.equal(api.mappedInputs(node).sound.url,'/api/game-projects/project/workspace/media-assets/asset/content');
+assert.equal(api.mappedInputs(node).sound.contentHash,'first');c.window.GamePipeline.project.id='other';assert.throws(()=>api.mappedInputs(node),/没有输出/);
+const video={id:'video-target',type:'extension'};api.initialize(video,videoDefinition);c.nodes.push(video);
+const clip={id:'clip-id',kind:'video',url:'/output/clip.mp4'};
+video.extensionPortOutputs={clip};
+const videoBody=api.body(video);
+assert(videoBody.children.some(child=>child.tag==='video'&&child.src===clip.url));
+assert(videoBody.children.some(child=>child.children?.some(item=>item.type==='file'&&item.accept==='.mp4,video/mp4'&&item['aria-label']==='上传视频 clip')));
+const legacyVideo={id:'legacy-video',type:'video',url:clip.url};c.nodes.push(legacyVideo);
+c.mediaRefsFromNode=source=>[{kind:'video',url:source.url}];
+c.connections=[{from:'legacy-video',to:video.id,bindings:[{source:'video',target:'clip',index:0}]}];
+assert.equal(api.mappedInputs(video).clip.kind,'video');
+console.log('CANVAS_AUDIO_PORTS_OK');})().catch(error=>{console.error(error);process.exitCode=1;});

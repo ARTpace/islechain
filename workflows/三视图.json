@@ -1,0 +1,386 @@
+{
+ "1": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "qwen-image-2.1\\qwen_image_2.1_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "主模型 Qwen-Image-2.1"
+  }
+ },
+ "2": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "lora_name": "qwen2.1\\Qwen-Image-2.1 NSW Image Edit.safetensors",
+   "strength_model": 0.85,
+   "model": [
+    "1",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "一致性 LoRA"
+  }
+ },
+ "3": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "lora_name": "qwen2.1\\Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors",
+   "strength_model": 1.0,
+   "model": [
+    "2",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "4 步加速 LoRA"
+  }
+ },
+ "4": {
+  "class_type": "ModelSamplingAuraFlow",
+  "inputs": {
+   "shift": 3.1,
+   "model": [
+    "3",
+    0
+   ]
+  }
+ },
+ "5": {
+  "class_type": "CFGNorm",
+  "inputs": {
+   "strength": 1.0,
+   "model": [
+    "4",
+    0
+   ]
+  }
+ },
+ "6": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+   "type": "qwen_image",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "文本编码器（必须 8b）"
+  }
+ },
+ "7": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+  }
+ },
+ "8": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "art_canvas_sample_person.png"
+  },
+  "_meta": {
+   "title": "角色参考图"
+  }
+ },
+ "9": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "6",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "7",
+    0
+   ],
+   "image1": [
+    "8",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "负向条件"
+  }
+ },
+ "10": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "9",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  }
+ },
+ "11": {
+  "class_type": "EmptySD3LatentImage",
+  "inputs": {
+   "width": 832,
+   "height": 1216,
+   "batch_size": 1
+  }
+ },
+ "100": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "6",
+    0
+   ],
+   "prompt": "创建该角色的正视图，纯白色背景上的全身站姿，双眼平视镜头，双臂自然下垂。严格保持参考图人物的面部五官、发色发型、服装款式与材质、身体纹样完全一致。一致的照明和风格，没有背景噪音，没有阴影。",
+   "vae": [
+    "7",
+    0
+   ],
+   "image1": [
+    "8",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "正视图提示词"
+  }
+ },
+ "101": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "100",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  }
+ },
+ "102": {
+  "class_type": "KSampler",
+  "inputs": {
+   "seed": 1234567,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1.0,
+   "model": [
+    "5",
+    0
+   ],
+   "positive": [
+    "101",
+    0
+   ],
+   "negative": [
+    "10",
+    0
+   ],
+   "latent_image": [
+    "11",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "正视图采样"
+  }
+ },
+ "103": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "102",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  }
+ },
+ "104": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "threeview_front",
+   "images": [
+    "103",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "正视图输出"
+  }
+ },
+ "110": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "6",
+    0
+   ],
+   "prompt": "创建该角色的右侧面视图，纯白色背景上的全身站姿，身体朝向画面右侧。严格保持参考图人物的面部五官、发色发型、服装款式与材质、身体纹样完全一致。一致的照明和风格，没有背景噪音，没有阴影。",
+   "vae": [
+    "7",
+    0
+   ],
+   "image1": [
+    "8",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "侧视图提示词"
+  }
+ },
+ "111": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "110",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  }
+ },
+ "112": {
+  "class_type": "KSampler",
+  "inputs": {
+   "seed": 1234568,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1.0,
+   "model": [
+    "5",
+    0
+   ],
+   "positive": [
+    "111",
+    0
+   ],
+   "negative": [
+    "10",
+    0
+   ],
+   "latent_image": [
+    "11",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "侧视图采样"
+  }
+ },
+ "113": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "112",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  }
+ },
+ "114": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "threeview_side",
+   "images": [
+    "113",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "侧视图输出"
+  }
+ },
+ "120": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "6",
+    0
+   ],
+   "prompt": "创建该角色的背视图，纯白色背景上的全身站姿，背对镜头，身形挺直。双臂自然下垂贴在身体两侧，双手垂在身后，不要抬手臂。严格保持参考图人物的发型、服装背面款式与材质、身体纹样完全一致。一致的照明和风格，没有背景噪音，没有阴影。",
+   "vae": [
+    "7",
+    0
+   ],
+   "image1": [
+    "8",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "背视图提示词"
+  }
+ },
+ "121": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "120",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  }
+ },
+ "122": {
+  "class_type": "KSampler",
+  "inputs": {
+   "seed": 1234569,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1.0,
+   "model": [
+    "5",
+    0
+   ],
+   "positive": [
+    "121",
+    0
+   ],
+   "negative": [
+    "10",
+    0
+   ],
+   "latent_image": [
+    "11",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "背视图采样"
+  }
+ },
+ "123": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "122",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  }
+ },
+ "124": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "threeview_back",
+   "images": [
+    "123",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "背视图输出"
+  }
+ }
+}

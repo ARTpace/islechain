@@ -60,6 +60,24 @@ def _router_files():
     return sorted(p for p in ROUTERS.glob("*.py") if p.name != "__init__.py")
 
 
+def _router_module_files():
+    """只包含真正导出 `router` 的模块。
+
+    工厂模块（无 `router` 属性，如 content_pack_routes）由调用方把路由
+    注册进别的 router，不参与「main.py 必须 include」的契约。
+    """
+    result = []
+    for path in _router_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "router" for t in node.targets
+            ):
+                result.append(path)
+                break
+    return result
+
+
 def test_main_reference_targets_exist():
     """routers 里所有 `_main.X` 都必须在 main.py 顶层存在。"""
     have = _main_top_level_names(MAIN.read_text(encoding="utf-8"))
@@ -87,7 +105,11 @@ def test_import_variable_matches_file_stem():
 
 
 def test_every_router_is_wired():
-    """routers/ 下的每个模块都必须被 main.py 导入并 include_router。"""
+    """routers/ 下每个导出 router 的模块都必须被 main.py 导入并 include_router。
+
+    例外：工厂模块（content_pack_routes）不导出 router，路由由调用方注册到
+    别的 router 上，因此不参与本契约。
+    """
     src = MAIN.read_text(encoding="utf-8")
     imported, included = set(), set()
     for node in ast.walk(ast.parse(src)):
@@ -98,14 +120,18 @@ def test_every_router_is_wired():
               and node.func.attr == "include_router" and node.args
               and isinstance(node.args[0], ast.Name)):
             included.add(node.args[0].id)
-    stems = {p.stem for p in _router_files()}
+    stems = {p.stem for p in _router_module_files()}
     assert stems - imported == set(), "未被 main.py 导入的 router：%s" % sorted(stems - imported)
     assert stems - included == set(), "未被 include_router 的 router：%s" % sorted(stems - included)
 
 
 def test_lazy_router_package_exports():
-    """routers/__init__.py 的 _SUBROUTERS 必须覆盖全部子模块。"""
+    """routers/__init__.py 的 _SUBROUTERS 必须覆盖全部导出 router 的子模块。
+
+    工厂模块（content_pack_routes）不导出 router，放进 _SUBROUTERS 会让
+    PEP 562 的 __getattr__ 在 getattr(mod, "router") 上抛 AttributeError。
+    """
     src = (ROUTERS / "__init__.py").read_text(encoding="utf-8")
     declared = set(re.findall(r'^\s+"([a-z_][a-z0-9_]*)",\s*$', src, re.MULTILINE))
-    stems = {p.stem for p in _router_files()}
+    stems = {p.stem for p in _router_module_files()}
     assert stems - declared == set(), "routers/__init__.py 缺少：%s" % sorted(stems - declared)

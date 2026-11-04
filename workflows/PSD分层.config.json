@@ -1,0 +1,86 @@
+{
+  "title": "PSD 分层",
+  "description": "本地 Qwen-Image-Layered 分层：一张图 → 图层预览 + 可编辑 PSD（无需在线服务）",
+  "fields": [
+    {
+      "id": "image",
+      "name": "参考图",
+      "type": "image",
+      "node": "1",
+      "input": "image"
+    },
+    {
+      "id": "prompt",
+      "name": "提示词",
+      "type": "textarea",
+      "node": "2",
+      "input": "prompt",
+      "default": "一位角色立绘，纯色背景，主体完整居中，细节清晰"
+    },
+    {
+      "id": "layers",
+      "name": "图层数",
+      "type": "number",
+      "node": "2",
+      "input": "layers",
+      "default": 4,
+      "min": 2,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "id": "steps",
+      "name": "步数",
+      "type": "number",
+      "node": "2",
+      "input": "steps",
+      "default": 4,
+      "min": 1,
+      "max": 20,
+      "step": 1
+    },
+    {
+      "id": "width",
+      "name": "宽",
+      "type": "number",
+      "node": "2",
+      "input": "panel_width",
+      "default": 640,
+      "min": 256,
+      "max": 2048,
+      "step": 32
+    },
+    {
+      "id": "height",
+      "name": "高",
+      "type": "number",
+      "node": "2",
+      "input": "panel_height",
+      "default": 960,
+      "min": 256,
+      "max": 2048,
+      "step": 32
+    },
+    {
+      "id": "size_mode",
+      "name": "尺寸来源",
+      "type": "dropdown",
+      "node": "2",
+      "input": "size_mode",
+      "default": "面板尺寸",
+      "options": ["面板尺寸", "原图尺寸"]
+    },
+    {
+      "id": "seed",
+      "name": "种子",
+      "type": "number",
+      "node": "2",
+      "input": "seed",
+      "default": 0,
+      "min": 0,
+      "max": 4294967295,
+      "step": 1,
+      "random_enabled": true
+    }
+  ]
+}

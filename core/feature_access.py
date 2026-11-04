@@ -8,7 +8,7 @@ from .user_paths import user_data_dir
 
 MODULES = frozenset(('chat-gen','training','generation-dashboard','canvas','asset-manager',
     'zimage','klein','angle','cgstyle','2dstyle','watermark-removal','rmbg','gaoqingxiufu',
-    'kuotu','promptgen','textmatting','yichuwuti','poster','tts','litevideo'))
+    'kuotu','promptgen','textmatting','yichuwuti','poster','tts','litevideo','threeview'))
 COMFY_MODULES = MODULES - {'training','generation-dashboard','canvas','asset-manager'}
 router = APIRouter()
 
@@ -55,6 +55,8 @@ async def set_feature_access(request: Request):
 async def required_modules(request):
     """Alternatives for shared execution APIs; distinct pages keep distinct switches."""
     path = request.url.path
+    if path == '/api/game-projects' or path.startswith('/api/game-projects/'):
+        return {'canvas'}
     if path == '/static/app/zimage.html':
         return {'chat-gen' if request.query_params.get('chat') == '1' else 'zimage'}
     if path.startswith('/static/app/') and path.endswith('.html'):

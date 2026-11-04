@@ -47,6 +47,13 @@ docs/*
 !docs/migration-guide.md
 !docs/p2-roadmap.md
 !docs/framework-evaluation.md
+!docs/game-pipeline-development.md
+!docs/game-pipeline-canvas.md
+!docs/ohmygame-role-presets.md
+!docs/ohmygame-LICENSE.txt
+!docs/examples/
+docs/examples/*
+!docs/examples/game-project.json
 # 一次性调研报告与集成方案（纯文本、体积小，属项目决策记录，需进版本库）
 !docs/reports/
 !docs/reports/**
@@ -133,6 +140,7 @@ _translate_audit.json
 
 # 桌面安装包构建产物
 desktop/node_modules/
+tools/model3d/node_modules/
 desktop/src-tauri/target/
 desktop/src-tauri/sidecar-server/
 desktop/src-tauri/gen/
@@ -198,3 +206,17 @@ desktop/dist/
 /data/artist-packs/
 /static/images/style_thumbnails/
 /static/images/poster_layouts/thumbnails/
+
+# Audio adapter development dependencies; deploy the bundled worker.
+tools/audio/node_modules/
+!docs/game-extra-nodes.md
+!docs/mcp-canvas-assistant.md
+!docs/game-development-alignment.md
+!docs/game-execution-boundaries.md
+
+# 本机界面设计及浏览器调试会话（不属于项目源码）
+/.oil-ui/
+/.playwright-cli/
+
+# 开发文档统一纳入版本控制，临时截图和报告放 artifacts/ 或 output/
+!docs/*.md

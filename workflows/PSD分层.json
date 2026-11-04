@@ -1,0 +1,44 @@
+{
+  "1": {
+    "inputs": {
+      "image": "art_canvas_sample_person.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "参考图"
+    }
+  },
+  "2": {
+    "inputs": {
+      "method": "图生图",
+      "prompt": "一位角色立绘，纯色背景，主体完整居中，细节清晰",
+      "negative_prompt": "",
+      "size_mode": "面板尺寸",
+      "largest_size": 960,
+      "layers": 4,
+      "unet_name": "qwen-image-layered-Q4_K_M.gguf",
+      "clip_name": "qwen_2.5_vl_7b_int4_convrot.safetensors",
+      "vae_name": "qwen_image_layered_vae.safetensors",
+      "seed": 0,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "keep_model_loaded": false,
+      "lora_data": "[]",
+      "uploaded_image": "",
+      "accel_lora_name": "QWEN\\lighting\\Qwen-Image-Lightning-4steps-V2.0.safetensors",
+      "panel_width": 640,
+      "panel_height": 960,
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "GJJ_QwenImageLayeredPSDStudio",
+    "_meta": {
+      "title": "PSD 分层"
+    }
+  }
+}

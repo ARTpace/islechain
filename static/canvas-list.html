@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="/static/images/logo.png" type="image/png">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>项目工作台</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
     <script>
@@ -18,12 +18,12 @@
         })();
     </script>
     <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script src="/static/js/theme.js?v=20261031am1"></script>
+    <script src="/static/js/theme.js?v=20261102look"></script>
     <script src="/static/js/touch-mouse.js?v=20261024001"></script>
     <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/canvas-list.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/canvas-list.css?v=20261102kinds">
     <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/css/theme.css?v=20261102accent">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -100,6 +100,23 @@
                 </div>
             </div>
 
+            <!-- 画布资产面板：点卡片打开，直接看这块画布生成的图片 / 视频并下载，不用进画布 -->
+            <aside id="canvasAssetsPanel" class="ws-assets-panel">
+                <div class="ws-assets-head">
+                    <div class="ws-assets-headline">
+                        <strong id="assetsTitle">画布资产</strong>
+                        <span id="assetsSub">—</span>
+                    </div>
+                    <div class="ws-assets-actions">
+                        <button id="assetsDownloadAll" class="ws-icon-btn" type="button" title="打包下载" aria-label="打包下载"><i data-lucide="download" class="w-4 h-4"></i></button>
+                        <button id="assetsEnterCanvas" class="ws-icon-btn" type="button" title="进入画布" aria-label="进入画布"><i data-lucide="arrow-up-right" class="w-4 h-4"></i></button>
+                        <button id="assetsClose" class="ws-icon-btn" type="button" title="关闭" aria-label="关闭"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div id="assetsKinds" class="ws-assets-kinds" role="tablist" aria-label="资产类型"></div>
+                <div id="assetsGrid" class="ws-assets-grid"></div>
+            </aside>
+
             <!-- Trash panel (overlay over the board area) -->
             <div id="trashPanel" class="ws-trash-panel">
                 <div class="ws-trash-head">
@@ -113,6 +130,6 @@
             <div id="boardStatus" class="ws-status"></div>
         </main>
     </div>
-    <script src="/static/js/canvas-list.js?v=20261024001"></script>
+    <script src="/static/js/canvas-list.js?v=20261102kinds"></script>
 </body>
 </html>

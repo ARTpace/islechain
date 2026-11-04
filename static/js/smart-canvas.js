@@ -7375,6 +7375,7 @@ function smartGroupBodyHtml(node){
     </div>`;
 }
 function nodeBodyHtml(node, layout){
+    if(node.type === 'model3d') return model3dNodeBodyHtml(node, layout);
     if(node.type === 'smart-minimax') return smartMinimaxBodyHtml(node);
     if(node.type === 'smart-group') return smartGroupBodyHtml(node);
     if(node.type === 'smart-prompt') return promptNodeBodyHtml(node);
@@ -7701,7 +7702,7 @@ function render(){
         .sort((a, b) => (isSmartGroupNode(a) ? 0 : 1) - (isSmartGroupNode(b) ? 0 : 1))
         .map(node => {
         const imgs = node.images || [];
-        const title = node.type === 'smart-group' ? (node.title === '万能分组' ? '智能分组' : (node.title || '智能分组')) : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : node.type === 'smart-minimax' ? 'MiniMax H3' : (imgs.length > 1 ? 'Group' : imgs.length ? 'Image' : escapeHtml(tr('smart.createImportNode')));
+        const title = node.type === 'model3d' ? '3D 资产' : node.type === 'smart-group' ? (node.title === '万能分组' ? '智能分组' : (node.title || '智能分组')) : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : node.type === 'smart-minimax' ? 'MiniMax H3' : (imgs.length > 1 ? 'Group' : imgs.length ? 'Image' : escapeHtml(tr('smart.createImportNode')));
         const scale = nodeScale(node);
         const layout = imageLayout(imgs, scale, node);
         const isPrompt = node.type === 'smart-prompt';
@@ -7774,7 +7775,7 @@ function render(){
     world.insertAdjacentHTML('beforeend', renderConnections());
     const nodesHtml = nodes.map(node => {
         const imgs = node.images || [];
-        const title = node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : (imgs.length > 1 ? 'Group' : 'Image');
+        const title = node.type === 'model3d' ? '3D 资产' : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : (imgs.length > 1 ? 'Group' : 'Image');
         const scale = nodeScale(node);
         const layout = imageLayout(imgs, scale, node);
         const isPrompt = node.type === 'smart-prompt';
@@ -19161,4 +19162,71 @@ async function exportMinimaxTimeline(node, options={}){
     } catch(e) {
         toast((e.message || 'Export failed').slice(0, 180));
     }
+}
+
+// 外部拖入的 3D 资产节点（图片/模型从 AssetVault 或系统拖入画布时创建）
+function model3dNodeBodyHtml(node, layout){
+    const sizeText = node.size ? ` · ${(node.size/1048576).toFixed(2)} MiB` : '';
+    return `<div style="padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center">
+        <div style="width:100%;height:150px;display:flex;align-items:center;justify-content:center;background:#0c1118;border:1px solid #223;border-radius:8px;color:#5b7686" class="model3d-thumb">
+            <i data-lucide="box" style="width:44px;height:44px"></i>
+        </div>
+        <div style="font-size:12px;color:#cdd9e5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(node.name || '3D 模型')}${escapeHtml(sizeText)}</div>
+        <div style="display:flex;gap:8px">
+            <button type="button" class="model3d-preview" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">预览</button>
+            <button type="button" class="model3d-download" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">下载</button>
+        </div>
+    </div>`;
+}
+
+// 供 external-asset-drop.js 调用：把拖入的模型文件上传并生成为 3D 资产节点
+window.__assetDropCreateModelNode = async (files, point) => {
+    const fd = new FormData();
+    for (const f of (files || [])) fd.append('files', f, f.name);
+    const res = await fetch('/api/local-assets/upload', {method:'POST', body:fd});
+    if(!res.ok) throw new Error('上传失败 ' + res.status);
+    const data = await res.json().catch(() => ({files:[]}));
+    const items = data.files || [];
+    if(!items.length) throw new Error('模型未被接受（格式不支持？）');
+    const p = (point && point.x != null) ? screenToWorld({clientX:point.x, clientY:point.y}) : viewportCenter();
+    let i = 0;
+    for(const it of items){
+        nodes.push({
+            id: uid('model3d'),
+            type:'model3d',
+            x: Math.round((p.x || 0) + i*24),
+            y: Math.round((p.y || 0) + i*24),
+            w: 240, h: 300,
+            url: it.url || ('/assets/library/_local/' + encodeURIComponent(it.file || '')),
+            name: it.name || (it.file || '').split('/').pop() || '3D 模型',
+            size: it.size || 0,
+            created_at: Date.now()
+        });
+        i++;
+    }
+    render();
+    scheduleSave();
+    if(typeof window.toast === 'function') window.toast('已创建 ' + items.length + ' 个 3D 资产节点');
+};
+
+// 节点通过 innerHTML 重建，预览/下载按钮使用事件委托
+if(world){
+    world.addEventListener('click', e => {
+        const preview = e.target.closest && e.target.closest('.model3d-preview');
+        const download = e.target.closest && e.target.closest('.model3d-download');
+        if(preview){
+            e.stopPropagation();
+            const el = preview.closest('.image-node');
+            const node = el && nodes.find(n => n.id === el.dataset.id);
+            if(node) window.openModel3dViewer(node.url, node.name);
+        } else if(download){
+            e.stopPropagation();
+            const el = download.closest('.image-node');
+            const node = el && nodes.find(n => n.id === el.dataset.id);
+            if(node){
+                const a = document.createElement('a');
+                a.href = node.url; a.download = node.name || 'model.glb'; a.click();
+            }
+        }
+    });
 }

@@ -31,11 +31,11 @@
             root.appendChild(style);
         })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 22 22'%3E%3Cpath d='M11 2L19 11L11 20L3 11L11 2Z' stroke='%230891b2' stroke-width='2' stroke-linejoin='round' fill='none' opacity='0.85'/%3E%3Ccircle cx='11' cy='11' r='4.5' stroke='%230891b2' stroke-width='0.7' opacity='0.35' stroke-dasharray='2.5 2'/%3E%3Cpath d='M6.5 6.5L15.5 15.5M6.5 15.5L15.5 6.5' stroke='%230891b2' stroke-width='0.5' opacity='0.25'/%3E%3Ccircle cx='11' cy='11' r='2' fill='%230891b2' opacity='0.85'/%3E%3Ccircle cx='11' cy='11' r='1' fill='%2306b6d4' opacity='0.5'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>ART AI</title>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024004">
     <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261024pal">
-    <script src="/static/js/theme.js?v=20261031am1" defer></script>
+    <script src="/static/js/theme.js?v=20261102look" defer></script>
     <script src="/static/js/ui-refine.js?v=20261024004" defer></script>
     <script src="/static/js/i18n.js?v=20261024004" defer></script>
     <style>
@@ -202,6 +202,11 @@
             width: 220px;
             box-shadow: 16px 0 36px rgba(0, 0, 0, 0.18);
         }
+        /* 展开态去掉 nav 容器多余的左内边距，避免与 .nav-item 自身 padding 叠加导致右侧溢出裁切 */
+        .sidebar:hover .sidebar-nav,
+        .sidebar:hover .sidebar-bottom {
+            padding-left: 0;
+        }
 
         /* 锁定态：不展开，只显示图标 */
         .sidebar.locked,
@@ -214,7 +219,7 @@
             align-items: center;
         }
         .sidebar.locked .nav-item {
-            width: 48px;
+            width: 56px;
             padding-left: 0;
             justify-content: center;
         }
@@ -263,18 +268,18 @@
         }
 
         body.theme-dark .sidebar {
-            border-right-color: rgba(0, 240, 255, 0.1);
-            box-shadow: inset -1px 0 0 rgba(0, 240, 255, 0.05);
+            border-right-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 10%, transparent);
+            box-shadow: inset -1px 0 0 color-mix(in srgb, var(--accent-glow, #06b6d4) 5%, transparent);
         }
 
         body.theme-dark .sidebar:hover {
-            box-shadow: inset -1px 0 0 rgba(0, 240, 255, 0.05), 16px 0 36px rgba(0, 0, 0, 0.35);
+            box-shadow: inset -1px 0 0 color-mix(in srgb, var(--accent-glow, #06b6d4) 5%, transparent), 16px 0 36px rgba(0, 0, 0, 0.35);
         }
 
         .logo-ring {
             width: 36px;
             height: 36px;
-            border: 2px solid var(--accent);
+            border: 2px solid var(--accent-glow, var(--accent));
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -283,69 +288,72 @@
             flex-shrink: 0;
         }
 
-        body.theme-dark .logo-ring {
-            box-shadow: 0 0 12px rgba(0, 240, 255, 0.3), inset 0 0 8px rgba(0, 240, 255, 0.1);
-        }
+        /* LOGO 图形跟随「外观」里的强调色（theme.js 写入 --accent / --accent-glow），
+           不再写死青色；CSS 规则会盖掉 SVG 上的 stroke/fill 属性 */
+        .logo-ring svg .lr-stroke { stroke: var(--accent-glow, var(--accent, #06b6d4)); }
+        .logo-ring svg .lr-fill { fill: var(--accent-glow, var(--accent, #06b6d4)); }
+        .logo-ring svg .lr-glow { fill: var(--accent, #06b6d4); }
 
-        body.theme-dark .logo-ring svg .lr-stroke { stroke: #00f0ff; }
-        body.theme-dark .logo-ring svg .lr-fill { fill: #00f0ff; }
-        body.theme-dark .logo-ring svg .lr-glow { fill: #06b6d4; }
+        body.theme-dark .logo-ring {
+            box-shadow: 0 0 12px color-mix(in srgb, var(--accent-glow, #06b6d4) 30%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent-glow, #06b6d4) 10%, transparent);
+        }
 
         /* 导航项 - 始终保持展开宽度，靠 sidebar overflow:hidden 裁切 */
         .nav-item.is-module-off { display: none !important; }
         .nav-item {
             position: relative;
-            width: 190px;
-            height: 48px;
-            margin: 10px 0;
+            box-sizing: border-box;
+            width: 220px;
+            height: 56px;
+            margin: 11px 0;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            border-radius: 14px;
+            border-radius: 16px;
             cursor: pointer;
             transition: width 0.24s cubic-bezier(0.2, 0, 0, 1), background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
             color: var(--muted);
             overflow: hidden;
-            padding-left: 14px;
+            padding-left: 16px;
             border: 1px solid transparent;
             flex-shrink: 0;
         }
 
         .sidebar:hover .nav-item {
-            width: 190px;
+            width: 220px;
         }
 
         .sidebar.locked:hover .sidebar-nav .nav-item,
         .sidebar.locked .sidebar-nav .nav-item,
         .sidebar.locked:hover .sidebar-bottom .nav-item,
         .sidebar.locked .sidebar-bottom .nav-item {
-            width: 48px;
+            width: 56px;
             padding-left: 0;
             justify-content: center;
         }
 
         .nav-item:hover {
-            background: var(--nav-hover-bg);
-            color: var(--accent);
-            border-color: rgba(8, 145, 178, 0.15);
+            background: color-mix(in srgb, var(--accent-glow, var(--accent)) 10%, transparent);
+            color: var(--accent-glow, var(--accent));
+            border-color: color-mix(in srgb, var(--accent) 15%, transparent);
         }
 
         body.theme-dark .nav-item:hover {
-            border-color: rgba(0, 240, 255, 0.15);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.05);
+            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 15%, transparent);
+            box-shadow: 0 0 15px color-mix(in srgb, var(--accent-glow, #06b6d4) 6%, transparent);
         }
 
         .nav-item.active {
             background: var(--accent);
             color: #fbfaf9;
-            box-shadow: 0 4px 20px rgba(8, 145, 178, 0.3);
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 30%, transparent);
         }
 
         body.theme-dark .nav-item.active {
-            background: rgba(0, 240, 255, 0.12);
-            color: #00f0ff;
-            border-color: rgba(0, 240, 255, 0.3);
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
+            background: color-mix(in srgb, var(--accent-glow, #06b6d4) 12%, transparent);
+            color: var(--accent-glow, #06b6d4);
+            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 30%, transparent);
+            box-shadow: 0 0 20px color-mix(in srgb, var(--accent-glow, #06b6d4) 15%, transparent), inset 0 0 15px color-mix(in srgb, var(--accent-glow, #06b6d4) 5%, transparent);
         }
 
         /* --- Collapsible Submenu Styles --- */
@@ -392,8 +400,8 @@
 
         body.theme-dark .submenu {
             background: rgba(20, 20, 20, 0.95);
-            border-color: rgba(0, 240, 255, 0.12);
-            box-shadow: 0 8px 32px rgba(0, 240, 255, 0.08);
+            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 12%, transparent);
+            box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-glow, #06b6d4) 8%, transparent);
         }
 
         .submenu.expanded {
@@ -439,12 +447,12 @@
 
         .nav-child:hover {
             opacity: 1;
-            background: var(--nav-hover-bg);
-            color: var(--accent);
+            background: color-mix(in srgb, var(--accent-glow, var(--accent)) 10%, transparent);
+            color: var(--accent-glow, var(--accent));
         }
 
         body.theme-dark .nav-child:hover {
-            border-color: rgba(0, 240, 255, 0.12);
+            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 12%, transparent);
         }
 
         .nav-child.submenu-active {
@@ -455,9 +463,9 @@
         }
 
         body.theme-dark .nav-child.submenu-active {
-            background: rgba(0, 240, 255, 0.12);
-            color: #00f0ff;
-            border-color: rgba(0, 240, 255, 0.3);
+            background: color-mix(in srgb, var(--accent-glow, #06b6d4) 12%, transparent);
+            color: var(--accent-glow, #06b6d4);
+            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 30%, transparent);
         }
 
         .nav-parent.has-active-child {
@@ -471,12 +479,12 @@
         }
 
         body.theme-dark .nav-parent.has-active-child {
-            background: rgba(0, 240, 255, 0.15);
-            color: #00f0ff;
+            background: color-mix(in srgb, var(--accent-glow, #06b6d4) 15%, transparent);
+            color: var(--accent-glow, #06b6d4);
         }
 
         body.theme-dark .sidebar:hover .nav-parent.has-active-child {
-            border-left: 3px solid #00f0ff;
+            border-left: 3px solid var(--accent-glow, #06b6d4);
         }
 
         /* Stage base style */
@@ -493,9 +501,9 @@
 
         .nav-text {
             opacity: 0;
-            margin-left: 16px;
+            margin-left: 18px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 15px;
             white-space: nowrap;
             transition: opacity 0.2s;
         }
@@ -504,17 +512,24 @@
             opacity: 1;
         }
 
-        /* 导航图标固定尺寸 - 覆盖所有可能的样式 */
-        .nav-item svg,
+        /* 导航图标固定尺寸 - 覆盖所有可能的样式（排除箭头，箭头单独控尺寸） */
+        .nav-item svg:not(.nav-arrow),
         .nav-item .icon-svg {
-            width: 20px !important;
-            height: 20px !important;
-            min-width: 20px !important;
-            min-height: 20px !important;
-            max-width: 20px !important;
-            max-height: 20px !important;
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            min-height: 30px !important;
+            max-width: 30px !important;
+            max-height: 30px !important;
             flex-shrink: 0;
             display: inline-block;
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* 卡通感：悬停时图标轻微弹起（箭头不参与） */
+        .nav-item:hover > svg:not(.nav-arrow),
+        .nav-item.active > svg:not(.nav-arrow) {
+            transform: scale(1.1);
         }
 
         .nav-arrow {
@@ -522,6 +537,7 @@
             height: 16px !important;
             flex-shrink: 0;
             opacity: 0;
+            margin-right: 8px;
             transition: opacity 0.2s;
         }
 
@@ -535,7 +551,7 @@
             height: auto;
         }
 
-        .nav-item svg:not([width]):not([height]),
+        .nav-item svg:not(.nav-arrow):not([width]):not([height]),
         .nav-arrow svg:not([width]):not([height]) {
             width: inherit !important;
             height: inherit !important;
@@ -569,60 +585,43 @@
             transition: opacity 0.26s ease, visibility 0s linear 0s;
         }
 
-        /* 右下角监视器 */
-        body.chat-view .nano-monitor { display:none; }
-        .nano-monitor {
-            position: absolute;
-            bottom: 24px;
-            right: auto;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
+        /* 侧边栏底部运行状态（在线 / 队列），收起时只留一个圆点 */
+        body.chat-view .sidebar-status { display:none; }
+        .sidebar-status {
+            flex: 0 0 auto;
+            width: 64px;
+            height: 34px;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: var(--monitor-bg);
-            padding: 6px 14px;
-            border-radius: 16px;
-            border: 1px solid var(--monitor-border);
-            box-shadow: 0 4px 20px var(--monitor-shadow);
-            font-family: monospace;
-            transition: all 0.4s var(--fluid-ease);
-        }
-
-        body.theme-dark .nano-monitor {
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.1), 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .nano-monitor.is-busy {
-            background: var(--monitor-bg);
-            color: var(--accent);
-            border-color: var(--accent-glow);
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .stat-group {
-            display: flex;
-            align-items: center;
+            justify-content: center;
             gap: 6px;
+            margin: 0 0 4px;
+            padding: 0;
+            border-radius: 10px;
+            border: 1px solid transparent;
             font-size: 11px;
-            font-weight: 700;
-            color: var(--text);
+            font-weight: 600;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            cursor: default;
+            transition: width .24s cubic-bezier(.2,0,0,1), color .2s ease, background .2s ease, border-color .2s ease;
         }
-
-        .nano-monitor.is-busy .stat-group {
-            color: #fbfaf9;
-        }
-
-        .divider {
-            width: 1px;
-            height: 12px;
-            background: var(--divider);
-        }
-
-        .is-busy .divider {
-            background: rgba(255, 255, 255, 0.2);
-        }
+        .sidebar:hover .sidebar-status { width: 190px; justify-content: flex-start; padding: 0 12px; }
+        .sidebar.locked .sidebar-status,
+        .sidebar.locked:hover .sidebar-status { width: 48px; justify-content: center; padding: 0; }
+        .sidebar-status .ss-icons { display: inline-flex; align-items: center; justify-content: center; width: 10px; flex: 0 0 auto; }
+        .sidebar-status .ss-text { display: none; align-items: center; gap: 5px; }
+        .sidebar:hover .sidebar-status .ss-text { display: inline-flex; }
+        .sidebar.locked .sidebar-status .ss-text { display: none; }
+        .sidebar-status #online-val,
+        .sidebar-status #queue-val { font-weight: 700; color: var(--text); }
+        .sidebar-status .ss-sep { width: 1px; height: 10px; margin: 0 2px; background: var(--border); }
+        .sidebar-status.is-busy { color: var(--accent-glow, var(--accent)); background: color-mix(in srgb, var(--accent-glow, #06b6d4) 10%, transparent); border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 45%, transparent); }
+        .sidebar-status.is-busy #online-val,
+        .sidebar-status.is-busy #queue-val { color: var(--accent-glow, var(--accent)); }
+        .sidebar-status.is-busy .ss-sep { background: var(--accent-glow, var(--accent)); }
 
         .pulse-dot {
             width: 6px;
@@ -632,21 +631,21 @@
         }
 
         body.theme-dark .pulse-dot {
-            background: #00f0ff;
-            box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+            background: var(--accent-glow, #06b6d4);
+            box-shadow: 0 0 8px color-mix(in srgb, var(--accent-glow, #06b6d4) 60%, transparent);
             animation: neonPulse 2s ease-in-out infinite;
         }
 
         @keyframes neonPulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0, 240, 255, 0.6); }
-            50% { opacity: 0.6; box-shadow: 0 0 4px rgba(0, 240, 255, 0.3); }
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px color-mix(in srgb, var(--accent-glow, #06b6d4) 60%, transparent); }
+            50% { opacity: 0.6; box-shadow: 0 0 4px color-mix(in srgb, var(--accent-glow, #06b6d4) 30%, transparent); }
         }
 
         .spinner-nano {
             width: 10px;
             height: 10px;
-            border: 2px solid rgba(0, 240, 255, 0.2);
-            border-top-color: var(--accent);
+            border: 2px solid color-mix(in srgb, var(--accent-glow, #06b6d4) 20%, transparent);
+            border-top-color: var(--accent-glow, var(--accent));
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             display: none;
@@ -776,13 +775,13 @@
         }
 
         .theme-toggle:hover {
-            background: var(--nav-hover-bg);
-            color: var(--accent);
-            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent-glow, var(--accent)) 10%, transparent);
+            color: var(--accent-glow, var(--accent));
+            border-color: color-mix(in srgb, var(--accent-glow, var(--accent)) 45%, transparent);
         }
 
         body.theme-dark .theme-toggle:hover {
-            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 12px color-mix(in srgb, var(--accent-glow, #06b6d4) 20%, transparent);
         }
 
         .theme-toggle svg { width: 16px; height: 16px; }
@@ -836,6 +835,7 @@
                 margin-left: auto;
             }
             .sidebar-bottom > div[style] { display: none !important; }
+            .sidebar-status { display: none !important; }
             .nav-item {
                 width: auto !important;
                 height: 44px !important;
@@ -857,10 +857,9 @@
                 overflow-y: auto !important;
             }
             .stage { margin: 8px !important; border-radius: 18px !important; }
-            .nano-monitor { left: 50% !important; bottom: 12px !important; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261024pal3">
+    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
 </head>
 
 <body>
@@ -868,24 +867,20 @@
     <div class="app-shell">
         <aside class="sidebar">
             <div class="logo-ring mb-12">
-                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path class="lr-stroke lr-fill" d="M11 2L19 11L11 20L3 11L11 2Z" stroke="#0891b2" stroke-width="2" stroke-linejoin="round" fill="none" opacity="0.85"/>
-                    <circle class="lr-stroke" cx="11" cy="11" r="4.5" stroke="#0891b2" stroke-width="0.7" opacity="0.35" stroke-dasharray="2.5 2"/>
-                    <path class="lr-stroke" d="M6.5 6.5L15.5 15.5M6.5 15.5L15.5 6.5" stroke="#0891b2" stroke-width="0.5" opacity="0.25"/>
-                    <circle class="lr-fill" cx="11" cy="11" r="2" fill="#0891b2" opacity="0.85"/>
-                    <circle class="lr-glow" cx="11" cy="11" r="1" fill="#06b6d4" opacity="0.5"/>
+                <svg width="26" height="26" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="lr-fill" d="M48 14L84 32L48 50L12 32Z" opacity="0.92"/>
+                    <path class="lr-fill" d="M12 32L12 48L48 66L84 48L84 32L48 50Z" opacity="0.4"/>
+                    <path class="lr-stroke" d="M48 14L84 32L84 48L48 66L12 48L12 32Z" stroke-width="6" stroke-linejoin="round"/>
                 </svg>
             </div>
 
             <nav class="sidebar-nav">
                 <div class="nav-item" data-module="generation-dashboard" onclick="switchUI(this, 'generation-dashboard')" title="生成数据">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><path d="M4 4v16h16M8 15v-4M13 15V7M18 15V9"/></svg><span class="nav-text">生成数据</span>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"><rect x="3.2" y="13.4" width="5" height="7.6" rx="2.2" fill="currentColor" opacity=".45"/><rect x="9.5" y="8.6" width="5" height="12.4" rx="2.2" fill="currentColor" opacity=".75"/><rect x="15.8" y="3.8" width="5" height="17.2" rx="2.2" fill="currentColor"/></svg><span class="nav-text">生成数据</span>
                 </div>
                 <!-- ComfyUI Applications - Collapsible Parent -->
                 <div class="nav-item nav-parent" id="nav-comfy" onclick="toggleSubmenu(this)" title="应用">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 3.4h6.8a2 2 0 0 1 2 2v2.2H6.6V5.4a2 2 0 0 1 2-2Z"/><rect x="2.8" y="7.6" width="18.4" height="12.4" rx="3.4" fill="currentColor" opacity=".55"/><path d="M9.6 7.6v3.2M14.4 7.6v3.2"/></svg>
                     <span class="nav-text">应用</span>
                     <svg class="nav-arrow w-4 h-4 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -893,27 +888,26 @@
                 </div>
 
                 <div class="nav-item" data-module="chat-gen" onclick="switchUI(this, 'chat-gen')" title="对话生图">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linejoin="round"><path d="M4 6.6A3.6 3.6 0 0 1 7.6 3h8.8A3.6 3.6 0 0 1 20 6.6v4.6a3.6 3.6 0 0 1-3.6 3.6H10l-3.9 3.4c-.7.6-1.9.1-1.9-.9V6.6Z"/><path d="M12 5.4 13 8.2 15.8 9.2 13 10.2 12 13 11 10.2 8.2 9.2 11 8.2Z" fill="currentColor" stroke="none"/></svg>
                     <span class="nav-text">对话生图</span>
                 </div>
                 <div class="nav-item" data-module="training" onclick="switchUI(this, 'training')" title="模型训练">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"><rect x="5.4" y="5.4" width="13.2" height="13.2" rx="3.6" stroke="currentColor" stroke-width="2.2"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1.6" fill="currentColor"/><path d="M9 2.4v2.6M15 2.4v2.6M9 19v2.6M15 19v2.6M2.4 9h2.6M2.4 15h2.6M19 9h2.6M19 15h2.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
                     <span class="nav-text">模型训练</span>
                 </div>
                 <div class="nav-item" data-module="canvas" onclick="switchUI(this, 'canvas')" title="无限画布">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                        <rect x="2.8" y="3.4" width="18.4" height="17.2" rx="4.4" stroke="currentColor" stroke-width="2.2"></rect>
+                        <rect x="6.3" y="6.9" width="7.4" height="6.6" rx="2.4" fill="currentColor"></rect>
+                        <circle cx="16.2" cy="14.6" r="2.9" fill="currentColor" opacity=".5"></circle>
                     </svg>
                     <span class="nav-text" data-i18n="nav.canvas">无限画布</span>
                 </div>
                 <div class="nav-item nav-parent" id="nav-asset" data-module="asset-manager" onclick="toggleAssetSubmenu(this)" title="素材库">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round">
+                        <path d="M12 2.8 20.6 7.4 12 12 3.4 7.4Z" fill="currentColor"></path>
+                        <path d="M3.4 7.4 12 12v9.2L3.4 16.6Z" fill="currentColor" opacity=".58"></path>
+                        <path d="M20.6 7.4 12 12v9.2l8.6-4.6Z" fill="currentColor" opacity=".82"></path>
                     </svg>
                     <span class="nav-text" data-i18n="nav.assetManager">素材库</span>
                     <svg class="nav-arrow w-4 h-4 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -935,6 +929,10 @@
                 <div class="nav-item nav-child" data-module="angle" onclick="switchUI(this, 'angle', 'comfy')" title="3D视角变换">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span class="nav-text" data-i18n="nav.angle">3D视角变换</span>
+                </div>
+                <div class="nav-item nav-child" data-module="threeview" onclick="switchUI(this, 'threeview', 'comfy')" title="三视图">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="3.2" width="5.4" height="9.2" rx="1.6"/><rect x="9.3" y="3.2" width="5.4" height="9.2" rx="1.6"/><rect x="16" y="3.2" width="5.4" height="9.2" rx="1.6" opacity=".55"/><path d="M12 15.2v2.2M6.6 17.4h10.8M4.4 20.6h15.2"/></svg>
+                    <span class="nav-text">三视图</span>
                 </div>
                 <div class="nav-item nav-child" data-module="cgstyle" onclick="switchUI(this, 'cgstyle', 'comfy')" title="CG一键细化">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20.18 9l-5 4.18L16.36 20 12 17.27 7.64 20l1.18-6.82L3.82 9l6.09-.74L12 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -986,12 +984,8 @@
                 </div>
             </div>
 
-            <!-- 素材库子菜单：挂在「素材库」按钮上 -->
+            <!-- 素材库子菜单：挂在「素材库」按钮上（素材资产已并入提示词库的「素材」标签） -->
             <div id="asset-submenu" class="submenu">
-                <div class="nav-item nav-child" data-asset-tab="assets" onclick="switchAssetTab(this, 'assets')" title="素材资产">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                    <span class="nav-text">素材资产</span>
-                </div>
                 <div class="nav-item nav-child" data-asset-tab="workflows" onclick="switchAssetTab(this, 'workflows')" title="工作流管理">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"></rect><path d="M7 11v4a2 2 0 0 0 2 2h4"></path><rect x="13" y="13" width="8" height="8" rx="2"></rect></svg>
                     <span class="nav-text">工作流管理</span>
@@ -1008,14 +1002,22 @@
 
             <!-- 底部功能按钮 -->
             <div class="sidebar-bottom">
+                <!-- 运行状态：在线 / 队列（收起时只留一个圆点） -->
+                <div class="sidebar-status" id="nano-monitor" title="在线 1 · 队列 0" aria-label="运行状态">
+                    <span class="ss-icons">
+                        <div class="pulse-dot animate-pulse"></div>
+                        <span class="spinner-nano"></span>
+                    </span>
+                    <span class="ss-text">在线 <span id="online-val">1</span><span class="ss-sep"></span>队列 <span id="queue-val">0</span></span>
+                </div>
                 <!-- 分隔线 -->
                 <div style="width:32px;height:1px;background:var(--border);margin:8px auto;transition:background 0.3s;"></div>
                 <div class="nav-item" id="sidebar-account-btn" title="账号">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="7.8" r="4" fill="currentColor"/><rect x="5" y="14.2" width="14" height="6.8" rx="3.4" fill="currentColor" opacity=".6"/></svg>
                     <span class="nav-text" id="sidebar-account-name">账号</span>
                 </div>
                 <div class="nav-item" id="sidebar-settings-btn" title="设置">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"><path d="M3.4 6.4h17.2M3.4 12h17.2M3.4 17.6h17.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".55"/><circle cx="8.6" cy="6.4" r="2.8" fill="currentColor"/><circle cx="15.4" cy="12" r="2.8" fill="currentColor"/><circle cx="10.2" cy="17.6" r="2.8" fill="currentColor"/></svg>
                     <span class="nav-text">设置</span>
                 </div>
             </div>
@@ -1023,10 +1025,11 @@
         </aside>
 
         <main class="stage">
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261102scopebtn"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261102mono"></iframe>
             <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261024008"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261024008"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261024008"></iframe>
+            <iframe id="frame-threeview" data-src="/static/app/threeview.html?v=20261103a"></iframe>
             <iframe id="frame-2dstyle" data-src="/static/app/2dstyle.html"></iframe>
             <iframe id="frame-rmbg" data-src="/static/app/rmbg.html"></iframe>
             <iframe id="frame-yichuwuti" data-src="/static/app/yichuwuti.html?v=20261024008"></iframe>
@@ -1036,29 +1039,17 @@
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
             <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20261024008"></iframe>
             <iframe id="frame-poster" data-src="/static/app/poster.html?v=20261024004"></iframe>
-            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261027guest"></iframe>
+            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261102chatalign"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
     <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261024009"></iframe>
-            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261029001"></iframe>
-            <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=20261102fit3"></iframe>
+            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261102accent"></iframe>
+            <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=20261102mergetab"></iframe>
             <iframe id="frame-training" data-src="/static/app/training.html?v=20261025"></iframe>
             <iframe id="frame-generation-dashboard" data-src="/static/app/generation-dashboard.html"></iframe>
             <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261026cli"></iframe>
             <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261024004"></iframe>
+            <iframe id="frame-mcp-settings" data-src="/static/setting/mcp-settings.html?v=20261103mcp"></iframe>
             <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20261024004"></iframe>
-            <div class="nano-monitor" id="nano-monitor">
-                <div class="stat-group">
-                    <div class="pulse-dot animate-pulse"></div>
-                    <div class="spinner-nano"></div>
-                    <span class="label-nano">ONLINE</span>
-                    <span id="online-val">1</span>
-                </div>
-                <div class="divider"></div>
-                <div class="stat-group">
-                    <span class="label-nano">QUEUE</span>
-                    <span id="queue-val">0</span>
-                </div>
-            </div>
         </main>
     </div>
     <script>
@@ -1144,6 +1135,7 @@
                     { id: 'zimage', name: '文生图' },
                     { id: 'klein', name: '图片编辑' },
                     { id: 'angle', name: '3D视角变换' },
+                    { id: 'threeview', name: '三视图' },
                     { id: 'cgstyle', name: 'CG一键细化' },
                     { id: '2dstyle', name: '2D风格细化' },
                     { id: 'watermark-removal', name: '图片去水印' },
@@ -1253,7 +1245,7 @@
     </script>
 
     <script src="/static/modules/model-visibility.js?v=20261024pane"></script>
-    <script src="/static/modules/settings.js?v=20261028apporder"></script>
+    <script src="/static/modules/settings.js?v=20261103mcpset"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -1329,7 +1321,7 @@
             var frame = document.getElementById('frame-asset-manager');
             // 首次进入直接把视图写进 URL，之后走 postMessage，不用重载页面
             if (frame && !frame.getAttribute('src')) {
-                frame.dataset.src = '/static/asset-manager.html?v=20261102fit3&tab=' + encodeURIComponent(tab);
+                frame.dataset.src = '/static/asset-manager.html?v=20261102mergetab&tab=' + encodeURIComponent(tab);
             }
             switchUI(navAsset || el, 'asset-manager');
             if (navAsset) navAsset.classList.add('active');
@@ -1645,12 +1637,14 @@
                 if (pos > 0) {
                     monitor.classList.add('is-busy');
                     queueVal.innerText = `${pos}/${total}`;
-                    logoDot.style.backgroundColor = '#06b6d4';
+                    logoDot.style.backgroundColor = 'var(--accent-glow, var(--accent))';
                 } else {
                     monitor.classList.remove('is-busy');
                     queueVal.innerText = total > 0 ? total : '0';
                     logoDot.style.backgroundColor = 'var(--text)';
                 }
+                const onlineVal = document.getElementById('online-val');
+                if (onlineVal) monitor.title = `在线 ${onlineVal.innerText} · 队列 ${queueVal.innerText}`;
             } catch (e) { }
             finally { queueStatusPending = false; }
         }
@@ -1732,11 +1726,38 @@
 
         // init icon state on load
         window.addEventListener('DOMContentLoaded', async () => {
+            // ── 首帧同步：先用本地存储恢复侧栏顺序与选中高亮。
+            //    这两步不依赖网络权限接口，若等到 await FeatureModules.ready 之后才做，
+            //    首帧会先画出「HTML 默认顺序 + 无高亮」，请求返回后突变，造成图标/高亮闪烁。
+            try {
+                if (window.FeatureModules) FeatureModules.applyOrder();
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active', 'submenu-active', 'has-active-child'));
+                const saved0 = localStorage.getItem('lastSelectedApp');
+                if (saved0) {
+                    const s0 = JSON.parse(saved0) || {};
+                    const id0 = s0.id, parent0 = s0.parentId;
+                    if (id0) {
+                        if (parent0 === 'comfy') {
+                            const p0 = document.getElementById('nav-comfy');
+                            if (p0) p0.classList.add('has-active-child');
+                            const c0 = document.querySelector(`.nav-child[onclick*="'${id0}'"]`);
+                            if (c0) c0.classList.add('submenu-active');
+                        } else {
+                            const t0 = document.querySelector(`.nav-item[onclick*="'${id0}'"]`);
+                            if (t0) t0.classList.add('active');
+                        }
+                        document.body.classList.toggle('chat-view', id0 === 'chat-gen');
+                    }
+                }
+            } catch (e) {}
+
             await FeatureModules.ready;
             const theme = window.StudioTheme ? window.StudioTheme.get() : 'dark';
             updateThemeIcon(theme);
 
             // Restore last selected app
+            // 先清掉首帧同步阶段加的高亮，避免权限校正后出现两项同时高亮
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active', 'submenu-active', 'has-active-child'));
             const saved = localStorage.getItem('lastSelectedApp');
             if (saved) {
                 try {
@@ -1745,7 +1766,7 @@
                         id = FeatureModules.firstOn();
                         parentId = null;
                     }
-                    if (id === 'tts' || id === 'litevideo') parentId = 'comfy';
+                    if (id === 'tts' || id === 'litevideo' || id === 'threeview') parentId = 'comfy';
                     if (id) {
                         // If it was a comfyui child item
                         if (parentId === 'comfy') {

@@ -1,0 +1,4 @@
+body { margin:0; padding:20px; background:#10191d; color:#e0eeeb; font:16px/1.5 system-ui,sans-serif; text-align:center; }
+main { max-width:900px; margin:auto; } h1 { font-size:24px; margin:0; } canvas { width:100%; max-width:800px; height:auto; border:1px solid #45615a; border-radius:12px; background:#142125; }
+button,select { font:inherit; padding:8px 14px; border:1px solid #55766d; border-radius:6px; background:#243c35; color:inherit; margin:4px; cursor:pointer; }
+button:focus-visible { outline:2px solid #9ee1ca; outline-offset:2px; } #message { min-height:48px; } small { display:block; color:#abc3bb; }

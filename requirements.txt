@@ -4,6 +4,9 @@ requests
 pydantic
 python-multipart
 httpx>=0.28.0
+mcp>=1.12,<2
 pillow
 websockets
 bcrypt>=4.1.0
+
+av==16.0.1

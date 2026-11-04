@@ -7,11 +7,13 @@ from fastapi.responses import FileResponse
 from typing import List
 from urllib.parse import quote
 from starlette.responses import Response
-import os, requests, subprocess, uuid
+import asyncio, os, requests, subprocess, uuid
 import mimetypes
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
 import main as _main
+from core import image_stitch
 
 router = APIRouter()
 
@@ -199,3 +201,53 @@ async def upload_ai_reference(files: List[UploadFile] = File(...), canvas_id: st
         url_path = _main.build_output_url(canvas, filename, username)
         uploaded.append({"url": url_path, "name": file.filename or filename})
     return {"files": uploaded}
+
+
+class MergeHorizontalRequest(BaseModel):
+    """横向拼接请求：urls 必须是已落盘的 /output/ 或 /assets/ 路径。"""
+    urls: List[str] = Field(default_factory=list)
+    feature: str = Field(default='拼图', max_length=40)
+    token: str = Field(default='', max_length=2000)
+    gap: int = Field(default=0, ge=0, le=200)
+    background: str = Field(default='', max_length=20)
+
+
+@router.post("/api/output/merge-horizontal")
+async def merge_horizontal_images(request: MergeHorizontalRequest):
+    """把多张 output 图横向拼成一张，返回新图 URL。
+
+    三视图这类「同一物体多视角」出图后走这里合成一条横图，下游直接吃一张。
+    落盘沿用 media_paths（output/{owner}/image/{feature}/{date}/），和单图同目录。
+    """
+    if not 2 <= len(request.urls) <= 12:
+        raise HTTPException(status_code=400, detail='需要 2~12 张图片才能横向拼接')
+
+    paths = []
+    for url in request.urls:
+        path = _main.output_file_from_url(url)
+        if not path or not os.path.isfile(path):
+            raise HTTPException(status_code=400, detail=f'图片不存在: {url}')
+        paths.append(path)
+
+    flatten = image_stitch.parse_color(request.background)
+    try:
+        merged = image_stitch.stitch_files(paths, gap=request.gap, flatten=flatten)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'拼接失败: {str(e)}')
+
+    feature = (request.feature or '拼图').strip()
+    username = _main.get_username_by_token(request.token)
+    owner = _main.get_user_dirname(username) or ''
+    save_dir, url_prefix = _main.media_paths.resolve_media_dir(
+        owner=owner, feature=feature, kind='image', ext='.png', root=_main.OUTPUT_DIR)
+    name = f"{_main.media_paths.sanitize_segment(feature)}_merge_{uuid.uuid4().hex[:10]}.png"
+    local_path = os.path.join(save_dir, name)
+    try:
+        merged.save(local_path, 'PNG', optimize=True)
+        size = merged.size
+    finally:
+        merged.close()
+
+    asyncio.create_task(asyncio.to_thread(_main._prewarm_thumbnails, local_path, (600, 768, 1536)))
+    return {"url": f"{url_prefix}/{name}", "path": local_path,
+            "width": size[0], "height": size[1]}

@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "id": "project_example",
+  "owner": "isolated-example",
+  "canvasId": "canvas_example",
+  "revision": 1,
+  "title": "森林寻钥",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 1,
+    "title": "森林寻钥",
+    "playerFantasy": "探索森林并找到出口",
+    "coreLoop": "探索、收集钥匙、开启出口",
+    "controls": "方向键移动，空格交互",
+    "progression": "单关卡收集一把钥匙",
+    "successFailureRestart": "抵达出口获胜，生命归零失败，可重新开始",
+    "firstPlayable": "单角色单场景；排除战斗和存档",
+    "visualDirection": {
+      "description": "柔和手绘俯视角",
+      "palette": [
+        "草绿",
+        "暖黄"
+      ]
+    },
+    "characters": [
+      {
+        "id": "hero",
+        "description": "森林探索者",
+        "assetIds": [
+          "asset_hero_concept",
+          "asset_hero_portrait"
+        ]
+      }
+    ],
+    "scenes": [
+      {
+        "id": "forest",
+        "description": "森林探索区域",
+        "assetIds": [
+          "asset_background"
+        ]
+      }
+    ],
+    "openQuestions": [
+      "是否需要触屏操作？"
+    ],
+    "assumptions": [
+      "首个可玩版本使用键盘"
+    ],
+    "acceptanceCriteria": [
+      "收集钥匙后可打开出口",
+      "失败后可重开"
+    ]
+  },
+  "planConfirmed": false,
+  "assets": [
+    {
+      "id": "asset_hero_concept",
+      "revision": 1,
+      "name": "角色概念图",
+      "purpose": "角色概念图，用于俯视角探索游戏",
+      "usage": "concept",
+      "required": false,
+      "kind": "image",
+      "spec": {
+        "width": 1024,
+        "height": 1024,
+        "format": "png",
+        "alphaRequired": false
+      },
+      "prompt": "角色概念图，清晰轮廓，柔和配色",
+      "referenceAssetIds": [],
+      "runtimeDestination": "references/hero.png"
+    },
+    {
+      "id": "asset_hero_portrait",
+      "revision": 1,
+      "name": "角色头像",
+      "purpose": "角色头像，用于俯视角探索游戏",
+      "usage": "runtime",
+      "required": true,
+      "kind": "image",
+      "spec": {
+        "width": 256,
+        "height": 256,
+        "format": "png",
+        "alphaRequired": true
+      },
+      "prompt": "角色头像，清晰轮廓，柔和配色",
+      "referenceAssetIds": [
+        "asset_hero_concept"
+      ],
+      "runtimeDestination": "assets/characters/hero.png"
+    },
+    {
+      "id": "asset_background",
+      "revision": 1,
+      "name": "探索背景",
+      "purpose": "探索背景，用于俯视角探索游戏",
+      "usage": "runtime",
+      "required": true,
+      "kind": "image",
+      "spec": {
+        "width": 1920,
+        "height": 1080,
+        "format": "png",
+        "alphaRequired": false
+      },
+      "prompt": "探索背景，清晰轮廓，柔和配色",
+      "referenceAssetIds": [],
+      "runtimeDestination": "assets/backgrounds/exploration.png"
+    },
+    {
+      "id": "asset_icon_key",
+      "revision": 1,
+      "name": "钥匙图标",
+      "purpose": "钥匙图标，用于俯视角探索游戏",
+      "usage": "runtime",
+      "required": true,
+      "kind": "image",
+      "spec": {
+        "width": 64,
+        "height": 64,
+        "format": "png",
+        "alphaRequired": true
+      },
+      "prompt": "钥匙图标，清晰轮廓，柔和配色",
+      "referenceAssetIds": [],
+      "runtimeDestination": "assets/icons/key.png"
+    },
+    {
+      "id": "asset_icon_health",
+      "revision": 1,
+      "name": "生命图标",
+      "purpose": "生命图标，用于俯视角探索游戏",
+      "usage": "runtime",
+      "required": true,
+      "kind": "image",
+      "spec": {
+        "width": 64,
+        "height": 64,
+        "format": "png",
+        "alphaRequired": true
+      },
+      "prompt": "生命图标，清晰轮廓，柔和配色",
+      "referenceAssetIds": [],
+      "runtimeDestination": "assets/icons/health.png"
+    }
+  ]
+}

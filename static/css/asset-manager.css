@@ -1217,3 +1217,30 @@ html.filter-sheet-open:has(.filter-sheet-backdrop.is-anchored) { overflow:auto; 
     background:color-mix(in srgb, var(--card) 90%, var(--bg));
     border:1px solid color-mix(in srgb, var(--text) 13%, var(--line));
 }
+
+/* ===== 单列母分类筛选面板：只列分类名，点一项即应用并关闭 ===== */
+.prompt-tree-sheet .pt-body { display:flex; flex-direction:column; gap:1px; }
+.prompt-tree-sheet .pt-row em { display:none; }
+.prompt-tree-sheet .pt-col { max-height:none; }
+.prompt-tree-sheet .filter-sheet-body { padding:14px 12px 16px; }
+.filter-sheet.prompt-tree-sheet { width:min(300px, calc(100vw - 28px)); }
+.filter-sheet-backdrop.is-anchored .filter-sheet.prompt-tree-sheet { width:min(300px, calc(100vw - 28px)); height:auto; max-height:min(560px, 74vh); }
+
+/* ===== 搜索栏下方的子分类一行 ===== */
+.prompt-subchips { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:0 0 8px; }
+.prompt-subchip {
+    height:28px; padding:0 11px; border-radius:9px;
+    border:1px solid var(--line); background:var(--soft);
+    color:var(--muted); font-size:12px; font-weight:750; cursor:pointer;
+    transition:color .16s ease, border-color .16s ease, background .16s ease;
+}
+.prompt-subchip:hover { color:var(--text); border-color:var(--line-2); }
+.prompt-subchip.is-on {
+    color:var(--am-accent);
+    border-color:color-mix(in srgb, var(--am-accent) 40%, transparent);
+    background:color-mix(in srgb, var(--am-accent) 12%, transparent);
+}
+@media (max-width:760px) {
+    .prompt-subchips { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; padding-bottom:6px; }
+    .prompt-subchip { flex:0 0 auto; height:30px; }
+}

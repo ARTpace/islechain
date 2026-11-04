@@ -469,6 +469,7 @@ let managerSelectedPromptIds = new Set();
 let activeCanvasWorkflowCategoryId = '';
 const activeCanvasTaskPolls = new Set();
 let hoveredConnectionId = '';
+let connectionCutPoint=null;
 let lastMouseBoard = {x: 0, y: 0};
 let undoStack = [];
 const UNDO_MAX = 30;
@@ -1293,9 +1294,9 @@ function safeViewportScale(value){
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? n : 1;
 }
-function fitAllNodesViewport(){
+function fitAllNodesViewport(targets=nodes){
     const rect = board.getBoundingClientRect();
-    if(!nodes.length){
+    if(!targets.length){
         viewport.scale = 0.45;
         viewport.x = rect.width / 2;
         viewport.y = rect.height / 2;
@@ -1305,7 +1306,7 @@ function fitAllNodesViewport(){
         scheduleViewportSave();
         return;
     }
-    const rects = nodes.map(estimatedNodeRect);
+    const rects = targets.map(estimatedNodeRect);
     const minX = Math.min(...rects.map(r => r.x));
     const minY = Math.min(...rects.map(r => r.y));
     const maxX = Math.max(...rects.map(r => r.x + r.w));
@@ -1441,6 +1442,7 @@ function serializableCanvasNode(node){
     delete copy.running;
     delete copy.runStatus;
     delete copy.runError;
+    delete copy.workerRunId;
     delete copy._cascadeIdx;
     delete copy._cascadeFailed;
     delete copy._activeLoopCtx;
@@ -2080,6 +2082,8 @@ async function openCanvas(id){
         resumeCanvasImageTasks();
         startCanvasRemotePolling();
         setStatus('Ready');
+        window.GamePipeline?.canvasLoaded();
+        window.CanvasAgent?.canvasLoaded();
     } catch(e) {
         setStatus(tr('canvas.openFailed'));
         console.error(e);
@@ -2142,6 +2146,7 @@ function canvasLocalAssetUrls(){
         if(node.url) add(node.url);
         (node.images || []).forEach(add);
         (node.generatedOutputs || []).forEach(add);
+        (node.referenceImages || []).forEach(add);
         Object.entries(node.imageComparisons || {}).forEach(([key, value]) => {
             add(key);
             add(value);
@@ -2560,6 +2565,10 @@ function addGeneratorNode(point){
     const providerId = imageApiProviders()[0]?.id || '';
     const model = allImageModels(providerId)[0] || '';
     return addNode({id:uid('gen'), type:'generator', x:p.x, y:p.y, apiProvider:providerId, model, ratio:'square', resolution:defaultApiImageResolution(model), customRatio:'', customSize:'', customRatioWidth:'', customRatioHeight:'', customWidth:'', customHeight:'', inputs:[]});
+}
+function addImageGenerationNode(point){
+    const p=point||defaultPoint(120,0);
+    return addNode({id:uid('imagegen'),type:'imageGen',x:p.x,y:p.y,w:440,generationUiVersion:2,prompt:'',inputs:[],generationSettings:null,referenceImages:[],generatedOutputs:[]});
 }
 function addMsGenNode(point){
     const p = point || defaultPoint(140, 0);
@@ -3172,12 +3181,91 @@ function addOutputNode(point){
     return addNode({id:uid('out'), type:'output', x:p.x, y:p.y, images:[]});
 }
 function openCreateMenu(clientX, clientY){
+    window.GameWorkflow?.populateMenu(createMenu);
+    window.CanvasNodeCatalog?.enhanceMenu(createMenu);
     menuPoint = screenToWorld(clientX, clientY);
     closeLinkCreateMenu();
-    createMenu.style.left = `${clientX}px`;
-    createMenu.style.top = `${clientY}px`;
     createMenu.classList.add('open');
     refreshIcons();
+    placeCreateMenu(clientX,clientY);
+}
+function placeCreateMenu(clientX,clientY){
+    const rect=board.getBoundingClientRect(),gap=12;
+    const left=Math.max(rect.left,gap),top=Math.max(rect.top,gap),right=Math.min(rect.right,window.innerWidth)-gap,bottom=Math.min(rect.bottom,window.innerHeight)-gap;
+    createMenu.style.position='fixed';createMenu.style.boxSizing='border-box';
+    createMenu.style.maxWidth=Math.max(0,right-left)+'px';createMenu.style.maxHeight=Math.max(0,bottom-top)+'px';createMenu.style.overflowY='auto';
+    const size=createMenu.getBoundingClientRect();
+    createMenu.style.left=Math.max(left,Math.min(clientX,right-size.width))+'px';
+    createMenu.style.top=Math.max(top,Math.min(clientY,bottom-size.height))+'px';
+}
+function keepCreatedNodeVisible(node){
+    if(!node)return;
+    const element=nodesEl.querySelector(`.node[data-id="${CSS.escape(node.id)}"]`);if(!element)return;
+    const boardRect=board.getBoundingClientRect(),rect=element.getBoundingClientRect(),gap=20,head=36;
+    const left=boardRect.left+gap,top=boardRect.top+gap+head,right=boardRect.right-gap,bottom=boardRect.bottom-gap;
+    if(rect.width>right-left||rect.height>bottom-top){fitAllNodesViewport([node]);return;}
+    let x=Math.max(left,Math.min(rect.left,right-rect.width)),y=Math.max(top,Math.min(rect.top,bottom-rect.height));
+    const map=typeof minimap!=='undefined'?minimap?.getBoundingClientRect():null;
+    if(map?.width&&map?.height&&x<map.right&&x+rect.width>map.left&&y-head<map.bottom&&y+rect.height>map.top){
+        const above=map.top-gap-rect.height,before=map.left-gap-rect.width;
+        if(above>=top&&(before<left||y-above<=x-before))y=above;else if(before>=left)x=before;
+    }
+    if(x!==rect.left||y!==rect.top){node.x+=(x-rect.left)/viewport.scale;node.y+=(y-rect.top)/viewport.scale;render();scheduleSave();}
+}
+let createdNodeEffect = null;
+function stopCreatedNodeEffect(){
+    if(!createdNodeEffect)return;
+    cancelAnimationFrame(createdNodeEffect.frame);
+    createdNodeEffect.layer?.remove();
+    board.style.backgroundImage=createdNodeEffect.background;
+    createdNodeEffect=null;
+    scheduleViewportSave();
+}
+function focusCreatedNode(node){
+    if(!node)return;
+    stopCreatedNodeEffect();
+    const rect=board.getBoundingClientRect(),size=estimatedNodeRect(node);
+    const start={...viewport};
+    const scale=Math.min(start.scale,Math.max(.06,(rect.width-120)/size.w),Math.max(.06,(rect.height-160)/size.h));
+    const center={x:size.x+size.w/2,y:size.y+size.h/2};
+    const target={x:rect.width/2-center.x*scale,y:rect.height/2-center.y*scale,scale};
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        Object.assign(viewport,target);applyViewport();scheduleViewportSave();return;
+    }
+    // ponytail: one short-lived canvas animates the existing 28px grid, without a permanent renderer.
+    const layer=document.createElement('canvas'),ctx=layer.getContext('2d');
+    layer.className='canvas-create-ripple';layer.setAttribute('aria-hidden','true');
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    layer.width=Math.ceil(rect.width*dpr);layer.height=Math.ceil(rect.height*dpr);
+    layer.style.width=rect.width+'px';layer.style.height=rect.height+'px';
+    const background=board.style.backgroundImage;
+    const colors=getComputedStyle(board);
+    const grid=colors.getPropertyValue('--grid').trim()||'#eae8e2';
+    const accent=colors.getPropertyValue('--accent').trim()||grid;
+    if(ctx){ctx.scale(dpr,dpr);board.insertBefore(layer,board.firstChild);board.style.backgroundImage='none';}
+    const effect=createdNodeEffect={layer,background,frame:0},began=performance.now();
+    const tick=now=>{
+        if(createdNodeEffect!==effect)return;
+        const elapsed=now-began,t=Math.min(1,elapsed/480),ease=1-Math.pow(1-t,3);
+        for(const key of ['x','y','scale'])viewport[key]=start[key]+(target[key]-start[key])*ease;
+        applyViewport();
+        if(ctx){
+            ctx.clearRect(0,0,rect.width,rect.height);
+            const ox=center.x*viewport.scale+viewport.x,oy=center.y*viewport.scale+viewport.y;
+            const radius=elapsed*1.05,fade=Math.max(0,1-elapsed/1000);
+            for(let y=14;y<rect.height;y+=28)for(let x=14;x<rect.width;x+=28){
+                const dx=x-ox,dy=y-oy,d=Math.hypot(dx,dy),wave=Math.exp(-Math.pow((d-radius)/65,2))*fade;
+                const shift=Math.sin((d-radius)/24)*7*wave;
+                ctx.beginPath();ctx.fillStyle=grid;
+                const px=x+dx/Math.max(1,d)*shift,py=y+dy/Math.max(1,d)*shift;
+                ctx.arc(px,py,1.15+wave*.7,0,Math.PI*2);ctx.fill();
+                if(wave>.01){ctx.globalAlpha=wave*.38;ctx.fillStyle=accent;ctx.fill();ctx.globalAlpha=1;}
+            }
+        }
+        if(elapsed<1000)effect.frame=requestAnimationFrame(tick);
+        else stopCreatedNodeEffect();
+    };
+    effect.frame=requestAnimationFrame(tick);
 }
 function closeCreateMenu(){
     createMenu.classList.remove('open');
@@ -3187,9 +3275,29 @@ function closeCreateMenu(){
 function linkCreateOptions(state){
     const node = nodes.find(n => n.id === state?.originId);
     if(!node) return [];
+    const extraOptions=window.GameExtraNodes?.linkOptions(node,state.originKind);
+    if(extraOptions)return extraOptions;
     if(state.originKind === 'out'){
+        if(window.GameModel3D?.types.includes(node.type))return [
+            {type:'gameDevelop',label:'游戏开发',icon:'code'},
+            {type:'gameModel3d',label:'3D 模型生成',icon:'boxes'},
+            {type:'gameAnimate3d',label:'3D 动画',icon:'person-standing'},
+            ...(window.GameModel3D.referenceImages(node).length?[
+                {type:'generator',label:'图像生成（参考视图）',icon:'wand-sparkles'},
+                {type:'video',label:'视频生成（参考视图）',icon:'clapperboard'},
+                {type:'llm',label:'LLM（参考视图）',icon:'message-square-text'},
+                {type:'gamePlan',label:'AI 游戏策划（参考视图）',icon:'clipboard-list'}]:[])
+        ];
+        if(['gameIdea','document'].includes(node.type)) return [{type:'gamePlan', label:'AI 游戏策划', icon:'gamepad-2'}];
+        if(node.type === 'gameTable') return [{type:'gamePlan', label:'AI 游戏策划', icon:'gamepad-2'}, {type:'gameDevelop', label:'游戏开发', icon:'code'}];
+        if(node.type === 'gamePlan') return [{type:'gameAssets', label:'需求与资产拆解', icon:'list'}, {type:'gameDevelop', label:'游戏开发', icon:'code'}];
+        if(node.type === 'gameAssets' || node.type === 'gameTable') return [{type:'gameDevelop', label:'游戏开发', icon:'code'}];
+        if(node.type === 'gameDevelop') return [{type:'gameTest', label:'试玩与场景', icon:'play'}];
+        if(node.type === 'gamePlay') return [{type:'gameTest', label:'试玩与场景', icon:'play'}];
+        if(node.type === 'gameTest') return [{type:'gameRelease', label:'游戏交付', icon:'package'}];
         if(['image','prompt','loop','group','promptGroup','llm','output'].includes(node.type)){
             return [
+                {type:'imageGen', label:'图像生成', icon:'sparkles'},
                 {type:'generator', label:tr('canvas.apiGenerate'), icon:'wand-sparkles'},
                 {type:'msgen', label:tr('canvas.modelscopeGenerate'), icon:'cloud-lightning'},
                 {type:'comfy', label:tr('canvas.comfyGenerate'), icon:'workflow'},
@@ -3202,14 +3310,32 @@ function linkCreateOptions(state){
         }
         return [];
     }
-    if(CANVAS_GENERATOR_TYPES.includes(node.type) || node.type === 'llm'){
-        return [
+    if(state.originKind === 'in'){
+        // ponytail: 菜单候选复用实际连线规则，包含节点当前的循环输入开关和项目归属。
+        const options = [
             {type:'image', label:tr('canvas.imageCard'), icon:'image-plus'},
             {type:'prompt', label:tr('canvas.prompt'), icon:'text-cursor-input'},
             {type:'loop', label:tr('canvas.loopNode'), icon:'repeat-2'},
             {type:'group', label:tr('canvas.group'), icon:'group'},
-            {type:'llm', label:'LLM', icon:'message-square-text'}
+            {type:'llm', label:'LLM', icon:'message-square-text'},
+            {type:'output', label:'Output', icon:'circle-dot'},
+            {type:'imageGen', label:'图像生成', icon:'sparkles'},
+            {type:'generator', label:tr('canvas.apiGenerate'), icon:'wand-sparkles'},
+            {type:'msgen', label:tr('canvas.modelscopeGenerate'), icon:'cloud-lightning'},
+            {type:'comfy', label:tr('canvas.comfyGenerate'), icon:'workflow'},
+            {type:'rh', label:tr('canvas.rhGenerate'), icon:'workflow'},
+            {type:'ltxDirector', label:tr('canvas.ltxDirector'), icon:'film'},
+            {type:'minimax', label:'MiniMax H3', icon:'sparkles'},
+            {type:'video', label:tr('canvas.videoGenerateNode'), icon:'clapperboard'},
+            {type:'gameIdea', label:'游戏灵感', icon:'gamepad-2'},
+            {type:'document', label:'项目文档', icon:'file-text'},
+            {type:'gameTable', label:'策划表格', icon:'table'},
+            {type:'gamePlan', label:'AI 游戏策划', icon:'clipboard-list'},
+            {type:'gameAssets', label:'需求与资产拆解', icon:'list'},
+            {type:'gameDevelop', label:'游戏开发', icon:'code'},
+            {type:'gameTest', label:'试玩与场景', icon:'play'}
         ];
+        return options.filter(opt => canConnectNodes({id:'new-link-source', type:opt.type, projectId:node.projectId}, node));
     }
     return [];
 }
@@ -3222,6 +3348,8 @@ function openLinkCreateMenu(originId, originKind, clientX, clientY){
     linkCreateMenu.innerHTML = options.map(opt => `<button class="menu-btn" data-link-create="${escapeAttr(opt.type)}"><i data-lucide="${escapeAttr(opt.icon)}" class="w-4 h-4"></i><span>${escapeHtml(opt.label)}</span></button>`).join('');
     linkCreateMenu.style.left = `${clientX}px`;
     linkCreateMenu.style.top = `${clientY}px`;
+    linkCreateMenu.style.maxHeight = `${Math.max(120, window.innerHeight - clientY - 12)}px`;
+    linkCreateMenu.style.overflowY = 'auto';
     linkCreateMenu.classList.add('open');
     linkCreateMenu.querySelectorAll('[data-link-create]').forEach(btn => {
         btn.onclick = e => {
@@ -3263,6 +3391,8 @@ function openGeneratorNodeMenu(nodeId, clientX, clientY){
     const menuTop = Math.max(10, Math.min(window.innerHeight - 260, (rect?.top || clientY) + 36));
     nodeInputMenu.style.left = `${inputLeft}px`;
     nodeInputMenu.style.top = `${menuTop}px`;
+    nodeInputMenu.style.maxHeight = `${Math.max(120, window.innerHeight - menuTop - 12)}px`;
+    nodeInputMenu.style.overflowY = 'auto';
     nodeOutputMenu.style.left = `${outputLeft}px`;
     nodeOutputMenu.style.top = `${menuTop}px`;
     nodeInputMenu.classList.add('open');
@@ -3541,15 +3671,18 @@ async function downloadGroupNodeImages(groupId){
         alert(err.message || tr('canvas.outputDownloadEmpty'));
     }
 }
-function createLinkedNode(type){
+async function createLinkedNode(type){
     const state = linkCreateState;
     closeLinkCreateMenu();
     if(!state) return;
     const origin = nodes.find(n => n.id === state.originId);
     if(!origin) return;
+    if(state.originKind === 'in' && !linkCreateOptions(state).some(option => option.type === type)) return;
     pushUndo();
-    const created = createNodeByType(type, state.point);
-    if(!created) return;
+    let created;
+    try { created = await createNodeByType(type, state.point); }
+    catch(error) { alert(error.message || '创建节点失败，请重试'); return; }
+    if(!created || !nodes.includes(origin) || !nodes.includes(created)) return;
     const fromId = state.originKind === 'out' ? origin.id : created.id;
     const toId = state.originKind === 'out' ? created.id : origin.id;
     if(canConnect(fromId, toId) && !connections.some(c => c.from === fromId && c.to === toId)){
@@ -3561,6 +3694,9 @@ function createLinkedNode(type){
     }
 }
 function createNodeByType(type, point){
+    if(type === 'extension') return window.CanvasNodeCatalog?.create(point);
+    if(type === 'imageGen') return addImageGenerationNode(point);
+    if(['gameIdea','gamePlan','gameAssets','gameTable','document','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(type)) return window.GameWorkflow?.addNode(type, point) || null;
     if(type === 'image') return addImageNode(point);
     if(type === 'prompt') return addPromptNode(point);
     if(type === 'loop') return addLoopNode(point);
@@ -3576,20 +3712,11 @@ function createNodeByType(type, point){
     if(type === 'output') return addOutputNode(point);
     return null;
 }
-function menuAdd(type){
+async function menuAdd(type){
+    const point=menuPoint?{...menuPoint}:defaultPoint();
     closeCreateMenu();
-    if(type === 'image') addImageNode(menuPoint);
-    if(type === 'prompt') addPromptNode(menuPoint);
-    if(type === 'loop') addLoopNode(menuPoint);
-    if(type === 'llm') addLLMNode(menuPoint);
-    if(type === 'generator') addGeneratorNode(menuPoint);
-    if(type === 'msgen') addMsGenNode(menuPoint);
-    if(type === 'video') addVideoNode(menuPoint);
-    if(type === 'rh') addRhNode(menuPoint);
-    if(type === 'comfy') addComfyNode(menuPoint);
-    if(type === 'ltxDirector') addLTXDirectorNode(menuPoint);
-    if(type === 'minimax') addMiniMaxNode(menuPoint);
-    if(type === 'output') addOutputNode(menuPoint);
+    try{const node=await createNodeByType(type,point);keepCreatedNodeVisible(node);focusCreatedNode(node);}
+    catch(error){alert(error.message||'创建节点失败，请重试');}
 }
 function mediaKindForUpload(file){
     const type = String(file?.type || '').toLowerCase();
@@ -3636,6 +3763,13 @@ function isAudioUrl(url){
 }
 function isTextUrl(url){
     return /\.(txt|json|csv|srt|vtt|md)(\?|$)/i.test(canvasOriginalMediaUrl(url));
+}
+// 非媒体产物（PSD 分层文件、打包 zip、3D/模型文件等）：不能进 <img>，渲染成文件卡
+const CANVAS_FILE_EXTS = ['psd','psb','zip','7z','pdf','tif','tiff','ai','blend','obj','fbx','glb','gltf'];
+function isFileUrl(url){
+    const clean = canvasOriginalMediaUrl(url).split('?')[0].toLowerCase();
+    const ext = clean.slice(clean.lastIndexOf('.') + 1);
+    return clean.includes('.') && CANVAS_FILE_EXTS.includes(ext);
 }
 function mediaKindForRef(ref){
     const kind = String(ref?.kind || ref?.mediaKind || '').toLowerCase();
@@ -5894,7 +6028,7 @@ function render(){
     const reusableMediaNodes = new Map();
     nodesEl.querySelectorAll('.node').forEach(el => {
         const node = nodes.find(n => n.id === el.dataset.id);
-        if(nodeHasLiveMedia(node)) reusableMediaNodes.set(node.id, el);
+        if(node?.type==='imageGen' || nodeHasLiveMedia(node) || window.GameDevelopment?.activePlayer(node) || window.GameModel3D?.active(node) || window.GameExtraNodes?.active(node)) reusableMediaNodes.set(node.id, el);
     });
     applyViewport();
     [...nodesEl.children].forEach(child => {
@@ -5904,6 +6038,10 @@ function render(){
         // 单个节点渲染异常不能中断整个循环，否则它后面的节点（含新建节点，通常排在末尾）都不会被
         // 追加进 DOM，连带这些节点的连线也会因找不到 DOM 而画到 (0,0) 变成“消失”。
         try {
+            if(window.CanvasImageGeneration?.preserve(node,reusableMediaNodes.get(node.id))) return;
+            if(window.GameDevelopment?.preservePlayer(node,reusableMediaNodes.get(node.id))) return;
+            if(window.GameExtraNodes?.preserve(node,reusableMediaNodes.get(node.id))) return;
+            if(window.GameModel3D?.preserve(node,reusableMediaNodes.get(node.id))) return;
             const fresh = renderNode(node);
             const old = reusableMediaNodes.get(node.id);
             nodesEl.appendChild(fresh);
@@ -5924,6 +6062,7 @@ function render(){
     syncCanvasSelectedImageResolution(nodesEl);
     measureCanvasOriginalImageNodes(nodesEl);
     refreshOutputTimer();
+    window.CanvasImageGeneration?.sync();
 }
 function refreshNodes(ids=[]){
     const uniqueIds = [...new Set((ids || []).filter(Boolean))];
@@ -5940,6 +6079,10 @@ function refreshNodes(ids=[]){
             return;
         }
         try {
+            if(window.CanvasImageGeneration?.preserve(node,current)) continue;
+            if(window.GameDevelopment?.preservePlayer(node,current)) continue;
+            if(window.GameExtraNodes?.preserve(node,current)) continue;
+            if(window.GameModel3D?.preserve(node,current)) continue;
             const fresh = renderNode(node);
             if(nodeHasLiveMedia(node)) transplantNodeMediaElement(current, fresh);
             current.replaceWith(fresh);
@@ -6072,7 +6215,7 @@ function restoreOutputScrolls(state){
     });
 }
 function isNodeControl(target){
-    return !!target.closest('textarea, input, select, option, button, audio, video, [contenteditable="true"], .seg, .gen-btn, .comfy-run, .input-item, .blank-image, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview, .ltx-director-timeline-host, .pr-wrapper, .pr-toolbar, .pr-viewport, .pr-canvas, .pr-player-controls, .pr-prompt-area');
+    return !!target.closest('textarea, input, select, option, button, summary, audio, video, [contenteditable="true"], .seg, .gen-btn, .comfy-run, .input-item, .blank-image, .mode-tabs, .ms-model-tabs, .llm-provider, .llm-output, .llm-chat-log, .llm-bubble, .llm-pane-resizer, .loop-preview, .ltx-director-timeline-host, .pr-wrapper, .pr-toolbar, .pr-viewport, .pr-canvas, .pr-player-controls, .pr-prompt-area');
 }
 function destroyLTXEditor(node){
     if(!node?._ltxEditor) return;
@@ -6083,12 +6226,15 @@ function isNodeDragSurface(target){
     return !isNodeControl(target) && !target.closest('.port, .resize-handle, .output-img-wrap');
 }
 function renderNode(node){
+    if(node.type==='imageGen' && node.generationUiVersion!==2){ node.w=440; delete node.h; node.generationUiVersion=2; scheduleSave(); }
     normalizeApiNodeLayout(node);
     if(node.type === 'rh' && Number(node.h) === 560) delete node.h;
     const el = document.createElement('div');
     const size = defaultNodeSize(node.type);
     const hasFixedSize = Boolean(node.h || size.h);
-    el.className = `node ${node.type}-node ${node.url ? 'has-image' : ''} ${hasFixedSize ? 'sized' : ''} ${selected.has(node.id) ? 'selected' : ''}`;
+    el.className = `node frameless-node ${node.type}-node ${node.url ? 'has-image' : ''} ${hasFixedSize ? 'sized' : ''} ${selected.has(node.id) ? 'selected' : ''}`;
+    // Preserve the array's paint order even when a live iframe keeps its DOM across renders.
+    el.style.zIndex=String(2+nodes.indexOf(node));
     const framelessImage = node.type === 'image' && node.url && mediaKindForNode(node) === 'image';
     if(framelessImage) el.classList.add('media-image-node');
     el.style.left = `${node.x}px`;
@@ -6113,18 +6259,41 @@ function renderNode(node){
         if(node.type === 'output') openOutputNodeMenu(node.id, e.clientX, e.clientY);
         else openGeneratorNodeMenu(node.id, e.clientX, e.clientY);
     };
-    const title = node.type === 'image' ? 'Image' : node.type === 'prompt' ? 'Prompt' : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'ltxDirector' ? tr('canvas.ltxDirector') : node.type === 'rh' ? 'RunningHub' : node.type === 'minimax' ? 'MiniMax H3' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
-    const displayTitle = framelessImage ? `<i data-lucide="image" aria-hidden="true"></i>${escapeHtml(node.name || '图片')}` : node.type === 'image' && node.url ? nodeTitleForMedia(node) : title;
+    const title = ({...window.GameExtraNodes?.titles,imageGen:'图像生成',gameIdea:'游戏灵感', gamePlan:'AI 游戏策划', gameAssets:'需求与资产拆解', gameTable:'策划表格', gameDevelop:'游戏开发', gamePlay:'游戏试玩', gameTest:'试玩与场景', gameRelease:'游戏交付', gameModelAsset:'模型资产', gameModel3d:'3D 模型生成', gameAnimate3d:'3D 动画', model3d:'3D 资产'})[node.type] || (node.type === 'document' ? '项目文档' : node.type === 'image' ? 'Image' : node.type === 'prompt' ? '文本' : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'ltxDirector' ? tr('canvas.ltxDirector') : node.type === 'rh' ? 'RunningHub' : node.type === 'minimax' ? 'MiniMax H3' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate'));
+    const titleIcon=({image:'image',prompt:'type',loop:'repeat',promptGroup:'files',group:'folder',output:'images',imageGen:'image-plus',llm:'message-square',comfy:'workflow',ltxDirector:'clapperboard',rh:'workflow',minimax:'video',msgen:'sparkles',video:'video',generator:'image-plus',document:'file-text',gameIdea:'lightbulb',gamePlan:'clipboard-list',gameAssets:'package',gameTable:'table',gameDevelop:'code',gamePlay:'play',gameTest:'flask-conical',gameRelease:'rocket',gameModelAsset:'box',gameModel3d:'box',gameAnimate3d:'person-standing',model3d:'box',gameSpeech:'mic',gameSoundEffect:'audio-lines',gameMusic:'music',gameAudioScene:'audio-lines',gameFile:'file',gameFolder:'folder',gameScene:'layers'})[node.type]||'layout-grid';
+    const titleName=node.type==='extension'?(window.CanvasNodeCatalog?.definition(node)?.title||'扩展节点'):framelessImage?node.name||'图片':node.type==='image'&&node.url?nodeTitleForMedia(node):title;
+    const displayTitle=`<i data-lucide="${titleIcon}" aria-hidden="true"></i><span>${escapeHtml(titleName)}</span>`;
     // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
-    const showStatus = ['generator','msgen','comfy','ltxDirector','llm','video','rh','minimax'].includes(node.type) && node.runStatus
+    const showStatus = ['imageGen','generator','msgen','comfy','ltxDirector','llm','video','rh','minimax'].includes(node.type) && node.runStatus
         && (node.runStatus !== 'failed' || node._cascadeFailed);
     const statusHtml = showStatus ? (() => {
         const label = { queued:'排队中', running:'运行中', done:'完成', failed:'失败' }[node.runStatus] || '';
         return `<span class="node-run-status ${node.runStatus}"><span class="dot"></span>${escapeHtml(label)}${node._cascadeIdx?' '+node._cascadeIdx:''}</span>`;
     })() : '';
     el.innerHTML = `<div class="node-head"><span class="node-title">${displayTitle}</span><div style="display:flex;align-items:center;gap:8px">${statusHtml}<button onclick="deleteNodeFromButton('${node.id}', event)" class="text-gray-300 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button></div></div>`;
+    mountImageColorTag(el,node);
     const body = document.createElement('div');
     body.className = 'node-body';
+    if(node.type === 'model3d'){
+        const sizeText = node.size ? ` · ${(node.size/1048576).toFixed(2)} MiB` : '';
+        body.innerHTML = `<div style="padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center">
+            <div style="width:100%;height:150px;display:flex;align-items:center;justify-content:center;background:#0c1118;border:1px solid #223;border-radius:8px;color:#5b7686" class="model3d-thumb">
+                <i data-lucide="box" style="width:44px;height:44px"></i>
+            </div>
+            <div style="font-size:12px;color:#cdd9e5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(node.name || '3D 模型')}${escapeHtml(sizeText)}</div>
+            <div style="display:flex;gap:8px">
+                <button type="button" class="model3d-preview" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">预览</button>
+                <button type="button" class="model3d-download" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">下载</button>
+            </div>
+        </div>`;
+        body.querySelector('.model3d-preview').addEventListener('click', e => { e.stopPropagation(); window.openModel3dViewer(node.url, node.name); });
+        body.querySelector('.model3d-download').addEventListener('click', e => { e.stopPropagation(); const a=document.createElement('a'); a.href=node.url; a.download=node.name||'model.glb'; a.click(); });
+        body.addEventListener('dragover', e => { if(e.dataTransfer?.files?.length){ e.preventDefault(); } });
+        el.appendChild(body);
+        if(window.lucide) lucide.createIcons();
+        return el;
+    }
+    if(node.type === 'document' || ['gameIdea','gamePlan','gameAssets','gameTable','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(node.type)) window.GameWorkflow?.nodeBody(node, body);
     if(node.type === 'image') {
         if(node.url) {
             const missing = isMissingAssetUrl(node.url);
@@ -6268,11 +6437,13 @@ function renderNode(node){
         body.innerHTML = `<div class="text-[11px] text-gray-400">${promptNodes.length} ${tr('canvas.promptCount')} ${tr('canvas.grouped')}</div>`;
     }
     if(node.type === 'llm') body.appendChild(renderLLMBody(node));
+    if(node.type === 'imageGen') body.appendChild(window.CanvasImageGeneration.body(node));
     if(node.type === 'generator') body.appendChild(renderGeneratorBody(node));
     if(node.type === 'msgen') body.appendChild(renderMsGenBody(node));
     if(node.type === 'video') body.appendChild(renderVideoBody(node));
     if(node.type === 'rh') body.appendChild(renderRhBody(node));
     if(node.type === 'comfy') body.appendChild(renderComfyBody(node));
+    if(node.type === 'extension') body.appendChild(window.CanvasNodeCatalog.body(node));
     if(node.type === 'ltxDirector') body.appendChild(renderLTXDirectorBody(node));
     if(node.type === 'minimax') body.appendChild(renderMiniMaxBody(node));
     if(node.type === 'output') {
@@ -6287,20 +6458,25 @@ function renderNode(node){
     }
     el.appendChild(body);
     if(framelessImage) mountImageVersions(el,node);
-    if(framelessImage) mountImageColorTag(el,node);
     if(framelessImage) mountCanvasCutoutComparison(el,node);
-    el.querySelectorAll('button, select, textarea, input').forEach(control => {
+    el.querySelectorAll('button, select, textarea, input, summary').forEach(control => {
         control.addEventListener('mousedown', e => e.stopPropagation(), true);
         control.addEventListener('click', e => e.stopPropagation());
     });
+    // Blank content must remain draggable even when embedded bodies stop bubbling.
+    el.addEventListener('mousedown',e=>{
+        if(e.button!==0||e.detail>=2||e.target.closest('.node-head')||!isNodeDragSurface(e.target))return;
+        if(node.type==='image'&&node.url)return; // Keep image preview's double-click/drag handler.
+        startNodeDrag(e,node);
+    },true);
     el.onmousedown = e => {
         if(e.button !== 0 || !isNodeDragSurface(e.target)) return;
         startNodeDrag(e, node);
     };
-    const canInput = ['generator','comfy','ltxDirector','output','llm','msgen','video','rh','minimax'].includes(node.type) || (node.type === 'loop' && (node.imageInput || node.showPrompt));
-    const canOutput = ['image','prompt','loop','group','promptGroup','generator','comfy','ltxDirector','llm','msgen','video','rh','minimax','output'].includes(node.type);
-    if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
-    if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
+    const canInput = (node.type === 'prompt' && node.gameBinding) || ['gamePlan','gameAssets','gameTable','document','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(node.type) || ['imageGen','generator','comfy','ltxDirector','output','llm','msgen','video','rh','minimax'].includes(node.type) || (node.type === 'loop' && (node.imageInput || node.showPrompt));
+    const canOutput = ['gameIdea','gamePlan','gameAssets','gameTable','document','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(node.type) || ['image','prompt','loop','group','promptGroup','imageGen','generator','comfy','ltxDirector','llm','msgen','video','rh','minimax','output'].includes(node.type);
+    if(canInput || node.type === 'extension') el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
+    if(canOutput || node.type === 'extension') el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
     el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
     el.querySelector('.node-head').onmousedown = e => {
         if(e.button !== 0) return;
@@ -6463,8 +6639,13 @@ function refreshOutputNodeContent(node){
     return true;
 }
 function defaultNodeSize(type){
+    if(type === 'extension') return {w:380,h:0};
+    if(type === 'imageGen') return {w:440,h:0};
     if(type === 'image') return {w:260, h:336};
+    if(type === 'model3d') return {w:240, h:300};
     if(type === 'prompt') return {w:310, h:0};
+    if(type === 'document') return {w:380, h:0};
+    if(['gameIdea','gamePlan','gameAssets','gameTable','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(type)) return {w:440, h:0};
     if(type === 'loop') return {w:336, h:0};
     if(type === 'llm') return {w:420, h:590};
     if(type === 'generator') return {w:380, h:0};
@@ -6548,6 +6729,9 @@ function renderLoopPrompt(node, ctx=loopContext){
 }
 function imageRefsFromNode(node){
     if(!node) return [];
+    if(window.GameModel3D?.types.includes(node.type)) return window.GameModel3D.referenceImages(node);
+    if(node.type === 'gameIdea') return (node.media || []).filter(item => item?.url && item.kind === 'image')
+        .map(item => ({url:item.url, name:item.name || 'image', role:'', kind:'image'}));
     if(node.type === 'image' && node.url && mediaKindForNode(node) === 'image') return [{url:node.url, name:node.name || 'image', role:node.role || '', kind:'image'}];
     if(node.type === 'group'){
         return (node.items || [])
@@ -6579,6 +6763,8 @@ function loopInputImageRefs(node, ctx=loopContext){
 }
 function videoRefsFromNode(node){
     if(!node) return [];
+    if(node.type === 'gameIdea') return (node.media || []).filter(item => item?.url && item.kind === 'video')
+        .map(item => ({url:item.url, name:item.name || 'video', role:'', kind:'video'}));
     if(node.type === 'image' && node.url && mediaKindForNode(node) === 'video') return [{url:node.url, name:node.name || 'video', role:node.role || '', kind:'video'}];
     if(node.type === 'group'){
         return (node.items || [])
@@ -8210,18 +8396,40 @@ function onLLMPaneResize(e){
         }
     }
 }
+function gamePlanText(){
+    const plan = window.GamePipeline?.project?.plan;
+    if(!plan) return '';
+    const labels = {playerFantasy:'玩家体验', coreLoop:'核心玩法', controls:'操作', progression:'成长', successFailureRestart:'胜负与重开', firstPlayable:'首个可玩版本'};
+    const body = Object.entries(labels).map(([key, label]) => {
+        const value = String(plan[key] || '').trim();
+        return value ? `${label}：${value}` : '';
+    }).filter(Boolean);
+    const art = String(plan.visualDirection?.description || '').trim();
+    if(art) body.push(`美术方向：${art}`);
+    return [`《${plan.title || '游戏策划'}》`, ...body].join('\n');
+}
 function llmInputText(node){
     return connections.filter(c => c.to === node.id).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => {
         if(n.type === 'prompt') return n.text || '';
+        if(n.type === 'gamePlan') return gamePlanText();
         if(n.type === 'loop') return renderLoopPrompt(n);
         if(n.type === 'promptGroup') return (n.items || []).map(id => nodes.find(x => x.id === id)).filter(Boolean).map(p => p.text || '').filter(Boolean).join('\n\n');
-        if(n.type === 'llm') return n.outputText || '';
+        if(n.type === 'llm' || n.type === 'extension') return n.outputText || '';
+        if(n.type === 'gameIdea'){
+            const media = (n.media || []).filter(item => item?.url);
+            const kindLabel = {image:'图片', video:'视频', audio:'音频'};
+            const list = media.length ? `参考素材：${media.map(item => `${item.name || item.kind}（${kindLabel[item.kind] || item.kind}）`).join('、')}` : '';
+            return [n.idea ? `游戏灵感：${n.idea}` : '', list].filter(Boolean).join('\n');
+        }
         return '';
     }).filter(Boolean).join('\n\n');
 }
 function llmInputImages(node){
     const urls = [];
     connections.filter(c => c.to === node.id).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).forEach(n => {
+        if(n.type === 'extension') urls.push(...(window.CanvasNodeCatalog?.imageRefs(n) || []).map(ref=>ref.url));
+        if(window.GameModel3D?.types.includes(n.type)) urls.push(...window.GameModel3D.referenceImages(n).map(ref=>ref.url));
+        if(n.type === 'gameIdea') urls.push(...(n.media || []).filter(item => item?.url && item.kind === 'image').map(item => item.url));
         if(n.type === 'image' && n.url && mediaKindForNode(n) === 'image') urls.push(n.url);
         if(n.type === 'output' && (n.images||[]).length){
             const last = [...n.images].reverse().map(outputUrlValue).find(url => url && !isVideoUrl(url) && !isAudioUrl(url));
@@ -8237,6 +8445,7 @@ function llmInputVideos(node){
     const urls = [];
     connections.filter(c => c.to === node.id).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).forEach(n => {
         if(n.type === 'image' && n.url && mediaKindForNode(n) === 'video') urls.push(n.url);
+        if(n.type === 'gameIdea') urls.push(...(n.media || []).filter(item => item?.url && item.kind === 'video').map(item => item.url));
         if(n.type === 'output' && (n.images||[]).length){
             const last = [...n.images].reverse().map(outputUrlValue).find(url => url && isVideoUrl(url));
             if(last) urls.push(last);
@@ -8832,6 +9041,24 @@ function comfyFields(node, kind='all'){
     const data = currentComfyWorkflow(node);
     const fields = data?.config?.fields || [];
     return kind === 'all' ? fields : fields.filter(f => comfyFieldKind(f) === kind);
+}
+// 一个字段可绑定多个节点（config 里 node 写数组），如多视角工作流的 N 个 KSampler 共用步数
+function comfyFieldNodes(f){
+    const raw = f?.node;
+    if(Array.isArray(raw)) return raw.map(n => String(n ?? '').trim()).filter(Boolean);
+    const one = String(raw ?? '').trim();
+    return one ? [one] : [];
+}
+function comfySetParam(params, f, value){
+    if(!f?.input) return;
+    comfyFieldNodes(f).forEach(nid => {
+        params[nid] = params[nid] || {};
+        params[nid][f.input] = value;
+    });
+}
+// standalone 提示词字段：不跟随连线的 prompt，用自己的默认值/设置面板里改的值
+function comfyPromptStandalone(f){
+    return f?.standalone === true || f?.follow_prompt === false;
 }
 function comfyParamValue(node, field){
     node.comfyParams = node.comfyParams || {};
@@ -10222,9 +10449,9 @@ function updateComfyField(node, input, event){
     scheduleSave();
 }
 
-const CANVAS_GENERATOR_TYPES = ['generator','msgen','comfy','ltxDirector','video','rh','minimax'];
-const CANVAS_IMAGE_OUTPUT_TYPES = ['generator','msgen','comfy','ltxDirector','rh','minimax'];
-const CANVAS_MEDIA_OUTPUT_TYPES = ['generator','msgen','comfy','ltxDirector','video','rh','minimax'];
+const CANVAS_GENERATOR_TYPES = ['imageGen','generator','msgen','comfy','ltxDirector','video','rh','minimax'];
+const CANVAS_IMAGE_OUTPUT_TYPES = ['imageGen','generator','msgen','comfy','ltxDirector','rh','minimax'];
+const CANVAS_MEDIA_OUTPUT_TYPES = ['imageGen','generator','msgen','comfy','ltxDirector','video','rh','minimax'];
 function hasExplicitOutputConnection(nodeId){
     return connections.some(c => {
         if(c.from !== nodeId) return false;
@@ -10271,6 +10498,7 @@ function outputNodesForSource(nodeId){
         .filter(n => n?.type === 'output');
 }
 function latestGeneratedOutputItem(node){
+    if(node?.type === 'extension') return [...(node.extensionImages || [])].reverse().find(item => outputUrlValue(item));
     return [...(node?.generatedOutputs || [])].reverse().find(item => outputUrlValue(item));
 }
 function outputHasUrl(out, url){
@@ -10287,13 +10515,13 @@ function appendOutputImagesWithoutDuplicates(out, images, compareRef=null, metas
 function syncLatestGeneratedOutputToConnection(fromId, toId){
     const source = nodes.find(n => n.id === fromId);
     const out = nodes.find(n => n.id === toId);
-    if(!source || !out || out.type !== 'output' || !CANVAS_MEDIA_OUTPUT_TYPES.includes(source.type)) return false;
+    if(!source || !out || out.type !== 'output' || !(CANVAS_MEDIA_OUTPUT_TYPES.includes(source.type) || source.type === 'extension')) return false;
     const latest = latestGeneratedOutputItem(source);
     if(!latest) return false;
     return appendOutputImagesWithoutDuplicates(out, [latest]) > 0;
 }
 function syncConnectedOutputsFromGenerated(node, outputs){
-    if(!node || !CANVAS_MEDIA_OUTPUT_TYPES.includes(node.type)) return;
+    if(!node || !(CANVAS_MEDIA_OUTPUT_TYPES.includes(node.type) || node.type === 'extension')) return;
     const list = (outputs || []).filter(item => outputUrlValue(item));
     if(!list.length) return;
     outputNodesForSource(node.id).forEach(out => appendOutputImagesWithoutDuplicates(out, list));
@@ -10316,6 +10544,10 @@ function generatedImageRefs(node){
 }
 function mediaRefsFromNode(node){
     if(!node) return [];
+    if(node.type === 'extension') return window.CanvasNodeCatalog?.imageRefs(node) || [];
+    if(window.GameModel3D?.types.includes(node.type)) return window.GameModel3D.referenceImages(node);
+    if(node.type === 'gameIdea') return (node.media || []).filter(item => item?.url)
+        .map(item => ({url:item.url, name:item.name || item.kind, role:'', kind:item.kind || 'image'}));
     if(node.type === 'image' && node.url){
         const kind = mediaKindForNode(node);
         return [{url:node.url, name:node.name || kind, role:node.role || '', kind}];
@@ -10339,6 +10571,10 @@ function mediaRefsFromNode(node){
 }
 function generatorSources(gen){
     return connections.filter(c => c.to === gen.id).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => {
+        if(window.GameModel3D?.types.includes(n.type)){
+            const refs=window.GameModel3D.referenceImages(n);
+            return {id:n.id,type:'image',label:'模型参考视图',preview:refs[0]?.url,refs,prompt:''};
+        }
         if(n.type === 'output' && (n.images||[]).length){
             // 从 output 节点取最新一张图当作 reference 给下游
             const reversed = [...n.images].map((item, index) => ({item, index})).reverse();
@@ -10361,6 +10597,28 @@ function generatorSources(gen){
                     prompt:''
                 }));
             }
+        }
+        if(n.type === 'gameIdea'){
+            const media = (n.media || []).filter(item => item?.url);
+            const sources = media.map(item => {
+                const kind = item.kind || 'image';
+                return {
+                    id:`${n.id}:media:${item.id}`,
+                    type:`idea-${kind}`,
+                    label:item.name || kind,
+                    preview:kind === 'image' ? item.url : undefined,
+                    refs:[{url:item.url, name:item.name || kind, kind}],
+                    prompt:''
+                };
+            });
+            if(n.idea) sources.push({
+                id:`${n.id}:idea`,
+                type:'ideaPrompt',
+                label:(n.idea || '游戏灵感').slice(0, 28),
+                refs:[],
+                prompt:n.idea
+            });
+            return sources.length ? sources : null;
         }
         if(n.type === 'image' && n.url) {
             const kind = mediaKindForNode(n);
@@ -10393,6 +10651,10 @@ function generatorSources(gen){
             return sources;
         }
         if(n.type === 'prompt') return {id:n.id, type:'prompt', label:(n.text || '提示词').slice(0, 32), refs:[], prompt:n.text || ''};
+        if(n.type === 'gamePlan'){
+            const text = gamePlanText();
+            return text ? {id:n.id, type:'gamePlanText', label:(window.GamePipeline?.project?.plan?.title || '游戏策划').slice(0, 28), refs:[], prompt:text} : null;
+        }
         if(n.type === 'loop') {
             const ctx = gen?._activeLoopCtx || loopContext || null;
             const prompt = renderLoopPrompt(n, ctx);
@@ -10417,6 +10679,10 @@ function generatorSources(gen){
         if(n.type === 'promptGroup') {
             const prompts = (n.items || []).map(id => nodes.find(x => x.id === id)).filter(Boolean).map(p => p.text || '').filter(Boolean);
             return {id:n.id, type:'promptGroup', label:`提示词 ${prompts.length} 个`, refs:[], prompt:prompts.join('\n\n')};
+        }
+        if(n.type === 'extension') {
+            const refs=window.CanvasNodeCatalog?.imageRefs(n) || [];
+            return {id:n.id, type:refs.length?'generatedImage':'prompt', label:(window.CanvasNodeCatalog?.definition(n)?.title || '扩展节点').slice(0,32), refs, preview:refs[0]?.url, prompt:n.outputText || ''};
         }
         if(n.type === 'llm' && (n.mode || 'node') === 'node' && n.outputText) return {id:n.id, type:'llm', label:(n.outputText || 'LLM').slice(0, 32), refs:[], prompt:n.outputText || ''};
         return null;
@@ -10446,6 +10712,7 @@ function syncGeneratorInputs(){
         orderedSources(gen, generatorSources(gen));
         if(gen.type === 'ltxDirector') ltxSyncConnectedImagesToTimeline(gen);
     });
+    window.CanvasImageGeneration?.sync();
 }
 // 提示词节点每敲一个字都全量重建所有生成器节点的输入/预览 DOM 会卡顿。节点的 text 已即时写入
 // （运行时实时读取，不受影响），生成器里的预览只需稍后同步一次即可，这里做防抖。
@@ -10505,6 +10772,11 @@ async function runGenerator(genId, opts={}){
     };
     const quality = normalizedImageQuality(gen.quality);
     if(quality) payload.quality = quality;
+    if(run.gameProject) run.gameProject.parameters = {
+        prompt:payload.prompt, model:payload.model, provider:payload.provider_id,
+        size:payload.size, references:payload.reference_images.map(ref => ref.url),
+        quality:payload.quality || '', aspectRatio:payload.aspect_ratio || '', resolution:payload.resolution || ''
+    };
     let pendingIds = [];
     const startedAt = nowMs();
     if(!opts.cascade){
@@ -11366,7 +11638,7 @@ async function runComfyNode(nodeId, opts={}){
     const customImageFields = mode === 'custom' ? comfyFields(node, 'image') : [];
     const customVideoFields = mode === 'custom' ? comfyFields(node, 'video') : [];
     const customAudioFields = mode === 'custom' ? comfyFields(node, 'audio') : [];
-    const customPromptFields = mode === 'custom' ? comfyFields(node, 'prompt') : [];
+    const customPromptFields = mode === 'custom' ? comfyFields(node, 'prompt').filter(f => !comfyPromptStandalone(f)) : [];
     if((mode === 'text' || (mode === 'custom' && customPromptFields.length)) && !prompt){ alert(tr('canvas.needPrompt')); return; }
     if((mode !== 'text' && mode !== 'custom' && !refs.length) || (mode === 'custom' && refs.length < customImageFields.length)){ alert(tr('canvas.needImage')); return; }
     if(mode === 'custom' && videoRefsOnly(allRefs).length < customVideoFields.length){ alert(langIsEn() ? 'Please connect enough video inputs for this ComfyUI workflow.' : '请为这个 ComfyUI 工作流连接足够的视频输入'); return; }
@@ -11433,28 +11705,21 @@ async function runComfyNode(nodeId, opts={}){
             const assignMediaFields = async (mediaFields, mediaRefs) => {
                 const names = [];
                 for(const ref of mediaRefs.slice(0, mediaFields.length)) names.push(await comfyNameForRef(ref));
-                mediaFields.forEach((f, i) => {
-                    if(!f.node || !f.input) return;
-                    params[f.node] = params[f.node] || {};
-                    params[f.node][f.input] = names[i] || '';
-                });
+                mediaFields.forEach((f, i) => comfySetParam(params, f, names[i] || ''));
             };
             await assignMediaFields(imageFields, refs);
             await assignMediaFields(videoFields, videoRefsOnly(allRefs));
             await assignMediaFields(audioFields, audioRefsOnly(allRefs));
             promptFields.forEach(f => {
-                if(!f.node || !f.input) return;
-                params[f.node] = params[f.node] || {};
-                params[f.node][f.input] = prompt;
+                // standalone 字段用自身的默认值/面板值；其余跟随连线提示词
+                comfySetParam(params, f, comfyPromptStandalone(f) ? comfyParamValue(node, f) : prompt);
             });
             settingFields.forEach(f => {
-                if(!f.node || !f.input) return;
-                params[f.node] = params[f.node] || {};
                 if(comfyRandomEnabled(f) && comfyRandomActive(node, f.id)){
                     node.comfyParams = node.comfyParams || {};
                     node.comfyParams[f.id] = comfyRandomValue(f);
                 }
-                params[f.node][f.input] = comfyParamValue(node, f);
+                comfySetParam(params, f, comfyParamValue(node, f));
             });
             const result = await runQueuedComfyGenerate({
                 prompt,
@@ -11648,6 +11913,8 @@ function bindCascadeButtons(wrap, nodeId){
 }
 // —— 一键运行：从目标节点反向追溯到所有上游生成节点，按拓扑顺序串行执行 ——
 function runCascadeNodeByType(node, opts={}){
+    if(node.type === 'extension') return window.CanvasNodeCatalog.execute(node);
+    if(node.type === 'imageGen') return window.CanvasImageGeneration.run(node.id, opts);
     const runOpts = {cascade:true, ...opts};
     if(node.type === 'generator') return runGenerator(node.id, runOpts);
     if(node.type === 'msgen') return runMsGenNode(node.id, runOpts);
@@ -11690,7 +11957,7 @@ async function runLimitedCascadeRounds(rounds, limit, runner){
     return Promise.allSettled(workers);
 }
 function canvasRunTypes(){
-    return ['generator','msgen','comfy','ltxDirector','llm','video','rh','minimax'];
+    return ['extension','imageGen','generator','msgen','comfy','ltxDirector','llm','video','rh','minimax'];
 }
 function canvasWorkflowEdges(){
     const runTypes = canvasRunTypes();
@@ -11928,11 +12195,13 @@ async function runOneCascadePass(order, options={}){
         node.runStatus = 'running';
         refreshNodes([id]);
         try {
-            if(node.type === 'generator') await runGenerator(id, {cascade:true, cascadeTargetId:targetId});
+            if(node.type === 'imageGen') await window.CanvasImageGeneration.run(id, {cascadeTargetId:targetId});
+            else if(node.type === 'generator') await runGenerator(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'msgen') await runMsGenNode(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'comfy') await runComfyNode(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'ltxDirector') await runLTXDirectorNode(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'minimax') await runMiniMaxNode(id, {cascade:true, cascadeTargetId:targetId});
+            else if(node.type === 'extension') await window.CanvasNodeCatalog.execute(node);
             else if(node.type === 'llm') await runLLMNode(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'video') await runVideoNode(id, {cascade:true, cascadeTargetId:targetId});
             else if(node.type === 'rh') await runRhNode(id, {cascade:true, cascadeTargetId:targetId});
@@ -12043,6 +12312,7 @@ function deleteConnection(id, event){
     pushUndo();
     connections = connections.filter(c => c.id !== id);
     if(hoveredConnectionId === id) hoveredConnectionId = '';
+    if(connectionCutPoint?.id===id)connectionCutPoint=null;
     syncGeneratorInputs();
     render();
     scheduleSave();
@@ -12063,6 +12333,7 @@ function mediaKindForOutputItem(item){
     if(isVideoUrl(url)) return 'video';
     if(isAudioUrl(url)) return 'audio';
     if(isTextUrl(url)) return 'text';
+    if(isFileUrl(url)) return 'file';
     return 'image';
 }
 function formatRunDuration(ms){
@@ -12093,6 +12364,7 @@ function runSnapshot(node, prompt, refs=[]){
     delete clone.inputs;
     return {
         nodeType: node?.type || '',
+        gameProject: window.GamePipeline?.snapshot(node),
         node: clone,
         prompt: prompt || '',
         refs: (refs || []).map(ref => ({url:ref.url, name:ref.name || 'image'})).filter(ref => ref.url),
@@ -12202,6 +12474,7 @@ function addGenerationLog({run, outputs=[], runMs=0, error=''}) {
         id:uid('log'),
         createdAt:Date.now(),
         status:error ? 'failed' : 'success',
+        gameProject: run?.gameProject,
         platform:runPlatformLabel(run),
         nodeType:run?.nodeType || '',
         model:run?.taskLabel || runTaskLabel(run),
@@ -12213,6 +12486,7 @@ function addGenerationLog({run, outputs=[], runMs=0, error=''}) {
         error:error ? String(error) : '',
     };
     canvas.logs = [entry, ...canvas.logs].slice(0, 500);
+    if(entry.gameProject && !error) window.GamePipeline?.result();
 }
 function renderCanvasLog(){
     const list = document.getElementById('logList') || (typeof logList !== 'undefined' ? logList : null);
@@ -13610,6 +13884,13 @@ function cloneNode(n, dx, dy){
     copy.x = n.x + dx;
     copy.y = n.y + dy;
     copy.running = false;
+    if(!['document','gameIdea','gamePlan','gameAssets','gameTable','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(copy.type)){
+        delete copy.projectId;
+        delete copy.assetId;
+        delete copy.gameBinding;
+        delete copy.gameAssetRevision;
+        delete copy.gameReference;
+    }
     return copy;
 }
 function duplicateNodesForAltDrag(node, preserveConnections=false){
@@ -13675,6 +13956,10 @@ function pasteNodes(){
     const clipNodes = Array.isArray(clipboard) ? clipboard : (Array.isArray(clipboard.nodes) ? clipboard.nodes : []);
     const clipConnections = Array.isArray(clipboard?.connections) ? clipboard.connections : [];
     if(!clipNodes.length) return;
+    if(clipNodes.some(n => ['document','gameIdea','gamePlan','gameAssets','gameTable','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(n.type) && n.projectId !== window.GamePipeline?.projectId)){
+        alert('文档节点仅可在同一项目内复制，请先打开当前游戏项目；跨项目粘贴已拒绝。');
+        return;
+    }
     pushUndo();
     const xs = clipNodes.map(n => n.x), ys = clipNodes.map(n => n.y);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -14029,18 +14314,21 @@ function onNodeResize(e){
 function startLink(e, originId, originKind){
     e.stopPropagation();
     originKind = originKind || 'out';
+    clearMagneticPort();
     const src = portPoint(originId, originKind);
     const source = nodes.find(n => n.id === originId);
     tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
     window.onmousemove = e2 => {
-        const p = screenToWorld(e2.clientX, e2.clientY);
-        tempLink.x2 = p.x;
-        tempLink.y2 = p.y;
+        const target=nearestPort(e2.clientX,e2.clientY,originKind==='out'?'in':'out',originId,originKind);
+        clearMagneticPort();
+        if(target){magneticPort=target;target.classList.add('port-snap');}
+        const p=target?portPoint(target.closest('.node').dataset.id,originKind==='out'?'in':'out'):screenToWorld(e2.clientX,e2.clientY);
+        tempLink.x2=p.x;tempLink.y2=p.y;
         renderLinks();
     };
     window.onmouseup = e2 => {
         const targetKind = originKind === 'out' ? 'in' : 'out';
-        const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
+        const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind,originId,originKind);
         const target = targetPort?.closest('.node');
         if(target){
             const targetId = target.dataset.id;
@@ -14073,19 +14361,43 @@ function startLink(e, originId, originKind){
         } else if(originKind === 'in'){
             openLinkCreateMenu(originId, originKind, e2.clientX, e2.clientY);
         }
-        tempLink = null;
+        tempLink = null;clearMagneticPort();
         window.onmousemove = null;
         window.onmouseup = null;
         renderLinks();
     };
 }
-function nearestPort(clientX, clientY, kind){
+let magneticPort=null,magnetFrame=0;
+function clearMagneticPort(){
+    if(!magneticPort)return;
+    magneticPort.classList.remove('port-near','port-snap');
+    magneticPort.style.removeProperty('--magnet-x');magneticPort.style.removeProperty('--magnet-y');
+    delete magneticPort.dataset.magnetX;delete magneticPort.dataset.magnetY;magneticPort=null;
+}
+board.addEventListener('pointermove',event=>{
+    if(tempLink||event.buttons||magnetFrame)return;
+    const {clientX,clientY}=event;
+    magnetFrame=requestAnimationFrame(()=>{
+        magnetFrame=0;let best=null,distance=48,dx=0,dy=0;
+        nodesEl.querySelectorAll('.port').forEach(port=>{const r=port.getBoundingClientRect(),x=clientX-r.left-r.width/2,y=clientY-r.top-r.height/2,d=Math.hypot(x,y);if(d<distance){best=port;distance=d;dx=x;dy=y;}});
+        clearMagneticPort();if(!best){scheduleLinksRender();return;}
+        magneticPort=best;best.classList.add('port-near');
+        const strength=(1-distance/48)*.28,x=dx*strength,y=dy*strength;
+        best.dataset.magnetX=x;best.dataset.magnetY=y;
+        best.style.setProperty('--magnet-x',x/viewport.scale+'px');best.style.setProperty('--magnet-y',y/viewport.scale+'px');
+        scheduleLinksRender();
+    });
+});
+board.addEventListener('pointerleave',()=>{if(magnetFrame)cancelAnimationFrame(magnetFrame);magnetFrame=0;if(!tempLink){clearMagneticPort();scheduleLinksRender();}});
+function nearestPort(clientX, clientY, kind,originId,originKind='out'){
+    const valid=port=>!originId|| (originKind==='out'?canConnect(originId,port.closest('.node')?.dataset.id):canConnect(port.closest('.node')?.dataset.id,originId));
     const selector = `.port.${kind}`;
     const direct = document.elementFromPoint(clientX, clientY)?.closest(selector);
-    if(direct) return direct;
+    if(direct&&valid(direct)) return direct;
     let best = null;
     let bestDistance = Infinity;
     nodesEl.querySelectorAll(selector).forEach(port => {
+        if(!valid(port))return;
         const r = port.getBoundingClientRect();
         const cx = r.left + r.width / 2;
         const cy = r.top + r.height / 2;
@@ -14120,7 +14432,41 @@ function canConnect(fromId, toId){
     if(!fromId || !toId || fromId === toId) return false;
     const from = nodes.find(n => n.id === fromId);
     const to = nodes.find(n => n.id === toId);
+    return canConnectNodes(from, to);
+}
+function canConnectNodes(from, to){
     if(!from || !to) return false;
+    const fromId = from.id, toId = to.id;
+    if(!fromId || !toId || fromId === toId) return false;
+    const extensionConnection = window.CanvasNodeCatalog?.canConnect(from, to);
+    if(extensionConnection !== undefined) return extensionConnection;
+    if(from.type === 'image' && ['gamePlan','document','gameTable'].includes(to.type)) return true;
+    const extraConnection = window.GameExtraNodes?.canConnect(from, to);
+    if(extraConnection !== undefined && extraConnection !== null) return extraConnection;
+    const modelConnection = window.GameModel3D?.canConnect(from, to);
+    if(modelConnection !== undefined && modelConnection !== null) return modelConnection && !wouldCreateGeneratorCycle(fromId, toId);
+    // 灵感节点：素材与灵感文本可作为通用节点（LLM 对话、生图/视频、循环图集）的参考
+    if(from.type === 'gameIdea'){
+        if(to.type === 'llm') return true;
+        if(to.type === 'loop') return Boolean(to.imageInput) && !wouldCreateGeneratorCycle(fromId, toId);
+        if(CANVAS_GENERATOR_TYPES.includes(to.type)) return !wouldCreateGeneratorCycle(fromId, toId);
+    }
+    // 策划节点本质是带 AI 的文本节点：方案文本可直接当提示词/对话输入
+    if(from.type === 'gamePlan'){
+        if(to.type === 'llm') return true;
+        if(to.type === 'loop') return Boolean(to.showPrompt) && !wouldCreateGeneratorCycle(fromId, toId);
+        if(CANVAS_GENERATOR_TYPES.includes(to.type)) return !wouldCreateGeneratorCycle(fromId, toId);
+    }
+    if(['gameIdea','gamePlan','gameAssets','gameTable','document','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(from.type) || ['gameIdea','gamePlan','gameAssets','gameTable','gameDevelop','gamePlay','gameTest','gameRelease','gameModelAsset','gameModel3d','gameAnimate3d','gameSpeech','gameSoundEffect','gameMusic','gameAudioScene','gameFile','gameFolder','gameScene'].includes(to.type)){
+        if(!from.projectId || from.projectId !== to.projectId) return false;
+        return (to.type === 'gamePlan' && ['gameIdea','document','gameTable'].includes(from.type))
+            || (from.type === 'gamePlan' && to.type === 'gameAssets')
+            || (from.type === 'gameAssets' && to.type === 'prompt' && to.gameBinding)
+            || (to.type === 'gameDevelop' && ['gamePlan','gameAssets','gameTable'].includes(from.type))
+            || (from.type === 'gameDevelop' && ['gamePlay','gameTest'].includes(to.type))
+            || (from.type === 'gamePlay' && to.type === 'gameTest')
+            || (from.type === 'gameTest' && to.type === 'gameRelease');
+    }
     if(CANVAS_GENERATOR_TYPES.includes(from.type)){
         if(to.type === 'output') return true;
         if(CANVAS_MEDIA_OUTPUT_TYPES.includes(from.type) && CANVAS_GENERATOR_TYPES.includes(to.type)){
@@ -14364,7 +14710,7 @@ function portPoint(id, kind){
     const port = el?.querySelector(`.port.${kind}`);
     if(port){
         const r = port.getBoundingClientRect();
-        return screenToWorld(r.left + r.width / 2, r.top + r.height / 2);
+        return screenToWorld(r.left + r.width / 2+Number(port.dataset.magnetX||0), r.top + r.height / 2+Number(port.dataset.magnetY||0));
     }
     // 没有 DOM（节点渲染失败被跳过）或没找到端口时，用节点存储的几何坐标兜底，
     // 让连线仍画在节点附近，而不是落到 (0,0) 或干脆消失。
@@ -14378,6 +14724,7 @@ function canResolvePort(id){
 }
 function renderLinks(){
     linksEl.innerHTML = '';
+    linkControlsEl.style.zIndex = String(nodes.length + 3);
     linkControlsEl.innerHTML = '';
     // Source relationships are visual only: never add them to workflow connections.
     imageSourceLinkSegments(nodes, selected).forEach(({a,b,active}) => {
@@ -14399,11 +14746,13 @@ function renderLinks(){
     segments.forEach(({c, a, b}) => {
         const relClass = isConnectionSelected(c) ? ' link-active' : '';
         linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, `link${relClass}`));
-        linkControlsEl.appendChild(linkDeleteButton(c, a, b));
+        if(relClass)linksEl.appendChild(flowPath(a.x,a.y,b.x,b.y));
+        if(connectionCutPoint?.id===c.id)linkControlsEl.appendChild(linkDeleteButton(c, a, b));
         linksEl.appendChild(linkHitEl(a.x, a.y, b.x, b.y, c.id));
     });
     if(tempLink){
         linksEl.appendChild(pathEl(tempLink.x1, tempLink.y1, tempLink.x2, tempLink.y2, 'link temp'));
+        linksEl.appendChild(flowPath(tempLink.x1,tempLink.y1,tempLink.x2,tempLink.y2));
     }
     renderKnifeTrail();
 }
@@ -14416,34 +14765,43 @@ function renderKnifeTrail(){
 }
 function linkDeleteButton(connection, a, b){
     const btn = document.createElement('button');
-    btn.className = `link-delete ${isConnectionSelected(connection) ? 'visible' : ''} ${hoveredConnectionId === connection.id ? 'hover' : ''}`;
+    btn.className = 'link-delete visible link-cut';
     btn.type = 'button';
     btn.title = tr('canvas.deleteLink');
     btn.setAttribute('aria-label', tr('canvas.deleteLink'));
     btn.dataset.connectionId = connection.id;
-    btn.style.left = `${(a.x + b.x) / 2}px`;
-    btn.style.top = `${(a.y + b.y) / 2}px`;
-    btn.textContent = '×';
+    btn.style.visibility = connectionCutPoint?.hidden ? 'hidden' : '';
+    btn.style.left = `${connectionCutPoint?.x??(a.x+b.x)/2}px`;
+    btn.style.top = `${connectionCutPoint?.y??(a.y+b.y)/2}px`;
+    btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.1 8.1 12.2 12.2M14 10l6-6M8.1 15.9 11 13"/></svg>';
+    btn.onmousedown=e=>e.stopPropagation();
     btn.onclick = e => deleteConnection(connection.id, e);
     return btn;
 }
 function linkHitEl(x1,y1,x2,y2,id){
     const p = pathEl(x1, y1, x2, y2, 'link-hit');
     p.dataset.connectionId = id;
+    p.onmousedown=e=>{e.stopPropagation();};
+    p.onclick=e=>{e.preventDefault();e.stopPropagation();const connection=connections.find(c=>c.id===id);if(!connection)return;connectionCutPoint={id,...closestConnectionPoint(connection,screenToWorld(e.clientX,e.clientY))};renderLinks();};
     return p;
 }
-function setHoveredConnection(id){
-    if(hoveredConnectionId === id) return;
-    const oldId = hoveredConnectionId;
-    hoveredConnectionId = id || '';
-    if(oldId){
-        const oldBtn = linkControlsEl.querySelector(`[data-connection-id="${CSS.escape(oldId)}"]`);
-        if(oldBtn) oldBtn.classList.remove('hover');
-    }
-    if(hoveredConnectionId){
-        const btn = linkControlsEl.querySelector(`[data-connection-id="${CSS.escape(hoveredConnectionId)}"]`);
-        if(btn) btn.classList.add('hover');
-    }
+function setHoveredConnection(id){hoveredConnectionId=id||'';}
+function closestConnectionPoint(connection,point){
+    const a=portPoint(connection.from,'out'),b=portPoint(connection.to,'in');
+    const distance=t=>{const p=cubicPoint(a,b,t);return (p.x-point.x)**2+(p.y-point.y)**2;};
+    let best=0,min=Infinity;
+    for(let i=0;i<=48;i++){const t=i/48,d=distance(t);if(d<min){best=t;min=d;}}
+    let low=Math.max(0,best-1/48),high=Math.min(1,best+1/48);
+    for(let i=0;i<18;i++){const l=low+(high-low)/3,r=high-(high-low)/3;if(distance(l)<distance(r))high=r;else low=l;}
+    return cubicPoint(a,b,(low+high)/2);
+}
+function slideConnectionCut(point){
+    if(!connectionCutPoint)return;
+    const connection=connections.find(c=>c.id===connectionCutPoint.id);if(!connection)return;
+    const nearest=closestConnectionPoint(connection,point);
+    connectionCutPoint={id:connection.id,...nearest,hidden:Math.hypot(nearest.x-point.x,nearest.y-point.y)*viewport.scale>44};
+    const button=linkControlsEl.querySelector('.link-cut');
+    if(button){button.style.left=connectionCutPoint.x+'px';button.style.top=connectionCutPoint.y+'px';button.style.visibility=connectionCutPoint.hidden?'hidden':'';}
 }
 function connectionDistanceToPoint(connection, point){
     const from = portPoint(connection.from, 'out');
@@ -14462,6 +14820,7 @@ function updateConnectionHoverFromMouse(e){
         setHoveredConnection('');
         return;
     }
+    slideConnectionCut(screenToWorld(e.clientX,e.clientY));
     const button = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.link-delete');
     if(button?.dataset.connectionId){
         setHoveredConnection(button.dataset.connectionId);
@@ -14478,7 +14837,7 @@ function updateConnectionHoverFromMouse(e){
     setHoveredConnection(best <= threshold ? bestId : '');
 }
 function isConnectionSelected(connection){
-    return selected.has(connection.from) || selected.has(connection.to);
+    return connectionCutPoint?.id===connection.id || selected.has(connection.from) || selected.has(connection.to);
 }
 function refreshSelectionVisuals(){
     nodesEl.querySelectorAll('.node').forEach(el => {
@@ -14490,6 +14849,7 @@ function refreshSelectionVisuals(){
     if(workflowTransferModal?.classList.contains('open')) updateWorkflowTransferMeta();
     scheduleMinimapRender();
 }
+function flowPath(x1,y1,x2,y2){const p=pathEl(x1,y1,x2,y2,'link link-flow');p.style.animationDelay=-(performance.now()%1400)+'ms';return p;}
 function pathEl(x1,y1,x2,y2,cls){
     const p = document.createElementNS('http://www.w3.org/2000/svg','path');
     const dx = Math.max(80, Math.abs(x2 - x1) * .45);
@@ -14564,6 +14924,7 @@ function applyKnifeCut(from, to){
     scheduleSave();
 }
 function setKnifeMode(active){
+    if(!active&&!knifeActive&&!knifeTrail.length&&!document.body.classList.contains('canvas-knife'))return;
     document.body.classList.toggle('canvas-knife', Boolean(active && canvas));
     if(!active){
         knifeActive = false;
@@ -14651,6 +15012,7 @@ board.addEventListener('click', e => {
 }, true);
 function startBoardPan(e, opts={}){
     if(!canvas) return false;
+    stopCreatedNodeEffect();
     if(isEditableTarget(e.target) || e.target.closest?.('#createMenu, #linkCreateMenu, #nodeInputMenu, #nodeOutputMenu, #imageNodeMenu, .minimap')) return false;
     e.preventDefault();
     e.stopPropagation();
@@ -14665,6 +15027,7 @@ function startBoardPan(e, opts={}){
         applyViewport();
     };
     window.onmouseup = e2 => {
+        if(dragBoard?.clearSelectionOnClick&&!dragBoard.moved&&connectionCutPoint){connectionCutPoint=null;renderLinks();}
         const shouldClearSelection = dragBoard?.clearSelectionOnClick && !dragBoard.moved && selected.size;
         if(shouldClearSelection){
             selected.clear();
@@ -14709,7 +15072,12 @@ board.addEventListener('mousemove', e => {
         setKnifeMode(false);
     }
 });
-board.addEventListener('mouseleave', () => setHoveredConnection(''));
+board.addEventListener('mouseleave', () => {
+    setHoveredConnection('');
+    if(connectionCutPoint){connectionCutPoint.hidden=true;const button=linkControlsEl.querySelector('.link-cut');if(button)button.style.visibility='hidden';}
+});
+board.addEventListener('mousedown',e=>{if(connectionCutPoint&&e.target!==board&&e.target!==world&&e.target!==nodesEl&&e.target!==linksEl&&!e.target.closest?.('.link-hit,.link-delete,.minimap')){connectionCutPoint=null;renderLinks();}},true);
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&connectionCutPoint){connectionCutPoint=null;renderLinks();}});
 board.ondblclick = null;
 board.oncontextmenu = e => {
     if(!canvas) return;
@@ -14729,6 +15097,7 @@ board.addEventListener('mousedown', e => {
 });
 board.onwheel = e => {
     if(!canvas) return;
+    stopCreatedNodeEffect();
     e.preventDefault();
     const before = screenToWorld(e.clientX, e.clientY);
     viewport.scale = safeViewportScale(viewport.scale * canvasWheelZoomFactor(e, board.clientHeight || window.innerHeight || 800));
@@ -14747,7 +15116,7 @@ board.addEventListener('dragover', e => {
         dropOverlay.classList.remove('active');
         return;
     }
-    if(hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer)){
+    if(hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer) || [...(e.dataTransfer?.items||[])].some(item=>item.kind==='file')){
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
         dropOverlay.classList.add('active');
@@ -14759,6 +15128,19 @@ board.addEventListener('dragleave', e => {
 board.addEventListener('drop', async e => {
     e.preventDefault();
     dropOverlay.classList.remove('active');
+    try {
+        const files=await modelDropFiles(e.dataTransfer);
+        if(files.length && !files.some(file=>window.GameModelImport?.isModel(file)) && files.some(file=>!file.type.startsWith('image/')) && window.GamePipeline?.project){
+            const node=await window.GameWorkflow.addNode('gameFile',screenToWorld(e.clientX,e.clientY));
+            if(node)await window.GameExtraNodes.importFiles(node,files);return;
+        }
+        if(files.some(file=>window.GameModelImport?.isModel(file))){
+            setStatus('正在导入 3D 模型…');
+            await window.GameModel3D.dropModels(files,screenToWorld(e.clientX,e.clientY));
+            setStatus('模型导入完成');return;
+        }
+        if(files.some(file=>/\.(blend|max|ma|mb|3ds|dae|usd|usdz)$/i.test(file.name))){throw new Error('此格式暂不支持，请从建模软件导出 GLB、glTF、FBX、OBJ、STL 或 PLY');}
+    } catch(error){setStatus('模型导入失败');showErrorModal(error.message,'模型导入失败');return;}
     if(e.target.closest?.('.image-node')) return;
     if(hasOutputImageDrag(e.dataTransfer)) {
         createImageCardFromOutput(e.dataTransfer.getData('application/x-canvas-output-image'), screenToWorld(e.clientX, e.clientY));
@@ -14787,6 +15169,23 @@ board.addEventListener('drop', async e => {
         showErrorModal(err.message || (langIsEn() ? 'Image import failed' : '导入图片失败'), langIsEn() ? 'Image import failed' : '导入图片失败');
     }
 });
+async function modelDropFiles(dataTransfer){
+    const entries=[...(dataTransfer?.items||[])].filter(item=>item.kind==='file').map(item=>item.webkitGetAsEntry?.()).filter(Boolean);
+    if(!entries.some(entry=>entry.isDirectory))return [...(dataTransfer?.files||[])];
+    const files=[];let size=0,visited=0;
+    async function visit(entry,path=''){
+        if(++visited>512)throw new Error('文件夹目录过多，请只拖入模型及其依赖文件');
+        if(entry.isFile){
+            const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));
+            size+=file.size;if(files.length>=128||size>256*1048576)throw new Error('文件夹最多 128 个文件、256 MiB');
+            Object.defineProperty(file,'webkitRelativePath',{value:path+file.name});files.push(file);
+        }else{
+            const reader=entry.createReader();let batch;
+            do{batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));for(const child of batch)await visit(child,path+entry.name+'/');}while(batch.length);
+        }
+    }
+    for(const entry of entries)await visit(entry);return files;
+}
 window.addEventListener('dragend', () => dropOverlay.classList.remove('active'));
 window.addEventListener('drop', () => dropOverlay.classList.remove('active'));
 window.addEventListener('paste', e => {
@@ -15935,3 +16334,29 @@ async function runMiniMaxRunningHub(node, media, options={}){
     }
     throw new Error(tr('canvas.rhTimeout'));
 }
+
+window.__assetDropCreateModelNode = async (files, point) => {
+    const fd = new FormData();
+    for (const f of (files || [])) fd.append('files', f, f.name);
+    const res = await fetch('/api/local-assets/upload', {method: 'POST', body: fd});
+    if (!res.ok) throw new Error('上传失败 ' + res.status);
+    const data = await res.json().catch(() => ({files: []}));
+    const items = data.files || [];
+    if (!items.length) throw new Error('模型未被接受（格式不支持？）');
+    const p = (point && point.x) ? screenToWorld(point.x, point.y) : defaultPoint();
+    let i = 0;
+    for (const it of items) {
+        addNode({
+            id: uid('model3d'),
+            type: 'model3d',
+            x: p.x + i * 24,
+            y: p.y + i * 24,
+            url: it.url || ('/assets/library/_local/' + encodeURIComponent(it.file || '')),
+            name: it.name || (it.file || '').split('/').pop() || '3D 模型',
+            size: it.size || 0,
+            created_at: Date.now()
+        });
+        i++;
+    }
+    if (typeof window.toast === 'function') window.toast('已创建 ' + items.length + ' 个 3D 资产节点');
+};

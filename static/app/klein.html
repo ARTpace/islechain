@@ -247,7 +247,7 @@
             .gen-btn { padding:10px 0 !important; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261024001">
+    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
     <link rel="stylesheet" href="/static/css/studio-ui.css">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
@@ -353,6 +353,17 @@
                     <button onclick="toggleModel('qwen')" id="btnModelQwen" class="engine-btn">Qwen Edit</button>
                     <button onclick="toggleModel('boogu')" id="btnModelBoogu" class="engine-btn">Boogu Edit</button>
                     <button onclick="toggleModel('krea2')" id="btnModelKrea2" class="engine-btn">Krea2 Edit</button>
+                </div>
+                <!-- Qwen 2.1 质量档：与文生图同一套「高 / 低 / 极速」，选中 qwen21 时才出现 -->
+                <div id="qwen21QualityWrap" class="flex items-center gap-1.5" style="display:none">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">质量</span>
+                    <select id="qwen21QualitySel" onchange="setQwen21QualityEdit(this.value)"
+                            class="text-[11px] font-bold rounded-lg px-2 py-1.5 cursor-pointer"
+                            style="background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.12); color:inherit;">
+                        <option value="High">高</option>
+                        <option value="Fast">低</option>
+                        <option value="Turbo">极速</option>
+                    </select>
                 </div>
             </div>
         </header>
@@ -1220,6 +1231,9 @@
             klein: 'image-edit/klein-image-edit.json',
             qwen:  'image-edit/qwen-image-edit-2511.json',
             qwen21: 'image-edit/qwen-image-2.1.json',
+            // Qwen 2.1 质量档（与文生图 text2image/qwen-image-2.1-{fast,turbo}.json 参数一致）
+            qwen21_fast: 'image-edit/qwen-image-2.1-fast.json',
+            qwen21_turbo: 'image-edit/qwen-image-2.1-turbo.json',
             moss: 'image-edit/moss-image-sft.json',
             boogu: 'image-edit/boogu-image-edit.json',
             krea2: 'image-edit/krea2-image-edit.json',
@@ -1283,7 +1297,8 @@
                         type: (rawFlow && rawFlow.type) || model,
                         apiEndpoint: (rawFlow && rawFlow.apiEndpoint) || '/api/generate',
                         workflow: nodes,
-                        nodeMappings: NODE_MAPPINGS[model]
+                        // 档位文件（qwen21_fast / qwen21_turbo）没有自己的映射，回落到母模型
+                        nodeMappings: NODE_MAPPINGS[model] || NODE_MAPPINGS[model.replace(/_(fast|turbo)$/, '')]
                     };
                 } else {
                     errors.push(r.reason && r.reason.message ? r.reason.message : String(r.reason));
@@ -1298,7 +1313,31 @@
             }
         }
 
+        // Qwen 2.1 质量档：'High' | 'Fast' | 'Turbo'
+        let qwen21EditQuality = localStorage.getItem('qwen21_edit_quality') || 'High';
+
+        function setQwen21QualityEdit(q) {
+            qwen21EditQuality = q;
+            localStorage.setItem('qwen21_edit_quality', q);
+            refreshQwen21QualityUI();
+        }
+
+        // 只在「qwen21 被选中」且确实加载到该档工作流时才显示，避免无意义的控件
+        function refreshQwen21QualityUI() {
+            const wrap = document.getElementById('qwen21QualityWrap');
+            const sel = document.getElementById('qwen21QualitySel');
+            if (!wrap) return;
+            const show = activeModels.indexOf('qwen21') >= 0;
+            wrap.style.display = show ? '' : 'none';
+            if (sel) sel.value = qwen21EditQuality;
+        }
+
         function getWorkflowForModel(model) {
+            if (model === 'qwen21') {
+                const tierKey = qwen21EditQuality === 'Turbo' ? 'qwen21_turbo'
+                    : (qwen21EditQuality === 'Fast' ? 'qwen21_fast' : 'qwen21');
+                if (WORKFLOWS[tierKey]) return WORKFLOWS[tierKey];
+            }
             return WORKFLOWS[model] || WORKFLOWS.klein;
         }
 
@@ -1323,6 +1362,7 @@
             // 兼容旧代码:WORKFLOW_CONFIG 指向第一个选中的(已废弃, 留空操作)
             // WORKFLOWS[activeModels[0]] 始终是当前选中
             refreshSlotLabels();
+            refreshQwen21QualityUI();
         }
 
         function applyModelVisibility() {

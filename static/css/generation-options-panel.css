@@ -2,12 +2,27 @@
 .generation-options-trigger { white-space:nowrap; font-variant-numeric:tabular-nums; }
 #generationComposer .control-bar .anima-ctrl,
 #generationComposer .control-bar #mainGenBtn { height:38px; font-size:13px; gap:7px; }
-#generationComposer .control-bar #unifiedModelText { font-size:13px !important; }
+#generationComposer .control-bar #unifiedModelText { font-size:14px !important; }
 #generationComposer .control-bar .generation-options-trigger { padding:0 12px !important; }
 #generationComposer .control-bar .generation-options-trigger .generation-options-ratio-icon { flex-shrink:0; }
 #generationComposer .control-bar #randomPromptContainer button { min-width:38px; min-height:38px; font-size:13px; }
 #generationComposer .control-bar #mainGenBtn svg { width:16px; height:16px; }
-.generation-options-panel { position:fixed; z-index:1000; box-sizing:border-box; padding:18px; border:1px solid var(--ui-line,#383838); border-radius:18px; background:var(--ui-panel,#262626); color:var(--ui-text,#f6f6f4); box-shadow:0 12px 36px #0004; overflow:auto; }
+.generation-options-panel { position:fixed; z-index:1000; box-sizing:border-box; padding:18px; border:1px solid var(--ui-line,#383838); border-radius:18px; background:var(--ui-panel,#262626); color:inherit; box-shadow:0 12px 36px #0004; overflow:auto; }
+/* 模型下拉菜单与「参数」面板同一套视觉：同宽 520、同底色、同圆角、同内边距 */
+#unifiedModelMenu {
+    width:520px; min-width:0; max-width:min(520px,calc(100vw - 24px));
+    box-sizing:border-box; padding:8px;
+    border:1px solid var(--ui-line,#383838); border-radius:18px;
+    background:var(--ui-panel,#262626); color:var(--ui-text,#f6f6f4);
+    box-shadow:0 12px 36px #0004; overscroll-behavior:contain;
+}
+#unifiedModelMenu .unified-model-group,
+body.studio-theme-dark #unifiedModelMenu .unified-model-group {
+    margin:10px 4px 4px; padding:2px 8px; border-left:0; border-radius:6px;
+    background:var(--ui-panel,#262626); color:var(--ui-muted,#999);
+    font-size:12px; font-weight:400; letter-spacing:0; text-transform:none;
+}
+#unifiedModelMenu .unified-model-group:first-child { margin-top:2px; }
 .generation-options-panel[hidden],.generation-options-trigger[hidden] { display:none !important; }
 .generation-options-section+.generation-options-section { margin-top:20px; }
 .generation-options-section h3 { margin:0 0 10px; font-size:12px; font-weight:400; color:var(--ui-muted,#999); }
@@ -23,3 +38,26 @@
 html.canvas-composer-embed #generationComposer:has(.generation-options-panel:not([hidden])) { display:flex; flex-direction:column; }
 html.canvas-composer-embed .generation-options-panel { position:static; order:1; width:100%; max-height:none; margin:8px 0; box-shadow:none; }
 html.canvas-composer-embed #generationComposer>.control-bar { order:2; }
+
+/* 统一尺寸：应用页（三视图等）不引 generation-responsive.css，若不在这里补齐，
+   同一块面板在文生图里是 14px 标题 / 44px 按键，在应用页却小一档，一眼看出不是一套。
+   放在本文件末尾，才能压过上面的 18px / 12px 默认值。 */
+.generation-options-panel { padding:14px; border-radius:16px; }
+.generation-options-panel .generation-options-section h3 { font-size:14px; line-height:1.5; font-weight:400; }
+.generation-options-panel .generation-options-segments button { min-height:44px; font-size:14px; }
+
+/* 内联形态（.is-inline）：参数直接铺在应用页右栏里，不再是浮层。
+ * 背景/边框/阴影全部让位给外层 .gen-card，只保留内部排版。
+ * 用两个类（0,2,0）压过上面的 .generation-options-panel 单类规则。 */
+.generation-options-panel.is-inline {
+    position: static; inset: auto; z-index: auto;
+    width: 100%; max-height: none;
+    padding: 0; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; overflow: visible;
+}
+.generation-options-panel.is-inline .generation-options-section + .generation-options-section { margin-top: 14px; }
+.generation-options-panel.is-inline .generation-options-section h3 { margin-bottom: 8px; }
+.generation-options-panel.is-inline .gen-row { justify-content: flex-start; gap: 44px; }
+.generation-options-panel.is-inline .gen-h3-split {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}

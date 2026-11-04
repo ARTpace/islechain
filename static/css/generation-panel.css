@@ -1,0 +1,368 @@
+/* ============================================================
+ * 生成类应用统一参数面板外观
+ * 归属：所有「上传参考图 / 参数调节 / 一键生成」形态的应用共用。
+ * 使用：<link rel="stylesheet" href="/static/css/generation-panel.css">
+ * 结构见 .workbuddy/skills/art-canvas-comfyui-app/references/ui-rules.md
+ *
+ * 只负责外观，不负责布局。左右两栏比例由页面自己决定
+ * （惯例：.control-row + .control-left / .control-right 各 50%）。
+ * 颜色一律走主题变量并带亮色兜底，暗色主题自动跟随，不再逐页写 .theme-dark 覆盖。
+ * ============================================================ */
+
+/* ---------- 参数面板容器 ---------- */
+.gen-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.gen-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* 模式徽标：说明「当前用哪个模型/预设」 */
+.gen-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    background: #111111; color: #fbfaf9;
+}
+.theme-dark .gen-badge {
+    background: color-mix(in srgb, var(--ui-accent, #06b6d4) 18%, transparent);
+    color: var(--ui-accent, #22d3ee);
+}
+.gen-tip { font-size: 10px; line-height: 1.5; color: var(--ui-muted, #9a9a92); }
+.gen-dim { color: var(--ui-muted, #9a9a92); }
+
+/* ---------- 字段 ---------- */
+.gen-label {
+    display: block; margin-bottom: 4px;
+    font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--ui-muted, #9a9a92);
+}
+.gen-field { display: flex; flex-direction: column; min-width: 0; }
+.gen-row { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+
+/* 数值输入：无框下划线式，聚焦时亮起主题色 */
+.gen-input {
+    background: transparent; border: 0; border-bottom: 1px solid transparent;
+    outline: none; padding: 2px 0;
+    font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+    /* 注意：主题层并没有注入 --ui-text，写死亮色兜底 (#141414) 会让暗色下数字几乎不可见。
+       直接继承正文色，两套主题都对。 */
+    color: inherit;
+}
+.gen-input:focus { border-bottom-color: var(--ui-accent, #06b6d4); }
+.gen-input.gen-num { width: 68px; }
+.gen-input.gen-num-wide { width: 120px; }
+
+.gen-select {
+    background: transparent; border: 0; border-bottom: 1px solid transparent;
+    outline: none; cursor: pointer; padding: 2px 0;
+    font-size: 12px; font-weight: 700; color: inherit;
+}
+.gen-select:focus { border-bottom-color: var(--ui-accent, #06b6d4); }
+
+/* ---------- 分段按钮（2K/4K、1K/2K、档位切换等） ---------- */
+.gen-seg { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gen-seg-btn {
+    padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--ui-line, #e5e5e0); background: transparent;
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    color: var(--ui-muted, #8b8b83); font-variant-numeric: tabular-nums;
+    transition: border-color .18s ease, color .18s ease, background .18s ease;
+}
+.gen-seg-btn:hover { border-color: var(--ui-accent, #06b6d4); color: inherit; }
+.gen-seg-btn.is-on {
+    border-color: var(--ui-accent, #06b6d4);
+    color: var(--ui-accent, #0e7490);
+    background: color-mix(in srgb, var(--ui-accent, #06b6d4) 10%, transparent);
+}
+.gen-seg-btn:active { transform: scale(.96); }
+
+/* ---------- 滑块 + 当前值 ---------- */
+.gen-slider { display: flex; align-items: center; gap: 10px; }
+.gen-slider input[type="range"] {
+    flex: 1; height: 6px; border-radius: 3px; outline: none;
+    -webkit-appearance: none; appearance: none;
+    background: var(--ui-line, #eeede9);
+}
+.theme-dark .gen-slider input[type="range"] { background: #20201e; }
+.gen-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ui-accent, #06b6d4); cursor: pointer;
+}
+.gen-slider-value {
+    min-width: 52px; text-align: right;
+    font-size: .85rem; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--ui-accent, #0e7490);
+}
+
+/* ---------- 高级参数折叠 ---------- */
+.gen-adv { border-top: 1px dashed var(--ui-line, rgba(0, 0, 0, .08)); padding-top: 8px; }
+.gen-adv > summary {
+    display: flex; align-items: center; gap: 4px; cursor: pointer;
+    padding: 4px 0; list-style: none;
+    font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--ui-muted, #9a9a92);
+}
+.gen-adv > summary::-webkit-details-marker { display: none; }
+.gen-adv > summary::marker { content: ''; }
+.gen-adv > summary::before {
+    content: '▸'; font-size: 8px; display: inline-block; transition: transform .2s ease;
+}
+.gen-adv[open] > summary::before { transform: rotate(90deg); }
+.gen-adv-body { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+
+/* ---------- 主按钮 ---------- */
+.gen-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 14px 18px; border: 0; border-radius: 12px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    background: var(--ui-accent, #06b6d4); color: #062a2e;
+    transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.gen-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px color-mix(in srgb, var(--ui-accent, #06b6d4) 32%, transparent); }
+.gen-cta:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.gen-cta-foot { margin-top: auto; padding-top: 8px; }
+
+/* ---------- 工具条里的生成按钮 ----------
+ * 与文生图 #mainGenBtn（.btn-render）同一款：亮底暗字、11px 粗体、zap 图标。
+ * 暗色主题下列进 theme.css 的 .btn-render 反转白胶囊；我们用自己的类名，
+ * 所以要在下面自己写一份同样的反转，否则暗色会变成一片浅灰底 + 深灰字。
+ */
+.gen-run {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 36px; padding: 0 20px; border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, .1);
+    background: rgba(0, 0, 0, .06); color: #0b0b0a;
+    font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+    white-space: nowrap; cursor: pointer;
+    transition: transform .15s ease, background .15s ease, opacity .15s ease;
+}
+.gen-run:hover:not(:disabled) { transform: translateY(-1px); background: rgba(0, 0, 0, .1); }
+/* 禁用用透明度而不是置灰底：两套主题下都不会突兀（暗色下灰底会被主题反转压掉） */
+.gen-run:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.gen-run svg { width: 14px; height: 14px; stroke-width: 2; flex-shrink: 0; }
+.gen-run .gen-run-icon { color: #e0a800; }
+body.theme-dark .gen-run,
+body.studio-theme-dark .gen-run,
+html.studio-theme-dark body .gen-run {
+    background: #edebe7; color: #0b0b0a; border-color: #edebe7;
+}
+body.theme-dark .gen-run:hover:not(:disabled),
+body.studio-theme-dark .gen-run:hover:not(:disabled),
+html.studio-theme-dark body .gen-run:hover:not(:disabled) { background: #f7f7f5; }
+
+/* 生成中的小转圈（12px，跟着 currentColor 走，亮/暗底色都可见） */
+.gen-spin {
+    width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+    border-top-color: currentColor;
+    animation: gen-spin .7s linear infinite;
+}
+@keyframes gen-spin { to { transform: rotate(360deg); } }
+
+/* ---------- 参数下方两行摘要 ----------
+ * 只放「看结果时需要确认的信息」：视角与张数 / 尺寸、步数、预计耗时。
+ * 不要再往这里塞提示词、引擎说明、预设口号（用户明确要求只有两行）。
+ */
+.gen-meta {
+    display: flex; flex-direction: column; gap: 3px;
+    padding-top: 10px; border-top: 1px solid var(--ui-line, rgba(0, 0, 0, .08));
+}
+.gen-meta-line {
+    font-size: 11px; line-height: 1.5;
+    color: var(--ui-muted, #9a9a92);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- 大尺寸上传区（左栏） ---------- */
+.gen-upload-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.gen-upload-meta { font-size: 9px; color: var(--ui-muted, #c4c4bc); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; text-align: right; }
+.gen-upload-large {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 440px; max-height: 580px;
+    border-radius: 16px;
+}
+.gen-upload-large .upload-hint { text-align: center; }
+.gen-upload-large .upload-preview {
+    display: none; max-width: 100%; max-height: 100%;
+    width: auto; height: auto; object-fit: contain; border-radius: 12px;
+}
+.gen-upload-large.has-image .upload-preview { display: block; margin: auto; }
+.gen-upload-large.has-image .upload-hint { display: none; }
+
+/* ---------- 页面外壳：与文生图同一套底色 ----------
+ * 页面不要再写 :root{--bg-base:#xxx}（会盖掉 theme.js 注入的主题变量导致偏色）。
+ * 只用这里给的 .gen-page / .gen-card 两层。
+ */
+.gen-page { background: var(--ui-bg, #14161c); color: var(--ui-text, #f6f6f4); }
+.gen-card {
+    background: var(--ui-panel, #1c202a);
+    border: 1px solid var(--ui-line, #343b4c);
+    border-radius: 24px;
+}
+
+/* ---------- 画廊工具条扁平化 ----------
+ * history-bulk-manager 默认给 .history-bulk-toolbar 铺了一层 --ui-panel 底色，
+ * 在应用页里会变成一条突兀的深色横条。文生图用 #zimagePage 覆盖掉，
+ * 这里抽成通用类：body 加 .gen-flat-toolbar 即可，别再逐页抄 !important。
+ *
+ * 为什么要写成「类名重复」这么怪的样子：
+ * 主题层（theme.js 的 glass 片段）在暗色下注入的是
+ *   html.studio-theme-dark body .history-bulk-toolbar.history-bulk-toolbar { … !important }
+ * 特异性 (0,3,2)，而且它 append 在 <html> 末尾（文档顺序最后）。
+ * 单写一个 .history-bulk-toolbar 会被它压回去，表现为「样式改了却不生效」。
+ * 把 body 的类名重复一次 → (0,4,1)，类数 4 > 3，才真正压得住。
+ */
+body.gen-flat-toolbar.gen-flat-toolbar .history-bulk-toolbar.history-bulk-toolbar {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ---------- 图标按钮（替代 emoji） ----------
+ * 图标一律用 <i data-lucide="xxx"> + lucide.createIcons()，不写 emoji 字符。
+ */
+.gen-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; padding: 0; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; cursor: pointer;
+    color: var(--ui-muted, #8b8b83);
+    transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.gen-icon-btn:hover {
+    color: inherit;
+    border-color: var(--ui-line, #e5e5e0);
+    background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.gen-icon-btn:active { transform: scale(.94); }
+.gen-icon-btn svg { width: 14px; height: 14px; stroke-width: 1.9; }
+
+/* 上传区中间的图标（原来是 emoji 相机） */
+.gen-upload-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; margin-bottom: 10px; border-radius: 12px;
+    border: 1px solid var(--ui-line, #e5e5e0);
+    color: var(--ui-muted, #9a9a92);
+}
+.gen-upload-icon svg { width: 20px; height: 20px; stroke-width: 1.6; }
+
+/* ---------- 引擎选择（多模型 / 多工作流切换） ----------
+ * 结构：
+ *   <div class="gen-engine">
+ *     <div class="gen-engine-head"><span class="gen-label">生成引擎</span><span class="gen-engine-meta">…</span></div>
+ *     <select class="gen-select gen-engine-select">…</select>
+ *     <div class="gen-engine-note">…</div>
+ *   </div>
+ */
+.gen-engine { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gen-engine-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.gen-engine-head .gen-label { margin-bottom: 0; }
+.gen-engine-meta {
+    font-size: 9px; font-weight: 600; letter-spacing: .3px;
+    color: var(--ui-muted, #9a9a92);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;
+}
+.gen-engine-select { width: 100%; }
+/* 只有一个引擎时下拉禁用：仍要能看清当前引擎名（Chrome 默认 GrayText 在暗色下几乎不可读） */
+.gen-engine-select:disabled {
+    color: var(--ui-text, #f6f6f4);
+    -webkit-text-fill-color: var(--ui-text, #f6f6f4);
+    opacity: .92; cursor: default; appearance: none;
+}
+.gen-engine-note {
+    font-size: 10px; line-height: 1.5;
+    color: var(--ui-muted, #9a9a92);
+    min-height: 15px;
+}
+.gen-engine-divider {
+    height: 1px; margin: 2px 0;
+    background: var(--ui-line, rgba(0, 0, 0, .08));
+}
+
+/* ---------- 工具条：模型/工作流选择 + 生成按钮 ----------
+ * 参数不再收进浮层（右栏放得下就直接铺开，见 .generation-options-panel.is-inline）。
+ * 结构：
+ *   <div class="gen-bar">
+ *     <div class="gen-ctrl-wrap">
+ *       <button class="gen-ctrl" aria-expanded="false">
+ *         <i data-lucide="boxes"></i><span class="gen-ctrl-label">模型名</span>
+ *         <i data-lucide="chevron-down" class="gen-ctrl-caret"></i>
+ *       </button>
+ *       <div class="gen-menu" hidden>…</div>
+ *     </div>
+ *     <button class="gen-run">生成</button>
+ *   </div>
+ * 顺序约定：模型/工作流选择在左，生成按钮紧随其右（用户肌肉记忆，勿调换）。
+ */
+.gen-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.gen-ctrl-wrap { position: relative; min-width: 0; }
+.gen-ctrl {
+    display: inline-flex; align-items: center; gap: 6px;
+    max-width: 100%; height: 36px; padding: 0 12px;
+    border: 1px solid transparent; border-radius: 10px;
+    background: var(--ui-soft, #f1f1f1); color: inherit;
+    font: inherit; font-size: 12px; font-weight: 700; line-height: 1;
+    white-space: nowrap; cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+.gen-ctrl:hover { background: color-mix(in srgb, var(--ui-text, #333333) 8%, var(--ui-soft, #f1f1f1)); }
+.gen-ctrl[aria-expanded="true"] {
+    border-color: color-mix(in srgb, var(--ui-accent, #06b6d4) 55%, transparent);
+    color: var(--ui-accent, #06b6d4);
+}
+.gen-ctrl:disabled { cursor: default; opacity: .75; }
+.gen-ctrl svg { width: 14px; height: 14px; stroke-width: 1.9; flex-shrink: 0; }
+.gen-ctrl-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gen-ctrl-sub { font-weight: 400; color: var(--ui-muted, #9a9a92); }
+.gen-ctrl[aria-expanded="true"] .gen-ctrl-sub { color: inherit; opacity: .8; }
+.gen-ctrl-caret { margin-left: 2px; opacity: .55; transition: transform .18s ease; }
+/* 面板向下展开：展开时箭头翻转朝上，和文生图的心智一致 */
+.gen-ctrl[aria-expanded="true"] .gen-ctrl-caret { transform: rotate(180deg); }
+
+/* 弹出菜单（模型 / 工作流切换）：与参数面板同底色、同圆角、同阴影 */
+.gen-menu {
+    position: fixed; z-index: 1000; box-sizing: border-box;
+    min-width: 220px; max-width: min(360px, calc(100vw - 24px));
+    padding: 6px; border: 1px solid var(--ui-line, #383838); border-radius: 14px;
+    background: var(--ui-panel, #262626); color: inherit;
+    box-shadow: 0 12px 36px #0004; overflow: auto;
+}
+.gen-menu[hidden] { display: none !important; }
+.gen-menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: 9px; background: transparent;
+    color: var(--ui-muted, #9a9a92); font: inherit; font-size: 12px;
+    text-align: left; cursor: pointer;
+}
+.gen-menu-item:hover {
+    background: color-mix(in srgb, var(--ui-text, #f6f6f4) 7%, transparent);
+    color: var(--ui-text, #f6f6f4);
+}
+.gen-menu-item[aria-checked="true"] {
+    background: color-mix(in srgb, var(--ui-accent, #06b6d4) 12%, transparent);
+    color: var(--ui-text, #f6f6f4);
+}
+.gen-menu-item svg { width: 14px; height: 14px; stroke-width: 1.9; flex-shrink: 0; }
+.gen-menu-text { min-width: 0; }
+.gen-menu-sub {
+    display: block; margin-top: 2px;
+    font-size: 10px; font-weight: 400; line-height: 1.4;
+    color: var(--ui-muted, #9a9a92);
+}
+.gen-menu-check { margin-left: auto; color: var(--ui-accent, #06b6d4); opacity: 0; }
+.gen-menu-item[aria-checked="true"] .gen-menu-check { opacity: 1; }
+.gen-menu-empty { padding: 8px 10px; font-size: 11px; color: var(--ui-muted, #9a9a92); }
+
+/* ---------- 参数弹层内部的滑杆/数字（面板底色是 --ui-panel，轨道要用 --ui-soft） ---------- */
+.generation-options-panel .gen-slider input[type="range"] { background: var(--ui-soft, #353535); }
+.generation-options-panel .gen-slider-value { min-width: 0; font-size: 12px; }
+.generation-options-panel .gen-row { gap: 16px; justify-content: space-between; }
+.generation-options-panel .gen-input:focus { border-bottom-color: var(--ui-accent, #06b6d4); }
+
+/* ---------- 小屏 ---------- */
+@media (max-width: 1024px) {
+    .gen-upload-large { min-height: 320px; max-height: 380px; }
+    .gen-ctrl { height: 34px; font-size: 11px; }
+}

@@ -426,15 +426,33 @@ def generate_baseline_from_head():
     print(f"从 HEAD 生成基线完成: {sum(counter.values())} 条路由")
 
 
+def generate_baseline_current():
+    """从当前工作区生成基线 (main.py + routers/*.py 全量口径)。
+
+    与 generate_baseline_from_head 的差别：HEAD 快照只扫 main.py 里直接
+    定义的路由，而基线的真实口径是「main.py + 全部被 include_router 的
+    routers/*.py」。新增 router（游戏工作台 / MCP 助手等）接入后，必须用
+    当前态重新生成基线，否则全量多重集比对会持续报「新增 N 项」。
+    """
+    root_dir = Path(__file__).parent.parent
+    routes, _ = extract_all_routes(root_dir)
+    counter = routes_to_counter(routes)
+    save_baseline(counter)
+    print(f"从当前工作区生成基线完成: {sum(counter.values())} 条路由")
+
+
 if __name__ == "__main__":
     # 允许直接运行生成基线
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--generate-baseline", action="store_true", help="从 git HEAD 生成基线文件")
+    parser.add_argument("--generate-baseline-current", action="store_true", help="从当前工作区生成基线文件")
     args = parser.parse_args()
 
     if args.generate_baseline:
         generate_baseline_from_head()
+    elif args.generate_baseline_current:
+        generate_baseline_current()
     else:
         # 运行测试
         print("运行路由清单回归测试...")

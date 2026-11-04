@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const src=fs.readFileSync('static/js/canvas.js','utf8');let fitted=0,rendered=0;
+const context={window:{innerWidth:1000,innerHeight:700},board:{getBoundingClientRect:()=>({left:40,top:60,right:960,bottom:680})},createMenu:{style:{},getBoundingClientRect:()=>({width:220,height:400})},CSS:{escape:x=>x},viewport:{scale:.5},nodesEl:{querySelector:()=>({getBoundingClientRect:()=>({left:900,top:600,width:200,height:200})})},fitAllNodesViewport:()=>fitted++,render:()=>rendered++,scheduleSave(){}};
+vm.createContext(context);vm.runInContext(src.slice(src.indexOf('function placeCreateMenu('),src.indexOf('function closeCreateMenu(')),context);
+context.placeCreateMenu(990,690);assert.equal(context.createMenu.style.left,'728px');assert.equal(context.createMenu.style.top,'268px');
+context.placeCreateMenu(0,0);assert.equal(context.createMenu.style.left,'40px');assert.equal(context.createMenu.style.top,'60px');
+const n={id:'new',x:100,y:200};context.keepCreatedNodeVisible(n);assert.equal(n.x,-220);assert.equal(n.y,-80);assert.equal(rendered,1,'clamp the full card using viewport scale');
+context.minimap={getBoundingClientRect:()=>({left:700,top:500,right:960,bottom:680,width:260,height:180})};
+const avoid={id:'avoid',x:100,y:200};context.keepCreatedNodeVisible(avoid);assert(avoid.y<n.y||avoid.x<n.x,'avoid the minimap overlay');
+context.nodesEl.querySelector=()=>({getBoundingClientRect:()=>({left:900,top:600,width:1200,height:1000})});context.keepCreatedNodeVisible(n);assert.equal(fitted,1,'oversized cards use existing fit-to-view');
+console.log('CANVAS_EDGE_PLACEMENT_OK');

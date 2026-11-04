@@ -27,11 +27,11 @@ const savedLocalCaptionSettings = readLocalCaptionSettings();
 
 // 视图（素材资产 / 工作流管理 / 提示词库 / 画布资产）由主界面侧边栏「应用」菜单决定：
 // 首次可通过 ?tab=xxx 指定，之后由父窗口 postMessage('asset-manager-tab') 切换。
-const ASSET_TABS = ['assets', 'workflows', 'prompts', 'canvas-assets'];
+const ASSET_TABS = ['workflows', 'prompts', 'canvas-assets'];
 const requestedTab = (() => {
     try { return new URLSearchParams(location.search).get('tab') || ''; } catch(_) { return ''; }
 })();
-let activeTab = ASSET_TABS.includes(requestedTab) ? requestedTab : (window.PromptLibraryPicker?.enabled ? 'prompts' : 'assets');
+let activeTab = ASSET_TABS.includes(requestedTab) ? requestedTab : 'prompts';
 let assetLibrary = {libraries:[], categories:[]};
 let promptLibrary = {libraries:[]};
 let apiProviders = [];
@@ -2505,18 +2505,26 @@ let promptContentKind = '';
 // 标签栏：左侧库名、中间标签组、右侧条数，两侧各一份轻量信息夹住居中的标签
 // 直连资产仓库（PoseAtlas）每个库单独占一个标签：姿势 / 衣装 / 人像
 function assetKindTabs(){
-    return assetLibraries().filter(lib => lib.repository_source).map(lib => {
+    // 本地资产库合并成一个「素材」标签（库之间在标签页内切换），直连仓库仍各自成标签
+    const tabs = [];
+    if(assetLibraries().some(lib => !lib.repository_source)) tabs.push(['media:local', 'images', '素材']);
+    assetLibraries().filter(lib => lib.repository_source).forEach(lib => {
         const label = String(lib.name || '').replace(/^PoseAtlas\s*·\s*/, '').split('·').pop().trim() || '资产';
         const icon = /姿势|pose/i.test(label) ? 'person-standing'
             : /衣装|服装|costume/i.test(label) ? 'shirt'
             : /人像|肖像|face|portrait/i.test(label) ? 'scan-face' : 'image';
-        return ['media:' + lib.id, icon, label];
+        tabs.push(['media:' + lib.id, icon, label]);
     });
+    return tabs;
 }
 function assetKindTitle(kind){
+    if(kind === 'media:local') return '素材';
     const id = String(kind || '').replace(/^media:/, '');
     const lib = assetLibraries().find(item => item.id === id);
-    return String(lib?.name || '').replace(/^PoseAtlas\s*·\s*/, '').split('·').pop().trim() || '资产库';
+    const raw = String(lib?.name || '').replace(/^PoseAtlas\s*·\s*/, '').split('·').pop().trim();
+    if(!raw) return lib?.repository_source ? '资产库' : '素材';
+    if(!lib?.repository_source && raw === '默认资产库') return '素材';
+    return raw;
 }
 function renderPromptKindTabs(metaHtml = '', countHtml = ''){
     const tabs = [['', 'palette', '风格'], ['artists', 'brush', '画师'], ['characters', 'users', '角色'], ...assetKindTabs(), ['packs', 'package', '管理']];
@@ -2534,55 +2542,45 @@ function renderPromptCategorySelect(){
     const active = activePromptCategory && activePromptCategory !== 'all';
     return `<button class="prompt-chip prompt-icon-chip prompt-filter-open ${active ? 'is-on' : ''}" type="button" data-prompt-filter-sheet aria-label="筛选分类" title="筛选分类"><i data-lucide="sliders-horizontal"></i></button>`;
 }
-// 风格库筛选：分类树。左右两列（左选分类 / 右选子分类），选中即刷新列表，面板保持打开
+// 搜索栏下方的子分类一行：只在母分类带子分类时出现，方便连续切换
+function renderPromptSubcategoryChips(){
+    if(!activePromptCategory || activePromptCategory === 'all') return '';
+    const cat = activePromptCategories().find(item => item.id === activePromptCategory);
+    const subs = Array.isArray(cat?.subcategories) ? cat.subcategories : [];
+    if(!subs.length) return '';
+    const activeSub = currentPromptSubcategory();
+    const chip = (value, label, on) => `<button class="prompt-subchip ${on ? 'is-on' : ''}" type="button" data-prompt-subchip="${escapeAttr(value)}" aria-pressed="${on}">${escapeHtml(label)}</button>`;
+    return `<div class="prompt-subchips" role="group" aria-label="子分类">
+        ${chip('', '全部', !activeSub)}
+        ${subs.map(sub => chip(String(sub.id), sub.name || String(sub.id), String(sub.id) === String(activeSub))).join('')}
+    </div>`;
+}
+// 风格库筛选：只有一列母分类。点一项就应用并关闭面板，子分类会排到搜索栏下方一行里切换
 function openPromptCategorySheet(anchor){
     const libs = promptLibraries();
     if(!libs.length) return;
     let focusLib = activePromptLibraryId || libs[0].id;
-    let focusCat = activePromptCategory;
-    let preview = '';
     const chev = '<svg class="pt-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
     const libOf = libId => libs.find(entry => entry.id === libId) || null;
-    const catOf = (libId, catId) => promptCategoriesFor(libOf(libId)).find(cat => cat.id === catId) || null;
-    // 左列：词库下的分类（全部提示词 + 各分类）
+    // 母分类列表（不再显示数量，宽度收窄）
     const catsHtml = () => {
         const lib = libOf(focusLib);
         const allOn = focusLib === activePromptLibraryId && activePromptCategory === 'all';
-        const rows = [`<div class="pt-row pt-row-all ${allOn ? 'is-on' : ''}" data-tree-all="${escapeAttr(focusLib)}"><span class="pt-bullet"></span><span class="pt-name">全部提示词</span><em>${promptCountForCategory('all', lib)}</em></div>`];
+        const rows = [`<div class="pt-row pt-row-all ${allOn ? 'is-on' : ''}" data-tree-all="${escapeAttr(focusLib)}"><span class="pt-bullet"></span><span class="pt-name">全部提示词</span></div>`];
         promptCategoriesFor(lib).forEach(cat => {
             const on = focusLib === activePromptLibraryId && cat.id === activePromptCategory;
             const hasSubs = Array.isArray(cat.subcategories) && cat.subcategories.length > 0;
-            rows.push(`<div class="pt-row ${on ? 'is-on' : ''}" data-tree-cat="${escapeAttr(focusLib)}::${escapeAttr(cat.id)}">${hasSubs ? `<span class="pt-hint">${chev}</span>` : '<span class="pt-bullet"></span>'}<span class="pt-name">${escapeHtml(cat.name || promptCategoryLabel(cat.id))}</span><em>${promptCountForCategory(cat.id, lib)}</em></div>`);
+            rows.push(`<div class="pt-row ${on ? 'is-on' : ''}" data-tree-cat="${escapeAttr(focusLib)}::${escapeAttr(cat.id)}"><span class="pt-bullet"></span><span class="pt-name">${escapeHtml(cat.name || promptCategoryLabel(cat.id))}</span>${hasSubs ? `<span class="pt-hint">${chev}</span>` : ''}</div>`);
         });
         return rows.join('');
-    };
-    // 右列：当前（或悬停）分类的子分类
-    const subsHtml = () => {
-        const catId = preview || focusCat;
-        if(!catId || catId === 'all') return '<p class="pt-side-empty">选左侧分类，这里列出它的子分类。</p>';
-        const cat = catOf(focusLib, catId);
-        const subs = Array.isArray(cat?.subcategories) ? cat.subcategories : [];
-        const activeSub = currentPromptSubcategory();
-        if(!subs.length) return '<p class="pt-side-empty">这个分类没有子分类，直接看分类全部内容就行。</p>';
-        const head = `<div class="pt-side-head">${escapeHtml(cat.name || promptCategoryLabel(catId))}</div>`;
-        const clearOn = catId === activePromptCategory && !activeSub;
-        const clear = `<div class="pt-row pt-row-sub ${clearOn ? 'is-on' : ''}" data-tree-sub="${escapeAttr(focusLib)}::${escapeAttr(catId)}::"><span class="pt-name">全部子分类</span><em>${promptCountForCategory(catId, libOf(focusLib))}</em></div>`;
-        const rows = subs.map(sub => {
-            const subOn = catId === activePromptCategory && String(sub.id) === String(activeSub);
-            return `<div class="pt-row pt-row-sub ${subOn ? 'is-on' : ''}" data-tree-sub="${escapeAttr(focusLib)}::${escapeAttr(catId)}::${escapeAttr(sub.id)}"><span class="pt-name">${escapeHtml(sub.name || sub.id)}</span><em>${Number(sub.count) || 0}</em></div>`;
-        }).join('');
-        return head + clear + rows;
     };
     const libsHtml = libs.map(libItem => `<button class="pt-lib ${libItem.id === focusLib ? 'is-open' : ''}" type="button" data-tree-lib="${escapeAttr(libItem.id)}">${chev}<span>${escapeHtml(libItem.name || '提示词库')}</span></button>`).join('');
     const overlay = document.createElement('div');
     overlay.className = 'filter-sheet-backdrop';
-    overlay.innerHTML = `<div class="filter-sheet is-auto" role="dialog" aria-modal="true" aria-label="筛选分类">
+    overlay.innerHTML = `<div class="filter-sheet is-auto prompt-tree-sheet" role="dialog" aria-modal="true" aria-label="筛选分类">
         <div class="filter-sheet-body"><div class="prompt-tree">
             <div class="pt-libs">${libsHtml}</div>
-            <div class="pt-body">
-                <div class="pt-col pt-col-cats" data-tree-cats></div>
-                <div class="pt-col pt-col-subs" data-tree-subs></div>
-            </div>
+            <div class="pt-body" data-tree-cats></div>
         </div></div>
     </div>`;
     const close = () => { overlay.remove(); document.documentElement.classList.remove('filter-sheet-open'); };
@@ -2591,59 +2589,29 @@ function openPromptCategorySheet(anchor){
     window.PromptGalleryUI?.anchorSheet?.(overlay, overlay.querySelector('.filter-sheet'), anchor);
     window.lucide?.createIcons();
     const catsHost = overlay.querySelector('[data-tree-cats]');
-    const subsHost = overlay.querySelector('[data-tree-subs]');
-    const paintSubs = () => { subsHost.innerHTML = subsHtml(); };
-    const paint = () => {
-        catsHost.innerHTML = `<div class="pt-side-head">分类</div>${catsHtml()}`;
-        paintSubs();
-    };
+    const paint = () => { catsHost.innerHTML = `<div class="pt-side-head">分类</div>${catsHtml()}`; };
     paint();
-    // 选中后只刷新列表，面板留着继续点
-    const pick = (libId, catId, subId = '') => {
+    const pick = (libId, catId) => {
         if(libId) activePromptLibraryId = libId;
         activePromptCategory = catId || 'all';
-        promptSubcategory = subId || '';
+        promptSubcategory = '';
         promptSubcategoryScope = `${activePromptLibraryId}|${activePromptCategory}`;
         promptTreeFocus = 'category';
         selectedPromptId = ''; promptCreateMode = false; promptEditMode = false; promptDialogId = '';
         selectedPromptIds.clear();
         render();
         root.querySelector('.prompt-gallery-scroll')?.scrollTo(0, 0);
-        paint();
     };
-    // 悬停左列分类 → 右列即时预览它的子分类（不改筛选）
-    catsHost.addEventListener('mouseover', event => {
-        const row = event.target.closest('[data-tree-cat]');
-        if(!row) return;
-        const catId = String(row.dataset.treeCat || '').split('::')[1] || '';
-        if(preview === catId) return;
-        preview = catId;
-        paintSubs();
-    });
-    catsHost.addEventListener('mouseleave', () => { preview = ''; paintSubs(); });
     overlay.addEventListener('click', event => {
         if(event.target === overlay || event.target.closest('[data-sheet-close]')){ close(); return; }
         const libBtn = event.target.closest('[data-tree-lib]');
-        if(libBtn){
-            focusLib = libBtn.dataset.treeLib;
-            focusCat = 'all'; preview = '';
-            pick(focusLib, 'all');
-            return;
-        }
+        if(libBtn){ focusLib = libBtn.dataset.treeLib; paint(); return; }
         const allNode = event.target.closest('[data-tree-all]');
-        if(allNode){ preview = ''; focusCat = 'all'; pick(allNode.dataset.treeAll, 'all'); return; }
-        const subNode = event.target.closest('[data-tree-sub]');
-        if(subNode){
-            const [libId, catId, subId] = String(subNode.dataset.treeSub || '').split('::');
-            preview = ''; focusLib = libId; focusCat = catId;
-            pick(libId, catId, subId);
-            return;
-        }
+        if(allNode){ pick(allNode.dataset.treeAll, 'all'); close(); return; }
         const catNode = event.target.closest('[data-tree-cat]');
         if(catNode){
             const [libId, catId] = String(catNode.dataset.treeCat || '').split('::');
-            preview = ''; focusLib = libId; focusCat = catId;
-            pick(libId, catId);
+            pick(libId, catId); close();
         }
     });
 }
@@ -2725,7 +2693,7 @@ function renderPromptManager(){
                 ${hasFilter ? '<button class="prompt-chip" type="button" data-prompt-filter-reset><i data-lucide="rotate-ccw"></i><span>清空筛选</span></button>' : ''}
             </div>
             ${renderPromptQueryTags()}
-            <!-- 子分类已收进筛选面板的分类树，页面内不再占一行 -->
+            ${renderPromptSubcategoryChips()}
             <div class="manage-tools">
                 <span>已选择 ${selectedPromptIds.size} 条提示词，支持拖拽框选或逐个勾选。</span>
                 <div class="asset-tools">
@@ -4131,6 +4099,15 @@ async function handleClick(event){
         document.getElementById('promptSearch')?.focus();
         return;
     }
+    const subChip = target.closest?.('[data-prompt-subchip]');
+    if(subChip){
+        promptSubcategory = subChip.dataset.promptSubchip || '';
+        promptSubcategoryScope = `${activePromptLibraryId}|${activePromptCategory}`;
+        selectedPromptIds.clear();
+        render();
+        root.querySelector('.prompt-gallery-scroll')?.scrollTo(0, 0);
+        return;
+    }
     if(target.closest?.('[data-prompt-filter-reset]')){
         promptQuery = ''; promptSourceFilter = ''; promptFavOnly = false;
         activePromptCategory = 'all'; promptRenderLimit = PROMPT_RENDER_STEP; render(); return;
@@ -5437,13 +5414,25 @@ window.addEventListener('style-packs-changed', async () => {
 });
 // 由父窗口（主界面侧边栏「应用」菜单）切换视图
 function applyAssetTab(tab){
-    activeTab = ASSET_TABS.includes(tab) ? tab : 'assets';
+    // 「素材资产」视图已并入提示词库：老入口/老链接统一落到提示词库的「素材」标签
+    const legacyAssets = tab === 'assets' || tab === 'local';
+    activeTab = legacyAssets ? 'prompts' : (ASSET_TABS.includes(tab) ? tab : 'prompts');
+    if(tab === 'prompts') promptContentKind = '';
+    if(legacyAssets){
+        const localLib = assetLibraries().find(lib => !lib.repository_source);
+        promptContentKind = localLib ? 'media:' + localLib.id : '';
+    }
     assetDialogId = ''; promptDialogId = ''; promptCreateMode = false; promptEditMode = false;
     selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear();
     selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear();
     pendingBatchDelete = '';
     render();
 }
+// 提示词库「素材」标签里的增删改走完接口后，用最新库数据回写并重绘整个视图
+window.AssetManagerBridge = {
+    applyLibrary(library){ if(library) assetLibrary = library; render(); },
+    toast(text){ setStatus(text); }
+};
 window.addEventListener('message', event => {
     const type = event.data?.type;
     if(type === 'studio-theme') window.StudioTheme?.apply?.(event.data.theme);

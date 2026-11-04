@@ -26,7 +26,42 @@
   ],
   [
     "DELETE",
+    "/api/content-packs/repository",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/content-repositories/{repo_id}",
+    1
+  ],
+  [
+    "DELETE",
     "/api/conversations/{conversation_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/game-projects/{project_id}/candidates/{candidate_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/game-projects/{project_id}/documents/{doc_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/game-projects/{project_id}/workspace/sessions/{session_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/mcp/servers/{server_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/projects/{project_id}",
     1
   ],
   [
@@ -71,6 +106,26 @@
   ],
   [
     "DELETE",
+    "/api/style-packs/repository",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/style-packs/{pack_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/style-presets/items/{preset_id}",
+    1
+  ],
+  [
+    "DELETE",
+    "/api/tag-packs/{pack_id}",
+    1
+  ],
+  [
+    "DELETE",
     "/api/tts/voices/{voice_name}",
     1
   ],
@@ -101,12 +156,37 @@
   ],
   [
     "GET",
+    "/api/animadex/artist-thumb",
+    1
+  ],
+  [
+    "GET",
     "/api/animadex/characters",
     1
   ],
   [
     "GET",
+    "/api/artists/detail",
+    1
+  ],
+  [
+    "GET",
+    "/api/artists/index",
+    1
+  ],
+  [
+    "GET",
+    "/api/artists/thumb",
+    1
+  ],
+  [
+    "GET",
     "/api/asset-library",
+    1
+  ],
+  [
+    "GET",
+    "/api/asset-library/repository/thumb/{item_id}",
     1
   ],
   [
@@ -166,8 +246,23 @@
   ],
   [
     "GET",
+    "/api/canvases/{canvas_id}/media",
+    1
+  ],
+  [
+    "GET",
     "/api/canvases/{canvas_id}/meta",
     2
+  ],
+  [
+    "GET",
+    "/api/characters/detail",
+    1
+  ],
+  [
+    "GET",
+    "/api/characters/index",
+    1
   ],
   [
     "GET",
@@ -251,6 +346,16 @@
   ],
   [
     "GET",
+    "/api/content-packs/repository",
+    1
+  ],
+  [
+    "GET",
+    "/api/content-repositories",
+    1
+  ],
+  [
+    "GET",
     "/api/conversations",
     1
   ],
@@ -276,7 +381,257 @@
   ],
   [
     "GET",
+    "/api/game-projects",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/presets",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/assets/{asset_id}/image",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/audio/connections",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/audio/jobs",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/audio/jobs/{job_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/audio/jobs/{job_id}/content",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/code-candidates",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/code-candidates/{candidate_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/development-tasks",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/development-tasks/{task_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/exports/{export_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/files/{asset_id}/{filename}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/connections",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/jobs",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/jobs/{job_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/jobs/{job_id}/preview",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/preview/{asset_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/native-runtime",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/native-runtime/runs/{run_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/native-runtime/runs/{run_id}/web.zip",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/native-runtime/sessions/{session_id}/conversation",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/native-runtime/source.zip",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/node-assets/files/{file_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/node-assets/folder",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/node-assets/graph/preview",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/outputs/{output_id}/image",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/testing",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/testing/automatic-runs/{test_run_id}/events",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/testing/evidence/{evidence_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/testing/reports/{report_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/backup.zip",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/build-diagnostic",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/builds",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/builds/{build_id}/preview",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/builds/{build_id}/web.zip",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/captures/{capture_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/datasets",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/file",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/media-assets/{asset_id}/content",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/releases/{release_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/restore-transaction",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/sessions",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/sessions/{session_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/workspace/source.zip",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/{kind}/{item_id}/history",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/{kind}/{item_id}/history/{revision}",
+    1
+  ],
+  [
+    "GET",
     "/api/gemini-cli/status",
+    1
+  ],
+  [
+    "GET",
+    "/api/generation-data",
     1
   ],
   [
@@ -302,6 +657,16 @@
   [
     "GET",
     "/api/local-assets",
+    1
+  ],
+  [
+    "GET",
+    "/api/lora-manager/civitai-img",
+    1
+  ],
+  [
+    "GET",
+    "/api/lora-manager/examples",
     1
   ],
   [
@@ -346,7 +711,32 @@
   ],
   [
     "GET",
+    "/api/mcp/comfy-builds",
+    1
+  ],
+  [
+    "GET",
+    "/api/mcp/node-catalog",
+    1
+  ],
+  [
+    "GET",
+    "/api/mcp/node-http-credential",
+    1
+  ],
+  [
+    "GET",
+    "/api/mcp/servers",
+    1
+  ],
+  [
+    "GET",
     "/api/media-preview",
+    1
+  ],
+  [
+    "GET",
+    "/api/media-registry",
     1
   ],
   [
@@ -396,6 +786,26 @@
   ],
   [
     "GET",
+    "/api/prompt-libraries/item/{item_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/prompt-libraries/items",
+    1
+  ],
+  [
+    "GET",
+    "/api/prompt-libraries/thumb/{item_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/prompt-libraries/{library_id}/export",
+    1
+  ],
+  [
+    "GET",
     "/api/prompt-module/presets",
     1
   ],
@@ -417,6 +827,11 @@
   [
     "GET",
     "/api/providers/models",
+    1
+  ],
+  [
+    "GET",
+    "/api/providers/webai2api/status",
     1
   ],
   [
@@ -526,12 +941,42 @@
   ],
   [
     "GET",
+    "/api/style-packs",
+    1
+  ],
+  [
+    "GET",
+    "/api/style-packs/catalog",
+    1
+  ],
+  [
+    "GET",
+    "/api/style-packs/repository",
+    1
+  ],
+  [
+    "GET",
+    "/api/style-packs/{pack_id}/download",
+    1
+  ],
+  [
+    "GET",
     "/api/style-presets",
     1
   ],
   [
     "GET",
+    "/api/tag-packs",
+    1
+  ],
+  [
+    "GET",
     "/api/thumbnails/{filename}",
+    1
+  ],
+  [
+    "GET",
+    "/api/training/connection",
     1
   ],
   [
@@ -636,6 +1081,11 @@
   ],
   [
     "PATCH",
+    "/api/game-projects/{project_id}/workspace/media-assets/{asset_id}",
+    1
+  ],
+  [
+    "PATCH",
     "/api/local-assets/caption",
     1
   ],
@@ -665,6 +1115,11 @@
     1
   ],
   [
+    "PATCH",
+    "/api/style-presets/items/{preset_id}",
+    1
+  ],
+  [
     "POST",
     "/api/ai/import-local-image",
     1
@@ -691,12 +1146,22 @@
   ],
   [
     "POST",
+    "/api/asset-library/categories/reorder",
+    1
+  ],
+  [
+    "POST",
     "/api/asset-library/items",
     1
   ],
   [
     "POST",
     "/api/asset-library/items/batch",
+    1
+  ],
+  [
+    "POST",
+    "/api/asset-library/items/caption",
     1
   ],
   [
@@ -722,6 +1187,26 @@
   [
     "POST",
     "/api/asset-library/libraries",
+    1
+  ],
+  [
+    "POST",
+    "/api/asset-library/maintenance/invalid-images",
+    1
+  ],
+  [
+    "POST",
+    "/api/asset-library/maintenance/scan",
+    1
+  ],
+  [
+    "POST",
+    "/api/asset-library/repository",
+    1
+  ],
+  [
+    "POST",
+    "/api/asset-library/upload",
     1
   ],
   [
@@ -831,6 +1316,11 @@
   ],
   [
     "POST",
+    "/api/canvases/{canvas_id}/media/zip",
+    1
+  ],
+  [
+    "POST",
     "/api/canvases/{canvas_id}/meta",
     2
   ],
@@ -843,6 +1333,11 @@
     "POST",
     "/api/canvases/{canvas_id}/touch",
     2
+  ],
+  [
+    "POST",
+    "/api/characters/details",
+    1
   ],
   [
     "POST",
@@ -862,6 +1357,11 @@
   [
     "POST",
     "/api/codex/help",
+    1
+  ],
+  [
+    "POST",
+    "/api/comfyui/cancel-task",
     1
   ],
   [
@@ -896,7 +1396,52 @@
   ],
   [
     "POST",
+    "/api/content-packs/repository",
+    1
+  ],
+  [
+    "POST",
+    "/api/content-packs/repository/install",
+    1
+  ],
+  [
+    "POST",
+    "/api/content-repositories",
+    1
+  ],
+  [
+    "POST",
+    "/api/content-repositories/{repo_id}/enabled",
+    1
+  ],
+  [
+    "POST",
+    "/api/content-repositories/{repo_id}/refresh",
+    1
+  ],
+  [
+    "POST",
     "/api/conversations",
+    1
+  ],
+  [
+    "POST",
+    "/api/conversations/{conversation_id}/images",
+    1
+  ],
+  [
+    "POST",
+    "/api/conversations/{conversation_id}/messages/delete",
+    1
+  ],
+  [
+    "POST",
+    "/api/conversations/{conversation_id}/pending",
+    1
+  ],
+  [
+    "POST",
+    "/api/conversations/{conversation_id}/turn",
     1
   ],
   [
@@ -907,6 +1452,346 @@
   [
     "POST",
     "/api/gallery/purge-orphans",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/import-backup",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/archive",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/asset-candidates",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/assets/{asset_id}/binding",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/assets/{asset_id}/outputs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/assets/{asset_id}/review",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/assets/{asset_id}/selection",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/assets/{asset_id}/upload",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/audio/jobs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/audio/jobs/{job_id}/adopt",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/audio/jobs/{job_id}/cancel",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates/engineering-plan",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates/maintenance",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates/{candidate_id}/apply",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates/{candidate_id}/next",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/code-candidates/{candidate_id}/work",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/development-tasks",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/development-tasks/{task_id}/resume",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/development-tasks/{task_id}/{action}",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/documents",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/documents/{doc_id}/ai-edit",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/exports",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/model3d/animations",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/model3d/balance",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/model3d/jobs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/model3d/jobs/{job_id}/adopt",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/model3d/jobs/{job_id}/control/{action}",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/import",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/runs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/sessions",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/sessions/{session_id}/branch",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/sessions/{session_id}/changes",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/stop",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/native-runtime/template",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/node-assets/files",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/plan-candidates",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/recover-documents",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/tables",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/tables/{table_id}/ai-edit",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/automatic-runs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/automatic-runs/{test_run_id}/cancel",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/automatic-runs/{test_run_id}/retry",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/cases",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/cases/{case_id}/archive",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/issues",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/issues/{issue_id}/state",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/manual-runs",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/manual-runs/{test_run_id}/cancel",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/manual-runs/{test_run_id}/reports",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/manual-runs/{test_run_id}/results",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/plans",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/testing/visual-reviews",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/builds",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/builds/{build_id}/releases",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/media-assets",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/patches",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/restore",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/restore-transaction",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/sessions",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/sessions/{session_id}/actions",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/sessions/{session_id}/capture",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/sessions/{session_id}/frame-intervals",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/template",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/workspace/template-3d",
+    1
+  ],
+  [
+    "POST",
+    "/api/game-projects/{project_id}/{kind}/{item_id}/restore",
     1
   ],
   [
@@ -1021,6 +1906,71 @@
   ],
   [
     "POST",
+    "/api/mcp/agent",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/agent/approval",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/comfy-builds",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/node-catalog",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/node-http-credential",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/node-run",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/call",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/prompt",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/prompts",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/resource",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/resources",
+    1
+  ],
+  [
+    "POST",
+    "/api/mcp/servers/{server_id}/tools",
+    1
+  ],
+  [
+    "POST",
     "/api/ms/generate",
     1
   ],
@@ -1036,7 +1986,22 @@
   ],
   [
     "POST",
+    "/api/output/merge-horizontal",
+    1
+  ],
+  [
+    "POST",
     "/api/poster/generate",
+    1
+  ],
+  [
+    "POST",
+    "/api/projects",
+    1
+  ],
+  [
+    "POST",
+    "/api/projects/{project_id}",
     1
   ],
   [
@@ -1062,6 +2027,11 @@
   [
     "POST",
     "/api/prompt-libraries/items/delete",
+    1
+  ],
+  [
+    "POST",
+    "/api/prompt-libraries/items/import",
     1
   ],
   [
@@ -1117,6 +2087,11 @@
   [
     "POST",
     "/api/providers/test-connection",
+    1
+  ],
+  [
+    "POST",
+    "/api/providers/webai2api/sync",
     1
   ],
   [
@@ -1211,7 +2186,52 @@
   ],
   [
     "POST",
+    "/api/style-packs/import",
+    1
+  ],
+  [
+    "POST",
+    "/api/style-packs/install-official",
+    1
+  ],
+  [
+    "POST",
+    "/api/style-packs/repository",
+    1
+  ],
+  [
+    "POST",
+    "/api/style-packs/repository/install",
+    1
+  ],
+  [
+    "POST",
     "/api/style-presets",
+    1
+  ],
+  [
+    "POST",
+    "/api/style-presets/items",
+    1
+  ],
+  [
+    "POST",
+    "/api/training/call",
+    1
+  ],
+  [
+    "POST",
+    "/api/training/connect",
+    1
+  ],
+  [
+    "POST",
+    "/api/training/connection",
+    1
+  ],
+  [
+    "POST",
+    "/api/training/launch",
     1
   ],
   [
@@ -1342,6 +2362,66 @@
   [
     "PUT",
     "/api/comfyui/instances",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/assets",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/audio/connections",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/documents/{doc_id}",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/model3d/connections",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/native-runtime",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/native-runtime/agents/{agent}",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/native-runtime/plugins/{plugin}",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/node-assets/graph",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/plan",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/tables/{table_id}",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/testing/requirements",
+    1
+  ],
+  [
+    "PUT",
+    "/api/game-projects/{project_id}/workspace/datasets",
     1
   ],
   [

@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "esbuild worker.ts --bundle --platform=node --format=cjs --target=node20 --legal-comments=inline --outfile=worker.cjs"
+  },
+  "dependencies": {
+    "mediabunny": "1.61.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

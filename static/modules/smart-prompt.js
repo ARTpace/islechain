@@ -34,9 +34,9 @@ const SmartPrompt = (function() {
         style.textContent = `
             @keyframes sp-long-press-pulse {
                 0% { transform: scale(1); }
-                40% { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(0,240,255,0.2); }
-                70% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(0,240,255,0.1); }
-                100% { transform: scale(1.1); box-shadow: 0 0 0 12px rgba(0,240,255,0); }
+                40% { transform: scale(1.06); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-accent, #00f0ff) 20%, transparent); }
+                70% { transform: scale(1.03); box-shadow: 0 0 0 8px color-mix(in srgb, var(--ui-accent, #00f0ff) 10%, transparent); }
+                100% { transform: scale(1.1); box-shadow: 0 0 0 12px color-mix(in srgb, var(--ui-accent, #00f0ff) 0%, transparent); }
             }
             .sp-long-press-active {
                 animation: sp-long-press-pulse 0.45s ease-in-out infinite alternate !important;
@@ -48,7 +48,7 @@ const SmartPrompt = (function() {
                 position: absolute;
                 inset: -3px;
                 border-radius: 12px;
-                border: 2px solid rgba(0,240,255,0.35);
+                border: 2px solid color-mix(in srgb, var(--ui-accent, #00f0ff) 35%, transparent);
                 animation: sp-long-press-pulse 0.55s ease-out infinite;
                 pointer-events: none;
             }
@@ -91,13 +91,13 @@ const SmartPrompt = (function() {
             }
             body.studio-theme-dark .smart-prompt-btn,
             body.theme-dark .smart-prompt-btn {
-                background:rgba(0,240,255,0.1);color:#00f0ff;
-                border-color:rgba(0,240,255,0.2);
+                background:color-mix(in srgb, var(--ui-accent, #00f0ff) 10%, transparent);color:var(--ui-accent, #00f0ff);
+                border-color:color-mix(in srgb, var(--ui-accent, #00f0ff) 20%, transparent);
             }
             body.studio-theme-dark .smart-prompt-btn:hover,
             body.theme-dark .smart-prompt-btn:hover {
-                background:rgba(0,240,255,0.18);
-                box-shadow:0 4px 12px rgba(0,240,255,0.15);
+                background:color-mix(in srgb, var(--ui-accent, #00f0ff) 18%, transparent);
+                box-shadow:0 4px 12px color-mix(in srgb, var(--ui-accent, #00f0ff) 15%, transparent);
             }
         `;
         document.head.appendChild(style);

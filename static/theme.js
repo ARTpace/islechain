@@ -23,7 +23,7 @@
 })();
 (function () {
     var s = document.createElement('script');
-    s.src = '/static/js/theme.js?v=20261024bar';
+    s.src = '/static/js/theme.js?v=20261102look';
     s.async = false;
     document.head.appendChild(s);
 })();

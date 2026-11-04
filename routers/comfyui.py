@@ -98,10 +98,33 @@ async def update_comfyui_instances(req: _main.ComfyUIInstancesUpdateRequest):
 
 # ---- ComfyUI 进程管理 (启动/停止) ----
 _comfyui_process: Optional[subprocess.Popen] = None
+_comfyui_launch = None
+
+
+async def restart_owned_comfy(target):
+    """Restart only the exact process launched by this host; never scan or kill ports."""
+    global _comfyui_process, _comfyui_launch
+    launch = _comfyui_launch
+    if (target not in ('localhost:8188', '127.0.0.1:8188', '[::1]:8188') or not launch
+            or launch['process'] is not _comfyui_process or _comfyui_process.poll() is not None):
+        raise ValueError('此实例并非当前工具启动的受管进程，请手动重启原 ComfyUI 实例')
+    process = _comfyui_process
+    process.terminate()
+    try:
+        await asyncio.to_thread(process.wait, timeout=15)
+    except subprocess.TimeoutExpired:
+        raise ValueError('受管进程未在 15 秒内退出，未强杀或启动第二个实例') from None
+    with open(launch['log'], 'ab', buffering=0) as stream:
+        _comfyui_process = subprocess.Popen(launch['args'], cwd=launch['cwd'], stdout=stream, stderr=stream,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+    _comfyui_launch = {**launch, 'process': _comfyui_process}
+    return {'pid': _comfyui_process.pid}
+
+
 @router.post("/start")
 async def start_comfyui_process():
     """启动 ComfyUI 后端进程"""
-    global _comfyui_process
+    global _comfyui_process, _comfyui_launch
 
     # 检查是否已在运行
     if await _main.get_comfyui_health():
@@ -191,6 +214,7 @@ async def start_comfyui_process():
             stdout=log_fh,
             stderr=log_fh,
         )
+        _comfyui_launch = {'process': _comfyui_process, 'args': cmd[:], 'cwd': base_path, 'log': log_path}
         return {"status": "started", "pid": _comfyui_process.pid, "log": log_path}
     except Exception as e:
         print(f"启动 ComfyUI 失败: {e}")

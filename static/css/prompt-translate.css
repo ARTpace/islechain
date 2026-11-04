@@ -48,13 +48,13 @@
     color:#e53935;
 }
 .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"] {
-    color:#0891b2;
+    color:var(--accent-glow, #0891b2);
 }
 .prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"]:hover {
     background:rgba(229, 57, 53, 0.12);
 }
 .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"]:hover {
-    background:rgba(8, 145, 178, 0.12);
+    background:color-mix(in srgb, var(--accent-glow, #0891b2) 12%, transparent);
 }
 
 /* 状态反馈：loading / ok / fail */
@@ -121,7 +121,7 @@ body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang
 }
 body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"],
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="en"] {
-    color:#06b6d4;
+    color:var(--accent-glow, #06b6d4);
 }
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner {
     background:rgba(23, 23, 22, .62);

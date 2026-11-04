@@ -1,4 +1,5 @@
-/* 生成图库与资产库共用展示区，复用资产库现有交互。 */
+/* 生成图库与资产库共用展示区，复用资产库现有交互。
+   资产图入口已整合进「提示词」面板：这里不再注入工具栏切换键，只保留展示区桥接（open/close）。 */
 document.addEventListener('DOMContentLoaded', () => {
     const gallery = document.querySelector('main');
     if (!window.AssetLibrary || !gallery) return;
@@ -11,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function showAssets(on) {
         active = on;
         document.body.classList.toggle('gallery-assets-active', on);
-        document.getElementById('galleryAssetsToggle')?.setAttribute('aria-pressed', String(on));
         gallery.hidden = on;
         gallery.style.display = on ? 'none' : '';
         if (on) {
@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
             frame.hidden = true;
         }
     }
-    // 两个生成模式都进入真实资产库，保留原来的参考图导入流程。
     AssetLibrary.open = () => {
         showAssets(true);
         document.querySelector('.chat-drawer')?.classList.add('open');
@@ -35,30 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof applyAssetToRef === 'function') applyAssetToRef(event.data.url, event.data.name);
         showAssets(false);
     });
-    function mountToggle() {
-        const favorite = document.querySelector('[data-extra-btn="fav-toggle"]');
-        if (!favorite || document.getElementById('galleryAssetsToggle')) return;
-        const button = document.createElement('button');
-        button.id = 'galleryAssetsToggle';
-        button.type = 'button';
-        button.className = favorite.className;
-        button.title = '切换生成图 / 资产图';
-        button.setAttribute('aria-pressed', String(active));
-        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h7l2-3h9v16H3z"/></svg><span class="btn-text">资产图</span>';
-        button.onclick = () => showAssets(!active);
-        favorite.after(button);
-    }
-    new MutationObserver(mountToggle).observe(document.body, { childList:true, subtree:true });
-    // 原资产入口也进入统一展示区，收藏则返回生成图筛选。
-    document.getElementById('refImageAssetBtn')?.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showAssets(true);
-        document.querySelector('.chat-drawer')?.classList.add('open');
-        document.getElementById('chatGalleryBtn')?.classList.add('active');
-    }, true);
+    // 收藏筛选键顺手退回生成图，避免停在资产视图
     document.addEventListener('click', event => {
         if (active && event.target.closest?.('[data-extra-btn="fav-toggle"]')) showAssets(false);
     }, true);
-    mountToggle();
 });

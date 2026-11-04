@@ -195,7 +195,6 @@ def tracked(kind):
 def install(app):
     """Reuse existing route signatures and execution semantics."""
     import main
-    from routers.generation_dashboard import router
     store()
     main._run_comfy_generate_sync = tracked('comfy')(main._run_comfy_generate_sync)
     main.build_online_image_result = tracked('image')(main.build_online_image_result)
@@ -205,9 +204,8 @@ def install(app):
              '/api/angle/generate': 'image',
              '/api/ideogram4/generate-json': 'image', '/api/poster/generate': 'image'}
     for route in app.routes:
-        if getattr(route, 'path', '') in paths and 'POST' in (getattr(route, 'methods', None) or []):
-            route.dependant.call = tracked(paths[route.path])(route.dependant.call)
-    app.include_router(router)
+            if getattr(route, 'path', '') in paths and 'POST' in (getattr(route, 'methods', None) or []):
+                route.dependant.call = tracked(paths[route.path])(route.dependant.call)
 
     @app.middleware('http')
     async def identify(request, call_next):

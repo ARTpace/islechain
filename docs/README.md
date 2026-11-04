@@ -21,6 +21,8 @@ Vue、React、Svelte 等框架仅为候选方案，尚未决定迁移。当前�
 
 ## 文档导航
 
+- [游戏代码开发对齐](game-development-alignment.md)：后台开发任务、Agent自由试玩与剩余工程执行架构。
+
 - [项目架构草案](architecture.md)：须以当前代码与验证报告为准。
 - [接口清单草稿](api.md)：静态索引，待自动化完整性核验。
 - [前端模块草案](frontend-modules.md)：统一引擎交付状态须重新核验。
@@ -36,3 +38,17 @@ Vue、React、Svelte 等框架仅为候选方案，尚未决定迁移。当前�
 ## 回退原则
 
 首先备份现有未提交改动与私有数据。在独立副本验证回退，仅撤销本轮明确引入的问题；禁止用 git reset --hard 清空混有用户工作的目录。忽略规则不会删除 Git 历史里的凭据；凭据失效与历史重写需另行确认、评估协作者影响。
+
+## 功能开发与工程目录
+
+- [工程目录与提交约定](repository-layout.md)
+- [AI 节点与 ComfyUI 开发记录](comfyui-agent-development.md)
+- [画布节点移植](canvas-porting-guide.md)
+- [画布图像生成节点](canvas-image-generation-node.md)
+- [MCP 画布助手](mcp-canvas-assistant.md)
+- [游戏流水线](game-pipeline-development.md)
+- [游戏媒体资产](game-media-assets.md)
+- [游戏 3D 节点](game-model3d-nodes.md)
+- [游戏测试开发](game-testing-development.md)
+
+上述开发记录包含支持范围及待办，不代表全部能力已通过发布验收。

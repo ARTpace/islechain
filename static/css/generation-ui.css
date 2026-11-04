@@ -9,7 +9,7 @@
 .upload-zone:hover { border-color: var(--accent); background: rgba(6, 182, 212, 0.05); }
 .upload-zone.dragover { border-color: var(--accent); background: rgba(6, 182, 212, 0.08); }
 .theme-dark .upload-zone { border-color: rgba(255, 255, 255, 0.15); }
-.theme-dark .upload-zone:hover { border-color: var(--accent); background: rgba(0, 240, 255, 0.08); }
+.theme-dark .upload-zone:hover { border-color: var(--accent-glow, var(--accent)); background: color-mix(in srgb, var(--accent-glow, #06b6d4) 8%, transparent); }
 .progress-bar-wrap { display: flex; align-items: center; gap: 14px; }
 .progress-bar-track {
     flex: 1; height: 10px; background: var(--ui-line, #eeede9);

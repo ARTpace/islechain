@@ -1,64 +1,98 @@
-/* Small screens reflow the composer instead of shrinking the desktop toolbar. */
+/* 控制栏只留一行：桌面端「模型 + 参数合并键 + 生成」，窄屏模型收进参数面板 */
+#generationComposer .control-bar>.ctrl-top-row { display:none !important; }
+#generationComposer .control-bar .gen-row {
+    width:100% !important; flex:1 1 100%; flex-wrap:nowrap !important;
+    margin-left:0; gap:8px !important; justify-content:flex-start !important;
+}
+#generationComposer .control-bar .gen-row .generation-options-trigger {
+    flex:0 1 auto; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+/* 生成键固定短宽，不随界面宽度拉伸；多余空间交给左侧的 auto 边距 */
+#generationComposer .control-bar .gen-row #mainGenBtn {
+    flex:0 0 auto; width:120px; min-width:120px !important; max-width:120px;
+    margin-left:auto;
+}
+/* 桌面端（够宽）：模型选择停在对话栏下方最左，与「参数」合并键同一行，不进参数面板 */
+#generationComposer.model-inline .gen-row #unifiedModelWrap { flex:0 0 auto; min-width:0; }
+#generationComposer.model-inline .gen-row #unifiedModelWrap>span { display:none; }
+#generationComposer.model-inline .gen-row #unifiedModelWrap .anima-ctrl-wrap { min-width:0; }
+#generationComposer.model-inline .gen-row #unifiedModelBtn { max-width:min(240px,42vw); }
+/* 参数面板里的模型选择器：铺满一行，去掉「模型」小标签（面板已有「选择模型」标题） */
+.generation-options-model #unifiedModelWrap { display:flex; width:100%; min-width:0; }
+.generation-options-model #unifiedModelWrap>span { display:none; }
+.generation-options-model #unifiedModelWrap>.flex,
+.generation-options-model #unifiedModelWrap .anima-ctrl-wrap { width:100%; min-width:0; }
+.generation-options-model #unifiedModelBtn {
+    width:100% !important; min-width:0 !important; max-width:none !important; justify-content:space-between;
+}
+
+/* === 对话栏按键配色统一走品牌青：软底 + 青描边 + 青字，不跟随主题 accent 变黄/变其它色 === */
+#generationComposer #mainGenBtn:not(:disabled),
+#generationComposer .anima-ctrl.active:not(:disabled) {
+    background:var(--ui-accent-soft, rgba(0,240,255,.12)) !important;
+    border:1px solid color-mix(in srgb,var(--ui-accent,#00f0ff) 60%,transparent) !important;
+    color:var(--ui-accent, #00f0ff) !important;
+}
+#generationComposer #mainGenBtn:not(:disabled):hover,
+#generationComposer .anima-ctrl.active:not(:disabled):hover {
+    background:color-mix(in srgb,var(--ui-accent,#00f0ff) 20%,transparent) !important;
+}
+/* 生成键里的闪电图标原来是 Tailwind 黄色，改回与按钮同色 */
+#generationComposer #mainGenBtn svg,
+#generationComposer #mainGenBtn i { color:inherit !important; }
+#generationComposer #mainGenBtn .fill-yellow-400 { fill:currentColor !important; }
+
+/* === 统一的按键/文字尺寸：任何视口宽度都用这一套，不随窗口缩放变化 === */
+#generationComposer { min-width:0; max-width:100%; }
+#generationComposer .prompt-row { flex-wrap:nowrap; gap:8px !important; }
+#generationComposer .prompt-row .anima-ctrl {
+    height:44px; min-height:44px; padding:0 12px !important;
+    font-size:14px; gap:6px; min-width:0; flex:0 1 auto;
+}
+#generationComposer #smartPromptContainer button {
+    height:44px !important; min-height:44px; font-size:14px !important; padding:0 12px !important;
+}
+#generationComposer .prompt-row .btn-text,
+#generationComposer #refImageBtnText { display:inline !important; }
+#generationComposer .prompt-row svg { width:18px; height:18px; flex-shrink:0; }
+#generationComposer #prompt { font-size:16px !important; line-height:1.6; min-height:96px; }
+#generationComposer .control-bar {
+    flex-direction:row !important; flex-wrap:nowrap !important; overflow:visible;
+    gap:8px !important; padding:12px !important; align-items:center;
+}
+#generationComposer .control-bar .anima-ctrl,
+#generationComposer .control-bar #mainGenBtn { height:44px; min-height:44px; font-size:14px; }
+#generationComposer .control-bar .anima-ctrl-wrap:has(>.generation-options-source) { display:none; }
+#generationComposer .control-bar .generation-options-trigger {
+    height:44px; min-height:44px; padding:0 12px !important; line-height:1.2;
+}
+#generationComposer .control-bar #randomPromptContainer button { width:44px; min-width:44px; min-height:44px; }
+#generationComposer .control-bar .reverse-settings-btn { width:44px; }
+#generationComposer .control-bar #mainGenBtn { padding:0 16px !important; overflow:visible; }
+#generationComposer #mainGenBtn .btn-text { display:inline !important; font-size:14px; }
+#generationComposer .control-bar #mainGenBtn svg { width:18px !important; height:18px !important; }
+.generation-options-panel { padding:14px; border-radius:16px; overscroll-behavior:contain; }
+.generation-options-panel .generation-options-section h3 { font-size:14px; line-height:1.5; font-weight:400; }
+.generation-options-panel .generation-options-segments button { min-height:44px; font-size:14px; }
+.generation-options-model #unifiedModelBtn { min-height:44px; font-size:14px; }
+
 @media (max-width:1024px) {
     html.studio-scale-managed { --studio-ui-scale:1 !important; }
-    #generationComposer { min-width:0; max-width:100%; }
-    #generationComposer .prompt-row { flex-wrap:wrap; gap:8px !important; }
-    #generationComposer .prompt-row .anima-ctrl {
-        height:44px; min-height:44px; padding:0 12px !important;
-        font-size:14px; gap:6px; flex-shrink:0;
-    }
-    #generationComposer #smartPromptContainer button { height:44px !important; min-height:44px; font-size:14px !important; padding:0 12px !important; }
-    #generationComposer .prompt-row .btn-text,
-    #generationComposer #refImageBtnText { display:inline !important; }
-    #generationComposer .prompt-row svg { width:18px; height:18px; flex-shrink:0; }
-    #generationComposer #prompt { font-size:16px !important; line-height:1.6; min-height:96px; }
-    #generationComposer .control-bar {
-        flex-direction:row !important; flex-wrap:wrap !important; overflow:visible;
-        gap:10px !important; padding:12px !important;
-    }
-    #generationComposer .control-bar>.ctrl-top-row {
-        width:100% !important; min-width:0; flex-wrap:wrap !important; gap:8px !important;
-    }
-    #generationComposer #unifiedModelWrap { flex:1 1 180px; min-width:0; max-width:100%; }
-    #generationComposer #unifiedModelWrap>.flex { flex:1; min-width:0; }
-    #generationComposer #unifiedModelWrap .anima-ctrl-wrap { width:100%; min-width:0; }
-    #generationComposer .control-bar #unifiedModelBtn {
-        width:100% !important; min-width:0 !important; max-width:none !important;
-    }
-    #generationComposer .control-bar #unifiedModelText { font-size:14px !important; }
-    #generationComposer .control-bar #unifiedModelWrap>span { font-size:13px; white-space:nowrap; }
-    #generationComposer .control-bar .gen-row {
-        width:100% !important; min-width:0; flex-wrap:wrap !important;
-        margin-left:0; gap:8px !important; justify-content:flex-start !important;
-    }
-    #generationComposer .control-bar .anima-ctrl,
-    #generationComposer .control-bar #mainGenBtn { height:44px; min-height:44px; font-size:14px; }
-    #generationComposer .control-bar .anima-ctrl-wrap:has(>.generation-options-source) { display:none; }
-    #generationComposer .control-bar .generation-options-trigger {
-        min-width:0; max-width:100%; min-height:44px; height:auto; white-space:normal;
-        padding:10px 12px !important; line-height:1.5;
-    }
-    #generationComposer .control-bar #randomPromptContainer button { width:44px; min-width:44px; min-height:44px; }
-    #generationComposer .control-bar #mainGenBtn {
-        flex:1 1 110px; min-width:110px !important; padding:0 16px !important; overflow:visible;
-    }
-    #generationComposer #mainGenBtn .btn-text { display:inline !important; font-size:14px; }
-    #generationComposer .control-bar #mainGenBtn svg { width:18px !important; height:18px !important; }
-    .generation-options-panel { padding:14px; border-radius:16px; overscroll-behavior:contain; }
-    .generation-options-panel .generation-options-section h3 { font-size:14px; line-height:1.5; font-weight:400; }
-    .generation-options-panel .generation-options-segments button { min-height:44px; font-size:14px; }
 }
 @media (max-width:600px) {
-    #generationComposer .control-bar>.ctrl-top-row { display:none !important; }
-    .generation-options-model #unifiedModelWrap { display:flex; width:100%; min-width:0; }
-    .generation-options-model #unifiedModelWrap>span { display:none; }
-    .generation-options-model #unifiedModelWrap>.flex,
-    .generation-options-model #unifiedModelWrap .anima-ctrl-wrap { width:100%; min-width:0; }
-    .generation-options-model #unifiedModelBtn { width:100% !important; min-width:0 !important; max-width:none !important; min-height:44px; font-size:14px; }
+    /* 输入栏上方按键固定一行：均分宽度；文字保留，去掉图标做简化，字号与其它宽度一致 */
+    #generationComposer .prompt-row { flex-wrap:nowrap !important; gap:6px !important; }
     #generationComposer .prompt-row>.anima-ctrl,
-    #generationComposer .prompt-row>#smartPromptContainer { flex:1 1 calc(50% - 4px); min-width:0; }
-    #generationComposer .prompt-row>#smartPromptContainer button { width:100%; justify-content:center; }
+    #generationComposer .prompt-row>#smartPromptContainer {
+        flex:1 1 0; min-width:0; padding:0 6px !important; gap:0; justify-content:center;
+    }
+    #generationComposer .prompt-row>#smartPromptContainer button {
+        width:100%; padding:0 6px !important; justify-content:center; gap:0;
+    }
     #generationComposer .prompt-row>.anima-ctrl { justify-content:center; }
+    #generationComposer .prompt-row svg { display:none !important; }
+    #generationComposer .prompt-row .btn-text,
+    #generationComposer #refImageBtnText { display:inline !important; }
     .generation-options-panel .generation-options-segments.is-ratio { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
     .generation-options-panel .generation-options-segments.is-ratio button { min-width:0; min-height:64px; }
 }

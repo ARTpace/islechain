@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <title>三视图</title>
+    <script src="/static/modules/auth-token.js?v=20261024001"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
+    <script src="/static/lucide.min.js?v=20261024001"></script>
+    <script src="/static/js/theme-default.js?v=20261031a"></script>
+    <script src="/static/theme.js?v=20261024bar"></script>
+    <script src="/static/modules/image-viewer.js?v=20261024001"></script>
+    <!-- 生成类应用公共外观：upload-zone / 进度条 / 参数面板 / 工具条按钮 -->
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/generation-panel.css?v=20261103d">
+    <!-- 参数面板（内联形态 .is-inline，与文生图同一套 section/段控外观） -->
+    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=20261103c">
+    <!-- 统一画廊组件包：Core/Lightbox/Favorites/List/Card/ToolbarExtras/DateGrouping/Nsfw/ContextMenu -->
+    <script src="/static/history-bulk-manager.js?v=20261102wide"></script>
+    <script src="/static/modules/gallery/bundle.js?v=20261102scopebtn"></script>
+    <!-- 卡片内生成进度（环形进度 + 计时器），与文生图一致 -->
+    <script src="/static/modules/card-progress.js?v=20261026image-ready"></script>
+    <script src="/static/modules/comfyui-utils.js?v=20261103e"></script>
+    <script src="/static/modules/upload-zone.js?v=20261024008"></script>
+    <!-- 浮层定位（引擎下拉菜单用，跟文生图同一套） -->
+    <script src="/static/modules/generation-menu-position.js?v=20261031ui2"></script>
+    <style>
+        /* 底色/文字色全部来自 theme.js 注入的 --ui-* 变量，这里不再声明 :root 覆盖，
+           否则会和文生图主界面偏出不同色阶（暗色下最关键）。 */
+        *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
+        *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
+        *::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--ui-text, #141414) 16%, transparent) !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
+        *::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--ui-text, #141414) 28%, transparent) !important; }
+        * { scrollbar-width: thin !important; scrollbar-color: color-mix(in srgb, var(--ui-text, #141414) 16%, transparent) transparent !important; }
+        body { transition: background-color .2s ease, color .2s ease; font-family: "Inter", -apple-system, "PingFang SC", sans-serif; -webkit-font-smoothing: antialiased; }
+        .layout-container { max-width: var(--max-w, 1280px); margin: 0 auto; padding: 0 40px; width: 100%; }
+
+        /* 左右两栏：左上传 / 右控制列。顶部不再有标题行，卡片刻度即内容顶部。 */
+        .control-row { display: flex; align-items: stretch; justify-content: space-between; gap: 24px; padding: 18px 22px; }
+        .control-left, .control-right { flex: 1 1 50%; min-width: 0; display: flex; flex-direction: column; }
+        .control-right { gap: 12px; }
+        @media (max-width: 1024px) {
+            .control-row { flex-wrap: wrap; }
+            .control-left, .control-right { flex: 1 1 100%; }
+        }
+        @media (max-width: 640px) { .layout-container { padding: 0 16px; } .control-row { padding: 12px 16px; } }
+
+        /* 画廊：基础栅格与日期分隔线由 gallery/bundle.js 注入，这里只补导航触发器 */
+        #loadMoreTrigger { padding: 48px 0; text-align: center; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ui-muted, #c9c9c1); cursor: pointer; }
+    </style>
+</head>
+<body class="antialiased gen-page gen-flat-toolbar">
+    <header class="pt-10 pb-8">
+        <div class="layout-container">
+            <div class="gen-card p-1.5">
+                <div class="control-row">
+                    <!-- 左：参考图上传 -->
+                    <div class="control-left">
+                        <div class="gen-upload-label-row">
+                            <span class="gen-label">角色参考图</span>
+                            <span class="gen-upload-meta" id="imgMeta"></span>
+                        </div>
+                        <div class="upload-zone gen-upload-large" id="uploadZone" style="flex:1;">
+                            <img class="upload-preview" id="preview" alt="参考图预览">
+                            <div class="upload-hint">
+                                <span class="gen-upload-icon"><i data-lucide="image-plus"></i></span>
+                                <span class="upload-text" style="font-size:10px;font-weight:700;color:var(--ui-muted,#999);text-transform:uppercase;letter-spacing:.5px;">点击 / 拖拽 / Ctrl+V</span>
+                            </div>
+                            <input type="file" id="fileInput" accept="image/*" style="display:none;">
+                        </div>
+                    </div>
+
+                    <!-- 右：工具条（模型 → 生成）+ 参数 + 两行摘要 -->
+                    <div class="control-right gen-panel">
+                        <div class="gen-bar">
+                            <!-- 模型 / 工作流选择：点开是菜单，平时显示当前引擎名 -->
+                            <div class="gen-ctrl-wrap">
+                                <button type="button" id="engineBtn" class="gen-ctrl" aria-haspopup="menu" title="切换模型 / 工作流">
+                                    <i data-lucide="boxes"></i>
+                                    <span class="gen-ctrl-label" id="engineBtnText">生成引擎</span>
+                                    <i data-lucide="chevron-down" class="gen-ctrl-caret"></i>
+                                </button>
+                                <div id="engineMenu" class="gen-menu" role="menu" hidden></div>
+                            </div>
+                            <!-- 生成：与文生图 #mainGenBtn 同款（.gen-run），紧跟模型选择右侧 -->
+                            <button id="mainGenBtn" class="gen-run" disabled title="先上传参考图">
+                                <i data-lucide="zap" class="gen-run-icon"></i>
+                                <span class="btn-text">生成</span>
+                            </button>
+                        </div>
+
+                        <!-- 进度：紧贴生成按钮下方，生成时才出现 -->
+                        <div id="progressInline" class="gen-progress" style="display:none;">
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar-track"><div id="progressFill" class="progress-bar-fill"></div></div>
+                                <span id="progressPercent" class="progress-bar-percent">0%</span>
+                            </div>
+                            <div id="progressStatus" class="progress-bar-status">准备中...</div>
+                        </div>
+
+                        <!-- 参数：直接铺在右栏，不再弹浮层 -->
+                        <section id="paramsPanel" class="generation-options-panel is-inline" aria-label="三视图参数">
+                            <div class="generation-options-section">
+                                <h3>视角预设</h3>
+                                <div class="generation-options-segments" id="presetSeg"></div>
+                            </div>
+
+                            <div class="generation-options-section" data-cap="consistency">
+                                <h3 class="gen-h3-split">
+                                    <span>一致性强度</span>
+                                    <span class="gen-slider-value" id="loraVal">0.85</span>
+                                </h3>
+                                <div class="gen-slider">
+                                    <input id="loraRange" type="range" min="0.4" max="1.4" step="0.05" value="0.85">
+                                </div>
+                            </div>
+
+                            <div class="generation-options-section" data-cap="steps">
+                                <h3>每张步数</h3>
+                                <div class="generation-options-segments" id="stepsSeg"></div>
+                            </div>
+
+                            <div class="generation-options-section">
+                                <div class="gen-row">
+                                    <div class="gen-field" data-cap="size">
+                                        <label class="gen-label" for="widthInput">宽</label>
+                                        <input id="widthInput" type="number" value="832" min="512" max="2048" step="64" class="gen-input gen-num">
+                                    </div>
+                                    <div class="gen-field" data-cap="size">
+                                        <label class="gen-label" for="heightInput">高</label>
+                                        <input id="heightInput" type="number" value="1216" min="512" max="2048" step="64" class="gen-input gen-num">
+                                    </div>
+                                    <div class="gen-field" data-cap="seed">
+                                        <label class="gen-label" for="seedInput">随机种子</label>
+                                        <div class="flex items-center gap-2">
+                                            <input id="seedInput" type="number" value="1234567" min="0" max="999999999999999" class="gen-input gen-num-wide">
+                                            <button type="button" id="seedRandomBtn" class="gen-icon-btn" title="随机种子"><i data-lucide="dices"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 两行摘要：视角与张数 / 尺寸、步数、预计耗时（用户要求只有两行） -->
+                        <div class="gen-meta">
+                            <div class="gen-meta-line" id="metaViews">正视图 · 侧视图 · 背视图 → 3 张</div>
+                            <div class="gen-meta-line" id="metaSpecs">832 × 1216 · 4 步 · 约 90 秒</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="pb-24">
+        <div class="layout-container">
+            <div id="masonry" class="masonry-grid thumb-medium"></div>
+            <div id="loadMoreTrigger" class="hidden">Load More Archive</div>
+        </div>
+    </main>
+
+    <!-- 配置（预设 / 引擎注册表）→ 控制条与参数 → 上传与生成 -->
+    <script src="/static/app/threeview.config.js?v=20261103f"></script>
+    <script src="/static/app/threeview.ui.js?v=20261103b"></script>
+    <script src="/static/app/threeview.js?v=20261103e"></script>
+    <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

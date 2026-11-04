@@ -22,7 +22,7 @@ import concurrent.futures
 import zipfile
 from io import BytesIO
 import requests
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Annotated
 from threading import Lock
 from contextlib import asynccontextmanager
 import httpx
@@ -83,7 +83,7 @@ except Exception:
 from PIL import Image, ImageOps
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Request, Form
 from fastapi.responses import FileResponse, Response, StreamingResponse, RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -186,6 +186,11 @@ async def lifespan(app: FastAPI):
         print(f"局域网共享启动失败: {exc}")
     yield
     print("Application shutting down.")
+    try:
+        from core import mcp_tools
+        await mcp_tools.close_pool()
+    except Exception as exc:
+        print(f"MCP 连接池关闭失败: {exc}")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -1072,6 +1077,9 @@ API_ENV_FILE = os.path.join(USER_DATA_DIR, "api.env")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 CONVERSATION_DIR = os.path.join(USER_DATA_DIR, "conversations")
 CANVAS_DIR = os.path.join(USER_DATA_DIR, "canvases")
+CANVAS_PROJECTS_FILE = os.path.join(USER_DATA_DIR, "canvas-projects.json")
+DEFAULT_PROJECT_ID = "default"
+DEFAULT_PROJECT_NAME = "默认项目"
 GLOBAL_CONFIG_FILE = os.path.join(USER_DATA_DIR, "global_config.json")
 THUMBNAIL_DIR = os.path.join(USER_DATA_DIR, "thumbnails")
 SMART_PRESETS_DIR = os.path.join(USER_DATA_DIR, "smart-prompt-presets")
@@ -1149,7 +1157,7 @@ def sync_builtin_workflows():
 
     内置工作流是程序资产（升级应带上新版），内容不同就以内置为准覆盖；
     用户自建的 wf_*.json 不在内置集合里，不会被碰。工作流配置写 .config.json，
-    是独立文件，属于用户层，同样不受影响。
+    是独立文件，属于用户层：用户目录已有就保留（用户的调参成果），缺失时才补种。
     """
     if not os.path.isdir(BUILTIN_WORKFLOW_DIR):
         return
@@ -1162,10 +1170,14 @@ def sync_builtin_workflows():
         except OSError:
             continue
         for fn in files:
-            if not fn.endswith(".json") or fn.endswith(".config.json"):
+            if not fn.endswith(".json"):
                 continue
             src = os.path.join(cur, fn)
             dst = os.path.join(dst_dir, fn)
+            # 工作流本体是程序资产，内容变了就以内置为准覆盖；
+            # .config.json 属于用户层（面板字段/默认值会被用户调），只在用户目录缺失时补种一份。
+            if fn.endswith(".config.json") and os.path.isfile(dst):
+                continue
             try:
                 if os.path.isfile(dst) and os.path.getsize(dst) == os.path.getsize(src) \
                         and _file_digest(dst) == _file_digest(src):
@@ -1319,6 +1331,7 @@ HISTORY_LOCK = Lock()
 GLOBAL_CONFIG_LOCK = Lock()
 CONVERSATION_LOCK = Lock()
 CANVAS_LOCK = Lock()
+PROJECT_LOCK = Lock()
 LOAD_LOCK = Lock()
 RUNNINGHUB_WORKFLOW_LOCK = Lock()
 NEXT_TASK_ID = 1
@@ -2162,6 +2175,9 @@ class CanvasCreateRequest(BaseModel):
     title: str = "未命名画布"
     icon: str = "🧩"
     kind: str = "classic"
+    project: str = "default"
+    board_x: Optional[float] = None
+    board_y: Optional[float] = None
 
 class CanvasSaveRequest(BaseModel):
     title: str = "未命名画布"
@@ -2183,6 +2199,9 @@ class CanvasMetaUpdate(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
     pinned: Optional[bool] = None
+    project: Optional[str] = None
+    board_x: Optional[float] = None
+    board_y: Optional[float] = None
 
 class ConfigUpdateRequest(BaseModel):
     comfly_api_key: Optional[str] = None
@@ -2547,6 +2566,51 @@ def download_video(comfy_address, comfy_url_path, prefix="video_", canvas=None, 
             return comfy_url_path.replace("/view", "/api/view", 1)
         return full_url
 
+# 非图片/视频/音频产物（分层 PSD、打包 zip、模型文件等）的扩展名白名单
+ARTIFACT_EXTS = (".psd", ".psb", ".zip", ".7z", ".json", ".txt", ".pdf", ".svg",
+                 ".tif", ".tiff", ".ai", ".blend", ".obj", ".fbx", ".glb", ".gltf")
+
+
+def download_artifact(comfy_address, comfy_url_path, ext, prefix="file_", canvas=None, username=None, feature=""):
+    """下载非媒体产物（PSD / ZIP 等），保留原始扩展名，落到可长期访问的本地目录。
+
+    落盘层级：
+      - 画布场景   -> 画布输出目录（与图片同处，便于随画布一起归档）
+      - 其它       -> output/{owner}/file/{feature}/{date}/
+    没有并进 media_paths 的 image/video/audio 三分型，是为了避免 PSD 被画廊当图片加载；
+    将来若要正式支持 file 型媒体，给 media_paths.MEDIA_TYPES 增加 "file" 后切回注册表即可。
+    """
+    ext = str(ext or "").lower()
+    if not ext:
+        ext = ".bin"
+    elif not ext.startswith("."):
+        ext = "." + ext
+    filename = f"{prefix}{uuid.uuid4().hex[:10]}{ext}"
+    if canvas:
+        out_dir = get_canvas_output_dir(canvas)
+        url = build_output_url(canvas, filename, username)
+    else:
+        owner = get_user_dirname(username) or ""
+        folder = media_paths.sanitize_segment(feature or "artifact", "artifact")
+        day = time.strftime("%Y-%m-%d")
+        parts = ([owner] if owner else []) + ["file", folder, day]
+        out_dir = os.path.join(OUTPUT_DIR, *parts)
+        url = "/output/" + "/".join(parts) + "/" + filename
+    os.makedirs(out_dir, exist_ok=True)
+    local_path = os.path.join(out_dir, filename)
+    full_url = f"http://{comfy_address}{comfy_url_path}"
+    try:
+        with urllib.request.urlopen(full_url, timeout=180) as response, open(local_path, "wb") as out_file:
+            shutil.copyfileobj(response, out_file)
+        print(f"[Artifact] saved {local_path} ({os.path.getsize(local_path)} bytes)")
+        return url
+    except Exception as e:
+        print(f"下载产物失败: {e}")
+        if comfy_url_path.startswith("/view"):
+            return comfy_url_path.replace("/view", "/api/view", 1)
+        return full_url
+
+
 def save_to_history(record):
     with HISTORY_LOCK:
         # 走进程内缓存, 避免每次生成都全量读盘(history.json 4.4MB/2654 条, 5000 条封顶约 8MB)
@@ -2760,6 +2824,9 @@ def canvas_record(data):
         "title": data.get("title", "未命名画布"),
         "icon": data.get("icon", "🧩"),
         "kind": data.get("kind", "classic"),
+        "project": data.get("project") or DEFAULT_PROJECT_ID,
+        "board_x": data.get("board_x"),
+        "board_y": data.get("board_y"),
         "created_at": data.get("created_at", 0),
         "updated_at": data.get("updated_at", 0),
         "deleted_at": data.get("deleted_at", 0),
@@ -2808,6 +2875,87 @@ def list_canvases(owner_filter=None):
 def list_deleted_canvases(owner_filter=None):
     records = iter_canvas_records(include_deleted=True, owner_filter=owner_filter)
     return sorted(records, key=lambda item: item["deleted_at"], reverse=True)
+
+
+# --- 画布项目（分类）---
+
+def load_project_tables():
+    """读取项目表：{用户名: {项目ID: 记录}}。损坏时按空表处理。"""
+    try:
+        with open(CANVAS_PROJECTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+def write_project_tables(tables):
+    atomic_write_json(CANVAS_PROJECTS_FILE, tables, ensure_ascii=False, indent=2)
+
+def user_project_table(tables, owner):
+    table = tables.get(owner or "")
+    return dict(table) if isinstance(table, dict) else {}
+
+def default_project_entry():
+    return {"id": DEFAULT_PROJECT_ID, "name": DEFAULT_PROJECT_NAME, "order": 0, "protected": True, "created_at": 0}
+
+def project_payload(entry, canvas_count=0):
+    """对外暴露的项目结构；POST 响应与 GET 列表必须用同一份构造，保证逐字段相等。"""
+    return {
+        "id": entry.get("id"),
+        "name": entry.get("name") or DEFAULT_PROJECT_NAME,
+        "order": int(entry.get("order") or 0),
+        "canvas_count": int(canvas_count or 0),
+    }
+
+def project_canvas_counts(owner):
+    """统计某用户名下每个项目的画布数量。"""
+    counts = {}
+    if not owner:
+        return counts
+    for record in iter_canvas_records(owner_filter=owner):
+        pid = record.get("project") or DEFAULT_PROJECT_ID
+        counts[pid] = counts.get(pid, 0) + 1
+    return counts
+
+def move_canvases_to_default(owner, project_id):
+    """项目被删除后，其画布回落到默认项目。返回迁移数量。"""
+    moved = 0
+    with CANVAS_LOCK:
+        for filename in os.listdir(CANVAS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            path = os.path.join(CANVAS_DIR, filename)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if data.get("owner") != owner:
+                continue
+            if (data.get("project") or DEFAULT_PROJECT_ID) != project_id:
+                continue
+            data["project"] = DEFAULT_PROJECT_ID
+            data["updated_at"] = now_ms()
+            atomic_write_json(path, data, ensure_ascii=False, indent=2)
+            moved += 1
+    return moved
+
+def require_canvas_project(owner, project):
+    """校验画布可用的项目：默认项目恒存在；他人项目 403；不存在 404。"""
+    pid = str(project or DEFAULT_PROJECT_ID).strip() or DEFAULT_PROJECT_ID
+    if pid == DEFAULT_PROJECT_ID:
+        return DEFAULT_PROJECT_ID
+    with PROJECT_LOCK:
+        tables = load_project_tables()
+        table = user_project_table(tables, owner)
+        if pid in table:
+            return pid
+        for other_owner, other_table in tables.items():
+            if other_owner == (owner or "") or not isinstance(other_table, dict):
+                continue
+            if pid in other_table:
+                raise HTTPException(status_code=403, detail="无权使用该项目")
+    raise HTTPException(status_code=404, detail="项目不存在")
 
 def display_title(text):
     title = re.sub(r"\s+", " ", text or "").strip()
@@ -3513,17 +3661,22 @@ async def _gen_webai2api(client, prov, model, prompt, size, refs, generation_par
             body["ratio"] = f"{width // divisor}:{height // divisor}"
     metadata = prov.get("model_capabilities", {}).get(model, {})
     capabilities = metadata.get('generation_params') or {}
-    if capabilities.get('source') == 'website':
+    # 缓存里没有参数声明（只在界面刷新过、尚未落盘的新模型）时同样要取一次网关能力，
+    # 否则校验会把该模型当成「什么参数都不支持」，报出误导性的 ratio/size 不支持。
+    if capabilities.get('source') == 'website' or not capabilities.get('params'):
         # 直接调用 API、历史重试也要读取网关最新能力，不能只信前端缓存。
         response = await client.get(prov['base_url'] + '/v1/models',
             headers=_openai_headers(prov['base_url'], prov['api_key']), timeout=90.0)
         response.raise_for_status()
         from tools.webai_gateway import model_catalog
-        metadata = model_catalog(response.json().get('data', [])).get(model, {})
+        catalog = model_catalog(response.json().get('data', [])).get(model) or {}
+        if catalog.get('generation_params'):
+            metadata = {**metadata, **catalog}
         capabilities = metadata.get('generation_params') or {}
-        if capabilities.get('source') != 'website':
-            raise HTTPException(status_code=400, detail='未获取当前模型的参数，请刷新模型后重试')
-        body.pop('ratio', None)
+        if capabilities.get('source') == 'website':
+            if capabilities.get('status') != 'ready':
+                raise HTTPException(status_code=400, detail='未获取当前模型的参数，请刷新模型后重试')
+            body.pop('ratio', None)
     policy = metadata.get('image_policy', 'optional')
     if policy in ('forbidden', 'none') and refs:
         raise HTTPException(status_code=400, detail='该网页模型不支持参考图，请移除参考图或切换模型')
@@ -3911,9 +4064,36 @@ def reference_upload_files(refs):
     return files
 
 
+def game_project_media_path(url):
+    """把 /api/game-projects/.../files/... 的图片 URL 解析成本地文件。
+
+    只认当前账号自己名下的项目：owner 取本次请求的 token，查不到或无权一律返回 None。
+    """
+    owner = get_username_by_token("")
+    if not owner:
+        return None
+    try:
+        from core.game_projects import ProjectStore, project_image_path
+        root = os.path.join(USER_DATA_DIR, "game-projects")
+        path = project_image_path(root, url, owner)
+    except (HTTPException, OSError, ValueError):
+        return None
+    resolved = os.path.abspath(str(path))
+    root_abs = os.path.abspath(root)
+    try:
+        inside = os.path.commonpath([root_abs, resolved]) == root_abs
+    except ValueError:
+        inside = False
+    if not inside or not os.path.exists(resolved):
+        return None
+    return resolved
+
 def output_file_from_url(url):
     if isinstance(url, dict):
         url = url.get("url", "")
+    url = str(url or "")
+    if url.startswith("/api/game-projects/"):
+        return game_project_media_path(url.split("?", 1)[0])
     if not url or not (url.startswith("/output/") or url.startswith("/assets/")):
         return None
     clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
@@ -4318,13 +4498,20 @@ def is_video_preview_file(path: str) -> bool:
 def generate_video_preview_image(path: str, width: int) -> Image.Image:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        raise RuntimeError("未找到 ffmpeg,无法生成视频预览图")
-    fd, frame_path = tempfile.mkstemp(prefix="media_preview_frame_", suffix=".jpg")
+        from core.node_av import convert
+        with open(path, 'rb') as source:
+            raw = source.read(8 * 1024**2 + 1)
+        preview, _ = convert(raw, 'preview')
+        with Image.open(io.BytesIO(preview)) as frame:
+            image = frame.convert('RGB')
+            image.thumbnail((width, width), Image.BILINEAR)
+            return image
+    fd, frame_path = tempfile.mkstemp(prefix="media_preview_frame_", suffix=".png")
     os.close(fd)
     try:
         cmd = [
             ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
-            "-ss", "0.5",
+            "-ss", "0",
             "-i", path,
             "-frames:v", "1",
             "-vf", f"scale='min({width},iw)':-2",
@@ -6443,22 +6630,107 @@ def delete_media_preview_cache(path: str) -> int:
 
 # --- 资产库 API ---
 
+class ProjectNameRequest(BaseModel):
+    """项目名：去掉首尾空白后不能为空，最长 60 字。"""
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
 @app.get("/api/projects")
 async def get_projects():
-    """返回项目列表（兼容新前端）"""
-    return {"projects": [{"id": "default", "name": "默认项目", "icon": "folder", "color": "#3b82f6"}]}
+    """返回当前用户的画布项目列表（默认项目恒在最前）。"""
+    username = get_username_by_token("")
+    with PROJECT_LOCK:
+        table = user_project_table(load_project_tables(), username)
+    counts = project_canvas_counts(username) if username else {}
+    default_entry = table.get(DEFAULT_PROJECT_ID)
+    if not isinstance(default_entry, dict):
+        default_entry = default_project_entry()
+    else:
+        default_entry = {**default_entry, "order": 0}
+    others = []
+    for pid, entry in table.items():
+        if pid == DEFAULT_PROJECT_ID or not isinstance(entry, dict):
+            continue
+        others.append({**entry, "id": entry.get("id") or pid})
+    others.sort(key=lambda item: (int(item.get("order") or 0), str(item.get("id") or "")))
+    entries = [default_entry] + others
+    return {"projects": [project_payload(entry, counts.get(entry.get("id"), 0)) for entry in entries]}
+
+@app.post("/api/projects")
+async def create_project(payload: ProjectNameRequest, token: str = ""):
+    """新建画布项目。"""
+    username = require_valid_token(token)
+    name = (payload.name or "").strip()
+    with PROJECT_LOCK:
+        tables = load_project_tables()
+        table = user_project_table(tables, username)
+        order = max([int(item.get("order") or 0) for item in table.values()] + [0]) + 1
+        pid = "p_" + uuid.uuid4().hex[:12]
+        entry = {"id": pid, "name": name, "order": order, "protected": False, "created_at": now_ms()}
+        table[pid] = entry
+        tables[username] = table
+        write_project_tables(tables)
+    return {"project": project_payload(entry, 0)}
+
+@app.post("/api/projects/{project_id}")
+async def rename_project(project_id: str, payload: ProjectNameRequest, token: str = ""):
+    """重命名画布项目；只能改自己名下的项目。"""
+    username = require_valid_token(token)
+    name = (payload.name or "").strip()
+    with PROJECT_LOCK:
+        tables = load_project_tables()
+        table = user_project_table(tables, username)
+        entry = table.get(project_id)
+        if project_id == DEFAULT_PROJECT_ID:
+            entry = dict(entry) if isinstance(entry, dict) else default_project_entry()
+        elif not isinstance(entry, dict):
+            raise HTTPException(status_code=404, detail="项目不存在")
+        else:
+            entry = dict(entry)
+        entry["name"] = name
+        table[project_id] = entry
+        tables[username] = table
+        write_project_tables(tables)
+    counts = project_canvas_counts(username)
+    return {"project": project_payload(entry, counts.get(project_id, 0))}
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str, token: str = ""):
+    """删除画布项目；其下画布回落到默认项目。"""
+    username = require_valid_token(token)
+    if project_id == DEFAULT_PROJECT_ID:
+        raise HTTPException(status_code=400, detail="默认项目不可删除")
+    with PROJECT_LOCK:
+        tables = load_project_tables()
+        table = user_project_table(tables, username)
+        if project_id not in table:
+            raise HTTPException(status_code=404, detail="项目不存在")
+        table.pop(project_id)
+        tables[username] = table
+        write_project_tables(tables)
+    moved = move_canvases_to_default(username, project_id)
+    return {"deleted": True, "id": project_id, "moved_canvases": moved}
 
 @app.get("/api/canvases/{canvas_id}/meta")
 async def get_canvas_meta(canvas_id: str):
     canvas = load_canvas(canvas_id)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
+    return {
+        "meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)},
+        "updated_at": canvas.get("updated_at", 0),
+    }
 
 @app.post("/api/canvases/{canvas_id}/meta")
 async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
-    """更新画布元数据（标题/图标/颜色等）"""
+    """更新画布元数据（标题/图标/颜色/所属项目/看板坐标）"""
     canvas = load_canvas(canvas_id)
+    validate_canvas_owner(canvas, "")
     if not payload:
-        return {"meta": {}}
+        return {"meta": {}, "canvas": canvas_record(canvas)}
+    if payload.project is not None:
+        canvas["project"] = require_canvas_project(canvas.get("owner"), payload.project)
+    for key in ("board_x", "board_y"):
+        value = getattr(payload, key)
+        if value is not None:
+            canvas[key] = value
     if payload.title is not None:
         canvas["title"] = payload.title[:80]
     if payload.icon is not None:
@@ -6468,7 +6740,10 @@ async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
     if payload.pinned is not None:
         canvas["pinned"] = payload.pinned
     save_canvas(canvas)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color")}}
+    record = canvas_record(canvas)
+    record["color"] = canvas.get("color")
+    record["pinned"] = canvas.get("pinned", False)
+    return {"meta": dict(record), "canvas": record, "updated_at": canvas.get("updated_at", 0)}
 
 @app.post("/api/canvases/{canvas_id}/touch")
 async def touch_canvas(canvas_id: str):
@@ -6999,7 +7274,8 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                 if isinstance(image_name, str) and image_name:
                     required_images.append(image_name)
 
-        target_backend = get_best_backend(required_images)
+        from core.comfy_workflow_builds import pinned_instance
+        target_backend = pinned_instance(WORKFLOW_DIR, req.workflow_json, COMFYUI_INSTANCES) or get_best_backend(required_images)
         with LOAD_LOCK:
             BACKEND_LOCAL_LOAD[target_backend] += 1
 
@@ -7277,8 +7553,12 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
         local_urls = []
         audio_urls = []
         video_urls = []
+        file_urls = []
         output_text = ""
         current_timestamp = time.time()
+        _video_exts = ('.mp4', '.webm', '.mov', '.mkv', '.avi')
+        # 已下载的 ComfyUI 源文件名，避免自定义产物键与 images 重复下载同一文件
+        _handled_src = set()
         if 'outputs' in history_data:
             for node_id in history_data['outputs']:
                 node_output = history_data['outputs'][node_id]
@@ -7294,10 +7574,10 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                     # 边界修复: ComfyUI SaveVideo 节点 outputs 在 'images' key 里 (含 animated=True/filename=*.mp4),
                     # 需识别后路由到 download_video 而不是 download_image (避免 mp4 被保存成 png)
                     # 返回 ('video', path) 或 ('image', path) 以便调用方分类追加
-                    _video_exts = ('.mp4', '.webm', '.mov', '.mkv', '.avi')
                     def _dl_img(img_dict):
                         _path = f"/view?filename={img_dict['filename']}&subfolder={img_dict['subfolder']}&type={img_dict['type']}"
                         _fname = img_dict.get('filename', '')
+                        _handled_src.add(_fname)
                         # 视频文件走下载视频路径
                         if any(_fname.lower().endswith(ext) for ext in _video_exts) or node_output.get('animated'):
                             _pre = f"{req.type}_{int(current_timestamp)}_"
@@ -7359,6 +7639,59 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
                     elif isinstance(tv, str) and tv.strip():
                         output_text = tv
 
+            # Extract custom-key outputs (artifact / 图层批次等)
+            # 自定义节点会把文件列表挂在非标准键下（如 gjj_psd、gjj_layer_images），
+            # 这里按扩展名统一分流：图片/视频进媒体列表，其余进 files。
+            # 约定优于特例：不为每个节点写判断，新节点只要按 {filename, subfolder, type} 输出即可接入。
+            for node_id, node_output in history_data.get('outputs', {}).items():
+                if not isinstance(node_output, dict):
+                    continue
+                for _key, _val in node_output.items():
+                    if _key in ('images', 'audio', 'videos', 'animated', 'text'):
+                        continue
+                    if not isinstance(_val, list):
+                        continue
+                    for _item in _val:
+                        if not isinstance(_item, dict):
+                            continue
+                        _fname = str(_item.get('filename') or '')
+                        if not _fname or _fname in _handled_src:
+                            continue
+                        _ext = os.path.splitext(_fname)[1].lower()
+                        if _ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.avif'):
+                            _kind = 'image'
+                        elif _ext in _video_exts:
+                            _kind = 'video'
+                        elif _ext in ARTIFACT_EXTS:
+                            _kind = 'artifact'
+                        else:
+                            continue
+                        _handled_src.add(_fname)
+                        _sub = str(_item.get('subfolder') or '')
+                        _typ = str(_item.get('type') or 'output')
+                        _view = (f"/view?filename={urllib.parse.quote(_fname, safe='')}"
+                                 f"&subfolder={urllib.parse.quote(_sub, safe='')}"
+                                 f"&type={urllib.parse.quote(_typ, safe='')}")
+                        _pre = f"{req.type}_{int(current_timestamp)}_"
+                        try:
+                            if _kind == 'image':
+                                _lp = download_image(target_backend, _view, prefix=_pre,
+                                                     canvas=canvas, username=username, feature=req.feature)
+                                if req.convert_to_jpg:
+                                    _lp = convert_output_to_jpg(_lp)
+                                local_urls.append(_lp)
+                            elif _kind == 'video':
+                                _lp = download_video(target_backend, _view, prefix=_pre,
+                                                     canvas=canvas, username=username, feature=req.feature)
+                                local_urls.append(_lp)
+                                video_urls.append(_lp)
+                            else:
+                                file_urls.append(download_artifact(target_backend, _view, _ext, prefix=_pre,
+                                                                   canvas=canvas, username=username,
+                                                                   feature=req.feature))
+                        except Exception as _e:
+                            print(f"[Artifact] 下载失败 {_fname}: {_e}")
+
         # 只有 promptgen 类型才保存文本文件
         if output_text and req.type == 'promptgen':
             print(f"[TextOutput] Extracted text: {len(output_text)} chars")
@@ -7383,7 +7716,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
             print("[TextOutput] WARNING: No text extracted from ComfyUI history")
             text_url = ""
 
-        if not local_urls and not audio_urls and not output_text:
+        if not local_urls and not audio_urls and not file_urls and not output_text:
             comfy_error = ""
             status_str = ""
             out_nodes = []
@@ -7444,7 +7777,8 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
             "user": username,
             "params": req.params,
             "videos": video_urls,
-            "video_urls": video_urls
+            "video_urls": video_urls,
+            "files": file_urls
         }
         save_to_history(result)
         finish_chat_generation(getattr(req, "conversation_id", ""), getattr(req, "message_id", ""), local_urls)
@@ -7456,7 +7790,7 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
 
     except Exception as e:
         finish_chat_generation(getattr(req, "conversation_id", ""), getattr(req, "message_id", ""), error=str(e))
-        return {"images": [], "audio": [], "videos": [], "video_urls": [], "error": str(e)}
+        return {"images": [], "audio": [], "videos": [], "video_urls": [], "files": [], "error": str(e)}
     finally:
         if prompt_id:
             with _ACTIVE_COMFY_LOCK:
@@ -9292,6 +9626,13 @@ from routers import canvas_comfy, proxy_download, workflows_legacy, animadex, ch
 from routers import media_ops, ideogram4, restart, interrogate
 from routers import online_gen, output_zip, user_assets
 from routers import training
+# 游戏工作台与 MCP 画布助手：game_projects 必须排在其余 game 模块之前，
+# 因为 game_* 模块在导入期会 importlib.import_module('routers.game_projects')，
+# 若它先被加载，routers.game_projects 会被固化成模块而非 router。
+from routers import game_projects
+from routers import game_workspace, game_testing, game_code_candidates
+from routers import game_development_tasks, game_native_runtime, game_model3d, game_audio
+from routers import game_node_assets, mcp_tools, generation_dashboard
 
 app.include_router(auth)
 app.include_router(canvases)
@@ -9340,6 +9681,21 @@ app.include_router(online_gen)
 app.include_router(output_zip)
 app.include_router(user_assets)
 app.include_router(training)
+
+# 游戏工作台与 MCP 画布助手。include 顺序 = 路由匹配优先级（Starlette 先注册先匹配），
+# 因此更具体的子 router 放在前面，game_projects 的 {kind}/{item_id} 通配段放最后。
+app.include_router(game_workspace)
+app.include_router(game_testing)
+app.include_router(game_code_candidates)
+app.include_router(game_development_tasks)
+app.include_router(game_native_runtime)
+app.include_router(game_model3d)
+app.include_router(game_audio)
+app.include_router(game_node_assets)
+app.include_router(mcp_tools)
+app.include_router(generation_dashboard)
+app.include_router(game_projects)
+
 from core import lan_sharing
 app.include_router(lan_sharing.router)
 from core.feature_access import router as feature_access_router

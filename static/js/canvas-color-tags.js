@@ -4,14 +4,16 @@ let canvasColorNavigatorOpen=false;
 let canvasColorNavigatorFilter='all';
 
 function taggedImageGroups(items) {
-    return IMAGE_TAG_COLORS.map(color=>({...color,items:items.filter(node=>node.type==='image'&&node.url&&node.colorTag===color.id)})).filter(group=>group.items.length);
+    return IMAGE_TAG_COLORS.map(color=>({...color,items:items.filter(node=>node.colorTag===color.id)})).filter(group=>group.items.length);
 }
 
 function setImageColorTag(nodeId,color) {
     const node=nodes.find(item=>item.id===nodeId);
-    if(!node||node.type!=='image'||(color&&!IMAGE_TAG_COLORS.some(item=>item.id===color))||(node.colorTag||'')===color)return false;
+    if(!node||(color&&!IMAGE_TAG_COLORS.some(item=>item.id===color))||(node.colorTag||'')===color)return false;
     pushUndo();
     if(color)node.colorTag=color;else delete node.colorTag;
+    const element=document.querySelector?.(`.node[data-id="${CSS.escape(node.id)}"]`);
+    if(element){element.querySelector('.image-color-marker')?.remove();element.querySelector('.image-color-palette')?.remove();mountImageColorTag(element,node);}
     render();scheduleSave();return true;
 }
 
@@ -72,7 +74,7 @@ function renderCanvasColorNavigator() {
     const togglePanel=filter=>{canvasColorNavigatorOpen=!(canvasColorNavigatorOpen&&canvasColorNavigatorFilter===filter);canvasColorNavigatorFilter=filter;renderCanvasColorNavigator();};
     for(const group of groups){
         const button=document.createElement('button');button.type='button';button.className='color-nav-dot';
-        button.setAttribute('aria-label',group.name+'，'+group.items.length+'张图片');button.title=group.name;
+        button.setAttribute('aria-label',group.name+'，'+group.items.length+'个节点');button.title=group.name;
         button.setAttribute('aria-expanded',String(canvasColorNavigatorOpen&&canvasColorNavigatorFilter===group.id));
         button.dataset.navFocus=group.id;button.style.setProperty('--image-tag-color',group.hex);
         const dot=document.createElement('span');button.appendChild(dot);button.onclick=()=>togglePanel(group.id);dots.appendChild(button);
@@ -89,7 +91,7 @@ function renderCanvasColorNavigator() {
     iconButton('搜索图片','<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',()=>togglePanel('search'));
     iconButton('画布日志','<circle cx="12" cy="12" r="9"/><path d="M12 7v5h4"/>',event=>openCanvasLog(event));
     if(canvasColorNavigatorOpen){
-        const panel=document.createElement('section');panel.className='color-nav-panel';panel.setAttribute('aria-label','按颜色定位图片');
+        const panel=document.createElement('section');panel.className='color-nav-panel';panel.setAttribute('aria-label','按颜色定位节点');
         const group=groups.find(item=>item.id===canvasColorNavigatorFilter);
         const search=canvasColorNavigatorFilter==='search';
         const heading=document.createElement('h3');heading.textContent=search?'搜索图片':group?group.name+' '+group.items.length:'暂无颜色标记';panel.appendChild(heading);
@@ -97,14 +99,14 @@ function renderCanvasColorNavigator() {
         const renderItems=query=>{
             list.innerHTML='';
             const items=search?nodes.filter(node=>node.type==='image'&&node.url&&String(node.name||'图片').toLowerCase().includes(query.toLowerCase())):(group?.items||[]);
-            if(!items.length){const empty=document.createElement('p');empty.textContent=search?'未找到图片':'在图片右上角添加颜色标记后，可在这里快速定位';list.appendChild(empty);}
+            if(!items.length){const empty=document.createElement('p');empty.textContent=search?'未找到图片':'在节点右上角添加颜色标记后，可在这里快速定位';list.appendChild(empty);}
             items.forEach((node,index)=>{
                 const item=document.createElement('button');item.type='button';item.className='color-nav-item';
                 const thumb=document.createElement('div');thumb.className='color-nav-thumb';
-                const img=document.createElement('img');img.src=canvasDisplayMediaUrl(node.url,node.name||'');img.alt='';img.loading='lazy';
+                const img=document.createElement(node.type==='image'&&node.url?'img':'span');if(node.type==='image'&&node.url){img.src=canvasDisplayMediaUrl(node.url,node.name||'');img.alt='';img.loading='lazy';}else{img.textContent=node.type==='prompt'?'T':'◇';}
                 const number=document.createElement('span');number.className='color-nav-number';number.textContent=index+1;thumb.append(img,number);
-                const text=document.createElement('div');const name=document.createElement('span');name.textContent=node.name||'图片';
-                const subtitle=document.createElement('small');subtitle.textContent='图片';text.append(name,subtitle);item.append(thumb,text);item.onclick=()=>focusTaggedImage(node.id);list.appendChild(item);
+                const text=document.createElement('div');const name=document.createElement('span');name.textContent=node.name||node.title||document.querySelector(`.node[data-id="${CSS.escape(node.id)}"] .node-title`)?.textContent||'节点';
+                const subtitle=document.createElement('small');subtitle.textContent=node.type==='image'?'图片':'节点';text.append(name,subtitle);item.append(thumb,text);item.onclick=()=>focusTaggedImage(node.id);list.appendChild(item);
             });
         };
         if(search){const input=document.createElement('input');input.type='search';input.placeholder='搜索图片名称';input.setAttribute('aria-label','搜索图片名称');input.dataset.navFocus='search';input.oninput=()=>renderItems(input.value);panel.insertBefore(input,list);}

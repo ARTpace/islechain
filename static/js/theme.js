@@ -385,21 +385,36 @@ ${surfaceCss(dark, 'html.studio-theme-dark body')}
         document.head.appendChild(style);
     }
 
+    // 「外观」强调色统一写入行内自定义属性（内联优先级最高），
+    // 这样 index.html 里 :root/body.theme-dark 的写死值、studio-ui 的 --ui-accent 都会被盖掉，
+    // 侧边栏 / LOGO / 按钮 / 聚焦环 / iframe 内页面全部跟随同一套颜色。
+    const LOOK_VARS = ['--accent','--accent-glow','--accent-ink','--look-accent','--ui-accent','--ui-accent-glow','--ui-accent-soft','--ui-accent-ink'];
+
+    function applyLookVars(pair){
+        const roots = [document.documentElement, document.body].filter(Boolean);
+        roots.forEach(el => {
+            if(!pair){
+                LOOK_VARS.forEach(k => el.style.removeProperty(k));
+                return;
+            }
+            const base = pair[0], glow = pair[1], ink = pair[2];
+            el.style.setProperty('--accent', base);
+            el.style.setProperty('--accent-glow', glow);
+            el.style.setProperty('--accent-ink', ink);
+            el.style.setProperty('--look-accent', glow);
+            el.style.setProperty('--ui-accent', glow);
+            el.style.setProperty('--ui-accent-glow', base);
+            el.style.setProperty('--ui-accent-ink', ink);
+            el.style.setProperty('--ui-accent-soft', `color-mix(in srgb, ${glow} 12%, transparent)`);
+        });
+    }
+
     function applyLook(){
         const on = scanlinesOn();
         document.documentElement.classList.toggle('scanlines-on', on);
         if(document.body) document.body.classList.toggle('scanlines-on', on);
-        ensureLookStyle();
-        const style = document.getElementById('studio-look-style');
         const accent = currentAccent();
-        if(!accent){
-            style.textContent = '';
-            return;
-        }
-        const pair = ACCENTS[accent];
-        const glow = pair[1];
-        style.textContent = `html, body, body.theme-dark, html.studio-theme-dark, html.studio-theme-dark body { --accent:${pair[0]}; --accent-glow:${glow}; --accent-ink:${pair[2]}; --look-accent:${glow}; }
-body.studio-theme-dark .btn-render, body.theme-dark .btn-render, body.studio-theme-dark .anima-ctrl.active, body.theme-dark .anima-ctrl.active { color:#141414 !important; border-color:${glow} !important; background:${glow} !important; }`;
+        applyLookVars(accent ? ACCENTS[accent] : null);
     }
 
     window.StudioLook = {

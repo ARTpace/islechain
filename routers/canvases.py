@@ -44,6 +44,9 @@ class CanvasCreateRequest(BaseModel):
     title: str = "未命名画布"
     icon: str = "🧩"
     kind: str = "classic"
+    project: str = "default"
+    board_x: Optional[float] = None
+    board_y: Optional[float] = None
 
 class CanvasSaveRequest(BaseModel):
     title: str = "未命名画布"
@@ -64,6 +67,9 @@ class CanvasMetaUpdate(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
     pinned: Optional[bool] = None
+    project: Optional[str] = None
+    board_x: Optional[float] = None
+    board_y: Optional[float] = None
 
 # ----------------------------------------------------------------------
 # 外部逻辑依赖导入（来自 main.py）— 使用延迟导入避免循环依赖
@@ -208,6 +214,9 @@ def canvas_record(data):
             image_source = versions[0].get("url") if versions else source.get("url")
     return {
         "image_edit_source": image_source,
+        "project": data.get("project", "default"),
+        "board_x": data.get("board_x"),
+        "board_y": data.get("board_y"),
         "id": data.get("id"),
         "title": data.get("title", "未命名画布"),
         "icon": data.get("icon", "🧩"),
@@ -543,9 +552,22 @@ async def create_canvas(payload: CanvasCreateRequest, token: str = ""):
     deps = _get_main_deps()
     get_username_by_token = deps["get_username_by_token"]
     username = get_username_by_token(token)
+    import main
+    if not username:
+        raise HTTPException(status_code=401, detail="请先登录后再使用")
+    main.require_canvas_project(username, payload.project)
     canvas = new_canvas(payload.title, payload.icon, owner=username)
     canvas["kind"] = payload.kind or "classic"
+    canvas["project"] = payload.project
+    canvas["board_x"] = payload.board_x
+    canvas["board_y"] = payload.board_y
     save_canvas(canvas)
+    if payload.kind == 'game':
+        from routers.game_projects import CreateProject, create_project
+        from core.game_projects import initial_game_workflow
+        result = create_project(CreateProject(title=canvas['title'], canvasId=canvas['id']), token)
+        canvas['nodes'], canvas['connections'] = initial_game_workflow(result['project']['id'])
+        save_canvas(canvas)
     return {"canvas": canvas}
 
 @router.get("/api/canvases/{canvas_id}")
@@ -562,6 +584,16 @@ async def update_canvas(canvas_id: str, payload: CanvasSaveRequest, token: str =
     validate_canvas_owner = deps["validate_canvas_owner"]
     canvas = _owned_canvas(canvas_id)
     validate_canvas_owner(canvas, token)
+    if any(node.get('type') in ('document', 'gameTable', 'gameIdea', 'gamePlan', 'gameAssets', 'gameDevelop', 'gamePlay', 'gameTest', 'gameRelease', 'gameModelAsset', 'gameModel3d', 'gameAnimate3d', 'gameSpeech', 'gameSoundEffect', 'gameMusic', 'gameAudioScene', 'gameFile', 'gameFolder', 'gameScene') for node in payload.nodes):
+        from core.game_projects import ProjectStore, validate_document_nodes
+        repository = ProjectStore(os.path.join(USER_DATA_DIR, 'game-projects'))
+        with repository.locked():
+            validate_document_nodes(repository, canvas, payload.nodes)
+            return _save_canvas_payload(canvas, payload)
+    return _save_canvas_payload(canvas, payload)
+
+
+def _save_canvas_payload(canvas, payload):
     canvas["title"] = (payload.title or canvas.get("title") or "未命名画布")[:80]
     canvas["icon"] = (payload.icon or canvas.get("icon") or "layers")[:32]
     canvas["nodes"] = payload.nodes
@@ -832,7 +864,7 @@ async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
 @router.get("/api/canvases/{canvas_id}/meta")
 async def get_canvas_meta(canvas_id: str):
     canvas = _owned_canvas(canvas_id)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
+    return {"meta": {**canvas_record(canvas), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
 
 @router.post("/api/canvases/{canvas_id}/meta")
 async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
@@ -840,6 +872,13 @@ async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
     canvas = _owned_canvas(canvas_id)
     if not payload:
         return {"meta": {}}
+    if payload.project is not None:
+        import main
+        main.require_canvas_project(canvas.get("owner"), payload.project)
+        canvas["project"] = payload.project
+    for key in ("board_x", "board_y"):
+        if getattr(payload, key) is not None:
+            canvas[key] = getattr(payload, key)
     if payload.title is not None:
         canvas["title"] = payload.title[:80]
     if payload.icon is not None:
@@ -849,7 +888,7 @@ async def update_canvas_meta(canvas_id: str, payload: CanvasMetaUpdate = None):
     if payload.pinned is not None:
         canvas["pinned"] = payload.pinned
     save_canvas(canvas)
-    return {"meta": {"title": canvas.get("title"), "icon": canvas.get("icon"), "color": canvas.get("color")}}
+    return {"meta": {**canvas_record(canvas), "color": canvas.get("color"), "pinned": canvas.get("pinned", False)}}
 
 @router.post("/api/canvases/{canvas_id}/touch")
 async def touch_canvas(canvas_id: str):
@@ -875,3 +914,176 @@ async def delete_asset(canvas_id: str, payload: dict = None):
         os.remove(filepath)
         return {"ok": True}
     raise HTTPException(status_code=404, detail="文件不存在")
+
+# --- 画布资产：列表与打包下载（项目工作台直接查看/下载，不必进画布） ---
+
+CANVAS_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".mkv", ".avi"}
+CANVAS_AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac"}
+CANVAS_MODEL_EXTS = {".glb", ".gltf", ".fbx", ".obj", ".stl", ".ply", ".usdz", ".3mf"}
+CANVAS_ASSET_EXTS = (
+    {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif"}
+    | CANVAS_VIDEO_EXTS
+    | CANVAS_AUDIO_EXTS
+    | CANVAS_MODEL_EXTS
+)
+# 画布节点里引用的本机输出文件（/output/...），用来兜住没落在画布目录里的生成结果
+CANVAS_OUTPUT_REF_RE = re.compile(
+    r"/output/([^\s\"'<>()\\]+?\.(?:png|jpe?g|webp|gif|bmp|avif|mp4|webm|mov|mkv|mp3|wav|m4a|flac|ogg|glb|gltf|fbx|obj|stl|ply|usdz|3mf))",
+    re.IGNORECASE,
+)
+
+
+def _media_kind(ext):
+    """素材分类：图像 / 视频 / 3D / 音乐（前端按这个分组）"""
+    if ext in CANVAS_VIDEO_EXTS:
+        return "video"
+    if ext in CANVAS_AUDIO_EXTS:
+        return "audio"
+    if ext in CANVAS_MODEL_EXTS:
+        return "model"
+    return "image"
+
+
+def _media_entry(full_path):
+    """把一个绝对路径包装成前端用的资产条目（path 是相对用户数据目录的稳定 id）。"""
+    ext = os.path.splitext(full_path)[1].lower()
+    if ext not in CANVAS_ASSET_EXTS:
+        return None
+    full_abs = os.path.abspath(full_path)
+    if full_abs.startswith(os.path.abspath(OUTPUT_DIR) + os.sep):
+        url = "/output/" + os.path.relpath(full_abs, OUTPUT_DIR).replace(os.sep, "/")
+    elif full_abs.startswith(os.path.abspath(INPUT_DIR) + os.sep):
+        url = "/assets/" + os.path.relpath(full_abs, INPUT_DIR).replace(os.sep, "/")
+    else:
+        return None
+    try:
+        stat = os.stat(full_abs)
+    except OSError:
+        return None
+    item = {
+        "name": os.path.basename(full_abs),
+        "path": os.path.relpath(full_abs, USER_DATA_DIR).replace(os.sep, "/"),
+        "url": url,
+        "size": stat.st_size,
+        "mtime": int(stat.st_mtime),
+        "kind": _media_kind(ext),
+    }
+    return item
+
+
+def _scan_media_dir(root, items, seen, since=0):
+    if not root or not os.path.isdir(root):
+        return
+    for current, _dirs, files in os.walk(root):
+        for name in files:
+            full = os.path.abspath(os.path.join(current, name))
+            if full in seen:
+                continue
+            if since:
+                try:
+                    if os.path.getmtime(full) < since:
+                        continue
+                except OSError:
+                    continue
+            item = _media_entry(full)
+            if not item:
+                continue
+            seen.add(full)
+            items.append(item)
+
+
+def _canvas_media_items(canvas):
+    """画布相关媒体：画布输出目录 + 节点引用的 /output 结果 + 画布资产目录 + 画布期间存进用户资产的图片。"""
+    items = []
+    seen = set()
+    folder = str(canvas.get("output_folder") or "").strip()
+    if folder:
+        _scan_media_dir(get_canvas_output_dir(canvas), items, seen)
+    # 抠图 / 图片编辑的结果不一定落在画布目录，靠节点里引用的 /output/... 兜住
+    try:
+        blob = json.dumps(canvas.get("nodes") or [], ensure_ascii=False)
+        blob += json.dumps(canvas.get("connections") or [], ensure_ascii=False)
+    except (TypeError, ValueError):
+        blob = ""
+    for match in CANVAS_OUTPUT_REF_RE.finditer(blob):
+        rel = urllib.parse.unquote(match.group(1)).replace("\\", "/").lstrip("/")
+        if not rel or ".." in rel:
+            continue
+        full = os.path.abspath(os.path.join(OUTPUT_DIR, rel.replace("/", os.sep)))
+        if full in seen:
+            continue
+        item = _media_entry(full)
+        if item:
+            seen.add(full)
+            items.append(item)
+    # 画布自己的资产目录（上传图片、抠图另存到画布文件夹）
+    _scan_media_dir(get_canvas_asset_dir(canvas), items, seen)
+    # 用户资产目录：只取画布创建之后写入的文件，避免把整个素材池倒出来
+    owner = canvas.get("owner") or ""
+    if owner:
+        try:
+            since = float(canvas.get("created_at") or 0) / 1000.0
+        except (TypeError, ValueError):
+            since = 0
+        deps = _get_main_deps()
+        user_asset_dir = os.path.join(INPUT_DIR, deps["get_user_dirname"](owner))
+        _scan_media_dir(user_asset_dir, items, seen, since=since)
+    items.sort(key=lambda item: item["mtime"], reverse=True)
+    return items
+
+
+@router.get("/api/canvases/{canvas_id}/media")
+async def list_canvas_media(canvas_id: str, token: str = ""):
+    deps = _get_main_deps()
+    canvas = _owned_canvas(canvas_id)
+    deps["validate_canvas_owner"](canvas, token)
+    items = _canvas_media_items(canvas)
+    return {
+        "assets": items,
+        "files": items,
+        "count": len(items),
+        "total_size": sum(int(item["size"] or 0) for item in items),
+        "folder": canvas.get("output_folder", ""),
+    }
+
+
+@router.post("/api/canvases/{canvas_id}/media/zip")
+async def zip_canvas_media(canvas_id: str, payload: dict = None, token: str = ""):
+    """把选中的（默认全部）画布资产打包成 zip 返回。"""
+    import io
+    import zipfile
+    from fastapi.responses import StreamingResponse
+    deps = _get_main_deps()
+    canvas = _owned_canvas(canvas_id)
+    deps["validate_canvas_owner"](canvas, token)
+    items = _canvas_media_items(canvas)
+    wanted = set((payload or {}).get("paths") or [])
+    if wanted:
+        items = [item for item in items if item["path"] in wanted]
+    if not items:
+        raise HTTPException(status_code=404, detail="这个画布还没有可下载的资产")
+    root_abs = os.path.abspath(USER_DATA_DIR)
+    buffer = io.BytesIO()
+    used = set()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for item in items:
+            full = os.path.abspath(os.path.join(USER_DATA_DIR, item["path"].replace("/", os.sep)))
+            if not full.startswith(root_abs) or not os.path.isfile(full):
+                continue
+            arcname = item["name"]
+            if arcname in used:
+                stem, ext = os.path.splitext(arcname)
+                index = 2
+                while f"{stem}-{index}{ext}" in used:
+                    index += 1
+                arcname = f"{stem}-{index}{ext}"
+            used.add(arcname)
+            bundle.write(full, arcname)
+    buffer.seek(0)
+    title = re.sub(r'[\\/:*?"<>|]', "_", canvas.get("title") or "canvas-assets")[:60] or "canvas-assets"
+    filename = urllib.parse.quote(f"{title}.zip")
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+    )

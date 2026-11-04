@@ -1,5 +1,22 @@
 // ponytail: present the existing model menus together; their handlers remain the source of truth.
 (function () {
+    // Shared segmented controls for the standalone composer and native canvas nodes.
+    function renderSection(container,{title,ratio=false,items,current,onSelect}) {
+        const section=document.createElement('div');section.className='generation-options-section';
+        const heading=document.createElement('h3');heading.textContent=title;section.append(heading);
+        const options=document.createElement('div');options.className='generation-options-segments'+(ratio?' is-ratio':'');
+        for(const item of items){
+            const option=document.createElement('button');option.type='button';option.textContent=item.label;
+            option.setAttribute('aria-pressed',String(String(item.value)===String(current)));option.disabled=!!item.disabled;
+            if(ratio){const pair=String(item.label).split(':').map(Number);if(pair.length===2&&pair.every(n=>Number.isFinite(n)&&n>0)){
+                const icon=document.createElement('span');icon.className='generation-options-ratio-icon';icon.setAttribute('aria-hidden','true');
+                icon.style.width=Math.max(7,20*Math.min(1,pair[0]/pair[1]))+'px';icon.style.height=Math.max(7,20*Math.min(1,pair[1]/pair[0]))+'px';option.prepend(icon);
+            }}
+            option.onclick=event=>{event?.stopPropagation();onSelect(item.value);for(const el of options.children)el.setAttribute('aria-pressed',String(el===option));};options.append(option);
+        }
+        section.append(options);container.append(section);return section;
+    }
+    window.GenerationOptionsPanel={renderSection};
     function init() {
         const composer=document.getElementById('generationComposer');
         const row=composer?.querySelector('.gen-row');
@@ -9,14 +26,15 @@
         trigger.setAttribute('aria-expanded','false');trigger.setAttribute('aria-controls','generationOptionsPanel');
         const panel=document.createElement('section');
         const modelWrap=document.getElementById('unifiedModelWrap');
-        const modelAnchor=document.createComment('model selector desktop position');
-        if(modelWrap)modelWrap.before(modelAnchor);
-        const phone=window.matchMedia('(max-width:600px)');
         panel.id='generationOptionsPanel';panel.className='generation-options-panel';panel.hidden=true;
         panel.setAttribute('aria-label','图片生成参数');
         row.insertBefore(trigger,row.firstChild);
         (document.documentElement.classList.contains('canvas-composer-embed')?composer:document.body).appendChild(panel);
-        let pending=false,choosing=false;
+        let pending=false,choosing=false,inlineModel=null;
+        // 桌面端（够宽）模型选择停在对话栏下方最左，窄屏才收进参数面板
+        // 780 与 body.chat-layout 的 760 断点留出余量，避免小窗口下按钮被拉满整行
+        const INLINE_MIN=780;
+        const wantInline=()=>(composer.clientWidth||0)>=INLINE_MIN;
         const observer=new MutationObserver(()=>{
             if(pending)return;
             pending=true;requestAnimationFrame(()=>{pending=false;sync();});
@@ -66,46 +84,30 @@
             trigger.setAttribute('aria-label','生成参数：'+entries.map(entry=>label(entry.button)).join('，'));
             const focused=panel.contains(document.activeElement)?document.activeElement?.dataset.optionKey:null;
             panel.replaceChildren();
+            const inline=wantInline();
+            inlineModel=inline;
+            composer.classList.toggle('model-inline',inline);
             if(modelWrap){
-                if(phone.matches){
+                if(inline){
+                    // 参数面板不再托管模型选择：放到 gen-row 最左侧（对话栏正下方）
+                    if(modelWrap.parentElement!==row||row.firstElementChild!==modelWrap){
+                        row.insertBefore(modelWrap,row.firstChild);
+                    }
+                }else{
                     const section=document.createElement('div');section.className='generation-options-section generation-options-model';
                     const heading=document.createElement('h3');heading.textContent='选择模型';
                     section.append(heading,modelWrap);panel.appendChild(section);
-                }else modelAnchor.after(modelWrap);
+                }
             }
             entries.forEach(({menu,button,title,ratio})=>{
                 button.classList.add('generation-options-source');
-                const section=document.createElement('div');section.className='generation-options-section';
-                const heading=document.createElement('h3');heading.textContent=title;section.appendChild(heading);
-                const options=document.createElement('div');options.className='generation-options-segments'+(ratio?' is-ratio':'');
                 const current=label(button);
                 const items=Array.from(menu.querySelectorAll('.anima-ctrl-menu-item'));
-                if(ratio)items.sort((a,b)=>{
-                    const aspect=item=>{const [w,h]=label(item).split(':').map(Number);return w/h||0;};
-                    return aspect(b)-aspect(a);
-                });
-                items.forEach((item,index)=>{
-                    const option=document.createElement('button');option.type='button';
-                    const text=label(item);option.dataset.optionKey=menu.id+':'+index;
-                    option.setAttribute('aria-pressed',String(text===current));
-                    option.disabled=button.disabled||item.getAttribute('aria-disabled')==='true'||item.hasAttribute('disabled');
-                    if(ratio){
-                        const pair=text.split(':').map(Number);
-                        if(pair.length===2 && pair.every(n=>Number.isFinite(n)&&n>0)){
-                            const icon=document.createElement('span');icon.className='generation-options-ratio-icon';
-                            icon.style.width=Math.max(7,20*Math.min(1,pair[0]/pair[1]))+'px';
-                            icon.style.height=Math.max(7,20*Math.min(1,pair[1]/pair[0]))+'px';option.appendChild(icon);
-                        }
-                    }
-                    const caption=document.createElement('span');caption.textContent=text.replace(/^×/,'');option.appendChild(caption);
-                    option.onclick=event=>{
-                        event.stopPropagation();choosing=true;
-                        try{item.click();}finally{choosing=false;}
-                        sync();
-                    };
-                    options.appendChild(option);
-                });
-                section.appendChild(options);panel.appendChild(section);
+                if(ratio)items.sort((a,b)=>{const aspect=item=>{const [w,h]=label(item).split(':').map(Number);return w/h||0;};return aspect(b)-aspect(a);});
+                const section=renderSection(panel,{title,ratio,current,items:items.map((item,index)=>({value:label(item),label:label(item).replace(/^×/,''),disabled:button.disabled||item.getAttribute('aria-disabled')==='true'||item.hasAttribute('disabled')})),onSelect:value=>{
+                    choosing=true;try{items.find(item=>label(item)===value)?.click();}finally{choosing=false;}sync();
+                }});
+                Array.from(section.querySelectorAll('button')).forEach((option,index)=>{option.dataset.optionKey=menu.id+':'+index;});
             });
             if(focused)Array.from(panel.querySelectorAll('button')).find(el=>el.dataset.optionKey===focused)?.focus({preventScroll:true});
             place();observe();
@@ -115,7 +117,8 @@
         document.addEventListener('click',event=>{if(!choosing&&!panel.contains(event.target)&&!trigger.contains(event.target))close();});
         document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){close();trigger.focus();}});
         window.addEventListener('resize',place);
-        phone.addEventListener('change',()=>{window.closeUnifiedModelMenu?.();sync();});
+        // 拖动窗口宽度跨过阈值时，在「对话栏下方」与「参数面板」之间切换模型选择
+        if(window.ResizeObserver)new ResizeObserver(()=>{if(wantInline()!==inlineModel)sync();}).observe(composer);
         // Engine classes change outside the composer; resync when switching local/API models.
         let engineKey='';
         new MutationObserver(()=>{

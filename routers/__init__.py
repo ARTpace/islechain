@@ -63,6 +63,17 @@ _SUBROUTERS = (
     "output_zip",
     "user_assets",
     "training",
+    "game_projects",
+    "game_workspace",
+    "game_testing",
+    "game_code_candidates",
+    "game_development_tasks",
+    "game_native_runtime",
+    "game_model3d",
+    "game_audio",
+    "game_node_assets",
+    "mcp_tools",
+    "generation_dashboard",
 )
 
 __all__ = list(_SUBROUTERS)

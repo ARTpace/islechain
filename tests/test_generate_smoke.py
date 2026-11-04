@@ -341,3 +341,30 @@ def test_generate_end_to_end(app_env):
     assert disk.exists(), f"图片未落盘: {disk}"
     assert disk.stat().st_size > 1024, "图片过小，疑似损坏"
     assert disk.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", "非有效 PNG"
+
+
+@pytest.mark.parametrize("feature, expected", [("", "online"), ("  zimage  ", "zimage")])
+def test_online_image_result_feature(monkeypatch, feature, expected):
+    """成功落盘后必须正常返回，结果分类与落盘分类一致。"""
+    import asyncio
+
+    main = _import_main()
+    saved = []
+    monkeypatch.setattr(main, "_resolve_image_provider", lambda _: {
+        "image_models": ["test-image"], "protocol": "openai",
+    })
+
+    async def generate(*args, **kwargs):
+        return {"type": "base64", "value": "mock"}, {}
+
+    async def save(image, **kwargs):
+        saved.append(kwargs)
+        return "/output/mock.png"
+
+    monkeypatch.setattr(main, "generate_ai_image", generate)
+    monkeypatch.setattr(main, "save_ai_image_to_output", save)
+    result = asyncio.run(main.build_online_image_result(
+        main.OnlineImageRequest(prompt="test", feature=feature), username="test-user"))
+    assert result["images"] == ["/output/mock.png"]
+    assert result["type"] == expected
+    assert saved[0]["feature"] == expected

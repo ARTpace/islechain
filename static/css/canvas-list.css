@@ -47,8 +47,8 @@
     --strong:#f3f2ef;
     --strong-text:#181817;
     --accent:#00f0ff;
-    --accent-soft:rgba(14, 116, 144, .16);
-    --accent-line:rgba(0, 240, 255, .34);
+    --accent-soft:color-mix(in srgb, var(--accent-glow, #06b6d4) 14%, transparent);
+    --accent-line:color-mix(in srgb, var(--accent-glow, #06b6d4) 34%, transparent);
     --danger-soft:rgba(220, 38, 38, .16);
 }
 
@@ -132,12 +132,12 @@ html[data-studio-scale="off"].studio-scale-managed .workspace {
 .ws-primary-btn { height:36px; padding:0 14px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:var(--strong); color:var(--strong-text); border:none; cursor:pointer; font-size:12px; font-weight:850; box-shadow:0 8px 18px var(--shadow); }
 .ws-primary-btn:hover { transform:translateY(-1px); box-shadow:0 12px 24px var(--shadow-strong); }
 /* 粘贴到此项目：剪切后才出现的强调按钮，固定高对比色避免主题变量冲淡文字。 */
-.ws-paste-btn { height:36px; padding:0 13px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:#0e7490; color:#fbfaf9; border:1px solid rgba(255, 255, 255, .18); cursor:pointer; font-size:12px; font-weight:850; box-shadow:0 8px 18px rgba(14, 116, 144, .28); }
-.ws-paste-btn:hover { background:#0e7490; box-shadow:0 10px 22px rgba(14, 116, 144, .34); }
+.ws-paste-btn { height:36px; padding:0 13px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:color-mix(in srgb, var(--accent, #06b6d4) 52%, #0d0d0c); color:#fbfaf9; border:1px solid rgba(255, 255, 255, .18); cursor:pointer; font-size:12px; font-weight:850; box-shadow:0 8px 18px color-mix(in srgb, var(--accent, #06b6d4) 28%, transparent); }
+.ws-paste-btn:hover { background:color-mix(in srgb, var(--accent, #06b6d4) 62%, #0d0d0c); box-shadow:0 10px 22px color-mix(in srgb, var(--accent, #06b6d4) 34%, transparent); }
 .ws-paste-btn span { color:inherit; }
 .ws-paste-btn i,.ws-paste-btn svg { width:16px; height:16px; color:inherit; stroke:currentColor; }
-.theme-dark .ws-paste-btn { background:#0e7490; color:#fbfaf9; border-color:rgba(0, 240, 255, .28); box-shadow:0 10px 24px rgba(14, 116, 144, .34); }
-.theme-dark .ws-paste-btn:hover { background:#0e7490; }
+.theme-dark .ws-paste-btn { background:color-mix(in srgb, var(--accent, #06b6d4) 46%, #0d0d0c); color:#fbfaf9; border-color:color-mix(in srgb, var(--accent-glow, #06b6d4) 28%, transparent); box-shadow:0 10px 24px color-mix(in srgb, var(--accent, #06b6d4) 34%, transparent); }
+.theme-dark .ws-paste-btn:hover { background:color-mix(in srgb, var(--accent, #06b6d4) 60%, #0d0d0c); }
 
 .ws-board { position:relative; flex:1; min-height:0; overflow:hidden; background:var(--page); background-image:linear-gradient(rgba(125, 124, 116, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(125, 124, 116, .045) 1px, transparent 1px), radial-gradient(var(--grid) 1px, transparent 1px); background-size:120px 120px, 120px 120px, 24px 24px; cursor:grab; user-select:none; }
 .ws-board.panning { cursor:grabbing; }
@@ -175,7 +175,7 @@ html[data-studio-scale="off"].studio-scale-managed .workspace {
 .ws-card-top { display:flex; align-items:center; gap:8px; min-height:28px; flex:0 0 auto; min-width:0; white-space:nowrap; overflow:hidden; }
 .ws-card-icon { width:30px; height:30px; flex:0 0 auto; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--soft); color:var(--muted); border:1px solid var(--line); font-size:16px; }
 .ws-card-icon.icon-has-color { background:var(--accent); color:#fbfaf9; border-color:transparent; }
-.ws-card-kind { display:inline-flex; align-items:center; justify-content:center; flex:0 1 auto; min-width:0; max-width:calc(100% - 36px); height:22px; padding:0 8px; border-radius:6px; font-size:10px; font-weight:850; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ws-card-kind { display:inline-flex; align-items:center; justify-content:center; flex:0 1 auto; min-width:0; max-width:calc(100% - 68px); height:22px; padding:0 8px; border-radius:6px; font-size:10px; font-weight:850; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ws-card-kind.smart { background:#f8f7f5; color:#6d28d9; border:1px solid #e8e6e0; }
 .ws-card-kind.classic { background:var(--soft-2); color:var(--muted); border:1px solid var(--line); }
 .ws-card-menu { margin-left:auto; width:28px; height:28px; flex:0 0 28px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--faint); background:transparent; border:1px solid transparent; cursor:pointer; opacity:.58; transition:all .14s var(--ease); }
@@ -354,4 +354,214 @@ html[data-studio-scale="off"].studio-scale-managed .ws-paste-btn span {
         visibility:visible;
         opacity:1;
     }
+}
+
+/* ===== 画布卡片：进入画布按钮（卡片点击改为查看资产） ===== */
+.ws-card-enter {
+    margin-left: auto;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+    opacity: .62;
+    transition: all .14s var(--ease);
+}
+.ws-card:hover .ws-card-enter, .ws-card:focus-within .ws-card-enter { opacity: 1; }
+.ws-card-enter svg { width: 14px; height: 14px; }
+.ws-card-enter:hover { color: #fbfaf9; background: var(--accent); border-color: transparent; }
+
+/* ===== 画布资产抽屉 ===== */
+.ws-assets-panel {
+    position: absolute;
+    top: 72px;
+    right: 12px;
+    bottom: 12px;
+    width: min(460px, calc(100% - 24px));
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card-solid);
+    box-shadow: 0 24px 60px var(--shadow-strong);
+    overflow: hidden;
+}
+.ws-assets-panel.open { display: flex; }
+.ws-assets-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 56px;
+    padding: 10px 12px 10px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+}
+.ws-assets-headline { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-assets-headline strong { font-size: 14.5px; font-weight: 850; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-assets-headline span { font-size: 11.5px; font-weight: 650; color: var(--muted); }
+.ws-assets-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.ws-assets-actions .ws-icon-btn { width: 30px; height: 30px; border-radius: 8px; }
+.ws-assets-actions .ws-icon-btn svg { width: 15px; height: 15px; }
+.ws-assets-grid {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 10px;
+    align-content: start;
+    background: var(--page);
+}
+.ws-asset {
+    position: relative;
+    margin: 0;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--card-solid);
+    overflow: hidden;
+    cursor: zoom-in;
+    transition: border-color .14s var(--ease), transform .14s var(--ease);
+}
+.ws-asset:hover { border-color: var(--accent); transform: translateY(-1px); }
+.ws-asset-media { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: var(--soft); }
+.ws-asset-audio { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1 / 1; color: var(--muted); background: var(--soft); }
+.ws-asset-cap {
+    padding: 6px 7px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ws-asset-dl {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fbfaf9;
+    background: rgba(20, 20, 18, .62);
+    border: 1px solid rgba(255, 255, 255, .16);
+    opacity: 0;
+    transition: opacity .14s var(--ease), background .14s var(--ease);
+}
+.ws-asset-dl svg { width: 13px; height: 13px; }
+.ws-asset:hover .ws-asset-dl { opacity: 1; }
+.ws-asset-dl:hover { background: var(--accent); border-color: transparent; }
+.ws-assets-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 220px;
+    color: var(--faint);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    padding: 20px;
+}
+.ws-assets-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 4vw;
+    background: rgba(12, 12, 10, .82);
+    backdrop-filter: blur(6px);
+    cursor: zoom-out;
+}
+.ws-assets-preview.open { display: flex; }
+.ws-assets-preview img, .ws-assets-preview video {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+}
+@media (max-width: 640px) {
+    .ws-assets-panel { top: 8px; right: 8px; left: 8px; bottom: 8px; width: auto; }
+}
+
+/* ===== 画布资产：类型分类（图像 / 视频 / 3D / 音乐） ===== */
+.ws-assets-kinds {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 12px 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+}
+.ws-kind {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: color .14s var(--ease);
+}
+.ws-kind-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 46px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: var(--soft);
+    color: inherit;
+    transition: border-color .14s var(--ease), background .14s var(--ease), color .14s var(--ease);
+}
+.ws-kind-box svg { width: 19px; height: 19px; }
+.ws-kind-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    line-height: 1;
+}
+.ws-kind-label em {
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+}
+.ws-kind:hover { color: var(--text); }
+.ws-kind:hover .ws-kind-box { border-color: color-mix(in srgb, var(--accent) 34%, transparent); }
+.ws-kind.is-on { color: var(--text); }
+.ws-kind.is-on .ws-kind-box {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.ws-kind.is-on .ws-kind-label em { color: var(--accent); }
+.ws-kind.is-empty .ws-kind-box { opacity: .45; }
+@media (max-width: 420px) {
+    .ws-assets-kinds { gap: 6px; padding: 10px 8px 8px; }
+    .ws-kind-box { height: 40px; }
+    .ws-kind-box svg { width: 17px; height: 17px; }
 }

@@ -71,3 +71,38 @@ async function saveToUserOutput(comfyImageUrl, featureName, withToken = false) {
 window.saveToUserOutput = saveToUserOutput;
 // 保留独立引用，供需要携带登录令牌的页面兼容包装调用。
 window.ComfyOutput = { save: saveToUserOutput };
+
+
+/**
+ * 把多张本地 output 图横向拼成一张（三视图 → 单张参考横图等）
+ * @param {string[]} urls - 已落盘的 /output/ 图片地址，2~12 张
+ * @param {string} feature - 落盘目录名，如 '三视图'
+ * @param {{gap?:number, background?:string}} [opt] - gap 像素间距；background 铺底色
+ *        （默认 #ffffff —— 下游 3D 重建不吃透明通道，透明会被当成黑色）
+ * @returns {Promise<string|null>} 合成图 URL；失败返回 null，由调用方决定是否降级
+ */
+async function mergeImagesHorizontal(urls, feature = '拼图', opt = {}) {
+    if (!Array.isArray(urls) || urls.length < 2) return null;
+    try {
+        const res = await fetch('/api/output/merge-horizontal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                urls, feature,
+                gap: opt.gap || 0,
+                background: opt.background === undefined ? '#ffffff' : opt.background,
+                token: localStorage.getItem('xy_auth_token') || ''
+            })
+        });
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        return data.url || null;
+    } catch (e) {
+        console.warn('横向拼接失败:', e);
+        return null;
+    }
+}
+window.mergeImagesHorizontal = mergeImagesHorizontal;

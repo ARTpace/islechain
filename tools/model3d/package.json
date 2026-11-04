@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "esbuild worker.ts --bundle --platform=node --format=cjs --target=node20 --legal-comments=inline --outfile=worker.cjs --metafile=build-meta.json",
+    "build:importer": "esbuild importer.mjs --bundle --platform=browser --format=iife --target=es2022 --minify --legal-comments=inline --outfile=../../static/js/game-model-import.js"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

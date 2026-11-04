@@ -206,8 +206,7 @@ class SettingsUI {
                 min-height: 58px;
                 border-radius: 16px;
                 border: 1px solid var(--border);
-                background: rgba(140, 139, 130, 0.10);
-                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 14%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #06b6d4)) 4%, transparent));
+                background: color-mix(in srgb, var(--text) 5%, transparent);
                 color: var(--text);
                 cursor: pointer;
                 display: flex;
@@ -220,14 +219,13 @@ class SettingsUI {
             }
             .sys-tile:hover,
             .set-card:hover {
-                border-color: color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 45%, var(--border));
-                box-shadow: 0 6px 18px color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 22%, transparent);
+                border-color: color-mix(in srgb, var(--accent, #06b6d4) 42%, var(--border));
+                box-shadow: 0 6px 18px color-mix(in srgb, var(--accent, #06b6d4) 14%, transparent);
             }
             .sys-tile:active,
             .set-card:active {
                 transform: scale(0.97);
-                background: rgba(140, 139, 130, 0.16);
-                background: linear-gradient(135deg, color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 22%, transparent), color-mix(in srgb, var(--tile2, var(--sc2, #06b6d4)) 10%, transparent));
+                background: color-mix(in srgb, var(--text) 9%, transparent);
             }
 
             /* 统一图标容器 */
@@ -236,14 +234,16 @@ class SettingsUI {
                 width: 41px;
                 height: 41px;
                 border-radius: 13px;
-                background: linear-gradient(135deg, var(--tile, var(--sc, #00f0ff)), var(--tile2, var(--sc2, #06b6d4)));
+                background: color-mix(in srgb, var(--accent, #06b6d4) 15%, transparent);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
-                color: #fcfcfb;
-                box-shadow: 0 4px 14px color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 28%, transparent);
+                color: var(--accent, #06b6d4);
+                box-shadow: none;
             }
+            .sys-tile-ico svg,
+            .set-card-ico svg { stroke: currentColor; }
 
             /* 统一文字区域 */
             .sys-tile-txt,
@@ -287,8 +287,8 @@ class SettingsUI {
             }
             .sys-tile:hover .sys-tile-trail,
             .set-card:hover .set-card-arrow {
-                color: var(--tile, var(--sc, #00f0ff));
-                background: color-mix(in srgb, var(--tile, var(--sc, #00f0ff)) 12%, transparent);
+                color: var(--accent, #06b6d4);
+                background: color-mix(in srgb, var(--accent, #06b6d4) 12%, transparent);
             }
 
 
@@ -304,7 +304,7 @@ class SettingsUI {
             #settings-panel .settings-split { display:flex; width:100%; height:100%; min-height:0; flex:1; }
             #settings-panel .settings-side { width:340px; flex:0 0 340px; display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--border); background:var(--sidebar-bg); }
             #settings-panel .settings-side-scroll { flex:1; overflow:auto; padding:0 16px 20px; display:flex; flex-direction:column; gap:12px; }
-            #settings-panel .set-card.is-on { border-color:var(--sc, var(--accent)); box-shadow:0 0 0 1px var(--sc, var(--accent)); }
+            #settings-panel .set-card.is-on { border-color:var(--accent, #06b6d4); box-shadow:0 0 0 1px var(--accent, #06b6d4); }
             #settings-comfyui-btn .comfy-card-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
             #settings-comfyui-btn #comfy-status-dot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex-shrink:0; display:inline-block; }
             #settings-comfyui-btn #comfy-start-btn { height:32px; padding:0 12px; border-radius:10px; border:none; background:var(--accent); color:var(--bg); font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; }
@@ -711,6 +711,11 @@ class SettingsUI {
                     </div>
                     <pre id="comfy-log-content" style="margin:0;padding:10px;background:#141414;color:#e1dfd6;border-radius:8px;font-size:10.5px;max-height:160px;overflow:auto;white-space:pre-wrap;">(加载中...)</pre>
                 </div>
+                <button id="settings-mcp-btn" class="set-card" type="button" style="--sc:#ec4899;--sc2:#f9a8d4;display:none;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">MCP 工具</span><span class="set-card-sub">管理外部工具服务与授权</span></span>
+                    <span class="set-card-arrow">›</span>
+                </button>
                 <button id="settings-users-btn" class="set-card" style="--sc:#f59e0b;--sc2:#fbbf24;display:none;">
                     <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
                     <span class="set-card-body"><span class="set-card-title">用户管理</span><span class="set-card-sub">管理用户和重置密码</span></span>
@@ -889,9 +894,11 @@ class SettingsUI {
         const apiBtn = document.getElementById('settings-api-btn');
         const lanBtn = document.getElementById('settings-lan-btn');
         const comfyBtn = document.getElementById('settings-comfyui-btn');
+        const mcpBtn = document.getElementById('settings-mcp-btn');
         if (apiBtn) apiBtn.onclick = (e) => { e.stopPropagation(); this.showSection('api'); };
         if (lanBtn) lanBtn.onclick = (e) => { e.stopPropagation(); this.showSection('lan'); };
         if (comfyBtn) comfyBtn.onclick = (e) => { e.stopPropagation(); this.showSection('comfy'); };
+        if (mcpBtn) mcpBtn.onclick = (e) => { e.stopPropagation(); this.showSection('mcp'); };
         const lookBtn = document.getElementById('settings-look-btn');
         if (lookBtn) lookBtn.onclick = (e) => { e.stopPropagation(); this.showSection('look'); };
         const modulesBtn = document.getElementById('settings-modules-btn');
@@ -1312,15 +1319,16 @@ class SettingsUI {
     }
 
     showSection(name) {
-        const adminOnly = name === 'api' || name === 'lan' || name === 'comfy' || name === 'modules' || name === 'users' || name === 'comfy-models' || name === 'translate';
+        const adminOnly = name === 'api' || name === 'lan' || name === 'comfy' || name === 'mcp' || name === 'modules' || name === 'users' || name === 'comfy-models' || name === 'translate';
         if (adminOnly && !AuthManager.isAdmin()) name = 'look';
         this.currentSection = name;
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
             const on = (name === 'api' && id === 'settings-api-btn')
                 || (name === 'lan' && id === 'settings-lan-btn')
                 || (name === 'comfy' && id === 'settings-comfyui-btn')
+                || (name === 'mcp' && id === 'settings-mcp-btn')
                 || (name === 'look' && id === 'settings-look-btn')
                 || (name === 'modules' && id === 'settings-modules-btn')
                 || (name === 'users' && id === 'settings-users-btn');
@@ -1363,6 +1371,7 @@ class SettingsUI {
         if (usersPane) usersPane.hidden = true;
         if (name === 'api' || name === 'lan') this.mountSettingsFrame('api-settings', name);
         if (name === 'comfy') this.mountSettingsFrame('comfyui-settings');
+        if (name === 'mcp') this.mountSettingsFrame('mcp-settings');
     }
 
     async showComfyModels() {
@@ -1372,7 +1381,7 @@ class SettingsUI {
         }
         this._modelsReturn = this.currentSection && this.currentSection !== 'comfy-models' ? this.currentSection : (this._modelsReturn || 'api');
         this.currentSection = 'comfy-models';
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.classList.toggle('is-on', id === 'settings-comfyui-btn');
         });
@@ -1656,14 +1665,14 @@ class SettingsUI {
             this.buttonEl.style.cursor = 'pointer';
         }
         const admin = loggedIn && AuthManager.isAdmin();
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-modules-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-modules-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (!admin) el.style.display = 'none';
             else if (id === 'settings-users-btn') el.style.display = 'flex';
             else el.style.display = '';
         });
-        if (!admin && ['api', 'lan', 'comfy', 'modules', 'users', 'comfy-models', 'translate'].includes(this.currentSection)) this.showSection('look');
+        if (!admin && ['api', 'lan', 'comfy', 'mcp', 'modules', 'users', 'comfy-models', 'translate'].includes(this.currentSection)) this.showSection('look');
     }
     
     escapeHtml(str) {

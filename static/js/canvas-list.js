@@ -397,7 +397,8 @@ function buildCard(c){
     // 卡片布局：顶部=类型标签+更多按钮；中部=标题；底部=节点数·时间。已移除图标。
     card.innerHTML = `
         <div class="ws-card-top">
-            <span class="ws-card-kind ${isSmart ? 'smart' : 'classic'}">${isSmart ? compactLabel('智能画布','智能','Smart') : compactLabel('普通画布','普通','Classic')}</span>
+            <span class="ws-card-kind ${isSmart ? 'smart' : 'classic'}">${c.kind === 'game' ? L('游戏项目','Game project') : isSmart ? compactLabel('智能画布','智能','Smart') : compactLabel('普通画布','普通','Classic')}</span>
+            <button class="ws-card-enter" type="button" title="${L('进入画布','Open canvas')}" aria-label="${L('进入画布','Open canvas')}"><i data-lucide="arrow-up-right"></i></button>
             <button class="ws-card-menu" type="button" title="${L('更多','More')}" aria-label="${L('更多','More')}"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
         </div>
         <div class="ws-card-title">${escapeHtml(c.title)}</div>
@@ -417,6 +418,9 @@ function buildCard(c){
     const menuBtn = card.querySelector('.ws-card-menu');
     menuBtn.onmousedown = e => e.stopPropagation();
     menuBtn.onclick = e => { e.stopPropagation(); openCardMenu(c.id, menuBtn); };
+    const enterBtn = card.querySelector('.ws-card-enter');
+    enterBtn.onmousedown = e => e.stopPropagation();
+    enterBtn.onclick = e => { e.stopPropagation(); openCanvas(c); };
     card.querySelector('.ws-card-delete-confirm').onmousedown = e => e.stopPropagation();
     card.querySelector('.ws-card-delete-yes').onclick = e => { e.stopPropagation(); deleteCanvas(c.id); };
     card.querySelector('.ws-card-delete-no').onclick = e => { e.stopPropagation(); card.classList.remove('confirming-delete'); };
@@ -428,6 +432,7 @@ function attachCardDrag(card, c){
     card.addEventListener('mousedown', e => {
         if(e.button !== 0) return;
         if(e.target.closest('.ws-card-menu')) return;
+        if(e.target.closest('.ws-card-enter')) return;
         if(e.target.closest('.ws-card-delete-confirm')) return;
         if(card.querySelector('.ws-card-title-input')) return; // editing title
         e.stopPropagation();
@@ -454,7 +459,7 @@ function attachCardDrag(card, c){
             if(moved){
                 persistMeta(c.id, { board_x: Math.round(c.board_x), board_y: Math.round(c.board_y) });
             } else {
-                openCanvas(c);
+                openCanvasAssets(c);
             }
         };
         document.addEventListener('mousemove', onMove);
@@ -489,6 +494,7 @@ function openCreateCard(worldPt){
         <div class="ws-create-toggle">
             <button class="ws-create-toggle-btn active" type="button" data-kind="classic">${L('普通画布','Classic')}</button>
             <button class="ws-create-toggle-btn" type="button" data-kind="smart">${L('智能画布','Smart')}</button>
+            <button class="ws-create-toggle-btn" type="button" data-kind="game">${L('游戏项目','Game project')}</button>
         </div>
         <div class="ws-create-actions">
             <button class="ws-create-confirm" type="button">${L('创建','Create')}</button>
@@ -517,7 +523,7 @@ function openCreateCard(worldPt){
 
 async function createCanvasOnBoard(title, kind, worldPt){
     const isSmart = kind === 'smart';
-    const base = isSmart ? L('智能画布','Smart canvas') : L('画布','Canvas');
+    const base = kind === 'game' ? L('游戏项目','Game project') : isSmart ? L('智能画布','Smart canvas') : L('画布','Canvas');
     const name = title || `${base} ${new Date().toLocaleTimeString(langIsEn() ? 'en-US' : 'zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
     closeCreateCard();
     try {
@@ -527,7 +533,7 @@ async function createCanvasOnBoard(title, kind, worldPt){
             body: JSON.stringify({
                 title: name,
                 icon: isSmart ? 'sparkles' : '🧩',
-                kind: isSmart ? 'smart' : 'classic',
+                kind,
                 project: currentProjectId,
                 board_x: Math.round(worldPt.x),
                 board_y: Math.round(worldPt.y)
@@ -543,6 +549,7 @@ async function createCanvasOnBoard(title, kind, worldPt){
             canvases.push(nc);
             renderBoard();
             renderProjects();
+            if (kind === 'game') openCanvas(nc);
         }
     } catch(e){ console.error(e); setStatus(L('创建失败','Create failed')); }
 }
@@ -933,7 +940,7 @@ function renderTrash(){
         card.innerHTML = `
             <div class="ws-card-top">
                 <span class="ws-card-icon">${renderCanvasIcon(isSmart && /[^\x00-\x7F]/.test(c.icon || '') ? 'sparkles' : c.icon, 17)}</span>
-                <span class="ws-card-kind ${isSmart ? 'smart' : 'classic'}">${isSmart ? L('智能','Smart') : L('普通','Classic')}</span>
+                <span class="ws-card-kind ${isSmart ? 'smart' : 'classic'}">${c.kind === 'game' ? L('游戏项目','Game project') : isSmart ? L('智能','Smart') : L('普通','Classic')}</span>
             </div>
             <div class="ws-card-title">${escapeHtml(c.title)}</div>
             <div class="ws-card-meta"><span class="ws-card-nodes">${escapeHtml(projName)}</span><span class="ws-card-meta-dot"></span><span class="ws-card-time">${formatCanvasTime(c.deleted_at)}</span></div>
@@ -1043,6 +1050,207 @@ window.addEventListener('message', event => {
         refreshIcons();
     }
 });
+
+/* ===== Canvas assets drawer =====
+   点画布卡片不再直接进画布，先看这块画布生成的图片 / 视频 / 音频，可单张或打包下载。 */
+const assetsPanel = document.getElementById('canvasAssetsPanel');
+const assetsGrid = document.getElementById('assetsGrid');
+const assetsKindsEl = document.getElementById('assetsKinds');
+const assetsTitle = document.getElementById('assetsTitle');
+const assetsSub = document.getElementById('assetsSub');
+let assetsCanvas = null;
+let assetsItems = [];
+let assetsPreviewEl = null;
+
+function formatAssetSize(bytes){
+    const n = Number(bytes) || 0;
+    if(n < 1024) return n + ' B';
+    if(n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function closeAssetsPanel(){
+    if(!assetsPanel) return;
+    assetsPanel.classList.remove('open');
+    assetsCanvas = null;
+    assetsItems = [];
+    assetsVisible = [];
+    if(assetsPreviewEl) assetsPreviewEl.classList.remove('open');
+}
+
+const ASSET_KINDS = [
+    { id: 'image', label: L('图像', 'Images'), icon: 'image' },
+    { id: 'video', label: L('视频', 'Videos'), icon: 'clapperboard' },
+    { id: 'model', label: L('3D', '3D'), icon: 'box' },
+    { id: 'audio', label: L('音乐', 'Audio'), icon: 'music' }
+];
+let assetsKind = 'image';
+let assetsVisible = [];
+
+function kindOf(item){ return (item && item.kind) || 'image'; }
+function kindLabel(kind){
+    const hit = ASSET_KINDS.find(k => k.id === kind);
+    return hit ? hit.label : L('素材', 'Assets');
+}
+function renderAssetsKinds(){
+    if(!assetsKindsEl) return;
+    assetsKindsEl.innerHTML = ASSET_KINDS.map(kind => {
+        const count = assetsItems.filter(item => kindOf(item) === kind.id).length;
+        return `<button class="ws-kind${kind.id === assetsKind ? ' is-on' : ''}${count ? '' : ' is-empty'}" type="button" role="tab" aria-selected="${kind.id === assetsKind}" data-kind="${kind.id}" title="${kind.label}">
+            <span class="ws-kind-box"><i data-lucide="${kind.icon}"></i></span>
+            <span class="ws-kind-label">${kind.label}${count ? `<em>${count}</em>` : ''}</span>
+        </button>`;
+    }).join('');
+    refreshIcons();
+}
+
+function renderAssets(){
+    if(!assetsGrid) return;
+    renderAssetsKinds();
+    assetsVisible = assetsItems.filter(item => kindOf(item) === assetsKind);
+    const size = assetsVisible.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+    if(assetsVisible.length){
+        assetsSub.textContent = L(`${kindLabel(assetsKind)} · ${assetsVisible.length} 个文件 · ${formatAssetSize(size)}`,
+            `${kindLabel(assetsKind)} · ${assetsVisible.length} files · ${formatAssetSize(size)}`);
+    } else {
+        assetsSub.textContent = L(`${kindLabel(assetsKind)} · 暂无`, `${kindLabel(assetsKind)} · none`);
+    }
+    if(!assetsVisible.length){
+        const emptyIcon = assetsKind === 'video' ? 'clapperboard' : assetsKind === 'model' ? 'box' : assetsKind === 'audio' ? 'music' : 'image-off';
+        assetsGrid.innerHTML = `<div class="ws-assets-empty"><i data-lucide="${emptyIcon}" class="w-6 h-6"></i><span>${L(`这块画布还没有${kindLabel(assetsKind)}素材`, `No ${kindLabel(assetsKind).toLowerCase()} in this canvas yet`)}</span></div>`;
+        refreshIcons();
+        return;
+    }
+    assetsGrid.innerHTML = assetsVisible.map((item, index) => {
+        const kind = kindOf(item);
+        const media = kind === 'video'
+            ? `<video class="ws-asset-media" src="${escapeAttr(item.url)}" preload="metadata" muted playsinline></video>`
+            : kind === 'audio'
+                ? `<div class="ws-asset-audio"><i data-lucide="music" class="w-6 h-6"></i></div>`
+                : kind === 'model'
+                    ? `<div class="ws-asset-audio"><i data-lucide="box" class="w-6 h-6"></i></div>`
+                    : `<img class="ws-asset-media" src="${escapeAttr(item.url)}" alt="${escapeAttr(item.name)}" loading="lazy">`;
+        return `<figure class="ws-asset" data-asset-index="${index}">
+            ${media}
+            <figcaption class="ws-asset-cap">${escapeHtml(item.name)} · ${formatAssetSize(item.size)}</figcaption>
+            <a class="ws-asset-dl" href="${escapeAttr(item.url)}" download="${escapeAttr(item.name)}" title="${L('下载', 'Download')}" aria-label="${L('下载', 'Download')}"><i data-lucide="download"></i></a>
+        </figure>`;
+    }).join('');
+    refreshIcons();
+}
+
+async function openCanvasAssets(c){
+    if(!assetsPanel) return;
+    assetsCanvas = c;
+    assetsItems = [];
+    assetsPanel.classList.add('open');
+    assetsTitle.textContent = c.title || L('画布资产', 'Canvas assets');
+    assetsSub.textContent = L('加载中…', 'Loading…');
+    assetsGrid.innerHTML = '';
+    try {
+        const res = await fetch(`/api/canvases/${encodeURIComponent(c.id)}/media`);
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok) throw new Error(data.detail || L('读取画布资产失败','Failed to load assets'));
+        if(assetsCanvas !== c) return;
+        assetsItems = Array.isArray(data.assets) ? data.assets : (Array.isArray(data.files) ? data.files : []);
+        const order = ['image', 'video', 'model', 'audio'];
+        const firstWithItems = order.find(kind => assetsItems.some(item => kindOf(item) === kind));
+        assetsKind = firstWithItems || 'image';
+        renderAssets();
+    } catch (err) {
+        if(assetsCanvas !== c) return;
+        assetsSub.textContent = L('读取失败', 'Failed');
+        assetsGrid.innerHTML = `<div class="ws-assets-empty"><i data-lucide="alert-triangle" class="w-6 h-6"></i><span>${escapeHtml(err.message || '')}</span></div>`;
+        refreshIcons();
+    }
+}
+
+function openAssetPreview(item){
+    if(!item) return;
+    if(!assetsPreviewEl){
+        assetsPreviewEl = document.createElement('div');
+        assetsPreviewEl.className = 'ws-assets-preview';
+        assetsPreviewEl.onclick = () => {
+            assetsPreviewEl.classList.remove('open');
+            assetsPreviewEl.innerHTML = '';
+        };
+        document.body.appendChild(assetsPreviewEl);
+    }
+    assetsPreviewEl.innerHTML = item.kind === 'video'
+        ? `<video src="${escapeAttr(item.url)}" controls autoplay playsinline></video>`
+        : `<img src="${escapeAttr(item.url)}" alt="${escapeAttr(item.name)}">`;
+    assetsPreviewEl.classList.add('open');
+}
+
+function saveBlob(blob, name){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+async function downloadAllAssets(){
+    if(!assetsCanvas) return;
+    const list = assetsVisible.length ? assetsVisible : assetsItems;
+    if(!list.length){ setStatus(L('这块画布还没有可下载的文件','Nothing to download')); return; }
+    if(list.length === 1){
+        const only = list[0];
+        const link = document.createElement('a');
+        link.href = only.url;
+        link.download = only.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return;
+    }
+    setStatus(L('正在打包…','Packing…'));
+    try {
+        const res = await fetch(`/api/canvases/${encodeURIComponent(assetsCanvas.id)}/media/zip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths: list.map(item => item.path) })
+        });
+        if(!res.ok){
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || L('打包失败','Pack failed'));
+        }
+        const name = String(assetsCanvas.title || 'canvas-assets').replace(/[\\/:*?"<>|]/g, '_') + '.zip';
+        saveBlob(await res.blob(), name);
+        setStatus(L('已开始下载','Download started'));
+    } catch (err) {
+        setStatus(err.message || L('打包失败','Pack failed'));
+    }
+}
+
+if(assetsPanel){
+    assetsGrid.onclick = event => {
+        if(event.target.closest('.ws-asset-dl')) return;
+        const fig = event.target.closest('[data-asset-index]');
+        if(!fig) return;
+        openAssetPreview(assetsVisible[Number(fig.dataset.assetIndex)]);
+    };
+    assetsKindsEl?.addEventListener('click', event => {
+        const btn = event.target.closest('[data-kind]');
+        if(!btn) return;
+        const next = btn.dataset.kind;
+        if(next === assetsKind) return;
+        assetsKind = next;
+        renderAssets();
+    });
+    document.getElementById('assetsClose').onclick = closeAssetsPanel;
+    document.getElementById('assetsEnterCanvas').onclick = () => { if(assetsCanvas) openCanvas(assetsCanvas); };
+    document.getElementById('assetsDownloadAll').onclick = downloadAllAssets;
+    document.addEventListener('keydown', event => {
+        if(event.key !== 'Escape') return;
+        if(assetsPreviewEl?.classList.contains('open')){ assetsPreviewEl.classList.remove('open'); assetsPreviewEl.innerHTML = ''; return; }
+        closeAssetsPanel();
+    });
+    assetsPanel.addEventListener('click', event => event.stopPropagation());
+}
 
 /* ===== Boot ===== */
 window.StudioI18n?.apply?.();

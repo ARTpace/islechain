@@ -1,0 +1,466 @@
+{
+  "inputs": {
+    "vendor/daemon/model3d.ts": {
+      "bytes": 3210,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/property-graph/dist/index.mjs": {
+      "bytes": 16685,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/@gltf-transform/core/dist/index.js": {
+      "bytes": 209490,
+      "imports": [
+        {
+          "path": "node_modules/property-graph/dist/index.mjs",
+          "kind": "import-statement",
+          "original": "property-graph"
+        },
+        {
+          "path": "node:fs",
+          "kind": "dynamic-import",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "dynamic-import",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/ktx-parse/dist/ktx-parse.modern.js": {
+      "bytes": 40532,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/@gltf-transform/extensions/dist/index.js": {
+      "bytes": 257940,
+      "imports": [
+        {
+          "path": "node_modules/@gltf-transform/core/dist/index.js",
+          "kind": "import-statement",
+          "original": "@gltf-transform/core"
+        },
+        {
+          "path": "node_modules/ktx-parse/dist/ktx-parse.modern.js",
+          "kind": "import-statement",
+          "original": "ktx-parse"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/merge-animations.ts": {
+      "bytes": 3100,
+      "imports": [
+        {
+          "path": "node_modules/@gltf-transform/core/dist/index.js",
+          "kind": "import-statement",
+          "original": "@gltf-transform/core"
+        },
+        {
+          "path": "node_modules/@gltf-transform/extensions/dist/index.js",
+          "kind": "import-statement",
+          "original": "@gltf-transform/extensions"
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/shared/model3d-operations.ts": {
+      "bytes": 2979,
+      "imports": [],
+      "format": "esm"
+    },
+    "vendor/shared/cloud-models.ts": {
+      "bytes": 3745,
+      "imports": [],
+      "format": "esm"
+    },
+    "vendor/shared/contracts.ts": {
+      "bytes": 43562,
+      "imports": [],
+      "format": "esm"
+    },
+    "vendor/shared/image-reference-limits.ts": {
+      "bytes": 704,
+      "imports": [],
+      "format": "esm"
+    },
+    "vendor/shared/custom-models.ts": {
+      "bytes": 12491,
+      "imports": [
+        {
+          "path": "vendor/shared/model3d-operations.ts",
+          "kind": "import-statement",
+          "original": "./model3d-operations.js"
+        },
+        {
+          "path": "vendor/shared/contracts.ts",
+          "kind": "import-statement",
+          "original": "./contracts.js"
+        },
+        {
+          "path": "vendor/shared/cloud-models.ts",
+          "kind": "import-statement",
+          "original": "./cloud-models.js"
+        },
+        {
+          "path": "vendor/shared/image-reference-limits.ts",
+          "kind": "import-statement",
+          "original": "./image-reference-limits.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/shared/model3d-presets.ts": {
+      "bytes": 5630,
+      "imports": [
+        {
+          "path": "vendor/shared/custom-models.ts",
+          "kind": "import-statement",
+          "original": "./custom-models.js"
+        },
+        {
+          "path": "vendor/shared/cloud-models.ts",
+          "kind": "import-statement",
+          "original": "./cloud-models.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/shared/generation-config.ts": {
+      "bytes": 5309,
+      "imports": [
+        {
+          "path": "./contracts.js",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/shared/model3d-operations.ts",
+          "kind": "import-statement",
+          "original": "./model3d-operations.js"
+        },
+        {
+          "path": "vendor/shared/cloud-models.ts",
+          "kind": "import-statement",
+          "original": "./cloud-models.js"
+        },
+        {
+          "path": "vendor/shared/custom-models.ts",
+          "kind": "import-statement",
+          "original": "./custom-models.js"
+        },
+        {
+          "path": "vendor/shared/model3d-presets.ts",
+          "kind": "import-statement",
+          "original": "./model3d-presets.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/model3d-inspect.ts": {
+      "bytes": 2330,
+      "imports": [
+        {
+          "path": "node_modules/@gltf-transform/core/dist/index.js",
+          "kind": "import-statement",
+          "original": "@gltf-transform/core"
+        },
+        {
+          "path": "node_modules/@gltf-transform/extensions/dist/index.js",
+          "kind": "import-statement",
+          "original": "@gltf-transform/extensions"
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/meshy-provider.ts": {
+      "bytes": 18924,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        },
+        {
+          "path": "vendor/daemon/merge-animations.ts",
+          "kind": "import-statement",
+          "original": "./merge-animations.js"
+        },
+        {
+          "path": "vendor/shared/generation-config.ts",
+          "kind": "import-statement",
+          "original": "../shared/generation-config.js"
+        },
+        {
+          "path": "vendor/daemon/model3d-inspect.ts",
+          "kind": "import-statement",
+          "original": "./model3d-inspect.js"
+        },
+        {
+          "path": "vendor/shared/model3d-presets.ts",
+          "kind": "import-statement",
+          "original": "../shared/model3d-presets.js"
+        },
+        {
+          "path": "vendor/shared/model3d-operations.ts",
+          "kind": "import-statement",
+          "original": "../shared/model3d-operations.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/tripo-provider.ts": {
+      "bytes": 14185,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/shared/model3d-presets.ts",
+          "kind": "import-statement",
+          "original": "../shared/model3d-presets.js"
+        },
+        {
+          "path": "vendor/shared/model3d-operations.ts",
+          "kind": "import-statement",
+          "original": "../shared/model3d-operations.js"
+        },
+        {
+          "path": "vendor/shared/generation-config.ts",
+          "kind": "import-statement",
+          "original": "../shared/generation-config.js"
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/hyper3d-provider.ts": {
+      "bytes": 10897,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/shared/model3d-presets.ts",
+          "kind": "import-statement",
+          "original": "../shared/model3d-presets.js"
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "vendor/daemon/model3d-journal.ts": {
+      "bytes": 3224,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/daemon/model3d.ts",
+          "kind": "import-statement",
+          "original": "./model3d.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "worker.ts": {
+      "bytes": 4546,
+      "imports": [
+        {
+          "path": "node:fs/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vendor/daemon/meshy-provider.ts",
+          "kind": "import-statement",
+          "original": "./vendor/daemon/meshy-provider.js"
+        },
+        {
+          "path": "vendor/daemon/tripo-provider.ts",
+          "kind": "import-statement",
+          "original": "./vendor/daemon/tripo-provider.js"
+        },
+        {
+          "path": "vendor/daemon/hyper3d-provider.ts",
+          "kind": "import-statement",
+          "original": "./vendor/daemon/hyper3d-provider.js"
+        },
+        {
+          "path": "vendor/daemon/model3d-journal.ts",
+          "kind": "import-statement",
+          "original": "./vendor/daemon/model3d-journal.js"
+        },
+        {
+          "path": "vendor/shared/model3d-presets.ts",
+          "kind": "import-statement",
+          "original": "./vendor/shared/model3d-presets.js"
+        },
+        {
+          "path": "vendor/shared/model3d-operations.ts",
+          "kind": "import-statement",
+          "original": "./vendor/shared/model3d-operations.js"
+        },
+        {
+          "path": "vendor/daemon/model3d-inspect.ts",
+          "kind": "import-statement",
+          "original": "./vendor/daemon/model3d-inspect.js"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "worker.cjs": {
+      "imports": [
+        {
+          "path": "node:fs/promises",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "dynamic-import",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "dynamic-import",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:fs/promises",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "require-call",
+          "external": true
+        }
+      ],
+      "exports": [],
+      "entryPoint": "worker.ts",
+      "inputs": {
+        "worker.ts": {
+          "bytesInOutput": 3887
+        },
+        "vendor/daemon/meshy-provider.ts": {
+          "bytesInOutput": 16093
+        },
+        "vendor/daemon/model3d.ts": {
+          "bytesInOutput": 1086
+        },
+        "node_modules/property-graph/dist/index.mjs": {
+          "bytesInOutput": 16115
+        },
+        "node_modules/@gltf-transform/core/dist/index.js": {
+          "bytesInOutput": 177469
+        },
+        "node_modules/ktx-parse/dist/ktx-parse.modern.js": {
+          "bytesInOutput": 9688
+        },
+        "node_modules/@gltf-transform/extensions/dist/index.js": {
+          "bytesInOutput": 200740
+        },
+        "vendor/daemon/merge-animations.ts": {
+          "bytesInOutput": 2290
+        },
+        "vendor/shared/model3d-operations.ts": {
+          "bytesInOutput": 2389
+        },
+        "vendor/shared/cloud-models.ts": {
+          "bytesInOutput": 1180
+        },
+        "vendor/shared/contracts.ts": {
+          "bytesInOutput": 413
+        },
+        "vendor/shared/custom-models.ts": {
+          "bytesInOutput": 8682
+        },
+        "vendor/shared/model3d-presets.ts": {
+          "bytesInOutput": 4010
+        },
+        "vendor/shared/generation-config.ts": {
+          "bytesInOutput": 875
+        },
+        "vendor/daemon/model3d-inspect.ts": {
+          "bytesInOutput": 1721
+        },
+        "vendor/daemon/tripo-provider.ts": {
+          "bytesInOutput": 12947
+        },
+        "vendor/daemon/hyper3d-provider.ts": {
+          "bytesInOutput": 10244
+        },
+        "vendor/daemon/model3d-journal.ts": {
+          "bytesInOutput": 2624
+        }
+      },
+      "bytes": 474355
+    }
+  }
+}
