@@ -55,6 +55,11 @@ const skipFiles = new Set([
 
 function skip(name) {
   if (skipDirs.has(name) || skipFiles.has(name)) return true;
+  // 本机虚拟环境（.venv-comfy 等 240MB 级）：路径写死在开发机，装到别人机器上必然失效，
+  // 代码也不引用，只会在安装包里白占体积。
+  if (/^\.venv/.test(name)) return true;
+  // 同步工具产生的冲突副本（main.sync-conflict-20261103-004531-LLY4PON.py 之类）。
+  if (name.includes('.sync-conflict-')) return true;
   if (name.endsWith('.pyc') || name.endsWith('.pyo') || name.endsWith('.log')) return true;
   // .bak 家族：foo.bak / foo.bak-时间戳 / foo.bak.20260811093606，一律排除。
   // 早先只写 endsWith('.bak')，被 asset_library.json.bak.20260811093606 绕过去了。
