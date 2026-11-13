@@ -51,7 +51,7 @@ fn candidates() -> Vec<PathBuf> {
         }
     }
     // 兜底：本机仓库默认位置（exe 被单独拷走时仍可用）
-    list.push(PathBuf::from(r"H:\AI-Tools\art-canvas\desktop"));
+    list.push(PathBuf::from(r"H:\AI-Tools\islechain\desktop"));
     list
 }
 
@@ -73,7 +73,7 @@ fn main() -> ExitCode {
         None => {
             message_box(
                 "找不到 scripts\\start-desktop.cmd。\n\n\
-                 请把 IsleChain.exe 放在 art-canvas\\desktop\\ 目录下再运行，\n\
+                 请把 IsleChain.exe 放在 islechain\\desktop\\ 目录下再运行，\n\
                  或确认该仓库没有被移动。",
                 "IsleChain 启动失败",
             );

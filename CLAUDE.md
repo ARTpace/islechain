@@ -12,7 +12,7 @@
 
 ## 项目注意事项
 
-- 本项目修改改动功能时，需要注意 `H:\AI-Tools\art-canvas\static\index.html` 文件的版本号，方便浏览器测试更新。
+- 本项目修改改动功能时，需要注意 `H:\AI-Tools\islechain\static\index.html` 文件的版本号，方便浏览器测试更新。
 - 版本号格式：`日期+序号`，例如 `20260518001`。
 - 每次修改版本号序号加1，默认从 `001` 开始。例如：第一次修改为 `20260518001`，第二次为 `20260518002`。
 - git命令不要自动提交代码，手动执行。
@@ -23,8 +23,8 @@
 
 以下文件是本项目的参考实现，不属于项目文件，遇到同类型问题时参考这两个文件：
 
-- **画布设置页面参考**: `H:\AI-Tools\art-canvas\static\setting\canvas-1.html`
-- **后端主入口参考**: `H:\AI-Tools\art-canvas\static\setting\main-1.py`
+- **画布设置页面参考**: `H:\AI-Tools\islechain\static\setting\canvas-1.html`
+- **后端主入口参考**: `H:\AI-Tools\islechain\static\setting\main-1.py`
 
 这两个文件提供了：
 - ComfyUI 工作流管理页面的完整实现示例
@@ -84,7 +84,7 @@ RandomPrompt.init('randomPromptContainer', {
 
 ### 0. 后端同步规则
 
-- `H:\AI-Tools\art-canvas\main.py` 是本项目的后端主入口文件。
+- `H:\AI-Tools\islechain\main.py` 是本项目的后端主入口文件。
 - 当其他功能有修改的函数代码牵扯到 `main.py` 时，需要同步修改该文件。
 - 修改 `main.py` 后，必须重启后端服务才能生效。
 
