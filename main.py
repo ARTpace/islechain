@@ -233,6 +233,29 @@ app.add_middleware(
 from tools.performance_timing import PerformanceTimingMiddleware
 app.add_middleware(PerformanceTimingMiddleware, boot_id=APP_BOOT_ID)
 
+# 只压缩文本类静态资源。API、SSE 流式响应、图片/视频/字体一律不经过这里：
+# GZipMiddleware 会把响应攒在内存里再压缩，套到流式接口上会拖住首字节，
+# 套到已压缩的二进制上只会白烧 CPU。按扩展名白名单能避开这两个坑。
+from starlette.middleware.gzip import GZipMiddleware
+
+_STATIC_TEXT_EXTS = ('.js', '.mjs', '.css', '.json', '.svg', '.html', '.txt', '.map', '.xml')
+
+
+class StaticTextGZipMiddleware(GZipMiddleware):
+    async def __call__(self, scope, receive, send):
+        path = scope.get('path', '') if scope.get('type') == 'http' else ''
+        hit = (
+            path.startswith(('/static/', '/prompt/static/'))
+            and path.lower().endswith(_STATIC_TEXT_EXTS)
+        )
+        if hit:
+            await super().__call__(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(StaticTextGZipMiddleware, minimum_size=1024, compresslevel=6)
+
 @app.websocket("/ws/stats")
 async def websocket_endpoint(websocket: WebSocket, client_id: str = None):
     await manager.connect(websocket, client_id)
@@ -1928,8 +1951,18 @@ class NoCacheStaticFiles(StarletteStaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if hasattr(response, 'headers'):
-            # ponytail: 资源可缓存但每次校验 ETag，更新立即生效，未变化时只返回 304。
-            response.headers['Cache-Control'] = 'no-store' if path.lower().endswith('.html') else 'no-cache'
+            if path.lower().endswith('.html'):
+                # 页面骨架每次取新的，避免 iframe 与路由信息陈旧。
+                response.headers['Cache-Control'] = 'no-store'
+            else:
+                qs = scope.get('query_string', b'') or b''
+                versioned = any(part.startswith(b'v=') for part in qs.split(b'&'))
+                # 带 ?v= 版本戳的资源才给短缓存，且刻意不用 immutable：
+                # 万一改了文件忘换戳，最多 5 分钟后自动回到最新版。
+                # 无版本戳的资源继续每次校验 ETag，行为与原来一致。
+                response.headers['Cache-Control'] = (
+                    'public, max-age=300, must-revalidate' if versioned else 'no-cache'
+                )
         return response
 
 app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
