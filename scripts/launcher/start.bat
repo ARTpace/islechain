@@ -8,14 +8,10 @@ echo.
 rem 本脚本位于 scripts/launcher/，项目根在上两级
 cd /d "%~dp0..\.."
 
-rem Prefer Python installed on this machine, fall back to PATH
+rem Prefer a local Python install, fall back to PATH
 set PY_EXE=
-for %%P in (
-    "C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python313\python.exe"
-    "C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python312\python.exe"
-    "C:\Users\ARTpace\AppData\Local\Programs\Python\Python312\python.exe"
-) do (
-    if not defined PY_EXE if exist %%P set PY_EXE=%%~P
+for %%V in (313 312 311 310) do (
+    if not defined PY_EXE if exist "%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe" set "PY_EXE=%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe"
 )
 if not defined PY_EXE (
     where python >nul 2>&1

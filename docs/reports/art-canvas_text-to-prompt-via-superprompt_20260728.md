@@ -82,4 +82,4 @@ Superprompt 节点是 **Stable Diffusion 专用微调**的小模型（Gustavosta
 ## 已创建文件清单
 - `workflows/提示词/文生提示词.json` (842B, 2 个节点: Superprompt + ShowText)
 - `workflows/提示词/文生提示词.config.json` (1315B, 3 个字段: user_prompt, instruction, max_tokens)
-- 临时调试脚本（在 `C:\Users\zhengyuliang\AppData\Local\Temp\` 下，无需保留）
+- 临时调试脚本（在 `%TEMP%` 下，无需保留）

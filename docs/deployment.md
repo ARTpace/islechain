@@ -2,7 +2,7 @@
 
 > **2026-10-22 实测更新**：以下事实已经运行验证，可放心引用：
 > - 启动端口为 **7000**（main.py 末尾 `uvicorn.run(..., port=7000)` 硬编码，非 8000）
-> - 运行环境为**系统 Python 3.13**（`C:\Users\zhengyuliang\AppData\Local\Programs\Python\Python313`），本地启动用 `启动.bat`（根目录）或 `scripts\launcher\start.bat`
+> - 运行环境为**系统 Python 3.13**（`%LOCALAPPDATA%\Programs\Python\Python313`），本地启动用 `启动.bat`（根目录）或 `scripts\launcher\start.bat`
 > - **不可多 worker**：JSON 文件存储 + 进程内队列/锁（RUNNINGHUB_WORKFLOW_LOCK 等）不支持，必须 `workers=1`
 >
 > **仍未验收**：embeddable Python 手动搭建路径、systemd/Nginx 生产段、SQLite 片段为未完成示意，不可操作真实数据。以 [文档入口](README.md) 的验收规则为准。

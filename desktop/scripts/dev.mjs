@@ -74,9 +74,14 @@ function portOpen(port = PORT, timeout = 400) {
 }
 
 function resolvePython() {
+  // 按本机实际情况找 Python：环境变量优先，其次用户级安装目录（%LOCALAPPDATA%），最后 PATH。
+  const localAppData = process.env.LOCALAPPDATA;
+  const installed = localAppData
+    ? ['313', '312', '311', '310'].map((v) => `${localAppData}/Programs/Python/Python${v}/python.exe`)
+    : [];
   const candidates = [
     process.env.ART_CANVAS_PY,
-    'C:/Users/zhengyuliang/AppData/Local/Programs/Python/Python313/python.exe',
+    ...installed,
     'python',
     'py',
   ].filter(Boolean);
