@@ -51,6 +51,10 @@ docs/*
 !docs/game-pipeline-development.md
 !docs/game-pipeline-canvas.md
 !docs/ohmygame-role-presets.md
+# README 配图
+!docs/screenshots/
+!docs/screenshots/*.jpg
+!docs/screenshots/*.png
 !docs/ohmygame-LICENSE.txt
 !docs/examples/
 docs/examples/*

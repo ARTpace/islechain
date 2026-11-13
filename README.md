@@ -1,382 +1,115 @@
-# 项目代码改编自：
-# https://github.com/hero8152/Infinite-Canvas/tree/main
-# 原作者：hero8152
-
 # IsleChain
 
-art-canvas AI 是一个面向 AI 图像生成、图像编辑、智能对话和无限画布创作的本地 Web 平台。项目采用 **FastAPI 后端 + 静态 HTML/JavaScript 前端** 架构，集成本地 ComfyUI 工作流、COMFLY 在线生图、ModelScope 云端模型、多提供商 API 管理、账号系统、资产库和画布节点编辑能力。
+**一句话出图、出片、出模型 —— 一个工作台走完。**
 
-平台主入口为 [static/index.html](static/index.html)，后端主入口为 [main.py](main.py)，默认访问地址为：
+IsleChain（屿链）是一个本地优先的 AI 创作工作台，Windows 桌面版与本地 Web 服务两种用法。文字变图、图变图、图变模型，产出的东西直接落到无限画布上摆放、拼接、继续加工；每一张成品自动进本地素材库，账号、画布、会话、图片全都留在自己的机器里。
 
-```text
-http://localhost:7000
-```
+![IsleChain](docs/screenshots/login.jpg)
 
-## 核心能力
+## 能做什么
 
-- **账号系统**：支持注册、登录、Token 校验、管理员用户管理，用户数据保存在 [data/users.json](data/users.json)。
-- **主控制台**：侧边栏 + iframe 多页面工作台，支持主题切换、在线状态、队列状态和应用切换。
-- **ComfyUI 图像应用**：集成图片编辑、3D 视角变换、CG 细化、2D 风格细化、抠图、扩图、高清修复、图像反推、文字抠图、万物移除等应用。
-- **无限画布**：支持节点编辑、图像节点、输出节点、LLM 节点、生成器节点、音频/视频节点（含 **LTX Director 多段视频导演台**：`workflows/LTXDirectorv2-API.json`，提供 timeline_data / segment_lengths / guide_strength / audioSegments 多段拼镜能力，依赖 ComfyUI 侧 [WhatDreamsCost/WhatDreamsCost-ComfyUI](https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI) 自定义节点，详情见 `docs/reports/LTXDirector集成方案.md`）、PS 节点、日志面板、小导航栏和资产库。
-- **在线生图**：通过 COMFLY / OpenAI 兼容协议调用在线图像模型，支持参考图、提示词预设和历史记录。
-- **提示词方案 (Prompt Plan)**：可创建 / 编辑 / 应用多个提示词组合方案（角色 + 画师 + 预设 + 固定提示词 + LoRA），支持随机 / 顺序两种抽取模式。面板从文生图页的 🎲 按钮打开。
-- **自动生成**：在提示词方案面板中可设置自动按方案生成图片——计次模式（生成 N 次后停止）或定时模式（每 N 分钟 × N 轮）。⚡ 主按钮长按可同步启动 / 停止自动生成，运行中按钮显示倒计时或进度。
-- **多图卡片拼图**：生成 2-4 张图时自动拼图布局（上下 / 上 1 下 2 / 2x2），5+ 张时在 2x2 第四格浮出「+N」。点击进入 Lightbox 大图预览可查看全套。
-- **智能对话**：支持多轮对话、SSE 流式响应、会话保存、文本对话与图片生成模式。
-- **API 多提供商管理**：支持 OpenAI 兼容协议、APIMart 异步协议、模型同步、连接测试和 API Key 管理。
-- **即梦 CLI 集成**：支持调用即梦（Dreamina）命令行工具，使用本机登录态进行文生图、图生图、文生视频、图生视频，无需 API Key。
-- **本地资产与历史**：生成图片、画布资产、对话、历史记录均以本地文件方式保存，方便迁移和备份。
+### 无限画布
 
-## 近期主要更新（2026-07）
+- 节点式画布：图片、生成、输出、模型、音视频节点随便摆，连线即流程
+- 节点上直接涂遮罩、裁剪、扩图，结果就地预览，原图与结果可对比
+- 小导航栏定位、日志面板看进度；画布可存档，删错了能进回收站捞回来
+- 和素材库双向联动：画布上取库里的图，库里一键跳到对应的画布
 
-- **提示词方案重构**：原「随机提示词」升级为「提示词方案 (Prompt Plan)」，支持多个方案保存 / 切换 / 编辑；面板合并为单页布局（方案列表 + 自动生成分区）。
-- **自动生成引擎**：纯前端实现的自动生成循环，支持计次 / 定时两种模式，可中途停止、有进度条、完成 Toast 总结。
-- **⚡ 主按钮长按**：长按「生成」主按钮可快速启动 / 停止自动生成（带 600ms 长按计时 + 脉冲动效）。运行中按钮转为绿色呼吸光晕 + loader 图标 + 徽章进度（`3/10` 或 `mm:ss` 倒计时）。
-- **LTX Director 节点集成**：补齐 `workflows/LTXDirectorv2-API.json` + `LTXDirectorv2-API.config.json` 两件套，配合前端 `ltx-director-timeline.js`（146 KB, 与 Infinite 字节级一致）支持多段视频拼镜 + 音频轨道 + 镜头强度曲线。
-- **多图拼图布局**：单条历史记录多张图片自动拼图展示，1/2/3/4/5+ 张各有不同布局。
-- **孤儿记录清理**：新增 `/api/gallery/purge-orphans` 管理员接口，可一键清理 `history.json` 中指向已删图片的孤儿记录（含 `dry_run` 预览模式）。
-- **预设中英文双向切换**：新增 `/api/preset-i18n` 与 `/api/preset-bidir` 接口，预设面板支持中英文名切换。
-- **智能提示词预设**：`/api/smart-prompt/*` 系统，可保存 / 加载提示词模板预设，应用时自动插入到文生图提示词框。
+### 图像生成
 
-## 技术栈
+- 文生图：把角色、画师、预设、固定提示词、LoRA 存成「提示词方案」，随机或顺序抽取，一键套用
+- 主按钮长按即开自动连跑，计次或定时两种节奏，运行中有进度和倒计时
+- 参考图、图生图、一次多张，2–4 张自动拼图摆放，点开看全套大图
+- 智能提示词：短句扩写成完整描述，本地与在线两条通道随切
 
-| 层级 | 技术 |
-|------|------|
-| 后端 | FastAPI、Uvicorn、Pydantic、httpx、requests、Pillow、WebSocket |
-| 前端 | HTML、原生 JavaScript、Tailwind CSS、本地主题系统、Lucide Icons、Three.js |
-| AI 引擎 | 本地 ComfyUI、COMFLY、ModelScope、即梦 CLI（Dreamina）、自定义 OpenAI 兼容提供商 |
-| 数据存储 | JSON 文件、input/output 本地文件目录 |
-| 运行环境 | Windows 优先，Python 3.12 便携环境/虚拟环境均可 |
+### 图像编辑
+
+- 图片编辑、贴图重绘、3D 视角变换、三视图
+- 高清修复、扩图、CG 细化、2D 风格细化、去水印
+- 一键抠图、文字抠图、万物移除
+- 图像反推提示词、海报设计
+
+### 视频与语音
+
+- 多段导演台：等宽卡片配比例时间轴，分段拼镜、镜头强度、音频轨各自成段
+- 图生视频、文生视频，单条记录留档可复跑
+- TTS 配音，音色与体裁可注册扩展
+
+### 三维与材质
+
+- 文生三维模型，窗口里直接预览、转视角、导出
+- 材质设计器：材质预设、贴图生成，挑中一套直接落到模型材质槽位
+- 模型统计（面数、尺寸、材质数），画布里的资产能送进本机三维工程接着做
+- 三视图出图配视角变换，一个模型补齐多个角度
+
+### 对话
+
+- 多轮对话、流式输出、会话留档，文本与出图两种模式
+- 画布里也有对话节点，边聊边改提示词，不用来回切页
+
+### 素材库
+
+- 生成结果、上传素材、画布资产统一入库，不再散在文件夹里
+- 类型、标签、收藏筛选，名称与时间排序，瀑布流排布
+- 右键批量操作，评分备注随手记，点开就是大图预览
+
+### 桌面端
+
+- Windows 桌面版：本地服务跟着窗口一起起，双击就用，不用开终端
+- 覆盖层模式：窗口贴在其他软件上方，当随手可见的参考板
+- 托盘常驻，关掉窗口不打断后台任务
+
+### 其他
+
+- **多账号**：注册登录、访客只读、管理员管用户，账号之间数据互不可见
+- **局域网共享**：同网段其它设备用浏览器就能进来
+- **本地优先**：图片、画布、会话、账号都是本机文件，备份和迁移就是拷目录
+- **界面外观**：主题、背景、面板透明度，整套界面一起换
 
 ## 快速开始
 
-### 1. 安装依赖
+需要 Windows 与 Python 3.10+。
 
-如果是首次运行，可按项目脚本创建环境（Windows）：
-
-```text
-scripts\launcher\安装依赖.bat
-```
-
-也可以直接安装 Python 依赖：
-
-```bash
+```powershell
+git clone https://github.com/ARTpace/islechain.git
+cd islechain
 pip install -r requirements.txt
-```
-
-### 2. 配置 API Key
-
-编辑 `API/.env`，根据需要填写：
-
-```env
-COMFLY_API_KEY=sk-你的COMFLY_KEY
-MODELSCOPE_API_KEY=ms-你的MODELSCOPE_KEY
-COMFYUI_INSTANCES=127.0.0.1:8188
-```
-
-如果有多个 ComfyUI 实例，可用逗号分隔：
-
-```env
-COMFYUI_INSTANCES=127.0.0.1:8188,127.0.0.1:4090
-```
-
-### 3. 启动后端
-
-```bash
 python main.py
 ```
 
-或在 Windows 下双击启动脚本：
+- 也可以直接双击 `启动.bat`，会检查依赖、释放端口并打开浏览器
+- 服务起在 <http://localhost:7000>，首次进入先注册账号；用户名为 `admin` 时自动是管理员
+- 生成能力依赖本机的模型服务或在线密钥，在「设置」里填好即可使用；只用对话和素材管理可以先跳过
 
-```text
-启动.bat
+桌面版需要 Node.js 20+：
+
+```powershell
+npm --prefix desktop ci
+npm --prefix desktop run dev     # 开发模式，改前端自动重建
+npm --prefix desktop run build   # 打安装包，产物在 desktop/src-tauri/target/release/bundle/
 ```
 
-启动后访问：
+## 仓库结构
 
-```text
-http://localhost:7000
+```
+islechain/
+├── main.py            # 服务入口
+├── core/              # 业务实现：生成、画布、三维、材质、账号、素材
+├── routers/           # HTTP 接口层，按业务拆分
+├── static/            # 页面、前端模块与样式
+├── workflows/         # 可分享的工作流与配套配置
+├── packs/             # 角色、画师、风格、内容包（含各自的 *-packs 目录）
+├── desktop/           # 桌面壳与打包脚本
+├── tests/             # 自动化测试
+└── docs/              # 设计文档与运行说明
 ```
 
-首次访问会进入登录页，可先注册账号再进入主控制台。用户名为 `admin` 时会自动识别为管理员账号。
+## 文档
 
-### 4. 启动 ComfyUI
-
-本地 ComfyUI 默认需要运行在：
-
-```text
-http://127.0.0.1:8188
-ws://127.0.0.1:8188/ws
-```
-
-如果只使用在线生图或智能对话，可以不启动 ComfyUI；如果使用本地工作流、无限画布 ComfyUI 节点或独立 ComfyUI 应用，则需要保证对应工作流在 ComfyUI 中可正常运行。
-
-## 运行模式
-
-### 直连模式
-
-部分前端应用会直接访问本地 ComfyUI：
-
-```text
-浏览器 → ComfyUI HTTP API / WebSocket → ComfyUI 服务
-```
-
-特点：
-
-- 实时 WebSocket 进度反馈；
-- 延迟低；
-- 适合本机开发与单机使用；
-- 依赖浏览器能访问 `127.0.0.1:8188`。
-
-### 后端代理模式
-
-部分画布节点和功能通过后端统一调用 ComfyUI：
-
-```text
-浏览器 → FastAPI 后端 → ComfyUI 实例 → output/ 本地结果
-```
-
-特点：
-
-- 支持多 ComfyUI 实例；
-- 可做队列和负载均衡；
-- 可保存统一历史记录；
-- 更适合局域网访问和多用户场景。
-
-## 项目结构
-
-```text
-art-canvas/
-├── main.py                         # FastAPI 后端主入口，包含认证、生成、对话、画布、资产、工作流等 API
-├── core/                           # 公共底座：被 routers 与各内容包共同依赖（只依赖标准库/第三方）
-│   ├── user_paths.py               #   用户数据目录（%APPDATA%\art-canvas）与项目内路径
-│   ├── media_paths.py              #   媒体落盘路径推导：owner/type/feature/date
-│   ├── media_migration.py          #   旧版媒体目录结构迁移
-│   ├── preset_manager.py           #   提示词预设库读写（基线 + 用户覆盖层）
-│   ├── feature_access.py           #   功能开关与访客模式降级
-│   ├── smart_prompt.py             #   提示词增强（LLM 改写）
-│   ├── wildcard_engine.py          #   通配符（wildcards）展开
-│   ├── random_source.py            #   随机数据源（角色/画师/预设，走内容包体系）
-│   ├── generation_data.py          #   生成记录与统计
-│   ├── genre_registry.py           #   TTS 音色/体裁注册表
-│   ├── smart_tts.py                #   语音合成
-│   ├── image_cutout.py             #   图像抠图
-│   └── lan_sharing.py              #   局域网共享与访问控制
-├── routers/                        # API 路由，按业务拆成独立模块
-├── style_packs/                    # 风格包体系（清单校验/拆包/官方包安装）
-├── character_packs/                # 角色包体系（索引 + 详情分片双轨）
-├── artist_packs/                   # 画师包体系（单索引层 + 缩略图代理）
-├── content_packs/                  # 内容包通用层（导入导出/扫描/官方目录，纯逻辑）
-├── tools/                          # 打包、拆包、导入导出等工具脚本
-├── tests/                          # 单元测试，目录结构镜像源码
-├── scripts/
-│   └── launcher/                   # 启动与环境脚本：start.bat / 安装依赖 / bootstrap
-├── requirements.txt                # Python 依赖
-├── API/.env                        # API Key、模型和 ComfyUI 实例配置
-├── api_providers.json              # API 提供商配置
-├── global_config.json              # 全局配置缓存
-├── history.json                    # 图像生成历史记录
-├── data/
-│   ├── users.json                  # 用户账号、密码哈希、Token 数据
-│   ├── canvases/                   # 无限画布 JSON 数据
-│   └── conversations/              # 对话数据
-├── input/                          # ComfyUI 输入文件和用户/画布资产
-├── output/                         # 生成结果输出目录
-├── workflows/                      # ComfyUI 工作流 JSON
-│   ├── custom/                     # 自定义工作流
-│   ├── Z-Image.json
-│   ├── Z-Image-Enhance.json
-│   ├── 2511.json
-│   ├── qwen-edit2511.json
-│   ├── klein.json
-│   ├── CGstyle-2.json
-│   ├── F2K-gaoqingxiufu.json
-│   ├── yichuwuti.json
-│   ├── jiandanqubeijing.json
-│   ├── LTX23-图生视频.json           # LTX-2.3 单段图生视频（图+文→mp4, 含音轨）
-│   ├── LTXDirectorv2-API.json         # LTX Director 多段视频导演台（依赖 WhatDreamsCost 自定义节点）
-│   └── ...
-├── static/                         # 前端静态资源
-│   ├── index.html                  # 主控制台
-│   ├── login.html                  # 登录/注册页
-│   ├── online.html                 # 在线生图页面
-│   ├── gpt-chat.html               # 智能对话页面
-│   ├── canvas.html                 # 无限画布入口
-│   ├── app/                        # 独立 ComfyUI 应用页面
-│   ├── modules/                    # 无限画布和 ComfyUI 功能模块
-│   │   └── random-prompt.js        # 提示词方案 (Prompt Plan) 组件 + 自动生成引擎
-│   ├── setting/                    # API、ComfyUI 等设置页面
-│   ├── styles/canvas.css           # 画布样式
-│   ├── theme.css                   # 全局主题样式
-│   └── theme.js                    # 主题同步逻辑
-├── docs/                           # 技术文档
-│   ├── README.md                   # 文档索引
-│   ├── architecture.md             # 架构说明
-│   ├── api.md                      # API 参考
-│   ├── deployment.md               # 部署指南
-│   ├── frontend-modules.md         # 前端模块说明
-│   ├── random_guide.md             # 提示词方案使用指南
-│   ├── reports/                    # 一次性调研报告与集成方案（带日期）
-│   ├── research/                   # 外部方案调研资料
-│   └── 运行说明.txt                # 简要运行说明
-├── CODEMAP.md                      # 功能 → 文件索引，AI 定位代码时先读这个
-├── CONTEXT.md                      # 项目上下文与约定
-├── 启动.bat                        # Windows 双击启动（唯一保留在根目录的脚本）
-└── CLAUDE.md                       # AI 助手协作规则
-```
-
-## 前端页面概览
-
-### 主入口与通用页面
-
-| 页面 | 说明 |
-|------|------|
-| [static/index.html](static/index.html) | 主控制台，负责导航、iframe 容器、主题同步、登录校验和状态监视 |
-| [static/login.html](static/login.html) | 注册/登录页 |
-| [static/online.html](static/online.html) | 在线生图、参考图、提示词预设、历史卡片、去除背景等功能 |
-| [static/gpt-chat.html](static/gpt-chat.html) | 智能对话页面 |
-| [static/canvas.html](static/canvas.html) | 无限画布入口 |
-
-### 独立 ComfyUI 应用
-
-| 应用 | 页面 | 说明 |
-|------|------|------|
-| 图片编辑 | [static/app/klein.html](static/app/klein.html) | FLUX Klein / ModelScope 图像编辑 |
-| 3D 视角变换 | [static/app/angle.html](static/app/angle.html) | Three.js 预览 + 视角控制生成 |
-| CG 一键细化 | [static/app/cgstyle.html](static/app/cgstyle.html) | CG 风格增强 |
-| 2D 风格细化 | [static/app/2dstyle.html](static/app/2dstyle.html) | 二次元/2D 风格增强 |
-| 一键抠图 | [static/app/rmbg.html](static/app/rmbg.html) | 背景分离 |
-| 万物移除 | [static/app/yichuwuti.html](static/app/yichuwuti.html) | 遮罩涂抹后移除物体 |
-| 高清修复 | [static/app/gaoqingxiufu.html](static/app/gaoqingxiufu.html) | 图像修复与增强 |
-| 扩图 | [static/app/kuotu.html](static/app/kuotu.html) | 四方向画布扩展 |
-| 图像反推 | [static/app/promptgen.html](static/app/promptgen.html) | 图片反推提示词 |
-| 文字抠图 | [static/app/textmatting.html](static/app/textmatting.html) | 文字/语义抠图 |
-
-## 无限画布模块
-
-无限画布由 [static/canvas.html](static/canvas.html) 加载，核心逻辑拆分在 [static/modules/](static/modules/) 中。
-
-常见模块：
-
-| 模块 | 说明 |
-|------|------|
-| [static/modules/canvas-all.js](static/modules/canvas-all.js) | 画布核心逻辑 |
-| [static/modules/comfyui-registry.js](static/modules/comfyui-registry.js) | ComfyUI 模式注册表 |
-| [static/modules/comfyui-utils.js](static/modules/comfyui-utils.js) | ComfyUI 通用工具 |
-| [static/modules/image-node.js](static/modules/image-node.js) | 图片节点和遮罩编辑 |
-| [static/modules/output-node.js](static/modules/output-node.js) | 输出节点、图片预览和对比 |
-| [static/modules/generator-node.js](static/modules/generator-node.js) | API 生图节点 |
-| [static/modules/llm-node.js](static/modules/llm-node.js) | LLM 辅助节点 |
-| [static/modules/asset-library.js](static/modules/asset-library.js) | 资产库 |
-| [static/modules/image-editor.js](static/modules/image-editor.js) | 裁剪、画笔、扩图等图片编辑器 |
-| [static/modules/minimap-nav.js](static/modules/minimap-nav.js) | 小导航栏 |
-| [static/modules/logs-panel.js](static/modules/logs-panel.js) | 生成日志面板 |
-| [static/modules/settings.js](static/modules/settings.js) | 设置和 AuthManager |
-
-当前画布支持的 ComfyUI 模式包括：Klein 图像编辑、CG 细化、2D 风格细化、风格迁移、高清修复、扩图、一键抠图、抠半透明、图标细化、Qwen 图像编辑、图像反推、移除物体、简单背景等。
-
-## 后端 API 概览
-
-后端接口集中在 [main.py](main.py)，详细说明见 [docs/api-reference.md](docs/api-reference.md)。常用接口如下：
-
-| 分类 | 接口 |
-|------|------|
-| 认证 | `/api/auth/register`、`/api/auth/login`、`/api/auth/me`、`/api/auth/logout`、`/api/auth/admin/*` |
-| 配置 | `/api/config`、`/api/config/update`、`/api/models`、`/api/config/token` |
-| 图像生成 | `/api/generate`、`/api/online-image`、`/api/ms/generate`、`/generate` |
-| 画布任务 | `/api/canvas-image-tasks`、`/api/canvas-image-tasks/{task_id}` |
-| 对话 | `/api/chat`、`/api/chat/stream`、`/api/canvas-llm`、`/api/conversations/*` |
-| 画布 | `/api/canvases`、`/api/canvases/{id}`、`/api/canvases/trash`、`/api/canvases/{id}/restore`、`/api/canvases/{id}/purge` |
-| 资产 | `/api/user/assets`、`/api/user/assets/save-from-url`、`/api/canvases/{id}/assets/*` |
-| 上传下载 | `/api/upload`、`/api/ai/upload`、`/api/view`、`/output/{path}`、`/assets/{path}`、`/api/download-output`、`/api/download-output-zip` |
-| 历史与队列 | `/api/history`、`/api/history/save`、`/api/history/delete`、`/api/history/delete-image`、`/api/queue_status` |
-| 画廊 | `/api/gallery/scan-new`、`/api/gallery/purge-orphans`（管理员可清理指向已删图片的孤儿记录） |
-| 随机提示词 | `/api/random/sources`、`/api/random/categories/{source_id}`、`/api/random/{source_id}`、`/api/random/all`、`/api/random/apply-plan` |
-| 智能提示词 | `/api/smart-prompt`、`/api/smart-prompt/presets`、`/api/smart-prompt/presets/{id}`、`/api/smart-prompt/selected-preset`、`/api/smart-prompt/config` |
-| 预设与翻译 | `/api/preset-i18n`、`/api/preset-bidir`、`/api/prompt-dict`、`/api/prompt-dict/learn`、`/api/translate` |
-| ComfyUI 设置 | `/api/comfyui/instances`、`/api/comfyui/system_stats`、`/api/comfyui/upload/image` |
-| 工作流 | `/api/workflows`、`/api/workflows/{name}`、`/api/workflows/{name}/config`、`/api/workflows/{name}/run` |
-| 提供商 | `/api/providers`、`/api/providers/test-connection`、`/api/providers/probe-async`、`/api/providers/fetch-models` |
-| 即梦 CLI | `/api/jimeng/status`、`/api/jimeng/credit`、`/api/jimeng/login/start`、`/api/jimeng/login/status`、`/api/jimeng/logout`、`/api/jimeng/help`、`/api/jimeng/query-media` |
-| WebSocket | `/ws/stats` |
-
-## 数据与文件说明
-
-| 路径 | 说明 |
-|------|------|
-| `API/.env` | API Key、默认模型、ComfyUI 实例等环境变量 |
-| `api_providers.json` | 可视化 API 提供商配置 |
-| `global_config.json` | 全局配置缓存 |
-| `history.json` | 生成历史记录 |
-| `data/users.json` | 用户账号数据，包含密码哈希和 Token |
-| `data/canvases/` | 无限画布数据 |
-| `data/conversations/` | 对话数据 |
-| `input/` | 用户资产和传给 ComfyUI 的输入文件 |
-| `output/` | AI 生成结果、参考图上传结果和画布输出 |
-| `workflows/` | ComfyUI 工作流文件 |
-
-## 环境变量
-
-| 变量 | 说明 |
-|------|------|
-| `COMFYUI_INSTANCES` | ComfyUI 实例列表，逗号分隔，默认可设为 `127.0.0.1:8188` |
-| `COMFLY_API_KEY` | COMFLY 平台 API Key |
-| `COMFLY_BASE_URL` | COMFLY / OpenAI 兼容接口地址 |
-| `MODELSCOPE_API_KEY` | ModelScope API Key |
-| `MODELSCOPE_CHAT_MODELS` | ModelScope 聊天模型列表 |
-| `CHAT_MODEL` | 默认聊天模型 |
-| `IMAGE_MODEL` | 默认图像模型 |
-| `CHAT_MODELS` | 可选聊天模型列表 |
-| `IMAGE_MODELS` | 可选图像模型列表 |
-| `SYSTEM_PROMPT` | 默认系统提示词 |
-| `REQUEST_TIMEOUT` | 请求超时时间 |
-| `IMAGE_POLL_INTERVAL` | 图像任务轮询间隔 |
-| `MAX_HISTORY_MESSAGES` | 对话上下文最大历史消息数 |
-| `JIMENG_BIN` / `DREAMINA_BIN` | dreamina CLI 可执行文件路径（可选，默认从 PATH 查找） |
-| `JIMENG_USE_WSL` | 设为 1/true 时通过 WSL 执行 dreamina CLI |
-| `JIMENG_WSL_DISTRO` | WSL 发行版名称（可选） |
-| `JIMENG_POLL_SECONDS` | 即梦 CLI 任务轮询超时秒数，默认 900 |
-
-## 开发注意事项
-
-1. **修改后端需要重启服务**  
-   修改 [main.py](main.py) 后，需要重启 `python main.py` 或重新运行启动脚本。
-
-2. **前端缓存版本号**  
-   修改功能相关前端文件时，需要同步检查 [static/index.html](static/index.html) 中引用资源的版本号。版本号格式为 `日期+序号`，例如 `20260529001`。
-
-3. **保持离线可用**  
-   项目大量静态资源已本地化，开发时优先使用本地资源，避免新增外部 CDN 依赖。
-
-4. **工作流文件要与 ComfyUI 环境匹配**  
-   使用本地 ComfyUI 功能前，应确认 [workflows/](workflows/) 中对应工作流在当前 ComfyUI 环境中可正常执行，且节点、模型、LoRA、插件齐全。
-
-5. **数据文件谨慎处理**  
-   [data/users.json](data/users.json)、[history.json](history.json)、[data/canvases/](data/canvases/) 和 [output/](output/) 可能包含本地用户数据和生成结果，提交或打包前应确认是否需要排除。
-
-## 文档导航
-
-| 文档 | 说明 |
-|------|------|
-| [docs/README.md](docs/README.md) | 技术文档索引 |
-| [docs/architecture.md](docs/architecture.md) | 系统架构概览 |
-| [docs/api-reference.md](docs/api-reference.md) | API 接口参考 |
-| [docs/frontend-architecture.md](docs/frontend-architecture.md) | 前端架构说明 |
-| [docs/deployment-guide.md](docs/deployment-guide.md) | 部署与运维指南 |
-| [docs/kaifa.md](docs/kaifa.md) | 开发更新日志 |
-| [docs/modules/account-system.md](docs/modules/account-system.md) | 账号系统 |
-| [docs/modules/app.md](docs/modules/app.md) | ComfyUI 应用详解 |
-| [docs/modules/canvas-system.md](docs/modules/canvas-system.md) | 无限画布系统 |
-| [docs/modules/chat-system.md](docs/modules/chat-system.md) | 对话系统 |
-| [docs/modules/image-generation.md](docs/modules/image-generation.md) | 图像生成模块 |
-| [docs/modules/asset-library.md](docs/modules/asset-library.md) | 资产库系统 |
-| [docs/modules/comfyui-workflow-guide.md](docs/modules/comfyui-workflow-guide.md) | ComfyUI 工作流开发指南 |
-| [docs/modules/progress-bar-integration.md](docs/modules/progress-bar-integration.md) | 进度条集成指南 |
-| [docs/modules/html-app-migration.md](docs/modules/html-app-migration.md) | HTML 应用迁移指南 |
-
-## 相关链接
-
-- COMFLY 注册：https://api.ukiyostudio.co/register?aff=pKk8
-- COMFLY Token：https://api.ukiyostudio.co/token
-- ModelScope Token：https://www.modelscope.cn/my/access/token
-- ComfyUI 文档：https://docs.comfy.org/
+- [架构说明](docs/architecture.md)
+- [接口清单](docs/api.md)
+- [前端模块](docs/frontend-modules.md)
+- [画布与统一资产](docs/unified-assets.md)
+- [材质链路](docs/material-workflow.md)
+- [桌面覆盖层设计](docs/desktop-overlay-design.md)
+- [目录与提交约定](docs/repository-layout.md)
