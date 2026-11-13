@@ -64,6 +64,22 @@ def test_connections_catalog_permissions_and_key_retention(model_env):
     assert bad.status_code==422
 
 
+def test_material_preview_reuses_the_same_viewer(model_env):
+    """只有 PBR 材质、还没有模型时也走同一个预览页：预设按键与平铺滑条长在预览器里。"""
+    env=model_env
+    page=call(env,'GET','/material-preview')
+    assert page.status_code==200,page.text
+    assert call(env,'GET','/material-preview',owner='bob').status_code==403
+    # 引擎必须原样内联。压缩代码里会出现 `$&`（minified 变量名 `$` 紧跟 `&&`），
+    # 字符串式 replace 会把它当成「整段匹配」展开，把脚本改坏——这里直接比对整段源码。
+    engine_source=(Path(__file__).resolve().parents[1]/'templates/game-web-3d/three-runtime.js').read_text('utf-8')
+    assert engine_source in page.text
+    assert '/*__ENGINE__*/' not in page.text and '__MODEL_BASE64__' not in page.text
+    for marker in ('id="viewer-material"','data-geometry="sphere"','data-geometry="plane"',
+                   'id="vm-repeat"','id="viewer-channels-btn"','id="viewer-help-btn"','id="full"'):
+        assert marker in page.text,marker
+
+
 @pytest.mark.parametrize('protocol,model',[('meshy','meshy-t2'),('tripo','P1-20260311'),('hyper3d','Gen-2')])
 def test_provider_generation_adoption_preview_and_recovery(model_env,protocol,model):
     env=model_env;connect(env,protocol)

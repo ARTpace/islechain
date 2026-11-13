@@ -4,7 +4,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ============================================================
-echo  ArtCanvas 桌面安装包 - 一键构建（Tauri / NSIS）
+echo  IsleChain 桌面安装包 - 一键构建（Tauri / NSIS）
 echo ============================================================
 echo.
 

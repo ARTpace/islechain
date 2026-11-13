@@ -1,0 +1,54 @@
+/* 整体外观档位：只接管公共组件，不缩放正文或作品。 */
+/* 风格以独立变量驱动，标准档不设置变量，恢复既有圆角和层次。 */
+html[data-appearance-radius="crisp"] body { --ui-r-xs:3px; --ui-r-sm:4px; --ui-r:6px; --ui-r-lg:8px; --control-radius:4px; --sk-radius:6px; --sk-radius-sm:4px; }
+html[data-appearance-radius="standard"] body { --control-radius:8px; }
+html[data-appearance-radius="soft"] body { --ui-r-xs:8px; --ui-r-sm:12px; --ui-r:18px; --ui-r-lg:22px; --control-radius:12px; --sk-radius:18px; --sk-radius-sm:12px; }
+html[data-appearance-density="compact"] body { --ui-gap:8px; --ui-pad:12px; --sk-gap:8px; }
+html[data-appearance-density="relaxed"] body { --ui-gap:18px; --ui-pad:24px; --sk-gap:18px; }
+html[data-appearance-density="compact"] body :is(.ui-btn,.ui-input) { min-height:36px; }
+html[data-appearance-density="relaxed"] body :is(.ui-btn,.ui-input) { min-height:48px; }
+html[data-appearance-density="compact"] body :is(.sk-card,.look-block,.look-scale-row) { padding:12px !important; }
+html[data-appearance-density="relaxed"] body :is(.sk-card,.look-block,.look-scale-row) { padding:22px !important; }
+html[data-appearance-depth="flat"] body { --ui-shadow:none; --ui-shadow-strong:none; }
+html[data-appearance-depth="raised"] body { --ui-shadow:0 3px 12px #00000014; --ui-shadow-strong:0 8px 24px #00000020; }
+html[data-appearance-depth] body :is(.ui-card,.ui-surface,.sk-card,.look-block,.look-scale-row) { box-shadow:var(--ui-shadow) !important; }
+html[data-appearance-radius] body :is(.ui-card,.ui-surface,.sk-card,.look-block,.look-scale-row,.sys-tile) { border-radius:var(--ui-r) !important; }
+/* 背景层始终在正文后面，不拦截点击，不进入图片、视频或画布内容。 */
+html.studio-has-background body { isolation:isolate; }
+#studio-background-layer { position:fixed; inset:0; z-index:-1; pointer-events:none; background-size:cover; background-position:center; background-repeat:no-repeat; }
+#studio-background-layer[hidden] { display:none; }
+/* 视频与背景图共用底层；不接收鼠标，不进入作品或媒体预览器。 */
+.studio-background-video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; }
+#studio-background-layer { overflow:hidden; }
+html.studio-has-video-background #settings-panel { isolation:isolate; }
+html.studio-has-video-background #settings-panel > .studio-background-video { z-index:-1; opacity:var(--studio-background-strength,0); border-radius:inherit; }
+html.studio-has-background body:has(> #studio-background-layer) :is(.app-shell.app-shell,.stage.stage,body > .page,body > .shell,body > .asset-page) { background:transparent !important; background-color:transparent !important; }
+/* 预设只改变表面材质；保留各组件原生边框、圆角、阴影、焦点和选中反馈。 */
+html[data-appearance-style="cartoon"] body {
+ --look-surface:color-mix(in srgb,var(--ui-panel) var(--studio-panel-opacity,80%),transparent);
+ --look-texture:linear-gradient(160deg,color-mix(in srgb,var(--accent,var(--ui-accent)) 9%,transparent),transparent 65%);
+ --look-blur:none;
+}
+html[data-appearance-style="scifi"] body {
+ --look-surface:color-mix(in srgb,var(--ui-panel) var(--studio-panel-opacity,80%),transparent);
+ --look-texture:linear-gradient(125deg,color-mix(in srgb,var(--accent,var(--ui-accent)) 6%,transparent),transparent 55%),repeating-linear-gradient(0deg,transparent 0 31px,color-mix(in srgb,var(--ui-text) 3%,transparent) 31px 32px);
+ --look-blur:none;
+}
+html[data-appearance-style="glass"] body {
+ --look-surface:color-mix(in srgb,color-mix(in srgb,var(--ui-panel) 72%,transparent) var(--studio-panel-opacity,80%),transparent);
+ --look-texture:linear-gradient(145deg,#ffffff12,transparent 50%);
+ --look-blur:blur(12px) saturate(110%);
+}
+html:is([data-appearance-style="cartoon"],[data-appearance-style="scifi"],[data-appearance-style="glass"]) body :is(.ui-card,.ui-surface,.sk-card,#settings-panel,#settings-look-pane .look-section,#settings-panel .sys-tile:not(#settings-look-pane .sys-tile),.sidebar,.ws-sidebar,.asset-panel,.work-panel,.tool-panel,.control-panel,.panel,.gen-card,.console-card,.composer,.chat-composer,.modal-card,.gen-menu,.model-picker-panel,.advanced-window,.ws-create-card,.ws-trash-card,.ws-assets-panel) {
+ background-color:var(--look-surface) !important; background-image:var(--look-texture) !important;
+ backdrop-filter:var(--look-blur) !important; -webkit-backdrop-filter:var(--look-blur) !important;
+}
+/* 所有风格共享面板透明度；显式提高权重以覆盖旧页面的实色 !important。 */
+html[data-appearance-style] body :is(.ui-card,.ui-surface,.sk-card,.sidebar,.ws-sidebar,.asset-panel,.work-panel,.tool-panel,.control-panel,.panel,.gen-card,.console-card,.composer,.chat-composer,.modal-card,.gen-menu,.model-picker-panel,.advanced-window,.chat-drawer,.chat-history,.history-bulk-toolbar,.ws-create-card,.ws-trash-card,.ws-assets-panel,#settings-panel,#settings-look-pane .look-section) {
+ background-color:var(--look-surface,color-mix(in srgb,var(--ui-panel) var(--studio-panel-opacity,80%),transparent)) !important;
+}
+/* 输入器内部不再叠加实色，否则外层透明仍会被整块输入区遮住。 */
+html[data-appearance-style] body :is(.composer,.chat-composer,.console-card) textarea {
+ background:transparent !important;
+}
+@media (pointer:coarse) { html[data-appearance-density] body :is(.ui-btn,.ui-input) { min-height:44px; } }

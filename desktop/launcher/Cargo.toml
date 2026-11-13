@@ -1,0 +1,20 @@
+[package]
+name = "artcanvas-launcher"
+version = "1.0.0"
+edition = "2021"
+description = "IsleChain desktop launcher (double-click, dev mode)"
+
+[[bin]]
+name = "IsleChain"
+path = "src/main.rs"
+
+# 只做进程拉起，体积越小越好
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[build-dependencies]
+embed-resource = "3.0"

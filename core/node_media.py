@@ -160,7 +160,9 @@ class NodeMedia:
             # ponytail: flat output names only; never open plugin-selected absolute or nested paths.
             if (not isinstance(name, str) or not name.startswith('images-out/') or len(name) > 100
                     or '\\' in name or ':' in name or len(Path(name).parts) != 2 or Path(name).name in ('.', '..')):
-                raise ValueError('图片输出必须是 images-out/ 下的简单相对文件名')
+                raise ValueError('图片输出必须是 images-out/ 下的简单相对文件名，例如images-out/result.png；'
+                                 'stdout不可返回绝对路径、裸文件名或Windows反斜杠路径。'
+                                 '保存文件后单独返回"images-out/" + 文件名，不使用os.path.join构造协议路径。')
             path = Path(directory) / name
             if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
                 raise ValueError('图片输出不存在、越界或是链接')

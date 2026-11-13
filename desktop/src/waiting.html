@@ -2,27 +2,31 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>ArtCanvas</title>
+  <title>IsleChain</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #10141c; color: #e8edf5; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
-    main { height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+    html, body { margin: 0; height: 100%; background: #181818; color: #ededed; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+    main { height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; animation: appear 240ms ease-out; }
     h1 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: 0.04em; }
-    p { margin: 0; color: #9aa6b8; font-size: 14px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 12px #3ddc97; }
+    p { margin: 0; color: #b0b0b0; font-size: 14px; max-width: 80%; text-align: center; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #ededed; animation: breathe 1.6s ease-in-out infinite; }
+    .startup-error .dot { animation: none; opacity: .4; }
+    @keyframes breathe { 50% { opacity: .3; transform: scale(.8); } }
+    @keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { main, .dot { animation: none; } }
   </style>
 </head>
 <body>
   <main>
-    <div class="dot"></div>
-    <h1>ArtCanvas</h1>
-    <p id="status">正在启动本地服务…</p>
+    <div class="dot" aria-hidden="true"></div>
+    <h1>IsleChain</h1>
+    <p id="status" role="status">正在启动本地服务…</p>
   </main>
   <script>
     const status = document.getElementById('status');
     async function tick() {
       try {
         const error = await window.__TAURI__.core.invoke('backend_startup_error');
-        if (error) { status.textContent = error; return; }
+        if (error) { document.body.classList.add('startup-error'); status.textContent = error; return; }
       } catch (e) {}
       setTimeout(tick, 800);
     }

@@ -6,6 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title data-i18n="smart.title">智能画布</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -18,12 +19,13 @@
         })();
     </script>
     <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script src="/static/js/theme.js?v=20261102look"></script>
+    <script type="module" src="/static/vendor/model-viewer.min.js?v=20261104glb"></script>
+
     <script src="/static/js/touch-mouse.js?v=20261024001"></script>
     <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/smart-canvas.css?v=20261102accent2">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/smart-canvas.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20261108011">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -114,6 +116,13 @@
                     <span>
                         <div class="create-card-title">MiniMax</div>
                         <div class="create-card-sub">时间轴片段生成视频</div>
+                    </span>
+                </button>
+                <button class="create-card" type="button" data-create-type="blenderGen">
+                    <span class="create-card-icon"><i data-lucide="boxes"></i></span>
+                    <span>
+                        <div class="create-card-title">AI 建模</div>
+                        <div class="create-card-sub">让 AI 在 Blender 里建模并导入</div>
                     </span>
                 </button>
             </div>
@@ -445,7 +454,7 @@
                     </div>
                 </div>
                 <div class="image-edit-actions">
-                    <span id="imageEditZoomLabel" style="color:#9f9d95;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
+                    <span id="imageEditZoomLabel" style="color:var(--ui-muted);font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
                     <div id="videoFrameTools" class="video-frame-tools" style="display:none">
                         <button class="image-edit-btn secondary" type="button" onclick="exportVideoFrame('first')"><i data-lucide="skip-back" class="w-4 h-4"></i><span>导出首帧</span></button>
                         <button class="image-edit-btn primary" type="button" onclick="exportVideoFrame('current')"><i data-lucide="image-down" class="w-4 h-4"></i><span>导出当前帧</span></button>
@@ -459,7 +468,9 @@
         <div id="toast" class="toast"></div>
         <div id="mentionPreview" class="mention-preview"><img alt="preview"></div>
     </div>
-    <script src="/static/js/smart-canvas.js?v=20261101unifiedassets"></script>
-    <script src="/static/modules/external-asset-drop.js?v=20261102extdrop1"></script>
+    <script src="/static/js/game-model-import.js?v=20261104pbrball1"></script>
+    <script src="/static/js/preset-info.js?v=20261108011"></script>
+    <script src="/static/js/smart-canvas.js?v=20261108011"></script>
+    <script src="/static/modules/external-asset-drop.js?v=20261104nomid1"></script>
 </body>
 </html>

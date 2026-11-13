@@ -91,16 +91,11 @@ def test_existing_route_contract_is_unchanged(tmp_path):
     path.write_bytes(original)
     old_routes, old_includes = extract(path)
     routes, includes = extract(root / 'main.py')
-    added = {('POST', '/api/projects', 'create_project', 'main.py'),
-             ('POST', '/api/projects/{project_id}', 'rename_project', 'main.py'),
-             ('DELETE', '/api/projects/{project_id}', 'delete_project', 'main.py')}
-    assert set(routes) - set(old_routes) == added
-    assert [route for route in routes if route not in added] == old_routes
-    # game/mcp 相关 router 是本轮新增接入的，允许相对 HEAD 多出来；
+    # 当前 main.py 与 HEAD 的路由必须逐条一致且顺序不变。
+    assert routes == old_routes
+    # 已提交到 HEAD 之后新增接入的 router 允许相对 HEAD 多出来；
     # 其余 router 的 include 名单与 prefix 必须与 HEAD 完全一致。
-    feature_routers = {'game_projects', 'game_workspace', 'game_testing', 'game_code_candidates',
-                       'game_development_tasks', 'game_native_runtime', 'game_model3d',
-                       'game_audio', 'game_node_assets', 'mcp_tools', 'generation_dashboard'}
+    feature_routers = {'model3d_viewer', 'dcc_bridge', 'ability_packs', 'materials', 'tripo_studio'}
     assert {name: prefix for name, prefix in includes.items() if name not in feature_routers} == old_includes
     assert all(includes[name] == '' for name in feature_routers)
     assert includes['game_workspace'] == ''

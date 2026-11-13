@@ -91,6 +91,17 @@
     }
     #generationComposer .prompt-row>.anima-ctrl { justify-content:center; }
     #generationComposer .prompt-row svg { display:none !important; }
+    /* 种子切换只有图标，不能随文字按钮一起去掉图标。 */
+    #generationComposer .prompt-row #seedToggle { flex:0 0 36px; padding:0 !important; }
+    #generationComposer .prompt-row #seedToggle svg { display:block !important; width:18px; height:18px; }
+    #generationComposer .prompt-row #seedInput { width:72px; min-width:0; flex:0 1 72px; }
+    #generationComposer .prompt-row { overflow-x:auto; scrollbar-width:thin; }
+    #generationComposer .prompt-row>.anima-ctrl,
+    #generationComposer .prompt-row>#smartPromptContainer { flex-basis:auto; flex-shrink:0; }
+    #generationComposer .control-bar .gen-row { min-width:0; }
+    #generationComposer .control-bar .gen-row #mainGenBtn {
+        width:96px; min-width:96px !important; max-width:96px; padding:0 10px !important;
+    }
     #generationComposer .prompt-row .btn-text,
     #generationComposer #refImageBtnText { display:inline !important; }
     .generation-options-panel .generation-options-segments.is-ratio { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }

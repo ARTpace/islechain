@@ -1,0 +1,115 @@
+/* 应用页手机布局：只调整窄屏，工具条保留全部操作并在自身范围横向滚动。 */
+@media (max-width: 640px) {
+    *, *::before, *::after { box-sizing: border-box; }
+    .layout-container, .container-box, .app-container { max-width: 100%; min-width: 0; }
+    .layout-container :is(.flex, .grid), .container-box :is(.flex, .grid),
+    .lv-body > *, .lv-main, .lv-side { min-width: 0; }
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea { max-width: 100%; min-width: 0; }
+    .layout-container { padding-left: 12px !important; padding-right: 12px !important; }
+    body > header.pt-20 { padding-top: 20px; padding-bottom: 20px; }
+    .console-card > .flex.flex-col { padding-left: 12px; padding-right: 12px; }
+    .console-card .flex.justify-between > :first-child { min-width: 0; overflow-wrap: anywhere; }
+    #statusText { font-size: 11px; letter-spacing: normal; }
+    #statusDot { flex-shrink: 0; }
+    .upload-zone, .upload-zone-large { max-width: 100%; }
+
+    /* 参数表单允许逐项排布；与表单不同，横向动作条不再挤成多行。 */
+    :is(.tts-toolbar, .text-toolbar, .tts-toolbar-left, .tts-toolbar-right,
+        .rowbar, .lv-tabs, .lv-director-switchbar) {
+        min-width: 0; max-width: 100%; flex-wrap: nowrap !important;
+        overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+    }
+    :is(.tts-toolbar, .text-toolbar, .rowbar, .lv-tabs, .lv-director-switchbar) > * {
+        flex-shrink: 0;
+    }
+    /* 历史工具条共用入口：宽按钮仅在条内横滑，不撑大页面。 */
+    body .history-bulk-toolbar.history-bulk-toolbar {
+        min-width: 0 !important; width: 100%; max-width: 100%;
+        flex-wrap: nowrap !important; overflow-x: auto !important;
+        overscroll-behavior-x: contain; scrollbar-width: thin;
+    }
+    body .history-bulk-toolbar.history-bulk-toolbar > *,
+    body .history-bulk-toolbar.history-bulk-toolbar button { flex-shrink: 0; }
+    .lv-history-section { min-width: 0; max-width: 100%; }
+    .tts-toolbar-left, .tts-toolbar-right { overflow: visible; }
+    .text-toolbar-left { flex-wrap: nowrap !important; flex-shrink: 0; }
+    .rowbar { gap: 6px; }
+    .rowbar .chip { padding: 0 9px; }
+    .rowbar .grow { flex: 1 0 0; }
+    .thread { min-height: 0; }
+    .bubble { overflow-wrap: anywhere; }
+    .bubble .refs { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+    .bubble .refs img { flex-shrink: 0; }
+    .pending { max-width: 100%; }
+    .topbar { gap: 8px; }
+    .topbar .brand { flex-shrink: 0; }
+    .topbar .tbtn { padding: 0 8px; flex-shrink: 0; }
+    .page .top > :first-child { min-width: 0; }
+    .page .top .ghost { flex-shrink: 0; }
+    .refchip button { display: block; }
+
+    /* 视频提示词弹窗原有 360px 最小宽度会越过 320px 视口。 */
+    .lv-prompt-pop { min-width: 0; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+    .lv-lightbox-media audio { min-width: 0; width: 100%; }
+    .lv-director-switchbar { gap: 6px; }
+    .lv-director-bar { min-width: 0; flex-wrap: nowrap !important; flex: 0 0 auto !important; }
+    .lv-director-bar > * { flex-shrink: 0; }
+    .lv-director-bar .lv-run-aspect { flex: 0 0 auto; width: auto; margin-top: 0; }
+    /* 下拉面板离开横向滚动区域，避免纵向弹出被滚动容器裁切。 */
+    .lv-director-switchbar :is(.lv-param-panel, .lv-dropdown-menu, .lv-select-panel) {
+        position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px;
+        width: auto; min-width: 0; max-height: 60dvh; overflow-y: auto; z-index: 200;
+    }
+
+    /* TTS 菜单按手机底部浮层展开，避开窄工具条的裁切及旧坐标定位。 */
+    html body:has(.tts-input) .anima-ctrl-menu {
+        position: fixed !important; left: 12px !important; right: 12px !important;
+        top: auto !important; bottom: 12px !important; width: auto !important;
+        min-width: 0 !important; max-width: calc(100vw - 24px) !important;
+        max-height: 60dvh; transform: none !important; overflow-y: auto;
+    }
+    body:has(.tts-input) .control-bar { flex-wrap: nowrap; }
+    body:has(.tts-input) .control-bar > :first-child { min-width: 0; flex: 1; }
+    body:has(.tts-input) .control-bar > :last-child { flex: none; }
+    #modeDescription { overflow-wrap: anywhere; }
+
+    /* 音色选择器侧栏原占 180px，手机改为上下排列，筛选与音色均保留。 */
+    .voice-picker-body { flex-direction: column; min-height: 0; }
+    .voice-picker-sidebar { width: 100%; max-height: 120px; flex: 0 0 auto; border-right: 0; }
+    .voice-picker-content { min-width: 0; min-height: 0; }
+    .voice-picker-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .advanced-window { max-width: calc(100vw - 24px); }
+
+    /* 海报顶栏与训练页动作保持一行，内容可滑动而非被裁掉。 */
+    .container-box > header { gap: 10px; min-width: 0; }
+    .container-box > header > * { min-width: 0; }
+    .container-box > header h1 { font-size: 18px; }
+    .container-box > header [class~="tracking-[0.3em]"] { letter-spacing: .06em; }
+    .header-actions, .task-actions { max-width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    .header-actions > *, .task-actions > * { flex-shrink: 0; }
+
+    /* 贴图工作台桌面三栏在手机上按预览、设置、图层顺序展示。 */
+    body:has(> aside > #grids) {
+        height: auto; min-height: 100dvh; display: flex; flex-direction: column; overflow-y: auto;
+    }
+    body:has(> aside > #grids) > main { order: -1; height: 48dvh; min-height: 260px; flex: none; }
+    body:has(> aside > #grids) > aside { width: 100%; min-width: 0; border: 0; }
+    body:has(> aside > #grids) :is(input, select, textarea) { width: 100%; }
+    body:has(> aside > #grids) .layer { grid-template-columns: 44px minmax(0, 1fr) auto; }
+    body:has(> aside > #grids) #layers { max-height: 50dvh; }
+
+    /* 3D 页不再让左右固定面板盖住整个预览，手机按文档流滚动。 */
+    html:has(body > #view + .panel), body:has(> #view + .panel) { height: auto; overflow: auto; }
+    body:has(> #view + .panel) { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+    body:has(> #view + .panel) > #view {
+        position: relative; inset: auto; width: 100%; height: 48dvh; min-height: 260px; flex: none;
+    }
+    body:has(> #view + .panel) > :is(.panel, .assetbar) {
+        position: relative; inset: auto; width: 100%; max-height: none; flex: none;
+    }
+    body:has(> #view + .panel) .panel-body { overflow: visible; }
+    body:has(> #view + .panel) .asset-grid { max-height: 50dvh; flex: none; }
+    body:has(> #view + .panel) .modal-card { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; }
+    #tpOptimizer .tripo-optimize-layout { grid-template-columns: minmax(0, 1fr); }
+    #tpOptimizer .tripo-optimize-preview { position: static; }
+}

@@ -16,7 +16,7 @@ from comfy_api.latest import ComfyExtension, io
 class ArtCanvasFeyNoBg(io.ComfyNode):
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id='ArtCanvasFeyNoBg', display_name='FeyNoBg (Art Canvas · isolated)', category='Art Canvas/抠图',
+        return io.Schema(node_id='ArtCanvasFeyNoBg', display_name='FeyNoBg (IsleChain · isolated)', category='IsleChain/抠图',
                          inputs=[io.Image.Input('image'),
                                  io.Boolean.Input('refine_foreground', default=True, optional=True),
                                  io.Combo.Input('background', options=['Alpha', 'Color'], default='Alpha', optional=True),
@@ -27,7 +27,7 @@ class ArtCanvasFeyNoBg(io.ComfyNode):
     def execute(cls, image, refine_foreground=True, background='Alpha', background_color='#222222'):
         worker = Path(sys.executable).parent.parent / 'cutout-fey-runtime' / 'run_fey.py'
         if not worker.is_file():
-            raise RuntimeError('FeyNoBg isolated runtime is missing; run the Art Canvas cutout installer')
+            raise RuntimeError('FeyNoBg isolated runtime is missing; run the IsleChain cutout installer')
         comfy.model_management.unload_all_models()
         images, masks = [], []
         with tempfile.TemporaryDirectory(prefix='art-canvas-fey-') as directory:

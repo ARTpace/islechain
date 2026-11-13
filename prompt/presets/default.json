@@ -2,7 +2,6 @@
   "id": "default",
   "name": "Anima",
   "description": "NSFW",
-  "provider_id": "mimo::mimo-v2.5",
   "model_mode": "ANIMA",
   "temperature": 0.7,
   "max_tokens": 1024,

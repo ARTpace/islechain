@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<!--
+  屿链 · 登录页独立版（单文件，无外部依赖）
+  · 直接用浏览器打开即可预览，也可以整份丢给别的工具继续迭代
+  · 样式分三层：设计系统变量(studio-ui) → 登录页样式(login.css) → 独立版覆盖层(CSS 极光)
+  · 交互：密码显隐、空值校验、提交加载态、点标识的「通电」彩蛋
+  · 接后端时只需替换底部 script 里 form submit 那段
+-->
+
+<html lang="zh-CN" class="studio-theme-dark" data-studio-scale="off" data-login-bg-dark="1">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>登录 · 屿链</title>
+    <style>
+/* =====================================================================
+   studio-ui.css — IsleChain 统一设计系统 v3「高定」
+   响应式（桌面 / 平板 / 移动）+ 深浅双主题（统一切换）
+   ---------------------------------------------------------------------
+   v3 铁律（10 条，全部编码进本文件，34 个界面共享继承）：
+   1  去边框    —— 1%~3% 微明度分层代替描边；浅色 #f7f6f4/#fbfaf9，
+                   暗色 #0b0b0a/#151515/#1a1a19/#20201e；禁纯黑 #0b0b0a。
+   2  输入框    —— 聚焦不加 outline，改「双环 box-shadow」造咬合感。
+   3  暗色补偿  —— 字重全降 40（400→360 / 700→660），防白字发胖。
+   4  流式打字  —— 单字 90ms，blur(6px)→清晰，ease cubic-bezier(.215,.61,.355,1)，
+                   相邻字错开 30ms 晕开。
+   5  行内图标  —— vertical-align:-0.125em 对齐中心。
+   6  数字防抖  —— tabular-nums 锁等宽。
+   7  丝滑折叠  —— 免 JS 算高，Grid 0fr→1fr 过渡。
+   8  防孤字    —— 正文 text-wrap:pretty。
+   9  动效性格  —— 拖拽用过阻尼弹簧(1200/80) 零回弹；点赞/对勾用欠阻尼(380/18) 微弹。
+   10 反馈自熄  —— 复制对勾 2.5s 后自动淡出恢复。
+   ---------------------------------------------------------------------
+   契约约定：
+   - 组件类全部 opt-in（须带 .ui-* 类），不污染未接管元素。
+   - 颜色统一引用 var(--ui-*)；本文件内的变量字面量是浅色一套，深色由 .studio-theme-dark 覆盖。
+     注意：应用默认主题是深色（见 static/js/theme-default.js 的 STUDIO_DEFAULT_THEME），
+     页面加载时 theme.js 会立刻挂上 .studio-theme-dark，所以这里"浅色在前"只是声明顺序，
+     不代表用户默认看到浅色；
+     与现有 theme.js（StudioTheme.set / studio_accent / studio-look-change）完全对齐。
+   - 动效全部带 prefers-reduced-motion 降级。
+   ===================================================================== */
+
+/* ---------- 浅色主题（默认）：暖中性，靠明度分层，不靠描边 ---------- */
+:root {
+  /* 明度阶梯（相邻级差 1%~3%） */
+  --ui-bg: #f7f6f4;          /* 页面底 */
+  --ui-panel: #fbfaf9;       /* 卡片/面板（最亮层） */
+  --ui-soft: #f5f5f3;        /* 内嵌区（次层） */
+  --ui-line: #eeede9;        /* 分隔线（克制使用） */
+  --ui-line-strong: #e7e5de; /* 需要边界的控件 */
+  --ui-edge: transparent;    /* 去边框：默认透明，占位不塌陷 */
+
+  --ui-text: #1a1a19;
+  --ui-muted: #6c6b62;
+  --ui-faint: #9e9c93;
+  --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
+  --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
+
+  /* 强调色沿用品牌青（theme.js 的 5 套 accent 仍可覆盖 --accent） */
+  --ui-accent: #0e7490;
+  --ui-accent-glow: #0891b2;
+  --ui-accent-ink: #fbfaf9;
+  --ui-accent-soft: rgba(14, 116, 144, .10);
+
+  /* 层级阴影（替代描边的主要手段） */
+  --ui-shadow: 0 1px 2px rgba(24, 24, 23, .04), 0 8px 24px rgba(24, 24, 23, .05);
+  --ui-shadow-strong: 0 2px 4px rgba(24, 24, 23, .05), 0 16px 40px rgba(24, 24, 23, .09);
+  --ui-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .7);
+
+  /* 字重（浅色基准） */
+  --ui-fw-regular: 400;
+  --ui-fw-medium: 500;
+  --ui-fw-semibold: 600;
+  --ui-fw-bold: 700;
+
+  /* 圆角 / 节奏 */
+  --ui-r-xs: 8px;
+  --ui-r-sm: 12px;
+  --ui-r: 16px;
+  --ui-r-lg: 22px;
+  --ui-r-pill: 999px;
+
+  /* 动效性格（铁律 9） */
+  --ui-ease: cubic-bezier(.4, 0, .2, 1);
+  --ui-ease-spring: cubic-bezier(.16, 1, .3, 1);   /* 过阻尼弹簧 1200/80 · 零回弹 */
+  --ui-ease-bounce: cubic-bezier(.34, 1.56, .64, 1); /* 欠阻尼 380/18 · 微弹 */
+  --ui-ease-type: cubic-bezier(.215, .61, .355, 1); /* 打字专用 */
+  --ui-t-fast: .15s;
+  --ui-t: .22s;
+  --ui-t-slow: .38s;
+
+  --ui-gap: clamp(10px, 1.5vw, 16px);
+  --ui-pad: clamp(14px, 2.2vw, 22px);
+}
+
+/* ---------- 深色主题：暖近黑（禁纯黑），字重整体降 40 ---------- */
+html.studio-theme-dark,
+body.studio-theme-dark,
+html.studio-theme-dark body,
+body.theme-dark {
+  --ui-bg: #14161c;
+  --ui-panel: #1c202a;
+  --ui-soft: #252b38;
+  --ui-line: #343b4c;
+  --ui-line-strong: #445066;
+  --ui-edge: transparent;
+
+  --ui-text: #f6f6f4;
+  --ui-muted: #b0aea5;
+  --ui-faint: #86857c;
+  --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
+  --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
+
+  --ui-accent: #00f0ff;
+  --ui-accent-glow: #06b6d4;
+  --ui-accent-ink: #10100f;
+  --ui-accent-soft: rgba(0, 240, 255, .12);
+
+  --ui-shadow: 0 1px 2px rgba(0, 0, 0, .42), 0 10px 30px rgba(0, 0, 0, .34);
+  --ui-shadow-strong: 0 2px 6px rgba(0, 0, 0, .5), 0 20px 48px rgba(0, 0, 0, .44);
+  --ui-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .04);
+
+  /* 铁律 3：暗色字重全降 40 */
+  --ui-fw-regular: 360;
+  --ui-fw-medium: 460;
+  --ui-fw-semibold: 560;
+  --ui-fw-bold: 660;
+}
+
+/* =====================================================================
+   铁律 3：暗色字重补偿（全局覆盖显式字重声明）
+   ===================================================================== */
+html.studio-theme-dark body :where(h1, h2, h3, h4, h5, h6) { font-weight: var(--ui-fw-semibold); }
+html.studio-theme-dark body :where(strong, b, th) { font-weight: var(--ui-fw-bold); }
+html.studio-theme-dark body :where(label, legend, .muted, .subtitle) { font-weight: var(--ui-fw-medium); }
+html.studio-theme-dark body :where(.font-black) { font-weight: 660 !important; }
+html.studio-theme-dark body :where(.font-bold) { font-weight: 660 !important; }
+html.studio-theme-dark body :where(.font-semibold) { font-weight: 560 !important; }
+html.studio-theme-dark body :where(.font-medium) { font-weight: 460 !important; }
+
+/* =====================================================================
+   铁律 2：输入框聚焦 = 双环 box-shadow 咬合感（不加 outline）
+   ===================================================================== */
+:where(input, textarea, select, [contenteditable]):focus,
+:where(input, textarea, select, [contenteditable]):focus-visible {
+  outline: none !important;
+  border-color: var(--ui-line-strong);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 42%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 13%, transparent);
+  transition: border-color var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease);
+}
+/* 非输入元素仍保留可见焦点环（无障碍） */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* =====================================================================
+   铁律 5 / 6 / 8：行内图标对齐、等宽数字、防孤字
+   ===================================================================== */
+:where(p, li, td, dd, dt, label, figcaption, blockquote) > svg,
+.ui-inline-icon,
+svg[data-lucide] { vertical-align: -0.125em; }
+
+.ui-num,
+[data-num],
+.tabular,
+:where(input[type="number"], input[type="date"], input[type="time"], time, .tabular-nums) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+body, p, li, dd, dt, blockquote,
+.bubble, .bubble-text, .msg, .message, .prose {
+  text-wrap: pretty;
+}
+
+/* =====================================================================
+   铁律 7：丝滑折叠（免 JS 算高，Grid 0fr→1fr）
+   ===================================================================== */
+.ui-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--ui-t-slow) var(--ui-ease-spring);
+}
+.ui-collapse > .ui-collapse-inner { overflow: hidden; min-height: 0; }
+.ui-collapse.is-open,
+.ui-collapse[open] { grid-template-rows: 1fr; }
+
+/* =====================================================================
+   响应式布局工具类
+   ===================================================================== */
+.ui-container {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: var(--ui-pad);
+  box-sizing: border-box;
+}
+.ui-row { display: flex; flex-wrap: wrap; gap: var(--ui-gap); align-items: stretch; }
+.ui-row.middle { align-items: center; }
+.ui-row.center { justify-content: center; }
+.ui-row.between { justify-content: space-between; }
+.ui-row.nowrap { flex-wrap: nowrap; }
+.ui-stack { display: flex; flex-direction: column; gap: var(--ui-gap); }
+
+.ui-grid {
+  display: grid;
+  gap: var(--ui-gap);
+  grid-template-columns: repeat(var(--ui-cols, 1), minmax(0, 1fr));
+}
+.ui-grid.c2 { --ui-cols: 2; }
+.ui-grid.c3 { --ui-cols: 3; }
+.ui-grid.c4 { --ui-cols: 4; }
+.ui-grid.auto { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+@media (max-width: 1024px) {
+  .ui-grid.c4 { --ui-cols: 2; }
+  .ui-grid.c3 { --ui-cols: 2; }
+}
+@media (max-width: 640px) {
+  .ui-grid.c2, .ui-grid.c3, .ui-grid.c4 { --ui-cols: 1; }
+  .ui-row.nowrap { flex-wrap: wrap; }
+}
+
+.ui-hide-mobile { display: initial; }
+.ui-show-mobile { display: none !important; }
+@media (max-width: 640px) {
+  .ui-hide-mobile { display: none !important; }
+  .ui-show-mobile { display: initial !important; }
+}
+.ui-hide-tablet { display: initial; }
+.ui-show-tablet { display: none !important; }
+@media (min-width: 641px) and (max-width: 1024px) {
+  .ui-hide-tablet { display: none !important; }
+  .ui-show-tablet { display: initial !important; }
+}
+
+.ui-pad { padding: var(--ui-pad); box-sizing: border-box; }
+.ui-gap { gap: var(--ui-gap); }
+.ui-fluid { font-size: clamp(14px, .9vw + 10px, 18px); }
+.ui-img-fluid { max-width: 100%; height: auto; display: block; }
+.ui-scroll { overflow: auto; }
+.ui-page {
+  display: flex; flex-direction: column; min-height: 100%;
+  background: var(--ui-bg); color: var(--ui-text);
+}
+.ui-drawer { display: flex; gap: var(--ui-gap); align-items: stretch; }
+@media (max-width: 640px) { .ui-drawer { flex-direction: column; } }
+
+/* 暗色滚动条 */
+html.studio-theme-dark ::-webkit-scrollbar,
+body.studio-theme-dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.studio-theme-dark ::-webkit-scrollbar-thumb,
+body.studio-theme-dark ::-webkit-scrollbar-thumb {
+  background: var(--ui-line-strong); border-radius: 999px;
+}
+html.studio-theme-dark ::-webkit-scrollbar-track,
+body.studio-theme-dark ::-webkit-scrollbar-track { background: transparent; }
+
+/* =====================================================================
+   主题感知组件（opt-in）
+   ===================================================================== */
+
+/* 表面 / 卡片：铁律 1 —— 无描边，靠明度分层 + 阴影 */
+.ui-surface,
+.ui-card {
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-edge);          /* 占位透明，不塌陷 */
+  border-radius: var(--ui-r);
+  box-shadow: var(--ui-shadow);
+  transition: box-shadow var(--ui-t-fast) var(--ui-ease),
+              transform var(--ui-t-fast) var(--ui-ease),
+              background var(--ui-t-fast) var(--ui-ease);
+}
+.ui-card:hover,
+.ui-surface:hover { box-shadow: var(--ui-shadow-strong); }
+/* 需要边界时显式开启 */
+.ui-edged { border-color: var(--ui-line) !important; }
+
+/* 文本输入 */
+.ui-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  background: var(--ui-soft);
+  border: 1px solid transparent;              /* 去边框：靠底色分层 */
+  border-radius: var(--ui-r-sm);
+  color: var(--ui-text);
+  font-size: 14px;
+  font-weight: var(--ui-fw-regular);
+  box-sizing: border-box;
+  transition: border-color var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease),
+              background var(--ui-t-fast) var(--ui-ease);
+}
+.ui-input::placeholder { color: var(--ui-faint); }
+.ui-input:hover { background: color-mix(in srgb, var(--ui-soft) 70%, var(--ui-panel)); }
+textarea.ui-input { height: auto; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+
+/* 按钮：基础 / 主操作 / 幽灵 */
+.ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 16px;
+  border-radius: var(--ui-r-sm);
+  border: 1px solid transparent;
+  background: var(--ui-soft);
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: var(--ui-fw-semibold);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background var(--ui-t-fast) var(--ui-ease),
+              color var(--ui-t-fast) var(--ui-ease),
+              transform var(--ui-t-fast) var(--ui-ease),
+              box-shadow var(--ui-t-fast) var(--ui-ease);
+}
+.ui-btn:hover { background: color-mix(in srgb, var(--ui-soft) 60%, var(--ui-panel)); }
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+.ui-btn-primary {
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  font-weight: var(--ui-fw-bold);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+}
+.ui-btn-primary:hover {
+  background: color-mix(in srgb, var(--ui-accent) 88%, var(--ui-accent-ink));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ui-accent) 26%, transparent);
+  transform: translateY(-1px);
+}
+
+.ui-btn-ghost { background: transparent; color: var(--ui-muted); }
+.ui-btn-ghost:hover { background: var(--ui-soft); color: var(--ui-text); }
+
+/* 图标按钮 */
+.ui-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--ui-r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ui-muted);
+  cursor: pointer;
+  transition: background var(--ui-t-fast) var(--ui-ease),
+              color var(--ui-t-fast) var(--ui-ease);
+}
+.ui-icon-btn:hover { color: var(--ui-accent); background: var(--ui-soft); }
+.ui-icon-btn svg { width: 18px; height: 18px; vertical-align: middle; }
+
+/* 分段控件 */
+.ui-seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--ui-soft);
+  border-radius: var(--ui-r-pill);
+  flex-wrap: wrap;
+}
+.ui-seg button {
+  height: 34px; padding: 0 14px;
+  border: 0; border-radius: var(--ui-r-pill);
+  background: transparent; color: var(--ui-muted);
+  font-size: 12px; font-weight: var(--ui-fw-semibold);
+  cursor: pointer;
+  transition: all var(--ui-t-fast) var(--ui-ease);
+}
+.ui-seg button:hover { color: var(--ui-text); }
+.ui-seg button.active {
+  background: var(--ui-panel); color: var(--ui-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .14);
+}
+
+/* 开关 */
+.ui-switch {
+  position: relative; display: inline-flex; align-items: center;
+  width: 44px; height: 24px; flex: 0 0 auto;
+}
+.ui-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ui-switch .track {
+  position: absolute; inset: 0;
+  background: var(--ui-line-strong);
+  border-radius: var(--ui-r-pill);
+  transition: background var(--ui-t) var(--ui-ease);
+}
+.ui-switch .thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ui-panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
+  transition: transform var(--ui-t) var(--ui-ease-bounce); /* 铁律 9：微弹 */
+}
+.ui-switch input:checked + .track { background: var(--ui-accent); }
+.ui-switch input:checked + .track .thumb { transform: translateX(20px); }
+.ui-switch input:focus-visible + .track { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+/* 药丸徽标 */
+.ui-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: var(--ui-r-pill);
+  font-size: 11px; font-weight: var(--ui-fw-bold); letter-spacing: .04em;
+  background: var(--ui-accent-soft); color: var(--ui-accent);
+}
+
+/* 状态点（呼吸） */
+.ui-status-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 60%, transparent);
+  animation: uiPulse 2s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+
+/* 标签页 */
+.ui-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--ui-line); }
+.ui-tab {
+  padding: 10px 14px; border: 0; background: transparent;
+  color: var(--ui-muted);
+  font-size: 13px; font-weight: var(--ui-fw-semibold);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: color var(--ui-t-fast) var(--ui-ease), border-color var(--ui-t-fast) var(--ui-ease);
+}
+.ui-tab:hover { color: var(--ui-text); }
+.ui-tab.active { color: var(--ui-accent); border-bottom-color: var(--ui-accent); }
+
+/* 表格 */
+.ui-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ui-table th, .ui-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--ui-line); }
+.ui-table th { color: var(--ui-muted); font-weight: var(--ui-fw-semibold); background: var(--ui-soft); }
+.ui-table tbody tr:hover { background: var(--ui-soft); }
+
+/* 分隔线 / 文字层级 */
+.ui-divider { height: 1px; background: var(--ui-line); border: 0; margin: var(--ui-gap) 0; }
+.ui-text { color: var(--ui-text); }
+.ui-muted { color: var(--ui-muted); }
+.ui-faint { color: var(--ui-faint); }
+.ui-accent { color: var(--ui-accent); }
+
+/* =====================================================================
+   铁律 4：流式打字（单字 90ms，blur(6px)→清晰，相邻字错开 30ms）
+   由 ui-refine.js 为每个字符输出 .ui-ch 并写入 --d 延迟变量
+   ===================================================================== */
+.ui-ch {
+  display: inline-block;
+  white-space: pre;
+  animation: uiCharIn 90ms var(--ui-ease-type) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes uiCharIn {
+  from { filter: blur(6px); opacity: .28; }
+  to   { filter: blur(0);   opacity: 1; }
+}
+/* 打字中的光标 */
+.ui-caret {
+  display: inline-block; width: 2px; height: 1em;
+  vertical-align: -0.125em;
+  background: var(--ui-accent);
+  margin-left: 2px;
+  animation: uiCaret 1s steps(2, end) infinite;
+}
+@keyframes uiCaret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+/* =====================================================================
+   铁律 9：动效性格
+   ===================================================================== */
+/* 过阻尼弹簧（1200/80）：拖拽 / 位置变化，零回弹 */
+.ui-spring { transition-timing-function: var(--ui-ease-spring); }
+/* 欠阻尼（380/18）：点赞 / 对勾 / 确认，微弹 */
+.ui-bounce { transition-timing-function: var(--ui-ease-bounce); }
+.ui-pop { animation: uiPop 380ms var(--ui-ease-bounce) both; }
+@keyframes uiPop {
+  0%   { transform: scale(.86); opacity: .4; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* =====================================================================
+   铁律 10：反馈自熄（复制对勾 2.5s 后自动淡出恢复）
+   ===================================================================== */
+.ui-copy-state { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.ui-copy-state .ui-copy-done {
+  animation: uiCopyFade 2.5s var(--ui-ease) forwards;
+}
+@keyframes uiCopyFade {
+  0%, 68%   { opacity: 1; transform: scale(1); }
+  100%      { opacity: 0; transform: scale(.92); }
+}
+
+/* =====================================================================
+   动效工具类
+   ===================================================================== */
+.ui-fade-in { animation: uiFadeIn var(--ui-t) var(--ui-ease) both; }
+.ui-shimmer { position: relative; overflow: hidden; }
+.ui-shimmer::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%,
+    color-mix(in srgb, var(--ui-accent) 14%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: uiShimmer 1.4s ease-in-out infinite;
+}
+.ui-pulse { animation: uiPulse 2s ease-in-out infinite; }
+.ui-breathe { animation: uiBreathe 2.4s ease-in-out infinite; }
+
+@keyframes uiFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes uiShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes uiPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ui-accent) 0%, transparent); }
+}
+@keyframes uiBreathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* =====================================================================
+   设置面板抛光（scoped 到 settings.js 注入节点，零 JS 改动）
+   ===================================================================== */
+#login-modal input:focus {
+  border-color: var(--ui-line-strong) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 42%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 13%, transparent) !important;
+  outline: none !important;
+}
+#login-submit-btn:hover { filter: brightness(1.04); transform: translateY(-1px); }
+#login-register-btn:hover { background: var(--ui-accent-soft) !important; }
+#account-menu button:hover,
+#account-menu a:hover { background: var(--ui-accent-soft) !important; }
+.field-frame:focus-within {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 38%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 11%, transparent);
+}
+
+/* =====================================================================
+   无障碍降级
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .ui-fade-in, .ui-shimmer::after, .ui-pulse, .ui-breathe,
+  .ui-ch, .ui-pop, .ui-copy-state .ui-copy-done { animation: none !important; }
+  * { scroll-behavior: auto !important; }
+  .ui-ch { filter: none !important; opacity: 1 !important; }
+}
+
+/* 旧模块兼容契约：所有界面色最终回到同一套外观变量。 */
+:root,html.studio-theme-dark,body,body.studio-theme-dark,body.theme-dark{
+ --bg-primary:var(--ui-bg);--bg-secondary:var(--ui-panel);--bg-tertiary:var(--ui-soft);
+ --text-primary:var(--ui-text);--text-secondary:var(--ui-muted);--border-color:var(--ui-line-strong);--accent-color:var(--ui-accent);
+ --ui-success:#187747;--ui-warning:#926012;--ui-error:#ba3445;
+}
+html.studio-theme-dark,html.studio-theme-dark body,body.theme-dark{
+ --ui-success:#71cea3;--ui-warning:#e8ba65;--ui-error:#f48b97;
+}
+
+:root{color-scheme:light}html.studio-theme-dark{color-scheme:dark}
+input::placeholder,textarea::placeholder{color:var(--ui-muted);opacity:1}
+input[type="checkbox"],input[type="radio"]{accent-color:var(--ui-accent)}
+
+/* 登录页样式 —— 独立成文件，便于按"页面/样式/脚本"三块维护。
+ * 颜色全部走 studio-ui.css 的 --ui-* 变量，深浅两态自动跟随；
+ * 唯一的判断是 html[data-login-bg-dark="0"]（浅色背景态），由 login-bg.js 设置。
+ */
+
+    :root {
+        --login-max: 376px;
+        --login-radius: 22px;
+
+        /* ---------- 墨色阶梯（登录页专用） ----------
+         * 从 --ui-text / --ui-bg 现场派生，明暗两态自动跟随主题：
+         *   暗色 --ui-text #f6f6f4 混 --ui-bg #14161c → 浅灰
+         *   浅色 --ui-text #1a1a19 混 --ui-bg #f7f6f4 → 中灰
+         * 不用 --ui-muted / --ui-faint：那是全站灰阶，浅色底上只有
+         * 3.6:1 / 2.5:1，小字（副标题、label、页脚）会发虚、达不到 AA。
+         *
+         * 比例按明暗分开定：浅色底要够暗才够 4.5:1；暗色底本来就易读，
+         * 混得太多会跟标题（--ui-text）拉得太近、层级被压平。
+         */
+        --login-ink:       color-mix(in srgb, var(--ui-text) 74%, var(--ui-bg));
+        --login-ink-faint: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
+    }
+    /* 暗色底：比例比浅色低一档，避免跟标题（--ui-text）拉得太近、层级被压平；
+       但不能更低 —— 暗底的对比度余量本来就小（灰阶本来就亮），
+       实测 56% 会让 night 调色板的 placeholder 掉到 4.47:1（不及 AA）。 */
+    html.studio-theme-dark {
+        --login-ink:       color-mix(in srgb, var(--ui-text) 66%, var(--ui-bg));
+        --login-ink-faint: color-mix(in srgb, var(--ui-text) 58%, var(--ui-bg));
+    }
+    html, body { overflow: hidden; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--ui-bg, #14161c);
+        color: var(--ui-text, #e6e5e0);
+        font-family: 'Inter', -apple-system, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        animation: pageIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) both;
+    }
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ---------- 背景层 ---------- */
+    #bgCanvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 0;
+        pointer-events: none;
+        /* 低分辨率缓冲放大后仍有圆形轮廓，再糊一层让光斑边界彻底消失；
+           scale 补偿 blur 在边缘留下的透明带 */
+        filter: blur(26px);
+        transform: scale(1.08);
+    }
+    .vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 26%, rgba(0, 0, 0, .52) 100%);
+    }
+    html[data-login-bg-dark="0"] .vignette {
+        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 30%, rgba(255, 255, 255, .42) 100%);
+    }
+    .grain {
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        pointer-events: none;
+        opacity: .038;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    html[data-login-bg-dark="0"] .grain { opacity: .022; }
+
+    /* ---------- 入场动效：全站统一一条曲线，位移 10px，不做闪烁 ---------- */
+    @keyframes riseIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes cardIn {
+        from { opacity: 0; transform: translate(-50%, -47%) scale(.985); }
+        to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* ---------- 品牌区 ---------- */
+    .brand {
+        position: fixed;
+        top: clamp(30px, 8vh, 74px);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        text-align: center;
+        pointer-events: none;
+        animation: brandRise .8s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) backwards;
+    }
+    @keyframes brandRise {
+        from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    /* 品牌标记：一圈极细的圆环托住岛群，只留一层几乎看不见的光，
+       重量全部交给几何本身，不加填充、不加厚边 */
+    .brand-badge {
+        display: grid;
+        place-items: center;
+        width: 58px;
+        height: 58px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        border: 1px solid color-mix(in srgb, var(--ui-accent, #0e7490) 20%, transparent);
+        background:
+            radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--ui-accent, #0e7490) 9%, transparent), transparent 68%);
+        box-shadow:
+            0 0 26px color-mix(in srgb, var(--ui-accent, #0e7490) 12%, transparent),
+            inset 0 0 22px color-mix(in srgb, #ffffff 3%, transparent);
+        cursor: pointer;
+        /* .brand 整体 pointer-events:none，这里单独放开，否则悬停与按下都收不到 */
+        pointer-events: auto;
+        transition: border-color .35s var(--ui-ease, ease),
+                    box-shadow .35s var(--ui-ease, ease),
+                    transform .4s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1));
+    }
+    /* 悬停：环收紧一点、光晕微亮，航线开始流动 —— 像群岛之间真的有船在跑 */
+    .brand-badge:hover {
+        border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 34%, transparent);
+        box-shadow:
+            0 0 32px color-mix(in srgb, var(--ui-accent, #0e7490) 20%, transparent),
+            inset 0 0 22px color-mix(in srgb, #ffffff 5%, transparent);
+    }
+    .brand-badge:hover .mark { transform: scale(1.05); }
+    .brand-badge:hover .route { opacity: .78; stroke-dasharray: 4 4; animation-duration: 1.7s; }
+    .brand-badge:hover .link { opacity: .95; animation-duration: 1.5s; }
+    /* 按下：整枚图形轻微回弹，像把岛拍在桌上对齐了一下 */
+    .brand-badge:active { transform: scale(.955); }
+    .brand-badge:active .mark { transform: rotate(-8deg) scale(.97); }
+    html[data-login-bg-dark="0"] .brand-badge {
+        border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 22%, transparent);
+        background:
+            radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--ui-accent, #0e7490) 7%, transparent), transparent 68%);
+        box-shadow:
+            0 0 20px color-mix(in srgb, var(--ui-accent, #0e7490) 8%, transparent),
+            inset 0 0 22px rgba(255, 255, 255, .35);
+    }
+    .brand .mark {
+        display: block;
+        width: 27px;
+        height: 27px;
+        color: var(--ui-accent, #0e7490);
+        transform-origin: center;
+        transition: transform .45s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1));
+        overflow: visible;
+    }
+    /* 静息状态：三座岛各自极慢地漂，节奏互不同步，像被海推着；
+       航线走虚线偏移，一直在动却没有一处抢眼 */
+    .brand .isle {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: isleDrift 8s var(--ui-ease, ease-in-out) infinite alternate;
+    }
+    .brand .isle-a { animation-duration: 9.6s; animation-delay: -1.4s; }
+    .brand .isle-b { animation-duration: 11.2s; animation-delay: -3.1s; }
+    .brand .route {
+        stroke-dasharray: 3 6;
+        animation: routeFlow 5.4s linear infinite;
+        transition: opacity .22s var(--ui-ease, ease), stroke-width .22s var(--ui-ease, ease);
+    }
+    /* 链扣：航线中段的三枚小环，屿链的「链」就落在这一层；
+       呼吸幅度比岛屿更小，只用明暗，不动位置 */
+    .brand .link {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: linkBreath 6.4s var(--ui-ease, ease-in-out) infinite alternate;
+    }
+    .brand .link-2 { animation-duration: 7.8s; animation-delay: -2.1s; }
+    .brand .link-3 { animation-duration: 9s; animation-delay: -4.3s; }
+    @keyframes linkBreath {
+        from { opacity: .4; }
+        to   { opacity: .95; }
+    }
+    /* 光点与水纹：静息时完全隐去，只在点击彩蛋里出场 */
+    .brand .spark { opacity: 0; }
+    .brand .ripple {
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+    }
+    /* 通电序列：链扣按 ①→②→③ 依次点亮，光点顺着航线跑到下一座岛，
+       最后主岛荡开一圈水纹，整段约 1.9s，跑完自己复位 */
+    .brand-badge.is-charged { animation: badgeFlash .9s ease-out; }
+    .brand-badge.is-charged .mark { animation: markKick .86s cubic-bezier(.16,1,.3,1); }
+    .brand-badge.is-charged .route {
+        opacity: .92;
+        stroke-dasharray: 5 3;
+        animation-duration: .8s;
+    }
+    .brand-badge.is-charged .link-1 { animation: linkFlash .46s .06s ease-out; }
+    .brand-badge.is-charged .link-2 { animation: linkFlash .46s .30s ease-out; }
+    .brand-badge.is-charged .link-3 { animation: linkFlash .46s .54s ease-out; }
+    .brand-badge.is-charged .spark-1 { animation: sparkRun1 .46s .10s cubic-bezier(.4,0,.55,1) both; }
+    .brand-badge.is-charged .spark-2 { animation: sparkRun2 .52s .34s cubic-bezier(.4,0,.55,1) both; }
+    .brand-badge.is-charged .spark-3 { animation: sparkRun3 .5s .58s cubic-bezier(.4,0,.55,1) both; }
+    .brand-badge.is-charged .ripple { animation: rippleOut 1s .8s ease-out both; }
+    @keyframes badgeFlash {
+        0%, 100% {
+            border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 20%, transparent);
+            box-shadow: 0 0 26px color-mix(in srgb, var(--ui-accent, #0e7490) 12%, transparent),
+                        inset 0 0 22px color-mix(in srgb, #ffffff 3%, transparent);
+        }
+        32% {
+            border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 58%, transparent);
+            box-shadow: 0 0 42px color-mix(in srgb, var(--ui-accent, #0e7490) 32%, transparent),
+                        inset 0 0 24px color-mix(in srgb, #ffffff 8%, transparent);
+        }
+    }
+    @keyframes markKick {
+        0%   { transform: rotate(0deg) scale(1); }
+        28%  { transform: rotate(-6deg) scale(1.08); }
+        100% { transform: rotate(0deg) scale(1); }
+    }
+    @keyframes linkFlash {
+        0%   { opacity: .42; stroke-width: .95; }
+        32%  { opacity: 1; stroke-width: 2.1; }
+        100% { opacity: .42; stroke-width: .95; }
+    }
+    @keyframes sparkRun1 {
+        0%   { opacity: 0; transform: translate(0, 0); }
+        18%  { opacity: 1; }
+        82%  { opacity: 1; }
+        100% { opacity: 0; transform: translate(9px, .9px); }
+    }
+    @keyframes sparkRun2 {
+        0%   { opacity: 0; transform: translate(0, 0); }
+        18%  { opacity: 1; }
+        82%  { opacity: 1; }
+        100% { opacity: 0; transform: translate(-4.7px, 6.8px); }
+    }
+    @keyframes sparkRun3 {
+        0%   { opacity: 0; transform: translate(0, 0); }
+        18%  { opacity: 1; }
+        82%  { opacity: 1; }
+        100% { opacity: 0; transform: translate(-3.9px, -6.8px); }
+    }
+    @keyframes rippleOut {
+        0%   { opacity: .5; transform: scale(1); }
+        100% { opacity: 0; transform: scale(3.3); }
+    }
+    @keyframes isleDrift {
+        from { transform: translate(0, 0); }
+        to   { transform: translate(.9px, -1px); }
+    }
+    @keyframes routeFlow {
+        to { stroke-dashoffset: -18; }
+    }
+    .brand h1 {
+        margin: 0;
+        font-size: clamp(19px, 2.3vw, 22px);
+        /* 高级感靠留白和字距，不靠字重和字号：字重压到 medium，字距拉到 34% */
+        font-weight: var(--ui-fw-medium, 500);
+        letter-spacing: .34em;
+        text-indent: .34em;
+        color: var(--ui-text, #e6e5e0);
+    }
+    /* 名字下的一条发丝线：给中文两字一个收口，避免标题直愣愣悬着 */
+    .brand h1::after {
+        content: '';
+        display: block;
+        width: 26px;
+        height: 1px;
+        margin: 12px auto 0;
+        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ui-accent, #0e7490) 58%, transparent), transparent);
+    }
+    .brand p {
+        margin: 11px 0 0;
+        font-size: 10.5px;
+        font-weight: var(--ui-fw-regular, 400);
+        letter-spacing: .22em;
+        text-indent: .22em;
+        color: var(--login-ink);
+    }
+
+    /* ---------- 表单卡片 ---------- */
+    #loginForm {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        width: min(var(--login-max), 92vw);
+        padding: clamp(20px, 3vw, 28px);
+        box-sizing: border-box;
+        border-radius: var(--login-radius);
+        /* 光之解锁：弱化容器感，只留极淡玻璃浮岛，让背后收束的极光透出更多 */
+        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 14%, transparent);
+        background: color-mix(in srgb, var(--ui-panel, #1c202a) 16%, transparent);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, .34);
+        animation: cardIn .62s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) .06s backwards;
+    }
+    html[data-login-bg-dark="0"] #loginForm {
+        border-color: color-mix(in srgb, var(--ui-line-strong, #e7e5de) 20%, transparent);
+        background: color-mix(in srgb, var(--ui-panel, #f3f2ef) 26%, transparent);
+        box-shadow: 0 16px 44px rgba(28, 32, 42, .12);
+    }
+
+    /* 卡片内元素依次浮现：位移只有 10px，间隔 55ms，避免"炫技感" */
+    .field, .btn-primary, .btn-link {
+        animation: riseIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) backwards;
+    }
+    /* 用相邻选择器而不是 nth-of-type —— 表单里还有防自动填充的隐藏 div，
+       nth-of-type 会被它挤位，导致延迟错序 */
+    .field { animation-delay: .18s; }
+    .field + .field { animation-delay: .235s; }
+    .btn-primary { animation-delay: .29s; }
+    .btn-link { animation-delay: .345s; }
+
+    /* ---------- 输入 ---------- */
+    .field { margin-bottom: 15px; }
+    .field label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 11.5px;
+        letter-spacing: .4px;
+        font-weight: var(--ui-fw-medium, 500);
+        color: var(--login-ink);
+    }
+    .field-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 74%, transparent);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--ui-soft, #252b38) 34%, transparent);
+        /* 只过渡颜色与阴影，不做位移/宽度动画 */
+        transition: border-color .2s var(--ui-ease, ease), box-shadow .2s var(--ui-ease, ease), background-color .2s var(--ui-ease, ease);
+    }
+    .field-box:hover {
+        border-color: color-mix(in srgb, var(--ui-line-strong, #343b4c) 55%, var(--ui-text, #e6e5e0));
+    }
+    .field-box:focus-within {
+        border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 60%, transparent);
+        background: color-mix(in srgb, var(--ui-soft, #252b38) 58%, transparent);
+        /* 双层光：内圈贴边，外圈扩散 —— 与背后收束的极光一起「包住」输入框 */
+        box-shadow:
+            0 0 0 3px var(--ui-accent-soft, rgba(14, 116, 144, .12)),
+            0 0 30px color-mix(in srgb, var(--ui-accent-glow, #0891b2) 38%, transparent);
+    }
+    .field-box input {
+        flex: 1;
+        min-width: 0;
+        height: 44px;
+        padding: 0 14px;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--ui-text, #e6e5e0);
+        font-family: inherit;
+        font-size: 14px;
+        letter-spacing: .2px;
+    }
+    /* placeholder 是提示不是正文：给 faint 档，但去掉 opacity 二次衰减，
+       否则浅色底上会掉到 2:1 以下 */
+    .field-box input::placeholder { color: var(--login-ink-faint); }
+    /* 去掉 Chrome 自动填充的黄底，保持卡片视觉统一 */
+    .field-box input:-webkit-autofill {
+        -webkit-text-fill-color: var(--ui-text, #e6e5e0);
+        transition: background-color 9999s ease-out;
+    }
+
+    /* 密码可见性：只换图标，不占额外布局 */
+    .reveal {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        margin-right: 4px;
+        border: 0;
+        border-radius: 9px;
+        background: none;
+        color: var(--login-ink-faint);
+        cursor: pointer;
+        transition: color .18s var(--ui-ease, ease), background-color .18s var(--ui-ease, ease);
+    }
+    .reveal:hover {
+        color: var(--ui-text, #e6e5e0);
+        background: color-mix(in srgb, var(--ui-text, #e6e5e0) 7%, transparent);
+    }
+    .reveal:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 1px;
+    }
+    .reveal svg { width: 17px; height: 17px; }
+    .reveal .i-off { display: none; }
+    .reveal[aria-pressed="true"] .i-off { display: block; }
+    .reveal[aria-pressed="true"] .i-on { display: none; }
+
+    /* ---------- 错误提示 ---------- */
+    /* 用 0fr→1fr 折叠高度：默认不占位（否则密码框到按钮之间会留一段死空白），
+       出现时平滑撑开而不是硬切，按钮不会被"顶跳" */
+    #loginError {
+        display: grid;
+        grid-template-rows: 0fr;
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #ff6b7a;
+        opacity: 0;
+        transition: grid-template-rows .24s var(--ui-ease, ease),
+                    opacity .2s var(--ui-ease, ease),
+                    margin .24s var(--ui-ease, ease);
+    }
+    #loginError > span { overflow: hidden; min-height: 0; }
+    #loginError.is-on {
+        grid-template-rows: 1fr;
+        margin: 2px 0 10px;
+        opacity: 1;
+    }
+    html[data-login-bg-dark="0"] #loginError { color: #c22b45; }
+
+    /* ---------- 主操作 ---------- */
+    /* 用前景色而非品牌色填充：不与背景极光抢视线，品牌色只留给聚焦光晕与标记 */
+    .btn-primary {
+        position: relative;
+        width: 100%;
+        height: 46px;
+        margin-top: 6px;
+        border: 0;
+        border-radius: 13px;
+        background: var(--ui-text, #f6f6f4);
+        color: var(--ui-bg, #14161c);
+        font-family: inherit;
+        font-size: 13.5px;
+        font-weight: var(--ui-fw-semibold, 600);
+        letter-spacing: .5px;
+        cursor: pointer;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, .32);
+        transition: transform .16s var(--ui-ease, ease), box-shadow .22s var(--ui-ease, ease), opacity .2s;
+    }
+    html[data-login-bg-dark="0"] .btn-primary { box-shadow: 0 8px 22px rgba(24, 24, 23, .16); }
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .38);
+    }
+    html[data-login-bg-dark="0"] .btn-primary:hover:not(:disabled) {
+        box-shadow: 0 12px 28px rgba(24, 24, 23, .2);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0) scale(.992); }
+    .btn-primary:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 3px;
+    }
+    .btn-primary .label {
+        display: inline-block;
+        transition: opacity .14s var(--ui-ease, ease);
+    }
+    .btn-primary.is-busy .label { opacity: 0; }
+    .btn-primary.is-busy { cursor: default; }
+    /* 加载态：一圈 1.5px 弧线，只用文字色，不加额外颜色 */
+    .btn-primary::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, var(--ui-bg, #14161c) 26%, transparent);
+        border-top-color: var(--ui-bg, #14161c);
+        opacity: 0;
+    }
+    .btn-primary.is-busy::after {
+        opacity: 1;
+        animation: spin .68s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- 次要操作：注册降级为文字链接 ---------- */
+    .btn-link {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 9px 0 2px;
+        border: 0;
+        border-radius: 10px;
+        background: none;
+        color: var(--login-ink);
+        font-family: inherit;
+        font-size: 12.5px;
+        letter-spacing: .3px;
+        cursor: pointer;
+        transition: color .18s var(--ui-ease, ease);
+    }
+    .btn-link b {
+        margin-left: 5px;
+        font-weight: var(--ui-fw-medium, 500);
+        color: var(--ui-text, #e6e5e0);
+        border-bottom: 1px solid transparent;
+        transition: border-color .18s var(--ui-ease, ease);
+    }
+    .btn-link:hover b { border-bottom-color: color-mix(in srgb, var(--ui-text, #e6e5e0) 45%, transparent); }
+    .btn-link:focus-visible {
+        outline: 2px solid var(--ui-accent-glow, #0891b2);
+        outline-offset: 2px;
+    }
+    .btn-link[disabled] { opacity: .5; cursor: default; }
+
+    /* ---------- 页脚 ---------- */
+    .footer {
+        position: fixed;
+        left: 50%;
+        bottom: 26px;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 10.5px;
+        letter-spacing: 1.4px;
+        color: var(--login-ink-faint);
+        /* 层级靠 token 的明度差表达，不再叠 opacity ——
+           opacity 会把对比度二次砍半，浅色底上直接掉到 2:1 以下 */
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+        .brand { top: 26px; }
+        /* 手机屏卡片占比大，居中会显得上方留白过宽，略下移平衡视觉重心 */
+        #loginForm { top: 53%; }
+        .footer { bottom: 16px; letter-spacing: 1.2px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        body, .brand, #loginForm, .field, .btn-primary, .btn-link { animation: none !important; }
+        /* 标识的漂移与航线流动属于装饰性动效，降级时一并停掉 */
+        .brand .isle, .brand .route, .brand .link { animation: none !important; }
+        /* 彩蛋是一整串位移，降级时直接不播，只留静态图形 */
+        .brand-badge.is-charged,
+        .brand-badge.is-charged .mark,
+        .brand-badge.is-charged .route,
+        .brand-badge.is-charged .link,
+        .brand-badge.is-charged .spark,
+        .brand-badge.is-charged .ripple { animation: none !important; }
+        .brand-badge, .brand .mark { transition: none !important; }
+        .brand-badge:hover .mark, .brand-badge:active .mark { transform: none !important; }
+        .field-box, .reveal, .btn-primary, .btn-link, #loginError { transition: none !important; }
+        .btn-primary.is-busy::after { animation: none; }
+    }
+
+
+/* ============================================================
+   独立版覆盖层：唯一改动是把 canvas 极光换成纯 CSS 极光，
+   其余样式与线上页面完全一致。要改视觉，直接调 :root 变量。
+   ============================================================ */
+#bgCanvas { display: none; }
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #14161c;
+  -webkit-font-smoothing: antialiased;
+}
+.aurora {
+  position: fixed;
+  inset: -12%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(34% 30% at 26% 24%, rgba(63, 206, 230, .26), transparent 64%),
+    radial-gradient(30% 26% at 74% 20%, rgba(156, 147, 255, .22), transparent 66%),
+    radial-gradient(44% 36% at 60% 84%, rgba(63, 206, 230, .16), transparent 72%);
+  filter: blur(30px);
+  transform: scale(1.06);
+  animation: auroraDrift 26s var(--ui-ease, ease-in-out) infinite alternate;
+}
+@keyframes auroraDrift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1.04); }
+  to   { transform: translate3d(2%, 2%, 0) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="brand">
+    <span class="brand-badge">
+        <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+            <defs>
+                <linearGradient id="brandStroke" x1="7" y1="7" x2="33" y2="33" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#bfeeff"/>
+                    <stop offset=".5" stop-color="#3fcee6"/>
+                    <stop offset="1" stop-color="#9c93ff"/>
+                </linearGradient>
+            </defs>
+            <!-- 屿链：三座岛由航线串成一条链，航线中段打上链扣，模块与连接同时成立 -->
+            <path class="route" d="M16.3 14.8 25.3 15.7M26.4 18.2 21.7 25M18.2 24.8 14.3 18" fill="none" stroke="url(#brandStroke)" stroke-width=".72" stroke-linecap="round" opacity=".4"/>
+            <circle class="isle isle-main" cx="12.2" cy="14.4" r="4.1" fill="url(#brandStroke)"/>
+            <circle class="isle isle-a" cx="28" cy="16" r="2.7" fill="none" stroke="url(#brandStroke)" stroke-width="1.05" opacity=".82"/>
+            <circle class="isle isle-b" cx="19.8" cy="27.6" r="3.2" fill="none" stroke="url(#brandStroke)" stroke-width="1.05" opacity=".68"/>
+            <circle class="link link-1" cx="20.8" cy="15.3" r="1.45" fill="none" stroke="url(#brandStroke)" stroke-width=".95" opacity=".7"/>
+            <circle class="link link-2" cx="24.1" cy="21.6" r="1.45" fill="none" stroke="url(#brandStroke)" stroke-width=".95" opacity=".7"/>
+            <circle class="link link-3" cx="16.2" cy="21.4" r="1.45" fill="none" stroke="url(#brandStroke)" stroke-width=".95" opacity=".7"/>
+            <!-- 通电彩蛋：三枚光点沿航线依次跑到下一座岛，主岛同时荡开一圈水纹 -->
+            <circle class="spark spark-1" cx="16.3" cy="14.8" r="1.25" fill="url(#brandStroke)"/>
+            <circle class="spark spark-2" cx="26.4" cy="18.2" r="1.25" fill="url(#brandStroke)"/>
+            <circle class="spark spark-3" cx="18.2" cy="24.8" r="1.25" fill="url(#brandStroke)"/>
+            <circle class="ripple" cx="12.2" cy="14.4" r="4.1" fill="none" stroke="url(#brandStroke)" stroke-width=".7"/>
+        </svg>
+    </span>
+    <h1>屿链</h1>
+    <p>AI 模块拼搭工作台</p>
+</header>
+
+<form id="loginForm" autocomplete="off" novalidate>
+    <!-- 诱饵输入框：拦掉浏览器自动填充，避免用户名/密码被静默预填 -->
+    <div style="position:absolute;left:-9999px;top:-9999px;height:0;opacity:0;overflow:hidden;pointer-events:none;" aria-hidden="true">
+        <input type="text" name="fakeusername" tabindex="-1" autocomplete="off">
+        <input type="password" name="fakepassword" tabindex="-1" autocomplete="new-password">
+    </div>
+
+    <div class="field">
+        <label for="username">用户名</label>
+        <div class="field-box">
+            <input id="username" type="text" placeholder="输入用户名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
+        </div>
+    </div>
+
+    <div class="field">
+        <label for="password">密码</label>
+        <div class="field-box">
+            <input id="password" type="password" placeholder="输入密码" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
+            <button type="button" class="reveal" id="togglePwd" aria-label="显示密码" aria-pressed="false">
+                <svg class="i-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/>
+                    <circle cx="12" cy="12" r="2.6"/>
+                </svg>
+                <svg class="i-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 3l18 18"/>
+                    <path d="M10.6 6.2A10 10 0 0 1 12 6c6.4 0 10 6 10 6a17.3 17.3 0 0 1-3.3 3.9"/>
+                    <path d="M6.5 8.2A17.4 17.4 0 0 0 2 12s3.6 6 10 6a10 10 0 0 0 3.4-.6"/>
+                    <circle cx="12" cy="12" r="2.6"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="loginError" role="alert" aria-live="polite"><span></span></div>
+
+    <button type="submit" class="btn-primary" id="loginBtn"><span class="label">登录</span></button>
+    <button type="button" class="btn-link" id="registerBtn">还没有账号？<b>创建账号</b></button>
+</form>
+
+<div class="footer">屿链 · 一屿一模，链成工作流</div>
+
+
+<script>
+/* 独立版脚本：只做交互演示，不含任何后端调用。接真实接口时替换 submit 里那段。 */
+(function () {
+    var pwd = document.getElementById('password');
+    var toggle = document.getElementById('togglePwd');
+    if (pwd && toggle) {
+        toggle.addEventListener('click', function () {
+            var show = pwd.type === 'password';
+            pwd.type = show ? 'text' : 'password';
+            toggle.setAttribute('aria-pressed', show ? 'true' : 'false');
+        });
+    }
+
+    var form = document.getElementById('loginForm');
+    var btn = document.getElementById('loginBtn');
+    var box = document.getElementById('loginError');
+    var txt = box ? box.firstElementChild : null;
+    function fail(msg) {
+        if (!box) return;
+        txt.textContent = msg;
+        box.classList.add('is-on');
+    }
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (box) box.classList.remove('is-on');
+            var user = (document.getElementById('username').value || '').trim();
+            if (!user || !pwd.value) { fail('用户名和密码都要填。'); return; }
+            btn.classList.add('is-busy');
+            setTimeout(function () {
+                btn.classList.remove('is-busy');
+                fail('演示版：这里换成你自己的登录接口。');
+            }, 900);
+        });
+    }
+
+    /* 标识彩蛋：点一下让光点沿航线依次跑到下一座岛 */
+    var badge = document.querySelector('.brand-badge');
+    if (badge) {
+        var timer = 0;
+        badge.addEventListener('click', function () {
+            badge.classList.remove('is-charged');
+            void badge.offsetWidth;
+            badge.classList.add('is-charged');
+            clearTimeout(timer);
+            timer = setTimeout(function () { badge.classList.remove('is-charged'); }, 2100);
+        });
+    }
+})();
+</script>
+</body>
+</html>

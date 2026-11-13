@@ -1,380 +1,152 @@
-/* 登录页样式 —— 独立成文件，便于按"页面/样式/脚本"三块维护。
- * 颜色全部走 studio-ui.css 的 --ui-* 变量，深浅两态自动跟随；
- * 唯一的判断是 html[data-login-bg-dark="0"]（浅色背景态），由 login-bg.js 设置。
- */
+:root { color-scheme: only light !important; }
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; color-scheme: only light; background: #218dde; color: #17233f; }
+body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+.island-world { position: relative; min-height: 100svh; overflow: hidden; }
+.scene-stage { position: relative; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(20px, 2.5vw, 32px); padding: clamp(28px, 4vw, 48px) max(16px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); isolation: isolate; }
+.scene-stage > header, .scene-stage > section { flex-shrink: 0; min-width: 0; max-width: 100%; }
+.scene-backdrop { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: center; user-select: none; pointer-events: none; }
+.login-brand { text-align: center; user-select: none; }
+/* 使用透明品牌原图，昼夜保持素材本色，窄屏与矮窗等比收缩。 */
+.brand-logo { display: block; width: clamp(260px, 36vw, 540px); max-width: 100%; height: auto; margin: 0 auto; }
+@media (max-height: 760px) { .brand-logo { width: min(340px, 76vw); } }
+.brand-name { display: block; font-size: clamp(46px, 6.2vw, 100px); font-weight: 900; line-height: 1.1; letter-spacing: -.055em; text-shadow: 0 3px 0 #fff7c8, 0 7px 0 #216c9f38, 0 10px 18px #197abc30; }
+.brand-name span:nth-child(1) { color: #ff825b; }
+.brand-name span:nth-child(2) { color: #ffdc66; }
+.brand-name span:nth-child(3) { color: #68d9ee; }
+.brand-name span:nth-child(4) { color: #64dfbd; }
+.brand-tagline { margin: 12px 0 0; color: #e5f8ff; font-size: 14px; letter-spacing: .4em; }
+.login-panel { width: min(468px, 100%); padding: clamp(26px, 3vw, 36px) clamp(20px, 3vw, 40px); border: 8px solid #c2e881; border-radius: 38px; background: var(--ui-panel); box-shadow: inset 0 2px 0 #fffdf5, 0 8px 0 #a9ce6c, 0 14px 0 #ae8056, 0 22px 30px #0759ad30; }
+.login-content { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.login-heading { text-align: center; margin-bottom: 30px; }
+h1 { margin: 0 0 8px; color: #14284b; font-size: clamp(25px, 3vw, 36px); font-weight: 850; line-height: 1.3; letter-spacing: -.04em; }
+.login-heading p { margin: 0; color: #687080; font-size: 15px; line-height: 1.7; }
+#loginForm { width: 100%; margin: 0; }
+.field { margin-bottom: 16px; }
+.field label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.field-box { display: flex; align-items: center; background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: var(--ui-r-sm); box-shadow: none; transition: border-color .2s, box-shadow .2s; }
+.field-box:focus-within { border-color: var(--ui-accent); box-shadow: 0 0 0 3px var(--ui-accent-soft); }
+.field-icon { flex: 0 0 23px; width: 23px; height: 23px; margin-left: 17px; color: #969ba3; }
+.field-box input { width: 100%; min-width: 0; height: clamp(48px, 4vw, 54px); padding: 0 13px; border: 0; background: transparent; color: #27334a; outline: none; font: inherit; font-size: 16px; }
+.field-box input::placeholder { color: #a0a4ad; }
+button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 4px; }
+.reveal { flex: 0 0 46px; display: grid; place-items: center; border: 0; background: transparent; color: #969ba3; padding: 10px; }
+.reveal svg { width: 23px; height: 23px; }
+.i-off, .reveal[aria-pressed="true"] .i-on { display: none; }
+.reveal[aria-pressed="true"] .i-off { display: block; }
+.btn-primary { position: relative; width: 100%; min-height: 58px; margin-top: 16px; border: 1px solid var(--ui-accent); border-radius: var(--ui-r-sm); background: var(--ui-accent); color: var(--ui-accent-ink); font-size: 19px; font-weight: 750; transition: transform .18s, filter .18s; }
+.btn-primary:hover { filter: brightness(1.045); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(1px); }
+.label > span { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); font-size: 27px; font-weight: 400; }
+.login-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin: 2px 0 8px; font-size: 13px; line-height: 1.5; }
+.remember-option { display: inline-flex; align-items: center; gap: 9px; color: #414b5d; cursor: pointer; }
+.remember-option input { width: 21px; height: 21px; margin: 0; accent-color: var(--ui-accent); cursor: pointer; }
+.forgot-password { padding: 4px 0; border: 0; background: transparent; color: var(--ui-accent); font-size: inherit; }
+.forgot-password:hover { text-decoration: underline; }
 
-    :root {
-        --login-max: 376px;
-        --login-radius: 22px;
 
-        /* ---------- 墨色阶梯（登录页专用） ----------
-         * 从 --ui-text / --ui-bg 现场派生，明暗两态自动跟随主题：
-         *   暗色 --ui-text #f6f6f4 混 --ui-bg #14161c → 浅灰
-         *   浅色 --ui-text #1a1a19 混 --ui-bg #f7f6f4 → 中灰
-         * 不用 --ui-muted / --ui-faint：那是全站灰阶，浅色底上只有
-         * 3.6:1 / 2.5:1，小字（副标题、label、页脚）会发虚、达不到 AA。
-         *
-         * 比例按明暗分开定：浅色底要够暗才够 4.5:1；暗色底本来就易读，
-         * 混得太多会跟标题（--ui-text）拉得太近、层级被压平。
-         */
-        --login-ink:       color-mix(in srgb, var(--ui-text) 74%, var(--ui-bg));
-        --login-ink-faint: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
-    }
-    /* 暗色底：比例比浅色低一档，避免跟标题（--ui-text）拉得太近、层级被压平；
-       但不能更低 —— 暗底的对比度余量本来就小（灰阶本来就亮），
-       实测 56% 会让 night 调色板的 placeholder 掉到 4.47:1（不及 AA）。 */
-    html.studio-theme-dark {
-        --login-ink:       color-mix(in srgb, var(--ui-text) 66%, var(--ui-bg));
-        --login-ink-faint: color-mix(in srgb, var(--ui-text) 58%, var(--ui-bg));
-    }
-    html, body { overflow: hidden; }
-    body {
-        margin: 0;
-        min-height: 100vh;
-        background: var(--ui-bg, #14161c);
-        color: var(--ui-text, #e6e5e0);
-        font-family: 'Inter', -apple-system, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
-        -webkit-font-smoothing: antialiased;
-        animation: pageIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) both;
-    }
-    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
-    /* ---------- 背景层 ---------- */
-    #bgCanvas {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-        z-index: 0;
-        pointer-events: none;
-        /* 低分辨率缓冲放大后仍有圆形轮廓，再糊一层让光斑边界彻底消失；
-           scale 补偿 blur 在边缘留下的透明带 */
-        filter: blur(26px);
-        transform: scale(1.08);
-    }
-    .vignette {
-        position: fixed;
-        inset: 0;
-        z-index: 2;
-        pointer-events: none;
-        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 26%, rgba(0, 0, 0, .52) 100%);
-    }
-    html[data-login-bg-dark="0"] .vignette {
-        background: radial-gradient(ellipse 82% 72% at 50% 46%, transparent 30%, rgba(255, 255, 255, .42) 100%);
-    }
-    .grain {
-        position: fixed;
-        inset: 0;
-        z-index: 3;
-        pointer-events: none;
-        opacity: .038;
-        mix-blend-mode: overlay;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
-    html[data-login-bg-dark="0"] .grain { opacity: .022; }
+#loginError { display: grid; grid-template-rows: 0fr; visibility: hidden; color: #bf3c35; font-size: 13px; line-height: 1.5; transition: grid-template-rows .2s, margin .2s; }
+#loginError > span { overflow: hidden; }
+#loginError.is-on { visibility: visible; grid-template-rows: 1fr; margin: 0 0 10px; }
+button:disabled { cursor: wait; opacity: .7; }
+.is-busy .label { visibility: hidden; }
+.is-busy::after { content: ""; position: absolute; width: 20px; height: 20px; left: calc(50% - 10px); top: calc(50% - 10px); border: 2px solid #ffffff60; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+ .scene-stage { gap: 24px; padding-top: 28px; padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+ .scene-backdrop { object-position: 51% center; }
+ .brand-name { font-size: clamp(40px, 12vw, 64px); }
+ .brand-tagline { font-size: 11px; letter-spacing: .28em; }
+ .login-panel { width: min(420px, 100%); padding: 28px clamp(16px, 4vw, 24px); border-width: 6px; border-radius: 30px; }
+ h1 { font-size: clamp(23px, 6.5vw, 30px); }
+ .login-heading p { font-size: 13px; }
+}
+/* 矮窗口收紧间距，内容超出时由页面滚动，不缩小或裁切表单。 */
+@media (max-height: 760px) {
+ .scene-stage { padding-top: 24px; padding-bottom: max(36px, env(safe-area-inset-bottom)); gap: 18px; }
+ .brand-name { font-size: clamp(40px, 8vw, 54px); }
+ .brand-tagline { margin-top: 6px; font-size: 11px; }
+ .login-panel { padding-top: 24px; padding-bottom: 24px; }
+ .login-heading { margin-bottom: 24px; }
 
-    /* ---------- 入场动效：全站统一一条曲线，位移 10px，不做闪烁 ---------- */
-    @keyframes riseIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes cardIn {
-        from { opacity: 0; transform: translate(-50%, -47%) scale(.985); }
-        to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    }
-
-    /* ---------- 品牌区 ---------- */
-    .brand {
-        position: fixed;
-        top: clamp(30px, 8vh, 74px);
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10;
-        text-align: center;
-        pointer-events: none;
-        animation: brandRise .8s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) backwards;
-    }
-    @keyframes brandRise {
-        from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    /* 几何标记：双层菱形 + 光核，呼应背景极光的中心光源 */
-    .brand .mark {
-        display: block;
-        width: clamp(26px, 3vw, 32px);
-        height: clamp(26px, 3vw, 32px);
-        margin: 0 auto 16px;
-        color: var(--ui-accent, #0e7490);
-        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ui-accent, #0e7490) 34%, transparent));
-    }
-    .brand h1 {
-        margin: 0;
-        font-size: clamp(20px, 2.6vw, 25px);
-        /* 跟随项目字重体系：暗色主题自动降 40，避免暗底上发糊 */
-        font-weight: var(--ui-fw-semibold, 600);
-        /* 字距约为字号的 13%，再大字母就被拆成孤立个体 */
-        letter-spacing: 3.2px;
-        text-indent: 3.2px;
-        color: var(--ui-text, #e6e5e0);
-    }
-    .brand p {
-        margin: 8px 0 0;
-        font-size: 12px;
-        font-weight: var(--ui-fw-regular, 400);
-        letter-spacing: 1.2px;
-        text-indent: 1.2px;
-        color: var(--login-ink);
-    }
-
-    /* ---------- 表单卡片 ---------- */
-    #loginForm {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 10;
-        width: min(var(--login-max), 92vw);
-        padding: clamp(20px, 3vw, 28px);
-        box-sizing: border-box;
-        border-radius: var(--login-radius);
-        /* 光之解锁：弱化容器感，只留极淡玻璃浮岛，让背后收束的极光透出更多 */
-        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 14%, transparent);
-        background: color-mix(in srgb, var(--ui-panel, #1c202a) 16%, transparent);
-        box-shadow: 0 22px 60px rgba(0, 0, 0, .34);
-        animation: cardIn .62s var(--ui-ease-spring, cubic-bezier(.16,1,.3,1)) .06s backwards;
-    }
-    html[data-login-bg-dark="0"] #loginForm {
-        border-color: color-mix(in srgb, var(--ui-line-strong, #e7e5de) 20%, transparent);
-        background: color-mix(in srgb, var(--ui-panel, #f3f2ef) 26%, transparent);
-        box-shadow: 0 16px 44px rgba(28, 32, 42, .12);
-    }
-
-    /* 卡片内元素依次浮现：位移只有 10px，间隔 55ms，避免"炫技感" */
-    .field, .btn-primary, .btn-link {
-        animation: riseIn .5s var(--ui-ease, cubic-bezier(.4,0,.2,1)) backwards;
-    }
-    /* 用相邻选择器而不是 nth-of-type —— 表单里还有防自动填充的隐藏 div，
-       nth-of-type 会被它挤位，导致延迟错序 */
-    .field { animation-delay: .18s; }
-    .field + .field { animation-delay: .235s; }
-    .btn-primary { animation-delay: .29s; }
-    .btn-link { animation-delay: .345s; }
-
-    /* ---------- 输入 ---------- */
-    .field { margin-bottom: 15px; }
-    .field label {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 11.5px;
-        letter-spacing: .4px;
-        font-weight: var(--ui-fw-medium, 500);
-        color: var(--login-ink);
-    }
-    .field-box {
-        position: relative;
-        display: flex;
-        align-items: center;
-        border: 1px solid color-mix(in srgb, var(--ui-line-strong, #343b4c) 74%, transparent);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--ui-soft, #252b38) 34%, transparent);
-        /* 只过渡颜色与阴影，不做位移/宽度动画 */
-        transition: border-color .2s var(--ui-ease, ease), box-shadow .2s var(--ui-ease, ease), background-color .2s var(--ui-ease, ease);
-    }
-    .field-box:hover {
-        border-color: color-mix(in srgb, var(--ui-line-strong, #343b4c) 55%, var(--ui-text, #e6e5e0));
-    }
-    .field-box:focus-within {
-        border-color: color-mix(in srgb, var(--ui-accent, #0e7490) 60%, transparent);
-        background: color-mix(in srgb, var(--ui-soft, #252b38) 58%, transparent);
-        /* 双层光：内圈贴边，外圈扩散 —— 与背后收束的极光一起「包住」输入框 */
-        box-shadow:
-            0 0 0 3px var(--ui-accent-soft, rgba(14, 116, 144, .12)),
-            0 0 30px color-mix(in srgb, var(--ui-accent-glow, #0891b2) 38%, transparent);
-    }
-    .field-box input {
-        flex: 1;
-        min-width: 0;
-        height: 44px;
-        padding: 0 14px;
-        border: 0;
-        outline: none;
-        background: transparent;
-        color: var(--ui-text, #e6e5e0);
-        font-family: inherit;
-        font-size: 14px;
-        letter-spacing: .2px;
-    }
-    /* placeholder 是提示不是正文：给 faint 档，但去掉 opacity 二次衰减，
-       否则浅色底上会掉到 2:1 以下 */
-    .field-box input::placeholder { color: var(--login-ink-faint); }
-    /* 去掉 Chrome 自动填充的黄底，保持卡片视觉统一 */
-    .field-box input:-webkit-autofill {
-        -webkit-text-fill-color: var(--ui-text, #e6e5e0);
-        transition: background-color 9999s ease-out;
-    }
-
-    /* 密码可见性：只换图标，不占额外布局 */
-    .reveal {
-        display: grid;
-        place-items: center;
-        width: 38px;
-        height: 38px;
-        margin-right: 4px;
-        border: 0;
-        border-radius: 9px;
-        background: none;
-        color: var(--login-ink-faint);
-        cursor: pointer;
-        transition: color .18s var(--ui-ease, ease), background-color .18s var(--ui-ease, ease);
-    }
-    .reveal:hover {
-        color: var(--ui-text, #e6e5e0);
-        background: color-mix(in srgb, var(--ui-text, #e6e5e0) 7%, transparent);
-    }
-    .reveal:focus-visible {
-        outline: 2px solid var(--ui-accent-glow, #0891b2);
-        outline-offset: 1px;
-    }
-    .reveal svg { width: 17px; height: 17px; }
-    .reveal .i-off { display: none; }
-    .reveal[aria-pressed="true"] .i-off { display: block; }
-    .reveal[aria-pressed="true"] .i-on { display: none; }
-
-    /* ---------- 错误提示 ---------- */
-    /* 用 0fr→1fr 折叠高度：默认不占位（否则密码框到按钮之间会留一段死空白），
-       出现时平滑撑开而不是硬切，按钮不会被"顶跳" */
-    #loginError {
-        display: grid;
-        grid-template-rows: 0fr;
-        margin: 0;
-        font-size: 12px;
-        line-height: 1.45;
-        color: #ff6b7a;
-        opacity: 0;
-        transition: grid-template-rows .24s var(--ui-ease, ease),
-                    opacity .2s var(--ui-ease, ease),
-                    margin .24s var(--ui-ease, ease);
-    }
-    #loginError > span { overflow: hidden; min-height: 0; }
-    #loginError.is-on {
-        grid-template-rows: 1fr;
-        margin: 2px 0 10px;
-        opacity: 1;
-    }
-    html[data-login-bg-dark="0"] #loginError { color: #c22b45; }
-
-    /* ---------- 主操作 ---------- */
-    /* 用前景色而非品牌色填充：不与背景极光抢视线，品牌色只留给聚焦光晕与标记 */
-    .btn-primary {
-        position: relative;
-        width: 100%;
-        height: 46px;
-        margin-top: 6px;
-        border: 0;
-        border-radius: 13px;
-        background: var(--ui-text, #f6f6f4);
-        color: var(--ui-bg, #14161c);
-        font-family: inherit;
-        font-size: 13.5px;
-        font-weight: var(--ui-fw-semibold, 600);
-        letter-spacing: .5px;
-        cursor: pointer;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, .32);
-        transition: transform .16s var(--ui-ease, ease), box-shadow .22s var(--ui-ease, ease), opacity .2s;
-    }
-    html[data-login-bg-dark="0"] .btn-primary { box-shadow: 0 8px 22px rgba(24, 24, 23, .16); }
-    .btn-primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 28px rgba(0, 0, 0, .38);
-    }
-    html[data-login-bg-dark="0"] .btn-primary:hover:not(:disabled) {
-        box-shadow: 0 12px 28px rgba(24, 24, 23, .2);
-    }
-    .btn-primary:active:not(:disabled) { transform: translateY(0) scale(.992); }
-    .btn-primary:focus-visible {
-        outline: 2px solid var(--ui-accent-glow, #0891b2);
-        outline-offset: 3px;
-    }
-    .btn-primary .label {
-        display: inline-block;
-        transition: opacity .14s var(--ui-ease, ease);
-    }
-    .btn-primary.is-busy .label { opacity: 0; }
-    .btn-primary.is-busy { cursor: default; }
-    /* 加载态：一圈 1.5px 弧线，只用文字色，不加额外颜色 */
-    .btn-primary::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        margin: auto;
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
-        border: 1.5px solid color-mix(in srgb, var(--ui-bg, #14161c) 26%, transparent);
-        border-top-color: var(--ui-bg, #14161c);
-        opacity: 0;
-    }
-    .btn-primary.is-busy::after {
-        opacity: 1;
-        animation: spin .68s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ---------- 次要操作：注册降级为文字链接 ---------- */
-    .btn-link {
-        display: block;
-        width: 100%;
-        margin-top: 6px;
-        padding: 9px 0 2px;
-        border: 0;
-        border-radius: 10px;
-        background: none;
-        color: var(--login-ink);
-        font-family: inherit;
-        font-size: 12.5px;
-        letter-spacing: .3px;
-        cursor: pointer;
-        transition: color .18s var(--ui-ease, ease);
-    }
-    .btn-link b {
-        margin-left: 5px;
-        font-weight: var(--ui-fw-medium, 500);
-        color: var(--ui-text, #e6e5e0);
-        border-bottom: 1px solid transparent;
-        transition: border-color .18s var(--ui-ease, ease);
-    }
-    .btn-link:hover b { border-bottom-color: color-mix(in srgb, var(--ui-text, #e6e5e0) 45%, transparent); }
-    .btn-link:focus-visible {
-        outline: 2px solid var(--ui-accent-glow, #0891b2);
-        outline-offset: 2px;
-    }
-    .btn-link[disabled] { opacity: .5; cursor: default; }
-
-    /* ---------- 页脚 ---------- */
-    .footer {
-        position: fixed;
-        left: 50%;
-        bottom: 26px;
-        transform: translateX(-50%);
-        z-index: 10;
-        font-size: 10.5px;
-        letter-spacing: 1.4px;
-        color: var(--login-ink-faint);
-        /* 层级靠 token 的明度差表达，不再叠 opacity ——
-           opacity 会把对比度二次砍半，浅色底上直接掉到 2:1 以下 */
-        pointer-events: none;
-        white-space: nowrap;
-    }
-
-    @media (max-width: 640px) {
-        .brand { top: 26px; }
-        /* 手机屏卡片占比大，居中会显得上方留白过宽，略下移平衡视觉重心 */
-        #loginForm { top: 53%; }
-        .footer { bottom: 16px; letter-spacing: 1.2px; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        body, .brand, #loginForm, .field, .btn-primary, .btn-link { animation: none !important; }
-        .field-box, .reveal, .btn-primary, .btn-link, #loginError { transition: none !important; }
-        .btn-primary.is-busy::after { animation: none; }
-    }
+}
+/* 夜间仅重配颜色与光感，保留海岛构图、卡片尺寸及窄屏布局。 */
+html[data-login-theme="night"] {
+ color-scheme: dark !important;
+ --ui-panel: #101f35; --ui-line: #344961;
+ --ui-accent: #9ac9b2; --ui-accent-ink: #132c24; --ui-accent-soft: #9ac9b226;
+}
+html[data-login-theme="night"] body { color-scheme: dark; background: #0b1931; color: #ecf3ff; }
+html[data-login-theme="night"] .scene-backdrop { z-index: -3; filter: brightness(.48) saturate(.78) contrast(1.18); }
+/* 光照图与背景同尺寸、同 cover 定位，移动端裁切也保持门窗光源对齐。 */
+.scene-night-lighting { display: none; position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; user-select: none; }
+html[data-login-theme="night"] .scene-night-lighting { display: block; opacity: .72; }
+.brand-logo-night { display: none; }
+html[data-login-theme="night"] .brand-logo-day { display: none; }
+html[data-login-theme="night"] .brand-logo-night { display: block; filter: drop-shadow(0 4px 6px #040e1c80); }
+html[data-login-theme="night"] .scene-stage::before { content: ""; position: absolute; inset: 0; z-index: -2; pointer-events: none; background: linear-gradient(180deg, #10162290, transparent 22%, #a4adb51c 29%, #a4adb522 36%, #a4adb516 46%, transparent 58%, #11182418); }
+@media (max-width: 600px) { .scene-night-lighting { object-position: 51% center; } }
+html[data-login-theme="night"] .brand-name { text-shadow: 0 3px 0 #102a49, 0 7px 18px #0006; }
+html[data-login-theme="night"] .brand-name span:nth-child(1),
+html[data-login-theme="night"] .brand-name span:nth-child(2) { color: #f0f6ff; }
+html[data-login-theme="night"] .brand-name span:nth-child(3),
+html[data-login-theme="night"] .brand-name span:nth-child(4) { color: #9aef65; }
+html[data-login-theme="night"] .brand-tagline { color: #bacce4; }
+html[data-login-theme="night"] .login-panel { border-color: #34494c; background: #111e2cf5; box-shadow: inset 0 1px 0 #a0d5ee24, 0 8px 0 #1b353d, 0 14px 0 #102631, 0 22px 36px #0007, 0 -12px 65px #70aeed0d; }
+html[data-login-theme="night"] h1 { color: #f1f6ff; }
+html[data-login-theme="night"] .login-heading p,
+html[data-login-theme="night"] .remember-option { color: #bac9dc; }
+html[data-login-theme="night"] .field-box { background: #1a2c43; }
+html[data-login-theme="night"] .field-box input { color: #edf4ff; caret-color: #acd7c4; }
+html[data-login-theme="night"] .field-box input::placeholder,
+html[data-login-theme="night"] .field-icon,
+html[data-login-theme="night"] .reveal { color: #a5b6cd; }
+html[data-login-theme="night"] #loginError { color: #ffada5; }
+html[data-login-theme="night"] .btn-primary { border-color: #a6cdb8; background: linear-gradient(110deg, #bad9c5, #92bea8); color: #132c24; box-shadow: inset 0 1px 0 #e9fff060, 0 4px 16px #91c6a918; }
+/* 粒子在背景上、内容下；聚焦只照亮输入框，不挤动布局。 */
+.login-particles { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.scene-stage > .login-brand, .scene-stage > .login-panel { position: relative; z-index: 1; }
+.field-box:focus-within { background-image: radial-gradient(ellipse at 50% 0, #b4e9ff24, transparent 80%); box-shadow: 0 0 0 3px #80cfff26, 0 0 24px #63bcff24; }
+html[data-login-theme="night"] .field-box:focus-within { border-color: #b0e5ff; background-color: #203a55; box-shadow: inset 0 1px 0 #d9f3ff55, 0 0 0 3px #80cfff24, 0 0 30px #63bcff38; }
+html[data-login-theme="night"] .field-box:focus-within .field-icon, html[data-login-theme="night"] .field-box:focus-within .reveal { color: #c5edff; }
+html[data-login-theme="night"] .forgot-password { color: #afd5c0; }
+/* 安静态与唤醒态只调整环境光，不降低表单文字的可读性。 */
+.scene-backdrop { transition: filter 4.6s cubic-bezier(.22,.1,.3,1); }
+.scene-night-lighting, .login-particles { transition: opacity 4.8s ease; }
+.scene-stage:not([data-scene-awake="true"]) .scene-backdrop { filter: brightness(.83) saturate(.85); }
+.scene-stage:not([data-scene-awake="true"]) .login-particles { opacity: .25; }
+.scene-stage[data-scene-awake="true"] .login-particles { opacity: 1; }
+html[data-login-theme="night"] .scene-stage:not([data-scene-awake="true"]) .scene-backdrop { filter: brightness(.32) saturate(.65) contrast(1.14); }
+html[data-login-theme="night"] .scene-stage:not([data-scene-awake="true"]) .scene-night-lighting { opacity: .16; }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-backdrop { filter: brightness(.57) saturate(.84) contrast(1.18); }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-night-lighting { opacity: .95; }
+.login-panel { transition: border-color 3s ease, box-shadow 3s ease; }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .login-panel { border-color: #58766f; box-shadow: inset 0 1px 0 #c1e5d638, 0 8px 0 #223e43, 0 14px 0 #122b33, 0 22px 36px #0007, 0 0 48px #9ac9b214; }
+/* 同坐标前景清晰层：仅下半部逐渐显现，不把远山和海平面一起提亮。 */
+.scene-stage::after { content: ""; position: absolute; inset: 0; z-index: -2; pointer-events: none; background: url('/static/assets/login/island-blue-background.webp?v=20261111001') center/cover; mask-image: linear-gradient(transparent 37%, #0009 60%, #000 80%); filter: brightness(.9) saturate(.9) contrast(1.12); transition: filter 5.2s ease; }
+html[data-login-theme="night"] .scene-stage::after { filter: brightness(.39) saturate(.72) contrast(1.26); }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"]::after { filter: brightness(.67) saturate(.88) contrast(1.25); }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-night-lighting { transition-delay: .6s; }
+@media(max-width:600px) { .scene-stage::after { background-position: 51% center; } }
+/* 极光保留在面板内；仅唤醒时恢复建筑、瀑布及星形物件的局部光照。 */
+html[data-login-theme="night"] .scene-stage .scene-night-lighting { display: block; opacity: 0; transition: opacity 4.8s cubic-bezier(.3,.05,.4,1); }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-night-lighting { opacity: .78; transition-delay: .6s; }
+html[data-login-theme="night"] .scene-stage .scene-backdrop { filter: brightness(.34) saturate(.65) contrast(1.17); }
+html[data-login-theme="night"] .scene-stage::after, html[data-login-theme="night"] .scene-stage[data-scene-awake="true"]::after { filter: brightness(.43) saturate(.72) contrast(1.25); }
+.scene-stage .login-particles { opacity: 1; transition: none; z-index: 2; }
+.login-panel { isolation: isolate; }
+.login-content { position: relative; z-index: 1; }
+.login-panel::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 10% 0, #83c8a72c, transparent 62%), radial-gradient(ellipse at 90% 30%, #809ac824, transparent 65%); transform: translateY(5px); transition: opacity 4.5s ease, transform 5s ease; }
+.scene-stage[data-scene-awake="true"] .login-panel::before { opacity: .8; transform: translateY(0); animation: panel-aurora-rise 5s ease-out both; }
+html[data-login-theme="night"] .scene-stage:not([data-scene-awake="true"]) .login-panel { background: #0a1420fa; border-color: #293b3e; box-shadow: inset 0 1px 0 #b2d7cc0c, 0 8px 0 #172b32, 0 14px 0 #0d2029, 0 22px 36px #0007; }
+html[data-login-theme="night"] .scene-stage:not([data-scene-awake="true"]) .field-box { background: #142131; }
+html[data-login-theme="night"] .scene-stage:not([data-scene-awake="true"]) .btn-primary { background: #83a592; border-color: #91af9f; box-shadow: none; }
+.login-panel, .field-box, .btn-primary { transition: background-color 3.5s ease, border-color 3.5s ease, box-shadow 3.5s ease; }
+@keyframes panel-aurora-rise { 0% { opacity: 0; transform: translateY(8px); } 22% { opacity: .12; } 55% { opacity: .52; } 78% { opacity: .86; } 100% { opacity: .8; transform: translateY(0); } }
+/* 光芯与散射分层：仅模糊复制的光照，不模糊海岛底图和表单。 */
+html[data-login-theme="night"] .scene-stage .scene-light-bloom { opacity: 0; filter: blur(18px) saturate(.85) brightness(1.12); }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-night-lighting:not(.scene-light-bloom) { opacity: .9; }
+html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-light-bloom { opacity: .76; transition-delay: 1s; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

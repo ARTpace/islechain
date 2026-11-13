@@ -1,0 +1,21 @@
+{
+  "_说明": "把 ComfyUI 工作流 .json（API 或 UI 格式）放进本目录，可建子目录；自动扫描建索引。同名 .meta.json 可选：不写也能运行，但缺少中文名/标签与模型下载地址。以下字段均为示例。",
+  "name": "示例工作流",
+  "desc": "一句话用途，便于检索",
+  "tags": [
+    "文生图",
+    "写实",
+    "人像"
+  ],
+  "positive": "可选：正向提示词节点 id；不填取第一个 CLIPTextEncode",
+  "nodes": {
+    "SomeCustomNode": "可选：插件仓库或 ID，仅用于展示，安装走 comfy node install-deps"
+  },
+  "models": {
+    "model.safetensors": "https://huggingface.co/xxx/resolve/main/model.safetensors",
+    "lora.safetensors": {
+      "url": "https://huggingface.co/xxx/resolve/main/lora.safetensors",
+      "path": "loras"
+    }
+  }
+}

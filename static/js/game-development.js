@@ -421,5 +421,5 @@
         }
         target.onwheel = e => e.stopPropagation();
     }
-    window.GameDevelopment = {openWorkbench:projectId=>panel({projectId},'develop'),resetPlayer:node=>players.delete(node.id),nodeBody, execute, signature, output, mergeLegacy, activePlayer, preservePlayer};
+    window.GameDevelopment = {types, openWorkbench:projectId=>panel({projectId},'develop'),resetPlayer:node=>players.delete(node.id),nodeBody, execute, signature, output, mergeLegacy, activePlayer, preservePlayer};
 })();

@@ -54,6 +54,11 @@ def environment(tmp_path, monkeypatch):
         resolve_chat_provider=lambda *a: ('https://mock.invalid/v1', {}, 'mock-model'),
         text_from_chat_response=lambda raw: raw['choices'][0]['message']['content'],
         AI_REQUEST_TIMEOUT=3)
+    from core.canvas_store import CanvasStore
+    from core.canvas_paths import CanvasPaths
+    canvas_store = CanvasStore(tmp_path / 'canvas-storage')
+    main.CANVAS_DIR = str(canvas_store.legacy)
+    main._canvas_media_paths = lambda authorize=False: CanvasPaths(canvas_store)
     monkeypatch.setattr(routes, 'main', lambda: main)
     monkeypatch.setattr(routes, 'store', lambda: repository)
     monkeypatch.setattr(routes, 'canvas_for', canvas_for)

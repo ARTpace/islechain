@@ -1,0 +1,40 @@
+.material-composer{display:flex;flex-direction:column;gap:10px;padding:12px;color:var(--text);font-size:12px}
+.material-composer p{margin:0;line-height:1.6}
+.material-composer .imagegen-prompt{min-height:74px;width:100%;box-sizing:border-box}
+.material-field{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center}
+.material-field .setting-input{width:100%;min-width:0;box-sizing:border-box}
+.material-actions{display:flex;flex-wrap:wrap;gap:6px}
+.material-plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.material-plan select{width:100%;min-width:0}
+.material-plan button{white-space:normal}
+.material-plan>.material-manual,.material-plan>.material-batch{grid-column:1/-1}
+.material-manual pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;font:inherit;line-height:1.6;margin:4px 0}
+.material-batch .imagegen-prompt{min-height:100px;margin-bottom:6px}
+.material-batch-status{white-space:pre-line;max-height:160px;overflow:auto}
+.material-composer details{display:flex;flex-direction:column}
+.material-composer details summary{cursor:pointer;padding:6px 0}
+.material-composer details>.material-field,.material-composer details>.material-actions{margin-top:8px}
+.material-composer button:disabled{opacity:.45;cursor:default}
+.material-map-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.material-map-grid a{display:flex;flex-direction:column;gap:4px;color:inherit;text-decoration:none}
+.material-map-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;background:var(--ui-soft)}
+.material-map-grid a{min-width:0;font-size:10px;white-space:nowrap;overflow:hidden}
+.material-checks{display:flex;align-items:center;gap:5px;overflow-x:auto;white-space:nowrap;min-width:0}
+.material-checks>*{flex:0 0 auto}
+.material-checks .imagegen-control{padding:3px 6px;font-size:10px}
+.material-checks .imagegen-status{font-size:10px}
+/* PBR 材质球预览（3D 模型节点内） */
+.model3d-stage.is-ball{height:190px!important}
+.material-ball{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;min-height:0}
+.material-ball-stage{position:relative;flex:1;min-height:0;width:100%;border-radius:8px;overflow:hidden;background:var(--ui-panel);border:1px solid var(--ui-line-strong);display:flex;align-items:center;justify-content:center}
+.material-ball-stage model-viewer{width:100%;height:100%;--poster-color:transparent}
+.material-ball-msg{padding:0 10px;text-align:center;font-size:11px;line-height:1.5;color:var(--ui-muted)}
+.material-ball-msg.is-error{color:#f87171}
+.material-ball-bar{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;padding:0 2px}
+.material-ball-seg{display:inline-flex;border:1px solid var(--ui-line-strong);border-radius:8px;overflow:hidden;flex:0 0 auto}
+.material-ball-seg button{padding:3px 8px;font-size:11px;line-height:1.4;color:var(--ui-muted);background:var(--ui-panel);border:0;cursor:pointer}
+.material-ball-seg button+button{border-left:1px solid var(--ui-line-strong)}
+.material-ball-seg button:hover{color:var(--ui-text)}
+.material-ball-seg button.active{background:var(--ui-panel);color:var(--ui-text)}
+.material-ball-channels{font-size:10px;color:var(--ui-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.material-ball-repeat{font-size:11px;line-height:1.4;color:var(--ui-muted);background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:6px;padding:2px 4px;flex:0 0 auto}

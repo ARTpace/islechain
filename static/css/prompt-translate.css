@@ -18,7 +18,7 @@
     border:1px solid transparent;
     border-radius:8px;
     background:rgba(0, 0, 0, 0.06);
-    color:#555555;
+    color:var(--ui-muted);
     cursor:pointer;
     user-select:none;
     transition:all 0.15s;
@@ -27,7 +27,7 @@
 }
 .prompt-node-text-wrap .prompt-translate-corner:hover {
     background:rgba(0, 0, 0, 0.12);
-    color:#0b0b0a;
+    color:var(--ui-text);
 }
 .prompt-node-text-wrap .prompt-translate-corner:disabled {
     cursor:default;
@@ -80,8 +80,8 @@
     height:22px;
     padding:0 7px;
     border-radius:8px;
-    border-color:rgba(161, 159, 151, .34);
-    background:rgba(255, 255, 255, .82);
+    border-color:color-mix(in srgb, var(--ui-line-strong) 34.0%, transparent);
+    background:color-mix(in srgb, var(--ui-panel) 82.0%, transparent);
     color:var(--muted, #555555);
 }
 .prompt-node-text-wrap .prompt-translate-corner:hover {
@@ -107,13 +107,13 @@
 /* 深色主题 */
 body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner,
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner {
-    background:rgba(255, 255, 255, 0.08);
-    color:#9e9c94;
+    background:color-mix(in srgb, var(--ui-panel) 8.0%, transparent);
+    color:var(--ui-muted);
 }
 body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover,
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover {
-    background:rgba(255, 255, 255, 0.16);
-    color:#fbfaf9;
+    background:color-mix(in srgb, var(--ui-panel) 16.0%, transparent);
+    color:var(--ui-text);
 }
 body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"],
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang="cn"] {
@@ -124,12 +124,12 @@ body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang
     color:var(--accent-glow, #06b6d4);
 }
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner {
-    background:rgba(23, 23, 22, .62);
-    border-color:rgba(161, 159, 151, .26);
+    background:color-mix(in srgb, var(--ui-panel) 62.0%, transparent);
+    border-color:color-mix(in srgb, var(--ui-line-strong) 26.0%, transparent);
 }
 .theme-dark .prompt-node-text-wrap .prompt-translate-corner:hover {
-    background:rgba(23, 23, 22, .92);
-    color:#fbfaf9;
+    background:color-mix(in srgb, var(--ui-panel) 92.0%, transparent);
+    color:var(--ui-text);
     border-color:var(--strong, #fbfaf9);
 }
 
@@ -236,11 +236,11 @@ body.studio-theme-dark .prompt-node-text-wrap .prompt-translate-corner[data-lang
 }
 .translate-toast-accept {
     background: var(--accent, #6366f1);
-    color: #fbfaf9;
+    color: var(--ui-text);
     border-color: var(--accent, #6366f1);
 }
 .translate-toast-accept:enabled:hover {
-    background: #4f46e5;
+    background: var(--ui-accent);
 }
 .translate-toast-accept:disabled {
     opacity: 0.5;
@@ -272,12 +272,12 @@ body.studio-theme-dark .translate-toast-title,
 }
 body.studio-theme-dark .translate-toast-close,
 .theme-dark .translate-toast-close {
-    color: #9f9d95;
+    color: var(--ui-muted);
 }
 body.studio-theme-dark .translate-toast-close:hover,
 .theme-dark .translate-toast-close:hover {
-    background: #45443f;
-    color: #eeede9;
+    background: var(--ui-soft);
+    color: var(--ui-text);
 }
 body.studio-theme-dark .translate-toast-original,
 body.studio-theme-dark .translate-toast-translated,
@@ -287,7 +287,7 @@ body.studio-theme-dark .translate-toast-translated,
 }
 body.studio-theme-dark .translate-toast-original,
 .theme-dark .translate-toast-original {
-    color: #9f9d95;
+    color: var(--ui-muted);
 }
 body.studio-theme-dark .translate-toast-footer,
 .theme-dark .translate-toast-footer {
@@ -297,10 +297,10 @@ body.studio-theme-dark .translate-toast-footer,
 body.studio-theme-dark .translate-toast-reject,
 .theme-dark .translate-toast-reject {
     border-color: var(--border, #45443f);
-    color: #9f9d95;
+    color: var(--ui-muted);
 }
 body.studio-theme-dark .translate-toast-reject:hover,
 .theme-dark .translate-toast-reject:hover {
-    background: #45443f;
-    color: #eeede9;
+    background: var(--ui-soft);
+    color: var(--ui-text);
 }

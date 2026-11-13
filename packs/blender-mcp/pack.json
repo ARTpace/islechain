@@ -1,0 +1,37 @@
+{
+  "formatVersion": 1,
+  "id": "blender-mcp",
+  "version": "1.0.0",
+  "displayName": "Blender 建模",
+  "description": "装好 Blender 侧的 MCP addon 并注册连接，让 AI 能在 Blender 里建模型、改材质、导出 glb 回画布。需要 Blender 已经安装并手动开启 MCP 服务。",
+  "kind": "stdio",
+  "install": {
+    "steps": [
+      {
+        "id": "probe-uv",
+        "type": "probe",
+        "argv": ["uvx", "--version"]
+      },
+      {
+        "id": "addon",
+        "type": "exec",
+        "argv": ["uvx", "mcp-for-blender@2.2.6", "install-addon", "--addons-dir", "{blender.addons}"]
+      }
+    ],
+    "uninstall": []
+  },
+  "connect": {
+    "transport": "stdio",
+    "command": "uvx",
+    "args": ["mcp-for-blender@2.2.6"],
+    "env": ["BLENDER_HOST", "BLENDER_PORT"]
+  },
+  "requires": {
+    "commands": ["uvx"],
+    "platforms": ["win32", "darwin", "linux"]
+  },
+  "manual": [
+    "打开 Blender，在 3D 视口侧栏找到 MCP 面板，点 Start Server",
+    "默认端口 9876；改过端口就把 BLENDER_PORT 填成实际值"
+  ]
+}

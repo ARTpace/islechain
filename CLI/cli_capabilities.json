@@ -1,0 +1,460 @@
+{
+  "version": 1,
+  "note": "CLI 能力卡：声明「画布节点可调的能力」，与 cli_registry.json（安装/识别）分离。/api/cli/run 只执行此处登记的 argv 模板，{{key}} 取 inputs，{{out}} 由后端分配产物路径，params 追加为 --key value；全程 argv 列表传参、shell=False，不开放任意命令。",
+  "clis": {
+    "comfy": {
+      "executable": "CLI/.venv-comfy/Scripts/comfy.exe",
+      "note": "comfy-cli 1.25.0（隔离 venv）。非 TTY 自动输出 JSON envelope {ok,command,version,where,data,error}。以下 4 个能力均已实测：无需登录、不消耗额度。云端 comfy generate 出图需 comfy cloud login 或 COMFY_API_KEY + 额度 + --yes，登录后再追加 generate 能力卡。",
+      "capabilities": [
+        {
+          "id": "whoami",
+          "label": "登录状态",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "cloud",
+            "whoami"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "data"
+          },
+          "timeout": 20
+        },
+        {
+          "id": "list-models",
+          "label": "模型列表",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "generate",
+            "list"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "data"
+          },
+          "timeout": 30,
+          "note": "返回 45 个模型：alias / id / partner / category / mode / emit_supported。"
+        },
+        {
+          "id": "model-schema",
+          "label": "模型参数",
+          "inputs": [
+            {
+              "name": "model",
+              "type": "alias",
+              "required": true
+            }
+          ],
+          "argv": [
+            "--json",
+            "generate",
+            "schema",
+            "{{model}}"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "data"
+          },
+          "timeout": 30,
+          "note": "返回该模型完整参数（name/type/required/default/enum），节点可据此自动生成图形化表单。"
+        },
+        {
+          "id": "emit-workflow",
+          "label": "导出工作流",
+          "inputs": [
+            {
+              "name": "model",
+              "type": "alias",
+              "required": true
+            },
+            {
+              "name": "prompt",
+              "type": "text",
+              "required": true
+            }
+          ],
+          "argv": [
+            "--json",
+            "generate",
+            "{{model}}",
+            "--prompt",
+            "{{prompt}}",
+            "--emit-workflow",
+            "{{out}}"
+          ],
+          "output": {
+            "kind": "file",
+            "ext": "json",
+            "content_type": "workflow",
+            "from": "data.out"
+          },
+          "timeout": 60,
+          "note": "离线产出 API 格式 workflow JSON，可直接交给本机 ComfyUI 或画布节点；仅 emit_supported=true 的模型支持。"
+        },
+        {
+          "id": "workflow-run",
+          "label": "工作流生图",
+          "kind": "workflow",
+          "inputs": [
+            {
+              "name": "workflow",
+              "type": "workflow",
+              "required": true
+            },
+            {
+              "name": "prompt",
+              "type": "text",
+              "required": false
+            }
+          ],
+          "argv": [
+            "--json",
+            "--where",
+            "local",
+            "run",
+            "--workflow",
+            "{{out}}",
+            "--wait",
+            "--no-notify",
+            "--timeout",
+            "600"
+          ],
+          "output": {
+            "kind": "images",
+            "from": "$"
+          },
+          "timeout": 900,
+          "note": "从 CLI/workflows 选一条工作流，提示词写入 CLIPTextEncode 后交给本机 ComfyUI 出图；不消耗云端额度。"
+        },
+        {
+          "id": "local-run",
+          "label": "本地生图",
+          "inputs": [
+            {
+              "name": "prompt",
+              "type": "text",
+              "required": true
+            }
+          ],
+          "argv": [
+            "--json",
+            "--where",
+            "local",
+            "run",
+            "--prompt",
+            "{{prompt}}",
+            "--wait",
+            "--no-notify",
+            "--timeout",
+            "600"
+          ],
+          "output": {
+            "kind": "images",
+            "from": "$"
+          },
+          "timeout": 900,
+          "note": "真实调用本机 ComfyUI 服务（--where local），用内置默认 text2img workflow 出图；不消耗 Comfy Cloud 额度，需要本机 ComfyUI 已启动。后端按 COMFYUI_ADDRESS 自动注入 --host/--port，并从 ComfyUI /history 取回图片。"
+        }
+      ]
+    },
+    "tripo": {
+      "command": "tripo",
+      "npm_package": "tripo-cli",
+      "npm_entry": "dist/cli.js",
+      "note": "tripo-cli 0.11.2（全局 npm，Windows 走 node + dist/cli.js 而非 .cmd shim）。以下能力均已实测：不创建任务、不消耗 API 积分。正式生成（make / generate）需账号有积分，待充值后再追加能力卡。tripo --json 输出为顶层对象或数组，from 用 $ 取整份结果。",
+      "capabilities": [
+        {
+          "id": "make-3d",
+          "label": "文生 3D · 计费",
+          "billing": true,
+          "kind": "assets",
+          "inputs": [
+            {
+              "name": "prompt",
+              "type": "text",
+              "required": true
+            }
+          ],
+          "argv": [
+            "--json",
+            "--no-open",
+            "--yes",
+            "make",
+            "{{prompt}}",
+            "-o",
+            "{{out}}"
+          ],
+          "output": {
+            "kind": "assets",
+            "from": "$"
+          },
+          "timeout": 900,
+          "note": "文字描述交给 Tripo 云端生成 GLB 并下载；消耗积分，需登录且余额充足。附加框可填 for=game-mobile model=tripo-v3.1 candidates=2"
+        },
+        {
+          "id": "whoami",
+          "label": "账号状态",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "whoami"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 25
+        },
+        {
+          "id": "balance",
+          "label": "积分余额",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "balance"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 25
+        },
+        {
+          "id": "doctor",
+          "label": "环境自检",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "doctor"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 40
+        },
+        {
+          "id": "models",
+          "label": "模型清单",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "models"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 30,
+          "note": "本地列表，不调用 API。返回各能力的模型 ID / 别名 / 默认值，节点可据此渲染图形选择控件。"
+        },
+        {
+          "id": "usage",
+          "label": "近期用量",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "usage"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 25
+        },
+        {
+          "id": "history",
+          "label": "任务历史",
+          "inputs": [],
+          "argv": [
+            "--json",
+            "history"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 25
+        },
+        {
+          "id": "dry-run",
+          "label": "生成预演",
+          "inputs": [
+            {
+              "name": "prompt",
+              "type": "text",
+              "required": true
+            }
+          ],
+          "argv": [
+            "--json",
+            "make",
+            "{{prompt}}",
+            "--dry-run",
+            "--no-open"
+          ],
+          "output": {
+            "kind": "json",
+            "from": "$"
+          },
+          "timeout": 45,
+          "note": "离线返回执行计划、自动选中的模型、产物格式与积分预估；不上传、不创建任务、不扣费。params 可追加 --model 等参数。"
+        }
+      ]
+    },
+    "jimeng": {
+      "command": "dreamina",
+      "note": "即梦官方 CLI（dreamina 46b5b0e），本机已安装并使用本机登录态。积分/任务/版本为只读能力、零消耗；text2image 等生成命令按官方说明消耗积分，已标记计费。生成是异步任务，返回 submit_id 后用「任务查询」取回图片链接。",
+      "capabilities": [
+        {
+          "id": "user-credit",
+          "label": "积分查询",
+          "inputs": [],
+          "argv": ["user_credit"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 30,
+          "note": "返回 total_credit / user_id，只读、零消耗。"
+        },
+        {
+          "id": "list-task",
+          "label": "任务列表",
+          "inputs": [],
+          "argv": ["list_task"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 30,
+          "note": "列出本地保存的异步生成任务与状态；params 可追加 gen_status=success。"
+        },
+        {
+          "id": "query-result",
+          "label": "任务查询",
+          "inputs": [
+            { "name": "submit_id", "label": "任务 ID", "type": "text", "required": true }
+          ],
+          "argv": ["query_result", "--submit_id={{submit_id}}"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 60,
+          "note": "按 submit_id 取回任务结果与图片链接；只读、零消耗。"
+        },
+        {
+          "id": "text2image",
+          "label": "文生图 · 计费",
+          "billing": true,
+          "inputs": [
+            { "name": "prompt", "type": "text", "required": true }
+          ],
+          "argv": ["text2image", "--prompt={{prompt}}", "--poll", "30"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 300,
+          "note": "提交即梦文生图任务（消耗积分），--poll 30 最多等待 30 秒；返回 submit_id 后再用「任务查询」取图片。params 可追加 ratio=1:1 resolution_type=2k model_version=5.0。"
+        },
+        {
+          "id": "version",
+          "label": "版本信息",
+          "inputs": [],
+          "argv": ["version"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 20
+        }
+      ]
+    },
+    "codex": {
+      "command": "codex",
+      "npm_package": "@openai/codex",
+      "npm_entry": "bin/codex.js",
+      "note": "OpenAI Codex CLI 0.145.0（全局 npm）。Windows 下由后端用 node 直接跑 @openai/codex/bin/codex.js，绕开 .cmd shim 的中文乱码与命令注入风险。exec 使用本机 Codex 登录态与订阅额度，已标记计费；固定带 --sandbox read-only，不跳过审批、不改动项目文件。",
+      "capabilities": [
+        {
+          "id": "version",
+          "label": "版本信息",
+          "inputs": [],
+          "argv": ["--version"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 25
+        },
+        {
+          "id": "doctor",
+          "label": "环境诊断",
+          "inputs": [],
+          "argv": ["doctor"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 60,
+          "note": "诊断安装、配置、登录与运行时健康；只读、零消耗。"
+        },
+        {
+          "id": "mcp-list",
+          "label": "MCP 列表",
+          "inputs": [],
+          "argv": ["mcp", "list"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 30,
+          "note": "列出 Codex 已配置的外部 MCP 服务，便于把画布工具链与 Codex 对齐。"
+        },
+        {
+          "id": "exec",
+          "label": "执行指令 · 计费",
+          "billing": true,
+          "inputs": [
+            { "name": "prompt", "type": "text", "required": true }
+          ],
+          "argv": ["exec", "--skip-git-repo-check", "--sandbox", "read-only", "{{prompt}}"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 300,
+          "note": "让 Codex 非交互执行一段指令，结果回写到画布节点；使用本机登录态、消耗订阅额度。只读沙箱，不改文件。例：总结当前目录结构 / 解释某段代码。"
+        }
+      ]
+    },
+    "gemini-cli": {
+      "command": "agy",
+      "note": "Antigravity CLI（agy 1.104.0）。本机未安装 gemini，故 command 用 agy。mcp/plugin/agents/help 为本地只读、零消耗；print 需先在终端运行 agy 完成 Google 登录，未登录会等待授权直到超时，因此标记计费并给较长超时。",
+      "capabilities": [
+        {
+          "id": "mcp-list",
+          "label": "MCP 列表",
+          "inputs": [],
+          "argv": ["mcp", "list"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 30
+        },
+        {
+          "id": "plugin-list",
+          "label": "插件列表",
+          "inputs": [],
+          "argv": ["plugin", "list"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 30
+        },
+        {
+          "id": "agents",
+          "label": "Agent 列表",
+          "inputs": [],
+          "argv": ["agents"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 30,
+          "note": "列出可用 agent；未登录时可能返回空。"
+        },
+        {
+          "id": "help",
+          "label": "命令帮助",
+          "inputs": [],
+          "argv": ["help"],
+          "output": { "kind": "text", "from": "$" },
+          "timeout": 25
+        },
+        {
+          "id": "print",
+          "label": "单次执行 · 计费",
+          "billing": true,
+          "inputs": [
+            { "name": "prompt", "type": "text", "required": true }
+          ],
+          "argv": ["--output-format", "json", "--print={{prompt}}"],
+          "output": { "kind": "json", "from": "$" },
+          "timeout": 180,
+          "note": "非交互让 Antigravity agent 跑一次并回写结果；需先登录、消耗订阅额度。官方要求 prompt 附着在 --print= 上，--output-format 放在前面。"
+        }
+      ]
+    }
+  }
+}

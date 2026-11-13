@@ -1,44 +1,44 @@
-.canvas-mask-editor { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; padding:0; border:0; color:#eee; background:#101110f5; background-image:radial-gradient(#303330 1px,transparent 1px); background-size:28px 28px; overflow:hidden; }
-.canvas-mask-editor::backdrop { background:#090a09dd; }
+.canvas-mask-editor { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; padding:0; border:0; color:var(--ui-text); background:color-mix(in srgb, var(--ui-panel) 96.08%, transparent); background-image:radial-gradient(#303330 1px,transparent 1px); background-size:28px 28px; overflow:hidden; }
+.canvas-mask-editor::backdrop { background:color-mix(in srgb, var(--ui-panel) 86.67%, transparent); }
 .canvas-mask-editor[open] { display:flex; flex-direction:column; }
 .canvas-mask-editor header { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; flex-shrink:0; }
 .canvas-mask-editor header strong { font-size:16px; font-weight:600; }
-.canvas-mask-editor header span { margin-left:16px; font-size:12px; color:#a4aaa5; }
-.canvas-mask-editor button { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:42px; height:42px; border:0; border-radius:10px; background:transparent; color:#ebedeb; cursor:pointer; }
-.canvas-mask-editor button:hover { background:#ffffff12; }
-.canvas-mask-editor button:focus-visible, .canvas-mask-editor input:focus-visible, .canvas-mask-editor select:focus-visible { outline:2px solid #91b5ff; outline-offset:2px; }
+.canvas-mask-editor header span { margin-left:16px; font-size:12px; color:var(--ui-muted); }
+.canvas-mask-editor button { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:42px; height:42px; border:0; border-radius:10px; background:transparent; color:var(--ui-text); cursor:pointer; }
+.canvas-mask-editor button:hover { background:color-mix(in srgb, var(--ui-panel) 7.06%, transparent); }
+.canvas-mask-editor button:focus-visible, .canvas-mask-editor input:focus-visible, .canvas-mask-editor select:focus-visible { outline:2px solid var(--ui-accent); outline-offset:2px; }
 .canvas-mask-editor button:disabled { opacity:.3; cursor:default; }
-.canvas-mask-editor button[aria-pressed=true] { background:#393b39; color:white; }
+.canvas-mask-editor button[aria-pressed=true] { background:var(--ui-soft); color:white; }
 .canvas-mask-editor svg { width:20px; height:20px; pointer-events:none; }
 .mask-stage { flex:1; min-height:0; overflow:auto; display:grid; padding:8px 24px; }
 .mask-surface { position:relative; margin:auto; flex-shrink:0; border-radius:12px; box-shadow:0 12px 60px #0007; }
 .mask-surface canvas { width:100%; height:100%; display:block; border-radius:12px; touch-action:none; cursor:crosshair; }
 .mask-cursor { position:absolute; border:1px solid white; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; box-shadow:0 0 0 1px #0008; }
-.mask-feedback { flex-shrink:0; min-height:20px; padding:12px 24px 8px; text-align:center; color:#aeb8b0; font-size:12px; }
+.mask-feedback { flex-shrink:0; min-height:20px; padding:12px 24px 8px; text-align:center; color:var(--ui-muted); font-size:12px; }
 .mask-progress { flex-shrink:0; display:block; width:min(360px,calc(100% - 48px)); height:5px; margin:0 auto 12px; border:0; border-radius:4px; overflow:hidden; accent-color:#91b5ff; }
-.mask-progress::-webkit-progress-bar { background:#ffffff18; border-radius:4px; }
-.mask-progress::-webkit-progress-value { background:#91b5ff; border-radius:4px; }
+.mask-progress::-webkit-progress-bar { background:color-mix(in srgb, var(--ui-panel) 9.41%, transparent); border-radius:4px; }
+.mask-progress::-webkit-progress-value { background:var(--ui-accent); border-radius:4px; }
 .mask-progress:indeterminate { opacity:.65; }
-.mask-toolbar { align-self:center; display:flex; align-items:center; gap:5px; flex-shrink:0; max-width:calc(100vw - 24px); box-sizing:border-box; margin:0 12px 24px; padding:5px; border:1px solid #343734; border-radius:17px; background:#242624; box-shadow:0 10px 40px #0004; }
+.mask-toolbar { align-self:center; display:flex; align-items:center; gap:5px; flex-shrink:0; max-width:calc(100vw - 24px); box-sizing:border-box; margin:0 12px 24px; padding:5px; border:1px solid var(--ui-line-strong); border-radius:17px; background:var(--ui-panel); box-shadow:0 10px 40px #0004; }
 .mask-toolbar label { display:flex; align-items:center; gap:8px; padding:0 10px; }
 .mask-model-picker { position:relative; flex-shrink:0; }
-.canvas-mask-editor [data-model-toggle] { width:auto; max-width:180px; gap:6px; padding:0 10px; border-radius:9px; font-size:12px; background:#303430; }
+.canvas-mask-editor [data-model-toggle] { width:auto; max-width:180px; gap:6px; padding:0 10px; border-radius:9px; font-size:12px; background:var(--ui-panel); }
 [data-model-name] { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .canvas-mask-editor [data-model-toggle] svg { width:14px; height:14px; flex-shrink:0; }
-.mask-model-menu { position:absolute; bottom:calc(100% + 14px); right:0; width:250px; box-sizing:border-box; padding:7px; border:1px solid #414741; border-radius:12px; background:#252925; box-shadow:0 10px 40px #0007; z-index:4; }
+.mask-model-menu { position:absolute; bottom:calc(100% + 14px); right:0; width:250px; box-sizing:border-box; padding:7px; border:1px solid var(--ui-line-strong); border-radius:12px; background:var(--ui-panel); box-shadow:0 10px 40px #0007; z-index:4; }
 .mask-model-options { max-height:min(350px,45vh); overflow-y:auto; }
 .canvas-mask-editor .mask-model-options button { display:flex; justify-content:flex-start; width:100%; height:36px; padding:0 10px; border-radius:7px; font-size:12px; }
-.canvas-mask-editor .mask-model-options button[aria-checked=true] { background:#424a42; color:white; }
-.mask-toolbar .mask-model-menu label { display:block; padding:12px 5px 5px; border-top:1px solid #414741; font-size:12px; }
-.mask-model-menu input { display:block; width:100%; box-sizing:border-box; padding:9px; margin:8px 0; border:1px solid #535953; border-radius:7px; background:#171c17; color:white; }
-.canvas-mask-editor [data-model-apply] { width:100%; border-radius:7px; background:#414a41; font-size:12px; }
+.canvas-mask-editor .mask-model-options button[aria-checked=true] { background:var(--ui-soft); color:white; }
+.mask-toolbar .mask-model-menu label { display:block; padding:12px 5px 5px; border-top:1px solid var(--ui-line-strong); font-size:12px; }
+.mask-model-menu input { display:block; width:100%; box-sizing:border-box; padding:9px; margin:8px 0; border:1px solid var(--ui-line-strong); border-radius:7px; background:var(--ui-panel); color:white; }
+.canvas-mask-editor [data-model-apply] { width:100%; border-radius:7px; background:var(--ui-soft); font-size:12px; }
 .mask-toolbar input[type=range] { width:105px; accent-color:#f3f4f3; }
-.mask-divider { width:1px; height:22px; background:#393c39; margin:0 3px; }
-.canvas-mask-editor .mask-generate { width:auto; min-width:98px; padding:0 22px; margin-left:6px; background:#f3f4f2; color:#161816; font-size:15px; }
+.mask-divider { width:1px; height:22px; background:var(--ui-soft); margin:0 3px; }
+.canvas-mask-editor .mask-generate { width:auto; min-width:98px; padding:0 22px; margin-left:6px; background:var(--ui-panel); color:var(--ui-text); font-size:15px; }
 .canvas-mask-editor .mask-generate:hover { background:white; }
-.mask-settings { position:absolute; right:24px; bottom:100px; width:260px; padding:18px; border:1px solid #414541; border-radius:14px; background:#252825; box-shadow:0 12px 40px #0006; }
+.mask-settings { position:absolute; right:24px; bottom:100px; width:260px; padding:18px; border:1px solid var(--ui-line-strong); border-radius:14px; background:var(--ui-panel); box-shadow:0 12px 40px #0006; }
 .mask-settings label { display:block; font-size:12px; margin-bottom:12px; }
-.mask-settings select,.mask-settings input { display:block; width:100%; box-sizing:border-box; margin-top:8px; border:1px solid #535953; border-radius:8px; padding:9px; background:#191c19; color:white; }
-.mask-settings p { color:#a8b1a9; font-size:12px; line-height:1.6; margin:0; }
+.mask-settings select,.mask-settings input { display:block; width:100%; box-sizing:border-box; margin-top:8px; border:1px solid var(--ui-line-strong); border-radius:8px; padding:9px; background:var(--ui-panel); color:white; }
+.mask-settings p { color:var(--ui-muted); font-size:12px; line-height:1.6; margin:0; }
 .canvas-mask-editor [hidden] { display:none; }
 @media(max-width:650px) { .canvas-mask-editor header {padding:12px;} .canvas-mask-editor header span {display:none;} .mask-toolbar {gap:1px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;} .canvas-mask-editor button {width:36px;height:40px;} .mask-toolbar label {padding:0 4px;} .mask-toolbar input[type=range] {width:70px;} .mask-settings {right:12px;bottom:122px;} }

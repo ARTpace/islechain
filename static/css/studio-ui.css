@@ -1,5 +1,5 @@
 /* =====================================================================
-   studio-ui.css — ART AI 统一设计系统 v3「高定」
+   studio-ui.css — IsleChain 统一设计系统 v3「高定」
    响应式（桌面 / 平板 / 移动）+ 深浅双主题（统一切换）
    ---------------------------------------------------------------------
    v3 铁律（10 条，全部编码进本文件，34 个界面共享继承）：
@@ -29,24 +29,24 @@
 /* ---------- 浅色主题（默认）：暖中性，靠明度分层，不靠描边 ---------- */
 :root {
   /* 明度阶梯（相邻级差 1%~3%） */
-  --ui-bg: #f7f6f4;          /* 页面底 */
-  --ui-panel: #fbfaf9;       /* 卡片/面板（最亮层） */
-  --ui-soft: #f5f5f3;        /* 内嵌区（次层） */
-  --ui-line: #eeede9;        /* 分隔线（克制使用） */
-  --ui-line-strong: #e7e5de; /* 需要边界的控件 */
+  --ui-bg: #f1eee7;          /* 页面底 */
+  --ui-panel: #fffdf7;       /* 卡片/面板（最亮层） */
+  --ui-soft: #e9e4da;        /* 内嵌区（次层） */
+  --ui-line: #dcd4c6;        /* 分隔线（克制使用） */
+  --ui-line-strong: #bdb2a0; /* 需要边界的控件 */
   --ui-edge: transparent;    /* 去边框：默认透明，占位不塌陷 */
 
   --ui-text: #1a1a19;
-  --ui-muted: #828178;
+  --ui-muted: #6c6b62;
   --ui-faint: #9e9c93;
   --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
   --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
 
-  /* 强调色沿用品牌青（theme.js 的 5 套 accent 仍可覆盖 --accent） */
-  --ui-accent: #0e7490;
-  --ui-accent-glow: #0891b2;
-  --ui-accent-ink: #fbfaf9;
-  --ui-accent-soft: rgba(14, 116, 144, .10);
+  /* 中性暖褐为浅色默认，用户主动选择仍由 theme.js 覆盖。 */
+  --ui-accent: #795b3c;
+  --ui-accent-glow: #947453;
+  --ui-accent-ink: #fffdf7;
+  --ui-accent-soft: rgba(121, 91, 60, .10);
 
   /* 层级阴影（替代描边的主要手段） */
   --ui-shadow: 0 1px 2px rgba(24, 24, 23, .04), 0 8px 24px rgba(24, 24, 23, .05);
@@ -92,7 +92,7 @@ body.theme-dark {
   --ui-edge: transparent;
 
   --ui-text: #f6f6f4;
-  --ui-muted: #9f9d94;
+  --ui-muted: #b0aea5;
   --ui-faint: #86857c;
   --scrollbar: color-mix(in srgb, var(--ui-text) 42%, var(--ui-line));
   --scrollbar-hover: color-mix(in srgb, var(--ui-text) 64%, var(--ui-line));
@@ -525,3 +525,98 @@ textarea.ui-input { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   * { scroll-behavior: auto !important; }
   .ui-ch { filter: none !important; opacity: 1 !important; }
 }
+
+/* 旧模块兼容契约：所有界面色最终回到同一套外观变量。 */
+:root,html.studio-theme-dark,body,body.studio-theme-dark,body.theme-dark{
+ --bg-primary:var(--ui-bg);--bg-secondary:var(--ui-panel);--bg-tertiary:var(--ui-soft);
+ --text-primary:var(--ui-text);--text-secondary:var(--ui-muted);--border-color:var(--ui-line-strong);--accent-color:var(--ui-accent);
+ --ui-success:#187747;--ui-warning:#926012;--ui-error:#ba3445;
+}
+html.studio-theme-dark,html.studio-theme-dark body,body.theme-dark{
+ --ui-success:#71cea3;--ui-warning:#e8ba65;--ui-error:#f48b97;
+}
+
+:root{color-scheme:light}html.studio-theme-dark{color-scheme:dark}
+input::placeholder,textarea::placeholder{color:var(--ui-muted);opacity:1}
+input[type="checkbox"],input[type="radio"]{accent-color:var(--ui-accent)}
+
+/* 浅色公共视觉：奶油纸面与燕麦灰分层，中性暖褐强调，避免发光。 */
+html:not(.studio-theme-dark), html:not(.studio-theme-dark) body {
+  --ui-text: #302e29;
+  --ui-muted: #686258;
+  --ui-faint: #797267;
+  --ui-r-xs: 6px;
+  --ui-r-sm: 8px;
+  --ui-r: 12px;
+  --ui-r-lg: 16px;
+  --ui-edge: var(--ui-line);
+  --ui-shadow: 0 1px 2px #4036220a, 0 4px 12px #40362208;
+  --ui-shadow-strong: 0 2px 4px #4036220d, 0 8px 20px #4036220d;
+}
+html:not(.studio-theme-dark) body :is(.stage, .app-shell) {
+  background: var(--ui-bg) !important;
+  border-color: var(--ui-line) !important;
+}
+html:not(.studio-theme-dark) body .sidebar.sidebar {
+  border-right-color: var(--ui-line) !important;
+}
+html:not(.studio-theme-dark) body .sidebar.sidebar :is(.nav-item.active, .nav-child.submenu-active) {
+  /* Selected navigation follows the same soft outlined skin as generation. */
+  background: var(--ui-accent-soft) !important;
+  color: var(--ui-accent) !important;
+  border-color: color-mix(in srgb, var(--ui-accent) 60%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 60%, transparent) !important;
+}
+html:not(.studio-theme-dark) body :is(.nav-item, .nav-child):hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--ui-panel)) !important;
+  color: var(--ui-text) !important;
+}
+html:not(.studio-theme-dark) body :is(.composer, .chat-composer, .ui-card, .work-panel, .tool-panel, .control-panel) {
+  background: var(--ui-panel) !important;
+  border-color: var(--ui-line) !important;
+}
+html:not(.studio-theme-dark) body :is(.composer, .chat-composer):focus-within {
+  border-color: var(--ui-text) !important;
+}
+html:not(.studio-theme-dark) body :is(.chip, .tbtn, .ui-input, .ui-select) {
+  border-color: var(--ui-line-strong);
+}
+html:not(.studio-theme-dark) body :is(.send, .send-btn, .ui-btn-primary) {
+  background: var(--ui-accent-soft) !important;
+  color: var(--ui-accent) !important;
+  border-color: color-mix(in srgb, var(--ui-accent) 60%, transparent) !important;
+}
+
+/* Light workspace: readable neutral ink, paper cards and quiet status fills. */
+html:not(.studio-theme-dark) body {
+  --strong: var(--ui-accent-soft);
+  --strong-text: var(--accent);
+  --soft-2: color-mix(in srgb, var(--ui-panel) 65%, var(--ui-soft));
+  --grid: rgba(104,98,88,.10);
+}
+html:not(.studio-theme-dark) body .nav-item {
+  color: var(--ui-muted);
+}
+html:not(.studio-theme-dark) body :is(.ws-card-kind.classic, .ws-card-meta) {
+  background: color-mix(in srgb, var(--ui-panel) 65%, var(--ui-soft));
+  color: var(--ui-muted);
+  border-color: var(--ui-line);
+}
+html:not(.studio-theme-dark) body :is(.ws-card-title, .ws-project-name) { color: var(--ui-text); }
+html:not(.studio-theme-dark) body :is(.ws-card-menu, .ws-project-icon, .ws-card-time, .ws-card-nodes) { color: var(--ui-muted); }
+/* 导航与设置共享清晰边界，不用彩色辉光承担层级。 */
+html:not(.studio-theme-dark) body :is(.nav-item, .nav-child, .logo-ring) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html:not(.studio-theme-dark) body .sidebar.sidebar :is(.nav-item.active, .nav-child.submenu-active) {
+  border-color: var(--ui-line-strong) !important;
+}
+html:not(.studio-theme-dark) body {
+  --sk-surface: var(--ui-panel);
+  --sk-slot: var(--ui-soft);
+  --sk-radius: var(--ui-r);
+  --sk-radius-sm: var(--ui-r-sm);
+}
+html:not(.studio-theme-dark) body .ws-project-row.active { background: var(--ui-accent-soft); }
+html:not(.studio-theme-dark) body .ws-project-row.active :is(.ws-project-name, .ws-project-icon) { color: var(--accent); }

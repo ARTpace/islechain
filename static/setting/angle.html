@@ -7,6 +7,7 @@
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>Angle Control | 视角重塑</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -20,7 +21,7 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+
     <script src="/static/i18n.js?v=20261024001"></script>
     <script src="/static/image-preview.js?v=20261024001"></script>
     <script src="/static/history-bulk-manager.js?v=20261024001"></script>
@@ -54,7 +55,7 @@
         }
 
         *::-webkit-scrollbar-thumb {
-            background-color: #d8d8d8 !important;
+            background-color: var(--ui-soft) !important;
             border: 3px solid transparent !important;
             border-right-width: 5px !important;
             /* 增加右侧间距，使滚动条向左位移 */
@@ -63,7 +64,7 @@
         }
 
         *::-webkit-scrollbar-thumb:hover {
-            background-color: #c0c0c0 !important;
+            background-color: var(--ui-soft) !important;
         }
 
         *::-webkit-scrollbar-corner {
@@ -91,12 +92,12 @@
 
         /* 统一组件风格 */
         .glass-btn {
-            background: #181817;
+            background: var(--ui-panel);
             transition: all 0.3s var(--easing);
         }
 
         .glass-btn:hover {
-            background: #0b0b0a;
+            background: var(--ui-panel);
             transform: translateY(-1px);
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
         }
@@ -107,20 +108,20 @@
 
         .upload-item {
             background: var(--card);
-            border: 1px dashed #eeede9;
+            border: 1px dashed var(--ui-line-strong);
             transition: all 0.4s var(--easing);
         }
 
         .upload-item:hover {
-            border-color: #0b0b0a;
-            background: #fbfaf9;
+            border-color: var(--ui-line-strong);
+            background: var(--ui-panel);
             transform: translateY(-2px);
         }
 
         .result-frame {
-            background: #fbfaf9;
+            background: var(--ui-panel);
             border-radius: 32px;
-            border: 1px solid #f7f7f5;
+            border: 1px solid var(--ui-line-strong);
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.02);
         }
 
@@ -138,8 +139,8 @@
 
         .masonry-item {
             aspect-ratio: 1 / 1;
-            background: #fbfaf9;
-            border: 1px solid #f7f7f5;
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line-strong);
             border-radius: 24px;
             overflow: hidden;
             transition: all 0.5s var(--easing);
@@ -152,14 +153,14 @@
         }
 
         .nano-input {
-            background: #fbfaf9;
+            background: var(--ui-panel);
             border-radius: 16px;
             transition: all 0.3s ease;
-            border: 1px solid #eeede9;
+            border: 1px solid var(--ui-line-strong);
         }
 
         .nano-input:focus {
-            background: #fbfaf9;
+            background: var(--ui-panel);
             box-shadow: 0 0 0 2px #0b0b0a;
             border-color: transparent;
         }
@@ -167,17 +168,17 @@
         @keyframes b-loading {
             0% {
                 transform: scale(1);
-                background: #0b0b0a;
+                background: var(--ui-panel);
             }
 
             50% {
                 transform: scale(1.15);
-                background: #444444;
+                background: var(--ui-soft);
             }
 
             100% {
                 transform: scale(1);
-                background: #0b0b0a;
+                background: var(--ui-panel);
             }
         }
 
@@ -190,7 +191,7 @@
         /* 复合切换组件样式 - 来自 zimage */
         .mode-switcher {
             position: relative;
-            background: #f1f1f1;
+            background: var(--ui-panel);
             padding: 4px;
             border-radius: 14px;
             display: flex;
@@ -206,32 +207,41 @@
             font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
-            color: #999999;
+            color: var(--ui-muted);
             transition: color 0.3s ease;
             cursor: pointer;
         }
 
         .mode-btn.active {
-            color: #0b0b0a;
+            color: var(--ui-text);
         }
 
         .mode-glider {
             position: absolute;
             height: calc(100% - 8px);
             width: calc(50% - 4px);
-            background: #fbfaf9;
+            background: var(--ui-panel);
             border-radius: 11px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             transition: transform 0.3s var(--easing);
             z-index: 1;
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <style id="ui-responsive">
         /* === 统一响应式（与 studio-ui.css 断点对齐） === */
         .container-box { width:100%; max-width:100%; box-sizing:border-box; padding-inline:clamp(16px, 4vw, 40px); }
-        @media (max-width:640px) { .container-box { padding:16px 14px; margin-top:24px; } }
+        @media (max-width:640px) {
+            .container-box { padding:16px 14px; margin-top:24px; }
+            .container-box > header { align-items:flex-start; margin-bottom:28px; }
+            .container-box h1 { font-size:clamp(22px, 7vw, 32px); flex-wrap:wrap; }
+            .container-box > header p { letter-spacing:.15em; overflow-wrap:anywhere; }
+            /* 相机预览与滑杆纵向排列时，不再共挤一个固定宽高比。 */
+            #cameraControl > div { aspect-ratio:auto; }
+            #threeContainer { flex:none; height:220px; min-height:220px; }
+            #cameraControl > div > div:last-child { overflow:visible; }
+        }
 
         /* 深色主题：把硬编码浅色 chrome 映射到契约 token，保证双主题一致 */
         html.studio-theme-dark body { background-color:var(--ui-bg); color:var(--ui-text); }
@@ -764,7 +774,7 @@
             if(event.data?.type === 'studio-lang') applyLanguage(event.data.lang);
         });
         window.addEventListener('studio-lang-change', () => { document.title = tr('nav.angle'); });
-        
+
         // --- Engine Switcher Logic (UI Only) ---
         let currentEngine = 'local';
         const ENGINE_MODE_KEY = 'angle_engine_mode';
@@ -928,7 +938,7 @@
 
             // Get token from centralized management (Personal -> Global)
             let token = localStorage.getItem('modelscope_api_token');
-            
+
             if (!token) {
                 try {
                     const res = await fetch('/api/config/token');
@@ -1000,7 +1010,7 @@
             // Handle Timeout / Continue Loop
             while (response.ok) {
                  const data = await response.json();
-                 
+
                  // If success with URL
                  if (data.url) {
                      return { images: [data.url] };
@@ -1010,7 +1020,7 @@
                  if (data.status === 'timeout') {
                      const taskId = data.task_id;
                      const userContinue = confirm("Cloud generation is taking longer than expected (300s). The queue might be full.\n\nDo you want to continue waiting?");
-                     
+
                      if (userContinue) {
                          // Call poll endpoint
                          const pollPayload = {
@@ -1018,10 +1028,10 @@
                              "api_key": token,
                              "client_id": clientId
                          };
-                         
+
                          // Update UI to show we are still waiting
                          updateCloudProgress({status: "Resuming...", progress: 0, total: 150});
-                         
+
                          response = await fetch('/api/angle/poll_status', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1032,7 +1042,7 @@
                          throw new Error("User cancelled waiting.");
                      }
                  }
-                 
+
                  // Unknown success response
                  throw new Error("Unknown response format");
             }
@@ -1070,7 +1080,7 @@
                 }, 300);
                 return;
             }
-            
+
             if (!uploadedFile && currentEngine === 'cloud') {
                  alert("Please upload an image first");
                  return;
@@ -1101,7 +1111,7 @@
 
             try {
                 let data;
-                
+
                 if (currentEngine === 'cloud') {
                     // Cloud Logic
                     data = await runCloudTask();
@@ -1190,7 +1200,7 @@
             card.className = "masonry-item relative group cursor-pointer";
 
             card.onclick = () => { if(document.body.classList.contains('history-bulk-selecting')) return; openLightbox(imgUrl); };
-            
+
             // ModelScope Badge
             const isCloud = data.is_cloud || (imgUrl && imgUrl.includes('cloud_angle'));
             const badgeHtml = isCloud ? `

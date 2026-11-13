@@ -112,10 +112,41 @@ core/                                                 公共底座
 | ComfyUI 各应用逻辑 | `comfyui-registry.js` `comfyui-klein.js` `comfyui-2dstyle.js` `comfyui-cgstyle.js` `comfyui-rmbg.js` `comfyui-kuotu.js` `comfyui-yichuwuti.js` `comfyui-gaoqingxiufu.js` `comfyui-promptgen.js` `comfyui-qwen-edit.js` `comfyui-watermark-removal.js` `comfyui-sdmatte.js` `comfyui-style-transfer.js` `comfyui-jiandanbeijing.js` `comfyui-utils.js` |
 | 内容包管理 | `content-pack-manager.js`（角色包+画师包，配置驱动）、`style-pack-manager.js`（风格包） |
 | 资产库 | `asset-library.js` `gallery-assets.js` |
-| 提示词 | `preset-panel.js` `preset-types.js` `prompt-tags.js` `prompt-history.js` `random-prompt.js` `smart-prompt.js` `prompt-translate-ui.js` |
-| 生成控制 | `generation-controls.js` `generation-options-panel.js` `generation-menu-position.js` `model-features.js` `model-visibility.js` |
+| 提示词 | `preset-panel.js` `preset-types.js` `prompt-tags.js` `prompt-history.js` `random-prompt.js` `smart-prompt.js` `prompt-translate-ui.js`、`prompt-picker.js`（提示词库浮层：风格/角色/画师/预设四 tab 合一，API 为 `window.PromptPicker`，样式暂在 `app/zimage.html`） |
+| 生成控制 | `generation-controls.js` `generation-options-panel.js` `generation-menu-position.js` `model-features.js` `model-visibility.js`、`model-picker.js`（模型选择菜单：档位归并 + 跨宿主渲染，样式 `css/model-picker.css`） |
+| 工具页共享运行时 | `comfy-tool-runtime.js`（服务器地址解析 / apiFetch / ComfyUI WebSocket / 任务提交与结果轮询，API 为 `window.ComfyTool.create()`）、`comfy-progress.js`（进度条与状态灯绘制，API 为 `window.ComfyProgress`）。已接入 `app/2dstyle.html` `app/cgstyle.html`；**新工具页不要再抄模板**，见下方约定 |
 | 对话 | `chat-assistant.js` `chat-composer.js` `chat-parameters.js` `chat-tasks.js` |
+| 画布 AI 对话 | `js/canvas-agent.js`（侧栏面板、流式事件、方案采用）、`js/canvas-agent-state.js`（会话持久化）、`js/canvas-agent-markdown.js`（先转义再渲染的 Markdown）、`css/canvas-agent.css`（Gemini 式对话界面） |
+| 节点包与插件台账 | `js/canvas-comfy-builds.js`（候选测试 / 安装 / 真实测试记录，渲染在「工作流与节点包」弹窗的 `#nodePackageRecords`；`prepare`/`configure` 供对话方案采用构建） |
+| 贴图重绘应用 | `static/app/texture-repaint.html`：侧栏应用之一。投影与 UV 烘焙用 `static/js/texture-repaint-engine.js`（源在 `ai-3d-texture-repaint-studio/src/embed/artCanvas.ts`，改完需重新 esbuild）。重建命令（在源码仓库目录执行）：`npx esbuild src/embed/artCanvas.ts --bundle --format=iife --global-name=TextureRepaint --platform=browser --target=es2020 --outfile="H:/AI-Tools/art-canvas/static/js/texture-repaint-engine.js"`，产物为 IIFE 全局 `TextureRepaint.default`。3D 预览复用 `GET /api/model3d/viewer`（同一份 `templates/model3d/viewer.html`）。生图走 `ComfyTool`；内置 SD1.5 图生图/局部重绘模板由 engine 的 `inpaintWorkflow` / `img2imgWorkflow` 提供 |
+| 3D 模型导入与预览 | `js/game-model-import.js`（打包产物，源在 `tools/model3d/importer.mjs`）：GLB/glTF/FBX/OBJ/STL/PLY → 自包含 GLB，含 FBX 文件头与版本预检、中文诊断；`modules/external-asset-drop.js` 的 `openModel3dViewer`（资产库 3D 预览，非 glb 先转再预览） |
+| 3D 节点：模型 vs 资产 | **拖入模型直接建 `gameModelAsset`（模型资产）**，不再有「本地模型 → 纳入资产」的中间态：`__assetDropCreateModelNode` 直接转调 `GameModel3D.dropModels`，画布没有游戏项目时会自动建一个、已有则复用。`gameModelAsset` 存 `modelAssetId`，可连线到 `gameDevelop` / `gameModel3d` / `gameAnimate3d`，进运行时资源。**`model3d` 只保留两个用途**：① PBR 材质球预览节点（无 `url`，由材质节点「生成材质球预览」创建，见下一行）；② 老画布里的本地模型节点（有 `url`），仍可点「纳入资产」（`promoteModel3dToAsset` → `GameModel3D.adoptLocal`）**原地升级**成 `gameModelAsset`，节点 id、位置、连线全部保留 |
+| AI 建模产物落地 | `blenderGen`（AI 建模）跑完后分两种：**改造模式**（连了模型资产当基准）→ `js/canvas.js` 的 `blenderOverwriteAsset` 直接覆盖原资产（`revision+1`），**不建任何节点**；**新建模式** → 后端 `routers/dcc_bridge.py` 的 `collect_into_canvas` 先把产物建成画布上的 `model3d` 节点，前端 `blenderModelAsset` **复用这个节点**、调 `GameModel3D.adoptLocal` 原地升级成 `gameModelAsset`，再补一条 `blenderGen → 资产` 的连线。不要再调 `dropModels` 新建节点，否则画布上会同时出现「3D 模型」和「模型资产」 |
+| AI 建模减面（目标面数 + 作业手册） | 节点 `static/nodes/blender-gen/index.js` 的两个控件「目标面数」「作业手册」→ `POST /api/dcc/build-model` 的 `targetTris` / `skillId` → `core/blender_modeller.py` 的 `_target_block` 把面数写成硬约束（改造模式下等同减面：要求按 `ratio = 目标 / 当前` 用 DECIMATE 修改器 apply，并打印 before/after），`_skill_text` 取 `packs/blender-skills/<skillId>/SKILL.md`。产物落地后 `core/glb_stats.py` 直接读 GLB 的 accessor 统计**真实三角面数**并写回 `job.tris`，节点状态行显示「面数 / 目标 / 偏差」，不再只信 AI 的自述。**人设**（`core/game_role_presets.py` 的 `optimizer` 减面拓扑师）管取舍方向，**手册**（`packs/blender-skills/optimizer/SKILL.md` 的减面配方）管手法，两者可自由组合；手册清单由 `GET /api/game-projects/blender-skills`（`core/blender_skills.py` 扫目录）给出，新增手册只要建 `packs/blender-skills/<id>/SKILL.md` |
+| 色卡低模建模 | 人设 `palette-lowpoly` + 同名 `packs/blender-skills/palette-lowpoly/SKILL.md`（4×12 色卡贴图、单材质、UV 收点）；`core/blender_modeller.py` 命中该 preset 时改用 `PALETTE_BRIEF`、跳过 `SHAPE_BRIEF`，`_record_uv` 豁免 UV 展开覆盖率判定（写 `uvMode=palette`） |
+| PBR 材质球预览 | `js/canvas-material-preview.js`：从连入 **`gameModelAsset`（模型资产）或旧版 `model3d`** 的节点自动取贴图——`materialPbr` 用 `materialJob.result.maps` 的通道，普通图片节点按文件名识别（basecolor/normal/roughness/metallic/ao）；`sources()` 同时给出 `maps`、`repeat`、`geometry`。**材质直连模型资产即可预览，不再需要中间节点**：`canvas-materials.js` 的 `canConnect` 放行 `materialPbr → gameModelAsset`，`ballPreview`（「生成材质球预览」按钮）已连到 3D 节点时只把该节点的 `materialPreview` 切到 `sphere`，不新建节点。**预设与平铺全部长在原来的 3D 预览器里面**（`templates/model3d/viewer.html`），父页不另做面板、也不换渲染路径：`game-model3d.js` 的 `nodeBody` 只负责挑 iframe 的地址——有模型/任务时 `preview/<assetId>` 或 `jobs/<jobId>/preview`，**只有材质没有模型时走新增的 `GET /model3d/material-preview`**（同一份 viewer、空模型版），然后把贴图按 Blob 经 `postMessage` 送进去（沙箱 iframe 拿不到登录态，取图由父页负责）。预览器内部用 `MeshStandardMaterial` + `SphereGeometry/BoxGeometry/PlaneGeometry` 自造球/方/平板（`buildMaterialPreset`），与模型互斥显隐；**左下角浮层 `.viewer-material`** 提供「模型/球/方/平板」分段键 + 平铺滑条（`input[type=range]`，0.5–4 半档），不挡右上角通道/帮助/全屏三键，左键旋转、通道预览、双击重置视角全部复用原有 `GameOrbitControls` 与通道渲染。**换预设或拖平铺都不重建 iframe**：`viewState()` 的 `key` 只含「看哪份内容」（`previewKey` 或 `material:<贴图哈希>`），预设与平铺走 `postMessage` 的 `geometry`/`repeat`；预览器改完再把选择用 `material-control` 报回节点（父页只存不重绘，避免多推一次把视角重置）。**推送时机**：预览器在模型/空场景就绪后统一发 `model-ready`，父页收到时先清掉该 iframe 的推送签名再发一次——否则新 iframe 首帧那次 `postMessage` 会落在子页监听挂上之前被丢掉。`apply-material` 只替换 `map/normalMap/roughnessMap/metalnessMap/aoMap` 贴图槽并设 `texture.repeat`，不动几何与 UV；上一轮贴图在新贴图落地后按「还有没有网格引用」决定 `dispose`，拖滑条不会堆显存。另外 `preview_response` 的内联注入改用 `re.sub` 的 callable 形式：`three-runtime.js` 是压缩产物，里面有 `$&`（minified 变量名 `$` 紧跟 `&&`），字符串式 `str.replace` 会把它当成「整段匹配」展开，直接把脚本改坏 |
 | 其它 | `auth-token.js` `settings.js` `minimap-nav.js` `image-viewer.js` `image-editor.js` `lora-manager.js` `ref-image-manager.js` `training.js` `logs-panel.js` |
+
+> **工具页（2dstyle / cgstyle / kuotu / rmbg / yichuwuti / gaoqingxiufu / promptgen / textmatting / watermark-removal）约定**
+>
+> 这几页原本是同一份模板复制出来的，`apiFetch` / `buildWsUrl` / `generateUUID` / `loadConfig` /
+> `checkServerConnection` / 进度条四件套 / 提交并等待结果各写一遍（`buildWsUrl` 曾 10 份字面相同）。
+> 现在统一走 `comfy-tool-runtime.js` + `comfy-progress.js`：
+>
+> ```js
+> const tool = ComfyTool.create({ keepAlive: true });   // keepAlive：常驻 WS 收进度
+> const CLIENT_ID = tool.clientId;
+> await tool.loadConfig();                               // 本地模式会回后端取真实地址
+> tool.submit(workflow, { onProgress: updateRealProgress })  // → { imageUrl, promptId }
+> ```
+>
+> 三条硬约定：
+> 1. **完成判定必须靠 history 轮询**（`submit` 已内置），不要只等 WebSocket 的 `executing: null`——
+>    WS 消息丢一次就永久挂起。
+> 2. **提交后必须检查 `node_errors`**：模型文件被删时 ComfyUI 可能返回 200 且只跑部分节点，
+>    不检查就会一直轮询到超时（`submit` 已内置）。
+> 3. 进度条 DOM 契约固定为 `progressInline / progressFill / progressPercent / progressStatus`，
+>    状态灯为 `statusText / dotColor`；换页面不要换 id。
 
 ## 工具脚本 `tools/`
 
@@ -128,6 +159,7 @@ core/                                                 公共底座
 | 素材导入 | `fooocus_importer.py`、`import_yuanbao_styles.py` |
 | 运行期支撑 | `performance_timing.py`、`api_compat.py`、`webai_gateway.py`、`training_bridge.py`（被 main 顶层依赖，不可移走） |
 | 运维 | `install_cutout_models.py`、`codex_image.py`、`fey_no_bg_worker.py` |
+| 3D 模型导入 | `model3d/importer.mjs`（打包成 `static/js/game-model-import.js`，用 `npm run build:importer`；改完必须重新打包）、`model3d/fbx-ascii.mjs`（ASCII 文本 FBX 解析：顶点/三角化/法线/材质/变换）、`model3d/test-ascii.mjs`（回归断言：`node test-ascii.mjs <file.fbx>`） |
 
 ## 测试 `tests/`
 

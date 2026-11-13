@@ -241,6 +241,11 @@
   ],
   [
     "GET",
+    "/api/canvases/{canvas_id}/export",
+    1
+  ],
+  [
+    "GET",
     "/api/canvases/{canvas_id}/files",
     1
   ],
@@ -262,6 +267,36 @@
   [
     "GET",
     "/api/characters/index",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/artifact",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/capabilities",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/list",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/task",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/workflows",
+    1
+  ],
+  [
+    "GET",
+    "/api/cli/workflows/check",
     1
   ],
   [
@@ -366,6 +401,26 @@
   ],
   [
     "GET",
+    "/api/dcc/jobs",
+    1
+  ],
+  [
+    "GET",
+    "/api/dcc/jobs/{job_id}",
+    1
+  ],
+  [
+    "GET",
+    "/api/dcc/jobs/{job_id}/products/{name}",
+    1
+  ],
+  [
+    "GET",
+    "/api/dcc/targets",
+    1
+  ],
+  [
+    "GET",
     "/api/delete-output-file",
     1
   ],
@@ -382,6 +437,16 @@
   [
     "GET",
     "/api/game-projects",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/blender-skills",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/preset-detail",
     1
   ],
   [
@@ -467,6 +532,11 @@
   [
     "GET",
     "/api/game-projects/{project_id}/model3d/jobs/{job_id}/preview",
+    1
+  ],
+  [
+    "GET",
+    "/api/game-projects/{project_id}/model3d/material-preview",
     1
   ],
   [
@@ -711,6 +781,21 @@
   ],
   [
     "GET",
+    "/api/materials/designer/status",
+    1
+  ],
+  [
+    "GET",
+    "/api/materials/presets",
+    1
+  ],
+  [
+    "GET",
+    "/api/materials/{canvas_id}/jobs/{job_id}",
+    1
+  ],
+  [
+    "GET",
     "/api/mcp/comfy-builds",
     1
   ],
@@ -731,6 +816,21 @@
   ],
   [
     "GET",
+    "/api/mcp/uloop-features",
+    1
+  ],
+  [
+    "GET",
+    "/api/mcp/unity-editor-methods",
+    1
+  ],
+  [
+    "GET",
+    "/api/mcp/unity-projects",
+    1
+  ],
+  [
+    "GET",
     "/api/media-preview",
     1
   ],
@@ -741,12 +841,27 @@
   ],
   [
     "GET",
+    "/api/model3d/viewer",
+    1
+  ],
+  [
+    "GET",
     "/api/models",
     1
   ],
   [
     "GET",
     "/api/open-output-folder",
+    1
+  ],
+  [
+    "GET",
+    "/api/packs",
+    1
+  ],
+  [
+    "GET",
+    "/api/packs/discover",
     1
   ],
   [
@@ -1291,6 +1406,11 @@
   ],
   [
     "POST",
+    "/api/canvases/import",
+    1
+  ],
+  [
+    "POST",
     "/api/canvases/{canvas_id}/asset-folder",
     1
   ],
@@ -1347,6 +1467,41 @@
   [
     "POST",
     "/api/chat/stream",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/add-provider",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/install",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/run",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/terminal",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/toggle",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/verify",
+    1
+  ],
+  [
+    "POST",
+    "/api/cli/workflows/install",
     1
   ],
   [
@@ -1442,6 +1597,26 @@
   [
     "POST",
     "/api/conversations/{conversation_id}/turn",
+    1
+  ],
+  [
+    "POST",
+    "/api/dcc/build-model",
+    1
+  ],
+  [
+    "POST",
+    "/api/dcc/jobs",
+    1
+  ],
+  [
+    "POST",
+    "/api/dcc/jobs/{job_id}/approve-stage",
+    1
+  ],
+  [
+    "POST",
+    "/api/dcc/jobs/{job_id}/import",
     1
   ],
   [
@@ -1906,6 +2081,16 @@
   ],
   [
     "POST",
+    "/api/materials/{canvas_id}/jobs",
+    1
+  ],
+  [
+    "POST",
+    "/api/materials/{canvas_id}/jobs/{job_id}/designer",
+    1
+  ],
+  [
+    "POST",
     "/api/mcp/agent",
     1
   ],
@@ -1971,6 +2156,11 @@
   ],
   [
     "POST",
+    "/api/media/trim",
+    1
+  ],
+  [
+    "POST",
     "/api/ms/generate",
     1
   ],
@@ -1987,6 +2177,11 @@
   [
     "POST",
     "/api/output/merge-horizontal",
+    1
+  ],
+  [
+    "POST",
+    "/api/packs/validate",
     1
   ],
   [

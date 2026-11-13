@@ -19,6 +19,33 @@ def sample():
 
 
 class PluginBuildTests(unittest.TestCase):
+    def test_media_candidate_repairs_only_missing_text_binding(self):
+        example = copy.deepcopy(node_catalog.sdk()['namedImageExample'])
+        value = example['definition']
+        key = value['execution']['textField']
+        value['fields'] = [field for field in value['fields'] if field['id'] != key]
+        before = copy.deepcopy(value)
+        candidate = self.service.create(value, example['tests'])
+        self.assertEqual(value, before)
+        self.assertTrue(candidate['repairs'])
+        self.assertEqual(candidate['status'], 'draft')
+        self.assertNotIn('trustedRevision', candidate)
+        self.assertEqual(candidate['definition']['execution']['code'], value['execution']['code'])
+        value['fields'].append({'id': key, 'label': '数字', 'component': 'number', 'default': 1})
+        with self.assertRaisesRegex(ValueError, '文本执行绑定'):
+            self.service.create(value, example['tests'])
+
+    def test_sdk_image_example_executes_and_reports_mixed_protocol_fields(self):
+        example = node_catalog.sdk()['namedImageExample']
+        mixed = copy.deepcopy(example['tests'])
+        mixed[0]['expectedText'] = ''
+        with self.assertRaisesRegex(ValueError, "请删除多余字段.*expectedText"):
+            self.service.create(example['definition'], mixed)
+        created = self.service.create(example['definition'], example['tests'])
+        self.service.approve_worker(created['id'], created['revision'])
+        result = self.service.test(created['id'])
+        self.assertEqual(result['status'], 'passed', result)
+
     def test_named_port_sdk_and_candidate_tool_schema(self):
         contract = node_catalog.sdk()['namedPortWorkerContract']
         self.assertEqual(contract['protocolVersion'], 3)
@@ -28,6 +55,32 @@ class PluginBuildTests(unittest.TestCase):
         self.assertIn('portInputs', items['properties'])
         self.assertIn('expectedPorts', items['properties'])
         self.assertFalse(items['additionalProperties'])
+
+    def test_string_encoded_definition_is_decoded_once_without_changing_tests(self):
+        value = sample()
+        tests = [{'params': {'text': ' z\na\nz '}, 'expectedText': 'a\nz'}]
+        candidate = self.service.create(json.dumps(value), tests)
+        self.assertTrue(candidate['repairs'])
+        self.assertEqual(candidate['tests'], tests)
+        self.assertEqual(candidate['definition']['execution'], node_catalog.definition(value)['execution'])
+        self.assertEqual(self.service.test(candidate['id'])['status'], 'passed')
+        with self.assertRaisesRegex(ValueError, '再次编码'):
+            self.service.create(json.dumps(json.dumps(value)), tests)
+        with self.assertRaisesRegex(ValueError, '单个JSON对象'):
+            self.service.create('{} trailing', tests)
+
+    def test_test_schema_rejects_mixed_and_missing_expectations(self):
+        from jsonschema import Draft202012Validator
+        tool = next(t for t in self.service.tools() if t['function']['name'] == 'canvas_create_plugin_candidate')
+        schema = tool['function']['parameters']['properties']['tests']['items']
+        validate = Draft202012Validator(schema)
+        self.assertTrue(validate.is_valid({'params': {}, 'expectedText': ''}))
+        self.assertTrue(validate.is_valid({'params': {}, 'expectedPorts': {'text': 'ok'}}))
+        for invalid in ({'params': {}}, {'expectedText': '', 'expectedPorts': {}},
+                        {'expectedPorts': {}, 'imageInputs': []}, {'expectedText': '', 'portInputs': {}}):
+            self.assertFalse(validate.is_valid(invalid), invalid)
+        with self.assertRaisesRegex(ValueError, '当前定义没有ports'):
+            self.service.create(sample(), [{'expectedPorts': {'text': 'ok'}}])
 
     def setUp(self):
         temp = tempfile.TemporaryDirectory()

@@ -107,12 +107,29 @@
             '@keyframes sp-bot-blink { 0%, 88%, 100% { transform: scaleY(1); } 92%, 96% { transform: scaleY(.15); } }',
             '@keyframes sp-bot-step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }',
             '@media (prefers-reduced-motion: reduce) { .sp-bot-hop, .sp-bot-ant, .sp-bot-eyes, .sp-bot-foot { animation: none !important; } }',
-            '.sp-ai-drawer { position: fixed; z-index: 80; width: min(340px, calc(100vw - 24px)); max-height: min(320px, 46vh); overflow: auto; padding: 8px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--ui-accent, #00f0ff) 22%, transparent); background: #171717; box-shadow: 0 -16px 40px rgba(0,0,0,.45); transform-origin: bottom left; transform: translateY(8px) scaleY(.92); opacity: 0; pointer-events: none; transition: transform .18s ease, opacity .18s ease; }',
+            '.sp-ai-drawer { position: fixed; z-index: 80; width: min(460px, calc(100vw - 24px)); max-height: min(430px, 62vh); overflow: hidden; padding: 8px; border-radius: 16px; border: 1px solid var(--ui-line, #343b4c); background: var(--ui-panel, #1c202a); box-shadow: 0 -16px 40px rgba(0,0,0,.35); transform-origin: bottom left; transform: translateY(8px) scaleY(.92); opacity: 0; pointer-events: none; transition: transform .18s ease, opacity .18s ease; display: flex; flex-direction: column; }',
             '.sp-ai-drawer.open { transform: none; opacity: 1; pointer-events: auto; }',
-            '.sp-ai-drawer button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; margin: 0 0 6px; padding: 8px 12px; border-radius: 12px; border: 1px solid transparent; background: rgba(255,255,255,.04); color: #f1f0ed; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }',
-            '.sp-ai-drawer button span { color: #9a998f; font-size: 11px; font-weight: 600; }',
+            '.sp-ai-drawer button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; margin: 0 0 6px; padding: 8px 12px; border-radius: 12px; border: 1px solid transparent; background: var(--ui-soft, rgba(127,127,127,.08)); color: var(--ui-text, #f6f6f4); font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }',
+            '.sp-ai-drawer button:hover { border-color: var(--ui-line, #343b4c); }',
+            '.sp-ai-drawer button span { color: var(--ui-muted, #9a998f); font-size: 11px; font-weight: 600; }',
             '.sp-ai-drawer button.is-on { border-color: var(--ui-accent, #00f0ff); background: color-mix(in srgb, var(--ui-accent, #00f0ff) 12%, transparent); color: var(--ui-accent, #00f0ff); }',
-            '.sp-ai-drawer .sp-ai-manage { justify-content: center; color: #a8a69e; background: transparent; border-style: dashed; border-color: rgba(255,255,255,.14); }',
+            '.sp-ai-drawer .sp-ai-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex: 0 0 auto; }',
+            '.sp-ai-drawer .sp-ai-head .sp-ai-off { flex: 1 1 auto; margin: 0; }',
+            '.sp-ai-drawer .sp-ai-head .sp-ai-manage-icon { flex: 0 0 36px; width: 36px; min-height: 40px; margin: 0; padding: 0; justify-content: center; background: transparent; border: 1px solid var(--ui-line, #343b4c); color: var(--ui-muted, #9a998f); }',
+            '.sp-ai-drawer .sp-ai-head .sp-ai-manage-icon:hover { color: var(--ui-accent, #00f0ff); border-color: color-mix(in srgb, var(--ui-accent, #00f0ff) 45%, transparent); }',
+            '.sp-ai-drawer .sp-ai-head .sp-ai-manage-icon svg { width: 15px; height: 15px; }',
+            '.sp-ai-drawer .sp-ai-body { display: flex; gap: 8px; min-height: 0; flex: 1 1 auto; margin-bottom: 6px; }',
+            '.sp-ai-drawer .sp-ai-side { flex: 0 0 104px; width: 104px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; scrollbar-width: thin; padding-right: 6px; border-right: 1px solid var(--ui-line, #343b4c); }',
+            '.sp-ai-drawer .sp-ai-side button.sp-ai-side-item { width: 100%; min-height: 30px; margin: 0; padding: 5px 9px; border-radius: 9px; background: transparent; font-size: 12px; font-weight: 600; color: var(--ui-muted, #9a998f); }',
+            '.sp-ai-drawer .sp-ai-side button.sp-ai-side-item b { font-size: 12px; font-weight: 600; }',
+            '.sp-ai-drawer .sp-ai-side button.sp-ai-side-item span { font-size: 10px; opacity: .75; }',
+            '.sp-ai-drawer .sp-ai-side button.sp-ai-side-item.is-on { border-color: transparent; background: color-mix(in srgb, var(--ui-accent, #00f0ff) 16%, transparent); color: var(--ui-accent, #00f0ff); }',
+            '.sp-ai-drawer .sp-ai-side button.sp-ai-side-item.is-on span { color: inherit; }',
+            '.sp-ai-drawer .sp-ai-list { flex: 1 1 auto; min-width: 0; overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }',
+            '.sp-ai-drawer .sp-ai-list button { margin-bottom: 4px; }',
+            '.sp-ai-drawer .sp-ai-list button b { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+            '.sp-ai-drawer .sp-ai-list button span { flex: 0 1 auto; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+            '.sp-ai-drawer .sp-ai-empty { padding: 24px 8px; text-align: center; font-size: 12px; color: var(--ui-muted, #9a998f); }',
 
             /* ---- smart-prompt-picker.css ---- */
             '.sp-picker-shell {',
@@ -395,7 +412,7 @@
             '.spe-picker-del-btn.is-confirming { background:#ef4444!important; color:#fcfcfb!important; box-shadow:0 0 0 3px rgba(239,68,68,0.3); animation:spDelPulse 0.6s ease-in-out infinite alternate; }',
             '@keyframes spDelPulse { from { transform:scale(1); } to { transform:scale(1.12); } }',
 
-            /* ---- smart-prompt-manager.css ---- */
+            '/* ---- 提示词预设管理 ---- */',
             '.spm-shell {',
             '    position: fixed; inset: 0; z-index: 9999;',
             '    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);',
@@ -404,56 +421,89 @@
             '}',
             '.spm-shell.is-open { display: flex; opacity: 1; }',
             '.spm-window {',
-            '    width: min(860px, 94vw); max-height: 85vh; background: var(--bg-base, #fcfcfb);',
-            '    border: 1px solid rgba(0,0,0,0.08); border-radius: 20px;',
+            '    width: min(960px, 94vw); max-height: 88vh; background: var(--bg-base, #fcfcfb);',
+            '    border: 1px solid rgba(0,0,0,0.08); border-radius: 18px;',
             '    box-shadow: 0 24px 80px rgba(0,0,0,0.2);',
             '    display: flex; flex-direction: column; overflow: hidden;',
             '    transform: translateY(12px) scale(0.97); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);',
             '}',
             '.spm-shell.is-open .spm-window { transform: translateY(0) scale(1); }',
-            'body.studio-theme-dark .spm-window { background: #0e0e0d; border-color: color-mix(in srgb, var(--ui-accent, #00f0ff) 12%, transparent); }',
+            'body.studio-theme-dark .spm-window { background: var(--ui-panel, #1c202a); border-color: rgba(255,255,255,0.08); }',
             '.spm-head {',
-            '    display: flex; align-items: center; justify-content: space-between;',
-            '    padding: 14px 24px 10px; border-bottom: 1px solid rgba(0,0,0,0.06); flex-shrink: 0;',
+            '    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;',
+            '    padding: 18px 22px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); flex-shrink: 0;',
             '}',
-            'body.studio-theme-dark .spm-head { border-bottom-color: rgba(255,255,255,0.06); }',
-            '.spm-title { font-size: 16px; font-weight: 900; }',
-            'body.studio-theme-dark .spm-title { color: #ebe9e4; }',
+            'body.studio-theme-dark .spm-head { border-bottom-color: rgba(255,255,255,0.07); }',
+            '.spm-title { font-size: 15px; font-weight: 800; letter-spacing: 0.01em; }',
+            'body.studio-theme-dark .spm-title { color: #eceae5; }',
+            '.spm-subtitle { margin-top: 3px; font-size: 11px; font-weight: 600; color: #9c9b94; }',
+            'body.studio-theme-dark .spm-subtitle { color: #6f6e69; }',
             '.spm-close {',
-            '    width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;',
-            '    color: #999999; cursor: pointer; border: none; background: transparent; transition: all 0.15s; font-size: 16px;',
+            '    width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center;',
+            '    color: #9c9b94; cursor: pointer; border: none; background: transparent; transition: all 0.15s; font-size: 14px; flex-shrink: 0;',
             '}',
             '.spm-close:hover { background: rgba(0,0,0,0.06); color: #333333; }',
             'body.studio-theme-dark .spm-close:hover { background: rgba(255,255,255,0.08); color: #fcfcfb; }',
             '.spm-body { flex: 1; display: flex; min-height: 0; }',
             '.spm-side {',
-            '    width: 220px; flex-shrink: 0; border-right: 1px solid rgba(0,0,0,0.06);',
+            '    width: 224px; flex-shrink: 0; border-right: 1px solid rgba(0,0,0,0.06);',
             '    display: flex; flex-direction: column; overflow: hidden;',
             '}',
-            'body.studio-theme-dark .spm-side { border-right-color: rgba(255,255,255,0.06); }',
-            '.spm-side-head { padding: 10px; border-bottom: 1px solid rgba(0,0,0,0.06); }',
+            'body.studio-theme-dark .spm-side { border-right-color: rgba(255,255,255,0.07); background: rgba(255,255,255,0.012); }',
+            '.spm-side-head { padding: 12px 12px 8px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px; }',
             'body.studio-theme-dark .spm-side-head { border-bottom-color: rgba(255,255,255,0.06); }',
+            '.spm-head-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }',
             '.spm-add-btn {',
-            '    width: 100%; height: 32px; border-radius: 10px; border: 1px dashed rgba(0,0,0,0.12);',
-            '    background: transparent; color: #999999; font-size: 12px; font-weight: 700;',
+            '    height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);',
+            '    background: transparent; color: #6f6e69; font-size: 12px; font-weight: 700;',
             '    display: flex; align-items: center; justify-content: center; gap: 4px;',
-            '    cursor: pointer; transition: all 0.15s;',
+            '    cursor: pointer; transition: all 0.15s; white-space: nowrap; min-width: 0;',
             '}',
-            '.spm-add-btn:hover { border-color: var(--accent, var(--ui-accent, #06b6d4)); color: var(--accent, var(--ui-accent, #06b6d4)); background: rgba(0,180,216,0.04); }',
-            'body.studio-theme-dark .spm-add-btn { border-color: rgba(255,255,255,0.1); color: #666666; }',
-            'body.studio-theme-dark .spm-add-btn:hover { border-color: var(--ui-accent, #00f0ff); color: var(--ui-accent, #00f0ff); background: color-mix(in srgb, var(--ui-accent, #00f0ff) 4%, transparent); }',
-            '.spm-list { flex: 1; overflow-y: auto; padding: 6px; }',
+            '.spm-add-btn.is-primary { border-color: transparent; background: rgba(0,0,0,0.055); color: #33322e; }',
+            '.spm-add-btn.is-primary:hover { background: rgba(0,0,0,0.09); color: #1a1a19; }',
+            'body.studio-theme-dark .spm-add-btn { border-color: rgba(255,255,255,0.1); color: #8d8c85; }',
+            'body.studio-theme-dark .spm-add-btn.is-primary { border-color: transparent; background: rgba(255,255,255,0.08); color: #e6e4de; }',
+            'body.studio-theme-dark .spm-add-btn.is-primary:hover { background: rgba(255,255,255,0.13); color: #ffffff; }',
+            'body.studio-theme-dark .spm-add-btn.is-ghost:hover { border-color: rgba(255,255,255,0.2); color: #e6e4de; }',
+            '.spm-filter-row { display: flex; gap: 2px; }',
+            '.spm-filter-chip { height: 24px; padding: 0 8px; border-radius: 6px; border: none; background: transparent; color: #9c9b94; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .12s; }',
+            '.spm-filter-chip:hover { color: #4a4944; }',
+            '.spm-filter-chip.is-on { background: rgba(0,0,0,0.055); color: #33322e; }',
+            'body.studio-theme-dark .spm-filter-chip { color: #85847d; }',
+            'body.studio-theme-dark .spm-filter-chip:hover { color: #c9c7c0; }',
+            'body.studio-theme-dark .spm-filter-chip.is-on { background: rgba(255,255,255,0.08); color: #e6e4de; }',
+            '.spm-list { flex: 1; overflow-y: auto; padding: 6px 8px 14px; }',
+            '.spm-group-head { display: flex; align-items: center; gap: 4px; margin: 6px 0 1px; padding: 6px 6px 4px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #9c9b94; }',
+            '.spm-group-head:hover { color: #4a4944; }',
+            '.spm-group-head.is-active { color: var(--accent, var(--ui-accent, #06b6d4)); }',
+            'body.studio-theme-dark .spm-group-head { color: #77766f; }',
+            'body.studio-theme-dark .spm-group-head:hover { color: #c9c7c0; }',
+            'body.studio-theme-dark .spm-group-head.is-active { color: var(--ui-accent, #00f0ff); }',
+            '.spm-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+            '.spm-group-count { font-size: 10px; opacity: .55; flex-shrink: 0; font-variant-numeric: tabular-nums; }',
+            '.spm-group-ops { display: flex; gap: 1px; flex-shrink: 0; opacity: 0; transition: opacity .12s; }',
+            '.spm-group-head:hover .spm-group-ops, .spm-group-head.is-active .spm-group-ops { opacity: 1; }',
+            '.spm-group-ops button { width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px; background: transparent; color: #b3b2ab; font-size: 10px; line-height: 1; cursor: pointer; }',
+            '.spm-group-ops button:hover { background: rgba(0,0,0,0.08); color: #333333; }',
+            'body.studio-theme-dark .spm-group-ops button { color: #6d6c66; }',
+            'body.studio-theme-dark .spm-group-ops button:hover { background: rgba(255,255,255,0.1); color: #ebe9e4; }',
             '.spm-item {',
-            '    display: flex; align-items: center; gap: 8px; padding: 7px 10px;',
-            '    border-radius: 10px; cursor: pointer; transition: all 0.12s;',
-            '    border: 1.5px solid transparent; margin-bottom: 2px;',
+            '    position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 10px;',
+            '    border-radius: 8px; cursor: pointer; transition: background .12s; margin: 0 0 1px 6px; border: none;',
             '}',
-            '.spm-item:hover { background: rgba(0,0,0,0.03); }',
-            'body.studio-theme-dark .spm-item:hover { background: rgba(255,255,255,0.04); }',
-            '.spm-item.active { background: rgba(0,180,216,0.06); border-color: rgba(0,180,216,0.25); }',
-            'body.studio-theme-dark .spm-item.active { background: color-mix(in srgb, var(--ui-accent, #00f0ff) 6%, transparent); border-color: color-mix(in srgb, var(--ui-accent, #00f0ff) 20%, transparent); }',
-            '.spm-item-name { font-size: 12px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-            'body.studio-theme-dark .spm-item-name { color: #ebe9e4; }',
+            '.spm-item:hover { background: rgba(0,0,0,0.035); }',
+            'body.studio-theme-dark .spm-item:hover { background: rgba(255,255,255,0.045); }',
+            '.spm-item.active { background: rgba(0,0,0,0.055); }',
+            'body.studio-theme-dark .spm-item.active { background: rgba(255,255,255,0.075); }',
+            '.spm-item.active::before {',
+            '    content: ""; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);',
+            '    width: 2px; height: 14px; border-radius: 2px; background: var(--accent, var(--ui-accent, #06b6d4));',
+            '}',
+            'body.studio-theme-dark .spm-item.active::before { background: var(--ui-accent, #00f0ff); }',
+            '.spm-item-name { font-size: 12px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+            'body.studio-theme-dark .spm-item-name { color: #d9d7d0; }',
+            '.spm-item.active .spm-item-name { font-weight: 700; }',
+            'body.studio-theme-dark .spm-item.active .spm-item-name { color: #f2f0eb; }',
             '.spm-item-model-badge {',
             '    font-size: 9px; font-weight: 800; letter-spacing: 0.04em;',
             '    padding: 2px 6px; border-radius: 5px;',
@@ -463,41 +513,140 @@
             'body.studio-theme-dark .spm-item-model-badge {',
             '    background: color-mix(in srgb, var(--ui-accent, #00f0ff) 8%, transparent); color: var(--ui-accent, #00f0ff);',
             '}',
-            '.spm-item-del {',
-            '    width: 22px; height: 22px; border-radius: 6px; display: none; align-items: center; justify-content: center;',
-            '    color: #cccccc; font-size: 12px; border: none; background: transparent; cursor: pointer; flex-shrink: 0;',
-            '}',
+            '.spm-item-del { width: 22px; height: 22px; border-radius: 6px; display: none; align-items: center; justify-content: center; color: #b3b2ab; font-size: 12px; border: none; background: transparent; cursor: pointer; flex-shrink: 0; }',
             '.spm-item:hover .spm-item-del { display: flex; }',
             '.spm-item-del:hover { color: #ef4444; background: rgba(239,68,68,0.08); }',
-            '.spm-editor { flex: 1; overflow-y: auto; padding: 14px 24px; min-width: 0; }',
-            '.spm-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #cccccc; font-size: 13px; }',
-            'body.studio-theme-dark .spm-empty { color: #444444; }',
-            '.sp-field { margin-bottom: 8px; }',
-            '.sp-field label { display: block; font-size: 10px; font-weight: 800; color: #999999; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }',
-            'body.studio-theme-dark .sp-field label { color: #555555; }',
+            '.spm-list-empty { padding: 22px 10px; text-align: center; font-size: 11px; color: #b3b2ab; }',
+            '.spm-tags { position: relative; }',
+            '.spm-tags.is-open { z-index: 6; }',
+            '.spm-tag-trigger {',
+            '    display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; box-sizing: border-box;',
+            '    padding: 0 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);',
+            '    background: rgba(0,0,0,0.02); color: #33322e; font-size: 12px; font-weight: 700;',
+            '    text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease;',
+            '}',
+            '.spm-tag-trigger:hover { border-color: rgba(0,0,0,0.2); }',
+            '.spm-tags.is-open .spm-tag-trigger { border-color: rgba(0,0,0,0.24); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }',
+            '.spm-tag-value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+            '.spm-tag-value.is-empty { color: #a3a29b; }',
+            '.spm-tag-caret { flex: 0 0 auto; opacity: .5; transition: transform .18s ease; }',
+            '.spm-tags.is-open .spm-tag-caret { transform: rotate(180deg); opacity: .8; }',
+            '.spm-tag-menu {',
+            '    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30;',
+            '    padding: 5px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); background: #ffffff;',
+            '    box-shadow: 0 14px 32px rgba(0,0,0,0.14); max-height: 216px; overflow-y: auto;',
+            '}',
+            '.spm-tags.is-open .spm-tag-menu { display: block; }',
+            '.spm-tag-opt {',
+            '    display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px;',
+            '    padding: 5px 8px; border: none; border-radius: 7px; background: transparent;',
+            '    color: #7f7e78; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; transition: background .12s, color .12s;',
+            '}',
+            '.spm-tag-opt:hover { background: rgba(0,0,0,0.05); color: #33322e; }',
+            '.spm-tag-check { flex: 0 0 12px; width: 12px; font-size: 11px; font-weight: 900; color: var(--accent, var(--ui-accent, #06b6d4)); text-align: center; }',
+            '.spm-tag-opt.is-on { color: #1a1a19; }',
+            '.spm-tag-opt.is-legacy { font-style: italic; }',
+            '.spm-tag-new { margin-top: 3px; border-top: 1px solid rgba(0,0,0,0.07); border-radius: 0 0 7px 7px; color: #a3a29b; }',
+            'body.studio-theme-dark .spm-tag-trigger { background: rgba(255,255,255,0.035); border-color: rgba(255,255,255,0.1); color: #e6e4de; }',
+            'body.studio-theme-dark .spm-tag-trigger:hover { border-color: rgba(255,255,255,0.22); }',
+            'body.studio-theme-dark .spm-tags.is-open .spm-tag-trigger { border-color: rgba(255,255,255,0.26); box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }',
+            'body.studio-theme-dark .spm-tag-value.is-empty { color: #77766f; }',
+            'body.studio-theme-dark .spm-tag-menu { background: var(--ui-panel, #1c202a); border-color: rgba(255,255,255,0.1); box-shadow: 0 16px 36px rgba(0,0,0,0.5); }',
+            'body.studio-theme-dark .spm-tag-opt { color: #9d9b94; }',
+            'body.studio-theme-dark .spm-tag-opt:hover { background: rgba(255,255,255,0.07); color: #f2f0ea; }',
+            'body.studio-theme-dark .spm-tag-opt.is-on { color: #f2f0ea; }',
+            'body.studio-theme-dark .spm-tag-new { border-top-color: rgba(255,255,255,0.08); color: #77766f; }',
+            '.spm-tag { height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(0,0,0,0.1); background: transparent; color: #7f7e78; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .12s; }',
+            '.spm-tag:hover { border-color: var(--accent, var(--ui-accent, #06b6d4)); color: var(--accent, var(--ui-accent, #06b6d4)); }',
+            '.spm-tag.is-on { border-color: transparent; background: rgba(0,0,0,0.06); color: #33322e; }',
+            '.spm-tag.is-legacy { border-style: dashed; }',
+            '.spm-tag-add { border-style: dashed; color: #a3a29b; }',
+            'body.studio-theme-dark .spm-tag { border-color: rgba(255,255,255,0.12); color: #8d8c85; }',
+            'body.studio-theme-dark .spm-tag:hover { border-color: var(--ui-accent, #00f0ff); color: var(--ui-accent, #00f0ff); }',
+            'body.studio-theme-dark .spm-tag.is-on { border-color: transparent; background: rgba(255,255,255,0.1); color: #ecebe5; }',
+            'body.studio-theme-dark .spm-tag-add { border-color: rgba(255,255,255,0.12); color: #77766f; }',
+            '.spm-editor { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 0 22px 20px; min-width: 0; }',
+            '.spm-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #b3b2ab; font-size: 12px; }',
+            'body.studio-theme-dark .spm-empty { color: #55544f; }',
+            '.sp-section { padding: 16px 0 2px; border-top: 1px solid rgba(0,0,0,0.06); }',
+            '.sp-section:first-of-type { border-top: none; }',
+            'body.studio-theme-dark .sp-section { border-top-color: rgba(255,255,255,0.06); }',
+            '.sp-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }',
+            '.sp-section-title { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: #6f6e69; }',
+            'body.studio-theme-dark .sp-section-title { color: #9d9b94; }',
+            '.sp-section-note { font-size: 10.5px; font-weight: 600; color: #a3a29b; }',
+            'body.studio-theme-dark .sp-section-note { color: #61605b; }',
+            '.sp-field { margin-bottom: 12px; }',
+            '.sp-field label { display: flex; align-items: baseline; gap: 6px; font-size: 11px; font-weight: 700; color: #6f6e69; margin-bottom: 5px; }',
+            'body.studio-theme-dark .sp-field label { color: #9d9b94; }',
+            '.sp-hint { margin-left: auto; font-size: 10px; font-weight: 600; color: #a3a29b; }',
+            'body.studio-theme-dark .sp-hint { color: #63625c; }',
             '.sp-field input, .sp-field textarea, .sp-field select {',
-            '    width: 100%; padding: 6px 10px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;',
-            '    font-size: 12px; font-weight: 600; background: transparent; color: var(--text-main, #1a1a1a);',
-            '    outline: none; transition: border-color 0.15s;',
+            '    width: 100%; min-height: 34px; padding: 7px 10px; border: 1px solid rgba(0,0,0,0.09); border-radius: 9px;',
+            '    font-size: 12.5px; font-weight: 600; background: rgba(0,0,0,0.025); color: var(--text-main, #1a1a1a);',
+            '    outline: none; transition: border-color .15s, background .15s, box-shadow .15s;',
             '}',
             'body.studio-theme-dark .sp-field input, body.studio-theme-dark .sp-field textarea, body.studio-theme-dark .sp-field select {',
-            '    border-color: rgba(255,255,255,0.08); color: #ebe9e4;',
+            '    border-color: rgba(255,255,255,0.09); background: rgba(255,255,255,0.035); color: #ebe9e4;',
             '}',
-            '.sp-field input:focus, .sp-field textarea:focus { border-color: var(--accent, var(--ui-accent, #06b6d4)); }',
-            '.sp-field textarea { min-height: 220px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.6; }',
-            '.sp-field-row { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr; gap: 8px; }',
+            '.sp-field input:focus, .sp-field textarea:focus, .sp-field select:focus {',
+            '    border-color: var(--accent, var(--ui-accent, #06b6d4)); background: rgba(0,0,0,0.03);',
+            '    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--ui-accent, #06b6d4)) 14%, transparent);',
+            '}',
+            'body.studio-theme-dark .sp-field input:focus, body.studio-theme-dark .sp-field textarea:focus, body.studio-theme-dark .sp-field select:focus {',
+            '    border-color: var(--ui-accent, #00f0ff); background: rgba(255,255,255,0.05);',
+            '    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent, #00f0ff) 14%, transparent);',
+            '}',
+            '.sp-field textarea { min-height: 240px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.7; }',
+            '.sp-field-row { display: grid; gap: 10px; }',
+            '.sp-row-2 { grid-template-columns: 1fr 1fr; }',
+            '.sp-row-3 { grid-template-columns: 1.1fr 0.75fr 0.75fr; }',
             '.spm-foot {',
-            '    display: flex; align-items: center; justify-content: flex-end; gap: 8px;',
-            '    padding: 10px 24px; border-top: 1px solid rgba(0,0,0,0.06); flex-shrink: 0;',
+            '    display: flex; align-items: center; justify-content: space-between; gap: 12px;',
+            '    padding: 12px 22px; border-top: 1px solid rgba(0,0,0,0.06); flex-shrink: 0;',
             '}',
-            'body.studio-theme-dark .spm-foot { border-top-color: rgba(255,255,255,0.06); }',
-            '.spm-foot .save-btn {',
-            '    height: 34px; padding: 0 18px; border-radius: 8px; font-size: 12px; font-weight: 800;',
-            '    border: none; cursor: pointer; transition: all 0.15s; white-space: nowrap;',
-            '    background: var(--accent, var(--ui-accent, #06b6d4)); color: #fcfcfb;',
+            'body.studio-theme-dark .spm-foot { border-top-color: rgba(255,255,255,0.07); }',
+            '.spm-status { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: #9c9b94; }',
+            'body.studio-theme-dark .spm-status { color: #77766f; }',
+            '.spm-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent, var(--ui-accent, #06b6d4)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--ui-accent, #06b6d4)) 14%, transparent); }',
+            'body.studio-theme-dark .spm-dot { background: var(--ui-accent, #00f0ff); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent, #00f0ff) 14%, transparent); }',
+            '.spm-foot .save-btn, .spm-done {',
+            '    height: 32px; padding: 0 16px; border-radius: 8px; font-size: 12px; font-weight: 800;',
+            '    border: 1px solid rgba(0,0,0,0.1); background: transparent; color: #4a4944; cursor: pointer; transition: all .15s; white-space: nowrap;',
             '}',
-            '.spm-foot .save-btn:hover { opacity: 0.9; }',
-            'body.studio-theme-dark .spm-foot .save-btn { background: var(--ui-accent, #00f0ff); color: #0e0e0d; }'
+            '.spm-foot .save-btn:hover, .spm-done:hover { background: rgba(0,0,0,0.055); color: #1a1a19; }',
+            'body.studio-theme-dark .spm-foot .save-btn, body.studio-theme-dark .spm-done { border-color: rgba(255,255,255,0.12); color: #d9d7d0; }',
+            'body.studio-theme-dark .spm-foot .save-btn:hover, body.studio-theme-dark .spm-done:hover { background: rgba(255,255,255,0.08); color: #ffffff; }',
+            '/* 规则为主体，参数与模板默认折叠 */',
+            '.spm-form { flex:1 1 auto; display:flex; flex-direction:column; gap:12px; min-height:0; padding-top:16px; }',
+            '.spm-meta { flex:0 0 auto; }',
+            '.spm-meta .sp-field { margin-bottom:0; }',
+            '.spm-main { flex:1 1 auto; display:flex; flex-direction:column; min-height:240px; }',
+            '.sp-main { flex:1 1 auto; display:flex; flex-direction:column; min-height:240px; }',
+            '.sp-main .sp-section-head { margin-bottom:8px; }',
+            '#spmSystemPrompt {',
+            '    flex:1 1 auto; width:100%; min-height:220px; box-sizing:border-box; padding:11px 13px;',
+            '    border-radius:9px; border:1px solid rgba(0,0,0,0.1); background:rgba(0,0,0,0.02); color:#33322e;',
+            '    font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.75; resize:vertical;',
+            '    transition:border-color .18s ease, box-shadow .18s ease;',
+            '}',
+            '#spmSystemPrompt:focus { outline:none; border-color:rgba(0,0,0,0.24); box-shadow:0 0 0 3px rgba(0,0,0,0.05); }',
+            'body.studio-theme-dark #spmSystemPrompt { background:rgba(255,255,255,0.035); border-color:rgba(255,255,255,0.1); color:#e6e4de; }',
+            'body.studio-theme-dark #spmSystemPrompt:focus { border-color:rgba(255,255,255,0.26); box-shadow:0 0 0 3px rgba(255,255,255,0.06); }',
+            '.sp-fold { flex:0 0 auto; border-top:1px solid rgba(0,0,0,0.06); }',
+            'body.studio-theme-dark .sp-fold { border-top-color:rgba(255,255,255,0.06); }',
+            '.sp-fold > summary { display:flex; align-items:baseline; gap:7px; padding:11px 0; cursor:pointer; list-style:none; user-select:none; }',
+            '.sp-fold > summary::-webkit-details-marker { display:none; }',
+            '.sp-fold > summary::before { content:""; width:0; height:0; border-left:4px solid currentColor; border-top:3.5px solid transparent; border-bottom:3.5px solid transparent; opacity:.35; transform:translateY(-1px); transition:transform .18s ease, opacity .18s ease; }',
+            '.sp-fold[open] > summary::before { transform:translateY(-1px) rotate(90deg); opacity:.6; }',
+            '.sp-fold-title { font-size:11px; font-weight:800; letter-spacing:0.06em; color:#6f6e69; transition:color .18s ease; }',
+            'body.studio-theme-dark .sp-fold-title { color:#9d9b94; }',
+            '.sp-fold > summary:hover .sp-fold-title { color:#1a1a19; }',
+            'body.studio-theme-dark .sp-fold > summary:hover .sp-fold-title { color:#ffffff; }',
+            '.sp-fold-sum { margin-left:auto; font-style:normal; font-size:10.5px; font-weight:600; color:#b3b2ab; max-width:62%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }',
+            'body.studio-theme-dark .sp-fold-sum { color:#6f6e69; }',
+            '.sp-fold-body { padding:0 0 10px; }',
+            '.sp-fold-body .sp-field:last-child { margin-bottom:2px; }'
         ].join('\n');
         document.head.appendChild(style);
     }
@@ -557,7 +706,7 @@
         function placeDrawer() {
             if (!drawer || !btn) return;
             var rect = btn.getBoundingClientRect();
-            var width = Math.min(340, window.innerWidth - 24);
+            var width = Math.min(460, window.innerWidth - 24);
             var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
             drawer.style.width = width + 'px';
             drawer.style.left = left + 'px';
@@ -565,20 +714,75 @@
         }
 
         var drawerHtml = '';
+        var aiDrawerGroup = '';   // '' = 全部，其余为分组 id（与文生图预设选择器同一套分组）
+
+        function aiPresetGroupKey(item) {
+            return (item && item.tags && item.tags.length > 0) ? item.tags[0] : '__ungrouped__';
+        }
+        function aiGroupName(gid) {
+            if (gid === '__ungrouped__') return '未分组';
+            var groups = window.spPickerGroups || [];
+            for (var i = 0; i < groups.length; i++) {
+                if (groups[i] && groups[i].id === gid) return groups[i].name || gid;
+            }
+            return gid;
+        }
 
         function renderDrawer() {
             if (!drawer) return;
             var current = savedAiSetting();
-            var presets = window.spPickerPresets || [];
-            var html = '<button type="button" data-ai-id="" class="' + (current ? '' : 'is-on') + '"><b>无设定</b><span>用模型自己</span></button>';
-            presets.forEach(function(item) {
-                if (!item || !item.id || item.id === 'default') return;
-                html += '<button type="button" data-ai-id="' + escHtml(item.id) + '" class="' + (item.id === current ? 'is-on' : '') + '"><b>' + escHtml(item.name || item.id) + '</b>' + (item.description ? '<span>' + escHtml(item.description) + '</span>' : '') + '</button>';
+            var presets = (window.spPickerPresets || []).filter(function(item) {
+                return item && item.id && item.id !== 'default';
             });
-            if (presets.filter(function(item) { return item && item.id && item.id !== 'default'; }).length === 0) {
-                html += '<button type="button" disabled><b>还没有预设</b><span>可先去管理里新建</span></button>';
+            // 分组统计：与文生图预设选择器保持一致，取 tags[0] 作为分组
+            var counts = {};
+            var seen = [];
+            presets.forEach(function(item) {
+                var gid = aiPresetGroupKey(item);
+                if (!counts[gid]) { counts[gid] = 0; seen.push(gid); }
+                counts[gid]++;
+            });
+            var groupOrder = [];
+            (window.spPickerGroups || []).forEach(function(g) {
+                if (g && g.id && counts[g.id] && groupOrder.indexOf(g.id) === -1) groupOrder.push(g.id);
+            });
+            seen.forEach(function(gid) {
+                if (gid !== '__ungrouped__' && groupOrder.indexOf(gid) === -1) groupOrder.push(gid);
+            });
+            if (counts['__ungrouped__']) groupOrder.push('__ungrouped__');
+            if (aiDrawerGroup && !counts[aiDrawerGroup]) aiDrawerGroup = '';
+
+            var MANAGE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h10"/><path d="M18 18h2"/><circle cx="16" cy="18" r="2"/></svg>';
+            var html = '<div class="sp-ai-head">'
+                + '<button type="button" class="sp-ai-manage-icon" data-ai-manage="1" title="管理预设" aria-label="管理预设">' + MANAGE_ICON + '</button>'
+                + '<button type="button" class="sp-ai-off' + (current ? '' : ' is-on') + '" data-ai-id=""><b>无设定</b><span>用模型自己</span></button>'
+                + '</div>';
+            function presetBtn(item) {
+                return '<div class="sp-ai-preset-row"><button type="button" data-ai-id="' + escHtml(item.id) + '" class="' + (item.id === current ? 'is-on' : '') + '"><b>' + escHtml(item.name || item.id) + '</b>' + (item.description ? '<span>' + escHtml(item.description) + '</span>' : '') + '</button><button type="button" class="sp-ai-guide-button" data-ai-guide="' + escHtml(item.id) + '" title="使用指导" aria-label="' + escHtml(item.name || item.id) + ' 使用指导"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 3.5"/><path d="M12 16v1"/></svg></button></div>';
             }
-            html += '<button type="button" class="sp-ai-manage" data-ai-manage="1">管理预设</button>';
+            function sideBtn(label, gid, count, isOn) {
+                return '<button type="button" class="sp-ai-side-item' + (isOn ? ' is-on' : '') + '" data-ai-group="' + escHtml(gid) + '"><b>' + escHtml(label) + '</b><span>' + count + '</span></button>';
+            }
+            if (!presets.length) {
+                html += '<div class="sp-ai-empty">还没有预设，去「管理预设」里新建</div>';
+            } else {
+                html += '<div class="sp-ai-body">';
+                // 左侧分组栏（与文生图预设选择器一致）
+                html += '<div class="sp-ai-side">';
+                html += sideBtn('全部', '', presets.length, !aiDrawerGroup);
+                groupOrder.forEach(function(gid) {
+                    html += sideBtn(aiGroupName(gid), gid, counts[gid], aiDrawerGroup === gid);
+                });
+                html += '</div>';
+                // 右侧预设列表
+                html += '<div class="sp-ai-list">';
+                var list = aiDrawerGroup
+                    ? presets.filter(function(item) { return aiPresetGroupKey(item) === aiDrawerGroup; })
+                    : presets;
+                list.forEach(function(item) { html += presetBtn(item); });
+                html += '</div>';
+                html += '</div>';
+            }
             if (html === drawerHtml) return;
             drawerHtml = html;
             drawer.innerHTML = html;
@@ -603,6 +807,7 @@
             });
         }
 
+        window.addEventListener('chat-preset-guide-use', function(event) { chooseAiSetting(event.detail.id); });
         function chooseAiSetting(id) {
             var preset = (window.spPickerPresets || []).find(function(item) { return item.id === id; });
             try { localStorage.setItem(AI_SET_KEY, preset ? preset.id : ''); } catch (e) {}
@@ -651,10 +856,33 @@
                 drawer = document.createElement('div');
                 drawer.className = 'sp-ai-drawer';
                 drawer.addEventListener('click', function(e) {
+                    // 抽屉内部点击一律不让事件冒到 document：
+                    // 分组筛选会重渲染 innerHTML，e.target 变成游离节点，
+                    // 那时 document 上的“点外面就关”判断会把抽屉误关掉。
+                    e.stopPropagation();
+                    var help = e.target.closest('[data-ai-guide]');
+                    if (help) {
+                        var guidePreset = (window.spPickerPresets || []).find(function(p) { return p.id === help.getAttribute('data-ai-guide'); });
+                        closeDrawer();
+                        if (window.ChatPresetGuide) window.ChatPresetGuide.open(guidePreset);
+                        return;
+                    }
                     var manage = e.target.closest('[data-ai-manage]');
                     if (manage) {
                         closeDrawer();
                         if (typeof window.spmOpen === 'function') window.spmOpen();
+                        return;
+                    }
+                    // 分组筛选（只切列表，不关闭抽屉）
+                    var grp = e.target.closest('[data-ai-group]');
+                    if (grp) {
+                        var gid = grp.getAttribute('data-ai-group') || '';
+                        if (gid !== aiDrawerGroup) {
+                            aiDrawerGroup = gid;
+                            renderDrawer();
+                            var listEl = drawer && drawer.querySelector('.sp-ai-list');
+                            if (listEl) listEl.scrollTop = 0;
+                        }
                         return;
                     }
                     var item = e.target.closest('[data-ai-id]');
@@ -897,6 +1125,7 @@
     function publishPickerState() {
         window.spPickerSelectedId = spPickerSelectedId;
         window.spPickerPresets = spPickerPresets;
+        window.spPickerGroups = spPickerGroups;   // AI 设定抽屉按分组展示时要用到分组名
         if (typeof window.refreshChatPresetHint === 'function') window.refreshChatPresetHint();
     }
 
@@ -1703,6 +1932,8 @@
     var spmEditingId = null;
     var spmProvidersData = null;
     var spmSaveTimer = null;
+    var spmGroups = [];          // [{id, name}]，与预设 tags 对应
+    var spmGroupFilter = '';     // '' 全部 / '__none__' 未分组 / 具体分组 id
 
     async function spmLoad() {
         try {
@@ -1711,9 +1942,11 @@
                 fetch('/api/config').then(function(r) { return r.json(); })
             ]);
             spmPresets = results[0].presets || [];
+            spmGroups = results[0].groups || [];
             spmProvidersData = results[1];
         } catch(e) {
             spmPresets = [];
+            spmGroups = [];
             spmProvidersData = null;
         }
         spmRenderList();
@@ -1726,22 +1959,32 @@
         }
     }
 
+    // 预设归属哪个分组（tags 里第一个命中的分组 id）；无则返回 ''
+    function spmGroupOfPreset(p) {
+        var known = {};
+        spmGroups.forEach(function(g) { known[g.id] = true; });
+        var tags = (p && p.tags) || [];
+        for (var i = 0; i < tags.length; i++) {
+            if (known[tags[i]]) return tags[i];
+        }
+        return '';
+    }
+
+    function spmEnc(s) { return encodeURIComponent(String(s == null ? '' : s)); }
+
     function spmRenderList() {
         var el = document.getElementById('spmList');
         if (!el) return;
-        var chatProviders = (spmProvidersData && spmProvidersData.chat_providers) || [];
-        function providerLabel(pid) {
-            if (!pid) return '自动';
-            if (pid === 'comfly') return 'ComfyUI';
-            if (pid === 'modelscope') return 'ModelScope';
-            if (pid.indexOf('::') !== -1) {
-                var parts = pid.split('::');
-                var provider = chatProviders.find(function(x) { return x.id === parts[0]; });
-                return provider ? provider.name : parts[0];
-            }
-            return pid;
-        }
-        el.innerHTML = spmPresets.map(function(p) {
+        var buckets = {};
+        spmGroups.forEach(function(g) { buckets[g.id] = []; });
+        var ungrouped = [];
+        spmPresets.forEach(function(p) {
+            var gid = spmGroupOfPreset(p);
+            if (gid && buckets[gid]) buckets[gid].push(p);
+            else ungrouped.push(p);
+        });
+
+        function itemHtml(p) {
             var delBtn = p.id !== 'default'
                 ? '<button class="spm-item-del" onclick="event.stopPropagation();spmDelete(\'' + p.id + '\')" title="删除">✕</button>'
                 : '';
@@ -1751,7 +1994,55 @@
                 delBtn,
                 '</div>'
             ].join('');
-        }).join('');
+        }
+
+        function headHtml(g, list, idx) {
+            var gid = g.id || '';
+            var isNone = !gid;
+            var ops = '';
+            if (!isNone) {
+                if (idx > 0) ops += '<button onclick="event.stopPropagation();spmMoveGroup(decodeURIComponent(\'' + spmEnc(gid) + '\'),-1)" title="上移">↑</button>';
+                if (idx < spmGroups.length - 1) ops += '<button onclick="event.stopPropagation();spmMoveGroup(decodeURIComponent(\'' + spmEnc(gid) + '\'),1)" title="下移">↓</button>';
+                ops += '<button onclick="event.stopPropagation();spmRenameGroup(decodeURIComponent(\'' + spmEnc(gid) + '\'))" title="重命名分组">✎</button>';
+                ops += '<button onclick="event.stopPropagation();spmDeleteGroup(decodeURIComponent(\'' + spmEnc(gid) + '\'))" title="删除分组（预设保留）">✕</button>';
+            }
+            var key = isNone ? '__none__' : gid;
+            return '<div class="spm-group-head' + (spmGroupFilter === key ? ' is-active' : '') + '" onclick="spmSetGroupFilter(decodeURIComponent(\'' + spmEnc(key) + '\'))">' +
+                '<span class="spm-group-name">' + spmEsc(g.name || '未分组') + '</span>' +
+                '<span class="spm-group-count">' + list.length + '</span>' +
+                (ops ? '<span class="spm-group-ops">' + ops + '</span>' : '') +
+                '</div>' + list.map(itemHtml).join('');
+        }
+
+        var html = '';
+        if (!spmGroupFilter) {
+            spmGroups.forEach(function(g, i) { html += headHtml(g, buckets[g.id], i); });
+            if (ungrouped.length) html += headHtml({ id: '', name: '未分组' }, ungrouped, -1);
+        } else if (spmGroupFilter === '__none__') {
+            html += headHtml({ id: '', name: '未分组' }, ungrouped, -1);
+        } else {
+            var gi = -1;
+            spmGroups.forEach(function(g, i) { if (g.id === spmGroupFilter) gi = i; });
+            if (gi >= 0) html += headHtml(spmGroups[gi], buckets[spmGroups[gi].id], gi);
+            else { spmGroupFilter = ''; html = ''; spmGroups.forEach(function(g, i) { html += headHtml(g, buckets[g.id], i); }); if (ungrouped.length) html += headHtml({ id: '', name: '未分组' }, ungrouped, -1); }
+        }
+        el.innerHTML = html || '<div class="spm-list-empty">还没有预设</div>';
+        spmRenderFilterBar();
+    }
+
+    function spmRenderFilterBar() {
+        var bar = document.getElementById('spmFilterRow');
+        if (!bar) return;
+        var noneCount = spmPresets.filter(function(p) { return !spmGroupOfPreset(p); }).length;
+        bar.innerHTML =
+            '<button class="spm-filter-chip' + (spmGroupFilter ? '' : ' is-on') + '" onclick="spmSetGroupFilter(\'\')">全部 ' + spmPresets.length + '</button>' +
+            '<button class="spm-filter-chip' + (spmGroupFilter === '__none__' ? ' is-on' : '') + '" onclick="spmSetGroupFilter(\'__none__\')">未分组 ' + noneCount + '</button>';
+    }
+
+    function spmSetGroupFilter(gid) {
+        var next = String(gid || '');
+        spmGroupFilter = (spmGroupFilter === next) ? '' : next;
+        spmRenderList();
     }
 
     function spmShowEmpty() {
@@ -1763,6 +2054,7 @@
 
     function spmEdit(id) {
         spmEditingId = id;
+        spmTagMenuOpen = false;
         var p = spmPresets.find(function(x) { return x.id === id; });
         if (!p) return;
         var empty = document.getElementById('spmEmpty');
@@ -1777,7 +2069,177 @@
         setField('spmQuality', p.quality_tags || '');
         setField('spmNegative', p.negative_default || '');
         setField('spmSystemPrompt', p.system_prompt || '');
+        spmRenderTagPicker();
         spmRenderList();
+        spmSyncFoldSummary();
+    }
+
+    // 折叠区的即时摘要 + 规则状态提示（只读展示，不参与保存）
+    function spmSyncFoldSummary() {
+        try {
+            var val = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+            var modelMap = { 'all': '全部模型', 'Z-Image': 'Z-Image', 'ANIMA': 'ANIMA', 'Anima图生图': 'Anima 图生图' };
+            var params = document.getElementById('spmFoldParams');
+            if (params) {
+                params.textContent = (modelMap[val('spmModelMode')] || '全部模型')
+                    + ' · 温度 ' + (val('spmTemp') || '0.3')
+                    + ' · 上限 ' + (val('spmTokens') || '1024');
+            }
+            var tpl = document.getElementById('spmFoldTemplates');
+            if (tpl) {
+                var parts = [];
+                if (val('spmQuality')) parts.push('质量词已填');
+                if (val('spmNegative')) parts.push('负向已填');
+                tpl.textContent = parts.length ? parts.join(' · ') : '未填写';
+            }
+            var state = document.getElementById('spmRuleState');
+            if (state) {
+                var len = val('spmSystemPrompt').trim().length;
+                state.textContent = len ? ('自定义规则 · ' + len + ' 字') : '留空则用内置 Anima 规则';
+            }
+        } catch (e) {}
+    }
+
+    // ── 分组归属：折叠式多选下拉（点外部收起） ──
+    var spmTagMenuOpen = false;
+
+    function spmRenderTagPicker() {
+        var box = document.getElementById('spmTags');
+        if (!box) return;
+        var p = spmPresets.find(function(x) { return x.id === spmEditingId; });
+        var tags = (p && p.tags) || [];
+        var known = {};
+        spmGroups.forEach(function(g) { known[g.id] = true; });
+        var names = tags.map(function(t) {
+            var g = spmGroups.find(function(x) { return x.id === t; });
+            return g ? g.name : t;
+        });
+        var label = names.length ? names.join('、') : '未分组';
+        var html = spmGroups.map(function(g) {
+            var on = tags.indexOf(g.id) >= 0;
+            return '<button type="button" class="spm-tag-opt' + (on ? ' is-on' : '') + '" onclick="spmToggleTag(decodeURIComponent(\'' + spmEnc(g.id) + '\'))">'
+                + '<span class="spm-tag-check">' + (on ? '✓' : '') + '</span>' + spmEsc(g.name) + '</button>';
+        }).join('');
+        // 不在分组表里的旧标签（如早期写入的中文名）也显示出来，点一下即可移除
+        tags.filter(function(t) { return !known[t]; }).forEach(function(t) {
+            html += '<button type="button" class="spm-tag-opt is-on is-legacy" title="旧标签，点击移除" onclick="spmToggleTag(decodeURIComponent(\'' + spmEnc(t) + '\'))">'
+                + '<span class="spm-tag-check">✓</span>' + spmEsc(t) + '</button>';
+        });
+        html += '<button type="button" class="spm-tag-opt spm-tag-new" onclick="spmNewGroup()">+ 新建分组</button>';
+        box.className = 'spm-tags' + (spmTagMenuOpen ? ' is-open' : '');
+        box.innerHTML =
+            '<button type="button" class="spm-tag-trigger" onclick="spmToggleTagMenu(event)" title="' + spmEsc(label) + '">'
+            + '<span class="spm-tag-value' + (names.length ? '' : ' is-empty') + '">' + spmEsc(label) + '</span>'
+            + '<svg class="spm-tag-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>'
+            + '</button>'
+            + '<div class="spm-tag-menu" onclick="event.stopPropagation()">' + html + '</div>';
+    }
+
+    window.spmToggleTagMenu = function(e) {
+        if (e) { e.stopPropagation(); e.preventDefault(); }
+        spmTagMenuOpen = !spmTagMenuOpen;
+        spmRenderTagPicker();
+    };
+
+    // 点空白处收起分组下拉（只注册一次）
+    if (!window.__spmTagMenuBound) {
+        window.__spmTagMenuBound = true;
+        document.addEventListener('click', function() {
+            if (!spmTagMenuOpen) return;
+            spmTagMenuOpen = false;
+            spmRenderTagPicker();
+        });
+    }
+
+    function spmToggleTag(tag) {
+        var p = spmPresets.find(function(x) { return x.id === spmEditingId; });
+        if (!p) return;
+        var tags = (p.tags || []).slice();
+        var i = tags.indexOf(tag);
+        if (i >= 0) tags.splice(i, 1); else tags.push(tag);
+        p.tags = tags;
+        spmRenderTagPicker();
+        spmAutoSave();
+    }
+
+    async function spmNewGroup() {
+        var name = (window.prompt('新建分组名称（可把当前预设放进去）') || '').trim();
+        if (!name) return;
+        if (spmGroups.some(function(g) { return g.name === name; })) { alert('已有同名分组'); return; }
+        var gid = 'group-' + Date.now().toString(36);
+        spmGroups.push({ id: gid, name: name });
+        try {
+            await fetch(pmApi('/groups'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: gid, name: name })
+            });
+        } catch(e) {}
+        var p = spmPresets.find(function(x) { return x.id === spmEditingId; });
+        if (p) {
+            p.tags = (p.tags || []).concat([gid]);
+            spmSave();
+        }
+        spmRenderTagPicker();
+        spmRenderList();
+        spPickerLoadPresets();
+    }
+
+    async function spmRenameGroup(gid) {
+        var g = spmGroups.find(function(x) { return x.id === gid; });
+        if (!g) return;
+        var name = (window.prompt('重命名分组', g.name) || '').trim();
+        if (!name || name === g.name) return;
+        if (spmGroups.some(function(x) { return x.id !== gid && x.name === name; })) { alert('已有同名分组'); return; }
+        g.name = name;
+        try {
+            await fetch(pmApi('/groups/' + encodeURIComponent(gid)), {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+        } catch(e) {}
+        spmRenderTagPicker();
+        spmRenderList();
+        spPickerLoadPresets();
+    }
+
+    async function spmDeleteGroup(gid) {
+        var g = spmGroups.find(function(x) { return x.id === gid; });
+        if (!g) return;
+        if (!confirm('删除分组「' + g.name + '」？组内预设不会被删除，只会变成未分组。')) return;
+        try { await fetch(pmApi('/groups/' + encodeURIComponent(gid)), { method: 'DELETE' }); } catch(e) {}
+        spmGroups = spmGroups.filter(function(x) { return x.id !== gid; });
+        // 从所有预设的 tags 里摘掉这个分组
+        var affected = spmPresets.filter(function(p) { return (p.tags || []).indexOf(gid) >= 0; });
+        for (var i = 0; i < affected.length; i++) {
+            var p = affected[i];
+            p.tags = (p.tags || []).filter(function(t) { return t !== gid; });
+            try {
+                await fetch(pmApi('/presets/' + p.id), {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(p)
+                });
+            } catch(e) {}
+        }
+        if (spmGroupFilter === gid) spmGroupFilter = '';
+        spmRenderTagPicker();
+        spmRenderList();
+        spPickerLoadPresets();
+    }
+
+    async function spmMoveGroup(gid, dir) {
+        var idx = -1;
+        for (var i = 0; i < spmGroups.length; i++) { if (spmGroups[i].id === gid) { idx = i; break; } }
+        var to = idx + dir;
+        if (idx < 0 || to < 0 || to >= spmGroups.length) return;
+        var tmp = spmGroups[idx]; spmGroups[idx] = spmGroups[to]; spmGroups[to] = tmp;
+        spmRenderList();
+        try {
+            await fetch(pmApi('/groups/reorder'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: spmGroups.map(function(g) { return g.id; }) })
+            });
+        } catch(e) {}
+        spPickerLoadPresets();
     }
 
     function setField(id, value) {
@@ -1803,7 +2265,7 @@
         if (selected) sel.value = selected;
     }
 
-    function spmCreate() {
+    async function spmCreate() {
         var id = 'preset-' + Date.now().toString(36);
         var p = {
             id: id,
@@ -1816,15 +2278,24 @@
             negative_default: 'worst quality, low quality, bad anatomy, bad hands, missing fingers, extra digits, fewer digits, cropped, lowres, blurry',
             system_prompt: '',
             output_format: 'tag_only',
+            tags: (spmGroupFilter && spmGroupFilter !== '__none__') ? [spmGroupFilter] : [],
             is_default: false,
             created_at: new Date().toISOString().slice(0, 10)
         };
         spmPresets.push(p);
         spmEdit(id);
+        // 走 POST 真正落盘：PUT 只更新已存在的预设，新建必须 POST
+        try {
+            await fetch(pmApi('/presets'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(p)
+            });
+        } catch(e) {}
         spmAutoSave();
     }
 
     function spmAutoSave() {
+        spmSyncFoldSummary();
         clearTimeout(spmSaveTimer);
         spmSaveTimer = setTimeout(function() { spmSave(); }, 500);
     }
@@ -1863,6 +2334,7 @@
         spmPresets = spmPresets.filter(function(x) { return x.id !== id; });
         if (spmEditingId === id) { spmEditingId = null; spmShowEmpty(); }
         spmRenderList();
+        spPickerLoadPresets();
     }
 
     function spmOpen() {
@@ -1895,36 +2367,60 @@
         shell.innerHTML = [
             '<div class="spm-window">',
             '<div class="spm-head">',
+            '<div>',
             '<div class="spm-title">提示词预设管理</div>',
-            '<button class="spm-close" onclick="spmClose()">✕</button>',
+            '<div class="spm-subtitle">AI 扩写时使用的规则与模板</div>',
+            '</div>',
+            '<button class="spm-close" onclick="spmClose()" title="关闭">✕</button>',
             '</div>',
             '<div class="spm-body">',
             '<div class="spm-side">',
             '<div class="spm-side-head">',
-            '<button class="spm-add-btn" onclick="spmCreate()">+ 新建预设</button>',
+            '<div class="spm-head-row">',
+            '<button class="spm-add-btn is-primary" onclick="spmCreate()">新建预设</button>',
+            '<button class="spm-add-btn is-ghost" onclick="spmNewGroup()" title="新建分组">+ 分组</button>',
+            '</div>',
+            '<div class="spm-filter-row" id="spmFilterRow"></div>',
             '</div>',
             '<div id="spmList" class="spm-list"></div>',
             '</div>',
             '<div class="spm-editor">',
-            '<div id="spmEmpty" class="spm-empty" style="flex-direction:column;gap:8px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg><span>选择左侧预设编辑，或点击上方「新建」</span></div>',
-            '<div id="spmForm" style="display:none;">',
-            '<div class="sp-field-row" style="grid-template-columns:1fr 2fr;">',
+            '<div id="spmEmpty" class="spm-empty" style="flex-direction:column;gap:10px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg><span>从左侧选一个预设开始编辑</span></div>',
+            '<div id="spmForm" class="spm-form" style="display:none;">',
+            '<div class="spm-meta sp-field-row sp-row-3">',
             '<div class="sp-field"><label>预设名称</label><input id="spmName" placeholder="如：萌系动漫" oninput="spmAutoSave()"></div>',
             '<div class="sp-field"><label>描述</label><input id="spmDesc" placeholder="简短描述适用场景" oninput="spmAutoSave()"></div>',
+            '<div class="sp-field"><label>所属分组<span class="sp-hint">可多选</span></label><div id="spmTags" class="spm-tags"></div></div>',
             '</div>',
-            '<div class="sp-field-row">',
+            '<section class="sp-main">',
+            '<div class="sp-section-head"><span class="sp-section-title">规则</span><span class="sp-section-note" id="spmRuleState">留空则用内置 Anima 规则</span></div>',
+            '<textarea id="spmSystemPrompt" placeholder="留空使用内置 Anima 规则，填写则完全替换" oninput="spmAutoSave()"></textarea>',
+            '</section>',
+            '<details class="sp-fold">',
+            '<summary><span class="sp-fold-title">生成参数</span><em class="sp-fold-sum" id="spmFoldParams"></em></summary>',
+            '<div class="sp-fold-body">',
+            '<div class="sp-field-row sp-row-3">',
             '<div class="sp-field"><label>适用模型</label><select id="spmModelMode" onchange="spmAutoSave()"><option value="all">全部模型</option><option value="Z-Image">Z-Image</option><option value="ANIMA">ANIMA</option><option value="Anima图生图">Anima图生图</option></select></div>',
-            '<div class="sp-field"><label>Temperature</label><input id="spmTemp" type="number" min="0" max="2" step="0.1" value="0.3" oninput="spmAutoSave()"></div>',
-            '<div class="sp-field"><label>Max Tokens</label><input id="spmTokens" type="number" min="64" max="4096" step="64" value="1024" oninput="spmAutoSave()"></div>',
+            '<div class="sp-field"><label>采样温度</label><input id="spmTemp" type="number" min="0" max="2" step="0.1" value="0.3" oninput="spmAutoSave()"></div>',
+            '<div class="sp-field"><label>最大长度</label><input id="spmTokens" type="number" min="64" max="4096" step="64" value="1024" oninput="spmAutoSave()"></div>',
             '</div>',
+            '</div>',
+            '</details>',
+            '<details class="sp-fold">',
+            '<summary><span class="sp-fold-title">质量词与负向提示词</span><em class="sp-fold-sum" id="spmFoldTemplates"></em></summary>',
+            '<div class="sp-fold-body">',
+            '<div class="sp-field-row sp-row-2">',
             '<div class="sp-field"><label>质量词模板</label><input id="spmQuality" placeholder="masterpiece, best quality, ultra detailed, highres" oninput="spmAutoSave()"></div>',
             '<div class="sp-field"><label>默认负向提示词</label><input id="spmNegative" placeholder="worst quality, low quality, bad anatomy..." oninput="spmAutoSave()"></div>',
-            '<div class="sp-field"><label>自定义 System Prompt（留空用默认规则）</label><textarea id="spmSystemPrompt" placeholder="留空使用内置 Anima 规则，填写则完全替换" oninput="spmAutoSave()"></textarea></div>',
+            '</div>',
+            '</div>',
+            '</details>',
             '</div>',
             '</div>',
             '</div>',
             '<div class="spm-foot">',
-            '<div style="flex:1;font-size:10px;color:#999999;">编辑后自动保存</div>',
+            '<div class="spm-status"><span class="spm-dot"></span>改动自动保存</div>',
+            '<button class="spm-done" onclick="spmClose()">完成</button>',
             '</div>',
             '</div>'
         ].join('');
@@ -2001,6 +2497,15 @@
     window.spmClose = spmClose;
     window.spmEsc = spmEsc;
     window.spmInit = spmInit;
+    // 分组管理
+    window.spmGroups = spmGroups;
+    window.spmSetGroupFilter = spmSetGroupFilter;
+    window.spmRenderTagPicker = spmRenderTagPicker;
+    window.spmToggleTag = spmToggleTag;
+    window.spmNewGroup = spmNewGroup;
+    window.spmRenameGroup = spmRenameGroup;
+    window.spmDeleteGroup = spmDeleteGroup;
+    window.spmMoveGroup = spmMoveGroup;
 
     // [2026-07-28] 全局 toast (修复: 原 spToast 全项目未定义，导致"已保存"等提示抛 ReferenceError)
     window.spToast = function(msg) {

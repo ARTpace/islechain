@@ -6,6 +6,7 @@
     const imageNodeTypes=['image','group','output','generator','msgen','comfy','ltxDirector','rh','minimax'];
     const operations={image:'图片生成模型',text:'文字生成模型',retexture:'重新贴图',remesh:'重建网格'};
     const cache=new Map(),loading=new Map(),polling=new Set(),localBusy=new Set();
+    const legacyMigrations=new Map();
     const esc=value=>escapeHtml(String(value??''));
     const project=()=>window.GamePipeline?.project;
     const inputs=node=>connections.filter(c=>c.to===node.id).map(c=>nodes.find(n=>n.id===c.from)).filter(n=>n&&(n.projectId===node.projectId||[...imageNodeTypes,'prompt'].includes(n.type)));
@@ -14,6 +15,7 @@
     const models=()=>project()?.mediaAssets?.filter(a=>a.kind==='model')||[];
     const imageAssets=()=>[...(project()?.mediaAssets||[]).filter(a=>a.kind==='image'),...(project()?.assets||[]).filter(a=>a.selected)];
     const asset=node=>models().find(a=>a.id===node.modelAssetId);
+    const contentUrl=node=>node&&node.projectId&&node.modelAssetId?`/api/game-projects/${encodeURIComponent(node.projectId)}/workspace/media-assets/${encodeURIComponent(node.modelAssetId)}/content`:'';
     const source=node=>inputs(node).find(n=>types.includes(n.type)&&asset(n))?.modelAssetId||node.sourceAssetId;
     const running=node=>['queued','running'].includes(node.modelJob?.status)||localBusy.has(node.id);
     const save=()=>scheduleSave();
@@ -46,33 +48,138 @@
         el.innerHTML=`<header><h2>${esc(title)}</h2><button type="button" data-close aria-label="关闭">×</button></header><div class="m3d-dialog-body">${content}</div><p class="m3d-error" role="status"></p>`;
         el.querySelector('[data-close]').onclick=()=>el.close();el.addEventListener('close',()=>el.remove(),{once:true});document.body.append(el);el.showModal();return el;
     }
-    const fail=(node,error)=>{node.modelNotice=error.message||String(error);refresh(node);};
+    // 长诊断（例如 FBX 是 ASCII 格式这类说明）塞进节点状态行会被挤断，额外用弹窗完整展示一次。
+    const fail=(node,error)=>{
+        const message=error?.message||String(error);
+        node.modelNotice=message.length>42?'操作失败，完整原因见弹窗':message;
+        refresh(node);
+        if(message.length>42)window.showErrorModal?.(message,'3D 模型操作失败');
+    };
     const button=(action,label,extra='')=>`<button type="button" class="tool-btn" data-m3d="${action}" ${extra}>${label}</button>`;
     function previewKey(node){if(node.modelJob?.status==='succeeded')return 'job:'+node.modelJob.jobId;const a=asset(node);return a?`${a.id}:${a.revision}:${a.contentHash}`:null;}
+    // 材质球元素由 CanvasMaterialPreview 按贴图签名缓存；这里只要一个短键，用来判断
+    // 屏幕区要不要重建（贴图换了就得换一个新的球）。
+    function materialKey(data){
+        const text=['basecolor','normal','roughness','metallic','ao','height'].map(channel=>data?.maps?.[channel]||'').join('|');
+        let hash=0;for(let i=0;i<text.length;i++)hash=(hash*31+text.charCodeAt(i))|0;return String(hash);
+    }
+    // 预览状态由 nodeBody 和 preserve 共用，免得两边算法漂移把 iframe 重建掉。
+    // key 只管「这个 iframe 该指向哪份内容」：有模型就是模型/任务，没模型但有材质就是材质预览页。
+    // 预设（模型/球/方/平板）和平铺次数不进 key —— 它们走 postMessage 交给预览页自己切，
+    // 换预设不重建 iframe，右上角按键、视角、通道预览都不会被重置。
+    function viewState(node){
+        const material=node.type==='gameModelAsset'?(window.CanvasMaterialPreview?.sources(node)||null):null;
+        const a=asset(node);
+        const key=previewKey(node)||(material?`material:${materialKey(material)}`:'');
+        return {material,a,key};
+    }
+    /* 模型视图里也把 PBR 贴图贴上去：父页同源取图（能带登录态），沙箱 iframe 只收 blob，
+       不碰鉴权也不改预览页的 CSP。按 iframe 元素去重，重建预览时会自动重发一次。 */
+    const materialSent=new WeakMap();
+    async function pushMaterial(node,frame){
+        const data=window.CanvasMaterialPreview?.sources(node);
+        if(!data||!frame?.contentWindow)return;
+        // 平铺次数也进签名：只改平铺时贴图地址没变，但必须重推一次让预览页重设 repeat。
+        // 预设与平铺次数都进签名：贴图地址没变也得重推，预览页才知道要换成球/方/平板、平铺几层。
+        const geometry=node.materialPreview||'model';
+        const signature=['basecolor','normal','roughness','metallic','ao','height'].map(channel=>data.maps[channel]||'').join('|');
+        const displacement=node.materialDisplacement??0.1;
+        const controls=data.repeat+'@'+geometry+'@'+displacement,previous=materialSent.get(frame);
+        if(previous?.signature===signature){
+            if(previous.controls!==controls){previous.controls=controls;if(previous.ready)frame.contentWindow.postMessage({type:'material-controls',repeat:data.repeat,geometry,displacement},'*');}
+            return;
+        }
+        const pending={signature,controls};materialSent.set(frame,pending);
+        const maps={};
+        for(const [channel,url] of Object.entries(data.maps)){
+            try{const response=await fetch(url);if(response.ok)maps[channel]=await response.blob();}catch(error){}
+        }
+        if(materialSent.get(frame)!==pending)return;
+        if(!Object.keys(maps).length){materialSent.delete(frame);return;}
+        const current=nodes.find(n=>n.id===node.id)||node,latest=window.CanvasMaterialPreview?.sources(current);
+        const repeat=latest?.repeat||data.repeat,currentGeometry=current.materialPreview||'model';
+        pending.ready=true;pending.controls=repeat+'@'+currentGeometry+'@'+(current.materialDisplacement??0.1);
+        try{frame.contentWindow.postMessage({type:'apply-material',maps,repeat,geometry:currentGeometry,displacement:current.materialDisplacement??0.1},'*');}catch(error){}
+    }
+    // 预览 iframe 就绪后把贴图推过去；用户在预览器里点了预设/平铺，也要回写到节点。
+    // 老的单测 VM 里 window 没有事件接口，注册前先判一下。
+    if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('message',event=>{
+        const type=event.data?.type;
+        if(!['model-ready','material-control','preview-views'].includes(type))return;
+        const frame=[...document.querySelectorAll('iframe.m3d-viewer')].find(item=>item.contentWindow===event.source);
+        const node=frame?nodes.find(n=>n.id===frame.closest('.node')?.dataset.id):null;
+        if(!node)return;
+        if(type==='preview-views'){node.modelViews=Array.isArray(event.data.views)?event.data.views:[];save();return;}
+        if(type==='material-control'){
+            // 视觉已经在预览器里生效了，这里只负责把选择存下来；不重绘，避免多推一遍又把视角重置
+            node.materialPreview=event.data.geometry||'model';
+            node.ballRepeat=Math.min(4,Math.max(0.5,Math.round((Number(event.data.repeat)||1)*10)/10));
+            node.materialDisplacement=Math.min(0.5,Math.max(0,Number(event.data.displacement)||0));
+            const sent=materialSent.get(frame);if(sent)sent.controls=node.ballRepeat+'@'+node.materialPreview+'@'+node.materialDisplacement;
+            save();
+            return;
+        }
+        // 预览页说「我准备好了」= 它的 message 监听已挂上。此前推过去的会被丢掉，
+        // 所以这里清掉签名强制重推一次，否则新 iframe 首次加载永远拿不到贴图。
+        materialSent.delete(frame);
+        frame.contentWindow.postMessage({type:'preview-views-init',views:node.modelViews||[]},'*');
+        void pushMaterial(node,frame);
+    });
     function referenceImages(node){return types.includes(node?.type)&&node.modelReferenceKey===previewKey(node)&&node.modelReferenceUrl?[{url:node.modelReferenceUrl,name:'模型参考视图.png',kind:'image'}]:[];}
     function preserve(node,element){
-        if(!types.includes(node?.type)||!element||element.querySelector('.m3d-screen')?.dataset.key!==previewKey(node)||!element.querySelector('.m3d-viewer'))return false;
+        if(!types.includes(node?.type)||!element)return false;
+        const screen=element.querySelector('.m3d-screen');
+        // 缺屏幕区说明是旧结构，重建一次；结构没变就只跑 nodeBody，别把整张卡片换掉。
+        if(!screen||screen.dataset.key!==(viewState(node).key||''))return false;
         element.style.left=`${node.x}px`;element.style.top=`${node.y}px`;element.style.width=`${node.w||440}px`;element.classList.toggle('selected',selected.has(node.id));
         nodeBody(node,element.querySelector('.node-body'));return true;
     }
     function nodeBody(node,target){
         target.classList.add('gp-work-node','m3d-node');
+        if(node.type==='model3d'){
+            const key=canvas.id+':'+node.id,state=legacyMigrations.get(key);
+            target.textContent=state?.error||'正在迁移模型资产…';
+            if(state?.error){
+                const retry=document.createElement('button');retry.type='button';retry.textContent='重试迁移';
+                retry.onclick=()=>{legacyMigrations.delete(key);refreshNodes([node.id]);};target.append(retry);
+            }else if(!state){
+                const entry={};legacyMigrations.set(key,entry);
+                entry.promise=Promise.resolve().then(()=>adoptLocal(node)).then(()=>legacyMigrations.delete(key)).catch(error=>{
+                    entry.error='模型资产迁移失败：'+error.message;
+                    if(nodes.includes(node))refreshNodes([node.id]);
+                });
+            }
+            return;
+        }
         if(!project()||project().id!==node.projectId){target.textContent='正在载入游戏项目…';return;}
         if(!cache.has(node.projectId)&&!loading.has(node.projectId))void load(node).catch(error=>fail(node,error));
         const a=asset(node),locked=project().archived,busy=running(node),job=node.modelJob;
         const linkedSource=inputs(node).find(n=>types.includes(n.type)&&asset(n));
+        // PBR 材质连到资产节点时，就用节点自己这块 3D 屏幕：贴图贴到模型上，
+        // 预设（模型/球/方/平板）和平铺滑条由预览页自己渲染 —— 父页不再另做面板，
+        // 也不换渲染路径，右上角通道/帮助/全屏、左键旋转全都还是原来那套。
+        const view=viewState(node),material=view.material;
         let screen=target.querySelector('.m3d-screen');
         if(!screen){screen=document.createElement('div');screen.className='m3d-screen';target.prepend(screen);}
-        const key=previewKey(node);
-        if(screen.dataset.key!==(key||'')){
-            screen.dataset.key=key||'';screen.replaceChildren();
-            if(key){const frame=document.createElement('iframe');frame.className='m3d-viewer';frame.title=(a?.name||'候选模型')+' · 3D 预览';frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('allow','fullscreen');frame.referrerPolicy='no-referrer';frame.src=`/api/game-projects/${encodeURIComponent(node.projectId)}/model3d/`+(node.modelJob?.status==='succeeded'?`jobs/${encodeURIComponent(node.modelJob.jobId)}/preview`:`preview/${encodeURIComponent(a.id)}?revision=${a.revision}`);screen.append(frame);}
+        // 只有「看哪份内容」变了才重建 iframe；换预设、拖平铺走 postMessage，视角和工具条都保住。
+        if(screen.dataset.key!==view.key){
+            screen.dataset.key=view.key;screen.replaceChildren();
+            if(view.key){
+                const frame=document.createElement('iframe');frame.className='m3d-viewer';frame.title=(a?.name||'材质预览')+' · 3D 预览';frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('allow','fullscreen');frame.referrerPolicy='no-referrer';
+                // 没模型但有材质：指向同一个 viewer 的空场景版，由预览页自己造球/方/平板。
+                frame.src=`/api/game-projects/${encodeURIComponent(node.projectId)}/model3d/`+(node.modelJob?.status==='succeeded'?`jobs/${encodeURIComponent(node.modelJob.jobId)}/preview`:a?`preview/${encodeURIComponent(a.id)}?revision=${a.revision}`:'material-preview');
+                frame.addEventListener('load',()=>void pushMaterial(node,frame));
+                screen.append(frame);
+            }else screen.innerHTML='<div class="m3d-empty"><span>◇</span><strong>3D 模型</strong><small>拖入模型，或连接上游生成模型</small></div>';
         }
-        if(!key&&!screen.querySelector('.m3d-empty'))screen.innerHTML='<div class="m3d-empty"><span>◇</span><strong>3D 模型</strong><small>拖入模型，或连接上游生成模型</small></div>';
+        // 结构没变时（只改了平铺或预设）靠这里补发，pushMaterial 内部按签名去重。
+        const frame=screen.querySelector('iframe.m3d-viewer');
+        if(frame&&material)void pushMaterial(node,frame);
         let controls=target.querySelector('.m3d-controls');if(!controls){controls=document.createElement('div');controls.className='m3d-controls';target.append(controls);}
         let body='';
         if(node.type==='gameModelAsset'){
-            body=`<label>项目模型<select data-asset><option value="">选择已有模型</option>${models().map(m=>`<option value="${esc(m.id)}" ${m.id===node.modelAssetId?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label><div class="m3d-actions">${button('import',a?'替换模型':'导入模型')}${button('advanced','用途与设置')}${a?button('download','下载'):''}</div>`;
+            const origin=connections.filter(c=>c.to===node.id).map(c=>nodes.find(n=>n.id===c.from)).find(n=>n?.type==='blenderGen');
+            body=`<div class="m3d-asset-heading">${button('choose-asset',esc(node.modelDisplayName||a?.name||'选择模型'),'title="点击切换模型"')}${button('rename-asset','✎','title="修改名称" aria-label="修改名称"')}${origin?button('locate-source','↖','title="定位来源" aria-label="定位来源"'):''}<details class="m3d-asset-menu"><summary aria-label="更多操作">⋯</summary><div>${button('import',a?'替换文件':'导入模型')}${button('advanced','用途与设置')}${a?button('download','下载'):''}</div></details></div>`;
         }else{
             const cs=data(node).connections.filter(c=>compatible(c,node));
             body=`${node.type==='gameModel3d'?`<label class="m3d-operation"><select aria-label="模型操作" data-operation>${Object.entries(operations).filter(([op])=>!(op==='remesh'&&connection(node)?.protocol==='hyper3d')).map(([op,title])=>`<option value="${op}" ${op===(node.modelOperation||'image')?'selected':''}>${title}</option>`).join('')}</select></label><textarea data-prompt rows="2" placeholder="${node.modelOperation==='text'?'描述要生成的角色或物体':'可选：补充模型或贴图要求'}" aria-label="3D 提示词">${esc(node.modelPrompt)}</textarea>`:`<p class="m3d-source">源模型：${esc((linkedSource?titles[linkedSource.type]+' · ':'')+(models().find(a=>a.id===source(node))?.name||'连接模型资产或生成节点'))}</p>`}
@@ -86,12 +193,12 @@
         if(a)body+=`<small class="m3d-meta">${esc(a.name)} · ${(a.sizeBytes/1048576).toFixed(1)} MB · 动画 ${a.metadata.animations?.length||0}${a.enabled?'':' · 已停用'}</small>`;
         controls.innerHTML=`${body}<p class="m3d-status" role="status">${esc(node.modelNotice||job?.message||'')}</p>`;
         controls.querySelectorAll('button,input,select,textarea').forEach(el=>{if(locked)el.disabled=true;});
-        controls.querySelector('[data-asset]')?.addEventListener('change',e=>{node.modelAssetId=e.target.value;refresh(node);});
+        controls.querySelector('[data-display-name]')?.addEventListener('change',e=>{node.modelDisplayName=e.target.value.trim();refresh(node);});
         controls.querySelector('[data-operation]')?.addEventListener('change',e=>{node.modelOperation=e.target.value;refresh(node);});
         controls.querySelector('[data-prompt]')?.addEventListener('input',e=>{node.modelPrompt=e.target.value;save();});
         controls.querySelector('[data-model]')?.addEventListener('change',e=>{if(!e.target.value)return;[node.modelConnection,node.modelVersion]=JSON.parse(e.target.value);node.targetPolycount=selectedModel(node)?.settings.polycount.default;refresh(node);});
         controls.querySelectorAll('[data-m3d]').forEach(el=>el.onclick=e=>{e.stopPropagation();void action(node,el.dataset.m3d).catch(error=>fail(node,error));});
-        if(key){const reference=document.createElement('div');reference.className='m3d-links';reference.innerHTML=button('reference',referenceImages(node).length?'更新参考视图':'设为参考视图','title="保存当前视角后，可连到图像、视频、LLM、策划节点"');reference.querySelector('button').disabled=locked;reference.querySelector('button').onclick=e=>{e.stopPropagation();void captureReference(node).catch(error=>fail(node,error));};controls.append(reference);}
+        if(view.key){const reference=document.createElement('div');reference.className='m3d-links';reference.innerHTML=button('reference',referenceImages(node).length?'更新参考视图':'设为参考视图','title="保存当前视角后，可连到图像、视频、LLM、策划节点"');reference.querySelector('button').disabled=locked;reference.querySelector('button').onclick=e=>{e.stopPropagation();void captureReference(node).catch(error=>fail(node,error));};controls.append(reference);}
         target.onwheel=e=>e.stopPropagation();
     }
     async function importFiles(node,files,replace=false){
@@ -123,6 +230,45 @@
             if(!node)throw new Error('无法创建模型节点，项目可能已归档');
             try{await importFiles(node,[converted]);}catch(error){fail(node,error);throw error;}
         }
+        return true;
+    }
+    // 把画布上的本地模型节点原地升级成项目资产：只补 projectId/modelAssetId 并换类型，
+    // 不新建节点，所以画布上永远只有一个「模型」节点。必须由用户点「纳入资产」触发。
+    async function adoptLocal(node){
+        if(!node||node.type!=='model3d')throw new Error('只有本地模型节点可以纳入项目资产');
+        window.pushUndo?.();
+        const activeCanvas=canvas?.id;
+        const p=project()?.canvasId===activeCanvas?project():await window.GamePipeline.ensureProject();
+        if(!p||p.archived)throw new Error('项目不可用或已归档');
+        if(canvas?.id!==activeCanvas||!nodes.includes(node))throw new Error('画布或节点已切换，请重新操作');
+        if(!node.url){
+            // Old material-only cards become the same asset node, preserving their ID and connections.
+            node.type='gameModelAsset';node.projectId=p.id;
+            node.materialPreview=node.ballGeometry||'sphere';
+            node.w=Math.max(node.w||0,440);node.h=0;
+            save();refresh(node);render();return true;
+        }
+        const response=await fetch(node.url);
+        if(!response.ok)throw new Error('模型文件读取失败（'+response.status+'）');
+        const blob=await response.blob();
+        if(!blob.size)throw new Error('模型文件为空');
+        const file=new File([blob],node.name||'model.glb',{type:'model/gltf-binary'});
+        const raw=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
+        await window.GamePipeline.workflow(async ctx=>{
+            if(canvas?.id!==activeCanvas||!nodes.includes(node))throw new Error('画布或节点已切换，请重新操作');
+            const result=await ctx.write('/workspace/media-assets','POST',{filename:file.name,purpose:node.modelPurpose||'游戏角色或场景素材',contentBase64:raw});
+            const imported=[...result.project.mediaAssets].reverse().find(a=>a.kind==='model');
+            if(!imported)throw new Error('模型未能写入项目资产');
+            node.type='gameModelAsset';
+            node.projectId=result.project.id;
+            node.modelAssetId=imported.id;
+            node.modelPurpose=imported.purpose||node.modelPurpose||'游戏角色或场景素材';
+            // 资产节点的控件比本地模型节点多，宽度跟着放宽，高度交给内容自适应。
+            node.w=Math.max(node.w||0,440);
+            node.h=0;
+        });
+        delete node.ballView;
+        save();refresh(node);render();
         return true;
     }
     async function captureReference(node){
@@ -242,8 +388,41 @@
         catch(error){if(error.status&&error.status<500)delete node.modelPending;throw error;}
         finally{localBusy.delete(node.id);refresh(node);}
     }
+    // ponytail: 复用项目资产和画布绑定，原生弹窗内筛选，不另建资产索引。
+    function chooseAsset(node){
+        const el=dialog('更换模型',`<div class="m3d-picker-filter"><input data-search placeholder="搜索模型名称" aria-label="搜索模型"><select data-scope aria-label="资产范围"><option value="canvas">当前画布</option><option value="project">整个项目</option></select></div><div class="m3d-asset-grid"></div>`);
+        const grid=el.querySelector('.m3d-asset-grid');
+        const draw=()=>{
+            const query=el.querySelector('[data-search]').value.trim().toLowerCase();
+            const canvasOnly=el.querySelector('[data-scope]').value==='canvas';
+            const bound=nodes.filter(n=>n.projectId===node.projectId&&n.modelAssetId);
+            const list=models().filter(a=>(!canvasOnly||bound.some(n=>n.modelAssetId===a.id))&&[a.name,a.id,...bound.filter(n=>n.modelAssetId===a.id).map(n=>n.modelDisplayName||'')].join(' ').toLowerCase().includes(query));
+            grid.innerHTML=list.map(a=>{
+                const local=bound.find(n=>n.modelAssetId===a.id);
+                const thumb=local&&referenceImages(local)[0]?.url;
+                const name=local?.modelDisplayName||a.name;
+                return `<button type="button" data-pick="${esc(a.id)}" aria-pressed="${node.modelAssetId===a.id}">${thumb?`<img src="${esc(thumb)}" alt="" loading="lazy">`:`<model-viewer src="${esc(contentUrl({projectId:node.projectId,modelAssetId:a.id}))}" interaction-prompt="none" loading="lazy" aria-hidden="true"></model-viewer>`}<strong>${esc(name)}</strong><small>${esc(a.id)}</small></button>`;
+            }).join('')||'<p>没有匹配的模型</p>';
+            grid.querySelectorAll('[data-pick]').forEach(button=>button.onclick=()=>{
+                if(!nodes.includes(node)||project()?.archived)return;
+                node.modelAssetId=button.dataset.pick;delete node.modelDisplayName;
+                delete node.modelJob;delete node.modelReferenceUrl;delete node.modelReferenceKey;
+                refresh(node);el.close();
+            });
+        };
+        el.querySelector('[data-search]').oninput=draw;el.querySelector('[data-scope]').onchange=draw;draw();
+    }
     async function action(node,name){
         node.modelNotice='';
+        if(name==='choose-asset')return chooseAsset(node);
+        if(name==='rename-asset'){
+            const value=prompt('模型名称',node.modelDisplayName||asset(node)?.name||'');
+            if(value!==null){node.modelDisplayName=value.trim().slice(0,100);refresh(node);}return;
+        }
+        if(name==='locate-source'){
+            const origin=connections.filter(c=>c.to===node.id).map(c=>nodes.find(n=>n.id===c.from)).find(n=>n?.type==='blenderGen');
+            if(origin)focusCreatedNode(origin);return;
+        }
         if(name==='advanced')return advanced(node);
         if(name==='configure')return configure(node);
         if(name==='import')return pickFiles(node);
@@ -268,13 +447,17 @@
     function canConnect(from,to){
         if(!types.includes(from?.type)&&!types.includes(to?.type))return null;
         if(from.projectId&&to.projectId&&from.projectId!==to.projectId)return false;
+        // 模型资产 → AI 建模节点：把已有模型当作改造基准
+        if(to.type==='blenderGen'&&from.type==='gameModelAsset')return Boolean(from.modelAssetId);
         if(types.includes(from.type)){
             if(to.type==='gameDevelop'||['gameAnimate3d','gameModel3d'].includes(to.type))return from.projectId===to.projectId;
             // Canvas connections are validated before the project index has loaded.
             const hasReference=project()?.id===from.projectId?referenceImages(from).length>0:Boolean(from.modelReferenceUrl&&from.modelReferenceKey);
             return hasReference&&['generator','msgen','comfy','ltxDirector','video','rh','minimax','llm','gamePlan'].includes(to.type);
         }
-        return to.type==='gameModel3d'&&[...imageNodeTypes,'prompt','document'].includes(from.type);
+        if(to.type==='gameModel3d')return [...imageNodeTypes,'prompt','document'].includes(from.type);
+        // 建模节点连到模型资产：记录产物来源，后续让 AI 改这个模型时沿这条线追溯
+        return to.type==='gameModelAsset'&&from.type==='blenderGen';
     }
-    window.GameModel3D={types,titles,nodeBody,preserve,canConnect,referenceImages,dropModels,active:node=>types.includes(node?.type)&&Boolean(previewKey(node)),action};
+    window.GameModel3D={types,titles,nodeBody,preserve,canConnect,referenceImages,contentUrl,dropModels,adoptLocal,active:node=>types.includes(node?.type)&&Boolean(viewState(node).key),action};
 })();

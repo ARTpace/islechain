@@ -7,10 +7,11 @@
     <title>GPT 对话</title>
     <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
     <script src="/static/js/ui-refine.js?v=20261024001"></script>
     <style>
         :root { --ease:cubic-bezier(.4,0,.2,1); --content-width:1160px; --accent:var(--ui-accent); --bg:var(--ui-bg); }
@@ -33,7 +34,7 @@
         .thread-item:hover { background:var(--ui-soft); }
         .thread-item.active { background:linear-gradient(135deg,var(--ui-accent),#00f0ff); color:var(--ui-text); box-shadow:0 4px 15px rgba(6, 182, 212, .25); }
         .thread-delete { width:34px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--ui-faint); transition:all .2s var(--ease); }
-        .thread-delete:hover { background:#f1f0ed; color:#dc2626; }
+        .thread-delete:hover { background:var(--ui-panel); color:#dc2626; }
         .messages { flex:1; overflow:auto; padding:34px 42px 268px; display:flex; flex-direction:column; align-items:center; gap:18px; }
         .bubble-row { width:min(var(--content-width),100%); display:flex; gap:12px; align-items:flex-end; }
         .bubble-row.user { justify-content:flex-end; }
@@ -96,7 +97,7 @@
             .action-btn span { display:none; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端触摸目标 */
         html, body { overflow-x: hidden; }

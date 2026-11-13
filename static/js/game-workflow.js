@@ -550,7 +550,7 @@
         if (project()?.id !== p.id || canvas?.id !== p.canvasId) return;
         window.GameDevelopment?.mergeLegacy();
         // 已有项目无须重建；旧面板项目首次打开时获得节点入口。
-        if (!nodes.some(n => [...types, ...(window.GameModel3D?.types || []), ...(window.GameExtraNodes?.types || [])].includes(n.type) && n.projectId === p.id)) {
+        if (!nodes.some(n => n.type === 'model3d' || ([...types, ...(window.GameModel3D?.types || []), ...(window.GameExtraNodes?.types || [])].includes(n.type) && n.projectId === p.id))) {
             pushUndo();
             const added = types.map((type, index) => ({id: uid('node'), type, projectId: p.id, x: 80 + index * 500, y: 100}));
             nodes.push(...added);
@@ -596,6 +596,6 @@
         // 动态插入的图标要手动换一次 svg，否则只剩空 <i>
         window.lucide?.createIcons();
     }
-    window.GameWorkflow = {nodeBody, loaded, execute, addNode: addWorkflowNode, populateMenu, referenceImages, controls, selectedChatModel, inputSignature, planState, uploadMedia};
+    window.GameWorkflow = {types, nodeBody, loaded, execute, addNode: addWorkflowNode, populateMenu, referenceImages, controls, selectedChatModel, inputSignature, planState, uploadMedia};
     if (project()) loaded();
 })();

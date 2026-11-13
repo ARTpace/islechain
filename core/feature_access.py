@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from .user_paths import user_data_dir
 
 MODULES = frozenset(('chat-gen','training','generation-dashboard','canvas','asset-manager',
-    'zimage','klein','angle','cgstyle','2dstyle','watermark-removal','rmbg','gaoqingxiufu',
-    'kuotu','promptgen','textmatting','yichuwuti','poster','tts','litevideo','threeview'))
+    'zimage','klein','texture-repaint','angle','cgstyle','2dstyle','watermark-removal','rmbg','gaoqingxiufu',
+    'kuotu','promptgen','textmatting','yichuwuti','poster','tts','litevideo','threeview','tripo-studio'))
 COMFY_MODULES = MODULES - {'training','generation-dashboard','canvas','asset-manager'}
 router = APIRouter()
 
@@ -55,6 +55,8 @@ async def set_feature_access(request: Request):
 async def required_modules(request):
     """Alternatives for shared execution APIs; distinct pages keep distinct switches."""
     path = request.url.path
+    if path.startswith(('/tripo-studio/', '/dsh-tripo-studio/')):
+        return {'tripo-studio'}
     if path == '/api/game-projects' or path.startswith('/api/game-projects/'):
         return {'canvas'}
     if path == '/static/app/zimage.html':

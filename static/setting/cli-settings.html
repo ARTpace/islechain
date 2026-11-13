@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLI 工具</title>
+    <script src="/static/modules/auth-token.js?v=20261107cli"></script>
+    <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+    <script>
+        (function(){
+            try {
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || (window.STUDIO_DEFAULT_THEME || 'dark');
+                if(theme === 'dark') {
+                    document.documentElement.classList.add('studio-theme-dark');
+                    document.documentElement.classList.add('theme-dark');
+                }
+                if(location.search.indexOf('embed=1') >= 0) document.documentElement.classList.add('embed');
+                if(window.parent !== window) document.documentElement.classList.add('in-settings');
+            } catch(e) {}
+        })();
+    </script>
+    <script src="/static/lucide.min.js?v=20261024001"></script>
+
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+    <style>
+        :root { --bg:var(--ui-bg); --panel:var(--ui-panel); --soft:var(--ui-soft); --line:var(--ui-line); --line-strong:var(--ui-line-strong); --text:var(--ui-text); --muted:var(--ui-muted); --faint:var(--ui-faint); --accent:var(--ui-accent); }
+        body.studio-theme-dark, html.studio-theme-dark body { --bg:var(--ui-bg); --panel:var(--ui-panel); --soft:var(--ui-soft); --line:var(--ui-line); --line-strong:var(--ui-line-strong); --text:var(--ui-text); --muted:var(--ui-muted); --faint:var(--ui-faint); --accent:var(--ui-accent); }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:'Fira Code',Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+        html.embed .page { padding:16px 16px 40px; }
+        html.embed .page-head { display:none; }
+        .page { min-height:100vh; padding:32px 24px 72px; background:radial-gradient(ellipse at top, rgba(0,240,255,.03) 0%, transparent 50%), var(--bg); }
+        .wrap { max-width:1040px; margin:0 auto; }
+        .page-head { padding:0 4px 24px; display:flex; justify-content:space-between; align-items:end; gap:20px; flex-wrap:wrap; }
+        .page-head .title { font-size:24px; font-weight:900; letter-spacing:-.015em; color:var(--accent); }
+        .page-head .sub { margin-top:8px; color:var(--muted); font-size:12.5px; line-height:1.6; font-weight:600; max-width:640px; }
+        .page-head .status { color:var(--accent); font-size:11.5px; font-weight:700; min-height:16px; }
+        .block { margin-bottom:16px; padding:16px 18px; background:var(--panel); border:1px solid var(--line); border-radius:16px; }
+        .block-title { font-size:14px; font-weight:800; color:var(--text); }
+        .block-desc { margin-top:4px; color:var(--muted); font-size:12px; line-height:1.55; }
+        .summary { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+        .btn { border:1px solid var(--line-strong); border-radius:9px; padding:7px 12px; font-size:12px; font-weight:700; color:var(--text); background:var(--soft); cursor:pointer; transition:all .15s ease; }
+        .btn:hover { border-color:var(--accent); }
+        .btn:disabled { opacity:.45; cursor:default; }
+        .btn.primary { background:var(--accent); color:var(--bg); border-color:transparent; }
+        .btn.danger { color:#e11d48; }
+        .btn.small { padding:5px 9px; font-size:11px; }
+        .cli-card { margin-bottom:14px; padding:16px 18px; background:var(--panel); border:1px solid var(--line); border-radius:16px; }
+        .cli-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+        .cli-name { font-size:15px; font-weight:850; color:var(--text); }
+        .cli-desc { margin-top:5px; color:var(--muted); font-size:11.5px; line-height:1.6; max-width:720px; }
+        .pill { height:26px; padding:0 11px; border-radius:8px; border:1px solid var(--line-strong); display:inline-flex; align-items:center; gap:6px; color:var(--muted); background:var(--soft); font-size:11px; font-weight:900; white-space:nowrap; }
+        .pill[data-state=ready] { color:#15803d; border-color:#86efac; background:#15803d12; }
+        .pill[data-state=unauthorized], .pill[data-state=outdated] { color:#b45309; border-color:#fcd34d; background:#b4530912; }
+        .pill[data-state=missing] { color:#b91c1c; border-color:#fca5a5; background:#b91c1c12; }
+        .meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px 18px; margin:14px 0 4px; }
+        .meta-row { min-width:0; font-size:11.5px; color:var(--muted); line-height:1.6; }
+        .meta-row b { color:var(--text); font-weight:800; margin-right:6px; }
+        .meta-row span { word-break:break-all; }
+        .checks { display:flex; flex-direction:column; gap:6px; margin:12px 0; padding:11px 13px; border:1px solid var(--line); border-radius:11px; background:var(--soft); }
+        .check { display:flex; gap:8px; align-items:flex-start; font-size:11.5px; line-height:1.55; }
+        .check .mark { flex-shrink:0; width:14px; font-weight:900; }
+        .check.ok .mark { color:#15803d; }
+        .check.bad .mark { color:#b91c1c; }
+        .check .cname { color:var(--text); font-weight:800; margin-right:6px; }
+        .check .cdetail { color:var(--muted); word-break:break-all; }
+        .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+        .actions select { height:30px; border:1px solid var(--line-strong); border-radius:8px; background:var(--soft); color:var(--text); padding:0 8px; font-size:11px; font-weight:700; }
+        .actions .spacer { flex:1; }
+        .qr-box { display:none; align-items:flex-start; gap:14px; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--soft); }
+        .qr-box.show { display:flex; }
+        .qr-box img { width:180px; height:180px; object-fit:contain; border-radius:10px; background:var(--panel); border:1px solid var(--line); }
+        .qr-box pre { margin:0; flex:1; min-width:0; max-height:220px; overflow:auto; color:var(--muted); font:11px/1.5 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-all; }
+        .log-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+        .log-box { margin:10px 0 0; padding:12px 14px; min-height:120px; max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:11px; background:var(--soft); color:var(--text); font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
+        .hint { color:var(--faint); font-size:11.5px; line-height:1.6; margin-top:6px; }
+        .notice { min-height:20px; font-size:12.5px; line-height:1.7; color:var(--muted); }
+        /* 紧凑卡片列表 + 详情切换 */
+        .cli-tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:12px; }
+        .cli-tile { display:flex; flex-direction:column; gap:10px; min-height:112px; padding:13px 14px; background:var(--panel); border:1px solid var(--line-strong); border-radius:14px; cursor:pointer; transition:border-color .15s ease,transform .15s ease,opacity .15s ease; }
+        .cli-tile:hover { border-color:var(--accent); transform:translateY(-1px); }
+        .cli-tile.is-off { opacity:.48; }
+        .cli-tile.is-off .sk-state i { background:var(--muted); }
+        .cli-tile-top { display:flex; align-items:center; gap:9px; min-width:0; }
+        .cli-tile-mark { width:28px; height:28px; flex:none; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; background:var(--soft); border:1px solid var(--line-strong); color:var(--accent); font-size:13px; font-weight:800; }
+        .cli-tile-name { flex:1; min-width:0; font-size:12.5px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cli-tile-meta { display:flex; flex-wrap:wrap; gap:5px 10px; font-size:10.5px; color:var(--muted); }
+        .cli-tile-meta b { color:var(--text); font-weight:750; }
+        .cli-tile-tag { padding:1px 6px; border:1px solid var(--line); border-radius:6px; color:var(--accent); }
+        .cli-tile-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; }
+        .cli-tile-foot .sk-switch { flex:none; }
+        .cli-tile-hint { font-size:10.5px; color:var(--faint); }
+        #cliHome[hidden], .cli-detail[hidden] { display:none !important; }
+        .cli-detail-bar { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+        .cli-detail-title { font-size:15px; font-weight:850; color:var(--text); }
+        .cli-detail-state { font-size:11px; color:var(--muted); }
+        .cli-detail .cli-card { margin-bottom:0; }
+    </style>
+    <link rel="stylesheet" href="/static/setting/settings-kit.css?v=20261111001">
+</head>
+<body class="sk-settings-page">
+    <div class="page">
+        <div class="wrap">
+            <header class="page-head">
+                <div>
+                    <div class="title">CLI 工具</div>
+                    <div class="sub">识别 · 安装 · 验证</div>
+                </div>
+                <div id="topStatus" class="status"></div>
+            </header>
+
+            <div id="cliHome">
+            <section class="block summary">
+                <div>
+                    <div class="block-title">环境总览</div>
+                    <div id="summary" class="block-desc">正在识别...</div>
+                </div>
+                <div class="actions" style="margin:0">
+                    <button class="btn primary" type="button" data-act="scan">全部识别</button>
+                    <button class="btn" type="button" data-act="verify-all">全部验证</button>
+                </div>
+            </section>
+
+            <div class="cli-tiles" id="cliList"></div>
+            </div>
+            <section class="cli-detail" id="cliDetail" hidden>
+                <div class="cli-detail-bar">
+                    <button class="btn small" type="button" data-nav="back">&#8249; 返回列表</button>
+                    <span class="cli-detail-title" id="detailTitle"></span>
+                    <span class="cli-detail-state" id="detailState"></span>
+                </div>
+                <div id="cliDetailCard"></div>
+            </section>
+
+                        <section class="block sk-logblock">
+                <div class="log-head">
+                    <div class="block-title">执行日志</div>
+                    <button class="btn small" type="button" data-act="clear-log">清空</button>
+                </div>
+                <details class="sk-log" id="logDetails">
+                    <summary>输出</summary>
+                    <pre id="logBox" class="log-box"></pre>
+                </details>
+            </section>
+
+            <p class="notice" id="notice" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+    <script src="/static/js/cli-settings.js?v=20261109cli11"></script>
+    <script src="/static/setting/settings-graphic.js?v=sk2"></script>
+    <script type="module" src="/static/vendor/model-viewer.min.js?v=20261104glb"></script>
+</body>
+</html>

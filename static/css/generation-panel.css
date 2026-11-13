@@ -18,7 +18,7 @@
     display: inline-flex; align-items: center; gap: 4px;
     font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
     padding: 3px 8px; border-radius: 999px;
-    background: #111111; color: #fbfaf9;
+    background: var(--ui-panel); color: var(--ui-text);
 }
 .theme-dark .gen-badge {
     background: color-mix(in srgb, var(--ui-accent, #06b6d4) 18%, transparent);
@@ -80,7 +80,7 @@
     -webkit-appearance: none; appearance: none;
     background: var(--ui-line, #eeede9);
 }
-.theme-dark .gen-slider input[type="range"] { background: #20201e; }
+.theme-dark .gen-slider input[type="range"] { background: var(--ui-panel); }
 .gen-slider input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
     background: var(--ui-accent, #06b6d4); cursor: pointer;
@@ -112,7 +112,7 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     width: 100%; padding: 14px 18px; border: 0; border-radius: 12px;
     font-size: 13px; font-weight: 700; cursor: pointer;
-    background: var(--ui-accent, #06b6d4); color: #062a2e;
+    background: var(--ui-accent, #06b6d4); color: var(--ui-text);
     transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
 }
 .gen-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px color-mix(in srgb, var(--ui-accent, #06b6d4) 32%, transparent); }
@@ -128,7 +128,7 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     height: 36px; padding: 0 20px; border-radius: 12px;
     border: 1px solid rgba(0, 0, 0, .1);
-    background: rgba(0, 0, 0, .06); color: #0b0b0a;
+    background: rgba(0, 0, 0, .06); color: var(--ui-text);
     font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .02em;
     white-space: nowrap; cursor: pointer;
     transition: transform .15s ease, background .15s ease, opacity .15s ease;
@@ -141,11 +141,11 @@
 body.theme-dark .gen-run,
 body.studio-theme-dark .gen-run,
 html.studio-theme-dark body .gen-run {
-    background: #edebe7; color: #0b0b0a; border-color: #edebe7;
+    background: var(--ui-panel); color: var(--ui-text); border-color: var(--ui-line-strong);
 }
 body.theme-dark .gen-run:hover:not(:disabled),
 body.studio-theme-dark .gen-run:hover:not(:disabled),
-html.studio-theme-dark body .gen-run:hover:not(:disabled) { background: #f7f7f5; }
+html.studio-theme-dark body .gen-run:hover:not(:disabled) { background: var(--ui-panel); }
 
 /* 生成中的小转圈（12px，跟着 currentColor 走，亮/暗底色都可见） */
 .gen-spin {

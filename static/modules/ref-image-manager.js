@@ -245,17 +245,30 @@
     return (file.name || '') + '|' + (file.size || 0);
   };
 
+  // 判断该文件是否已经在参考图列表里（同名同大小，或同大小同修改时间 → 视为同一张图）
+  RefImageManager.prototype._isDuplicate = function (file, fp) {
+    var size = file.size || 0;
+    var mtime = file.lastModified || 0;
+    return this._images.some(function (x) {
+      if (x.fingerprint === fp) return true;
+      if (mtime && x.file && (x.file.lastModified || 0) === mtime && (x.file.size || 0) === size) return true;
+      return false;
+    });
+  };
+
   // ── 处理文件 ──
   RefImageManager.prototype._handleFiles = function (files) {
     var self = this;
     var added = false;
     var skipped = 0;
+    var batchFp = {};
     files.forEach(function (file) {
-      if (!file.type.startsWith('image/')) return;
-      // 去重：相同 name+size 的图片不能重复添加
+      if (!file.type || !String(file.type).startsWith('image/')) return;
+      // 去重：同批次内 + 已存在的图都不允许重复添加（同一张图加两次没有意义）；
+      // 之前删掉的图会同步从 _images 移除，所以「删除后重新拖回」不会被误判为重复。
       var fp = self._fileFingerprint(file);
-      var dup = self._images.some(function (x) { return x.fingerprint === fp; });
-      if (dup) { skipped++; return; }
+      if (batchFp[fp] || self._isDuplicate(file, fp)) { skipped++; return; }
+      batchFp[fp] = true;
       var url = URL.createObjectURL(file);
       // 给每张图分配唯一 id（避免同名冲突）
       var id = 'ref_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -280,7 +293,10 @@
     if (this._hideChipPreview) this._hideChipPreview();
     this._images.forEach(function (img) { URL.revokeObjectURL(img.url); });
     this._images = items.map(function (item) {
-      return Object.assign({}, item, { url: URL.createObjectURL(item.file) });
+      var copy = Object.assign({}, item, { url: URL.createObjectURL(item.file) });
+      // 兜底：历史草稿项可能没带 id，缺 id 的 chip 无法与数据对应，会导致键盘删不掉
+      if (!copy.id) copy.id = 'ref_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      return copy;
     });
     this.render();
     if (typeof this._onChange === 'function') this._onChange(this._images.length);
@@ -304,6 +320,24 @@
   RefImageManager.prototype._removeById = function (id) {
     var idx = this._indexOf(id);
     if (idx >= 0) this._remove(idx);
+  };
+  // DOM 里 chip 被原生删除后，把对应图片从数据里回收（不重复触发 DOM 删除）
+  RefImageManager.prototype._syncRemovedChips = function (ids) {
+    var self = this;
+    var hit = false;
+    (ids || []).forEach(function (id) {
+      if (!id) return;
+      var idx = self._indexOf(id);
+      if (idx < 0) return;
+      try { URL.revokeObjectURL(self._images[idx].url); } catch (_) {}
+      self._images.splice(idx, 1);
+      hit = true;
+    });
+    if (!hit) return false;
+    this.render();
+    if (typeof this._onChange === 'function') this._onChange(this._images.length);
+    document.dispatchEvent(new Event('ref-images-changed'));
+    return true;
   };
   RefImageManager.prototype._reverseById = function (id) {
     var idx = this._indexOf(id);
@@ -525,6 +559,39 @@
       return;
     }
 
+    // 1) DOM → 数据 反向同步
+    //   浏览器原生删除（Backspace/Delete/剪切/划选删除）常常绕过 keydown 拦截，
+    //   只把 chip 的 DOM 抹掉，_images 里仍留着，下一次 render 又会把它画回来
+    //   （表现：快捷键删掉的图，拖进一张新图后全部"复活"）。这里补上数据回收。
+    if (typeof MutationObserver === 'function' && !promptEl._refChipObserver) {
+      promptEl._refChipObserver = new MutationObserver(function (records) {
+        var ids = [];
+        Array.prototype.forEach.call(records || [], function (rec) {
+          Array.prototype.forEach.call(rec.removedNodes || [], function (node) {
+            if (!node || node.nodeType !== 1) return;
+            if (node.classList && node.classList.contains('ref-chip')) {
+              ids.push(node.getAttribute('data-id'));
+            } else if (node.querySelectorAll) {
+              Array.prototype.forEach.call(node.querySelectorAll('.ref-chip'), function (chip) {
+                ids.push(chip.getAttribute('data-id'));
+              });
+            }
+          });
+        });
+        if (ids.length) {
+          // 注意：把 chip 换个位置（同父节点先移除后插入）也会产生 removedNodes 记录，
+          // 所以只有在 DOM 里确实找不到的 chip 才算被删除。
+          var live = {};
+          Array.prototype.forEach.call(promptEl.querySelectorAll('.ref-chip'), function (chip) {
+            live[chip.getAttribute('data-id')] = true;
+          });
+          var gone = ids.filter(function (id) { return id && !live[id]; });
+          if (gone.length) self._syncRemovedChips(gone);
+        }
+      });
+      promptEl._refChipObserver.observe(promptEl, { childList: true, subtree: true });
+    }
+
     var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
     // 1) 移除不再存在的 chip（按 id 匹配）
@@ -661,58 +728,51 @@
         if (e.key !== 'Backspace' && e.key !== 'Delete') return;
         var sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) return;
+        // 划选删除交给原生行为，MutationObserver 会回收数据
+        if (!sel.isCollapsed) return;
         var node = sel.anchorNode;
         if (!node) return;
         var offset = sel.anchorOffset;
         var targetChip = null;
+        var isBlank = function (n) { return !!n && n.nodeType === 3 && !/\S/.test(n.textContent || ''); };
+        var isChip = function (n) { return !!n && n.nodeType === 1 && n.classList && n.classList.contains('ref-chip'); };
 
-        // === Backspace:删前一个兄弟(光标在文本节点最前/头部,前兄弟是 chip) ===
-        if (e.key === 'Backspace') {
-          // a) 光标直接在 chip 内(防御)
-          if (node.nodeType === 1 && node.classList && node.classList.contains('ref-chip')) {
-            targetChip = node;
-          } else if (node.nodeType === 3) {
-            // 文本节点:offset=0 时,前一个字符是 prevSibling
-            if (offset === 0) {
-              var prev = node.previousSibling;
-              if (prev && prev.nodeType === 1 && prev.classList && prev.classList.contains('ref-chip')) {
-                targetChip = prev;
-              }
-            }
-          }
+        // a) 光标落在 chip 内部（含 chip 里的缩略图、「图1」文字）→ 整块删除
+        var host = (node.nodeType === 3) ? node.parentNode : node;
+        if (host && host.nodeType === 1 && typeof host.closest === 'function') {
+          targetChip = host.closest('.ref-chip');
         }
-        // === Delete:删后一个兄弟(光标在文本节点最末/尾部,后兄弟是 chip) ===
-        else if (e.key === 'Delete') {
-          if (node.nodeType === 1 && node.classList && node.classList.contains('ref-chip')) {
-            targetChip = node;
-          } else if (node.nodeType === 3) {
-            // 文本节点:offset === length 时,后一个字符是 nextSibling
-            var len = node.textContent ? node.textContent.length : 0;
-            if (offset >= len) {
-              var next = node.nextSibling;
-              if (next && next.nodeType === 1 && next.classList && next.classList.contains('ref-chip')) {
-                targetChip = next;
-              }
-            }
+
+        // b) 光标在 chip 旁边 → 跳过 chip 之间用于分隔的空文本节点再判断
+        if (!targetChip) {
+          if (e.key === 'Backspace') {
+            // 同一文本节点内光标前面还有字符，交给原生
+            if (node.nodeType === 3 && offset > 0) return;
+            var prev = (node.nodeType === 3)
+              ? node.previousSibling
+              : (node === promptEl ? node.childNodes[offset - 1] : node.previousSibling);
+            while (isBlank(prev)) prev = prev.previousSibling;
+            if (isChip(prev)) targetChip = prev;
+          } else {
+            var len = (node.nodeType === 3) ? (node.textContent || '').length : 0;
+            // 同一文本节点内光标后面还有字符，交给原生
+            if (node.nodeType === 3 && offset < len) return;
+            var next = (node.nodeType === 3)
+              ? node.nextSibling
+              : (node === promptEl ? node.childNodes[offset] : node.nextSibling);
+            while (isBlank(next)) next = next.nextSibling;
+            if (isChip(next)) targetChip = next;
           }
         }
 
         if (!targetChip) return;
         var id = targetChip.getAttribute('data-id');
-        if (!id) return;
-        // 阻止浏览器原生删除
+        // 阻止浏览器原生删除，统一走数据层（同步 _images + 重渲染）
         e.preventDefault();
         e.stopPropagation();
-        var idx = -1;
-        for (var i = 0; i < self._images.length; i++) {
-          if (self._images[i].id === id) { idx = i; break; }
-        }
-        if (idx >= 0) {
-          self._remove(idx);
-        } else {
-          // _images 已被外部清掉(例如按了清理提示词),仅清 DOM
-          targetChip.remove();
-        }
+        var idx = (id && self._indexOf) ? self._indexOf(id) : -1;
+        if (idx >= 0) self._remove(idx);
+        else targetChip.remove();
       };
       promptEl.addEventListener('keydown', promptEl._refChipKeydownHandler);
     }

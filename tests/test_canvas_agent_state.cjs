@@ -54,3 +54,7 @@ for(const node of added){
 }
 assert.equal(saves,1);
 console.log('CANVAS_AGENT_STATE_OK');
+
+blocked=false;
+state.save('diagnostics',{...session,messages:[{id:'diagnostic',role:'assistant',text:'失败',trace:[{name:'create',status:'failed',error:'缺少 expectedImages'}]}]});
+assert.equal(state.load('diagnostics').messages[0].trace[0].error,'缺少 expectedImages');

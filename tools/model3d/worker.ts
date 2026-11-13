@@ -1,4 +1,4 @@
-/** Art Canvas bridge. Provider implementations are vendored from ohmygame (Apache-2.0). */
+/** IsleChain bridge. Provider implementations are vendored from ohmygame (Apache-2.0). */
 import { readFile, writeFile } from 'node:fs/promises';
 import { MeshyProvider } from './vendor/daemon/meshy-provider.js';
 import { TripoProvider } from './vendor/daemon/tripo-provider.js';

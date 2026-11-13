@@ -18,7 +18,7 @@ from PIL import Image
 from core.comfy_dependency_plan import dependency_plan, installation_preflight
 from core.comfy_node_index import NodeIndex
 from core.comfy_workflow_validation import BuildRequest, validate_build
-from core.node_catalog import digest
+from core.node_catalog import digest, install as install_node, read_catalog, save_groups
 
 _TASKS = {}
 _INDEX_CACHE = {}
@@ -365,10 +365,30 @@ class ComfyBuilds:
             raise ValueError('已发布工作流被修改，禁止覆盖')
         write_json(target.with_suffix('.config.json'), config)
         write_json(target, candidate['workflow'])
+        # Reuse the catalog and native Comfy queue; no second workflow executor.
+        node = install_node({
+            'typeId': 'comfy.' + build_id, 'version': '1.0.0', 'title': candidate['title'],
+            'description': '封装已测试的 ComfyUI 工作流', 'keywords': ['ComfyUI', '工作流'],
+            'fields': [{'id': f['id'], 'label': f['name'], 'component': f['type'],
+                        'default': f['default'], 'minimum': f.get('min'), 'maximum': f.get('max'),
+                        'step': f.get('step', 1), 'options': f.get('options', [])}
+                       for f in candidate['fields']],
+            'execution': {'kind': 'comfy.workflow', 'workflowName': name,
+                          'buildId': build_id, 'revision': revision},
+            **({'ui': candidate['ui']} if candidate.get('ui') else {})})
+        catalog = read_catalog()
+        member = 'extension:' + node['typeId']
+        # Preserve a user's explicit grouping; newly delivered nodes start in 工作流.
+        if not any(member in group['members'] for group in catalog['groups']):
+            group = next((g for g in catalog['groups'] if g['id'] == 'workflow'), None)
+            if group:
+                group['members'].append(member)
+                save_groups(catalog['groups'], catalog['revision'])
         record['workflowName'] = name
         self.save(record)
         return {'workflowName': name, 'title': candidate['title'], 'revision': revision,
-                'params': {field['id']: field['default'] for field in candidate['fields']}}
+                'params': {field['id']: field['default'] for field in candidate['fields']},
+                'nodeDefinition': node}
 
     def list(self):
         records = [json.loads(path.read_text(encoding='utf-8')) for path in self.root.glob('*.json')]
@@ -427,7 +447,7 @@ class ComfyBuilds:
              {'type': 'object', 'properties': {'build_id': {'type': 'string'}}, 'required': ['build_id'], 'additionalProperties': False}),
             ('comfy_get_build', '查询真实测试报告；最多等待 8 秒。未完成时告知后台继续，可从构建列表恢复。',
              {'type': 'object', 'properties': {'build_id': {'type': 'string'}, 'wait_seconds': {'type': 'number', 'minimum': 0, 'maximum': 8}}, 'required': ['build_id'], 'additionalProperties': False}),
-            ('comfy_propose_node', '为已通过真实测试的工作流提出一个已有 ComfyUI 节点候选；采用时才发布工作流并配置参数。',
+            ('comfy_propose_node', '把已通过真实测试的复杂工作流封装成独立命名的功能节点；采用时注册菜单和参数面板，随后直接说明结果。',
              {'type': 'object', 'properties': {'build_id': {'type': 'string'}}, 'required': ['build_id'], 'additionalProperties': False}),
         ]
         return [{'type': 'function', 'function': {'name': name, 'description': description, 'parameters': schema}}

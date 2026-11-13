@@ -9,43 +9,44 @@
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261108011">
     <style>
         :root { --bg-base: #f7f7f5; --text-main: #141414; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
         *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
-        *::-webkit-scrollbar-thumb { background-color: #d8d8d8 !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
-        *::-webkit-scrollbar-thumb:hover { background-color: #c0c0c0 !important; }
+        *::-webkit-scrollbar-thumb { background-color: var(--ui-soft) !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
+        *::-webkit-scrollbar-thumb:hover { background-color: var(--ui-soft) !important; }
         *::-webkit-scrollbar-corner { background: transparent !important; }
         * { scrollbar-width: thin !important; scrollbar-color: #d8d8d8 transparent !important; }
         body { background-color: var(--bg-base); font-family: "Inter", -apple-system, "PingFang SC", sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
         .layout-container { max-width: var(--max-w); margin: 0 auto; padding: 0 40px; }
-        .console-card { background: #fbfaf9; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02); }
-        .theme-dark .console-card { background: #151515; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        .console-card { background: var(--ui-panel); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02); }
+        .theme-dark .console-card { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
         .theme-dark .bg-gray-50\/50 { background: rgba(20, 20, 20, 0.5) !important; }
-        .theme-dark .bg-white { background: #151515 !important; }
+        .theme-dark .bg-white { background: var(--ui-panel) !important; }
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
-        .theme-dark .text-gray-700 { color: #e3e1d9 !important; }
-        .theme-dark .bg-gray-100 { background: #20201e !important; }
+        .theme-dark .text-gray-700 { color: var(--ui-text) !important; }
+        .theme-dark .bg-gray-100 { background: var(--ui-panel) !important; }
         .upload-zone { border-radius: 16px; padding: 1rem; min-height: 96px; display: flex; align-items: center; gap: 12px; }
         .upload-zone.has-file { padding: 0.5rem; }
         .preview-image { max-width: 80px; max-height: 80px; min-width: 80px; min-height: 80px; border-radius: 12px; display: none; margin: 0; object-fit: cover; flex-shrink: 0; }
         .preview-image.active { display: block; }
         /* === 大图预览 / 两栏布局 (2026-07-25) === */
-        .preview-image-large { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; object-fit: contain !important; background: #f9f9f7; border-radius: 12px; }
+        .preview-image-large { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; object-fit: contain !important; background: var(--ui-panel); border-radius: 12px; }
         .preview-image-large.active { display: block; margin: auto !important; }
         .upload-zone-large { overflow: hidden; } .upload-zone-large .upload-hint { flex: 0; }
-        .mode-badge-seedvr { background: #06b6d4 !important; color: #fbfaf9 !important; }
+        .mode-badge-seedvr { background: var(--ui-accent) !important; color: var(--ui-text) !important; }
         @media (max-width: 1024px) { .control-row { flex-wrap: wrap !important; } .control-left, .control-right { flex: 1 1 100% !important; } .upload-zone-large { min-height: 320px !important; max-height: 380px !important; } }
         .upload-hint { flex: 1; text-align: left; overflow: hidden; min-width: 0; }
         .upload-hint .upload-icon { font-size: 1.25rem; display: block; line-height: 1.2; }
-        .upload-hint .upload-text { font-size: 10px; font-weight: 700; color: #999999; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        .upload-hint .upload-text { font-size: 10px; font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
         .upload-progress { font-size: 9px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: none; }
         .upload-progress.active { display: block; }
         /* === 高级参数折叠面板 === */
-        .adv-toggle { font-size: 9px; font-weight: 700; color: #999999; text-transform: uppercase; letter-spacing: 0.6px; cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px; list-style: none; }
+        .adv-toggle { font-size: 9px; font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.6px; cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px; list-style: none; }
         .adv-toggle::-webkit-details-marker { display: none; }
         .adv-toggle::marker { content: ''; }
         .adv-toggle::before { content: '▸'; font-size: 8px; transition: transform 0.2s; display: inline-block; }
@@ -65,17 +66,17 @@
         • thumb-small: 5 列, 320px 列宽 → 指标面高 < 600, 不需限制
         • thumb-medium (默认 4 列):  设防里 720px 以免拉长
         • thumb-large:  2 列, 单图会抬出实际尺寸, 限以 1100px 。点击 lightbox 看完整尺寸 === */
-        .masonry-grid.thumb-medium .masonry-item { max-height: 720px; overflow: hidden; border-radius: 8px; background: #f9f9f7; }
-        .masonry-grid.thumb-medium .masonry-item img { max-height: 720px; width: 100%; height: auto; object-fit: contain; background: #f9f9f7; }
-        .masonry-grid.thumb-large  .masonry-item { max-height: 1100px; overflow: hidden; border-radius: 8px; background: #f9f9f7; }
-        .masonry-grid.thumb-large  .masonry-item img { max-height: 1100px; width: 100%; height: auto; object-fit: contain; background: #f9f9f7; }
-        .btn-render { background: #0b0b0a; color: #fbfaf9; transition: all 0.3s ease; }
-        .btn-render:hover { transform: translateY(-1px); background: #222222; }
-        .btn-render:disabled { background: #cccccc; cursor: not-allowed; }
+        .masonry-grid.thumb-medium .masonry-item { max-height: 720px; overflow: hidden; border-radius: 8px; background: var(--ui-panel); }
+        .masonry-grid.thumb-medium .masonry-item img { max-height: 720px; width: 100%; height: auto; object-fit: contain; background: var(--ui-panel); }
+        .masonry-grid.thumb-large  .masonry-item { max-height: 1100px; overflow: hidden; border-radius: 8px; background: var(--ui-panel); }
+        .masonry-grid.thumb-large  .masonry-item img { max-height: 1100px; width: 100%; height: auto; object-fit: contain; background: var(--ui-panel); }
+        .btn-render { background: var(--ui-panel); color: var(--ui-text); transition: all 0.3s ease; }
+        .btn-render:hover { transform: translateY(-1px); background: var(--ui-panel); }
+        .btn-render:disabled { background: var(--ui-soft); cursor: not-allowed; }
         input::-webkit-inner-spin-button { display: none; }
         .slider-container { display: flex; align-items: center; gap: 10px; }
-        .slider-container input[type="range"] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: #eeede9; border-radius: 3px; outline: none; }
-        .theme-dark .slider-container input[type="range"] { background: #20201e; }
+        .slider-container input[type="range"] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--ui-panel); border-radius: 3px; outline: none; }
+        .theme-dark .slider-container input[type="range"] { background: var(--ui-panel); }
         .slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
         .slider-value { min-width: 60px; text-align: right; font-size: 0.85rem; color: var(--accent); font-weight: 600; }
 
@@ -84,14 +85,14 @@
             display: inline-flex; 
             align-items: center; 
             justify-content: space-between; 
-            background: #06b6d4;
+            background: var(--ui-accent);
             min-width: 200px; 
             border: 0; 
             border-radius: 4px; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, .1); 
             box-sizing: border-box; 
             padding: 16px 20px; 
-            color: #fbfaf9;
+            color: var(--ui-text);
             font-size: 12px; 
             font-weight: 600; 
             letter-spacing: 1.2px; 
@@ -106,7 +107,7 @@
         }
 
         .btn:disabled {
-            background: #06b6d4;
+            background: var(--ui-accent);
             cursor: not-allowed;
             opacity: 0.7;
         }
@@ -132,9 +133,9 @@
 
         .scale-btn { font-variant-numeric: tabular-nums; font-weight: 600; cursor: pointer; user-select: none; }
         .scale-btn:active { transform: scale(0.95); }
-        .theme-dark .scale-btn { border-color: rgba(255, 255, 255, 0.15); color: #9d9c93; }
-        .theme-dark .scale-btn:hover { border-color: rgba(255, 255, 255, 0.35); color: #e3e1d9; }
-        .theme-dark .scale-btn[style*="cyan"] { border-color: rgba(6, 182, 212, 0.4); color: #06b6d4; }
+        .theme-dark .scale-btn { border-color: rgba(255, 255, 255, 0.15); color: var(--ui-muted); }
+        .theme-dark .scale-btn:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--ui-text); }
+        .theme-dark .scale-btn[style*="cyan"] { border-color: rgba(6, 182, 212, 0.4); color: var(--ui-accent); }
 
         /* 预设模式按钮 */
         .preset-btn { cursor: pointer; user-select: none; transition: all 0.2s; }
@@ -145,7 +146,7 @@
         /* 前后对比悬浮层 */
         .compare-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center; flex-direction: column; }
         .compare-overlay.active { display: flex; }
-        .compare-close { position: absolute; top: 16px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fbfaf9; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; z-index: 10; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .compare-close { position: absolute; top: 16px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: var(--ui-text); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; z-index: 10; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
         .compare-close:hover { background: rgba(255, 255, 255, 0.25); }
         .compare-stage { position: relative; max-width: 90vw; max-height: 85vh; cursor: col-resize; user-select: none; overflow: hidden; border-radius: 8px; }
         .compare-stage img { display: block; max-width: 90vw; max-height: 85vh; object-fit: contain; }
@@ -153,10 +154,10 @@
         .compare-stage .cmp-before-wrap { position: absolute; top: 0; left: 0; bottom: 0; overflow: hidden; width: 50%; }
         .compare-stage .cmp-before { display: block; height: 100%; object-fit: contain; }
         .compare-stage .cmp-divider { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--accent); cursor: col-resize; z-index: 2; left: 50%; }
-        .compare-stage .cmp-divider::after { content: '⟨⟩'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: var(--accent); color: #fbfaf9; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 2px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+        .compare-stage .cmp-divider::after { content: '⟨⟩'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: var(--accent); color: var(--ui-text); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 2px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
         .compare-stage .cmp-label { position: absolute; top: 10px; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; z-index: 3; pointer-events: none; }
-        .compare-stage .cmp-label.left { left: 10px; background: rgba(0, 0, 0, 0.6); color: #fbfaf9; }
-        .compare-stage .cmp-label.right { right: 10px; background: rgba(6, 182, 212, 0.85); color: #fbfaf9; }
+        .compare-stage .cmp-label.left { left: 10px; background: rgba(0, 0, 0, 0.6); color: var(--ui-text); }
+        .compare-stage .cmp-label.right { right: 10px; background: rgba(6, 182, 212, 0.85); color: var(--ui-text); }
         .compare-hint { color: rgba(255, 255, 255, 0.4); font-size: 11px; margin-top: 12px; letter-spacing: 0.05em; }
         .gallery-compare-btn { opacity:0; pointer-events:none; transition:opacity .15s ease,transform .15s ease; cursor:pointer; }
         .gallery-compare-btn.show { opacity:1; pointer-events:auto; }
@@ -186,12 +187,12 @@
 
 
         /* 模式 Tab */
-        .mode-tab { color: #a19f97; background: transparent; border: none; cursor: pointer; }
-        .mode-tab:hover { color: #5e5d56; }
-        .mode-tab.active { color: #0b0b0a; background: #fbfaf9; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
-        .theme-dark .mode-tab { color: #86857c; }
-        .theme-dark .mode-tab:hover { color: #e3e1d9; }
-        .theme-dark .mode-tab.active { color: #fbfaf9; background: #20201e; box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.2); }
+        .mode-tab { color: var(--ui-muted); background: transparent; border: none; cursor: pointer; }
+        .mode-tab:hover { color: var(--ui-muted); }
+        .mode-tab.active { color: var(--ui-text); background: var(--ui-panel); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+        .theme-dark .mode-tab { color: var(--ui-muted); }
+        .theme-dark .mode-tab:hover { color: var(--ui-text); }
+        .theme-dark .mode-tab.active { color: var(--ui-text); background: var(--ui-panel); box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.2); }
 
         /* 分辨率按钮 */
         .res-btn { background: transparent; }
@@ -209,13 +210,13 @@
         }
         .asset-pick-btn:hover { background: rgba(6, 182, 212, .15); border-color: var(--accent); }
         .asset-pick-btn svg { width: 12px; height: 12px; }
-        .theme-dark .asset-pick-btn { color: #06b6d4; border-color: rgba(0, 240, 255, .4); background: rgba(0, 240, 255, .08); }
+        .theme-dark .asset-pick-btn { color: var(--ui-accent); border-color: rgba(0, 240, 255, .4); background: rgba(0, 240, 255, .08); }
         .theme-dark .asset-pick-btn:hover { background: rgba(0, 240, 255, .18); }
 
 
         </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
@@ -245,7 +246,10 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
 }
 </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+    <script src="/static/modules/comfy-progress.js?v=20261105toolruntime2"></script>
+    <script src="/static/modules/comfy-tool-runtime.js?v=20261105toolruntime4"></script>
     <script src="/static/modules/upload-zone.js?v=20261024008"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -293,7 +297,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     <!-- 右: 参数面板 (50%) 模式徽标·提示词·预设·高级参数·生成按钮 -->
                     <div class="control-right" style="flex: 1 1 50%; min-width:0; display:flex; flex-direction:column; gap:10px;">
                         <div id="modeSummary" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <span id="modeSummaryBadge" class="mode-badge-f2k" style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#111111;color:#fbfaf9">F2K 高清修复</span>
+                            <span id="modeSummaryBadge" class="mode-badge-f2k" style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--ui-panel);color:var(--ui-text)">F2K 高清修复</span>
                             <span id="modeSummaryTip" class="text-[10px] text-gray-400">扩散式重绘 · 提示词驱动</span>
                         </div>
 
@@ -452,9 +456,13 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
     <script>
         lucide.createIcons();
 
-        const _isLocalAccess = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-        let COMFYUI_SERVER = 'http://127.0.0.1:8188';
-        let IS_LOCAL_SERVER = _isLocalAccess;
+        // 服务器地址解析、请求封装、进度条、任务提交统一由 comfy-tool-runtime.js 提供
+        const tool = ComfyTool.create({
+            keepAlive: true,
+            // 节点中文名来自工作流 _meta.title，延迟取值（本页两套工作流按模式切换）
+            nodeTitles: (id) => getCurrentWorkflow()?.workflow?.[id]?._meta?.title || ''
+        });
+        const CLIENT_ID = tool.clientId;
 
         /* === 多模式工作流容器 ===
            currentMode: 'f2k' | 'seedvr2'
@@ -760,72 +768,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
 
         /** 保存到用户 output 文件夹 */
         // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
-        function generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) { try { return crypto.randomUUID(); } catch (e) { } }
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
-        const CLIENT_ID = localStorage.getItem("client_id") || generateUUID();
-        localStorage.setItem("client_id", CLIENT_ID);
 
-        async function loadConfig() {
-            const localConfig = localStorage.getItem('comfyui_config');
-            if (localConfig) {
-                try {
-                    const config = JSON.parse(localConfig);
-                    const activeServer = config.active_server || '本地服务器';
-                    IS_LOCAL_SERVER = (activeServer === '本地服务器');
-                    if (activeServer === '云端服务器' && config.cloud_address) {
-                        COMFYUI_SERVER = (config.cloud_address.startsWith('http') ? config.cloud_address : `https://${config.cloud_address}`).replace(/\/+$/, '');
-                    } else if (config.local_address) {
-                        COMFYUI_SERVER = (config.local_address.startsWith('http') ? config.local_address : `http://${config.local_address}`).replace(/\/+$/, '');
-                    }
-                    return;
-                } catch (e) {
-                    console.error('解析本地配置失败:', e);
-                }
-            }
-        }
+        async function loadConfig() { await tool.loadConfig(); }
 
-        async function apiFetch(url, options = {}) {
-            // IS_LOCAL_SERVER: 只有 ComfyUI 原生 endpoint (以 /system_stats 等) 才直连 8188
-            // 以 /api/ 开头的路径一律走 FastAPI 代理(避免 8188 CORS 拦截)
-            if (IS_LOCAL_SERVER && typeof url === 'string' && !url.startsWith('/api/')) {
-                const directUrl = COMFYUI_SERVER + url;
-                const response = await fetch(directUrl, options);
-                return response;
-            }
-            const headers = {
-                'X-ComfyUI-Server-Url': COMFYUI_SERVER,
-                ...(options.headers || {})
-            };
-            const response = await fetch(url, { ...options, headers });
-            return response;
-        }
+        const apiFetch = (url, options) => tool.apiFetch(url, options);
 
-        function buildWsUrl() {
-            // 始终通过后端代理连接 ComfyUI WebSocket，避免直连端口问题
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            return `${protocol}//${window.location.host}/api/comfyui/ws?client_id=${CLIENT_ID}`;
-        }
-
-        async function checkServerConnection() {
-            try {
-                // 始终走代理,避免 IS_LOCAL_SERVER 直连 ComfyUI 跨域被拦
-                const response = await apiFetch('/api/comfyui/system_stats');
-                if (response.ok) {
-                    document.getElementById("statusText").innerText = "System Ready";
-                    document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-green-500 rounded-full";
-                } else {
-                    throw new Error('Server not responding');
-                }
-            } catch (e) {
-                document.getElementById("statusText").innerText = "System Offline";
-                document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-red-500 rounded-full";
-            }
-        }
+        async function checkServerConnection() { await tool.checkConnection(); }
         // 统一缩略图模块配置（一处改全处同步）
         window.GALLERY_CONFIG = {
             type: 'gaoqingxiufu',
@@ -1192,10 +1140,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
 
         function updateGenButtonState() { mainGenBtn.disabled = !uploadedImageName; }
         function randomizeSeed() { seedInput.value = Math.floor(Math.random() * 1000000000000000); }
-        function setStatus(text) {
-            document.getElementById("statusText").innerText = text;
-            document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-black rounded-full";
-        }
+        function setStatus(text) { tool.setStatus(text, 'idle'); }
 
         function setLoading(loading) {
             const btn = document.getElementById('mainGenBtn');
@@ -1214,47 +1159,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         let isGenerating = false;
         let currentPromptId = null;
 
-        function startProgress() {
-            document.getElementById('progressInline').classList.add('active');
-            document.getElementById('progressFill').style.width = '0%';
-            document.getElementById('progressPercent').textContent = '0%';
-            document.getElementById('progressStatus').textContent = '正在提交任务...';
-        }
-
-        function updateRealProgress(msg) {
-            const fill = document.getElementById('progressFill');
-            const percent = document.getElementById('progressPercent');
-            const status = document.getElementById('progressStatus');
-            if (msg.status === 'started') {
-                fill.style.width = '2%'; percent.textContent = '2%'; status.textContent = 'ComfyUI 开始执行...';
-            } else if (msg.status === 'executing') {
-                fill.style.width = '5%'; percent.textContent = '5%'; status.textContent = `执行节点: ${getNodeTitle(msg.node)}`;
-            } else if (msg.status === 'cached') { status.textContent = '部分节点命中缓存';
-            } else if (msg.status === 'sampling') {
-                const value = msg.value || 0, max = msg.max || 1;
-                const finalPct = 10 + Math.round((value / max) * 80);
-                fill.style.width = `${finalPct}%`; percent.textContent = `${finalPct}%`; status.textContent = `采样中 ${value}/${max}`;
-            } else if (msg.status === 'done') {
-                fill.style.width = '95%'; percent.textContent = '95%'; status.textContent = '解码保存中...';
-            }
-        }
-
-        function getNodeTitle(nodeId) {
-            const wf = getCurrentWorkflow();
-            const node = wf?.workflow?.[nodeId];
-            return node?._meta?.title || `节点 ${nodeId}`;
-        }
-
-        function completeProgress() {
-            document.getElementById('progressFill').style.width = '100%';
-            document.getElementById('progressPercent').textContent = '100%';
-            document.getElementById('progressStatus').textContent = '生成完成！';
-        }
-
-        function hideProgress() {
-            document.getElementById('progressInline').classList.remove('active');
-            currentPromptId = null;
-        }
+        // 进度条绘制统一由共享运行时负责（多页同一套 DOM 契约）
+        function startProgress(text) { tool.startProgress(text); }
+        // 常驻 WS 会收到别的任务的消息，非生成期间必须忽略
+        function updateRealProgress(msg) { if (!isGenerating) return; tool.updateProgress(msg); }
+        function completeProgress() { tool.completeProgress(); }
+        function hideProgress() { tool.hideProgress(); currentPromptId = null; }
 
         async function handleRender() {
             if (!uploadedImageName) return alert("请先上传图像");
@@ -1263,6 +1173,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             setLoading(true);
             const placeholder = createPlaceholder(currentMode === 'f2k' ? 'F2K 修复' : 'SeedVR2.5 超分');
             document.getElementById('masonry').prepend(placeholder);
+            let ok = false;
             try {
                 const wf = getCurrentWorkflow();
                 if (!wf.workflow) throw new Error('工作流未加载,请重试或刷新页面');
@@ -1319,64 +1230,27 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     }
                 }
 
-                currentPromptId = generateUUID();
-                const wsUrl = buildWsUrl();
-                const ws = await new Promise((resolve, reject) => {
-                    const socket = new WebSocket(wsUrl);
-                    socket.onopen = () => { console.log('[ComfyUI WS] 连接成功'); resolve(socket); };
-                    socket.onerror = () => reject(new Error('WebSocket 连接失败'));
-                    setTimeout(() => reject(new Error('WebSocket 连接超时')), 5000);
-                });
-
-                await new Promise((resolve, reject) => {
-                    ws.onmessage = (event) => {
-                        try {
-                            if (typeof event.data !== 'string') return;
-                            const message = JSON.parse(event.data);
-                            if (message.data?.prompt_id && message.data.prompt_id !== currentPromptId) return;
-                            if (message.type === 'execution_start') { updateRealProgress({ type: 'comfyui_progress', status: 'started', value: 0, max: 1, node: '' });
-                            } else if (message.type === 'progress') {
-                                updateRealProgress({ type: 'comfyui_progress', status: 'sampling', value: message.data.value || 0, max: message.data.max || 1, node: message.data.node || '' });
-                            } else if (message.type === 'executing') {
-                                if (message.data.node === null) {
-                                    updateRealProgress({ type: 'comfyui_progress', status: 'done', value: 1, max: 1, node: '' });
-                                    setTimeout(() => { ws.close(); resolve(getResult(currentPromptId, promptText, placeholder, recordMeta)); }, 500);
-                                } else { updateRealProgress({ type: 'comfyui_progress', status: 'executing', value: 0, max: 1, node: message.data.node || '' }); }
-                            } else if (message.type === 'execution_cached') { updateRealProgress({ type: 'comfyui_progress', status: 'cached', value: 0, max: 1, node: 'cached' });
-                            } else if (message.type === 'execution_error') { ws.close(); reject(new Error(message.data.exception_message || '执行错误')); }
-                        } catch (e) { reject(e); }
-                    };
-                    fetch(`/api/comfyui/prompt`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: workflowData, client_id: CLIENT_ID, prompt_id: currentPromptId })
-                    }).then(async (response) => {
-                        if (!response.ok) { const errorText = await response.text(); reject(new Error(`HTTP ${response.status}: ${errorText}`)); return; }
-                        const result = await response.json();
-                        currentPromptId = result.prompt_id;
-                        document.getElementById('progressStatus').textContent = '任务已提交，等待执行...';
-                    }).catch(reject);
-                });
+                // 提交与等结果交给共享运行时：完成判定用 history 轮询，
+                // 不再依赖单次 WebSocket 事件（消息一旦丢失就会永久挂起）
+                const result = await tool.submit(workflowData, { onProgress: updateRealProgress });
+                currentPromptId = result.promptId;
+                ok = await getResult(currentPromptId, promptText, placeholder, recordMeta);
             } catch (e) {
                 placeholder.remove();
                 alert(e.message || '生成失败');
             } finally {
                 isGenerating = false;
-                completeProgress();
-                setTimeout(() => hideProgress(), 800);
+                if (ok) { completeProgress(); setTimeout(() => hideProgress(), 800); }
+                else { hideProgress(); }
                 setLoading(false);
             }
         }
 
         async function getResult(promptId, promptText, placeholder, recordMeta = {}) {
             try {
-                const res = await fetch(`/api/comfyui/history/${promptId}`);
-                if (!res.ok) throw new Error('获取历史记录失败');
-                const history = await res.json();
-                const promptData = history[promptId];
-                if (!promptData) throw new Error('历史记录中未找到该任务');
-                if (promptData.status && promptData.status.status_str === 'error') throw new Error('任务执行错误');
-                const outputs = promptData.outputs || {};
+                // 走共享运行时的 historyEntry：错误状态判断与结果提取都在里面
+                const entry = await tool.historyEntry(promptId);
+                const outputs = entry.outputs || {};
                 const wf = getCurrentWorkflow();
                 let imageUrl = null;
                 if (wf.outputNodeIds) {
@@ -1429,9 +1303,11 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     }
                     if (placeholder) placeholder.remove();
                 } else { throw new Error('未找到生成结果'); }
+                return true;
             } catch (e) {
                 if (placeholder) placeholder.remove();
                 alert('获取结果失败: ' + e.message);
+                return false;
             }
         }
 
@@ -1472,19 +1348,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             // 时间轴：复用画廊模块（timeline.js）GalleryTimeline，挂载到 #masonry（自带 MutationObserver + 轮询兜底，覆盖翻页/自动扫描/新图）
             // [已暂时停用] 时间轴功能暂不稳定，先不接入使用；保留模块与脚本，需要时取消下一行注释即可恢复。
             // if (window.GalleryTimeline) GalleryTimeline.attach({ container: '#masonry' });
-            setInterval(async () => {
-                try {
-                    const res = await fetch("/api/queue_status?client_id=" + encodeURIComponent(CLIENT_ID));
-                    const data = await res.json();
-                    if (data.total > 0) {
-                        document.getElementById("statusText").innerText = `Queueing ${data.position}/${data.total}`;
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse";
-                    } else {
-                        document.getElementById("statusText").innerText = "System Ready";
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-black rounded-full";
-                    }
-                } catch (e) { }
-            }, 3000);
+            setInterval(() => tool.queueStatus(CLIENT_ID), 3000);
         };
     </script>
 

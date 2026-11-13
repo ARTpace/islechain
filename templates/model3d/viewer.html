@@ -1,43 +1,955 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#18222d;color:#d7e2ee;font:12px system-ui}canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
-.tools{position:absolute;bottom:10px;left:10px;right:10px;display:flex;gap:5px;align-items:center}button,select{border:1px solid #ffffff28;background:#1a2634dc;color:inherit;padding:6px 8px;border-radius:7px;font:inherit;cursor:pointer}select{max-width:150px}button:hover{background:#385069}#state{position:absolute;top:12px;left:12px;right:12px;pointer-events:none;color:#acbdce}#state.error{color:#ffb4aa}.tools .spacer{flex:1}
-</style><canvas aria-label="3D 模型预览" tabindex="0"></canvas><div id="state" role="status">正在加载模型…</div>
-<div class="tools"><button id="rotate" title="自动旋转" aria-pressed="true">↻</button><button id="reset" title="重置视角">⌂</button><select id="display" aria-label="显示方式"><option value="material">材质</option><option value="wire">线框</option><option value="solid">白模</option></select><span class="spacer"></span><select id="clip" aria-label="动画片段" hidden></select><button id="play" title="播放 / 暂停动画" aria-pressed="true" hidden>Ⅱ</button><button id="full" title="全屏预览">⛶</button></div>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+:root{--ui-panel:#202831;--ui-soft:#171f28;--ui-line:#27303d;--ui-line-strong:#3a4655;--ui-text:#d7e2ee;--ui-muted:#8e9eaf;--ui-accent:#a5c880;--ui-accent-soft:#141d12;--accent:var(--ui-accent)}
+
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0d1117;color:var(--ui-text);font:12px system-ui}[hidden]{display:none!important}
+.viewer-wrap{position:relative;display:flex;flex-direction:column;width:100%;height:100%;min-height:0;background:#090e15}
+#viewer-canvas{display:block;flex:1;min-height:0;width:100%;touch-action:none;outline:none}
+button,select{font:inherit;cursor:pointer;color:inherit;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:6px;padding:5px}
+button svg{width:20px;height:20px}.icon-button{padding:0}.viewer-help .icon-button{background:none;border:0}
+#state{position:absolute;top:12px;left:12px;right:164px;pointer-events:none;color:var(--ui-muted);font-size:10px}#state.error{color:#ffb4aa}
+.animation-tools{position:absolute;bottom:10px;right:12px;z-index:4;display:flex;gap:6px}
+.viewer-tools{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:4}
+/* 画布上的功能键放大（2026-10-20 用户反馈 30px 偏小）：40px 键 + 20px 图标，
+   深色画布上半透明底照旧，和周边留出呼吸。 */
+.viewer-tools .icon-button{width:40px;height:40px;display:grid;place-items:center;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:10px;color:var(--ui-muted)}
+.viewer-tools .icon-button:hover{color:var(--ui-text);border-color:var(--ui-line-strong)}
+.viewer-tools .icon-button.on{color:var(--accent);border-color:var(--ui-accent);background:var(--ui-accent-soft)}
+.viewer-tools .icon-button[hidden]{display:none}
+.viewer-tools .icon-button svg{width:20px;height:20px}
+/* Sketchfab / ArtStation / ambientCG 用的是平台自己的 iframe 预览器（各有各的操作方式），
+   内置预览器的按键 UI 只属于本地 three 预览：iframe 一亮出来，工具条与手势 caption 全收。
+   用 :has() 跟画布显隐联动 —— 任何 iframe 路径（含以后新增的）都不用为这个改 JS。 */
+.viewer-tools{display:none}
+.viewer-wrap:has(#viewer-canvas:not([hidden])) .viewer-tools{display:flex}
+/* 操作说明弹层：和八猴一样收进一个问号里，不常驻占画面。 */
+.viewer-help{position:absolute;top:60px;right:12px;width:224px;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:10px;padding:6px 14px 12px;z-index:5;box-shadow:0 10px 28px #000000a6}
+.viewer-help[hidden]{display:none}
+.viewer-help-head{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--ui-text);padding:8px 0 6px}
+/* 帮助面板的关闭键一并放大：22px 在 96vw 弹窗里几乎点不中。 */
+.viewer-help-head .icon-button{width:30px;height:30px;display:grid;place-items:center;color:var(--ui-muted)}
+.viewer-help-head .icon-button:hover{color:var(--ui-text)}
+.viewer-help-head .icon-button svg{width:15px;height:15px}
+.viewer-help ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.viewer-help li{display:flex;align-items:baseline;gap:8px;font-size:11px;color:var(--ui-muted)}
+.viewer-help li b{flex:none;min-width:86px;color:var(--ui-text);font-weight:600}
+.viewer-help-tip{margin:10px 0 0;font-size:10px;line-height:1.6;color:var(--ui-muted);border-top:1px solid var(--ui-line);padding-top:8px}
+/* 材质预设条：连了 PBR 材质才出现。模型 / 球 / 方 / 平板 + 平铺滑条，
+   和右上角工具条同一套视觉，浮在左上、不挡右上角那三个按键。 */
+.viewer-material{position:absolute;left:12px;top:12px;z-index:4;display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid var(--ui-line-strong);border-radius:10px;background:var(--ui-panel);backdrop-filter:blur(6px)}
+.viewer-material[hidden]{display:none}
+.vm-control{position:relative}.vm-button{display:flex;align-items:center;gap:7px;height:32px;padding:0 10px;color:var(--ui-text)}.vm-button svg,.vm-popover svg{width:18px;height:18px;flex:none}.vm-button[aria-expanded="true"]{color:var(--accent);border-color:var(--ui-accent)}
+.vm-popover{position:absolute;top:calc(100% + 8px);left:0;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--ui-panel);border:1px solid #33454f;border-radius:9px;box-shadow:0 8px 24px #0009;min-width:110px}
+.vm-popover button{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 10px;border-color:transparent;background:transparent}.vm-popover button.on{color:var(--accent);background:#a5c88018}.vm-popover button:disabled{opacity:.35;cursor:default}.vm-repeat-popover{min-width:0;width:44px;align-items:center;padding:12px 8px;left:50%;transform:translateX(-50%)}
+#vm-repeat,#vm-height{writing-mode:vertical-lr;direction:rtl;appearance:auto;width:20px;height:150px;margin:0;accent-color:var(--accent);cursor:pointer}.vm-button output{min-width:28px;font-variant-numeric:tabular-nums}
+.viewer-textures{position:absolute;right:8px;top:62px;bottom:8px;width:clamp(96px,19%,190px);display:flex;flex-direction:column;gap:6px;padding:6px;background:#101722ee;border:1px solid var(--ui-line-strong);border-radius:10px;z-index:3}.viewer-textures figure{margin:0;flex:1;min-height:0;display:flex;flex-direction:column;gap:3px}.viewer-textures img{width:100%;flex:1;min-height:0;object-fit:contain;background:#080d13;border-radius:5px}.viewer-textures figcaption{flex:none;color:#9fb0c2;font-size:10px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.viewer-wrap.textures-open .viewer-channels{right:clamp(104px,20%,202px)}.viewer-wrap.textures-open #viewer-canvas{width:calc(100% - clamp(104px,20%,202px))}
+/* 通道预览覆盖层：标签条贴在各条左缘（竖排），统计照 mviewer 放左下角。
+   pointer-events:none 是关键——覆盖层只是「标签」，点击切通道听的是 canvas 自己。 */
+.viewer-channels{position:absolute;inset:0;z-index:2;pointer-events:none}
+.viewer-channels[hidden]{display:none}
+.viewer-channel-labels{position:absolute;inset:0;display:flex}
+.viewer-channel-labels span{flex:1;display:flex;align-items:flex-end;justify-content:center;padding:0 8px 38px;font-size:10px;letter-spacing:2px;color:#d5dde8;text-shadow:0 1px 3px #000c;writing-mode:horizontal-tb}
+.viewer-channel-labels span+span{border-left:1px solid #ffffff2e}
+.viewer-stats{position:absolute;left:12px;bottom:10px;font-size:10px;letter-spacing:.5px;color:#aab8c8;background:#0d1117b8;border:1px solid var(--ui-line-strong);border-radius:6px;padding:3px 9px}
+.viewer-stats[hidden]{display:none}
+.viewer-settings{position:relative;display:flex;z-index:6}.viewer-display{order:1}.viewer-settings .vm-popover{left:auto;right:0;top:calc(100% + 10px);width:min(240px,calc(100vw - 24px));min-width:0;padding:10px;gap:8px;max-height:calc(100vh - 80px);overflow:auto}.environment-actions,.environment-files{display:flex;align-items:center;gap:6px}.viewer-settings .lighting-check,.environment-files button{display:grid;place-items:center;width:30px;height:28px;margin:0;padding:4px;border:1px solid var(--ui-line-strong);border-radius:6px;cursor:pointer;color:#8796a8}.lighting-check:has(input:checked){color:var(--accent);background:#a5c88020;border-color:var(--ui-accent)}.lighting-check input{position:absolute;opacity:0;width:1px;height:1px}.lighting-check:focus-within{outline:2px solid var(--accent)}.viewer-settings svg{width:16px;height:16px;flex:none}.viewer-settings #environment-preview{display:grid;place-items:center;padding:0;background:#ffffff06;border:1px solid #ffffff12;border-radius:6px;height:88px}.viewer-settings #environment-thumb{width:80px;height:80px}.environment-parameters{display:grid;grid-template-columns:1fr 1fr;gap:8px}.environment-parameters label{display:grid;grid-template-columns:16px 1fr;align-items:center;gap:4px;min-width:0}.environment-parameters input{grid-row:2;grid-column:1 / -1;width:100%;margin:0;accent-color:var(--accent)}.environment-parameters output{text-align:right;font-size:11px;font-variant-numeric:tabular-nums}.viewer-settings p{font-size:10px;color:#8998a8;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.environment-files{position:absolute;right:10px;top:10px}.viewer-settings p:empty{display:none}
+.viewer-channel-labels span{min-width:0;letter-spacing:0;font-size:11px;white-space:nowrap}
+.viewer-display{display:flex;align-items:center;gap:0;padding:3px;border:1px solid var(--ui-line-strong);border-radius:10px;background:var(--ui-panel)}.viewer-tools .viewer-display .icon-button{width:30px;height:32px;border:0;border-radius:6px;background:transparent}.viewer-tools .viewer-display .icon-button.on{background:#a5c88030;color:var(--accent)}@media(max-width:620px){.viewer-material{top:62px}}
+.viewer-uv{position:absolute;right:8px;top:62px;bottom:8px;width:clamp(180px,30%,360px);z-index:3;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:8px}.viewer-uv header{display:flex;gap:8px;align-items:center}.viewer-uv select{min-width:0;flex:1}.viewer-uv canvas{width:100%;flex:1;min-height:0;background:#0a1018}.viewer-uv p{font-size:10px;color:var(--ui-muted);margin:0}.viewer-wrap.uv-open #viewer-canvas{width:calc(100% - clamp(196px,32%,376px))}.viewer-wrap.uv-open .viewer-channels{right:clamp(196px,32%,376px)}.viewer-views{position:absolute;right:12px;top:62px;width:min(250px,calc(100% - 24px));padding:10px;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:9px;z-index:6;box-shadow:0 8px 24px #0008}.viewer-views form{display:flex;gap:6px;margin-top:8px}.viewer-views input{width:0;flex:1;min-width:0;background:var(--ui-soft);color:var(--ui-text);border:1px solid var(--ui-line-strong);border-radius:5px;padding:6px;font:inherit}.viewer-views-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}.viewer-views-list>div{display:flex;gap:4px}.viewer-views-list .view-recall{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.viewer-views p{margin:2px;color:var(--ui-muted);font-size:11px}
+/* ── ANCHOR-DIFF 8：贴图放大查看（与 AssetVault viewer.css 同构，整段可原样互相拷贝）── */
+.viewer-texture-zoom{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;overflow:hidden;background:#05080cde;backdrop-filter:blur(4px)}
+.viewer-texture-zoom[hidden]{display:none}
+.viewer-texture-zoom img{max-width:min(88%,960px);max-height:78%;object-fit:contain;background:#0d1420;border:1px solid #ffffff26;border-radius:8px;box-shadow:0 14px 44px #000a;transform:scale(var(--zoom-scale,1));transition:transform .12s ease;cursor:zoom-in;user-select:none}
+.viewer-texture-zoom .texture-zoom-caption{flex:none;color:#9fb0c2;font-size:11px;text-align:center;padding:0 16px;pointer-events:none}
+.viewer-texture-zoom .texture-zoom-close{position:absolute;top:10px;right:12px;width:30px;height:30px;padding:6px;border:1px solid #ffffff26;border-radius:8px;background:#0d1420cc;color:#e7eef7}
+.viewer-texture-zoom .texture-zoom-close:hover{background:#ffffff1a}
+.viewer-textures figure{cursor:zoom-in}
+.viewer-textures figure:hover img{outline:1px solid #a5c88088}
+/* ── ANCHOR-DIFF 9：加载过渡层（与 AssetVault viewer.css 同构，整段可原样互相拷贝）── */
+.viewer-loading{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;pointer-events:none;background:#090e15a8;backdrop-filter:blur(2px);opacity:0;transition:opacity .22s ease}
+.viewer-loading[hidden]{display:none}
+.viewer-loading.on{opacity:1}
+.viewer-loading-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 26px;border:1px solid #ffffff1f;border-radius:14px;background:#0d1420e6;box-shadow:0 12px 36px #0008}
+.viewer-loading-ring{width:30px;height:30px;border:2px solid #ffffff1f;border-top-color:#a5c880;border-radius:50%;animation:viewer-spin .85s linear infinite}
+@keyframes viewer-spin{to{transform:rotate(360deg)}}
+.viewer-loading-text{color:#e7eef7;font-size:12px;letter-spacing:.02em}
+.viewer-loading-bar{width:168px;height:2px;border-radius:2px;background:#ffffff14;overflow:hidden}
+.viewer-loading-bar i{display:block;width:38%;height:100%;border-radius:2px;background:#a5c880;animation:viewer-slide 1.15s ease-in-out infinite}
+@keyframes viewer-slide{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
+.viewer-loading-tip{color:#7d8da0;font-size:10px}
+@media (prefers-reduced-motion:reduce){.viewer-loading-ring,.viewer-loading-bar i{animation-duration:2.4s}}
+/* ── ANCHOR-DIFF 10：贴图缩略图铺满侧栏宽度（两个工具同构，整段可原样互相拷贝）──
+ * 原来 figure / img 都是 flex:1，正方形贴图被压进「等高格子」再 contain 居中，
+ * 左右各留一大片空白。改成宽度铺满、高度按原始比例，超出侧栏高度时滚动。 */
+.viewer-textures{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#ffffff26 transparent}
+.viewer-textures figure{flex:none;margin:0}
+.viewer-textures img{width:100%;height:auto;flex:none;display:block;object-fit:contain}
+.viewer-textures figcaption{flex:none}
+</style><script>
+// 沙箱只接受父页面给出的有限界面色，不改变灯光、材质或场景背景。
+addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.type!=='studio-preview-theme')return;
+ const allowed=['--ui-bg','--ui-panel','--ui-soft','--ui-line','--ui-line-strong','--ui-text','--ui-muted','--ui-faint','--ui-accent','--ui-accent-soft','--ui-accent-ink','--ui-error'];
+ for(const key of allowed){const value=event.data.tokens?.[key];if(typeof value==='string'&&CSS.supports('color',value))document.documentElement.style.setProperty(key,value);}
+ document.documentElement.style.colorScheme=event.data.dark?'dark':'light';
+});
+</script><div class="viewer-wrap"><canvas id="viewer-canvas" aria-label="3D 模型预览" tabindex="0"></canvas><div id="state" role="status">正在加载模型…</div><div class="viewer-loading" id="viewer-loading" aria-hidden="true" hidden><div class="viewer-loading-card"><div class="viewer-loading-ring"></div><div class="viewer-loading-text" id="viewer-loading-text">正在加载…</div><div class="viewer-loading-bar"><i></i></div><div class="viewer-loading-tip" id="viewer-loading-tip">正在准备预览，请稍候</div></div></div><div class="viewer-channels" id="viewer-channels" hidden><div class="viewer-channel-labels" id="viewer-channel-labels"></div><div class="viewer-stats" id="viewer-stats" hidden></div></div><div class="viewer-tools"><button class="icon-button" id="viewer-uv-btn" type="button" title="UV 预览" aria-label="UV 预览" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 3 18 18M3 21 21 3M12 3v18M3 12h18"/></svg></button><button class="icon-button" id="viewer-views-btn" type="button" title="视角标签" aria-label="视角标签" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/></svg></button><div class="viewer-display" role="group" aria-label="显示模式"><button class="icon-button" data-display="wire" type="button" title="线框" aria-label="线框" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/></svg></button><button class="icon-button" data-display="white" type="button" title="白模" aria-label="白模" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".7"/></svg></button><button class="icon-button on" data-display="material" type="button" title="材质" aria-label="材质" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/><path d="m5 7 7 7m-8-2 8 8" opacity=".45"/></svg></button><div class="viewer-settings" id="viewer-settings"><div class="vm-control"><button class="icon-button" id="lighting-btn" aria-expanded="false" aria-label="光照与环境" title="视图光照设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg></button><div class="vm-popover" id="lighting-menu" hidden><div class="environment-actions"><label class="lighting-check" title="场景灯光"><input type="checkbox" id="scene-lights" aria-label="场景灯光" checked><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></label><label class="lighting-check" title="环境光照"><input type="checkbox" id="scene-world" aria-label="环境光照" checked><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg></label></div><button type="button" id="environment-preview" title="点击替换 HDR 环境"><canvas id="environment-thumb" width="112" height="112" aria-label="HDR 环境预览"></canvas></button><div class="environment-parameters"><label title="环境旋转"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2"/></svg><input id="environment-rotation" type="range" min="0" max="360" step="1" value="0" aria-label="环境旋转"><output id="rotation-value">0°</output></label><label title="光照强度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg><input id="lighting-strength" type="range" min="0" max="3" step="0.05" value="1" aria-label="光照强度"><output id="lighting-value">1.00</output></label><label title="背景强度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 16 6-6 5 5 3-3 4 4"/></svg><input id="environment-opacity" type="range" min="0" max="1" step="0.01" value="0.35" aria-label="环境背景透明度"><output id="opacity-value">0.35</output></label><label title="背景模糊"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg><input id="environment-blur" type="range" min="0" max="1" step="0.01" value="0.4" aria-label="环境背景模糊"><output id="blur-value">0.40</output></label></div><div class="environment-files"><button id="environment-upload" type="button" title="替换 HDR 环境" aria-label="替换 HDR 环境"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 14v6h16v-6"/></svg></button><button id="environment-reset" type="button" title="恢复默认环境" aria-label="恢复默认环境"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4v6h6M3 10a9 9 0 1 1 1 8"/></svg></button></div><input id="environment-file" type="file" accept=".hdr,.png,.jpg,.jpeg,.webp" hidden><p id="environment-status" role="status">默认摄影棚</p></div></div></div></div><button class="icon-button" id="viewer-textures-btn" type="button" title="模型贴图" aria-label="模型贴图" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 15 5-5 5 5 3-3 5 5M15 7h.01"/></svg></button><button class="icon-button" id="viewer-channels-btn" type="button" title="通道预览（数字键 1-5）" aria-label="通道预览"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button><button class="icon-button" id="viewer-help-btn" type="button" title="预览操作说明" aria-label="预览操作说明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4m0 3h.01"/></svg></button><button class="icon-button" id="full" title="全屏预览" aria-label="全屏预览"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/></svg></button></div><div class="viewer-help" id="viewer-help" hidden><div class="viewer-help-head"><span>预览操作</span><button class="icon-button" type="button" data-close aria-label="关闭操作说明"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div><ul><li><b>左键拖动</b><span>旋转视角</span></li><li><b>右键拖动</b><span>缩放</span></li><li><b>中键拖动</b><span>平移</span></li><li><b>双击</b><span>重置相机</span></li><li><b>Shift+左键拖动</b><span>旋转灯光</span></li><li><b>1 - 5</b><span>单独预览某通道</span></li><li><b>0</b><span>五通道拆分预览</span></li></ul><p class="viewer-help-tip">通道视图下点击某条通道可单独查看，再次点击返回拆分。</p></div><aside class="viewer-uv" id="viewer-uv" hidden><header><span>UV</span><select id="viewer-uv-channel" aria-label="UV 通道"></select></header><canvas id="viewer-uv-canvas" aria-label="UV 布局"></canvas><p id="viewer-uv-status"></p></aside><section class="viewer-views" id="viewer-views" aria-label="视角标签" hidden><div class="viewer-views-list" id="viewer-views-list"></div><form id="viewer-view-form"><input id="viewer-view-name" maxlength="32" placeholder="视角名称" aria-label="视角名称"><button type="submit" title="保存当前视角" aria-label="保存当前视角">＋</button></form></section><aside id="viewer-textures" class="viewer-textures" aria-label="模型贴图" hidden></aside><div class="viewer-texture-zoom" id="viewer-texture-zoom" role="dialog" aria-label="贴图放大查看" hidden><button class="icon-button texture-zoom-close" id="texture-zoom-close" type="button" title="关闭" aria-label="关闭放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><img id="texture-zoom-image" alt="贴图放大"><div class="texture-zoom-caption" id="texture-zoom-caption"></div></div><div class="viewer-material" id="viewer-material" hidden><div class="vm-control"><button id="vm-geometry-btn" class="vm-button" type="button" aria-label="选择预览形状" aria-expanded="false"></button><div id="vm-geometry-menu" class="vm-popover" role="group" aria-label="预览形状" hidden><button type="button" data-geometry="model">模型</button><button type="button" data-geometry="sphere">球</button><button type="button" data-geometry="cube">方</button><button type="button" data-geometry="plane">平板</button></div></div><div class="vm-control"><button id="vm-repeat-btn" class="vm-button" type="button" aria-label="调节平铺" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg><output id="vm-repeat-out">1×</output></button><div id="vm-repeat-menu" class="vm-popover vm-repeat-popover" hidden><input type="range" id="vm-repeat" min="0.5" max="4" step="0.1" value="1" aria-label="平铺次数" orient="vertical"></div></div><div class="vm-control"><button id="vm-height-btn" class="vm-button" type="button" aria-label="调节置换强度" aria-expanded="false" title="高度置换强度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m3 17 5-6 4 4 4-10 5 12M12 3v7m-3-4 3-3 3 3"/></svg><output id="vm-height-out">0.10</output></button><div id="vm-height-menu" class="vm-popover vm-repeat-popover" hidden><input type="range" id="vm-height" min="0" max="0.5" step="0.01" value="0.1" aria-label="置换强度" orient="vertical"></div></div></div><div class="animation-tools" hidden id="animation-tools"><select id="clip" aria-label="动画片段"></select><button id="play" title="播放 / 暂停动画" aria-pressed="true">Ⅱ</button></div></div>
 <script>/*__ENGINE__*/</script><script>
+// Interface, gestures and five-channel rendering follow AssetVault/src/library/gltf-preview.js.
 (() => {
 const state=document.getElementById('state');let renderer,model,mixer,active,raf,playing=true;
+/* ── ANCHOR-DIFF 9：加载过渡层（与 AssetVault gltf-preview.js 同构，可整段互相拷贝）──
+ * #state 是唯一的加载状态源：有文字且不是错误 = 加载中，清空文字 = 加载完成。
+ * 用 MutationObserver 统一驱动，不用改任何一处 state.textContent 赋值点。 */
+function bindLoadingOverlay(){
+ const stateEl=document.getElementById('state'),layer=document.getElementById('viewer-loading');
+ if(!stateEl||!layer||layer.dataset.bound)return;
+ layer.dataset.bound='1';
+ const text=document.getElementById('viewer-loading-text');
+ let hideTimer=0,wantVisible=false;
+ const sync=()=>{
+  const value=stateEl.textContent.trim();
+  const loading=!!value&&!/失败|不支持|错误|无法|丢失/.test(value)&&!stateEl.classList.contains('error');
+  clearTimeout(hideTimer);
+  // wantVisible 必须一起判断：缓存命中时加载比两帧还快，只判 hidden 会让
+  // 迟到的淡入回调把已经收起的遮罩重新点亮，然后永久卡住。
+  wantVisible=loading;
+  if(loading){
+   layer.hidden=false;
+   if(text)text.textContent=value;
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(wantVisible&&!layer.hidden)layer.classList.add('on');}));
+  }else{
+   layer.classList.remove('on');
+   hideTimer=setTimeout(()=>{if(!wantVisible)layer.hidden=true;},240);
+  }
+ };
+ new MutationObserver(sync).observe(stateEl,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['class']});
+ sync();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindLoadingOverlay,{once:true});
+else bindLoadingOverlay();
+let modelGround=null;
 try {
- const T=window.THREE,canvas=document.querySelector('canvas');renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
- renderer.setClearColor(0x18222d);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;
- const scene=new T.Scene(),camera=new T.PerspectiveCamera(40,1,.01,1000),controls=new GameOrbitControls(camera,canvas);controls.enableDamping=true;controls.autoRotate=true;controls.autoRotateSpeed=1.4;
- scene.add(new T.HemisphereLight(0xffffff,0x66788a,3));const key=new T.DirectionalLight(0xffffff,3);key.position.set(4,8,5);scene.add(key);
- const grid=new T.GridHelper(10,20,0x536576,0x2b3b4b);scene.add(grid);let distance=4,center=new T.Vector3(0,1,0);
- const reset=()=>{controls.target.copy(center);camera.position.copy(center).add(new T.Vector3(distance,.6*distance,distance));camera.near=distance/1000;camera.far=distance*100;camera.updateProjectionMatrix();controls.update();};reset();
+ const THREE=window.THREE,canvas=document.getElementById('viewer-canvas');
+ let ready=false,gesturesBound=false,uiBound=false,lightDrag=null,homeShot=null;
+ let displayMode='material',customEnvironment=null,environmentRequest=0,environmentPreviewTarget=null,savedViews=[];
+ let channelMode='off',channelTarget=null,channelAvailable=false,pressInfo=null,channelRadius=1;
+ let originalMaterials=new Map(),channelMaterials=null,albedoCache=new Map(),glossCache=new Map(),invertCache=new Map();
+ const CHANNELS=['normals','albedo','reflectivity','gloss','topology'];
+ const CHANNEL_LABELS={normals:'法线',albedo:'颜色',reflectivity:'金属度',gloss:'粗糙度',topology:'高度 / 线框'};
+ renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x0d1117);
+ const environmentScene=new GameRoomEnvironment(),pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(environmentScene,.04);
+ scene.environment=environment.texture;environmentScene.dispose();pmrem.dispose();
+ const lightRig=new THREE.Group();scene.add(lightRig);
+ const key=new THREE.DirectionalLight(0xffffff,1.7);key.position.set(3,5,4);lightRig.add(key);
+ const fill=new THREE.DirectionalLight(0xbcd0ff,.7);fill.position.set(-4,2,-3);lightRig.add(fill);
+ const hemisphere=new THREE.HemisphereLight(0xdfe8ff,0x2b3440,1.1);scene.add(hemisphere);
+ const camera=new THREE.PerspectiveCamera(45,1,.01,2000),controls=new GameOrbitControls(camera,canvas);
+ controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=.05;controls.maxDistance=60;
+ controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.PAN,RIGHT:THREE.MOUSE.DOLLY};
+ let sceneGrid=null,gridWanted=false; /* 默认不画：父页要网格时发 set-grid 打开，其他页面观感不变 */
+const requestRender=()=>renderFrame();
+ const canvasSize=()=>({w:canvas.clientWidth,h:canvas.clientHeight});
+ bindViewerGestures();bindViewerUI();
  const clips=document.getElementById('clip'),play=document.getElementById('play');
- new GameGLTFLoader().load('data:model/gltf-binary;base64,__MODEL_BASE64__',gltf=>{
-  model=gltf.scene;scene.add(model);const box=new T.Box3().setFromObject(model),size=box.getSize(new T.Vector3());center=box.getCenter(new T.Vector3());distance=Math.max(size.x,size.y,size.z,.01)*1.6;grid.position.y=box.min.y;grid.scale.setScalar(Math.max(size.x,size.z,.1)/5);reset();
-  model.traverse(object=>{if(object.isMesh)object.userData.originalMaterial=object.material;});
-  if(gltf.animations.length){mixer=new T.AnimationMixer(model);clips.hidden=false;play.hidden=false;gltf.animations.forEach((clip,index)=>{const option=document.createElement('option');option.value=index;option.textContent=clip.name||'动画 '+(index+1);clips.append(option);});
+ const missingTextures=[];const manager=new THREE.LoadingManager();manager.onError=()=>missingTextures.push(true);
+ // 只有材质、没有模型时后端会把这个占位符换成空串：不加载 GLB，等 apply-material 造预设几何体。
+ function rebuildGrid(center,y,radius){
+  if(sceneGrid){scene.remove(sceneGrid);sceneGrid.geometry.dispose();sceneGrid.material.dispose();sceneGrid=null;}
+  const span=Math.max(radius*7,1);
+  const grid=new THREE.GridHelper(span,56,0x9aa7b8,0x4d5765);
+  grid.material.transparent=true;grid.material.opacity=.85;grid.material.depthWrite=false;
+  /* 抬 1‰ 半径：既要和阴影圆盘共面，又不能被它抢占深度缓冲（否则只剩远场线） */
+  grid.position.set(center.x,y+Math.max(radius*0.002,1e-4),center.z);grid.visible=gridWanted;
+  scene.add(grid);sceneGrid=grid;
+ }
+ function mountGlb(gltf){
+  if(mixer){mixer.stopAllAction();mixer=null;}
+  if(model){scene.remove(model);}
+  if(modelGround){scene.remove(modelGround);modelGround.geometry.dispose();modelGround.material.dispose();modelGround=null;}
+  model=gltf.scene;scene.add(model);setChannelAvailable(true,model);
+  const box=new THREE.Box3().setFromObject(model);if(box.isEmpty()){state.className='error';state.textContent='模型是空的';return;}
+  const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),radius=Math.max(size.length()*.5,.05);
+  camera.position.copy(center).add(new THREE.Vector3(radius*1.4,radius*1.1,radius*1.7));camera.near=radius*.01;camera.far=radius*120;camera.updateProjectionMatrix();camera.lookAt(center);
+  controls.target.copy(center);controls.minDistance=radius*.15;controls.maxDistance=radius*14;controls.update();rememberHome();
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(radius*3,48),new THREE.ShadowMaterial({opacity:.28}));ground.rotation.x=-Math.PI/2;ground.position.set(center.x,box.min.y,center.z);ground.receiveShadow=true;scene.add(ground);modelGround=ground;
+  rebuildGrid(center,box.min.y,radius);
+  renderer.shadowMap.enabled=true;model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  clips.replaceChildren();
+  if(gltf.animations&&gltf.animations.length){mixer=new THREE.AnimationMixer(model);document.getElementById('animation-tools').hidden=false;gltf.animations.forEach((clip,index)=>{const option=document.createElement('option');option.value=index;option.textContent=clip.name||'动画 '+(index+1);clips.append(option);});
    const select=()=>{mixer.stopAllAction();active=mixer.clipAction(gltf.animations[Number(clips.value)]);active.play();active.paused=!playing;};clips.onchange=select;select();}
-  state.textContent='拖动旋转 · 滚轮缩放 · 右键平移';
- },undefined,error=>{state.className='error';state.textContent='模型加载失败：'+(error.message||'GLB 内容或渲染格式不支持');});
- document.getElementById('rotate').onclick=e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.setAttribute('aria-pressed',controls.autoRotate);};
- document.getElementById('reset').onclick=reset;
- addEventListener('message',event=>{
-  if(event.source!==parent||event.data?.type!=='capture-model-reference')return;
-  const requestId=event.data.requestId;
-  if(!model){parent.postMessage({type:'model-reference',requestId,error:'模型尚未加载完成'},'*');return;}
-  renderer.render(scene,camera);
-  canvas.toBlob(blob=>parent.postMessage({type:'model-reference',requestId,blob},'*'),'image/png');
- });
- document.getElementById('display').onchange=e=>{if(!model)return;model.traverse(o=>{if(!o.isMesh)return;if(o.userData.previewMaterial){o.userData.previewMaterial.dispose();delete o.userData.previewMaterial;}if(e.target.value==='material')o.material=o.userData.originalMaterial;else{o.userData.previewMaterial=new T.MeshStandardMaterial({color:0xa9c2d8,wireframe:e.target.value==='wire',side:T.DoubleSide});o.material=o.userData.previewMaterial;}});};
+  else document.getElementById('animation-tools').hidden=true;
+  ready=true;syncMaterialBar();updateTextureSidebar();
+  try{parent.postMessage({type:'model-ready'},'*');parent.postMessage({type:'model-loaded'},'*');}catch(_){}
+  state.textContent=missingTextures.length?'部分贴图加载失败':'';
+ }
+ const MODEL_BASE64='__MODEL_BASE64__';
+ const modelLink=new URLSearchParams(location.search).get('model');
+ const failLoad=error=>{state.className='error';state.textContent='模型加载失败：'+(error&&error.message||'GLB 内容或渲染格式不支持');try{parent.postMessage({type:'model-error',message:state.textContent},'*');}catch(_){}};
+ if(modelLink){state.textContent='正在加载模型…';new GameGLTFLoader(manager).load(modelLink,mountGlb,undefined,failLoad);}
+ else if(MODEL_BASE64)new GameGLTFLoader(manager).load('data:model/gltf-binary;base64,'+MODEL_BASE64,mountGlb,undefined,failLoad);
+ else{
+  // 空预览是就绪待命，不代表正在下载材质；真正加载由 load-model / apply-material 驱动。
+  state.textContent='';
+  // 没有模型也要告诉画布「可以推贴图了」——父页只在这条消息之后才发 apply-material，
+  // 早发过来的会落在本页监听挂上之前被丢掉。
+  try{parent.postMessage({type:'model-ready'},'*');}catch(_){}
+ }
  play.onclick=()=>{playing=!playing;if(active)active.paused=!playing;play.textContent=playing?'Ⅱ':'▶';play.setAttribute('aria-pressed',playing);};
  document.getElementById('full').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{state.textContent='当前环境不支持全屏，可使用画布放大查看';});};
- let previous=0;function draw(time){const dt=previous?Math.min((time-previous)/1000,.05):0;previous=time;const w=innerWidth,h=innerHeight;if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio())){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}controls.update(dt);mixer?.update(dt);renderer.render(scene,camera);raf=requestAnimationFrame(draw);}
+ let paintLayer=null,paintState={drawing:false,erase:false,radius:28};
+ function ensurePaint(){
+  if(paintLayer)return paintLayer;
+  paintLayer=document.createElement('canvas');
+  paintLayer.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;touch-action:none';
+  canvas.parentElement.appendChild(paintLayer);
+  paintLayer.width=canvas.clientWidth;paintLayer.height=canvas.clientHeight;
+  const point=event=>{const rect=paintLayer.getBoundingClientRect();return {x:(event.clientX-rect.left)/rect.width*paintLayer.width,y:(event.clientY-rect.top)/rect.height*paintLayer.height};};
+  const hits=event=>{
+   if(!model)return false;
+   const rect=canvas.getBoundingClientRect();
+   const ray=new THREE.Raycaster();
+   ray.setFromCamera(new THREE.Vector2(((event.clientX-rect.left)/rect.width)*2-1,-((event.clientY-rect.top)/rect.height)*2+1),camera);
+   return ray.intersectObject(model,true).length>0;
+  };
+  const stamp=event=>{
+   if(!hits(event))return;
+   if(paintLayer.width!==canvas.clientWidth||paintLayer.height!==canvas.clientHeight){paintLayer.width=canvas.clientWidth;paintLayer.height=canvas.clientHeight;}
+   const p=point(event),ctx=paintLayer.getContext('2d');
+   ctx.globalCompositeOperation=paintState.erase?'destination-out':'source-over';
+   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,paintState.radius,0,Math.PI*2);ctx.fill();
+  };
+  paintLayer.addEventListener('pointerdown',event=>{if(paintLayer.style.pointerEvents!=='auto')return;paintState.drawing=true;paintLayer.setPointerCapture(event.pointerId);stamp(event);});
+  paintLayer.addEventListener('pointermove',event=>{if(paintState.drawing)stamp(event);});
+  paintLayer.addEventListener('pointerup',()=>{paintState.drawing=false;});
+  return paintLayer;
+ }
+ function handlePaint(data){
+  const layer=ensurePaint();
+  if(data.type==='paint-mode'){
+   paintState.erase=!!data.erase;paintState.radius=Number(data.radius)||28;
+   layer.style.pointerEvents=data.enabled?'auto':'none';
+   if(data.clear){layer.getContext('2d').clearRect(0,0,layer.width,layer.height);}
+   return;
+  }
+  const rect=canvas.getBoundingClientRect();
+  const longest=Math.max(rect.width,rect.height,1),scale=Math.min(1,768/longest);
+  const width=Math.max(2,Math.round(rect.width*scale)),height=Math.max(2,Math.round(rect.height*scale));
+  const copy=document.createElement('canvas');copy.width=width;copy.height=height;
+  copy.getContext('2d').drawImage(layer,0,0,width,height);
+  parent.postMessage({type:'surface-mask',requestId:data.requestId,image:copy.toDataURL('image/png'),width,height,aspect:width/height,position:[camera.position.x,camera.position.y,camera.position.z],target:[controls.target.x,controls.target.y,controls.target.z],fov:camera.fov},'*');
+ }
+ addEventListener('message',event=>{
+  if(event.source!==parent)return;
+  const data=event.data||{};
+  if(data.type==='capture-model-reference'){
+   const requestId=data.requestId;
+   if(!model&&!materialGroup){parent.postMessage({type:'model-reference',requestId,error:'模型尚未加载完成'},'*');return;}
+   renderer.render(scene,camera);canvas.toBlob(blob=>parent.postMessage({type:'model-reference',requestId,blob},'*'),'image/png');
+  }
+  if(data.type==='set-grid'){gridWanted=data.visible!==false;if(sceneGrid)sceneGrid.visible=gridWanted;requestRender();return;}
+ if(data.type==='query-ready'){parent.postMessage({type:'model-ready'},'*');return;}
+  if(data.type==='set-camera'&&Array.isArray(data.position)&&Array.isArray(data.target)){
+   camera.position.fromArray(data.position);controls.target.fromArray(data.target);
+   if(Number.isFinite(data.fov))camera.fov=data.fov;
+   camera.updateProjectionMatrix();controls.update();renderFrame();return;
+  }
+  if(data.type==='query-camera'){
+   parent.postMessage({type:'camera-pose',requestId:data.requestId,position:[camera.position.x,camera.position.y,camera.position.z],target:[controls.target.x,controls.target.y,controls.target.z],fov:camera.fov},'*');
+  }
+  if(data.type==='paint-mode'||data.type==='paint-export'){handlePaint(data);return;}
+  if(data.type==='load-model'&&data.buffer){
+   state.textContent='正在加载模型…';
+   new GameGLTFLoader().parse(data.buffer,'',mountGlb,error=>{state.className='error';state.textContent='模型加载失败：'+(error&&error.message||'GLB 无法解析');parent.postMessage({type:'model-error',message:String(error&&error.message||error)},'*');});
+  }
+ });
+// 画布连了 PBR 材质时，父页把贴图以 Blob 发进来（沙箱里拿不到登录态，取图由父页负责）。
+// geometry 是节点上选的预设：model 就把贴图贴到模型上，球/方/平板则由本预览器自己造几何体，
+// 相机、灯光、右上角按键全部共用一套——不另开渲染器，也不换掉这个界面。
+addEventListener('message',event=>{
+ if(event.source!==parent||!['apply-material','material-controls'].includes(event.data?.type))return;
+ if(event.data.type==='apply-material'){materialMaps=event.data.maps||{};materialMeshName=event.data.meshName||'';materialVersion++;updateTextureSidebar();}
+ materialRepeat=clampRepeat(event.data.repeat);
+ if(event.data.displacement!==undefined)materialHeight=Math.min(0.5,Math.max(0,Number(event.data.displacement)||0));
+ materialGeometry=normalizeGeometry(event.data.geometry);
+ syncMaterialBar();
+ renderMaterialPreset();
+});
+const MATERIAL_SLOTS={basecolor:['map',true],normal:['normalMap',false],roughness:['roughnessMap',false],metallic:['metalnessMap',false],ao:['aoMap',false],height:['displacementMap',false]};
+// repeat 是节点上的平铺次数：模型视图也要能按同一档位调，才能和球/方/平铺对上。
+// 平铺和置换强度直接更新已加载纹理与材质，不重新加载。
+let appliedTextures=[];
+function loadMaterialTextures(maps,flipY){
+ const loader=new THREE.TextureLoader();
+ return Promise.all(Object.entries(MATERIAL_SLOTS).filter(([channel])=>maps[channel]).map(([channel,[slot,srgb]])=>new Promise(resolve=>{
+  const url=URL.createObjectURL(maps[channel]);
+  loader.load(url,texture=>{URL.revokeObjectURL(url);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(materialRepeat,materialRepeat);texture.flipY=flipY;texture.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace;resolve([channel,slot,texture]);},undefined,()=>{URL.revokeObjectURL(url);resolve(null);});
+ }))).then(items=>items.filter(Boolean));
+}
+async function applyMaterialMaps(maps){
+ if(!model||!maps||appliedVersion===materialVersion)return;
+ const version=materialVersion;appliedVersion=version;
+ const loaded=await loadMaterialTextures(maps,false);
+ if(version!==materialVersion){loaded.forEach(([, ,texture])=>texture.dispose());return;}
+ const stale=appliedTextures;appliedTextures=loaded.map(([, ,texture])=>texture);
+ disposeChannelResources();
+ model.traverse(node=>{
+  if(!node.isMesh||(materialMeshName&&node.name!==materialMeshName))return;
+  if(!node.userData.baseMaterial)node.userData.baseMaterial=node.material;
+  const bases=Array.isArray(node.userData.baseMaterial)?node.userData.baseMaterial:[node.userData.baseMaterial];
+  const materials=bases.map(base=>{
+   const material=base.clone();
+   for(const [channel,slot,texture] of loaded){material[slot]=texture;if(channel==='metallic')material.metalness=1;if(channel==='roughness')material.roughness=1;}
+   return material;
+  });
+  const old=node.userData.materialOverride;
+  node.userData.materialOverride=materials.length===1?materials[0]:materials;node.material=node.userData.materialOverride;
+  for(const item of old?(Array.isArray(old)?old:[old]):[])item.dispose();
+ });
+ stale.forEach(texture=>texture.dispose());updateMaterialRepeat();renderFrame();
+}
+function updateMaterialRepeat(){
+ const textures=new Set(appliedTextures);
+ for(const object of [model,materialGroup])object?.traverse(node=>{
+  if(!node.isMesh)return;
+  for(const material of Array.isArray(node.material)?node.material:[node.material]){
+   if(material?.displacementMap){material.displacementScale=typeof materialHeight==='number'?materialHeight:0.1;material.displacementBias=-material.displacementScale/2;}
+   for(const [slot] of Object.values(MATERIAL_SLOTS))if(material?.[slot])textures.add(material[slot]);
+  }
+ });
+ for(const texture of textures)texture.repeat.set(materialRepeat,materialRepeat);
+ renderFrame();
+}
+
+/* ===== 材质预设：模型 / 球 / 方 / 平板 =====
+   几何体在这里自己造，贴图仍然是父页取好发进来的 Blob。这样预设和模型共用同一套
+   相机、灯光、通道预览和右上角三个按键，左键拖动照样转视角。 */
+const MATERIAL_GEOMETRY={
+ sphere:()=>new THREE.SphereGeometry(1,96,64),
+ cube:()=>new THREE.BoxGeometry(1.5,1.5,1.5,96,96,96),
+ plane:()=>new THREE.PlaneGeometry(2,2,192,192)
+};
+const MATERIAL_LABELS={model:'模型',sphere:'球',cube:'方',plane:'平板'};
+let materialMaps=null,materialMeshName='',materialRepeat=1,materialHeight=0.1,materialGeometry='model',materialGroup=null,materialGround=null,lastPreset='',materialVersion=0,appliedVersion=-1,presetBuild=0;
+function clampRepeat(value){return Math.min(4,Math.max(0.5,Math.round((Number(value)||1)*10)/10));}
+function normalizeGeometry(value){return value==='model'||MATERIAL_GEOMETRY[value]?value:'model';}
+function hasMaterial(){return Boolean(materialMaps&&Object.keys(materialMaps).length);}
+
+function disposeMaterialPreset(){
+ if(materialGroup){
+  scene.remove(materialGroup);
+  materialGroup.traverse(o=>{if(!o.isMesh)return;o.geometry.dispose();const material=o.material;
+   if(material){['map','normalMap','roughnessMap','metalnessMap','aoMap','displacementMap'].forEach(slot=>material[slot]&&material[slot].dispose());material.dispose();}});
+  materialGroup=null;
+ }
+ if(materialGround){scene.remove(materialGround);materialGround.geometry.dispose();materialGround.material.dispose();materialGround=null;}
+}
+
+// 预设物体自己造一份接地阴影：模型那份藏在 modelGround 里，两边各自跟着显示/隐藏。
+async function buildMaterialPreset(reframe=true){
+ const factory=MATERIAL_GEOMETRY[materialGeometry];if(!factory)return;
+ if(materialGroup?.userData.materialVersion===materialVersion){
+  const mesh=materialGroup.children[0];
+  if(materialGroup.userData.geometry!==materialGeometry){mesh.geometry.dispose();mesh.geometry=factory();if(mesh.geometry.attributes.uv)mesh.geometry.setAttribute('uv1',mesh.geometry.attributes.uv);materialGroup.userData.geometry=materialGeometry;}
+  materialGroup.visible=true;updateMaterialRepeat();if(reframe)frameObject(materialGroup);return;
+ }
+ const build=++presetBuild,version=materialVersion;
+ const loaded=hasMaterial()?await loadMaterialTextures(materialMaps,true):[];
+ if(build!==presetBuild||version!==materialVersion||materialGeometry==='model'){loaded.forEach(([, ,texture])=>texture.dispose());return;}
+ const material=new THREE.MeshStandardMaterial({color:0xffffff,side:THREE.DoubleSide,metalness:0.05,roughness:0.55});
+ for(const [channel,slot,texture] of loaded){material[slot]=texture;if(channel==='metallic')material.metalness=1;if(channel==='roughness')material.roughness=1;}
+ const mesh=new THREE.Mesh(MATERIAL_GEOMETRY[materialGeometry](),material);
+ if(mesh.geometry.attributes.uv)mesh.geometry.setAttribute('uv1',mesh.geometry.attributes.uv);
+ mesh.castShadow=true;mesh.receiveShadow=true;
+ const group=new THREE.Group();group.add(mesh);group.userData.materialVersion=version;group.userData.geometry=materialGeometry;
+ disposeChannelResources();disposeMaterialPreset();scene.add(group);materialGroup=group;
+ renderer.shadowMap.enabled=true;
+ const box=new THREE.Box3().setFromObject(group),radius=Math.max(box.getSize(new THREE.Vector3()).length()*.5,.05);
+ const ground=new THREE.Mesh(new THREE.CircleGeometry(radius*2.2,48),new THREE.ShadowMaterial({opacity:.28}));
+ ground.rotation.x=-Math.PI/2;ground.position.set(0,box.min.y,0);ground.receiveShadow=true;scene.add(ground);materialGround=ground;
+ if(reframe)frameObject(group);
+ state.textContent='';setChannelAvailable(true,group);updateMaterialRepeat();
+}
+
+function frameObject(object){
+ const box=new THREE.Box3().setFromObject(object);if(box.isEmpty())return;
+ const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),radius=Math.max(size.length()*.5,.05);
+ camera.position.copy(center).add(new THREE.Vector3(radius*1.4,radius*1.1,radius*1.7));
+ camera.near=radius*.01;camera.far=radius*120;camera.updateProjectionMatrix();camera.lookAt(center);
+ controls.target.copy(center);controls.minDistance=radius*.15;controls.maxDistance=radius*14;controls.update();
+ channelRadius=radius;rememberHome();
+}
+
+// 按当前预设决定「给谁看」：模型 / 自造几何体互斥。
+// 通道预览跟着当前可见的对象走 —— 球/方/平板也能拆通道看，右上角那颗键不会消失。
+function renderMaterialPreset(){
+ const preset=materialGeometry!=='model';
+ const changed=materialGeometry!==lastPreset;
+ lastPreset=materialGeometry;
+ if(model)model.visible=!preset;
+ if(modelGround)modelGround.visible=!preset;
+ if(materialGroup)materialGroup.visible=preset;
+ if(materialGround)materialGround.visible=preset;
+ if(preset)void buildMaterialPreset(changed);
+ else{
+  // 回到模型视图要补一次贴图：在球/方里调过平铺，模型上的纹理还停在旧档位
+  if(model){if(changed)frameObject(model);void applyMaterialMaps(materialMaps);updateMaterialRepeat();}
+ }
+ setChannelAvailable(preset?Boolean(materialGroup):Boolean(model),preset?materialGroup:model);
+}
+
+function geometryIcon(value){
+ const paths={model:'M4 7 12 3l8 4v10l-8 4-8-4V7zm0 0 8 4 8-4m-8 4v10',sphere:'M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18',cube:'M4 7 12 3l8 4v10l-8 4-8-4V7zm0 0 8 4 8-4m-8 4v10',plane:'m3 8 12-4 6 12-12 4L3 8z'};
+ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">'+(value==='sphere'?'<circle cx="12" cy="12" r="9"/>':'')+'<path d="'+paths[value]+'"/></svg>';
+}
+function syncMaterialBar(){
+ const bar=document.getElementById('viewer-material');if(!bar)return;
+ bar.hidden=!hasMaterial()&&!model;if(bar.hidden)return;
+ bar.querySelectorAll('[data-geometry]').forEach(button=>{const value=button.dataset.geometry;button.classList.toggle('on',value===materialGeometry);button.disabled=value==='model'&&!model;button.innerHTML=geometryIcon(value)+'<span>'+MATERIAL_LABELS[value]+'</span>';});
+ document.getElementById('vm-geometry-btn').innerHTML=geometryIcon(materialGeometry)+'<span>'+MATERIAL_LABELS[materialGeometry]+'</span>';
+ document.getElementById('vm-repeat').value=String(materialRepeat);
+ document.getElementById('vm-repeat-out').textContent=materialRepeat+'×';
+ document.getElementById('vm-height').value=String(materialHeight);
+ document.getElementById('vm-height-out').textContent=materialHeight.toFixed(2);
+}
+function setLightStrength(value){
+ const strength=Math.min(3,Math.max(0,Number(value)||0));
+ key.intensity=1.7*strength;fill.intensity=0.7*strength;hemisphere.intensity=1.1*strength;scene.environmentIntensity=strength;
+ document.getElementById('lighting-value').textContent=strength.toFixed(2);renderFrame();
+}
+async function replaceEnvironment(file){
+ if(!file)return;
+ const request=++environmentRequest,status=document.getElementById('environment-status');
+ status.textContent='正在加载 '+file.name+'…';
+ const url=URL.createObjectURL(file);let texture=null,generator=null,target=null;
+ try{
+  texture=await (/\.hdr$/i.test(file.name)?new GameHDRLoader():new THREE.TextureLoader()).loadAsync(url);
+  if(request!==environmentRequest)return;
+  texture.mapping=THREE.EquirectangularReflectionMapping;
+  if(!/\.hdr$/i.test(file.name))texture.colorSpace=THREE.SRGBColorSpace;
+  generator=new THREE.PMREMGenerator(renderer);target=generator.fromEquirectangular(texture);
+  scene.environment=target.texture;customEnvironment?.dispose();customEnvironment=target;target=null;
+  status.textContent=file.name;updateEnvironmentSettings();
+ }catch(error){if(request===environmentRequest)status.textContent='环境加载失败，请选择有效的 HDR 或全景图片';}
+ finally{URL.revokeObjectURL(url);texture?.dispose();generator?.dispose();target?.dispose();}
+}
+function updateEnvironmentSettings(){
+ const get=id=>document.getElementById(id);
+ const rotation=Number(get('environment-rotation').value)*Math.PI/180;
+ const opacity=Number(get('environment-opacity').value),blur=Number(get('environment-blur').value);
+ const texture=customEnvironment?.texture||environment.texture;
+ lightRig.visible=hemisphere.visible=get('scene-lights').checked;
+ scene.environment=get('scene-world').checked?texture:null;
+ scene.environmentRotation.y=scene.backgroundRotation.y=rotation;
+ scene.background=opacity>0?texture:new THREE.Color(0x0d1117);
+ scene.backgroundIntensity=opacity;scene.backgroundBlurriness=blur;
+ get('rotation-value').textContent=Math.round(rotation*180/Math.PI)+'°';
+ get('opacity-value').textContent=opacity.toFixed(2);get('blur-value').textContent=blur.toFixed(2);
+ scheduleEnvironmentPreview(texture);renderFrame();
+}
+/* 环境缩略球含 GPU 同步读回：滑条 input 每次重画会卡到不能用。
+ * 按「环境贴图是否变化」去重 + 合并到一帧，拖动参数期间签名不变直接跳过。 */
+let environmentPreviewSignature='',environmentPreviewFrame=0;
+function scheduleEnvironmentPreview(texture,force){
+ const panel=document.getElementById('lighting-menu');if(!panel||panel.hidden)return;
+ const signature=(texture?.uuid||'')+'|'+(customEnvironment?'1':'0');
+ if(!force&&signature===environmentPreviewSignature)return;
+ environmentPreviewSignature=signature;
+ if(environmentPreviewFrame)return;
+ environmentPreviewFrame=requestAnimationFrame(()=>{
+  environmentPreviewFrame=0;
+  if(!document.getElementById('lighting-menu')?.hidden)updateEnvironmentPreview(customEnvironment?.texture||environment.texture);
+ });
+}
+function updateEnvironmentPreview(texture){
+ const canvas=document.getElementById('environment-thumb');if(!canvas)return;
+ // 复用当前 WebGL 上下文，避免跨 renderer 使用 PMREM 纹理失效。
+ if(!environmentPreviewTarget)environmentPreviewTarget=new THREE.WebGLRenderTarget(112,112);
+ const preview=new THREE.Scene();preview.environment=texture;preview.environmentIntensity=scene.environmentIntensity;preview.environmentRotation.copy(scene.environmentRotation);
+ const material=new THREE.MeshStandardMaterial({color:0xffffff,metalness:1,roughness:0.08});
+ const geometry=new THREE.SphereGeometry(1,40,24);preview.add(new THREE.Mesh(geometry,material));
+ const camera=new THREE.PerspectiveCamera(40,1,0.1,10);camera.position.z=3.2;
+ const previous=renderer.getRenderTarget(),viewport=renderer.getViewport(new THREE.Vector4()),clear=renderer.getClearColor(new THREE.Color()),alpha=renderer.getClearAlpha();
+ const pixels=new Uint8Array(112*112*4);
+ try{
+  renderer.setRenderTarget(environmentPreviewTarget);renderer.setClearColor(0x20262c,0);renderer.clear();renderer.render(preview,camera);
+  renderer.readRenderTargetPixels(environmentPreviewTarget,0,0,112,112,pixels);
+  const flipped=new Uint8ClampedArray(pixels.length);
+  for(let y=0;y<112;y++)flipped.set(pixels.subarray(y*448,(y+1)*448),(111-y)*448);
+  canvas.getContext('2d').putImageData(new ImageData(flipped,112,112),0,0);
+ }finally{renderer.setRenderTarget(previous);renderer.setViewport(viewport);renderer.setClearColor(clear,alpha);geometry.dispose();material.dispose();}
+}
+function uvAttributes(target){
+ const names=new Set();target?.traverse(node=>{if(node.isMesh)for(const name of Object.keys(node.geometry?.attributes||{}))if(/^uv\d*$/.test(name))names.add(name);});
+ return [...names].sort((a,b)=>(a==='uv'?0:Number(a.slice(2))+1)-(b==='uv'?0:Number(b.slice(2))+1));
+}
+function setUVOpen(open){
+ const panel=document.getElementById('viewer-uv'),button=document.getElementById('viewer-uv-btn');
+ panel.hidden=!open;button.classList.toggle('on',open);button.setAttribute('aria-expanded',String(open));
+ document.querySelector('.viewer-wrap').classList.toggle('uv-open',open);
+ if(open){
+  document.getElementById('viewer-textures').hidden=true;
+  const textures=document.getElementById('viewer-textures-btn');textures.classList.remove('on');textures.setAttribute('aria-expanded','false');
+  document.querySelector('.viewer-wrap').classList.remove('textures-open');updateUVPreview();
+ }
+}
+function updateUVPreview(){
+ const panel=document.getElementById('viewer-uv');if(!panel||panel.hidden)return;
+ const select=document.getElementById('viewer-uv-channel'),names=uvAttributes(channelTarget),previous=select.value;
+ select.replaceChildren(...names.map(name=>{const option=document.createElement('option');option.value=name;option.textContent=name==='uv'?'UV 0':'UV '+name.slice(2);return option;}));
+ if(names.includes(previous))select.value=previous;
+ select.disabled=!names.length;drawUVLayout();
+}
+function drawUVLayout(){
+ const canvas=document.getElementById('viewer-uv-canvas');if(!canvas||document.getElementById('viewer-uv').hidden)return;
+ const width=Math.max(1,canvas.clientWidth),height=Math.max(1,canvas.clientHeight),ratio=Math.min(devicePixelRatio,2);
+ const nextW=Math.round(width*ratio),nextH=Math.round(height*ratio);
+ if(canvas.width!==nextW||canvas.height!==nextH){canvas.width=nextW;canvas.height=nextH;}
+ const ctx=canvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.fillStyle='#0a1018';ctx.fillRect(0,0,width,height);
+ const meshes=[],name=document.getElementById('viewer-uv-channel').value;
+ channelTarget?.traverse(mesh=>{if(mesh.isMesh&&mesh.geometry?.attributes[name])meshes.push(mesh);});
+ const pad=10,size=Math.max(1,Math.min(width,height)-pad*2),ox=(width-size)/2,oy=(height-size)/2;
+ const x=u=>ox+u*size,y=v=>height-oy-v*size;
+ ctx.strokeStyle='#536273';ctx.strokeRect(ox,oy,size,size);
+ ctx.strokeStyle='#a5c880aa';ctx.lineWidth=0.65;ctx.beginPath();
+ let shown=0,total=0;
+ for(const mesh of meshes){
+  const geometry=mesh.geometry,uv=geometry.attributes[name],index=geometry.index;
+  const count=index?index.count:uv.count;total+=Math.floor(count/3);
+  const uvData=uv.array,idx=index&&index.array;if(!uvData)continue;const step=Math.max(1,Math.floor(count/3/2000));
+  for(let t=0;t<count/3;t+=step){
+   const i=t*3,a=idx?idx[i]:i,b=idx?idx[i+1]:i+1,c=idx?idx[i+2]:i+2;
+   if(a*2+1>=uvData.length||b*2+1>=uvData.length||c*2+1>=uvData.length)continue;
+   ctx.moveTo(x(uvData[a*2]),y(uvData[a*2+1]));ctx.lineTo(x(uvData[b*2]),y(uvData[b*2+1]));ctx.lineTo(x(uvData[c*2]),y(uvData[c*2+1]));ctx.closePath();shown++;
+  }
+ }
+ ctx.stroke();
+ document.getElementById('viewer-uv-status').textContent=meshes.length?(total>shown?'UV 预览 '+shown.toLocaleString()+' / '+total.toLocaleString()+' 面':meshes.length+' 个网格 · '+total.toLocaleString()+' 面'):'当前模型没有此 UV 通道';
+}
+function validSavedView(view){return view&&typeof view.name==='string'&&['position','target'].every(key=>Array.isArray(view[key])&&view[key].length===3&&view[key].every(Number.isFinite))&&Number.isFinite(view.near)&&view.near>0&&Number.isFinite(view.far)&&view.far>view.near;}
+function saveCurrentView(name){
+ if(!channelTarget)return;
+ const view={id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),name:String(name||'视角 '+(savedViews.length+1)).trim().slice(0,32),position:camera.position.toArray(),target:controls.target.toArray(),near:camera.near,far:camera.far,minDistance:controls.minDistance,maxDistance:controls.maxDistance};
+ if(!validSavedView(view))return;
+ savedViews.push(view);reportSavedViews();
+}
+function recallSavedView(view){
+ if(!validSavedView(view))return;
+ const damping=controls.enableDamping;controls.enableDamping=false;controls.update();
+ camera.position.fromArray(view.position);controls.target.fromArray(view.target);camera.near=view.near;camera.far=view.far;
+ if(Number.isFinite(view.minDistance))controls.minDistance=view.minDistance;
+ if(Number.isFinite(view.maxDistance))controls.maxDistance=view.maxDistance;
+ camera.updateProjectionMatrix();controls.update();controls.enableDamping=damping;renderFrame();
+}
+function reportSavedViews(){renderSavedViews();parent.postMessage({type:'preview-views',views:savedViews},'*');}
+function renderSavedViews(){
+ const list=document.getElementById('viewer-views-list');list.replaceChildren();
+ if(!savedViews.length){const empty=document.createElement('p');empty.textContent='保存当前视角，点击标签切换';list.append(empty);}
+ for(const view of savedViews){const row=document.createElement('div'),button=document.createElement('button'),remove=document.createElement('button');
+  button.type=remove.type='button';button.className='view-recall';button.textContent=view.name;button.title=view.name;button.addEventListener('click',()=>recallSavedView(view));
+  remove.textContent='×';remove.title='删除视角';remove.setAttribute('aria-label','删除视角 '+view.name);remove.addEventListener('click',()=>{savedViews=savedViews.filter(item=>item.id!==view.id);reportSavedViews();});row.append(button,remove);list.append(row);
+ }
+}
+function bindInspectionTools(){
+ document.getElementById('viewer-uv-btn').addEventListener('click',()=>setUVOpen(document.getElementById('viewer-uv').hidden));
+ document.getElementById('viewer-uv-channel').addEventListener('change',drawUVLayout);
+ const observer=new ResizeObserver(()=>{if(document.getElementById('viewer-uv').hidden||drawUVLayout.pending)return;drawUVLayout.pending=true;requestAnimationFrame(()=>{drawUVLayout.pending=false;drawUVLayout();});});observer.observe(document.getElementById('viewer-uv-canvas'));addEventListener('pagehide',()=>observer.disconnect());
+ const button=document.getElementById('viewer-views-btn'),panel=document.getElementById('viewer-views');
+ button.addEventListener('click',()=>{panel.hidden=!panel.hidden;button.classList.toggle('on',!panel.hidden);button.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)renderSavedViews();});
+ const close=()=>{panel.hidden=true;button.classList.remove('on');button.setAttribute('aria-expanded','false');};
+ document.addEventListener('pointerdown',event=>{if(!panel.contains(event.target)&&!button.contains(event.target))close();});document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
+ document.getElementById('viewer-view-form').addEventListener('submit',event=>{event.preventDefault();const input=document.getElementById('viewer-view-name');saveCurrentView(input.value);input.value='';});
+ addEventListener('message',event=>{if(event.source!==parent||event.data?.type!=='preview-views-init')return;savedViews=(Array.isArray(event.data.views)?event.data.views:[]).filter(validSavedView);renderSavedViews();});
+}
+
+function bindSceneSettings(){
+ const settings=document.getElementById('viewer-settings');
+ const close=()=>['lighting'].forEach(name=>{document.getElementById(name+'-menu').hidden=true;document.getElementById(name+'-btn').setAttribute('aria-expanded','false');});
+ for(const name of ['lighting'])document.getElementById(name+'-btn').addEventListener('click',()=>{const open=document.getElementById(name+'-menu').hidden;close();document.getElementById(name+'-menu').hidden=!open;document.getElementById(name+'-btn').setAttribute('aria-expanded',String(open));if(open)scheduleEnvironmentPreview(customEnvironment?.texture||environment.texture,true);});
+ document.addEventListener('pointerdown',event=>{if(!settings.contains(event.target))close();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
+ document.getElementById('lighting-strength').addEventListener('input',event=>{setLightStrength(event.target.value);updateEnvironmentSettings();});
+ for(const id of ['scene-lights','scene-world','environment-rotation','environment-opacity','environment-blur'])document.getElementById(id).addEventListener('input',updateEnvironmentSettings);
+ const file=document.getElementById('environment-file');
+ document.getElementById('environment-upload').addEventListener('click',()=>file.click());
+ document.getElementById('environment-preview').addEventListener('click',()=>file.click());
+ file.addEventListener('change',()=>{void replaceEnvironment(file.files[0]);file.value='';});
+ document.getElementById('environment-reset').addEventListener('click',()=>{environmentRequest++;scene.environment=environment.texture;customEnvironment?.dispose();customEnvironment=null;document.getElementById('environment-status').textContent='默认摄影棚';updateEnvironmentSettings();});
+ document.querySelectorAll('[data-display]').forEach(button=>button.addEventListener('click',()=>{setChannelMode('off');displayMode=button.dataset.display;syncDisplayButtons();close();renderFrame();}));
+}
+function syncDisplayButtons(){document.querySelectorAll('[data-display]').forEach(button=>{const active=channelMode==='off'&&button.dataset.display===displayMode;button.classList.toggle('on',active);button.setAttribute('aria-pressed',String(active));});}
+
+function bindMaterialBar(){
+ const bar=document.getElementById('viewer-material');if(!bar)return;
+ const panels=['geometry','repeat','height'];
+ const closeMenus=()=>panels.forEach(name=>{document.getElementById('vm-'+name+'-menu').hidden=true;document.getElementById('vm-'+name+'-btn').setAttribute('aria-expanded','false');});
+ panels.forEach(name=>document.getElementById('vm-'+name+'-btn').addEventListener('click',()=>{const menu=document.getElementById('vm-'+name+'-menu'),open=menu.hidden;closeMenus();menu.hidden=!open;document.getElementById('vm-'+name+'-btn').setAttribute('aria-expanded',String(open));}));
+ document.addEventListener('pointerdown',event=>{if(!bar.contains(event.target))closeMenus();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenus();});
+ bar.querySelectorAll('[data-geometry]').forEach(button=>button.addEventListener('click',()=>{if(button.disabled)return;materialGeometry=button.dataset.geometry;closeMenus();syncMaterialBar();renderMaterialPreset();reportMaterialControl();}));
+ const range=document.getElementById('vm-repeat');
+ range.addEventListener('input',()=>{materialRepeat=clampRepeat(range.value);document.getElementById('vm-repeat-out').textContent=materialRepeat+'×';updateMaterialRepeat();});
+ range.addEventListener('change',()=>{materialRepeat=clampRepeat(range.value);updateMaterialRepeat();reportMaterialControl();closeMenus();});
+ const height=document.getElementById('vm-height');
+ height.addEventListener('input',()=>{materialHeight=Number(height.value);document.getElementById('vm-height-out').textContent=materialHeight.toFixed(2);updateMaterialRepeat();});
+ height.addEventListener('change',()=>{reportMaterialControl();closeMenus();});
+ const sidebar=document.getElementById('viewer-textures'),toggle=document.getElementById('viewer-textures-btn');
+ toggle.addEventListener('click',()=>{sidebar.hidden=!sidebar.hidden;toggle.classList.toggle('on',!sidebar.hidden);toggle.setAttribute('aria-expanded',String(!sidebar.hidden));document.querySelector('.viewer-wrap').classList.toggle('textures-open',!sidebar.hidden);if(!sidebar.hidden){setUVOpen(false);updateTextureSidebar();}});
+}
+let sidebarUrls=[];
+function updateTextureSidebar(){
+ const sidebar=document.getElementById('viewer-textures');if(!sidebar||sidebar.hidden)return;
+ sidebarUrls.forEach(url=>URL.revokeObjectURL(url));sidebarUrls=[];sidebar.replaceChildren();
+ const labels={basecolor:'颜色',normal:'法线',roughness:'粗糙度',metallic:'金属度',ao:'AO',emissive:'自发光',height:'高度'};
+ const entries=[];
+ if(hasMaterial())for(const [channel,blob] of Object.entries(materialMaps)){const url=URL.createObjectURL(blob);sidebarUrls.push(url);entries.push({url,label:labels[channel]||channel});}
+ else{
+  const seen=new Set();model?.traverse(node=>{if(!node.isMesh)return;for(const material of Array.isArray(node.material)?node.material:[node.material])for(const [channel,[slot]] of Object.entries({...MATERIAL_SLOTS,emissive:['emissiveMap']})){
+   const texture=material?.[slot];if(!texture?.image||seen.has(texture))continue;seen.add(texture);
+   try{const image=texture.image;let url=image.src;if(!url){const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d').drawImage(image,0,0);url=canvas.toDataURL();}entries.push({url,label:(material.name?material.name+' · ':'')+(labels[channel]||channel)});}catch(_){}
+  }});
+ }
+ bindTextureZoom();closeTextureZoom();textureZoomUrls=entries;
+ if(!entries.length){sidebar.textContent='模型暂无贴图';return;}
+ for(const entry of entries){const item=document.createElement('figure'),image=document.createElement('img'),label=document.createElement('figcaption');image.src=entry.url;image.alt=entry.label;label.textContent=entry.label;item.title=entry.label+' · 点击放大';item.tabIndex=0;item.setAttribute('role','button');item.append(image,label);sidebar.append(item);}
+}
+/* ── ANCHOR-DIFF 8：贴图放大查看（与 AssetVault gltf-preview.js 同名同结构，可整段互相拷贝）──
+ * 点侧栏缩略图开覆盖层看原图；滚轮缩放、←/→ 切图、双击还原、Esc / 点遮罩 / × 关闭。
+ * 事件全部委托，侧栏每次重建缩略图都不会重复绑定。 */
+let textureZoomUrls=[],textureZoomIndex=0,textureZoomScale=1;
+function closeTextureZoom(){
+ const layer=document.getElementById('viewer-texture-zoom');
+ if(layer)layer.hidden=true;
+}
+function setTextureZoomImage(){
+ const layer=document.getElementById('viewer-texture-zoom'),image=document.getElementById('texture-zoom-image');
+ const caption=document.getElementById('texture-zoom-caption'),entry=textureZoomUrls[textureZoomIndex];
+ if(!layer||!image||!entry)return;
+ image.src=entry.url;image.alt=entry.label;
+ if(caption)caption.textContent=entry.label+' · '+(textureZoomIndex+1)+'/'+textureZoomUrls.length+' · 滚轮缩放 / ←→ 切换 / Esc 关闭';
+ textureZoomScale=1;layer.style.setProperty('--zoom-scale','1');
+}
+function openTextureZoom(index){
+ const layer=document.getElementById('viewer-texture-zoom');
+ if(!layer||!textureZoomUrls.length)return;
+ bindTextureZoom();
+ textureZoomIndex=Math.max(0,Math.min(index,textureZoomUrls.length-1));
+ layer.hidden=false;setTextureZoomImage();
+ document.getElementById('texture-zoom-close')?.focus();
+}
+function bindTextureZoom(){
+ const layer=document.getElementById('viewer-texture-zoom');
+ if(!layer||layer.dataset.bound)return;
+ layer.dataset.bound='1';
+ const sidebar=document.getElementById('viewer-textures');
+ const indexOf=target=>[...sidebar.querySelectorAll('figure')].indexOf(target);
+ sidebar?.addEventListener('click',event=>{
+  const figure=event.target.closest?.('figure');
+  if(figure&&sidebar.contains(figure))openTextureZoom(indexOf(figure));
+ });
+ sidebar?.addEventListener('keydown',event=>{
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  const figure=event.target.closest?.('figure');
+  if(!figure||!sidebar.contains(figure))return;
+  event.preventDefault();openTextureZoom(indexOf(figure));
+ });
+ document.getElementById('texture-zoom-close')?.addEventListener('click',closeTextureZoom);
+ layer.addEventListener('click',event=>{if(event.target===layer)closeTextureZoom();});
+ // 兜底：点放大层以外的任何地方（工具条、画布、关闭弹窗）都顺手收起，
+ // 免得关掉贴图侧栏后还留着一张大图挡住模型。
+ document.addEventListener('pointerdown',event=>{
+  if(!layer.hidden&&!layer.contains(event.target))closeTextureZoom();
+ });
+ layer.addEventListener('wheel',event=>{
+  event.preventDefault();
+  textureZoomScale=Math.min(6,Math.max(1,textureZoomScale+(event.deltaY<0?0.25:-0.25)));
+  layer.style.setProperty('--zoom-scale',String(textureZoomScale));
+ },{passive:false});
+ document.getElementById('texture-zoom-image')?.addEventListener('dblclick',()=>{
+  textureZoomScale=1;layer.style.setProperty('--zoom-scale','1');
+ });
+ document.addEventListener('keydown',event=>{
+  if(layer.hidden)return;
+  if(event.key==='Escape'){closeTextureZoom();return;}
+  if(event.key!=='ArrowRight'&&event.key!=='ArrowLeft')return;
+  if(!textureZoomUrls.length)return;
+  event.preventDefault();
+  textureZoomIndex=(textureZoomIndex+(event.key==='ArrowRight'?1:-1)+textureZoomUrls.length)%textureZoomUrls.length;
+  setTextureZoomImage();
+ });
+}
+function reportMaterialControl(){
+ try{parent.postMessage({type:'material-control',geometry:materialGeometry,repeat:materialRepeat,displacement:materialHeight},'*');}catch(_){}
+}
+bindMaterialBar();bindSceneSettings();bindInspectionTools();updateEnvironmentSettings();
+ let previous=0;function draw(time){const dt=previous?Math.min((time-previous)/1000,.05):0;previous=time;const {w,h}=canvasSize();if(w&&h){if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio())){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}controls.update();mixer?.update(dt);renderFrame();}raf=requestAnimationFrame(draw);}
  document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);previous=0;}else raf=requestAnimationFrame(draw);});
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(raf);state.className='error';state.textContent='3D 渲染上下文丢失，请重新加载预览';});
- addEventListener('pagehide',()=>{cancelAnimationFrame(raf);controls.dispose();renderer.dispose();});raf=requestAnimationFrame(draw);
+ addEventListener('pagehide',()=>{cancelAnimationFrame(raf);disposeChannelResources();controls.dispose();environmentRequest++;customEnvironment?.dispose();environmentPreviewTarget?.dispose();environment.dispose();renderer.dispose();});raf=requestAnimationFrame(draw);
+ function bindViewerGestures(){
+  if(!canvas||gesturesBound)return;
+  gesturesBound=true;
+  canvas.addEventListener('pointerdown',event=>{
+   if(!event.shiftKey||event.button!==0||!controls||!lightRig)return;
+   lightDrag={x:event.clientX,y:event.clientY,yaw:lightRig.rotation.y,pitch:lightRig.rotation.x};
+   controls.enabled=false;
+   lightRig.position.copy(controls.target);
+   try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+   event.preventDefault();
+  });
+  canvas.addEventListener('pointermove',event=>{
+   if(!lightDrag)return;
+   lightRig.rotation.y=lightDrag.yaw+(event.clientX-lightDrag.x)*0.006;
+   lightRig.rotation.x=Math.max(-0.5,Math.min(1.1,lightDrag.pitch+(event.clientY-lightDrag.y)*0.006));
+   requestRender();
+  });
+  const endLightDrag=()=>{if(!lightDrag)return;lightDrag=null;if(controls)controls.enabled=true;};
+  canvas.addEventListener('pointerup',endLightDrag);
+  canvas.addEventListener('pointercancel',endLightDrag);
+  canvas.addEventListener('dblclick',()=>resetCamera());
+ }
+
+ /** 预览器 UI：右上角「?」操作说明弹层 + 「通道」开关 + 点画布切通道 + 数字快捷键。
+  *  点画布切通道必须挂在 canvas 自己身上（覆盖层 pointer-events:none），并且用
+  *  pointerdown/up 的距离区分「点击」与「拖动旋转」—— 直接听 click 会在每次拖动
+  *  收尾时误切通道。 */
+ function bindViewerUI(){
+  if(!canvas||uiBound)return;
+  uiBound=true;
+  const helpBtn=document.getElementById('viewer-help-btn');
+  const helpPanel=document.getElementById('viewer-help');
+  if(helpBtn&&helpPanel)helpBtn.addEventListener('click',()=>{helpPanel.hidden=!helpPanel.hidden;});
+  const helpClose=helpPanel?.querySelector('[data-close]');
+  if(helpClose&&helpPanel)helpClose.addEventListener('click',()=>{helpPanel.hidden=true;});
+  const channelBtn=document.getElementById('viewer-channels-btn');
+  if(channelBtn)channelBtn.addEventListener('click',()=>{
+   if(!channelAvailable||!channelTarget)return;
+   setChannelMode(channelMode==='off'?'all':'off');
+  });
+  // 画布点击：拆分态点某条 → 单独预览该通道；单独态再点 → 回拆分（同 mviewer）。
+  canvas.addEventListener('pointerdown',event=>{pressInfo={x:event.clientX,y:event.clientY};});
+  canvas.addEventListener('pointerup',event=>{
+   if(!pressInfo||channelMode==='off'||!channelTarget){pressInfo=null;return;}
+   const moved=Math.hypot(event.clientX-pressInfo.x,event.clientY-pressInfo.y);
+   pressInfo=null;
+   if(moved>5)return;
+   const rect=canvas.getBoundingClientRect();
+   const fx=rect.width?(event.clientX-rect.left)/rect.width:0;
+   if(channelMode==='all'){
+    const idx=Math.min(CHANNELS.length-1,Math.max(0,Math.floor(fx*CHANNELS.length)));
+    setChannelMode(CHANNELS[idx]);
+   }else setChannelMode('all');
+  });
+  // 数字快捷键与 mviewer 一致：1-5 单通道（再按一次回拆分），0 进拆分。
+  window.addEventListener('keydown',event=>{
+   if(!ready||canvas.hidden)return;
+   if(event.target&&/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))return;
+   if(event.key==='Escape'){if(helpPanel)helpPanel.hidden=true;return;}
+   if(!channelAvailable||!channelTarget)return;
+   if(event.key==='0'){setChannelMode('all');return;}
+   const n=Number(event.key);
+   if(n>=1&&n<=CHANNELS.length)setChannelMode(channelMode===CHANNELS[n-1]?'all':CHANNELS[n-1]);
+  });
+ }
+
+ /** 各分支取景完成后记一次「到家机位」，双击重置就靠它 —— 包围盒是加载时算好的，
+  *  这里只存快照，不做任何重算，避免 reset 时再量一次尺寸把 ground 圆也算进去。 */
+ function rememberHome(){
+  if(!camera||!controls)return;
+  homeShot={position:camera.position.clone(),target:controls.target.clone(),
+   near:camera.near,far:camera.far,minDistance:controls.minDistance,maxDistance:controls.maxDistance};
+ }
+ function resetCamera(){
+  if(!homeShot||!camera||!controls)return;
+  camera.position.copy(homeShot.position);
+  controls.target.copy(homeShot.target);
+  camera.near=homeShot.near;camera.far=homeShot.far;camera.updateProjectionMatrix();
+  controls.minDistance=homeShot.minDistance;controls.maxDistance=homeShot.maxDistance;
+  controls.update();
+ }
+
+ function setChannelMode(mode){
+  channelMode=mode;displayMode='material';syncDisplayButtons();
+  const btn=document.getElementById('viewer-channels-btn');
+  if(btn)btn.classList.toggle('on',mode!=='off');
+  const overlay=document.getElementById('viewer-channels');
+  if(overlay)overlay.hidden=mode==='off'||!channelTarget;
+  renderChannelLabels();
+  renderFrame();
+ }
+
+ /** 通道是否可用：只有模型预览有通道可言；贴图/HDRI 是球和全景，进来先把按钮收起来。
+  *  同时量一次包围球半径 —— 拆分视图每条通道是窄画幅，要靠它把相机推到能看全的距离。 */
+ function setChannelAvailable(available,model){
+  channelAvailable=!!available;
+  channelTarget=model||null;
+  if(channelTarget){
+   const box=new THREE.Box3().setFromObject(channelTarget);
+   const sphere=box.isEmpty()?null:box.getBoundingSphere(new THREE.Sphere());
+   channelRadius=sphere&&sphere.radius>0?sphere.radius:1;
+  }
+  updateUVPreview();
+  const btn=document.getElementById('viewer-channels-btn');
+  if(btn)btn.hidden=!channelAvailable;
+  if(!channelAvailable)setChannelMode('off');
+ }
+
+ /** 拆分/单独预览的标签条与统计（mviewer 左下角的 Triangles/Vertices）。 */
+ function renderChannelLabels(){
+  const wrap=document.getElementById('viewer-channel-labels');
+  const stats=document.getElementById('viewer-stats');
+  const live=channelMode!=='off'&&!!channelTarget;
+  if(wrap){
+   const strips=live?(channelMode==='all'?CHANNELS:[channelMode]):[];
+   wrap.innerHTML=strips.map(name=>`<span>${CHANNEL_LABELS[name]}</span>`).join('');
+   wrap.dataset.mode=channelMode;
+  }
+  if(stats){
+   stats.hidden=!live;
+   if(live){
+    let tris=0,verts=0;
+    channelTarget.traverse(node=>{
+     if(!node.isMesh||!node.geometry)return;
+     const g=node.geometry;
+     verts+=g.attributes.position?.count||0;
+     tris+=g.index?g.index.count/3:(g.attributes.position?.count||0)/3;
+    });
+    stats.textContent=`面数 ${Math.round(tris).toLocaleString('en-US')}　顶点 ${verts.toLocaleString('en-US')}`;
+   }
+  }
+ }
+
+ /** 每帧出口：正常渲染，或按通道 scissor 分条渲染。renderer.render 默认 autoClear，
+  *  开着 scissor test 时clear 只清当前条区域 —— 这正是多视图官方示例的做法。
+  *
+  *  拆分态最关键的一点：每条通道只是整块画布的 1/5 宽，相机 aspect 若还是整块画布的，
+  *  模型会被横向压扁 5 倍（实测椅子直接被拍扁）。所以每条通道：
+  *   1. aspect 改成该条的 width/h；
+  *   2. 距离按包围球重算（窄画幅横向 FOV 变小，不推远就会被左右裁掉）；
+  *   3. 乘上用户的缩放系数（dUser/dFull），否则拆分态里滚轮缩放会失灵。
+  *  渲染完把 aspect 和机位还原成「逻辑机位」—— controls 每帧都用这两个值算轨道。 */
+ function renderFrame(){
+  if(!renderer)return;
+  if(channelMode==='off'||!channelTarget){
+   if(channelTarget&&displayMode!=='material')applyChannel(displayMode);
+   renderer.render(scene,camera);restoreMaterials();return;
+  }
+  const {w,h}=canvasSize();
+  if(!w||!h){renderer.render(scene,camera);return;}
+  const strips=channelMode==='all'?CHANNELS:[channelMode];
+  const solo=channelMode!=='all';
+  const baseAspect=camera.aspect;
+  const logical=camera.position.clone();
+  const dir=logical.clone().sub(controls.target);
+  const halfFov=camera.fov*Math.PI/360;
+  const fitFull=channelRadius/Math.sin(halfFov)/Math.min(1,baseAspect);
+  const zoom=(dir.length()||1)/(fitFull||1);
+  renderer.setScissorTest(true);
+  for(let i=0;i<strips.length;i++){
+   const x=solo?0:Math.round(w*i/strips.length);
+   const width=solo?w:Math.round(w/strips.length);
+   const aspect=width/h;
+   camera.aspect=aspect;camera.updateProjectionMatrix();
+   if(solo){
+    camera.position.copy(logical);
+   }else{
+    const fit=channelRadius/Math.sin(halfFov)/Math.min(1,aspect);
+    camera.position.copy(controls.target).addScaledVector(dir.normalize(),fit*zoom);
+   }
+   renderer.setViewport(x,0,width,h);
+   renderer.setScissor(x,0,width,h);
+   applyChannel(strips[i]);
+   renderer.render(scene,camera);
+  }
+  renderer.setScissorTest(false);
+  renderer.setViewport(0,0,w,h);
+  camera.aspect=baseAspect;camera.updateProjectionMatrix();
+  camera.position.copy(logical);
+  restoreMaterials();
+ }
+
+ function applyChannel(name){
+  if(!channelTarget)return;
+  channelTarget.traverse(node=>{
+   if(!node.isMesh)return;
+   if(!originalMaterials.has(node))originalMaterials.set(node,node.material);
+   node.material=channelMaterial(name,originalMaterials.get(node))||node.material;
+  });
+ }
+ function restoreMaterials(){
+  for(const [mesh,material] of originalMaterials)mesh.material=material;
+  originalMaterials.clear();
+ }
+
+ /** 各通道的覆盖材质。albedo/gloss 与源材质一对一（要拿它的 map/color/roughnessMap），
+  *  按源材质 uuid 缓存；normals/reflectivity/topology 与资产无关，全预览共用一份。 */
+ // 每个源材质分别缓存，读取 glTF 标准通道：roughness=G、metalness=B。
+ function channelMaterial(name,src){
+  if(Array.isArray(src))return src.map(material=>channelMaterial(name,material));
+  if(!channelMaterials)channelMaterials={};
+  const key=name+':'+src.uuid;
+  if(!channelMaterials[key]){
+   const slot={normals:'normalMap',albedo:'map',reflectivity:'metalnessMap',gloss:'roughnessMap',topology:'displacementMap'}[name];
+   const texture=src[slot];
+   let material;
+   if(name==='white'||name==='wire')material=new THREE.MeshStandardMaterial({color:0xe2e5e8,roughness:0.75,metalness:0,wireframe:name==='wire'});
+   else if(name==='normals'&&!texture)material=new THREE.MeshNormalMaterial();
+   else if(name==='topology'&&!texture)material=new THREE.MeshBasicMaterial({color:0x9fe870,wireframe:true});
+   else{
+    const value=name==='reflectivity'?(src.metalness??0):name==='gloss'?(src.roughness??1):1;
+    material=new THREE.MeshStandardMaterial({map:texture||null,color:name==='albedo'&&src.color?src.color.clone():new THREE.Color(value,value,value),toneMapped:false});
+    const component=name==='reflectivity'?'b':name==='gloss'?'g':name==='topology'?'r':'';
+    material.onBeforeCompile=shader=>{
+     if(texture&&component)shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','diffuseColor *= vec4(vec3(texture2D(map, vMapUv).'+component+'), 1.0);');
+     shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>','gl_FragColor = vec4(diffuseColor.rgb, diffuseColor.a);');
+    };
+    material.customProgramCacheKey=()=>name;
+
+   }
+   material.side=src.side;channelMaterials[key]=material;
+  }
+  const material=channelMaterials[key];
+  material.displacementMap=src.displacementMap||null;
+  material.displacementScale=src.displacementScale;
+  material.displacementBias=src.displacementBias;
+  return material;
+ }
+
+ /** 粗糙度贴图反色成 gloss 贴图。8 位贴图才能 canvas 反色；HDR/浮点贴图进 catch 后退化。 */
+ function invertTexture(tex){
+  if(!tex||!tex.image)return null;
+  const cached=invertCache.get(tex);if(cached)return cached;
+  try{
+   const img=tex.image;
+   const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+   const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+   const data=ctx.getImageData(0,0,c.width,c.height);
+   for(let i=0;i<data.length;i+=4){const v=255-data[i];data[i]=v;data[i+1]=v;data[i+2]=v;}
+   ctx.putImageData(data,0,0);
+   const t=new THREE.CanvasTexture(c);
+   t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.copy(tex.repeat);t.needsUpdate=true;
+   invertCache.set(tex,t);
+   return t;
+  }catch(err){
+   console.warn('[预览] 粗糙度贴图反色失败，gloss 通道退化为统一高光',err);
+   return null;
+  }
+ }
+
+ /** 关预览/换资产/失败时释放通道覆盖材质。注意 albedo/gloss 克隆与源贴图共享纹理，
+  *  dispose 只放 three 侧的 program 状态，不会误伤源材质；CanvasTexture 是自己的，必须 dispose。 */
+ function disposeChannelResources(){
+  restoreMaterials();
+  for(const material of albedoCache.values())material.dispose();
+  for(const material of glossCache.values())material.dispose();
+  albedoCache.clear();glossCache.clear();
+  for(const tex of invertCache.values())tex.dispose();
+  invertCache.clear();
+  if(channelMaterials){for(const material of Object.values(channelMaterials))material.dispose();channelMaterials=null;}
+ }
+
+
 }catch(error){state.className='error';state.textContent='无法启动 3D 预览：'+error.message;renderer?.dispose();}
 })();
 </script></html>

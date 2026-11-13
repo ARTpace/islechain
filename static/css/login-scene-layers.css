@@ -1,0 +1,42 @@
+/* 真实透明素材拼贴：位置属于各自岛屿局部坐标，昼夜光源不会脱离建筑。 */
+.login-scene { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; background:#278bdb url('/static/assets/login/layers/sea-sky.webp') center/cover; }
+.scene-horizon { position:absolute; width:24%; left:-3%; top:22%; opacity:.55; }
+.scene-horizon.far { left:auto; right:-3%; width:28%; transform:scaleX(-1); }
+.scene-cloud { position:absolute; width:13%; left:15%; top:12%; animation:cloud-drift 28s ease-in-out infinite alternate; }
+.scene-cloud.second { left:auto; right:13%; top:16%; width:10%; animation-delay:-12s; }
+.scene-island { position:absolute; width:32%; aspect-ratio:1.45; left:1%; top:46%; }
+.scene-island.right { width:29%; left:auto; right:0; top:36%; }
+.scene-island img { position:absolute; object-fit:contain; }
+.scene-land { width:100%; left:0; top:34%; }
+.scene-ring { width:116%; left:-8%; top:65%; opacity:.7; animation:water-breathe 5s ease-in-out infinite alternate; }
+.scene-tree { width:23%; left:9%; top:7%; }
+.scene-tree.back { left:69%; top:-2%; width:25%; }
+.scene-sign { width:25%; left:27%; top:-5%; }
+.scene-bush { width:24%; left:18%; top:58%; }
+.scene-bridge { width:39%; left:63%; top:77%; }
+.scene-mill { position:absolute; width:29%; aspect-ratio:215/330; left:49%; top:-4%; }
+.scene-mill .tower { width:100%; inset:0; }
+.scene-mill .rotor { width:100%; left:0; top:0; transform-origin:48% 57%; animation:windmill-spin 24s linear infinite; }
+.scene-falls { width:37%; left:62%; top:66%; }
+.scene-star { width:23%; left:29%; top:9%; }
+.scene-island.tiny { width:14%; left:auto; right:7%; top:76%; }
+.scene-island.tiny .scene-land { top:29%; }
+.scene-island.tiny .scene-tree { left:58%; top:-17%; width:34%; }
+.scene-island.tiny .scene-ring { top:57%; }
+.scene-lamp { display:none; position:absolute; width:7%; aspect-ratio:1/1.5; left:61%; top:37%; border-radius:50% 50% 3px 3px; background:#ffdc95; box-shadow:0 0 8px #ffd485,0 0 24px 10px #ffbd5466,0 30px 35px 20px #ffc56b24; }
+.scene-sky-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 80% 5%,#c3dfff30,transparent 55%); }
+.scene-stars { display:none; position:absolute; inset:0; background:radial-gradient(circle at 13% 9%,#fff1b8 0 1px,transparent 2px),radial-gradient(circle at 32% 17%,#dbeeff 0 1px,transparent 2px),radial-gradient(circle at 68% 8%,#fff1b8 0 1px,transparent 2px),radial-gradient(circle at 86% 22%,#dbeeff 0 1px,transparent 2px); }
+html[data-login-theme="night"] .login-scene { background-color:#0b1931; background-blend-mode:multiply; }
+html[data-login-theme="night"] .scene-island img,html[data-login-theme="night"] .scene-horizon,html[data-login-theme="night"] .scene-cloud { filter:brightness(.42) saturate(.7) drop-shadow(0 -2px 2px #80b7e633); }
+html[data-login-theme="night"] .scene-island .scene-ring,html[data-login-theme="night"] .scene-island .scene-falls { filter:brightness(.85) drop-shadow(0 0 9px #3cabff88); }
+html[data-login-theme="night"] .scene-island .scene-star { filter:brightness(1.1) drop-shadow(0 0 14px #ffcc65aa); }
+html[data-login-theme="night"] .scene-stars,html[data-login-theme="night"] .scene-lamp { display:block; }
+.scene-stage > .login-brand,.scene-stage > .login-panel { position:relative; z-index:1; }
+html[data-login-theme="night"] .scene-stage::before { display:none; }
+@keyframes cloud-drift { to { transform:translateX(30px); } }
+@keyframes water-breathe { to { transform:scale(1.035); opacity:.95; } }
+@keyframes windmill-spin { to { transform:rotate(360deg); } }
+@media(max-width:900px) { .scene-island { width:45%; left:-19%; top:58%; } .scene-island.right { width:43%; right:-18%; top:41%; } .scene-island.tiny { width:22%; right:-4%; top:85%; } .scene-cloud { width:23%; left:1%; } .scene-cloud.second { width:21%; right:0; } }
+@media(max-width:480px) { .scene-island { left:-27%; width:58%; top:63%; } .scene-island.right { right:-25%; width:54%; top:38%; } .scene-island.tiny { display:none; } }
+html[data-scene-paused] .login-scene *,html[data-scene-paused] .login-scene *::before { animation-play-state:paused !important; }
+@media(prefers-reduced-motion:reduce) { .login-scene * { animation:none !important; } }

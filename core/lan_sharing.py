@@ -210,7 +210,7 @@ def diagnose():
             firewall = {'state': 'checked', 'profiles': profiles if isinstance(profiles, list) else [profiles],
                         'message': '已读取防火墙配置；应用规则、网络隔离及其他安全软件仍可能拦截，请从另一台设备实际访问确认。'}
         except (OSError, ValueError, subprocess.TimeoutExpired):
-            firewall = {'state': 'unknown', 'message': '无法读取防火墙配置，请在 Windows 安全中心检查专用网络及 ArtCanvas 入站权限。'}
+            firewall = {'state': 'unknown', 'message': '无法读取防火墙配置，请在 Windows 安全中心检查专用网络及 IsleChain 入站权限。'}
     return {'enabled': config['enabled'], 'port': config['port'], 'error': _ERROR,
             'addresses': checks, 'firewall': firewall,
             'message': '端口检测仅代表主机自身可连接，不代表局域网其他设备可达。'}
@@ -282,9 +282,9 @@ def _cookie_token(request) -> str:
     return ""
 
 
-_LOGIN_PAGE = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ArtCanvas · 局域网访问</title>
+_LOGIN_PAGE = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IsleChain · 局域网访问</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10141c;color:#e8edf5;font:15px "Segoe UI","Microsoft YaHei",sans-serif}main{width:min(360px,86vw);padding:32px;border:1px solid #2a3344;border-radius:18px;background:#171d28}h1{font-size:24px;margin:0 0 8px}p{color:#9aa6b8;line-height:1.7}input,button{box-sizing:border-box;width:100%;padding:12px;border-radius:9px;border:1px solid #394456;font:inherit}input{background:#10141c;color:#eee;margin:8px 0 14px}button{background:#d7f56a;color:#1b2410;cursor:pointer;font-weight:700}.error{color:#edaa89}</style>
-<main><h1>ArtCanvas</h1><p>填写你的名字和主机设置的共享密码。进入后仍使用各自的登录账号，接口密钥留在主机上。</p>__ERROR__<form method="post" action="/api/lan/login"><label>你的名字</label><input name="username" required maxlength="24" autocomplete="nickname" value="__USERNAME__"><label>访问密码</label><input name="password" type="password" required maxlength="128" autocomplete="current-password"><button type="submit">进入</button></form></main></html>"""
+<main><h1>IsleChain</h1><p>填写你的名字和主机设置的共享密码。进入后仍使用各自的登录账号，接口密钥留在主机上。</p>__ERROR__<form method="post" action="/api/lan/login"><label>你的名字</label><input name="username" required maxlength="24" autocomplete="nickname" value="__USERNAME__"><label>访问密码</label><input name="password" type="password" required maxlength="128" autocomplete="current-password"><button type="submit">进入</button></form></main></html>"""
 
 
 def _login_html(error="", username=""):
@@ -333,6 +333,15 @@ async def guard(request, call_next):
     if client.get("blocked"):
         return JSONResponse({"detail": "此设备已被主机禁用"}, status_code=403)
     client["lastSeen"] = now
+    # Bind only verified application accounts; IP addresses alone are not identities.
+    token = request.query_params.get("token", "") or _main.request_auth_token(request)
+    if not token:
+        token = request.cookies.get("xy_auth_token", "")
+    username = _main.get_username_by_token(token) if token else None
+    if username:
+        names = client.setdefault("usernames", [])
+        if username not in names:
+            names.append(username)
     _save_clients(clients)
     handle = _main.LAN_VISITOR.set(True)
     try:

@@ -6,12 +6,13 @@
     <title>随机方案测试</title>
     <script src="/static/modules/auth-token.js"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark');if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
-    <link rel="stylesheet" href="/static/theme.css">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <link rel="stylesheet" href="/static/app/anima-character-picker.css">
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css">
     <link rel="stylesheet" href="/static/app/preset-picker.css">
@@ -37,7 +38,7 @@
         .debug-log{margin-top:16px;padding:12px;border-radius:8px;background:rgba(0, 0, 0, 0.02);border:1px solid var(--border);max-height:150px;overflow-y:auto;font-size:11px;font-family:ui-monospace,Menlo,monospace;}
         body.studio-theme-dark .debug-log{background:rgba(255, 255, 255, 0.02);}
         .btn{padding:10px 20px;border-radius:10px;border:none;font-size:12px;font-weight:700;cursor:pointer;}
-        .btn-primary{background:var(--accent);color:#fbfaf9;}
+        .btn-primary{background:var(--accent);color:var(--ui-text);}
 
         /* studio-ui 统一响应式 + 双主题（轻量处理：外层 chrome token，作用域限定浅色，保留页面既有深色块） */
         body { overflow-x: hidden; }
@@ -61,13 +62,13 @@
 </head>
 <body>
     <button class="theme-toggle" onclick="toggleTheme()">切换主题</button>
-    
+
     <div class="container">
         <div class="header">
             <h1>🎲 随机方案测试</h1>
             <p>测试随机方案管理功能（支持全选、反选）</p>
         </div>
-        
+
         <div class="test-section">
             <div class="section-title">组件集成测试</div>
             <div class="prompt-row">
@@ -77,18 +78,18 @@
                 </div>
                 <div id="randomPromptContainer" style="padding-top:24px;"></div>
             </div>
-            
+
             <div class="result-box" id="resultBox" style="display:none;margin-top:16px;">
                 <div class="result-title">随机结果</div>
                 <div class="result-content" id="resultContent"></div>
             </div>
         </div>
-        
+
         <div class="test-section">
             <div class="section-title">调试日志</div>
             <div class="debug-log" id="debugLog"></div>
         </div>
-        
+
         <div class="test-section">
             <div class="section-title">使用说明</div>
             <div style="font-size:13px;line-height:1.8;">
@@ -108,7 +109,7 @@
     <script src="/static/app/preset-thumbnails.js?v=20261027"></script>
     <script src="/static/app/preset-picker.js?v=20261027thumbqueue"></script>
     <script src="/static/modules/random-prompt.js?v=20261024001"></script>
-    
+
     <script>
         // 主题切换
         function toggleTheme() {
@@ -119,7 +120,7 @@
             const isDark = document.body.classList.contains('studio-theme-dark');
             localStorage.setItem('studio_theme', isDark ? 'dark' : 'light');
         }
-        
+
         // 调试日志
         function log(msg) {
             const el = document.getElementById('debugLog');
@@ -129,7 +130,7 @@
             }
             console.log(msg);
         }
-        
+
         // 监听控制台日志
         const origLog = console.log;
         console.log = function() {
@@ -138,7 +139,7 @@
                 log(arguments.join(' '));
             }
         };
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             RandomPrompt.init('randomPromptContainer', {
                 onApply: function(result) {

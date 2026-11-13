@@ -45,6 +45,9 @@ Vue、React、Svelte 等框架仅为候选方案，尚未决定迁移。当前�
 - [AI 节点与 ComfyUI 开发记录](comfyui-agent-development.md)
 - [画布节点移植](canvas-porting-guide.md)
 - [画布图像生成节点](canvas-image-generation-node.md)
+- [画布持久化改造（项目目录 + JSON Schema）](canvas-persistence-migration.md)：设计稿，A/B 两套方案、迁移与回滚、验收标准。
+- [桌面叠加模式（透明画布 / 区域穿透 / 文件投放）](desktop-overlay-design.md)：设计稿，窗口区域模型、投放态状态机、P0 判据。
+- [画布操作与性能优化](canvas-operations-performance.md)：实施记录，P1–P6 性能（离屏裁剪、连线增量、合成层、清晰度分档）与 O1–O3 操作（锁定、层级、搜索），含真机验证数据。
 - [MCP 画布助手](mcp-canvas-assistant.md)
 - [游戏流水线](game-pipeline-development.md)
 - [游戏媒体资产](game-media-assets.md)

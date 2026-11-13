@@ -9,36 +9,37 @@
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261108011">
     <style>
         :root { --bg-base: #f9f8f6; --text-main: #171717; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0891b2; --accent-glow: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
         *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
-        *::-webkit-scrollbar-thumb { background-color: #d8d8d8 !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
-        *::-webkit-scrollbar-thumb:hover { background-color: #c0c0c0 !important; }
+        *::-webkit-scrollbar-thumb { background-color: var(--ui-soft) !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
+        *::-webkit-scrollbar-thumb:hover { background-color: var(--ui-soft) !important; }
         *::-webkit-scrollbar-corner { background: transparent !important; }
         * { scrollbar-width: thin !important; scrollbar-color: #d8d8d8 transparent !important; }
         body { background-color: var(--bg-base); font-family: "Inter", -apple-system, "PingFang SC", sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
         .layout-container { max-width: var(--max-w); margin: 0 auto; padding: 0 40px; }
         .console-card { background: var(--ui-panel); border: 1px solid var(--ui-line); box-shadow: var(--ui-shadow); }
-        .theme-dark .console-card { background: #151515; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        .theme-dark .console-card { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
         .theme-dark .bg-gray-50\/50 { background: rgba(20, 20, 20, 0.5) !important; }
-        .theme-dark .bg-white { background: #151515 !important; }
+        .theme-dark .bg-white { background: var(--ui-panel) !important; }
         .theme-dark .gallery-lightbox { background: rgba(14, 14, 13, 0.99); }
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
-        .theme-dark .text-gray-700 { color: #e3e1d9 !important; }
-        .theme-dark .bg-gray-100 { background: #20201e !important; }
-        .theme-dark .pad-input input { background: #151515; border-color: rgba(0, 240, 255, 0.15); color: #e3e1d9; }
-        .theme-dark .pad-input label { color: #9f9d94; }
+        .theme-dark .text-gray-700 { color: var(--ui-text) !important; }
+        .theme-dark .bg-gray-100 { background: var(--ui-panel) !important; }
+        .theme-dark .pad-input input { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.15); color: var(--ui-text); }
+        .theme-dark .pad-input label { color: var(--ui-muted); }
         .upload-zone { border-radius: 24px; padding: 3rem 2rem; min-height: 200px; }
         .preview-image { max-width: 100%; max-height: 300px; border-radius: 16px; display: none; margin-top: 15px; object-fit: contain; }
         .preview-image.active { display: block; }
-        .btn-render { background: #0b0b0a; color: #fbfaf9; transition: all 0.3s ease; }
-        .btn-render:hover { transform: translateY(-1px); background: #222222; }
-        .btn-render:disabled { background: #cccccc; cursor: not-allowed; }
-        .btn-glow { background: linear-gradient(135deg, #0891b2, #06b6d4); color: #fbfaf9; border: none; box-shadow: 0 0 15px rgba(8, 145, 178, 0.3), 0 0 30px rgba(6, 182, 212, 0.15); transition: all 0.3s ease; }
+        .btn-render { background: var(--ui-panel); color: var(--ui-text); transition: all 0.3s ease; }
+        .btn-render:hover { transform: translateY(-1px); background: var(--ui-panel); }
+        .btn-render:disabled { background: var(--ui-soft); cursor: not-allowed; }
+        .btn-glow { background: linear-gradient(135deg, #0891b2, #06b6d4); color: var(--ui-text); border: none; box-shadow: 0 0 15px rgba(8, 145, 178, 0.3), 0 0 30px rgba(6, 182, 212, 0.15); transition: all 0.3s ease; }
         .btn-glow:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 0 20px rgba(8, 145, 178, 0.5), 0 0 40px rgba(6, 182, 212, 0.3); }
         .btn-glow:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
         .btn-glow .btn-icon { filter: drop-shadow(0 0 4px rgba(8, 145, 178, 0.5)); }
@@ -81,8 +82,8 @@
             background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 240, 255, 0.015) 2px, rgba(0, 240, 255, 0.015) 4px);
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
@@ -120,7 +121,10 @@ body { overflow-x: hidden; }
 img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-width: 100%; height: auto; }
 </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+    <script src="/static/modules/comfy-progress.js?v=20261105toolruntime2"></script>
+    <script src="/static/modules/comfy-tool-runtime.js?v=20261105toolruntime4"></script>
     <script src="/static/modules/upload-zone.js?v=20261024008"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -163,7 +167,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                                 <span class="text-xs font-bold text-gray-500 uppercase mb-1">缩放最长边</span>
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                                     <input id="scaleEnabledToggle" type="checkbox" style="cursor:pointer">
-                                    <span style="font-size:11px;color:#9f9d95">开启后缩放到指定尺寸</span>
+                                    <span style="font-size:11px;color:var(--ui-muted)">开启后缩放到指定尺寸</span>
                                 </div>
                                 <div id="scaleSizeRow" style="display:none">
                                     <input id="sizeInput" type="number" value="1024" min="512" max="4096" step="64" class="w-24 bg-transparent outline-none border-b-2 border-gray-200 focus:border-blue-500 text-sm font-bold">
@@ -215,9 +219,13 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
     <script>
         lucide.createIcons();
 
-        const _isLocalAccess = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-        let COMFYUI_SERVER = 'http://127.0.0.1:8188';
-        let IS_LOCAL_SERVER = _isLocalAccess;
+        // 服务器地址解析、请求封装、进度条、任务提交统一由 comfy-tool-runtime.js 提供
+        const tool = ComfyTool.create({
+            keepAlive: true,
+            // 节点中文名来自工作流 _meta.title，延迟取值以避开 WORKFLOW_CONFIG 的声明顺序
+            nodeTitles: (id) => WORKFLOW_CONFIG.workflow[id]?._meta?.title || ''
+        });
+        const CLIENT_ID = tool.clientId;
 
         const WORKFLOW_CONFIG = {
             name: "扩图",
@@ -325,72 +333,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         };
 
 
-        /** 保存到用户 output 文件夹 */
-        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
-        function generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) { try { return crypto.randomUUID(); } catch (e) { } }
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
-        const CLIENT_ID = localStorage.getItem("client_id") || generateUUID();
-        localStorage.setItem("client_id", CLIENT_ID);
+        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput；其余交给共享运行时
+        async function loadConfig() { await tool.loadConfig(); }
 
-        async function loadConfig() {
-            const localConfig = localStorage.getItem('comfyui_config');
-            if (localConfig) {
-                try {
-                    const config = JSON.parse(localConfig);
-                    const activeServer = config.active_server || '本地服务器';
-                    IS_LOCAL_SERVER = (activeServer === '本地服务器');
-                    if (activeServer === '云端服务器' && config.cloud_address) {
-                        COMFYUI_SERVER = (config.cloud_address.startsWith('http') ? config.cloud_address : `https://${config.cloud_address}`).replace(/\/+$/, '');
-                    } else if (config.local_address) {
-                        COMFYUI_SERVER = (config.local_address.startsWith('http') ? config.local_address : `http://${config.local_address}`).replace(/\/+$/, '');
-                    }
-                    return;
-                } catch (e) {
-                    console.error('解析本地配置失败:', e);
-                }
-            }
-        }
+        const apiFetch = (url, options) => tool.apiFetch(url, options);
 
-        async function apiFetch(url, options = {}) {
-            if (IS_LOCAL_SERVER) {
-                const directUrl = COMFYUI_SERVER + url;
-                const response = await fetch(directUrl, options);
-                return response;
-            }
-            const headers = {
-                'X-ComfyUI-Server-Url': COMFYUI_SERVER,
-                ...(options.headers || {})
-            };
-            const response = await fetch(url, { ...options, headers });
-            return response;
-        }
-
-        function buildWsUrl() {
-            // 始终通过后端代理连接 ComfyUI WebSocket，避免直连端口问题
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            return `${protocol}//${window.location.host}/api/comfyui/ws?client_id=${CLIENT_ID}`;
-        }
-
-        async function checkServerConnection() {
-            try {
-                const statsUrl = IS_LOCAL_SERVER ? '/system_stats' : '/api/comfyui/system_stats';
-                const response = await apiFetch(statsUrl);
-                if (response.ok) {
-                    document.getElementById("statusText").innerText = "System Ready";
-                    document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-green-500 rounded-full";
-                } else {
-                    throw new Error('Server not responding');
-                }
-            } catch (e) {
-                document.getElementById("statusText").innerText = "System Offline";
-                document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-red-500 rounded-full";
-            }
-        }
+        async function checkServerConnection() { await tool.checkConnection(); }
         // 统一缩略图模块配置（一处改全处同步）
         window.GALLERY_CONFIG = {
             type: 'kuotu',
@@ -465,10 +413,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
 
         function updateGenButtonState() { mainGenBtn.disabled = !uploadedImageName; }
         function randomizeSeed() { seedInput.value = Math.floor(Math.random() * 1000000000000000); }
-        function setStatus(text) {
-            document.getElementById("statusText").innerText = text;
-            document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-black rounded-full";
-        }
+        function setStatus(text) { tool.setStatus(text, 'idle'); }
 
         function setLoading(loading) {
             const btn = document.getElementById('mainGenBtn');
@@ -485,46 +430,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         let isGenerating = false;
         let currentPromptId = null;
 
-        function startProgress() {
-            document.getElementById('progressInline').classList.add('active');
-            document.getElementById('progressFill').style.width = '0%';
-            document.getElementById('progressPercent').textContent = '0%';
-            document.getElementById('progressStatus').textContent = '正在提交任务...';
-        }
-
-        function updateRealProgress(msg) {
-            const fill = document.getElementById('progressFill');
-            const percent = document.getElementById('progressPercent');
-            const status = document.getElementById('progressStatus');
-            if (msg.status === 'started') {
-                fill.style.width = '2%'; percent.textContent = '2%'; status.textContent = 'ComfyUI 开始执行...';
-            } else if (msg.status === 'executing') {
-                fill.style.width = '5%'; percent.textContent = '5%'; status.textContent = `执行节点: ${getNodeTitle(msg.node)}`;
-            } else if (msg.status === 'cached') { status.textContent = '部分节点命中缓存';
-            } else if (msg.status === 'sampling') {
-                const value = msg.value || 0, max = msg.max || 1;
-                const finalPct = 10 + Math.round((value / max) * 80);
-                fill.style.width = `${finalPct}%`; percent.textContent = `${finalPct}%`; status.textContent = `采样中 ${value}/${max}`;
-            } else if (msg.status === 'done') {
-                fill.style.width = '95%'; percent.textContent = '95%'; status.textContent = '解码保存中...';
-            }
-        }
-
-        function getNodeTitle(nodeId) {
-            const node = WORKFLOW_CONFIG.workflow[nodeId];
-            return node?._meta?.title || `节点 ${nodeId}`;
-        }
-
-        function completeProgress() {
-            document.getElementById('progressFill').style.width = '100%';
-            document.getElementById('progressPercent').textContent = '100%';
-            document.getElementById('progressStatus').textContent = '生成完成！';
-        }
-
-        function hideProgress() {
-            document.getElementById('progressInline').classList.remove('active');
-            currentPromptId = null;
-        }
+        // 进度条绘制统一由共享运行时负责（多页同一套 DOM 契约）
+        function startProgress(text) { tool.startProgress(text); }
+        // 常驻 WS 会收到别的任务的消息，非生成期间必须忽略
+        function updateRealProgress(msg) { if (!isGenerating) return; tool.updateProgress(msg); }
+        function completeProgress() { tool.completeProgress(); }
+        function hideProgress() { tool.hideProgress(); currentPromptId = null; }
 
         async function handleRender() {
             if (!uploadedImageName) return alert("请先上传图像");
@@ -533,6 +444,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             setLoading(true);
             const placeholder = createPlaceholder("Canvas Expand");
             document.getElementById('masonry').prepend(placeholder);
+            let ok = false;
             try {
                 const workflowData = JSON.parse(JSON.stringify(WORKFLOW_CONFIG.workflow));
                 const promptText = "移除绿色区域";
@@ -562,89 +474,30 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     workflowData["132"] = { "inputs": { "image": ["108", 0] }, "class_type": "GetImageSize", "_meta": { "title": "获取图像尺寸" } };
                 }
 
-                currentPromptId = generateUUID();
-                const wsUrl = buildWsUrl();
-                const ws = await new Promise((resolve, reject) => {
-                    const socket = new WebSocket(wsUrl);
-                    socket.onopen = () => { console.log('[ComfyUI WS] 连接成功'); resolve(socket); };
-                    socket.onerror = () => reject(new Error('WebSocket 连接失败'));
-                    setTimeout(() => reject(new Error('WebSocket 连接超时')), 5000);
-                });
+                // 提交与等结果交给共享运行时：完成判定用 history 轮询，
+                // 不再依赖单次 WebSocket 事件（消息一旦丢失就会永久挂起）
+                const result = await tool.submit(workflowData, { onProgress: updateRealProgress });
+                currentPromptId = result.promptId;
 
-                await new Promise((resolve, reject) => {
-                    ws.onmessage = (event) => {
-                        try {
-                            if (typeof event.data !== 'string') return;
-                            const message = JSON.parse(event.data);
-                            if (message.data?.prompt_id && message.data.prompt_id !== currentPromptId) return;
-                            if (message.type === 'execution_start') { updateRealProgress({ type: 'comfyui_progress', status: 'started', value: 0, max: 1, node: '' });
-                            } else if (message.type === 'progress') {
-                                updateRealProgress({ type: 'comfyui_progress', status: 'sampling', value: message.data.value || 0, max: message.data.max || 1, node: message.data.node || '' });
-                            } else if (message.type === 'executing') {
-                                if (message.data.node === null) {
-                                    updateRealProgress({ type: 'comfyui_progress', status: 'done', value: 1, max: 1, node: '' });
-                                    setTimeout(() => { ws.close(); resolve(getResult(currentPromptId, promptText, placeholder)); }, 500);
-                                } else { updateRealProgress({ type: 'comfyui_progress', status: 'executing', value: 0, max: 1, node: message.data.node || '' }); }
-                            } else if (message.type === 'execution_cached') { updateRealProgress({ type: 'comfyui_progress', status: 'cached', value: 0, max: 1, node: 'cached' });
-                            } else if (message.type === 'execution_error') { ws.close(); reject(new Error(message.data.exception_message || '执行错误')); }
-                        } catch (e) { reject(e); }
-                    };
-                    fetch(`/api/comfyui/prompt`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: workflowData, client_id: CLIENT_ID, prompt_id: currentPromptId })
-                    }).then(async (response) => {
-                        if (!response.ok) { const errorText = await response.text(); reject(new Error(`HTTP ${response.status}: ${errorText}`)); return; }
-                        const result = await response.json();
-                        currentPromptId = result.prompt_id;
-                        document.getElementById('progressStatus').textContent = '任务已提交，等待执行...';
-                    }).catch(reject);
+                const savedUrl = await saveToUserOutput(result.imageUrl, '扩图');
+                const record = { timestamp: Date.now(), images: [savedUrl], prompt: promptText, type: 'kuotu' };
+                GalleryList.pushNewImage(record);
+                await fetch('/api/history/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
                 });
+                placeholder.remove();
+                ok = true;
             } catch (e) {
                 placeholder.remove();
                 alert(e.message || '扩图失败');
             } finally {
                 isGenerating = false;
-                completeProgress();
-                setTimeout(() => hideProgress(), 800);
+                // 失败时不再显示「生成完成」，直接收起进度条
+                if (ok) { completeProgress(); setTimeout(hideProgress, 800); }
+                else { hideProgress(); }
                 setLoading(false);
-            }
-        }
-
-        async function getResult(promptId, promptText, placeholder) {
-            try {
-                const res = await fetch(`/api/comfyui/history/${promptId}`);
-                if (!res.ok) throw new Error('获取历史记录失败');
-                const history = await res.json();
-                const promptData = history[promptId];
-                if (!promptData) throw new Error('历史记录中未找到该任务');
-                if (promptData.status && promptData.status.status_str === 'error') throw new Error('任务执行错误');
-                const outputs = promptData.outputs || {};
-                let imageUrl = null;
-                for (const nodeId in outputs) {
-                    const nodeOutput = outputs[nodeId];
-                    if (nodeOutput.images && nodeOutput.images.length > 0) {
-                        const image = nodeOutput.images[0];
-                        imageUrl = `/api/comfyui/view?filename=${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`;
-                        break;
-                    }
-                }
-                if (imageUrl) {
-                    imageUrl = await saveToUserOutput(imageUrl, '扩图');
-                    const timestamp = Date.now();
-                    const record = { timestamp, images: [imageUrl], prompt: promptText, type: 'kuotu' };
-                    GalleryList.pushNewImage(record);;
-                                        await fetch('/api/history/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(record)
-                    });
-                    
-                    if (placeholder) placeholder.remove();
-                } else { throw new Error('未找到生成结果'); }
-            } catch (e) {
-                if (placeholder) placeholder.remove();
-                alert('获取结果失败: ' + e.message);
             }
         }
 
@@ -664,19 +517,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                 if (trigger) { trigger.onclick = () => GalleryList.load(1); }
                 window.HistoryBulkManager?.attach({masonry:'#masonry'});
             });
-            setInterval(async () => {
-                try {
-                    const res = await fetch("/api/queue_status?client_id=" + encodeURIComponent(CLIENT_ID));
-                    const data = await res.json();
-                    if (data.total > 0) {
-                        document.getElementById("statusText").innerText = `Queueing ${data.position}/${data.total}`;
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse";
-                    } else {
-                        document.getElementById("statusText").innerText = "System Ready";
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-black rounded-full";
-                    }
-                } catch (e) { }
-            }, 3000);
+            setInterval(() => tool.queueStatus(CLIENT_ID), 3000);
         };
     </script>
 </body>

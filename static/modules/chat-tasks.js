@@ -40,9 +40,15 @@ window.ChatTasks = (() => {
         const answer = iconButton();
         labelButton(retry, '重新回答', ANSWER_ICON);
         labelButton(answer, '重新回答', ANSWER_ICON);
-        bar.append(label, stop); host.appendChild(bar);
+        // 停止键放在动态文字前面：省略点动画会把 label 撑宽，放后面会跟着左右晃。
+        bar.append(stop, label); host.appendChild(bar);
         park(host, [retry, answer]);
-        task.setStage = stage => { label.hidden = !stage; label.textContent = stage; };
+        // busy 阶段挂动态标记（呼吸省略点由页面 CSS 绘制），finish 传 false 收尾。
+        task.setStage = (stage, busy = true) => {
+            label.hidden = !stage;
+            label.textContent = stage;
+            if (label.classList && label.classList.toggle) label.classList.toggle('chat-task-busy', !!stage && busy);
+        };
         task.cancelRemote = async () => {
             if (!task.promptId) return;
             const response = await fetch('/api/comfyui/cancel-task', {
@@ -62,9 +68,9 @@ window.ChatTasks = (() => {
         };
         task.finish = (error) => {
             stop.hidden = true;
-            if (error) task.setStage('失败：' + error.message);
-            else if (task.cancelled && !task.promptId && !task.engine) task.setStage('已停止');
-            else task.setStage('');
+            if (error) task.setStage('失败：' + error.message, false);
+            else if (task.cancelled && !task.promptId && !task.engine) task.setStage('已停止', false);
+            else task.setStage('', false);
             const retryLabel = task.snapshot ? (error || task.cancelled ? '原参数重试' : '相同参数再出一张') : '重新回答';
             labelButton(retry, retryLabel, task.snapshot ? AGAIN_ICON : ANSWER_ICON);
             retry.hidden = false;

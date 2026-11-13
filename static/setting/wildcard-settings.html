@@ -6,12 +6,13 @@
     <title>通配符管理</title>
     <script src="/static/modules/auth-token.js"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark');if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){})();</script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
-    <link rel="stylesheet" href="/static/theme.css">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <style>
         :root{--bg:var(--ui-bg);--text-main:var(--ui-text);--accent:var(--ui-accent);--card-bg:var(--ui-panel);--border:var(--ui-line);--text-sub:var(--ui-muted);--soft:var(--ui-soft);}
         body{background:var(--bg);color:var(--text-main);font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:0;min-height:100vh;overflow-y:auto;}
@@ -41,7 +42,7 @@
         .wc-item.active{background:rgba(6, 182, 212, .08);color:var(--accent);border-color:rgba(6, 182, 212, .3);}
         .wc-item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .wc-item .badge{font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--text-sub);}
-        .wc-item.builtin .badge{background:rgba(99, 102, 241, .1);color:#6366f1;}
+        .wc-item.builtin .badge{background:rgba(99, 102, 241, .1);color:var(--ui-accent);}
         .wc-item.custom .badge{background:rgba(99, 102, 241, .1);color:var(--accent);}
         .wc-item .del{opacity:0;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#ef4444;transition:all .15s;}
         .wc-item:hover .del{opacity:.7;}
@@ -54,7 +55,7 @@
         .field input:focus,.field textarea:focus{border-color:var(--accent);}
 
         .btn{height:36px;padding:0 16px;border-radius:9px;font-size:12px;font-weight:800;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
-        .btn-primary{background:var(--accent);color:#fbfaf9;}
+        .btn-primary{background:var(--accent);color:var(--ui-text);}
         .btn-primary:hover{opacity:.9;transform:translateY(-1px);}
         .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;}
         .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-main);}
@@ -83,9 +84,9 @@
 
         .toast{position:fixed;top:20px;right:20px;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:700;z-index:9999;transform:translateX(140%);transition:transform .25s ease;box-shadow:0 10px 30px rgba(0, 0, 0, .18);}
         .toast.show{transform:translateX(0);}
-        .toast.success{background:#10b981;color:#fbfaf9;}
-        .toast.error{background:#ef4444;color:#fbfaf9;}
-        .toast.info{background:#06b6d4;color:#fbfaf9;}
+        .toast.success{background:#10b981;color:var(--ui-text);}
+        .toast.error{background:#ef4444;color:var(--ui-text);}
+        .toast.info{background:var(--ui-accent);color:var(--ui-text);}
 
         .empty-state{padding:20px;text-align:center;color:var(--text-sub);font-size:12px;}
 
@@ -99,7 +100,14 @@
         @media (max-width:640px) {
             .page { padding:20px 14px 60px; }
             .page-head { gap:12px; }
-            .grid { grid-template-columns:1fr; }
+            .grid { grid-template-columns:minmax(0,1fr); }
+            /* 长类型名、选项和提示消息在卡片内换行。 */
+            .grid > *, .check .nm, .pick-line .v { min-width:0; overflow-wrap:anywhere; }
+            .field input, .field textarea { min-width:0; max-width:100%; box-sizing:border-box; }
+            .card-title { flex-wrap:wrap; gap:6px; }
+            .pick-line .k { overflow-wrap:anywhere; max-width:40%; }
+            .toast { max-width:calc(100vw - 28px); right:14px; box-sizing:border-box; overflow-wrap:anywhere; }
+            .wc-item .del { opacity:.7; flex-shrink:0; }
             .field input, .field textarea { min-height:40px; }
             .btn { min-height:40px; }
             .btn-row { flex-direction:column; }

@@ -1,6 +1,7 @@
 """Durable, tested declarative plugin candidates; no model supplied code execution."""
 
 import asyncio
+import copy
 import json
 import threading
 import time
@@ -40,6 +41,31 @@ class NodePluginBuilds:
         return record
 
     def create(self, value, tests):
+        # 媒体 worker 的文本入口是宿主协议要求，交由宿主补齐机械字段。
+        # 不改已有参数类型，不修改代码、测试预期或授权要求。
+        repairs = []
+        if isinstance(value, str):
+            if len(value) > 100000:
+                raise ValueError('definition过大；应传节点JSON对象，不是字符串')
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise ValueError('definition必须是单个JSON对象；不要附带代码围栏或说明') from None
+            if not isinstance(value, dict):
+                raise ValueError('definition必须是JSON对象，不能是数组或再次编码的字符串')
+            repairs.append('已解析被字符串编码的节点定义，未修改代码或测试')
+        if isinstance(value, dict):
+            execution = value.get('execution', {})
+            fields = value.get('fields', [])
+            if (isinstance(execution, dict) and execution.get('kind') == 'worker.python'
+                    and execution.get('media') is True and value.get('ports')
+                    and isinstance(fields, list) and all(isinstance(field, dict) for field in fields)):
+                key = execution.get('textField', 'text')
+                if isinstance(key, str) and not any(field.get('id') == key for field in fields):
+                    value = copy.deepcopy(value)
+                    value['fields'] = [*fields, {'id': key, 'label': '文本输入', 'component': 'textarea', 'default': ''}]
+                    value['execution']['textField'] = key
+                    repairs.append('已补齐媒体worker协议所需的文本输入字段：' + key)
         item = node_catalog.definition(value)
         if not isinstance(tests, list) or not 1 <= len(tests) <= 12:
             raise ValueError('需要 1—12 个带预期输出的测试')
@@ -49,7 +75,9 @@ class NodePluginBuilds:
         for test in tests:
             if ports is not None:
                 if not isinstance(test, dict) or set(test) - {'params', 'portInputs', 'expectedPorts'} or 'expectedPorts' not in test:
-                    raise ValueError('命名端口测试需要portInputs和expectedPorts，不接受旧集合测试字段')
+                    extra = sorted(set(test) - {'params', 'portInputs', 'expectedPorts'}) if isinstance(test, dict) else []
+                    raise ValueError('命名端口测试只允许params、portInputs、expectedPorts，expectedPorts必填；'
+                                     f'请删除多余字段{extra}。文本预期应声明text输出端口并放入expectedPorts，不使用expectedText。')
                 if len(json.dumps(test, ensure_ascii=False, allow_nan=False)) > 48000:
                     raise ValueError('单个测试超过大小上限')
                 validate_values(ports.inputs, test.get('portInputs', {}), 'fixture')
@@ -58,7 +86,9 @@ class NodePluginBuilds:
                 continue
             if (not isinstance(test, dict) or set(test) - {'params', 'inputs', 'expectedText', 'imageInputs', 'expectedImages', 'httpResponse'}
                     or not isinstance(test.get('expectedText'), str) or len(test['expectedText']) > 16000):
-                raise ValueError('测试格式无效，必须包含 expectedText')
+                raise ValueError('当前定义没有ports，使用旧版测试：每项必须包含expectedText；'
+                                 '图片worker另需imageInputs/expectedImages。若使用expectedPorts，'
+                                 '必须先在definition中声明ports，并改用params/portInputs/expectedPorts测试。')
             if len(json.dumps(test, ensure_ascii=False)) > 48000:
                 raise ValueError('单个测试超过大小上限')
             if item['execution']['kind'] == 'host.http':
@@ -86,6 +116,8 @@ class NodePluginBuilds:
         record = {'id': uuid.uuid4().hex, 'canvasId': self.context.canvas_id, 'revision': revision,
                   'definition': item, 'tests': normalized, 'status': 'draft', 'report': None,
                   'createdAt': time.time()}
+        if repairs:
+            record['repairs'] = repairs
         write_json(self.path(record['id']), record)
         return record
 
@@ -221,7 +253,7 @@ class NodePluginBuilds:
              {'candidate_id': {'type': 'string'}}),
             ('canvas_list_plugin_candidates', '列出当前用户当前画布的节点候选与测试状态，用于恢复后台任务。', {}),
             ('canvas_get_plugin_sdk', '读取通用节点 SDK、参数组件、自定义界面及执行器能力。', {}),
-            ('canvas_create_plugin_candidate', '创建节点插件候选及测试，不安装。优先复用已有节点。',
+            ('canvas_create_plugin_candidate', '创建节点插件候选及测试，不安装。声明ports时测试仅用params/portInputs/expectedPorts，不能带expectedText/inputs/imageInputs；无ports才用expectedText。依赖放execution.dependencies。优先复用已有节点。',
              {'definition': node_catalog.NodeDefinition.model_json_schema(), 'tests': {
                  'type': 'array', 'minItems': 1, 'maxItems': 12, 'items': {
                      'type': 'object', 'properties': {'params': {'type': 'object'},
@@ -231,7 +263,13 @@ class NodePluginBuilds:
                          'portInputs': {'type': 'object', 'description': '命名端口输入；图片/蒙版用width/height/color，音频用frames/sampleRate/channels静音WAV素材，视频用width/height/frames合成H264 MP4素材，集合用数组。'},
                          'httpResponse': {'type': 'object', 'description': 'host.http必填模拟JSON响应，候选测试不发送真实请求。'},
                          'expectedPorts': {'type': 'object', 'description': '命名端口预期输出；图片/蒙版为width/height/可选sha256对象，其他类型为真实预期值。'}},
-                     'additionalProperties': False}}}),
+                     'additionalProperties': False,
+                     'oneOf': [
+                         {'required': ['expectedText'], 'not': {'anyOf': [
+                             {'required': ['expectedPorts']}, {'required': ['portInputs']}]}},
+                         {'required': ['expectedPorts'], 'not': {'anyOf': [
+                             {'required': [key]} for key in ('expectedText', 'inputs', 'imageInputs', 'expectedImages', 'httpResponse')]}}
+                     ]}}}),
             ('canvas_test_plugin', '实际执行候选测试并保存报告，失败不会安装。', {'candidate_id': {'type': 'string'}}),
             ('canvas_install_plugin', '安装已通过测试的固定候选版本，不覆盖旧版本。',
              {'candidate_id': {'type': 'string'}, 'revision': {'type': 'string'}}),

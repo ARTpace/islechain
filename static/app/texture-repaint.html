@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贴图重绘</title>
+<link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+<link rel="stylesheet" href="/static/css/model-picker.css?v=20261108011">
+<script src="/static/js/theme-default.js"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
+<style>
+  html,body{height:100%;margin:0}
+  body{display:grid;grid-template-columns:300px 1fr 320px;background:var(--ui-bg);color:var(--ui-text);font:13px/1.45 system-ui,sans-serif}
+  aside,main{min-height:0}
+  aside{padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--ui-panel);border-right:1px solid var(--ui-line)}
+  aside.right{border-right:0;border-left:1px solid var(--ui-line);position:relative}
+  main{position:relative}
+  iframe{width:100%;height:100%;border:0;background:var(--ui-bg)}
+  #drop{position:absolute;inset:0;display:none;place-items:center;background:color-mix(in srgb, var(--ui-bg) 88%, transparent);color:var(--ui-text);font-size:16px;border:2px dashed var(--ui-accent);margin:12px}
+  #drop.show{display:grid}
+  label{display:flex;flex-direction:column;gap:4px;color:var(--ui-muted)}
+  input,select,textarea,button{font:inherit}
+  input,select,textarea{background:var(--ui-panel);color:var(--ui-text);border:1px solid var(--ui-line-strong);border-radius:6px;padding:7px}
+  textarea{min-height:72px;resize:vertical}
+  button{background:var(--ui-accent);color:var(--ui-accent-ink);border:0;border-radius:6px;padding:8px 10px;cursor:pointer}
+  button.ghost{background:var(--ui-soft);color:var(--ui-text)}
+  button:disabled{opacity:.45;cursor:default}
+  img{width:100%;border-radius:6px;background:var(--ui-soft)}
+  #status{color:var(--ui-muted);min-height:2.6em}
+  #layers{display:flex;flex-direction:column;gap:6px;overflow:auto;min-height:0}
+  .layer{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;background:var(--ui-soft);border-radius:8px;padding:6px;border:1px solid transparent}
+  .layer.on{border-color:var(--ui-accent)}
+  .layer>img{width:44px;height:44px;object-fit:cover;border-radius:4px;cursor:zoom-in}
+  .layer .name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .layer .meta{font-size:10px;color:var(--ui-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row-ops{display:flex;gap:3px;align-items:center}
+  .icon-btn{width:24px;height:24px;flex:none;display:grid;place-items:center;padding:0;background:transparent;color:var(--ui-muted);border:1px solid transparent;border-radius:5px}
+  .icon-btn:hover{background:var(--ui-panel);color:var(--ui-text);border-color:var(--ui-line)}
+  .icon-btn.on{color:var(--ui-accent)}
+  .icon-btn.danger:hover{color:#e06c5b;border-color:color-mix(in srgb,#e06c5b 40%,transparent)}
+  .icon-btn svg{width:14px;height:14px;display:block}
+  .layer-panel{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--ui-line);margin-top:6px;padding-top:6px}
+  .layer-panel .icon-row{display:flex;flex-wrap:wrap;gap:3px}
+  .layer-panel .icon-row .icon-btn{width:26px;height:26px;background:var(--ui-panel)}
+  .tune-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}
+  .tune-grid label{display:block;font-size:10px;color:var(--ui-muted);line-height:1.3}
+  .tune-grid input[type=range]{width:100%;height:14px;margin:0;padding:0;background:transparent;border:0;accent-color:var(--ui-accent)}
+  .group-title.row{display:flex;align-items:center}
+  #layer-tools{display:flex;gap:3px;margin-left:auto}
+  #layer-tools .icon-btn{width:22px;height:22px}
+  .btn-row button{font-size:12px}
+  #mask{width:100%;height:96px;background:var(--ui-soft);border-radius:6px;touch-action:none}
+  #grids{display:flex;gap:4px}
+  #grids button{flex:1;background:var(--ui-soft)}
+  #grids button.on{background:var(--ui-accent);color:var(--ui-accent-ink)}
+  #model-menu{position:absolute;z-index:5;right:14px;top:52px;width:260px;background:var(--ui-panel);border:1px solid var(--ui-line-strong);border-radius:8px}
+  h1{font-size:15px;margin:0}
+  .group-title{font-size:11px;letter-spacing:.08em;color:var(--ui-faint);border-top:1px solid var(--ui-line);padding-top:8px;margin-top:2px}
+  .btn-row{display:flex;gap:4px}
+  .btn-row button{flex:1}
+  button.stop{background:color-mix(in srgb, #c0392b 78%, var(--ui-panel));color:var(--ui-text)}
+  #progress{display:none;flex-direction:column;gap:4px;font-size:11px;color:var(--ui-muted)}
+  #progress.show{display:flex}
+  #progress .track{height:5px;background:var(--ui-line);border-radius:3px;overflow:hidden}
+  #progress .fill{height:100%;width:0;background:var(--ui-accent);transition:width .2s}
+  #result{display:none;flex-direction:column;gap:6px}
+  #result.show{display:flex}
+  #result img{max-height:220px;object-fit:contain}
+  #result .ops{display:flex;gap:4px}
+  #result .ops button{flex:1;font-size:11px;padding:6px 4px}
+  .hint{font-size:11px;color:var(--ui-faint);margin:0}
+  details{border-top:1px solid var(--ui-line);padding-top:6px}
+  summary{cursor:pointer;font-size:11px;color:var(--ui-muted);letter-spacing:.06em}
+  details[open] summary{margin-bottom:6px;color:var(--ui-text)}
+  details textarea{min-height:40px}
+  #grid-tools{display:flex;gap:3px;margin-left:auto}
+  #grid-tools .icon-btn{width:22px;height:22px}
+  label.check{flex-direction:row;align-items:center;gap:6px;cursor:pointer}
+  label.check input{width:auto;flex:none;accent-color:var(--ui-accent)}
+  #metrics{line-height:1.5}
+</style>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
+</head>
+<body>
+<aside>
+  <h1>贴图重绘</h1>
+  <label>模型<input id="file" type="file" accept=".glb,.gltf"></label>
+  <label>部件<select id="part"></select></label>
+  <p id="status">把 GLB 拖进中间预览，或从左侧选择文件。</p>
+  <div class="group-title row" title="只拍视角图，不消耗生图额度">拍摄视角
+    <div id="grid-tools">
+      <button type="button" class="icon-btn" id="grid-export" title="导出宫格图给外部修图"></button>
+      <button type="button" class="icon-btn" id="grid-import" title="导入修好的宫格图，按格替换视角层"></button>
+    </div>
+  </div>
+  <div id="grids">
+    <button type="button" data-grid="4">拍 4 视角</button>
+    <button type="button" data-grid="6" class="on">拍 6 视角</button>
+    <button type="button" data-grid="9">拍 9 视角</button>
+  </div>
+  <button id="shot-current" class="ghost" disabled>拍当前角度</button>
+  <div class="group-title">生成</div>
+  <button id="current" disabled title="重绘当前选中的视角图层">重绘选中</button>
+  <div class="btn-row">
+    <button id="angle" class="ghost" disabled title="按 3D 预览当前相机角度重绘">当前角度</button>
+    <button id="panorama" class="ghost" disabled title="批量重绘全部视角图层">全部视角</button>
+  </div>
+  <div id="progress">
+    <div class="track"><div class="fill" id="progress-fill"></div></div>
+    <span id="progress-text">准备中…</span>
+  </div>
+  <div class="btn-row"><button type="button" id="stop" class="stop" hidden>停止</button></div>
+  <div class="group-title">局部涂抹</div>
+  <button id="paint" class="ghost" disabled>在模型表面涂抹</button>
+  <label>笔刷<input id="brush" type="range" min="8" max="80" value="28"></label>
+  <button id="paint-apply" disabled hidden>执行涂抹</button>
+  <img id="shot" alt="" hidden>
+  <div class="group-title row">视角图层
+    <div id="layer-tools">
+      <button type="button" class="icon-btn" id="layers-show" title="全部显示"></button>
+      <button type="button" class="icon-btn" id="layers-hide" title="全部隐藏"></button>
+      <button type="button" class="icon-btn" id="layers-clear" title="清空全部图层"></button>
+    </div>
+  </div>
+  <div id="layers"></div>
+  <input id="replace-file" type="file" accept="image/*" hidden>
+  <input id="grid-file" type="file" accept="image/*" hidden>
+  <canvas id="mask" hidden></canvas>
+</aside>
+<main>
+  <iframe id="view" title="3D 预览" src="/api/model3d/viewer"></iframe>
+  <div id="drop">松开以导入模型</div>
+</main>
+<aside class="right">
+  <div class="group-title">生图设置</div>
+  <button type="button" id="model-btn">选择生图模型</button>
+  <div id="model-menu" hidden></div>
+  <label>提示词<textarea id="prompt">clean albedo texture, unlit surface color, sharp details</textarea></label>
+  <label id="denoise-label">重绘强度（仅本地工作流）<input id="denoise" type="number" min="0.05" max="1" step="0.05" value="0.55"></label>
+  <p class="hint">强度仅本地工作流生效，遮罩自动回投合成。</p>
+  <details id="local-opts">
+    <summary>本地 ComfyUI 模板</summary>
+    <label>模板<select id="local-template">
+      <option value="custom">沿用所选模型工作流</option>
+      <option value="auto">内置 · 自动（有遮罩走局部）</option>
+      <option value="img2img">内置 · 图生图</option>
+      <option value="inpaint">内置 · 局部重绘</option>
+    </select></label>
+    <label>负向提示词<textarea id="negative">low quality, blurry, watermark</textarea></label>
+    <label>权重名<input id="ckpt" value="v1-5-pruned-emaonly.safetensors"></label>
+    <label>种子（-1 随机）<input id="seed" type="number" step="1" value="-1"></label>
+    <p class="hint">内置模板直连本机 ComfyUI（SD1.5 系），权重名需与实例一致；不选生图模型时自动用「内置·自动」。负向词、种子仅内置模板生效。</p>
+  </details>
+  <div class="group-title">生成结果</div>
+  <div id="result">
+    <img id="result-img" alt="本次生成结果">
+    <div class="ops">
+      <button type="button" id="result-accept">采用</button>
+      <button type="button" id="result-retry" class="ghost">重抽</button>
+      <button type="button" id="result-keep" class="ghost">并存新层</button>
+    </div>
+    <button type="button" id="result-discard" class="ghost">丢弃</button>
+  </div>
+  <div class="group-title">烘焙</div>
+  <p class="hint" id="metrics">尚未烘焙</p>
+  <button id="export" class="ghost" disabled>下载 Albedo</button>
+  <details id="bake-opts">
+    <summary>烘焙设置 / 更多导出</summary>
+    <label>贴图计算分辨率<select id="set-resolution"><option>1024</option><option>2048</option><option>4096</option></select></label>
+    <label>视角抓取分辨率<select id="set-view"><option>512</option><option selected>1024</option><option>1536</option><option>2048</option><option>4096</option></select></label>
+    <label>补洞外扩<select id="set-dilation"><option>0</option><option>4</option><option selected>8</option><option>16</option><option>32</option><option>64</option></select></label>
+    <label class="check"><input id="set-hole" type="checkbox" checked> 孔洞填补</label>
+    <label class="check"><input id="set-seams" type="checkbox" checked> 接缝柔和融合</label>
+    <label class="check"><input id="set-detail" type="checkbox" checked> 清晰优先（关闭＝柔和融合）</label>
+    <button type="button" id="apply-settings" class="ghost">应用并重烘焙</button>
+    <button type="button" id="export-maps" class="ghost">下载 PBR 贴图集</button>
+    <button type="button" id="export-glb" class="ghost">导出带材质 GLB</button>
+    <p class="hint">分辨率越高越吃内存，切换只影响后续烘焙。GLB 为重建的静态模型，不含骨骼动画；PBR 由烘焙结果推导，非物理扫描。</p>
+  </details>
+  <img id="albedo" alt="" hidden>
+</aside>
+<script>
+const fileInput = document.getElementById('file');
+const statusEl = document.getElementById('status');
+const view = document.getElementById('view');
+const drop = document.getElementById('drop');
+let chosenFile = null;
+let importing = false;
+let modelUrl = '';
+function say(text) { statusEl.textContent = text; }
+function takeModelFile(file) {
+  if (!file || !/\.(glb|gltf)$/i.test(file.name)) { say('请拖入 GLB 或 GLTF'); return; }
+  chosenFile = file;
+  importChosen();
+}
+async function importChosen() {
+  const file = chosenFile;
+  if (!file || importing) return;
+  importing = true;
+  say('正在打开预览…');
+  try {
+    if (modelUrl) URL.revokeObjectURL(modelUrl);
+    modelUrl = URL.createObjectURL(file);
+    const shown = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { window.removeEventListener('message', onMessage); reject(new Error('预览没有打开模型')); }, 30000);
+      function onMessage(event) {
+        const data = event.data || {};
+        if (!event.source || event.source.parent !== window) return;
+        if (data.type === 'model-error') { clearTimeout(timer); window.removeEventListener('message', onMessage); reject(new Error(data.message || '模型加载失败')); }
+        if (data.type === 'model-loaded') { clearTimeout(timer); window.removeEventListener('message', onMessage); resolve(); }
+      }
+      window.addEventListener('message', onMessage);
+    });
+    view.src = '/api/model3d/viewer?model=' + encodeURIComponent(modelUrl);
+    await shown;
+    document.getElementById('current').disabled = false;
+    document.getElementById('angle').disabled = false;
+    document.getElementById('shot-current').disabled = false;
+    document.getElementById('panorama').disabled = false;
+    document.getElementById('paint').disabled = false;
+    say('模型已显示，正在分析网格与部件…');
+    try {
+      await ensureModel();
+      say('已就绪：' + (partSelect.options.length || 1) + ' 个部件。先拍视角，再重绘。');
+    } catch (error) {
+      say('预览已显示，但网格分析失败：' + (error.message || '未知错误'));
+    }
+  } catch (error) {
+    say(error.message || '导入失败');
+  } finally {
+    importing = false;
+  }
+}
+fileInput.addEventListener('change', () => takeModelFile(fileInput.files && fileInput.files[0]));
+window.addEventListener('dragenter', (event) => { if (event.dataTransfer) drop.classList.add('show'); });
+drop.addEventListener('dragover', (event) => { event.preventDefault(); drop.classList.add('show'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('show'));
+drop.addEventListener('drop', (event) => {
+  event.preventDefault();
+  drop.classList.remove('show');
+  takeModelFile(event.dataTransfer.files && event.dataTransfer.files[0]);
+});
+</script>
+<script src="/static/modules/model-picker.js?v=20261105tier1"></script>
+<script src="/static/modules/comfy-status.js?v=20261105shared3"></script>
+<script src="/static/modules/comfy-tool-runtime.js"></script>
+<script>
+const partSelect = document.getElementById('part');
+const shot = document.getElementById('shot');
+const albedo = document.getElementById('albedo');
+let engine = null;
+async function ensureModel() {
+  if (engine) return;
+  if (!window.TextureRepaint) {
+    say('正在准备重绘…');
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/static/js/texture-repaint-engine.js?v=20261105layerui';
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('重绘引擎加载失败'));
+      document.body.appendChild(script);
+    });
+  }
+  engine = (window.TextureRepaint && window.TextureRepaint.default) || window.TextureRepaint;
+  say('正在分析模型…');
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  let info;
+  try {
+    info = await engine.loadFile(chosenFile);
+  } catch (error) {
+    engine = null;
+    throw error;
+  }
+  partSelect.replaceChildren();
+  if (!(info.parts && info.parts.length)) {
+    const fallback = document.createElement('option');
+    fallback.value = '';
+    fallback.textContent = chosenFile ? chosenFile.name : '整个模型';
+    partSelect.append(fallback);
+  }
+  (info.parts || []).forEach((part) => {
+    const option = document.createElement('option');
+    option.value = part.id;
+    option.textContent = part.name || '部件';
+    partSelect.append(option);
+  });
+}
+let viewId = '';
+let baked = '';
+let viewerReady = false;
+
+function askViewer(type, extra) {
+  const requestId = Math.random().toString(36).slice(2);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { window.removeEventListener('message', onMessage); reject(new Error('预览没有响应')); }, 20000);
+    function onMessage(event) {
+      if (event.source !== view.contentWindow) return;
+      const data = event.data || {};
+      if (data.type === 'model-error') { clearTimeout(timer); window.removeEventListener('message', onMessage); reject(new Error(data.message || '模型加载失败')); }
+      if (data.requestId !== requestId && data.type !== 'model-ready') return;
+      if (type === 'load-model' && data.type === 'model-loaded') { clearTimeout(timer); window.removeEventListener('message', onMessage); resolve(data); }
+      if (type === 'query-camera' && data.type === 'camera-pose' && data.requestId === requestId) { clearTimeout(timer); window.removeEventListener('message', onMessage); resolve(data); }
+      if (type === 'paint-export' && data.type === 'surface-mask' && data.requestId === requestId) { clearTimeout(timer); window.removeEventListener('message', onMessage); resolve(data); }
+    }
+    window.addEventListener('message', onMessage);
+    view.contentWindow.postMessage(Object.assign({ type, requestId }, extra || {}), '*');
+  });
+}
+
+window.addEventListener('message', (event) => {
+  if (event.source === view.contentWindow && event.data?.type === 'model-ready') viewerReady = true;
+});
+
+partSelect.onchange = async () => {
+  if (!partSelect.value) return;
+  say('正在切换部件…');
+  viewId = '';
+  baked = '';
+  shot.hidden = albedo.hidden = true;
+  document.getElementById('current').disabled = true;
+  document.getElementById('panorama').disabled = true;
+  document.getElementById('export').disabled = true;
+  try {
+    await ensureModel();
+    if (partSelect.value) await engine.selectPart(partSelect.value);
+    document.getElementById('current').disabled = false;
+    document.getElementById('shot-current').disabled = false;
+    document.getElementById('panorama').disabled = false;
+    say('已切换部件。可以重绘选中图层或全部视角。');
+  } catch (error) {
+    say(error.message || '切换失败');
+  }
+};
+
+const ICON_PATHS = {
+  show: '<path d="M1.5 8s2.5-4 6.5-4 6.5 4 6.5 4-2.5 4-6.5 4-6.5-4-6.5-4Z"/><circle cx="8" cy="8" r="2"/>',
+  hide: '<path d="M1.5 8s2.5-4 6.5-4 6.5 4 6.5 4-2.5 4-6.5 4-6.5-4-6.5-4Z"/><path d="M2 14 14 2"/>',
+  more: '<circle cx="3" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="13" cy="8" r="1.1"/>',
+  camera: '<rect x="1.5" y="4" width="13" height="9" rx="1.5"/><circle cx="8" cy="8.5" r="2.5"/><path d="M5 4l1-1.5h4L11 4"/>',
+  mask: '<rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 8h12M8 2v12"/>',
+  replace: '<path d="M2 5h10l-2.5-2.5M14 11H4l2.5 2.5"/>',
+  copy: '<rect x="2" y="2" width="9" height="9" rx="1"/><path d="M5 13h8V5"/>',
+  up: '<path d="M8 13V3M4 7l4-4 4 4"/>',
+  down: '<path d="M8 3v10M4 9l4 4 4-4"/>',
+  clear: '<path d="M3 3l10 10M13 3L3 13"/>',
+  invert: '<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12Z" fill="currentColor" stroke="none"/>',
+  trash: '<path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10"/>',
+  tune: '<path d="M2 4h12M2 8h12M2 12h12"/><circle cx="5" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="11" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+  all: '<rect x="2" y="2" width="12" height="12" rx="1"/><path d="M5 8h6"/>',
+  none: '<rect x="2" y="2" width="12" height="12" rx="1"/>',
+  clean: '<path d="M3 5h10M6 5V3h4v2M4.5 5l.7 9h5.6l.7-9"/>',
+  download: '<path d="M8 2v8M4.5 7.5 8 11l3.5-3.5M3 13h10"/>',
+  gridOut: '<rect x="2" y="2" width="12" height="12" rx="1"/><path d="M8 2v12M2 8h12M11 5l2 2-2 2"/>',
+  gridIn: '<rect x="2" y="2" width="12" height="12" rx="1"/><path d="M8 2v12M2 8h12M5 5 3 7l2 2"/>'
+};
+function svgIcon(name) {
+  return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON_PATHS[name] + '</svg>';
+}
+function iconButton(name, title, action, extraClass) {
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.className = 'icon-btn' + (extraClass ? ' ' + extraClass : '');
+  node.innerHTML = svgIcon(name);
+  node.title = title;
+  node.onclick = (event) => { event.stopPropagation(); action(); };
+  return node;
+}
+document.getElementById('layers-show').innerHTML = svgIcon('all');
+document.getElementById('layers-hide').innerHTML = svgIcon('none');
+document.getElementById('layers-clear').innerHTML = svgIcon('clean');
+document.getElementById('grid-export').innerHTML = svgIcon('gridOut');
+document.getElementById('grid-import').innerHTML = svgIcon('gridIn');
+
+function renderLayers() {
+  const box = document.getElementById('layers');
+  box.replaceChildren();
+  if (!engine) return;
+  const base = document.createElement('button');
+  base.type = 'button';
+  base.className = 'ghost';
+  base.textContent = engine.baseVisible() ? '原贴图 · 显示' : '原贴图 · 隐藏';
+  base.onclick = async () => { engine.toggleBase(); renderLayers(); await projectImage(null); };
+  box.append(base);
+  engine.listLayers().slice().reverse().forEach((layer) => {
+    const row = document.createElement('div');
+    row.className = 'layer' + (layer.id === selectedLayerId ? ' on' : '');
+
+    const thumb = document.createElement('img');
+    thumb.src = layer.image;
+    thumb.alt = layer.name;
+    thumb.title = '查看这一层的视角图';
+    thumb.onclick = (event) => {
+      event.stopPropagation();
+      const shot = document.getElementById('shot');
+      shot.hidden = false;
+      shot.src = layer.image;
+      selectedLayerId = layer.id;
+      renderLayers();
+    };
+
+    const info = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = (layer.kind === 'inpaint' ? '局部 ' : '') + layer.name;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const flags = [];
+    if (!layer.accepted) flags.push('已隐藏');
+    if (layer.masked) flags.push(layer.inverted ? '遮罩·反相' : '遮罩');
+    meta.textContent = flags.length ? flags.join(' · ') : (layer.kind === 'inpaint' ? '局部重绘' : '视角图层');
+    info.append(name, meta);
+
+    const ops = document.createElement('div');
+    ops.className = 'row-ops';
+    ops.append(iconButton(layer.accepted ? 'show' : 'hide', layer.accepted ? '隐藏此图层' : '显示此图层', async () => {
+      engine.setLayer(layer.id, { accepted: !layer.accepted });
+      renderLayers();
+      await projectImage(null);
+    }, layer.accepted ? 'on' : ''));
+    ops.append(iconButton('more', '展开此图层操作', () => {
+      expandedLayerId = expandedLayerId === layer.id ? '' : layer.id;
+      tuneOpen = false;
+      renderLayers();
+    }, expandedLayerId === layer.id ? 'on' : ''));
+    row.append(thumb, info, ops);
+
+    if (expandedLayerId === layer.id) {
+      const panel = document.createElement('div');
+      panel.className = 'layer-panel';
+      panel.onclick = (event) => event.stopPropagation();
+      const icons = document.createElement('div');
+      icons.className = 'icon-row';
+      icons.append(
+        iconButton('download', '下载这一层的视角图 (PNG)', () => {
+          const link = document.createElement('a');
+          link.href = layer.image;
+          link.download = (layer.name || 'view').replace(/[\\/:*?"<>|]/g, '_') + '.png';
+          link.click();
+        }),
+        iconButton('camera', '对齐 3D 相机至此视角', () => {
+          const pose = engine.focusLayer(layer.id);
+          view.contentWindow.postMessage({ type: 'set-camera', position: pose.position, target: pose.target, fov: pose.fov }, '*');
+          selectedLayerId = layer.id;
+          say('相机已对齐到 ' + layer.name);
+        }),
+        iconButton('mask', layer.masked ? '编辑 UV 遮罩' : '绘制 UV 遮罩', () => {
+          maskLayer = layer.id;
+          maskCanvas.hidden = false;
+          selectedLayerId = layer.id;
+          say('遮罩：涂白保留这一层，按住 Shift 涂黑。');
+        }, layer.masked ? 'on' : ''),
+        iconButton('replace', '替换图层图片', () => { replaceLayerId = layer.id; document.getElementById('replace-file').click(); }),
+        iconButton('copy', '复制备份图层', async () => {
+          engine.duplicateLayer(layer.id);
+          expandedLayerId = '';
+          renderLayers();
+          await projectImage(null);
+        }),
+        iconButton('up', '上移一层', async () => { engine.moveLayer(layer.id, 'up'); renderLayers(); await projectImage(null); }),
+        iconButton('down', '下移一层', async () => { engine.moveLayer(layer.id, 'down'); renderLayers(); await projectImage(null); }),
+        iconButton('invert', layer.inverted ? '取消反转遮罩' : '反转黑白遮罩', async () => {
+          if (!layer.masked) { say('先给这一层加遮罩。'); return; }
+          engine.invertMask(layer.id); renderLayers(); await projectImage(null);
+        }, layer.inverted ? 'on' : ''),
+        iconButton('clear', '完全清除遮罩', async () => { engine.clearMask(layer.id); renderLayers(); await projectImage(null); }),
+        iconButton('tune', '调节图层参数', () => { tuneOpen = !tuneOpen; renderLayers(); }, tuneOpen ? 'on' : ''),
+        iconButton('trash', '彻底删除此图层', async () => {
+          engine.removeLayer(layer.id);
+          if (selectedLayerId === layer.id) selectedLayerId = '';
+          expandedLayerId = '';
+          renderLayers();
+          if (engine.listLayers().length) await projectImage(null);
+        }, 'danger')
+      );
+      panel.append(icons);
+      if (tuneOpen) {
+        const tune = document.createElement('div');
+        tune.className = 'tune-grid';
+        tune.append(
+          slider('不透明度', 0, 1, 0.05, layer.opacity, (value) => engine.setLayer(layer.id, { opacity: value })),
+          slider('边缘羽化', 0.01, 1, 0.01, layer.edgeFade, (value) => engine.setLayer(layer.id, { edgeFade: value })),
+          slider('亮度', 0, 2, 0.05, layer.brightness, (value) => engine.setLayer(layer.id, { brightness: value })),
+          slider('饱和度', 0, 2, 0.05, layer.saturation, (value) => engine.setLayer(layer.id, { saturation: value })),
+          slider('色相', -180, 180, 1, layer.hue, (value) => engine.setLayer(layer.id, { hue: value }))
+        );
+        panel.append(tune);
+      }
+      row.append(panel);
+    }
+    row.onclick = () => { selectedLayerId = layer.id; renderLayers(); };
+    box.append(row);
+  });
+}
+function slider(label, min, max, step, value, apply) {
+  const field = document.createElement('label');
+  field.textContent = label;
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  input.onclick = (event) => event.stopPropagation();
+  let sliderTimer = 0;
+  input.oninput = (event) => {
+    event.stopPropagation();
+    clearTimeout(sliderTimer);
+    sliderTimer = setTimeout(async () => { apply(Number(input.value)); await projectImage(null); }, 120);
+  };
+  field.append(input);
+  return field;
+}
+document.getElementById('layers-show').onclick = async () => {
+  if (!engine) return;
+  engine.listLayers().forEach((layer) => engine.setLayer(layer.id, { accepted: true }));
+  renderLayers();
+  await projectImage(null);
+};
+document.getElementById('layers-hide').onclick = async () => {
+  if (!engine) return;
+  engine.listLayers().forEach((layer) => engine.setLayer(layer.id, { accepted: false }));
+  renderLayers();
+  await projectImage(null);
+};
+document.getElementById('layers-clear').onclick = async () => {
+  if (!engine) return;
+  engine.listLayers().forEach((layer) => engine.removeLayer(layer.id));
+  selectedLayerId = '';
+  renderLayers();
+};
+document.getElementById('replace-file').onchange = async (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file || !replaceLayerId) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    engine.replaceImage(replaceLayerId, reader.result);
+    expandedLayerId = '';
+    await projectImage(null);
+    renderLayers();
+    say('已替换这一层的图片，并重新烘进颜色贴图。');
+  };
+  reader.readAsDataURL(file);
+};
+
+async function uploadImage(dataUrl, filename) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const form = new FormData();
+  form.append('image', blob, filename);
+  const uploaded = await fetch('/api/comfyui/upload/image', { method: 'POST', body: form });
+  if (!uploaded.ok) throw new Error('上传到 ComfyUI 失败');
+  const file = await uploaded.json();
+  return file.name || file.filename;
+}
+
+let selectedModel = JSON.parse(localStorage.getItem('repaint-cloud-model') || 'null');
+let gridCount = 6;
+let selectedLayerId = '';
+let expandedLayerId = '';
+let tuneOpen = false;
+let replaceLayerId = '';
+async function loadModelMenu() {
+  const menu = document.getElementById('model-menu');
+  const [providersData, workflowData] = await Promise.all([
+    fetch('/api/providers').then((response) => response.json()),
+    fetch('/api/workflows/builtin').then((response) => response.json())
+  ]);
+  const providers = (providersData.providers || []).filter((item) => item.enabled !== false && item.image_models && item.image_models.length);
+  const workflows = (workflowData.workflows || []).filter((item) => item.has_unet && /^(text2image|image-edit)\//.test(item.name));
+  // 与文生图页共用同一份 ComfyUI 可用性状态；探测一下再画，避免把没运行的本地模型也列出来。
+  if (window.ComfyStatus) {
+    window.ComfyStatus.start();
+    await window.ComfyStatus.refresh();
+  }
+  const comfyOffline = Boolean(window.ComfyStatus && window.ComfyStatus.offline());
+  const localRows = window.ModelPicker.localRows(workflows, { currentWorkflow: selectedModel && selectedModel.workflow });
+  const rows = comfyOffline
+    ? window.ComfyStatus.keepLocalRow(localRows, selectedModel && selectedModel.workflow)
+    : localRows;
+  const groups = window.ModelPicker.cloudGroups(providers.map((item) => ({
+    id: item.id,
+    name: item.name || item.id,
+    models: item.image_models.map((model) => ({ id: model, label: model }))
+  })), { currentProvider: selectedModel && selectedModel.providerId, currentModel: selectedModel && selectedModel.model });
+  if (selectedModel) document.getElementById('model-btn').textContent = selectedModel.label || selectedModel.model;
+  const localModel = !!(selectedModel && selectedModel.workflow);
+  document.getElementById('denoise').disabled = !localModel;
+  document.getElementById('denoise-label').style.opacity = localModel ? '1' : '.5';
+  window.ModelPicker.render(menu, {
+    host: 'studio',
+    rows: rows,
+    comfyOffline: comfyOffline,
+    groups: groups,
+    features: { search: true, refresh: false, localTitle: 'COMFYUI' },
+    onPick: function (row) {
+      if (row.kind === 'cloud') {
+        selectedModel = { providerId: row.provider, protocol: (providers.find((item) => item.id === row.provider) || {}).protocol || 'openai', model: row.model, label: row.label || row.model };
+      } else {
+        selectedModel = { workflow: row.workflow, label: row.label };
+      }
+      localStorage.setItem('repaint-cloud-model', JSON.stringify(selectedModel));
+      document.getElementById('model-btn').textContent = selectedModel.label;
+      menu.hidden = true;
+      loadModelMenu();
+    }
+  });
+}
+document.getElementById('model-btn').onclick = () => {
+  const menu = document.getElementById('model-menu');
+  menu.hidden = !menu.hidden;
+};
+loadModelMenu().catch(() => say('生图模型列表没有读到'));
+
+let activeJob = null;
+function cancelledError() { const error = new Error('已停止'); error.cancelled = true; return error; }
+function checkStopped() { if (activeJob && activeJob.cancelled) throw cancelledError(); }
+
+async function runWorkflow(dataUrl, options) {
+  const opts = options || {};
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) throw new Error('先写提示词');
+  const strength = Number(document.getElementById('denoise').value) || 0.55;
+  const template = document.getElementById('local-template').value;
+  const useBuiltin = template !== 'custom' || !selectedModel;
+  if (useBuiltin) {
+    const kind = template === 'inpaint' || template === 'img2img' ? template : (opts.mask ? 'inpaint' : 'img2img');
+    const imageName = await uploadImage(dataUrl, 'repaint-view.png');
+    const maskSource = opts.mask || (kind === 'inpaint' ? await solidMask(dataUrl) : '');
+    const maskName = maskSource ? await uploadImage(maskSource, 'repaint-mask.png') : '';
+    const seedInput = Number(document.getElementById('seed').value);
+    const args = {
+      checkpoint: document.getElementById('ckpt').value.trim() || 'v1-5-pruned-emaonly.safetensors',
+      prompt: prompt,
+      imageName: imageName,
+      maskName: maskName,
+      denoise: strength,
+      seed: Number.isFinite(seedInput) && seedInput >= 0 ? seedInput : Math.floor(Math.random() * 1000000000)
+    };
+    const workflow = kind === 'inpaint' ? engine.inpaintWorkflow(args) : engine.img2imgWorkflow(args);
+    const negative = document.getElementById('negative').value.trim();
+    if (negative && workflow['7'] && workflow['7'].inputs) workflow['7'].inputs.text = negative;
+    checkStopped();
+    const result = await ComfyTool.create().submit(workflow);
+    checkStopped();
+    if (!result.imageUrl) throw new Error('ComfyUI 没有返回图片');
+    return blobToDataUrl(await (await fetch(result.imageUrl)).blob());
+  }
+  if (selectedModel.workflow) {
+    const detail = await fetch('/api/workflows/' + selectedModel.workflow).then((response) => {
+      if (!response.ok) throw new Error('读取 ComfyUI 工作流失败');
+      return response.json();
+    });
+    const workflow = detail.workflow;
+    const imageName = await uploadImage(dataUrl, 'repaint-view.png');
+    const maskName = opts.mask ? await uploadImage(opts.mask, 'repaint-mask.png') : '';
+    Object.keys(workflow).forEach((id) => {
+      const node = workflow[id];
+      if (!node || !node.inputs) return;
+      if (node.class_type === 'LoadImage') node.inputs.image = imageName;
+      if (typeof node.inputs.text === 'string') node.inputs.text = prompt;
+      if (typeof node.inputs.prompt === 'string') node.inputs.prompt = prompt;
+      if (typeof node.inputs.denoise === 'number') node.inputs.denoise = strength;
+      if (maskName && typeof node.inputs.mask === 'string') node.inputs.mask = maskName;
+      if (maskName && typeof node.inputs.mask_image === 'string') node.inputs.mask_image = maskName;
+    });
+    checkStopped();
+    const result = await ComfyTool.create().submit(workflow);
+    checkStopped();
+    if (!result.imageUrl) throw new Error('ComfyUI 没有返回图片');
+    return blobToDataUrl(await (await fetch(result.imageUrl)).blob());
+  }
+  // 云端 generation_params 会严格校验未声明的 key，不能塞 strength / mask。
+  // 遮罩改由 alignToCapture 在引擎里做前端合成。
+  const created = await fetch('/api/canvas-image-tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt: prompt,
+      model: selectedModel.model,
+      size: '1024x1024',
+      protocol: selectedModel.protocol || 'openai',
+      provider_id: selectedModel.providerId,
+      reference_images: [{ url: dataUrl, name: 'view.png' }],
+      feature: 'texture-repaint'
+    })
+  });
+  const task = await created.json();
+  if (!created.ok || !task.task_id) throw new Error(task.detail || '创建生成任务失败');
+  const started = Date.now();
+  const timeout = 5 * 60 * 1000;
+  while (true) {
+    checkStopped();
+    if (Date.now() - started > timeout) throw new Error('生成超过 5 分钟，已停止等待（任务可能仍在后台）');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const response = await fetch('/api/canvas-image-tasks/' + encodeURIComponent(task.task_id));
+    const state = await response.json();
+    if (!response.ok) throw new Error(state.detail || '查询生成状态失败');
+    if (state.status === 'failed') throw new Error(state.error || '生成失败');
+    if (state.status === 'succeeded') {
+      const images = (state.result && state.result.images) || [];
+      if (!images.length) throw new Error('未返回图片');
+      return blobToDataUrl(await (await fetch(images[0])).blob());
+    }
+  }
+}
+
+function loadImg(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('图片读取失败'));
+    image.src = url;
+  });
+}
+async function solidMask(dataUrl) {
+  const image = await loadImg(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+function gridLayout(count) { return count === 4 ? [2, 2] : count === 6 ? [3, 2] : [3, 3]; }
+function downloadDataUrl(url, name) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+}
+async function exportGrid() {
+  const layers = engine.listLayers().filter((layer) => layer.kind === 'view').slice(0, gridCount);
+  if (!layers.length) throw new Error('还没有视角图层，先拍 4 / 6 / 9 视角');
+  const [cols, rows] = gridLayout(gridCount);
+  const cell = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = cols * cell;
+  canvas.height = rows * cell;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < layers.length; i += 1) {
+    const image = await loadImg(layers[i].image);
+    ctx.drawImage(image, (i % cols) * cell, Math.floor(i / cols) * cell, cell, cell);
+  }
+  downloadDataUrl(canvas.toDataURL('image/png'), 'repaint-' + gridCount + 'view-grid.png');
+  say('已导出 ' + layers.length + ' 格宫格图（' + cols + '×' + rows + '）。外部修图请保持格子顺序与物体轮廓。');
+}
+async function importGrid(file) {
+  const url = await blobToDataUrl(file);
+  const image = await loadImg(url);
+  const [cols, rows] = gridLayout(gridCount);
+  const layers = engine.listLayers().filter((layer) => layer.kind === 'view').slice(0, cols * rows);
+  if (!layers.length) throw new Error('先拍 ' + gridCount + ' 个视角图层，再导入宫格图');
+  const cw = Math.floor(image.naturalWidth / cols);
+  const ch = Math.floor(image.naturalHeight / rows);
+  for (let i = 0; i < layers.length; i += 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    canvas.getContext('2d').drawImage(image, (i % cols) * cw, Math.floor(i / cols) * ch, cw, ch, 0, 0, cw, ch);
+    engine.replaceImage(layers[i].id, canvas.toDataURL('image/png'));
+  }
+  await projectImage(null);
+  renderLayers();
+  say('已按 ' + cols + '×' + rows + ' 顺序替换 ' + layers.length + ' 个视角层并重新烘焙。');
+}
+document.getElementById('grid-export').onclick = () => { exportGrid().catch((error) => say(error.message || '宫格导出失败')); };
+document.getElementById('grid-import').onclick = () => document.getElementById('grid-file').click();
+document.getElementById('grid-file').onchange = (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (file) importGrid(file).catch((error) => say(error.message || '宫格导入失败'));
+};
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('读取图片失败'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function keepShots(shots) {
+  for (const shot of shots) {
+    const added = await engine.useImage(shot.viewId, shot.image, 'view');
+    selectedLayerId = added.id;
+  }
+  await projectImage(null);
+  renderLayers();
+}
+document.getElementById('shot-current').onclick = async () => {
+  const button = document.getElementById('shot-current');
+  button.disabled = true;
+  try {
+    say('正在按当前角度拍摄…');
+    await ensureModel();
+    const pose = await askViewer('query-camera');
+    const count = engine.listLayers().filter((layer) => layer.name.indexOf('自定义角度') === 0).length + 1;
+    const captured = await engine.capture({ ...pose, name: '自定义角度 ' + count });
+    await keepShots([captured]);
+    say(captured.name + ' 已单独写入图层，并烘进颜色贴图。之后可以选中这一层再重绘。');
+  } catch (error) {
+    say(error.message || '当前角度拍摄失败');
+  } finally {
+    button.disabled = false;
+  }
+};
+document.getElementById('grids').onclick = async (event) => {
+  const count = Number(event.target.dataset.grid);
+  if (!count) return;
+  gridCount = count;
+  document.querySelectorAll('#grids button').forEach((button) => button.classList.toggle('on', Number(button.dataset.grid) === count));
+  const label = count + ' 个视角';
+  try {
+    say('正在拍摄 ' + label + '…');
+    await ensureModel();
+    const shots = await engine.captureBatch(count);
+    await keepShots(shots);
+    say('已建立 ' + shots.length + ' 个视角图层（只拍摄，还没生成）。接着点「重绘全部视角」，或选中单层单独重绘。');
+  } catch (error) {
+    say(error.message || '宫格拍摄失败');
+  }
+};
+let pending = null;
+function clearPending() {
+  pending = null;
+  document.getElementById('result').classList.remove('show');
+}
+function showPending(image, label, accept, regenerate) {
+  pending = { image: image, accept: accept, regenerate: regenerate };
+  document.getElementById('result-img').src = image;
+  document.getElementById('result').classList.add('show');
+  say('已生成 ' + label + '：采用会替换原图，重抽再来一张，并存新层会同时保留两版。');
+}
+document.getElementById('result-accept').onclick = async () => {
+  if (!pending) return;
+  const item = pending;
+  clearPending();
+  try { await item.accept(false); say('已采用生成结果。'); } catch (error) { say(error.message || '采用失败'); }
+};
+document.getElementById('result-keep').onclick = async () => {
+  if (!pending) return;
+  const item = pending;
+  clearPending();
+  try { await item.accept(true); say('已作为新图层并存，原图层保留。'); } catch (error) { say(error.message || '并存失败'); }
+};
+document.getElementById('result-discard').onclick = () => { clearPending(); say('已丢弃本次生成结果。'); };
+document.getElementById('result-retry').onclick = async () => {
+  if (!pending || !pending.regenerate) return;
+  const regenerate = pending.regenerate;
+  clearPending();
+  say('正在重新生成…');
+  try { await regenerate(); } catch (error) { say(error.cancelled ? '已停止' : (error.message || '重抽失败')); }
+};
+function setProgress(text, ratio) {
+  document.getElementById('progress').classList.add('show');
+  document.getElementById('progress-fill').style.width = Math.round(Math.max(0, Math.min(1, ratio || 0)) * 100) + '%';
+  document.getElementById('progress-text').textContent = text;
+}
+function hideProgress() {
+  document.getElementById('progress').classList.remove('show');
+  document.getElementById('stop').hidden = true;
+}
+document.getElementById('stop').onclick = () => {
+  if (activeJob) { activeJob.cancelled = true; say('正在停止，当前这张跑完就停…'); }
+};
+
+document.getElementById('angle').onclick = async () => {
+  const button = document.getElementById('angle');
+  button.disabled = true;
+  try {
+    await ensureModel();
+    const pose = await askViewer('query-camera');
+    const count = engine.listLayers().filter((layer) => layer.name.indexOf('当前角度') === 0).length + 1;
+    const name = '当前角度 ' + count;
+    const captured = await engine.capture({ ...pose, name: name });
+    say('正在按当前角度重绘…');
+    const generate = async () => {
+      const image = await engine.alignToCapture(captured.viewId, await runWorkflow(captured.image));
+      showPending(image, name, async () => {
+        await engine.useImage(captured.viewId, image, 'view');
+        await projectImage(null);
+        renderLayers();
+      }, generate);
+    };
+    await generate();
+  } catch (error) {
+    say(error.cancelled ? '已停止' : (error.message || '当前角度重绘失败'));
+  } finally {
+    button.disabled = false;
+  }
+};
+
+document.getElementById('current').onclick = async () => {
+  const button = document.getElementById('current');
+  button.disabled = true;
+  try {
+    await ensureModel();
+    const layers = engine.listLayers();
+    const layer = layers.find((item) => item.id === selectedLayerId) || layers[layers.length - 1];
+    if (!layer) throw new Error('先拍当前角度，或拍 4 / 6 / 9 视角');
+    selectedLayerId = layer.id;
+    say('正在重绘 ' + layer.name + '…');
+    const generate = async () => {
+      const image = await engine.alignToCapture(layer.viewId, await runWorkflow(layer.image));
+      showPending(image, layer.name, async (keep) => {
+        if (keep) await engine.useImage(layer.viewId, image, 'view');
+        else engine.replaceImage(layer.id, image);
+        await projectImage(null);
+        renderLayers();
+      }, generate);
+    };
+    await generate();
+  } catch (error) {
+    say(error.cancelled ? '已停止' : (error.message || '选中图层重绘失败'));
+  } finally {
+    button.disabled = false;
+  }
+};
+document.getElementById('panorama').onclick = async () => {
+  const button = document.getElementById('panorama');
+  button.disabled = true;
+  const job = { cancelled: false };
+  activeJob = job;
+  document.getElementById('stop').hidden = false;
+  let done = 0;
+  const failed = [];
+  const results = [];
+  try {
+    await ensureModel();
+    const layers = engine.listLayers().filter((layer) => layer.kind === 'view');
+    if (!layers.length) throw new Error('还没有视角图层。先拍 4 / 6 / 9 视角。');
+    for (let index = 0; index < layers.length; index += 1) {
+      if (job.cancelled) break;
+      const layer = layers[index];
+      const text = '重绘 ' + (index + 1) + '/' + layers.length + ' · ' + layer.name;
+      setProgress(text, index / layers.length);
+      say(text);
+      try {
+        const image = await engine.alignToCapture(layer.viewId, await runWorkflow(layer.image));
+        results.push({ id: layer.id, image: image });
+        done += 1;
+      } catch (error) {
+        if (error.cancelled || job.cancelled) break;
+        failed.push(layer.name + '：' + (error.message || '失败'));
+      }
+      setProgress(text, (index + 1) / layers.length);
+    }
+    if (job.cancelled) {
+      say('已停止：整批未提交，已生成的 ' + done + ' 张丢弃，旧图层不变。');
+    } else if (failed.length) {
+      say('本批 ' + failed.length + ' 张失败 → 整批未提交，旧图层不变：' + failed.join('；'));
+    } else {
+      results.forEach((item) => engine.replaceImage(item.id, item.image));
+      await projectImage(null);
+      renderLayers();
+      say('完成：' + done + '/' + layers.length + ' 张已整批提交。');
+    }
+  } catch (error) {
+    say(error.message || '批量重绘失败');
+  } finally {
+    activeJob = null;
+    hideProgress();
+    button.disabled = false;
+  }
+};
+
+let painting = false;
+document.getElementById('paint').onclick = () => {
+  painting = !painting;
+  const button = document.getElementById('paint');
+  button.textContent = painting ? '结束涂抹' : '在模型表面涂抹';
+  document.getElementById('paint-apply').hidden = !painting;
+  document.getElementById('paint-apply').disabled = !painting;
+  view.contentWindow.postMessage({ type: 'paint-mode', enabled: painting, erase: false, radius: Number(document.getElementById('brush').value) || 28 }, '*');
+  say(painting ? '在模型表面上拖动涂抹。空白处不会上色。' : '涂抹已关闭。');
+};
+document.getElementById('brush').oninput = () => {
+  if (!painting) return;
+  view.contentWindow.postMessage({ type: 'paint-mode', enabled: true, radius: Number(document.getElementById('brush').value) || 28 }, '*');
+};
+document.getElementById('paint-apply').onclick = async () => {
+  try {
+    say('正在把涂抹投回 UV…');
+    await ensureModel();
+    const mask = await askViewer('paint-export');
+    const captured = await engine.capture({ position: mask.position, target: mask.target, fov: mask.fov, aspect: mask.aspect, width: mask.width, height: mask.height, name: '局部重绘' });
+    const image = await engine.alignToCapture(captured.viewId, await runWorkflow(captured.image, { mask: mask.image }), mask.image);
+    const added = await engine.useImage(captured.viewId, image, 'inpaint');
+    const uv = await engine.projectSurfaceMask(captured.viewId, mask.image);
+    await engine.setMask(added.id, uv);
+    await projectImage(null);
+    renderLayers();
+    say('涂抹区域已作为带遮罩的图层回投。');
+  } catch (error) {
+    say(error.message || '涂抹回投失败');
+  }
+};
+
+const maskCanvas = document.getElementById('mask');
+maskCanvas.width = 256; maskCanvas.height = 128;
+let maskLayer = '';
+let maskDrawing = false;
+maskCanvas.onpointerdown = (event) => { maskDrawing = true; drawMask(event); };
+maskCanvas.onpointermove = (event) => { if (maskDrawing) drawMask(event); };
+maskCanvas.onpointerup = async () => {
+  maskDrawing = false;
+  if (!maskLayer) return;
+  await engine.setMask(maskLayer, maskCanvas.toDataURL('image/png'));
+  await projectImage(null);
+  renderLayers();
+};
+function drawMask(event) {
+  const rect = maskCanvas.getBoundingClientRect();
+  const ctx = maskCanvas.getContext('2d');
+  ctx.fillStyle = event.shiftKey ? '#000' : '#fff';
+  ctx.beginPath();
+  ctx.arc((event.clientX - rect.left) / rect.width * maskCanvas.width, (event.clientY - rect.top) / rect.height * maskCanvas.height, 8, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+async function projectImage(dataUrl) {
+  say('正在投影到 UV…');
+  if (dataUrl) await engine.useImage(viewId, dataUrl, 'view');
+  const result = await engine.bake();
+  baked = result.albedo;
+  albedo.src = baked;
+  albedo.hidden = false;
+  document.getElementById('export').disabled = false;
+  const blob = await (await fetch(baked)).blob();
+  const partName = partSelect.selectedOptions[0] ? partSelect.selectedOptions[0].textContent : '';
+  view.contentWindow.postMessage({ type: 'apply-material', maps: { basecolor: blob }, geometry: 'model', repeat: 1, meshName: partName }, '*');
+  const metrics = result.metrics;
+  document.getElementById('metrics').textContent = metrics
+    ? '覆盖 ' + Math.round(metrics.coveragePercent) + '% · 置信 ' + Math.round(metrics.confidenceScore)
+      + ' · 一致 ' + Math.round(metrics.consistencyScore) + ' · 接缝 ' + Math.round(metrics.seamScore)
+      + ' · 拉伸 ' + Math.round(metrics.stretchScore) + '（分数为启发式参考）'
+    : '覆盖率 ' + Math.round(result.coverage) + '%';
+  say('已套回预览。');
+}
+
+document.getElementById('export').onclick = () => downloadDataUrl(baked, 'repaint-albedo.png');
+
+function needEngine(method) {
+  if (!engine || typeof engine[method] !== 'function') {
+    say('引擎不支持 ' + method + '，请 Ctrl+F5 硬刷新（引擎已重新编译）。');
+    return false;
+  }
+  return true;
+}
+document.getElementById('apply-settings').onclick = async () => {
+  if (!needEngine('setSettings')) return;
+  engine.setSettings({
+    resolution: Number(document.getElementById('set-resolution').value),
+    viewResolution: Number(document.getElementById('set-view').value),
+    dilationPadding: Number(document.getElementById('set-dilation').value),
+    holeFilling: document.getElementById('set-hole').checked,
+    blendSeams: document.getElementById('set-seams').checked,
+    detailPreservation: document.getElementById('set-detail').checked
+  });
+  say('设置已应用，正在按新分辨率重烘焙…');
+  try { await projectImage(null); } catch (error) { say(error.message || '重烘焙失败'); }
+};
+document.getElementById('export-maps').onclick = async () => {
+  if (!needEngine('getMap')) return;
+  const maps = engine.listMaps();
+  if (!maps.length) { say('先烘焙贴图再导出贴图集'); return; }
+  for (const name of maps) {
+    downloadDataUrl(engine.getMap(name), 'repaint-' + name + '.png');
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+  say('已导出 ' + maps.length + ' 张贴图（浏览器可能要求允许多文件下载）。');
+};
+document.getElementById('export-glb').onclick = async () => {
+  if (!needEngine('exportGLB')) return;
+  say('正在构建 GLB…');
+  try {
+    const out = await engine.exportGLB();
+    const url = URL.createObjectURL(out.blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = out.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    say('已导出 ' + out.name + '（请在 DCC 中复核尺度与法线约定）。');
+  } catch (error) { say(error.message || 'GLB 导出失败'); }
+};
+</script>
+</body>
+</html>

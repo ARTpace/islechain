@@ -31,17 +31,17 @@
     {
       "id": "group-game",
       "name": "游戏"
+    },
+    {
+      "id": "group-scene-design",
+      "name": "场景设计"
     }
   ],
   "preset_order": [
     "default",
-    "h3-video",
-    "ideogram4",
-    "preset-mqgfmr6l",
     "preset-mqw2nd1o",
     "preset-anime01",
     "preset-real01",
-    "preset-port01",
     "preset-land01",
     "preset-fant01",
     "preset-conc01",
@@ -55,7 +55,11 @@
     "preset-ms4duxys",
     "preset-ms4faz1c",
     "preset-msqwiky3",
-    "preset-mszo5r1v"
+    "preset-scene-concept",
+    "preset-scene-nine-grid",
+    "preset-scene-ground",
+    "preset-scene-ground-cleanup",
+    "preset-scene-local-edit"
   ],
   "selected_preset_id": "preset-ms4duxys"
 }

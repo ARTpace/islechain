@@ -1,0 +1,265 @@
+/* 统一模型选择菜单（画布节点 + 文生图页共用）
+ *
+ * 设计约束：
+ *   1) 一套 class 通吃两个宿主，宿主差异只走 CSS 变量映射
+ *   2) 画布宿主提供 --text/--muted/--soft/--line/--card-solid
+ *      文生图宿主提供 --ui-text/--ui-muted/--ui-soft/--ui-line/--ui-panel/--ui-accent
+ *   3) 分组标题 sticky 必须有**不透明**底色，否则滚动时内容会从底下透出来
+ */
+
+.mp-menu {
+    --mp-text: var(--ui-text, var(--text, #e8e8e4));
+    --mp-muted: var(--ui-muted, var(--muted, #9a9a94));
+    --mp-line: var(--ui-line, var(--line, rgba(255, 255, 255, .14)));
+    --mp-soft: var(--ui-soft, var(--soft, rgba(255, 255, 255, .06)));
+    --mp-accent: var(--ui-accent, #00f0ff);
+    --mp-group-bg: var(--ui-panel, var(--card-solid, #242422));
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* 必须有高度上限，否则内部 .mp-list 不滚动、菜单会撑到视口外（曾出现 y=-831） */
+    max-height: min(480px, calc(100vh - 48px));
+    color: var(--mp-text);
+    font: inherit;
+}
+
+/* 搜索行 */
+.mp-search-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 2px;
+}
+
+.mp-search {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--mp-line);
+    border-radius: 8px;
+    background: var(--mp-soft);
+    color: inherit;
+    font: inherit;
+    outline: none;
+}
+
+.mp-search::placeholder { color: var(--mp-muted); }
+.mp-search:focus { border-color: var(--mp-accent); }
+
+.mp-refresh {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--mp-line);
+    border-radius: 8px;
+    background: var(--mp-soft);
+    color: var(--mp-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.mp-refresh:hover:not(:disabled) { color: var(--mp-accent); border-color: var(--mp-accent); }
+.mp-refresh:disabled { opacity: .5; cursor: default; }
+
+/* 列表 */
+.mp-list {
+    overflow: auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+    padding: 2px;
+}
+
+.mp-group {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border-left: 3px solid var(--mp-accent);
+    background: var(--mp-group-bg);
+    color: var(--mp-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.mp-group:first-child { margin-top: 2px; }
+
+.mp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    margin: 2px 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mp-row:hover { background: var(--mp-soft); }
+
+.mp-row.is-active {
+    background: color-mix(in srgb, var(--mp-accent) 14%, transparent);
+    color: var(--mp-accent);
+}
+
+.mp-row.is-disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.mp-row.is-disabled:hover { background: transparent; }
+
+.mp-row-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 当前档位（只有多档模型且非默认档时出现） */
+.mp-tier {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mp-accent) 16%, transparent);
+    color: var(--mp-accent);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+/* 可切换档位：档位标签本身就是按钮，点开就地选档 */
+.mp-tier.is-switch {
+    margin: 0;
+    border: 1px solid color-mix(in srgb, var(--mp-accent) 40%, transparent);
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.mp-tier.is-switch::after {
+    content: ' ▾';
+    font-size: 9px;
+    opacity: .8;
+}
+
+.mp-tier.is-switch:hover {
+    background: color-mix(in srgb, var(--mp-accent) 28%, transparent);
+}
+
+/* 档位子项：收起时不占位 */
+.mp-subrows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 10px 8px 10px;
+}
+
+.mp-subrows[hidden] { display: none; }
+
+.mp-subrow {
+    padding: 3px 10px;
+    border: 1px solid var(--mp-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--mp-muted);
+    font: inherit;
+    font-size: 11px;
+    line-height: 16px;
+    cursor: pointer;
+}
+
+.mp-subrow:hover { color: var(--mp-text); border-color: var(--mp-accent); }
+
+.mp-subrow.is-active {
+    border-color: var(--mp-accent);
+    background: color-mix(in srgb, var(--mp-accent) 16%, transparent);
+    color: var(--mp-accent);
+    font-weight: 600;
+}
+
+/* 行尾徽章（最大分辨率 / 参数未获取等） */
+.mp-badge {
+    flex: none;
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--mp-soft);
+    color: var(--mp-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+/* ComfyUI 未运行：本地模型保留可见但不可选 */
+.mp-badge.is-offline {
+    background: rgba(220, 38, 38, .12);
+    color: #dc2626;
+}
+
+/* 行内齿轮：默认收起，hover/聚焦才展开 */
+.mp-settings {
+    flex: none;
+    width: 0;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    cursor: pointer;
+}
+
+.mp-row:hover .mp-settings,
+.mp-row:focus-within .mp-settings {
+    width: 22px;
+    margin-left: 2px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mp-settings:hover { background: var(--mp-soft); color: var(--mp-accent); }
+
+.mp-check {
+    flex: none;
+    width: 12px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.mp-empty {
+    padding: 18px 10px;
+    color: var(--mp-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+/* 深色宿主下的分组底色兜底（两种主题变量缺失时） */
+.mp-menu[data-mp-host="studio"] { --mp-group-bg: var(--ui-panel, #292926); }
+.mp-menu[data-mp-host="canvas"] { --mp-group-bg: var(--card-solid, #242422); }

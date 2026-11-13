@@ -9,7 +9,19 @@
 
 var loginForm = document.getElementById('loginForm');
 var loginBtn = document.getElementById('loginBtn');
-var registerBtn = document.getElementById('registerBtn');
+var rememberMe = document.getElementById('rememberMe');
+var forgotPassword = document.getElementById('forgotPassword');
+
+/* 前端仅记住账号；不保存密码，也不改变现有令牌的存储契约。 */
+try {
+    var savedUsername = window.localStorage.getItem('xy_login_username');
+    if (savedUsername) document.getElementById('username').value = savedUsername;
+} catch (e) { /* 存储被浏览器禁用时仍允许登录。 */ }
+rememberMe.addEventListener('change', function () {
+    if (!rememberMe.checked) {
+        try { window.localStorage.removeItem('xy_login_username'); } catch (e) { /* 不阻断输入。 */ }
+    }
+});
 var loginError = document.getElementById('loginError');
 var usernameInput = document.getElementById('username');
 var passwordInput = document.getElementById('password');
@@ -36,10 +48,14 @@ function hideError() {
 function setBusy(busy) {
     loginBtn.classList.toggle('is-busy', busy);
     loginBtn.disabled = busy;
-    registerBtn.disabled = busy;
+    forgotPassword.disabled = busy;
     loginBtn.setAttribute('aria-busy', busy ? 'true' : 'false');
 }
 function enterApp(data) {
+    try {
+        if (rememberMe.checked) window.localStorage.setItem('xy_login_username', usernameInput.value.trim());
+        else window.localStorage.removeItem('xy_login_username');
+    } catch (e) { /* 记住账号失败不阻断登录。 */ }
     window.localStorage.setItem('xy_auth_token', data.token);
     window.localStorage.setItem('xy_auth_user', JSON.stringify({ username: data.username, is_admin: data.is_admin }));
     window.location.href = '/static/index.html';
@@ -72,13 +88,15 @@ async function submitAuth(path, label) {
 }
 
 function doLogin() { return submitAuth('/api/auth/login', '登录'); }
-function doRegister() { return submitAuth('/api/auth/register', '注册'); }
+
 
 loginForm.addEventListener('submit', function (e) {
     e.preventDefault();
     doLogin();
 });
-registerBtn.addEventListener('click', doRegister);
+forgotPassword.addEventListener('click', function () {
+    showError('密码找回暂未接入，请联系管理员重置密码。');
+});
 
 /* 开始修正输入时立刻收起错误，不打断输入 */
 [usernameInput, passwordInput].forEach(function (el) {

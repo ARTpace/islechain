@@ -2,9 +2,15 @@
   "name": "art-canvas-desktop",
   "private": true,
   "version": "1.0.0",
-  "description": "ArtCanvas 桌面安装包（Tauri + NSIS）",
+  "description": "IsleChain 桌面安装包（Tauri + NSIS）",
   "scripts": {
     "tauri": "tauri",
+    "dev": "node scripts/dev.mjs",
+    "dev:overlay": "node scripts/dev.mjs --overlay",
+    "dev:server": "node scripts/dev.mjs --server-only",
+    "shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcuts.ps1",
+    "launcher": "node scripts/build-launcher.mjs",
+    "icons": "python scripts/gen-icons.py",
     "prebuild": "node scripts/clean-bundle-resources.mjs",
     "build": "tauri build"
   },

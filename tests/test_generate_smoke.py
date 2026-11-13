@@ -344,7 +344,9 @@ def test_generate_end_to_end(app_env):
 
 
 @pytest.mark.parametrize("feature, expected", [("", "online"), ("  zimage  ", "zimage")])
-def test_online_image_result_feature(monkeypatch, feature, expected):
+@pytest.mark.parametrize("with_reference", [False, True])
+@pytest.mark.parametrize("as_chat_task", [False, True])
+def test_online_image_result_feature(monkeypatch, feature, expected, with_reference, as_chat_task):
     """成功落盘后必须正常返回，结果分类与落盘分类一致。"""
     import asyncio
 
@@ -354,7 +356,12 @@ def test_online_image_result_feature(monkeypatch, feature, expected):
         "image_models": ["test-image"], "protocol": "openai",
     })
 
-    async def generate(*args, **kwargs):
+    refs = [{"url": "/output/reference.png", "name": "参考图"}] if with_reference else []
+
+    async def generate(prompt, size, quality, model, references, **kwargs):
+        assert model == "gpt-image-2.5"
+        assert size == "2048x1536"
+        assert references == refs
         return {"type": "base64", "value": "mock"}, {}
 
     async def save(image, **kwargs):
@@ -363,8 +370,20 @@ def test_online_image_result_feature(monkeypatch, feature, expected):
 
     monkeypatch.setattr(main, "generate_ai_image", generate)
     monkeypatch.setattr(main, "save_ai_image_to_output", save)
-    result = asyncio.run(main.build_online_image_result(
-        main.OnlineImageRequest(prompt="test", feature=feature), username="test-user"))
+    payload = main.OnlineImageRequest(prompt="test", feature=feature,
+        model="gpt-image-2.5", size="2048x1536", reference_images=refs)
+    if as_chat_task:
+        tasks = _import_router_module("canvas_tasks")
+        monkeypatch.setattr(main, "CANVAS_TASKS", {"test": {"status": "queued"}})
+        finished = []
+        monkeypatch.setattr(main, "finish_chat_generation", lambda *args, **kwargs: finished.append((args, kwargs)))
+        asyncio.run(tasks.run_canvas_image_task("test", payload, username="test-user", user_id="test-user"))
+        assert main.CANVAS_TASKS["test"]["status"] == "succeeded"
+        assert finished[0][0][2] == ["/output/mock.png"]
+        assert "error" not in finished[0][1]
+        result = main.CANVAS_TASKS["test"]["result"]
+    else:
+        result = asyncio.run(main.build_online_image_result(payload, username="test-user"))
     assert result["images"] == ["/output/mock.png"]
     assert result["type"] == expected
     assert saved[0]["feature"] == expected

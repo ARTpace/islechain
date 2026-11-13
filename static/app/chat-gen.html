@@ -6,9 +6,10 @@
 <title>对话生图</title>
 <script src="/static/modules/auth-token.js"></script>
 <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261102look"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
 <script src="/static/js/ui-refine.js?v=20261024001"></script>
-<link rel="stylesheet" href="/static/css/studio-ui.css">
+<link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 <style>
 /* 统一双主题：浅色默认，深色随 .studio-theme-dark 自动切换（对齐 studio-ui.css token） */
 :root {
@@ -40,7 +41,7 @@ html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
   background:var(--panel); color:var(--muted); font-size:12px; font-weight:700; cursor:pointer;
   display:inline-flex; align-items:center; gap:6px; transition:all .15s var(--ease); }
 .topbar .tbtn:hover { color:var(--text); border-color:var(--accent); }
-.topbar .tbtn.danger:hover { color:#cfcdc4; border-color:#f87171; }
+.topbar .tbtn.danger:hover { color:var(--ui-text); border-color:#f87171; }
 .topbar .tbtn.stop { color:var(--accent-ink); background:linear-gradient(135deg,var(--accent-glow),var(--accent));
   border-color:transparent; display:none; }
 .topbar .tbtn.stop.show { display:inline-flex; }
@@ -71,7 +72,7 @@ html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
   background:var(--panel); color:var(--muted); font-size:12px; font-weight:700; cursor:pointer;
   transition:all .15s var(--ease); }
 .ops button:hover { color:var(--text); border-color:var(--accent); }
-.err { color:#cfcdc4; font-size:13px; display:flex; align-items:center; gap:6px; }
+.err { color:var(--ui-text); font-size:13px; display:flex; align-items:center; gap:6px; }
 
 /* 生成中占位：流光 */
 .pending { width:240px; height:300px; border-radius:12px; position:relative; overflow:hidden;
@@ -91,7 +92,7 @@ html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
 .refchip { position:relative; width:54px; height:54px; border-radius:12px; overflow:hidden; border:1px solid var(--line); flex:0 0 auto; }
 .refchip img { width:100%; height:100%; object-fit:cover; }
 .refchip button { position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%;
-  border:0; background:rgba(11, 11, 10, .8); color:#fbfaf9; font-size:12px; line-height:18px; cursor:pointer; display:none; }
+  border:0; background:rgba(11, 11, 10, .8); color:var(--ui-text); font-size:12px; line-height:18px; cursor:pointer; display:none; }
 .refchip:hover button { display:block; }
 .composer textarea { width:100%; min-height:44px; max-height:150px; resize:none; border:0; outline:none;
   background:transparent; color:var(--text); font:14px/1.55 inherit; padding:4px 4px; }
@@ -128,6 +129,7 @@ body { overflow-x: hidden; }
 }
 img, .asst img.result { max-width: 100%; height: auto; }
 </style>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body>
 <div class="page">

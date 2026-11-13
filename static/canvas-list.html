@@ -6,6 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>项目工作台</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -18,12 +19,12 @@
         })();
     </script>
     <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script src="/static/js/theme.js?v=20261102look"></script>
+
     <script src="/static/js/touch-mouse.js?v=20261024001"></script>
     <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/canvas-list.css?v=20261102kinds">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/theme.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/canvas-list.css?v=20261111005">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/theme.css?v=20261108011">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -81,8 +82,11 @@
                 </div>
                 <div class="ws-topbar-right">
                     <button id="pasteCanvasBtn" class="ws-paste-btn" type="button" title="粘贴到此项目" style="display:none"><i data-lucide="clipboard-paste" class="w-4 h-4"></i><span>粘贴到此项目</span></button>
+                    <button id="boardArrange" class="ws-icon-btn" type="button" title="按更新时间整理" aria-label="按更新时间整理"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
                     <button id="boardResetView" class="ws-icon-btn" type="button" title="重置视图" aria-label="重置视图"><i data-lucide="locate-fixed" class="w-4 h-4"></i></button>
                     <button id="boardRefresh" class="ws-icon-btn" type="button" title="刷新" aria-label="刷新"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                    <input id="importBundleInput" type="file" accept=".zip,application/zip" hidden>
+                    <button id="importBundleBtn" class="ws-icon-btn" type="button" title="导入画布资源包" aria-label="导入画布资源包"><i data-lucide="upload" class="w-4 h-4"></i></button>
                     <button id="newCanvasBtn" class="ws-primary-btn" type="button"><i data-lucide="plus" class="w-4 h-4"></i><span>新建画布</span></button>
                 </div>
             </div>
@@ -93,10 +97,7 @@
                 <div id="boardEmptyHint" class="ws-board-empty">
                     <div class="ws-board-empty-icon"><i data-lucide="mouse-pointer-click" class="w-7 h-7"></i></div>
                     <div class="ws-board-empty-text">暂无画布</div>
-                    <div class="ws-board-empty-sub">为当前项目创建第一块画布</div>
-                    <div class="ws-board-empty-actions">
-                        <button id="emptyCreateCanvasBtn" class="ws-primary-btn" type="button"><i data-lucide="plus" class="w-4 h-4"></i><span>新建画布</span></button>
-                    </div>
+                    <div class="ws-board-empty-sub">点击右上角“新建画布”开始创作</div>
                 </div>
             </div>
 
@@ -130,6 +131,6 @@
             <div id="boardStatus" class="ws-status"></div>
         </main>
     </div>
-    <script src="/static/js/canvas-list.js?v=20261102kinds"></script>
+    <script src="/static/js/canvas-list.js?v=20261112007"></script>
 </body>
 </html>

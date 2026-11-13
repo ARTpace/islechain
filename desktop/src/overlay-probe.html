@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Overlay Probe</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    font: 13px/1.6 "Segoe UI", system-ui, sans-serif;
+    color: #1b1b19;
+    user-select: none;
+  }
+  .card {
+    position: absolute;
+    box-sizing: border-box;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(0, 0, 0, .14);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+  }
+  .card-a { left: 120px; top: 160px; width: 280px; height: 180px; }
+  .card-b { left: 460px; top: 340px; width: 320px; height: 220px; }
+  h2 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+  p { margin: 0 0 10px; color: #5f5e5a; font-size: 12px; }
+  button {
+    font: inherit; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, .16); background: #fff;
+  }
+  button:active { background: #eee; }
+  .count { font-weight: 600; color: #185fa5; }
+  .diag { margin-top: 10px; font-size: 11px; color: #888780; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+  <div class="card card-a">
+    <h2>卡片 A · 区域内</h2>
+    <p>这里的按钮应该能点，画布拖动应正常。</p>
+    <button id="a">点我 +1</button>
+    <span class="count" id="ac">0</span>
+    <div class="diag" id="diag"></div>
+  </div>
+
+  <div class="card card-b">
+    <h2>卡片 B · 区域内</h2>
+    <p>拖动这张卡片试试：鼠标滑出卡片时拖动不该中断。</p>
+    <button id="b">点我 +1</button>
+    <span class="count" id="bc">0</span>
+  </div>
+
+<script>
+  const state = { a: 0, b: 0 };
+  const bump = (key) => {
+    state[key] += 1;
+    document.getElementById(key + 'c').textContent = state[key];
+  };
+  document.getElementById('a').addEventListener('click', () => bump('a'));
+  document.getElementById('b').addEventListener('click', () => bump('b'));
+
+  const info = [
+    'dpr=' + window.devicePixelRatio,
+    'viewport=' + window.innerWidth + 'x' + window.innerHeight,
+    'tauri=' + (window.__TAURI__ ? 'yes' : 'no'),
+  ];
+  document.getElementById('diag').textContent = info.join('  ');
+
+  // 卡片 B 随鼠标拖动（验证拖拽越界与区域更新）
+  const cardB = document.querySelector('.card-b');
+  let drag = null;
+  cardB.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    const r = cardB.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!drag) return;
+    cardB.style.left = (e.clientX - drag.dx) + 'px';
+    cardB.style.top = (e.clientY - drag.dy) + 'px';
+  });
+  window.addEventListener('mouseup', () => { drag = null; });
+
+  console.log('[probe] ready', info.join(' | '));
+</script>
+</body>
+</html>

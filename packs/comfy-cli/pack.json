@@ -1,0 +1,44 @@
+{
+  "formatVersion": 1,
+  "id": "comfy-cli",
+  "version": "1.0.0",
+  "displayName": "ComfyUI 命令行",
+  "description": "把 comfy-cli 装进独立环境，让 AI 能查官方模板、校验工作流、定位参数槽位。只作 API 客户端使用，永远不会改动 ComfyUI 本体。",
+  "kind": "cli",
+  "install": {
+    "steps": [
+      {
+        "id": "venv",
+        "type": "venv",
+        "python": ">=3.10"
+      },
+      {
+        "id": "pkg",
+        "type": "pip",
+        "package": "comfy-cli",
+        "version": "1.5.2"
+      },
+      {
+        "id": "probe",
+        "type": "probe",
+        "argv": ["{venv}/Scripts/comfy.exe", "--version"]
+      }
+    ],
+    "uninstall": []
+  },
+  "cli": {
+    "executable": "{venv}/Scripts/comfy.exe",
+    "probe": ["--version"],
+    "allow": ["run", "validate", "templates", "workflow", "node", "model", "env", "which"],
+    "deny": ["install", "update", "launch", "stop", "set-default"],
+    "cwd": "{pack}",
+    "timeout": 180
+  },
+  "requires": {
+    "platforms": ["win32", "darwin", "linux"]
+  },
+  "skills": "./skills/",
+  "manual": [
+    "comfy 需要知道目标实例的地址；默认 127.0.0.1:8188，可用 --host/--port 指定"
+  ]
+}

@@ -2,6 +2,7 @@
 import base64
 import importlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Literal
@@ -329,10 +330,27 @@ def preview_job(project_id: Identifier, job_id: Identifier, token: str = ''):
     return preview_response(raw)
 
 
+@router.get('/material-preview')
+def material_preview(project_id: Identifier, token: str = ''):
+    """只有 PBR 材质、还没有模型时的预览页：空场景，等画布把贴图推过来再造球/方/平板。
+
+    和模型预览走同一个 viewer，所以右上角通道/帮助/全屏、左键旋转这些全都一样，
+    不会为了看材质另开一套渲染。
+    """
+    repository = projects.store()
+    with repository.locked():
+        # 读一次项目，鉴权口径与其它预览接口完全一致（不是自己的项目要 403）
+        repository.read(project_id, projects.identity(token))
+    return preview_response(None)
+
+
 def preview_response(raw):
     root = Path(__file__).resolve().parents[1]
     page = (root / 'templates/model3d/viewer.html').read_text('utf-8')
-    page = page.replace('/*__ENGINE__*/', (root / 'templates/game-web-3d/three-runtime.js').read_text('utf-8'))
-    page = page.replace('__MODEL_BASE64__', base64.b64encode(raw).decode())
+    # 引擎是压缩过的，里面会出现 `$&`（minified 变量名 `$` 紧跟 `&&`）。字符串式 replace 会把
+    # `$&` 当成「整段匹配」展开，直接改坏脚本，所以这里用 re.sub 的 callable 形式插入。
+    engine_source = (root / 'templates/game-web-3d/three-runtime.js').read_text('utf-8')
+    page = re.sub(r'/\*__ENGINE__\*/', lambda _match: engine_source, page, count=1)
+    page = re.sub(r'__MODEL_BASE64__', lambda _match: base64.b64encode(raw).decode() if raw else '', page, count=1)
     return Response(page, media_type='text/html', headers={'Cache-Control': 'private, no-store',
                     'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src data: blob:; worker-src blob:; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff'})

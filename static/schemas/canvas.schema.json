@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://art-canvas/schemas/canvas.schema.json",
+  "title": "Canvas",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "nodes",
+    "connections"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "icon": {
+      "type": "string",
+      "maxLength": 32
+    },
+    "owner": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "project": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "classic",
+        "smart",
+        "game"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "viewport": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
+    },
+    "logs": {
+      "type": "array",
+      "maxItems": 500
+    },
+    "created_at": {
+      "type": "integer"
+    },
+    "updated_at": {
+      "type": "integer"
+    },
+    "deleted_at": {
+      "type": "integer"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "type": {
+          "enum": [
+            "image",
+            "prompt",
+            "group",
+            "promptGroup",
+            "output",
+            "loop",
+            "imageGen",
+            "generator",
+            "blenderGen",
+            "comfy",
+            "msgen",
+            "rh",
+            "minimax",
+            "llm",
+            "video",
+            "ltxDirector",
+            "webapp",
+            "materialPbr",
+            "model3d",
+            "extension",
+            "document",
+            "gameIdea",
+            "gamePlan",
+            "gameAssets",
+            "gameTable",
+            "gameDevelop",
+            "gamePlay",
+            "gameTest",
+            "gameRelease",
+            "gameModelAsset",
+            "gameModel3d",
+            "gameAnimate3d",
+            "gameSpeech",
+            "gameSoundEffect",
+            "gameMusic",
+            "gameAudioScene",
+            "gameFile",
+            "gameFolder",
+            "gameScene"
+          ]
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "h": {
+          "type": "number",
+          "minimum": 0
+        },
+        "outputText": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "prompt"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "text"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "webapp"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "webMode"
+            ],
+            "properties": {
+              "webMode": {
+                "enum": [
+                  "url",
+                  "html"
+                ]
+              }
+            },
+            "anyOf": [
+              {
+                "required": [
+                  "webUrl"
+                ],
+                "properties": {
+                  "webMode": {
+                    "const": "url"
+                  },
+                  "webUrl": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              {
+                "required": [
+                  "webHtml"
+                ],
+                "properties": {
+                  "webMode": {
+                    "const": "html"
+                  },
+                  "webHtml": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "llm"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "imageVersions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "url"
+                  ],
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "video"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "extension"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "nodeDefinition": {
+                "type": [
+                  "object",
+                  "string"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "connection": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

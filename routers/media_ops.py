@@ -95,3 +95,60 @@ async def import_local_ai_reference(payload: _main.LocalImageImportRequest, requ
     if not requested:
         raise HTTPException(status_code=400, detail="没有可导入的本地图片")
     return {"files": [_main.import_local_image_file(_main.normalize_local_image_path(path)) for path in requested]}
+
+# --- 视频裁剪 API ---
+# 画布双击视频节点走这里；以后任何需要「取一段视频」的节点/面板都复用该端点，
+# 前端统一用 static/modules/video-trimmer.js。
+
+class MediaTrimRequest(_main.BaseModel):
+    url: str = ""
+    start: float = 0
+    end: float = 0
+    filename: str = ""
+
+
+@router.post("/api/media/trim")
+async def trim_media(payload: MediaTrimRequest):
+    """按时间区间裁剪本地素材，输出到 output 目录并返回新 url。"""
+    import shutil, subprocess, time
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise HTTPException(status_code=500, detail="未找到 ffmpeg，无法裁剪视频")
+    source = _main.output_file_from_url(payload.url)
+    if not source:
+        raise HTTPException(status_code=400, detail="裁剪只支持本地素材（/output 或 /assets 下的文件）")
+    start = max(0.0, float(payload.start or 0))
+    end = float(payload.end or 0)
+    if end and end - start < 0.05:
+        raise HTTPException(status_code=400, detail="选区太短，请重新选择起止时间")
+    stem = os.path.splitext(os.path.basename(source))[0]
+    default_name = f"{stem}-trim-{int(start)}-{int(end) if end else 0}.mp4"
+    filename = _main.sanitize_export_filename(payload.filename or default_name, default_name)
+    if not filename.lower().endswith(".mp4"):
+        filename += ".mp4"
+    output_path = _main.output_path_for(filename, "output")
+    if os.path.exists(output_path):
+        filename = _main.sanitize_export_filename(
+            f"{os.path.splitext(filename)[0]}-{time.strftime('%H%M%S')}.mp4", default_name
+        )
+        output_path = _main.output_path_for(filename, "output")
+    cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{start:.3f}", "-i", source]
+    if end > start:
+        cmd += ["-t", f"{end - start:.3f}"]
+    cmd += [
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-ac", "2",
+        "-movflags", "+faststart", output_path,
+    ]
+    proc = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=(proc.stderr or "视频裁剪失败").strip()[:300])
+    return {
+        "url": _main.output_url_for(filename, "output"),
+        "name": filename,
+        "kind": "video",
+        "start": start,
+        "end": end,
+        "duration": max(0.0, end - start) if end else None,
+    }

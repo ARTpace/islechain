@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const theme=fs.readFileSync('static/js/theme.js','utf8');
+const messages=[],listeners={},observers=[],frames=[],queue=[];
+const root={classList:{contains:()=>true}},body={};
+const frame={matches:s=>s==='iframe.m3d-viewer',contentWindow:{postMessage:message=>messages.push(message)}};
+const other={matches:()=>false};
+const document={documentElement:root,body,readyState:'complete',addEventListener:(name,fn)=>listeners[name]=fn,getElementById:()=>({}),querySelectorAll:()=>frames};
+const context={document,getComputedStyle:()=>({getPropertyValue:key=>key==='--ui-accent'?' #aacc88 ':' #202020 '}),requestAnimationFrame:fn=>{queue.push(fn);return 1;},MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}}};
+// 执行生产代码中的主题桥接，验证初始加载及切换时发送给限定预览。
+vm.runInNewContext(theme.slice(theme.indexOf('    const previewTokens='),theme.lastIndexOf('})();')),context);
+listeners.load({target:other});assert.equal(messages.length,0);
+listeners.load({target:frame});assert.equal(messages.length,1);assert.equal(messages[0].tokens['--ui-accent'],'#aacc88');
+frames.push(frame);queue.shift()();assert.equal(messages.length,2);
+observers[0]();observers[0]();assert.equal(queue.length,1);queue.shift()();assert.equal(messages.length,3);
+assert.equal(messages[2].dark,true);assert.equal(messages[2].type,'studio-preview-theme');
+const html=fs.readFileSync('templates/model3d/viewer.html','utf8');
+const receiver=html.match(/<script>([\s\S]*?studio-preview-theme[\s\S]*?)<\/script>/)[1];
+const parent={},style={setProperty:(key,value)=>style[key]=value};let receive;
+vm.runInNewContext(receiver,{parent,addEventListener:(_,fn)=>receive=fn,CSS:{supports:(_,value)=>/^#[0-9a-f]{6}$/i.test(value)},document:{documentElement:{style}}});
+const data={type:'studio-preview-theme',dark:false,tokens:{'--ui-panel':'#fafafa','--ui-text':'url(bad)','--scene-background':'#ffffff'}};
+receive({source:{},data});assert.equal(style['--ui-panel'],undefined);
+receive({source:parent,data});assert.equal(style['--ui-panel'],'#fafafa');assert.equal(style['--ui-text'],undefined);assert.equal(style['--scene-background'],undefined);assert.equal(style.colorScheme,'light');
+const css=fs.readFileSync('static/css/studio-ui.css','utf8');assert.match(css,/--bg-secondary:var\(--ui-panel\)/);assert.match(css,/--text-primary:var\(--ui-text\)/);
+assert.match(html,/scene\.background\s*=\s*new THREE\.Color\(0x0d1117\)/);
+console.log('Theme bridge: load, palette update, frame isolation and renderer preservation passed');

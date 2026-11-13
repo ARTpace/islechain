@@ -6,6 +6,7 @@
     <title>API 设置</title>
     <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -22,10 +23,10 @@
     </script>
     <script src="/static/vendor/tailwindcss-cdn.js?v=20261024001"></script>
     <script src="/static/lucide.min.js?v=20261024001"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+
     <script src="/static/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <style>
         /* 语义 token 统一映射到 studio-ui.css 契约（chrome 自动随深浅主题切换） */
         :root { --bg:var(--ui-bg); --panel:var(--ui-panel); --soft:var(--ui-soft); --line:var(--ui-line); --line-strong:var(--ui-line-strong); --text:var(--ui-text); --muted:var(--ui-muted); --faint:var(--ui-faint); --accent:var(--ui-accent); --accent-glow:var(--ui-accent-glow); --neon-cyan:var(--ui-accent); --neon-blue:var(--ui-accent-glow); }
@@ -66,17 +67,17 @@
         .provider-mark { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--soft); color:var(--muted); }
         .provider-card.active .provider-mark { background:var(--panel); color:var(--text); }
         /* RunningHub 蓝色 RH 标识 */
-        .provider-mark-rh { background:linear-gradient(135deg,#0e7490,#06b6d4) !important; color:#fbfaf9 !important; font-weight:900; box-shadow:0 1px 3px rgba(6, 182, 212, .4); }
+        .provider-mark-rh { background:linear-gradient(135deg,#0e7490,#06b6d4) !important; color:var(--ui-text) !important; font-weight:900; box-shadow:0 1px 3px rgba(6, 182, 212, .4); }
         .provider-mark-rh .provider-mark-text { font-size:11px; letter-spacing:.04em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
         /* 火山引擎: 橙色火山图标 */
-        .provider-mark-volc { background:linear-gradient(135deg,#f97316,#f43f5e) !important; color:#fbfaf9 !important; box-shadow:0 1px 3px rgba(249, 115, 22, .4); }
+        .provider-mark-volc { background:linear-gradient(135deg,#f97316,#f43f5e) !important; color:var(--ui-text) !important; box-shadow:0 1px 3px rgba(249, 115, 22, .4); }
         /* 即梦 CLI: 紫色 */
-        .provider-mark-jimeng { background:linear-gradient(135deg,#7c3aed,#a855f7) !important; color:#fbfaf9 !important; }
+        .provider-mark-jimeng { background:linear-gradient(135deg,#7c3aed,#a855f7) !important; color:var(--ui-text) !important; }
         /* Codex / Gemini CLI: 绿色 */
-        .provider-mark-cli { background:linear-gradient(135deg,#059669,#10b981) !important; color:#fbfaf9 !important; }
+        .provider-mark-cli { background:linear-gradient(135deg,#059669,#10b981) !important; color:var(--ui-text) !important; }
         /* CLI 标识标签 */
-        .provider-cli-tag { padding:2px 6px; border-radius:5px; background:rgba(124, 58, 237, .16); color:#7c3aed; font-size:9.5px; font-weight:900; letter-spacing:.04em; flex:0 0 auto; }
-        body.studio-theme-dark .provider-cli-tag { background:rgba(167, 139, 250, .2); color:#d2d0c7; }
+        .provider-cli-tag { padding:2px 6px; border-radius:5px; background:rgba(124, 58, 237, .16); color:var(--ui-accent); font-size:9.5px; font-weight:900; letter-spacing:.04em; flex:0 0 auto; }
+        body.studio-theme-dark .provider-cli-tag { background:rgba(167, 139, 250, .2); color:var(--ui-text); }
         .provider-card.is-off { opacity:.5; }
         .model-switch { position:relative; width:34px; height:20px; flex:0 0 auto; border-radius:999px; background:var(--line, #d5d3cb); cursor:pointer; }
         .provider-card-actions { display:flex; align-items:center; gap:6px; flex:0 0 auto; margin-left:auto; }
@@ -87,8 +88,8 @@
         .api-confirm-card { width:min(360px, 100%); padding:18px; border-radius:16px; background:var(--panel, #1c202a); border:1px solid var(--line, #343b4c); color:var(--text, #f3f3f0); box-shadow:0 18px 40px rgba(0,0,0,.35); }
         .api-confirm-text { font-size:15px; font-weight:700; line-height:1.5; }
         .api-confirm-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
-        .model-switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .18s ease; box-shadow:0 1px 2px rgba(0,0,0,.2); }
-        .model-switch.on { background:#06b6d4; }
+        .model-switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--ui-panel); transition:transform .18s ease; box-shadow:0 1px 2px rgba(0,0,0,.2); }
+        .model-switch.on { background:var(--ui-accent); }
         .model-switch.on::after { transform:translateX(14px); }
         .provider-card-banner img { height:24px; width:auto; max-width:100%; object-fit:contain; display:block; }
         .provider-card-banner .ms-icon-dark { display:none; }
@@ -103,11 +104,11 @@
         .provider-logo-fallback { display:none; font-weight:900; color:var(--text); }
         .provider-protocol-pill { padding:3px 8px; border-radius:6px; font-size:9.5px; font-weight:900; letter-spacing:.04em; background:rgba(23, 23, 22, .08); color:var(--muted); flex:0 0 auto; }
         body.studio-theme-dark .provider-protocol-pill,
-        html.studio-theme-dark body .provider-protocol-pill { background:rgba(255, 255, 255, .16); color:#eeede9; }
+        html.studio-theme-dark body .provider-protocol-pill { background:rgba(255, 255, 255, .16); color:var(--ui-text); }
         /* 选中态加深药丸背景 */
-        .provider-card.active .provider-protocol-pill { background:rgba(6, 182, 212, .2); color:#06b6d4; }
+        .provider-card.active .provider-protocol-pill { background:rgba(6, 182, 212, .2); color:var(--ui-accent); }
         body.studio-theme-dark .provider-card.active .provider-protocol-pill,
-        html.studio-theme-dark body .provider-card.active .provider-protocol-pill { background:rgba(6, 182, 212, .4); color:#fbfaf9; }
+        html.studio-theme-dark body .provider-card.active .provider-protocol-pill { background:rgba(6, 182, 212, .4); color:var(--ui-text); }
         .provider-card-banner.active { background:linear-gradient(135deg, var(--soft), var(--panel)); }
         .provider-name { min-width:0; font-size:12.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .provider-meta { margin-top:1px; color:var(--faint); font-size:10px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -116,9 +117,9 @@
         .api-link-btn { width:100%; height:40px; border:1px solid var(--line); border-radius:12px; background:var(--soft); color:var(--text); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:12px; font-weight:850; text-decoration:none; transition:all .15s ease; }
         .api-link-btn:hover { border-color:var(--text); background:var(--text); color:var(--bg); transform:translateY(-1px); box-shadow:0 8px 18px rgba(23, 23, 22, .12); }
         body.studio-theme-dark .api-link-btn,
-        html.studio-theme-dark body .api-link-btn { background:#f8f7f5; border-color:#f8f7f5; color:#10100f; box-shadow:0 8px 18px rgba(0, 0, 0, .24); }
+        html.studio-theme-dark body .api-link-btn { background:var(--ui-panel); border-color:var(--ui-line-strong); color:var(--ui-text); box-shadow:0 8px 18px rgba(0, 0, 0, .24); }
         body.studio-theme-dark .api-link-btn:hover,
-        html.studio-theme-dark body .api-link-btn:hover { background:#fbfaf9; border-color:#fbfaf9; color:#0b0b0a; }
+        html.studio-theme-dark body .api-link-btn:hover { background:var(--ui-panel); border-color:var(--ui-line-strong); color:var(--ui-text); }
         /* CLI 快捷入口 */
         .cli-quick-group { display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
         .cli-quick-list { display:flex; flex-direction:column; gap:4px; }
@@ -151,7 +152,7 @@
         .field-frame input:disabled { color:var(--muted); cursor:not-allowed; }
         /* 暗色下让输入框/模型行底色比卡片更浅一档，形成层次 */
         body.studio-theme-dark .field-frame { background:var(--soft); border-color:var(--line-strong); }
-        body.studio-theme-dark .field-frame:focus-within { border-color:#f8f7f5; }
+        body.studio-theme-dark .field-frame:focus-within { border-color:var(--ui-line-strong); }
         .hint { color:var(--faint); font-size:11px; line-height:1.5; font-weight:600; }
         /* Key row */
         .key-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
@@ -161,9 +162,9 @@
         .key-btn { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); background:var(--panel); color:var(--muted); transition:all .15s ease; }
         .key-btn:hover { color:var(--text); border-color:var(--text); }
         body.studio-theme-dark .key-btn { background:var(--soft); border-color:var(--line-strong); }
-        body.studio-theme-dark .key-btn:hover { background:#3b3b36; border-color:#f8f7f5; }
-        .key-btn.key-clear:hover { color:#dc2626; border-color:#cfcdc4; background:#f9f8f6; }
-        body.studio-theme-dark .key-btn.key-clear:hover { background:rgba(62, 62, 57, .18); border-color:rgba(248, 113, 113, .3); color:#cfcdc4; }
+        body.studio-theme-dark .key-btn:hover { background:var(--ui-soft); border-color:var(--ui-line-strong); }
+        .key-btn.key-clear:hover { color:#dc2626; border-color:var(--ui-line-strong); background:var(--ui-panel); }
+        body.studio-theme-dark .key-btn.key-clear:hover { background:rgba(62, 62, 57, .18); border-color:rgba(248, 113, 113, .3); color:var(--ui-text); }
         /* Models */
         .block.models-toolbar { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:12px; padding:8px 18px 12px; }
         .models-toolbar > div:first-child { min-width:0; flex:1 1 320px; }
@@ -185,8 +186,8 @@
         body.studio-theme-dark .lora-field input, body.studio-theme-dark .lora-field select { background:var(--panel); border-color:var(--line-strong); }
         .lora-empty { padding:18px; border:1px dashed var(--line); border-radius:11px; color:var(--faint); text-align:center; font-size:11.5px; font-weight:700; }
         .icon-btn { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--faint); transition:all .15s ease; }
-        .icon-btn:hover { color:#dc2626; background:#f9f8f6; }
-        body.studio-theme-dark .icon-btn:hover { background:rgba(62, 62, 57, .18); color:#cfcdc4; }
+        .icon-btn:hover { color:#dc2626; background:var(--ui-panel); }
+        body.studio-theme-dark .icon-btn:hover { background:rgba(62, 62, 57, .18); color:var(--ui-text); }
         .ghost-btn { height:32px; padding:0 12px; border-radius:9px; border:1px solid var(--line); color:var(--muted); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:11.5px; font-weight:750; transition:all .15s ease; }
         .ghost-btn:hover { color:var(--text); border-color:var(--text); }
         /* 顶部操作栏统一按钮 */
@@ -194,32 +195,32 @@
         .action-btn:hover { color:var(--text); border-color:var(--text); }
         .action-btn.primary-btn { color:var(--text); border-color:var(--line-strong); background:var(--soft); }
         .action-btn.primary-btn:hover { background:var(--text); color:var(--bg); border-color:var(--text); }
-        .action-btn.danger-btn { color:#dc2626; border-color:#e7e5de; background:transparent; }
-        .action-btn.danger-btn:hover { background:#f9f8f6; color:#dc2626; border-color:#cfcdc4; }
+        .action-btn.danger-btn { color:#dc2626; border-color:var(--ui-line-strong); background:transparent; }
+        .action-btn.danger-btn:hover { background:var(--ui-panel); color:#dc2626; border-color:var(--ui-line-strong); }
         body.studio-theme-dark .action-btn.danger-btn,
-        html.studio-theme-dark body .action-btn.danger-btn { color:#e7e5de; border-color:rgba(248, 113, 113, .55); background:rgba(62, 62, 57, .28); }
+        html.studio-theme-dark body .action-btn.danger-btn { color:var(--ui-text); border-color:rgba(248, 113, 113, .55); background:rgba(62, 62, 57, .28); }
         body.studio-theme-dark .action-btn.danger-btn:hover,
-        html.studio-theme-dark body .action-btn.danger-btn:hover { background:#41413c; color:#fbfaf9; border-color:#f87171; box-shadow:0 8px 18px rgba(62, 62, 57, .28); }
+        html.studio-theme-dark body .action-btn.danger-btn:hover { background:var(--ui-soft); color:var(--ui-text); border-color:#f87171; box-shadow:0 8px 18px rgba(62, 62, 57, .28); }
         .action-btn.save-btn { background:var(--accent); color:var(--bg); border-color:var(--accent); }
         .action-btn.save-btn:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(23, 23, 22, .15); background:var(--accent); color:var(--bg); border-color:var(--accent); }
         body.studio-theme-dark .action-btn.save-btn,
-        html.studio-theme-dark body .action-btn.save-btn { background:#f8f7f5; color:#10100f; border-color:#f8f7f5; box-shadow:0 8px 18px rgba(0, 0, 0, .22); }
+        html.studio-theme-dark body .action-btn.save-btn { background:var(--ui-panel); color:var(--ui-text); border-color:var(--ui-line-strong); box-shadow:0 8px 18px rgba(0, 0, 0, .22); }
         body.studio-theme-dark .action-btn.save-btn:hover,
-        html.studio-theme-dark body .action-btn.save-btn:hover { background:#fbfaf9; color:#0b0b0a; border-color:#fbfaf9; box-shadow:0 10px 22px rgba(0, 0, 0, .3); }
+        html.studio-theme-dark body .action-btn.save-btn:hover { background:var(--ui-panel); color:var(--ui-text); border-color:var(--ui-line-strong); box-shadow:0 10px 22px rgba(0, 0, 0, .3); }
         body.studio-theme-dark .api-page-save-btn,
         html.studio-theme-dark body .api-page-save-btn,
         body.theme-dark .api-page-save-btn {
-            background:#f9f9f7 !important;
-            color:#0b0b0a !important;
-            border-color:#fbfaf9 !important;
+            background:var(--ui-panel) !important;
+            color:var(--ui-text) !important;
+            border-color:var(--ui-line-strong) !important;
             box-shadow:0 8px 20px rgba(0, 0, 0, .32), inset 0 0 0 1px rgba(23, 23, 22, .08) !important;
         }
         body.studio-theme-dark .api-page-save-btn:hover,
         html.studio-theme-dark body .api-page-save-btn:hover,
         body.theme-dark .api-page-save-btn:hover {
-            background:#fbfaf9 !important;
-            color:#0b0b0a !important;
-            border-color:#fbfaf9 !important;
+            background:var(--ui-panel) !important;
+            color:var(--ui-text) !important;
+            border-color:var(--ui-line-strong) !important;
             transform:translateY(-1px);
             box-shadow:0 12px 26px rgba(0, 0, 0, .4), inset 0 0 0 1px rgba(23, 23, 22, .08) !important;
         }
@@ -234,8 +235,8 @@
         body.studio-theme-dark .api-page-delete-btn:hover,
         html.studio-theme-dark body .api-page-delete-btn:hover,
         body.theme-dark .api-page-delete-btn:hover {
-            background:#41413c !important;
-            color:#fbfaf9 !important;
+            background:var(--ui-soft) !important;
+            color:var(--ui-text) !important;
             border-color:#b91c1c !important;
             transform:translateY(-1px);
             box-shadow:0 10px 22px rgba(62, 62, 57, .3) !important;
@@ -267,7 +268,7 @@
         .picker-checkbox { width:18px; height:18px; border:1.5px solid var(--line-strong); border-radius:5px; display:flex; align-items:center; justify-content:center; background:var(--panel); flex:0 0 auto; color:var(--bg); transition:all .15s ease; }
         .picker-row:hover .picker-checkbox { border-color:var(--text); }
         .picker-checkbox.checked { background:var(--text); border-color:var(--text); }
-        body.studio-theme-dark .picker-checkbox.checked { background:#f8f7f5; border-color:#f8f7f5; color:#10100f; }
+        body.studio-theme-dark .picker-checkbox.checked { background:var(--ui-panel); border-color:var(--ui-line-strong); color:var(--ui-text); }
         .picker-checkbox svg { width:12px; height:12px; opacity:0; }
         .picker-checkbox.checked svg { opacity:1; }
         .picker-model-name { min-width:0; flex:1; font-size:13px; font-weight:650; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
@@ -276,24 +277,24 @@
         .picker-other-cats { display:flex; gap:4px; flex:0 0 auto; }
         .picker-other-tag { font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:5px; letter-spacing:.04em; }
         .picker-other-tag.cat-image { background:rgba(16, 185, 129, .14); color:#047857; }
-        .picker-other-tag.cat-chat { background:rgba(16, 185, 129, .14); color:#0e7490; }
+        .picker-other-tag.cat-chat { background:rgba(16, 185, 129, .14); color:var(--ui-accent); }
         .picker-other-tag.cat-video { background:rgba(245, 158, 11, .14); color:#b45309; }
         body.studio-theme-dark .picker-other-tag.cat-image { background:rgba(16, 185, 129, .2); color:#34d399; }
         body.studio-theme-dark .picker-other-tag.cat-chat { background:rgba(16, 185, 129, .2); color:#00f0ff; }
         body.studio-theme-dark .picker-other-tag.cat-video { background:rgba(251, 191, 36, .2); color:#fbbf24; }
         /* 底部汇总条 */
-        .picker-summary { display:flex; align-items:center; gap:10px; padding:11px 20px; background:#f6f6f4; border-top:1px solid #e9e7e1; font-size:11.5px; font-weight:800; color:#45443f; flex-wrap:wrap; }
-        .picker-summary-title { font-weight:900; color:#171717; }
-        .picker-sum-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:8px; font-weight:900; font-size:11.5px; color:#fbfaf9; background:#282825; box-shadow:inset 0 0 0 1px rgba(255, 255, 255, .18), 0 1px 2px rgba(23, 23, 22, .14); }
+        .picker-summary { display:flex; align-items:center; gap:10px; padding:11px 20px; background:var(--ui-panel); border-top:1px solid var(--ui-line-strong); font-size:11.5px; font-weight:800; color:var(--ui-text); flex-wrap:wrap; }
+        .picker-summary-title { font-weight:900; color:var(--ui-text); }
+        .picker-sum-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:8px; font-weight:900; font-size:11.5px; color:var(--ui-text); background:var(--ui-panel); box-shadow:inset 0 0 0 1px rgba(255, 255, 255, .18), 0 1px 2px rgba(23, 23, 22, .14); }
         body.studio-theme-dark .picker-summary,
-        html.studio-theme-dark body .picker-summary { background:#191919; border-top-color:#383834; color:#e2e0d8; }
+        html.studio-theme-dark body .picker-summary { background:var(--ui-panel); border-top-color:var(--ui-line-strong); color:var(--ui-text); }
         body.studio-theme-dark .picker-summary-title,
-        html.studio-theme-dark body .picker-summary-title { color:#f9f9f7; }
+        html.studio-theme-dark body .picker-summary-title { color:var(--ui-text); }
         body.studio-theme-dark .picker-sum-chip,
-        html.studio-theme-dark body .picker-sum-chip { background:#eeede9; color:#171717; box-shadow:inset 0 0 0 1px rgba(23, 23, 22, .12), 0 1px 2px rgba(0, 0, 0, .28); }
-        .picker-sum-chip-empty { background:#282825 !important; color:#fbfaf9 !important; box-shadow:inset 0 0 0 1px rgba(255, 255, 255, .18), 0 1px 2px rgba(23, 23, 22, .14); }
+        html.studio-theme-dark body .picker-sum-chip { background:var(--ui-panel); color:var(--ui-text); box-shadow:inset 0 0 0 1px rgba(23, 23, 22, .12), 0 1px 2px rgba(0, 0, 0, .28); }
+        .picker-sum-chip-empty { background:var(--ui-panel) !important; color:var(--ui-text) !important; box-shadow:inset 0 0 0 1px rgba(255, 255, 255, .18), 0 1px 2px rgba(23, 23, 22, .14); }
         body.studio-theme-dark .picker-sum-chip-empty,
-        html.studio-theme-dark body .picker-sum-chip-empty { background:#eeede9 !important; color:#171717 !important; box-shadow:inset 0 0 0 1px rgba(23, 23, 22, .12), 0 1px 2px rgba(0, 0, 0, .28); }
+        html.studio-theme-dark body .picker-sum-chip-empty { background:var(--ui-panel) !important; color:var(--ui-text) !important; box-shadow:inset 0 0 0 1px rgba(23, 23, 22, .12), 0 1px 2px rgba(0, 0, 0, .28); }
         .picker-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 20px; border-top:1px solid var(--line); }
         .ms-hint { display:none !important; }
         .content-head .editor-sub,
@@ -329,14 +330,14 @@
         body.show-jimeng .jimeng-cli-panel:not([hidden]) { display:flex; }
         .jimeng-cli-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
         .jimeng-status-pill { height:26px; padding:0 10px; border-radius:8px; border:1px solid var(--line-strong); display:inline-flex; align-items:center; color:var(--muted); background:var(--panel); font-size:11px; font-weight:900; white-space:nowrap; }
-        .jimeng-status-pill.ok { color:#15803d; border-color:#86efac; background:#f9f8f6; }
-        .jimeng-status-pill.bad { color:#b45309; border-color:#fcd34d; background:#f9f9f7; }
+        .jimeng-status-pill.ok { color:#15803d; border-color:#86efac; background:var(--ui-panel); }
+        .jimeng-status-pill.bad { color:#b45309; border-color:#fcd34d; background:var(--ui-panel); }
         .jimeng-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .jimeng-credit { min-height:20px; color:var(--text); font-size:12px; line-height:1.55; font-weight:800; white-space:pre-wrap; word-break:break-word; }
         .jimeng-output { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; align-items:start; padding:10px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
         .jimeng-output[hidden] { display:none !important; }
         .jimeng-output pre { margin:0; max-height:260px; overflow:auto; color:var(--text); font:11px/1.45 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
-        .jimeng-qr-img { width:180px; height:180px; object-fit:contain; border-radius:10px; border:1px solid var(--line); background:#fbfaf9; }
+        .jimeng-qr-img { width:180px; height:180px; object-fit:contain; border-radius:10px; border:1px solid var(--line); background:var(--ui-panel); }
         .jimeng-help-modal { max-width:860px; }
         .jimeng-help-toolbar { display:flex; gap:10px; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line); }
         .jimeng-help-toolbar select { height:38px; min-width:180px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); padding:0 10px; font-weight:800; outline:none; }
@@ -396,7 +397,7 @@
         .onboarding-head > div:first-child { min-width:0; flex:1; }
         .onboarding-title { font-size:16px; font-weight:900; color:var(--text); line-height:1.25; letter-spacing:-.01em; }
         .onboarding-desc { margin-top:5px; color:var(--muted); font-size:11.5px; font-weight:600; line-height:1.55; }
-        .onboarding-badge { height:22px; padding:0 9px; border-radius:999px; display:inline-flex; align-items:center; font-size:9.5px; font-weight:900; letter-spacing:.04em; background:rgba(0, 240, 255, .16); color:#0e7490; border:1px solid rgba(0, 240, 255, .18); flex:0 0 auto; margin-top:4px; }
+        .onboarding-badge { height:22px; padding:0 9px; border-radius:999px; display:inline-flex; align-items:center; font-size:9.5px; font-weight:900; letter-spacing:.04em; background:rgba(0, 240, 255, .16); color:var(--ui-accent); border:1px solid rgba(0, 240, 255, .18); flex:0 0 auto; margin-top:4px; }
         body.studio-theme-dark .onboarding-badge { background:rgba(0, 240, 255, .16); color:#00f0ff; border-color:rgba(0, 240, 255, .2); }
         .onboarding-step-panel { display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
         .onboarding-step-title { font-size:13px; font-weight:900; color:var(--text); line-height:1.2; letter-spacing:-.005em; }
@@ -422,13 +423,13 @@
         .onboarding-row-field { display:flex; flex-direction:column; gap:6px; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:var(--soft); justify-content:center; min-width:0; }
         .onboarding-row-field span { font-size:10px; font-weight:900; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
         .onboarding-row-field input { width:100%; height:32px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font-size:12px; font-weight:700; outline:none; }
-        .onboarding-row-field input:focus { border-color:#06b6d4; box-shadow:0 0 0 3px rgba(6, 182, 212, .08); }
+        .onboarding-row-field input:focus { border-color:var(--ui-accent); box-shadow:0 0 0 3px rgba(6, 182, 212, .08); }
         body.studio-theme-dark .onboarding-row-field { background:rgba(23, 23, 22, .18); }
         /* 保存行 */
         .onboarding-save-line { display:flex; justify-content:flex-end; }
         .onboarding-save-btn { height:38px; padding:0 18px; border:0; border-radius:10px; background:var(--accent); color:var(--bg); font-size:12px; font-weight:900; display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition:all .15s ease; }
         .onboarding-save-btn:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(0, 240, 255, .2); }
-        body.studio-theme-dark .onboarding-save-btn { background:#f8f7f5; color:#10100f; box-shadow:0 6px 16px rgba(0, 0, 0, .3); }
+        body.studio-theme-dark .onboarding-save-btn { background:var(--ui-panel); color:var(--ui-text); box-shadow:0 6px 16px rgba(0, 0, 0, .3); }
         /* 推荐 API 浮层（INF 风格：分组 + 双栏卡片 + 步骤设置流程） */
         .recommend-api-body { flex:1; overflow:auto; padding:14px 18px 8px; display:flex; flex-direction:column; gap:18px; align-content:start; }
         /* 旧版小卡片不再使用，预留兼容 */
@@ -443,13 +444,13 @@
         .recommend-platform-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
         .recommend-platform-head > div:first-child { min-width:0; flex:1; }
         .recommend-name { font-size:14px; font-weight:900; color:var(--text); line-height:1.2; letter-spacing:-.005em; }
-        .recommend-badge { height:22px; padding:0 9px; border-radius:999px; background:rgba(0, 240, 255, .16); color:#0e7490; border:1px solid rgba(0, 240, 255, .18); font-size:9.5px; font-weight:900; display:inline-flex; align-items:center; letter-spacing:.04em; flex:0 0 auto; }
+        .recommend-badge { height:22px; padding:0 9px; border-radius:999px; background:rgba(0, 240, 255, .16); color:var(--ui-accent); border:1px solid rgba(0, 240, 255, .18); font-size:9.5px; font-weight:900; display:inline-flex; align-items:center; letter-spacing:.04em; flex:0 0 auto; }
         body.studio-theme-dark .recommend-badge { background:rgba(16, 185, 129, .2); color:#00f0ff; border-color:rgba(0, 240, 255, .2); }
         .recommend-platform-summary { margin:0; color:var(--muted); font-size:11.5px; line-height:1.6; font-weight:600; }
         /* 标签行 */
         .recommend-tags { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:2px; }
         .recommend-tag { min-width:34px; height:22px; padding:0 8px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; gap:4px; background:rgba(23, 23, 22, .06); color:var(--muted); font-size:9.5px; font-weight:900; border:1px solid var(--line); }
-        body.studio-theme-dark .recommend-tag { background:rgba(255, 255, 255, .06); border-color:rgba(255, 255, 255, .12); color:#9f9d95; }
+        body.studio-theme-dark .recommend-tag { background:rgba(255, 255, 255, .06); border-color:rgba(255, 255, 255, .12); color:var(--ui-muted); }
         .recommend-tag.recommend-seedance-tag { background:rgba(249, 115, 22, .16); color:#c2410c; border-color:rgba(249, 115, 22, .24); }
         body.studio-theme-dark .recommend-tag.recommend-seedance-tag { background:rgba(251, 146, 60, .24); color:#fdba74; border-color:rgba(251, 146, 60, .3); }
         .recommend-tag.recommend-free-tag { background:rgba(34, 197, 94, .16); color:#15803d; border-color:rgba(34, 197, 94, .24); }
@@ -478,7 +479,7 @@
         .recommend-key-save button { width:100%; height:36px; border:0; border-radius:9px; background:var(--accent); color:var(--bg); font-size:11.5px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; transition:all .15s ease; }
         .recommend-key-save button:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(0, 240, 255, .18); }
         body.studio-theme-dark .recommend-key-save button,
-        html.studio-theme-dark body .recommend-key-save button { background:#f8f7f5; color:#10100f; }
+        html.studio-theme-dark body .recommend-key-save button { background:var(--ui-panel); color:var(--ui-text); }
         .recommend-note { padding:10px 20px; color:var(--faint); font-size:10.5px; font-weight:700; border-top:1px solid var(--line); }
         /* 自适应：窄屏幕双栏改为单栏 */
         @media (max-width:720px) {
@@ -602,7 +603,7 @@
         .recommend-pick-card .provider-meta { margin-top:2px; font-size:11px; color:var(--muted); font-weight:650; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
         .recommend-pick-actions { display:flex; align-items:center; gap:8px; }
         .recommend-pick-actions input { flex:1; min-width:0; height:36px; padding:0 10px; border:1px solid var(--line); border-radius:10px; background:var(--soft); color:var(--text); font-size:12px; font-weight:700; outline:none; }
-        .recommend-pick-actions input:focus { border-color:#06b6d4; }
+        .recommend-pick-actions input:focus { border-color:var(--ui-accent); }
         .recommend-pick-actions button { height:36px; padding:0 12px; border:0; border-radius:10px; background:var(--accent); color:var(--bg); font-size:12px; font-weight:800; cursor:pointer; flex:0 0 auto; }
         .recommend-pick-links { display:flex; gap:8px; flex-wrap:wrap; }
         .recommend-pick-links a { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:var(--soft); color:var(--text); font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px; text-decoration:none; }
@@ -613,7 +614,7 @@
         #translateContent:not([hidden]),
         #lanContent:not([hidden]) { display:flex; }
         /* 空占位以避免重复定义 */
-        
+
         body.show-webai .image-request-mode-wrap, body.show-webai #probeAsyncBtn { display:none !important; }
         /* 隐藏的引导卡不得留下空边框；通用协议共享一条自适应操作栏。 */
         .provider-onboarding-card[hidden] { display:none !important; }
@@ -629,6 +630,28 @@
             .model-row .model-label { grid-column:1; grid-row:2; border-left:0; border-top:1px solid var(--line); }
             .model-row > button { grid-column:2; grid-row:1 / 3; }
         }
+        html.in-settings:has(#lanContent:not([hidden])), html.in-settings:has(#lanContent:not([hidden])) body { height:auto !important; min-height:0 !important; overflow:hidden !important; }
+        html.in-settings:has(#lanContent:not([hidden])) :is(.page,.wrap,.layout), html.in-settings .layout > #lanContent:not([hidden]) { height:auto !important; min-height:0 !important; overflow:visible !important; flex:none; }
+        #lanContent .lan-toolbar { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-panel); min-width:0; }
+        #lanContent .lan-toolbar .lan-toggle { min-height:36px; gap:8px; }
+        .lan-toolbar svg { width:16px; height:16px; flex-shrink:0; }
+        .lan-port-inline { display:flex; align-items:center; gap:6px; color:var(--ui-muted); }
+        .lan-port-inline input { width:76px; height:34px; padding:0 8px; border:1px solid var(--ui-line); border-radius:8px; background:var(--ui-soft); color:var(--ui-text); }
+        #lanContent .lan-toolbar button { min-height:36px; padding:6px 10px; }
+        #lanContent .lan-toolbar .lan-icon { width:36px; display:inline-flex; align-items:center; justify-content:center; }
+        #lanContent .lan-toolbar #lanAddresses { flex:1; min-width:0; margin:0; display:flex; gap:8px; flex-wrap:wrap; }
+        #lanContent .lan-toolbar .lan-address { margin:0; padding:0; border:0; gap:8px; }
+        #lanContent .lan-toolbar #lanStatus { padding:0; background:transparent; font-size:11px; max-width:220px; }
+        @media(max-width:700px) { #lanContent .lan-toolbar { flex-wrap:wrap; } #lanContent .lan-toolbar #lanAddresses { flex-basis:100%; order:2; } }
+        html.in-settings .lan-devices-card { display:none !important; }
+        html.in-settings #lanContent { padding-bottom:8px; }
+        .lan-settings-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+        #lanContent .block { background:var(--ui-panel); border:1px solid var(--ui-line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+        #lanContent h3 { margin:0; color:var(--ui-text); font-size:14px; }
+        #lanContent .lan-devices-card { grid-column:1 / -1; }
+        #lanContent .lan-devices-head { border:0; padding:0; margin:0; }
+        #lanContent .lan-toggle input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+        @media(max-width:700px) { .lan-settings-grid { grid-template-columns:minmax(0,1fr); } }
         #lanContent { gap:14px; }
         #lanContent .block { gap:16px; }
         .lan-toggle { display:flex; align-items:center; gap:14px; cursor:pointer; min-height:56px; }
@@ -699,8 +722,9 @@
             .picker-summary { padding:12px 14px; }
         }
     </style>
+    <link rel="stylesheet" href="/static/setting/settings-kit.css?v=20261111001">
 </head>
-<body>
+<body class="sk-settings-page">
     <form id="apiForm" style="display:contents" onsubmit="return false">
     <div class="page">
         <div class="wrap">
@@ -719,15 +743,6 @@
                     <div id="providerList" class="provider-list"></div>
                     <button class="add-btn" type="button" onclick="addProvider()"><i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="api.addProvider">新增平台</span></button>
                     <button class="api-link-btn" type="button" onclick="openRecommendApi()"><i data-lucide="sparkles" class="w-4 h-4"></i><span data-i18n="api.recommendApi">推荐API</span></button>
-                    <div class="cli-quick-group">
-                        <div class="side-section-title" data-i18n="api.cliSettings">CLI 设置</div>
-                        <div class="cli-quick-list">
-                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('jimeng')"><i data-lucide="image" class="w-3.5 h-3.5"></i><span>即梦 CLI</span></button>
-                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('codex')"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>GPT CLI</span></button>
-                            <button class="cli-quick-btn" type="button" onclick="addCliProvider('gemini-cli')"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>Antigravity CLI</span></button>
-                            <div class="cli-quick-note">需要先安装 CLI 文件夹中的依赖。</div>
-                        </div>
-                    </div>
                     <div class="cli-quick-group translate-side-group" style="margin-top:4px;">
                         <div class="side-section-title">翻译设置</div>
                         <button class="cli-quick-btn" type="button" onclick="selectTranslate()" id="translateSideBtn"><i data-lucide="languages" class="w-3.5 h-3.5"></i><span>翻译配置</span></button>
@@ -741,7 +756,7 @@
                             <div class="editor-sub" data-i18n="api.editorSub">配置基础信息、API Key 和可用模型</div>
                         </div>
                         <div class="content-actions">
-                            <button id="deleteBtn" class="action-btn danger-btn api-page-delete-btn" type="button" onclick="deleteProvider()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span data-i18n="api.delete">删除</span></button>
+                            <button id="deleteBtn" class="action-btn danger-btn api-page-delete-btn" type="button" onclick="deleteProviderBtn(this)"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span data-i18n="api.delete">删除</span></button>
                             <button class="action-btn save-btn api-page-save-btn" type="button" onclick="saveProviders()"><i data-lucide="save" class="w-3.5 h-3.5"></i><span data-i18n="api.save">保存</span></button>
                         </div>
                     </div>
@@ -885,52 +900,6 @@
                                     </div>
                                 </div>
                             </label>
-                            <div id="jimengCliPanel" class="jimeng-cli-panel" hidden>
-                                <div class="jimeng-cli-head">
-                                    <div>
-                                        <div class="rh-key-title">即梦 CLI 账户</div>
-                                        <div class="rh-key-desc">使用本机 dreamina 登录态，无需 API Key。</div>
-                                    </div>
-                                    <div id="jimengCliStatus" class="jimeng-status-pill">未检测</div>
-                                </div>
-                                <div class="jimeng-actions">
-                                    <button class="action-btn primary-btn" type="button" onclick="startJimengLogin()"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>扫码登录</span></button>
-                                    <button class="action-btn" type="button" onclick="refreshJimengCredit()"><i data-lucide="wallet-cards" class="w-3.5 h-3.5"></i><span>查询积分</span></button>
-                                    <button class="action-btn" type="button" onclick="openJimengHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
-                                    <button class="action-btn danger-btn" type="button" onclick="logoutJimeng()"><i data-lucide="log-out" class="w-3.5 h-3.5"></i><span>退出登录</span></button>
-                                </div>
-                                <div id="jimengCredit" class="jimeng-credit"></div>
-                                <div id="jimengLoginBox" class="jimeng-output" hidden></div>
-                            </div>
-                            <div id="codexCliPanel" class="jimeng-cli-panel" hidden>
-                                <div class="jimeng-cli-head">
-                                    <div>
-                                        <div class="rh-key-title">OpenAI CLI 账户</div>
-                                        <div class="rh-key-desc">使用本机 Codex CLI 登录态与内置 gpt-image-2 生图。在「对话生图」模型菜单选择 GPT CLI → gpt-image-2，尺寸与画质在生成参数中设置。生成会使用 Codex 账号额度，无需填写 API Key。</div>
-                                    </div>
-                                    <div id="codexCliStatus" class="jimeng-status-pill">未检测</div>
-                                </div>
-                                <div class="jimeng-actions">
-                                    <button class="action-btn primary-btn" type="button" onclick="refreshCodexStatus()"><i data-lucide="radar" class="w-3.5 h-3.5"></i><span>检测 CLI</span></button>
-                                    <button class="action-btn" type="button" onclick="openCodexHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
-                                </div>
-                                <div id="codexCliInfo" class="jimeng-credit"></div>
-                                <div class="jimeng-credit">生图模型：<strong>gpt-image-2</strong>（内置）<br>在「对话生图」底部的「模型」菜单选择 GPT CLI，尺寸和画质使用生成参数设置。</div>
-                            </div>
-                            <div id="geminiCliPanel" class="jimeng-cli-panel" hidden>
-                                <div class="jimeng-cli-head">
-                                    <div>
-                                        <div class="rh-key-title">Antigravity CLI 账户</div>
-                                        <div class="rh-key-desc">使用本机 agy 登录态，无需在本项目保存 API Key。</div>
-                                    </div>
-                                    <div id="geminiCliStatus" class="jimeng-status-pill">未检测</div>
-                                </div>
-                                <div class="jimeng-actions">
-                                    <button class="action-btn primary-btn" type="button" onclick="refreshGeminiCliStatus()"><i data-lucide="radar" class="w-3.5 h-3.5"></i><span>检测 CLI</span></button>
-                                    <button class="action-btn" type="button" onclick="openGeminiCliHelp()"><i data-lucide="terminal" class="w-3.5 h-3.5"></i><span>帮助</span></button>
-                                </div>
-                                <div id="geminiCliInfo" class="jimeng-credit"></div>
-                            </div>
                             <!-- 验证操作行 -->
                             <div class="verify-action-row">
                                 <button id="testUrlBtn" class="action-btn icon-act" type="button" title="验证地址" onclick="testConnection()">
@@ -1069,35 +1038,16 @@
 
             </main>
             <main id="lanContent" class="content" hidden>
-                <div class="content-head">
-                    <div>
-                        <div class="editor-title">局域网共享</div>
-                        <div class="editor-sub">默认只允许本机使用。打开后，局域网里的人用下面的地址打开，自己注册账号后即可登录。</div>
-                    </div>
+                <div class="lan-toolbar">
+                    <label class="lan-toggle" title="仅在可信局域网开启，访问使用 HTTP"><i data-lucide="wifi" aria-hidden="true"></i><span class="module-switch"><input id="lanEnabled" type="checkbox" aria-label="允许局域网访问"></span></label>
+                    <label class="lan-port-inline" title="分享端口"><i data-lucide="network" aria-hidden="true"></i><input id="lanPort" aria-label="分享端口" type="number" inputmode="numeric" min="1" max="65535" value="7001"></label>
+                    <button class="ghost-btn lan-icon" type="button" title="保存共享设置" aria-label="保存共享设置" onclick="saveLanSettings()"><i data-lucide="save"></i></button>
+                    <div id="lanAddresses" class="hint"></div>
+                    <button class="ghost-btn lan-icon" type="button" title="连接诊断" aria-label="连接诊断" onclick="diagnoseLan(this)"><i data-lucide="scan-line"></i></button>
+                    <span id="lanStatus" role="status" class="hint">读取中…</span>
                 </div>
-                <section class="block">
-                    <div class="form" style="grid-template-columns:1fr;gap:14px;">
-                        <label class="lan-toggle">
-                            <input id="lanEnabled" type="checkbox">
-                            <span><strong>允许局域网访问</strong><small>同一网络的手机、平板和电脑均可连接</small></span>
-                        </label>
-                        <p id="lanStatus" class="hint" style="margin:0;">正在读取共享状态…</p>
-                        <label class="field lan-port-field">
-                            <span class="label">分享端口</span>
-                            <div class="field-frame"><input id="lanPort" type="number" inputmode="numeric" min="1" max="65535" value="7001"></div>
-                        </label>
-                        <p class="hint" style="margin:0;">只在可信局域网打开。访问走 HTTP。连不上时，在 Windows 防火墙里允许 ArtCanvas 使用专用网络。</p>
-                        <div class="lan-save"><button class="action-btn save-btn" type="button" onclick="saveLanSettings()">保存共享设置</button></div>
-                        <div class="label">访问地址</div>
-                        <div id="lanAddresses" class="hint" style="margin:0;"></div>
-                        <div><button class="ghost-btn" type="button" onclick="diagnoseLan(this)">运行连接诊断</button></div>
-                        <div id="lanDiagnostics" class="hint" role="status" hidden></div>
-                        <div>
-                            <div class="lan-devices-head"><div class="label">访问设备</div><button class="ghost-btn" type="button" onclick="loadLanClients()">刷新列表</button></div>
-                            <div id="lanClients" class="hint">还没有设备访问。</div>
-                        </div>
-                    </div>
-                </section>
+                <div id="lanDiagnostics" class="hint" role="status" hidden></div>
+                <details class="lan-devices-card"><summary>访问设备</summary><div id="lanClients"></div></details>
             </main>
             <main id="translateContent" class="content" hidden>
                 <div class="content-head">
@@ -1223,88 +1173,6 @@
         </div>
     </div>
 
-    <!-- 即梦 CLI 帮助 -->
-    <div id="jimengHelpOverlay" class="picker-overlay">
-        <div class="picker-modal jimeng-help-modal">
-            <div class="picker-head">
-                <div>
-                    <div class="picker-title">即梦 CLI 帮助</div>
-                    <div class="picker-count">查看 dreamina 官方命令帮助输出</div>
-                </div>
-                <div class="picker-close" onclick="closeJimengHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
-            </div>
-            <div class="jimeng-help-toolbar">
-                <select id="jimengHelpCommand">
-                    <option value="">dreamina</option>
-                    <option value="login">login</option>
-                    <option value="logout">logout</option>
-                    <option value="user_credit">user_credit</option>
-                    <option value="text2image">text2image</option>
-                    <option value="image2image">image2image</option>
-                    <option value="image_upscale">image_upscale</option>
-                    <option value="text2video">text2video</option>
-                    <option value="image2video">image2video</option>
-                    <option value="multimodal2video">multimodal2video</option>
-                    <option value="frames2video">frames2video</option>
-                    <option value="multiframe2video">multiframe2video</option>
-                    <option value="list_task">list_task</option>
-                    <option value="query_result">query_result</option>
-                </select>
-                <button class="action-btn primary-btn" type="button" onclick="loadJimengHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
-            </div>
-            <pre id="jimengHelpOutput" class="jimeng-help-output"></pre>
-        </div>
-    </div>
-
-    <!-- Codex CLI 帮助 -->
-    <div id="codexHelpOverlay" class="picker-overlay">
-        <div class="picker-modal jimeng-help-modal">
-            <div class="picker-head">
-                <div>
-                    <div class="picker-title">OpenAI Codex CLI 帮助</div>
-                    <div class="picker-count">查看 codex 官方命令帮助输出</div>
-                </div>
-                <div class="picker-close" onclick="closeCodexHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
-            </div>
-            <div class="jimeng-help-toolbar">
-                <select id="codexHelpCommand">
-                    <option value="">codex</option>
-                    <option value="exec">exec</option>
-                    <option value="login">login</option>
-                    <option value="logout">logout</option>
-                    <option value="doctor">doctor</option>
-                    <option value="mcp">mcp</option>
-                    <option value="app">app</option>
-                    <option value="update">update</option>
-                </select>
-                <button class="action-btn primary-btn" type="button" onclick="loadCodexHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
-            </div>
-            <pre id="codexHelpOutput" class="jimeng-help-output"></pre>
-        </div>
-    </div>
-
-    <!-- Antigravity CLI 帮助 -->
-    <div id="geminiCliHelpOverlay" class="picker-overlay">
-        <div class="picker-modal jimeng-help-modal">
-            <div class="picker-head">
-                <div>
-                    <div class="picker-title">Antigravity CLI 帮助</div>
-                    <div class="picker-count">查看 gemini 官方命令帮助输出</div>
-                </div>
-                <div class="picker-close" onclick="closeGeminiCliHelp()"><i data-lucide="x" class="w-4 h-4"></i></div>
-            </div>
-            <div class="jimeng-help-toolbar">
-                <select id="geminiHelpCommand">
-                    <option value="">gemini</option>
-                    <option value="help">help</option>
-                    <option value="mcp">mcp</option>
-                    <option value="extensions">extensions</option>
-                </select>
-                <button class="action-btn primary-btn" type="button" onclick="loadGeminiCliHelp()"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>刷新</span></button>
-            </div>
-            <pre id="geminiHelpOutput" class="jimeng-help-output"></pre>
-        </div>
-    </div>
 
     <!-- RunningHub 工作流编辑器 -->
     <div id="rhWorkflowEditorOverlay" class="rh-workflow-editor-overlay">
@@ -1473,7 +1341,7 @@
         }
         function providerDelete(item){
             if(['modelscope','runninghub','volcengine'].includes(item.id)) return '';
-            return `<span class="provider-delete" title="删除" onmousedown="event.preventDefault(); event.stopPropagation();" onclick="event.preventDefault(); event.stopPropagation(); deleteProviderCard('${escapeAttr(item.id)}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></span>`;
+            return `<span class="provider-delete" title="删除" onmousedown="event.preventDefault(); event.stopPropagation();" onclick="event.preventDefault(); event.stopPropagation(); deleteProviderCard('${escapeAttr(item.id)}', this)"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span class="del-arm-label">确认</span></span>`;
         }
         function providerActions(item){
             return `<span class="provider-card-actions">${providerDelete(item)}${providerSwitch(item)}</span>`;
@@ -1500,9 +1368,35 @@
                 overlay.onclick = (event) => { if(event.target === overlay) finish(false); };
             });
         }
-        function deleteProviderCard(id){
-            deleteProvider(id);
+        let skArmedKey = null, skArmedEl = null, skArmedTimer = null;
+        function clearSkArm(){
+            if(skArmedTimer){ clearTimeout(skArmedTimer); skArmedTimer = null; }
+            if(skArmedEl){
+                skArmedEl.classList.remove('sk-armed');
+                skArmedEl.setAttribute('title', skArmedEl.dataset.skOldTitle || '删除');
+                skArmedEl = null;
+            }
+            skArmedKey = null;
         }
+        function armDelete(key, el){
+            if(skArmedKey === key){ clearSkArm(); return true; }
+            clearSkArm();
+            skArmedKey = key; skArmedEl = el;
+            el.dataset.skOldTitle = el.getAttribute('title') || '删除';
+            el.classList.add('sk-armed');
+            el.setAttribute('title', '再点一次确认删除');
+            skArmedTimer = setTimeout(clearSkArm, 4000);
+            return false;
+        }
+        function deleteProviderCard(id, el){
+            if(armDelete(id, el)) deleteProvider(id);
+        }
+        function deleteProviderBtn(el){
+            if(armDelete('__editor', el)) deleteProvider();
+        }
+        document.addEventListener('click', function(e){
+            if(!(e.target.closest && e.target.closest('.provider-delete, .api-page-delete-btn'))) clearSkArm();
+        }, true);
         function toggleProviderCard(id){
             const item = providers.find(p => p.id === id);
             if(!item) return;
@@ -1511,6 +1405,7 @@
             saveProviders();
         }
         function renderProviderList(){
+            if(typeof clearSkArm === "function") clearSkArm();
             providerList.innerHTML = sortedProviders().map(item => {
                 const active = item.id === selectedId ? 'active' : '';
                 // ModelScope: 用专属 banner 图（亮色 + 暗色双版）
@@ -1643,7 +1538,7 @@
             }
             if(isJimeng){
                 keyInput.placeholder = '即梦 CLI 使用本机 dreamina login，无需 API Key';
-                keyHint.textContent = '请先在终端安装 dreamina CLI，并执行 dreamina login';
+                keyHint.textContent = 'CLI 的安装、登录与验证请在 设置 → CLI 工具 中完成';
             }
             document.body.classList.toggle('show-jimeng', isJimeng);
             const protoNow = String(item.protocol || '').toLowerCase();
@@ -1668,8 +1563,6 @@
                     ? '使用本机 Codex CLI 登录态出图'
                     : (isGeminiCli ? '使用本机 Antigravity CLI 登录态出图' : (editorSub.dataset.defaultText || ''));
             }
-            if(isCodex && typeof refreshCodexStatus === 'function') refreshCodexStatus();
-            if(isGeminiCli && typeof refreshGeminiCliStatus === 'function') refreshGeminiCliStatus();
             if(msLoraBlock) msLoraBlock.style.display = isModelScope ? 'flex' : 'none';
             const deleteBtn = document.getElementById('deleteBtn');
             if(deleteBtn) deleteBtn.style.display = (item.id === 'modelscope') ? 'none' : 'inline-flex';
@@ -1679,12 +1572,6 @@
             if(isModelScope) renderMsLoras();
             else if(msLoraList) msLoraList.innerHTML = '';
             renderProviderList();
-            // 即梦 CLI 面板
-            if(jimengCliPanel){
-                jimengCliPanel.hidden = !isJimeng;
-                jimengCliPanel.style.display = isJimeng ? 'flex' : 'none';
-            }
-            if(isJimeng) refreshJimengStatus(true);
         }
         function showVerifyResult(html){ const el = document.getElementById('verifyResult'); if(el){ el.style.display = 'block'; el.innerHTML = html; } }
         function clearVerifyResult(){ const el = document.getElementById('verifyResult'); if(el){ el.style.display = 'none'; el.innerHTML = ''; } }
@@ -2135,7 +2022,7 @@
         window.applySettingsSection = function(section){
             window.__settingsSection = section || '';
             if(!window.__providersReady) return;
-            if(section === 'lan') selectLan();
+            if(section === 'lan') { selectLan(); requestAnimationFrame(resizeSharingFrame); }
             else if(section === 'translate') selectTranslate();
             else showProviderEditor();
         };
@@ -2168,8 +2055,8 @@
             if(port) port.value = data.sharingPort || 7001;
             if(status) status.textContent = data.error || (data.available ? '局域网共享已开启' : (data.enabled ? '共享已保存，但当前没有可用地址' : '局域网共享已关闭，只有本机可以访问'));
             if(addresses){
-                const links = (data.addresses || []).filter(url => /^https?:\/\//i.test(url)).map(url => '<div class="lan-address"><a href="' + escapeLanText(url) + '" target="_blank" rel="noopener noreferrer">' + escapeLanText(url) + '</a><button class="ghost-btn" type="button" onclick="copyLanAddress(this)">复制地址</button></div>').join('');
-                addresses.innerHTML = links || '打开并保存后，这里会显示可以发给局域网其他人的地址。';
+                const links = (data.addresses || []).filter(url => /^https?:\/\//i.test(url)).map(url => '<div class="lan-address"><a href="' + escapeLanText(url) + '" target="_blank" rel="noopener noreferrer">' + escapeLanText(url) + '</a><button class="ghost-btn" type="button" onclick="copyLanAddress(this)" title="复制地址" aria-label="复制地址"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button></div>').join('');
+                addresses.innerHTML = links || '保存后显示访问地址';
             }
         }
         function escapeLanText(value){
@@ -2263,40 +2150,6 @@
             updateTranslateSideBtn();
             updatePickerMode();
         }
-        function addCliProvider(cliType){
-            syncEditor();
-            const protoMap = { jimeng:'jimeng', codex:'codex', 'gemini-cli':'gemini-cli' };
-            const nameMap = { jimeng:'即梦 CLI', codex:'GPT CLI', 'gemini-cli':'Antigravity CLI' };
-            const proto = protoMap[cliType] || 'jimeng';
-            const existing = providers.find(p => p.protocol === proto);
-            if(existing){
-                selectedTranslate = false;
-                selectedLan = false;
-                selectedRecommend = false;
-                selectedId = existing.id;
-                renderEditor();
-                toggleTranslateContent();
-                updateTranslateSideBtn();
-                updatePickerMode();
-                return;
-            }
-            let id = cliType;
-            let idx = 2;
-            while(providers.some(p => p.id === id)) id = `${cliType}-${idx++}`;
-            providers.push({
-                id, name: nameMap[cliType] || cliType,
-                base_url:'', protocol:proto, enabled:true, primary:false,
-                image_models:proto === 'codex' ? ['gpt-image-2'] : [], chat_models:[], video_models:[], has_key:false, key_preview:''
-            });
-            selectedTranslate = false;
-            selectedLan = false;
-            selectedRecommend = false;
-            selectedId = id;
-            renderEditor();
-            toggleTranslateContent();
-            updateTranslateSideBtn();
-            updatePickerMode();
-        }
         function openRecommendApi(){
             if(typeof syncEditor === 'function') syncEditor();
             selectedRecommend = true;
@@ -2318,7 +2171,6 @@
                 return;
             }
             if(providers.length <= 1){ alert(tr('api.keepOne')); return; }
-            if(!await askConfirm('删除「' + (item.name || item.id) + '」？')) return;
             providers = providers.filter(p => p.id !== item.id);
             if(selectedId === item.id){
                 selectedId = '';
@@ -2466,107 +2318,6 @@
         }
         function escapeAttr(str){ return escapeHtml(str).replace(/`/g, '&#96;'); }
 
-        // --- 即梦 CLI 函数 ---
-        const jimengCliPanel = document.getElementById('jimengCliPanel');
-        const jimengCliStatus = document.getElementById('jimengCliStatus');
-        const jimengCredit = document.getElementById('jimengCredit');
-        const jimengLoginBox = document.getElementById('jimengLoginBox');
-
-        const JIMENG_LEGACY_IMAGE_MODELS = new Set(['jimeng-image-2k', 'jimeng-image-4k']);
-        const JIMENG_LEGACY_VIDEO_MODELS = new Set(['jimeng-video-720p', 'jimeng-video-1080p']);
-
-        function jimengCreditText(raw){
-            if(!raw) return '';
-            if(typeof raw === 'string') return raw;
-            const credits = raw.total_credit ?? raw.credit ?? raw.credits;
-            const remaining = raw.remaining_credit ?? raw.remain ?? raw.balance;
-            const parts = [];
-            if(credits != null) parts.push(`总积分: ${credits}`);
-            if(remaining != null) parts.push(`剩余: ${remaining}`);
-            return parts.join('  |  ') || JSON.stringify(raw, null, 2);
-        }
-        function setJimengStatus(text, ok){
-            if(!jimengCliStatus) return;
-            jimengCliStatus.textContent = text || '未检测';
-            jimengCliStatus.classList.toggle('ok', ok === true);
-            jimengCliStatus.classList.toggle('bad', ok === false);
-        }
-        function showJimengLoginBox(text, qrUrl){
-            if(!jimengLoginBox) return;
-            const qrHtml = qrUrl
-                ? `<img class="jimeng-qr-img" src="${escapeHtml(qrUrl)}" alt="即梦登录二维码">`
-                : '';
-            jimengLoginBox.hidden = false;
-            jimengLoginBox.innerHTML = `${qrHtml}<pre>${escapeHtml(text || '等待 CLI 输出登录二维码...')}</pre>`;
-        }
-        let jimengLoginTimer = null;
-        async function refreshJimengStatus(showCredit){
-            if(!jimengCliPanel || jimengCliPanel.hidden) return;
-            try{
-                const data = await fetch('/api/jimeng/status').then(r => r.json());
-                setJimengStatus(data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装', data.logged_in);
-                if(data.installed && data.version_ok === false && jimengCredit){
-                    jimengCredit.textContent = `⚠ 检测到 dreamina CLI 版本 ${data.cli_version || '未知'}，低于推荐的 ${data.min_version || '1.4.2'}。旧版本任务状态可能无法更新，请升级 CLI。`;
-                } else if(showCredit && data.raw && jimengCredit){
-                    jimengCredit.textContent = jimengCreditText(data.raw);
-                }
-            } catch(e){
-                setJimengStatus('检测失败', false);
-                if(jimengCredit) jimengCredit.textContent = e.message || String(e);
-            }
-        }
-        async function startJimengLogin(){
-            if(jimengCredit) jimengCredit.textContent = '';
-            try{
-                const data = await fetch('/api/jimeng/login/start', {method:'POST'}).then(async r => r.json());
-                showJimengLoginBox(data.text, data.qr_url);
-                if(data.running && !jimengLoginTimer){
-                    jimengLoginTimer = setInterval(async () => {
-                        try{
-                            const st = await fetch('/api/jimeng/login/status').then(r => r.json());
-                            showJimengLoginBox(st.text, st.qr_url);
-                            if(!st.running){
-                                clearInterval(jimengLoginTimer);
-                                jimengLoginTimer = null;
-                                refreshJimengStatus(true);
-                            }
-                        } catch(e){}
-                    }, 3000);
-                }
-            } catch(e){
-                if(jimengLoginBox){ jimengLoginBox.hidden = false; jimengLoginBox.innerHTML = `<pre>${escapeHtml(e.message || String(e))}</pre>`; }
-            }
-        }
-        async function refreshJimengCredit(){
-            if(jimengCredit) jimengCredit.textContent = '查询中...';
-            try{
-                const data = await fetch('/api/jimeng/credit').then(r => r.json());
-                if(jimengCredit) jimengCredit.textContent = jimengCreditText(data.raw);
-            } catch(e){
-                if(jimengCredit) jimengCredit.textContent = e.message || String(e);
-            }
-        }
-        async function logoutJimeng(){
-            if(!confirm('确认退出即梦 CLI 登录？')) return;
-            try{
-                await fetch('/api/jimeng/logout', {method:'POST'});
-                refreshJimengStatus(false);
-                if(jimengLoginBox) jimengLoginBox.hidden = true;
-            } catch(e){}
-        }
-        function openJimengHelp(){
-            // TODO: 即梦帮助弹窗（可选）
-        }
-
-        // 即梦 CLI 面板显隐逻辑
-        function toggleJimengPanel(isJimeng){
-            if(jimengCliPanel){
-                jimengCliPanel.hidden = !isJimeng;
-                jimengCliPanel.style.display = isJimeng ? 'flex' : 'none';
-            }
-            document.body.classList.toggle('show-jimeng', isJimeng);
-            if(isJimeng) refreshJimengStatus(true);
-        }
         window.addEventListener('message', event => {
             if(event.data?.type === 'studio-theme' && window.StudioTheme) window.StudioTheme.set(event.data.theme);
             if(event.data?.type === 'studio-lang' && window.StudioI18n) {
@@ -3122,115 +2873,6 @@
             document.getElementById('rhWalletKeyInput').value = '';
         }
 
-        // ====== CLI 帮助 ======
-        function openJimengHelp(){
-            const el = document.getElementById('jimengHelpOverlay');
-            if(el) el.style.display = 'flex';
-            loadJimengHelp();
-        }
-        function closeJimengHelp(){
-            document.getElementById('jimengHelpOverlay').style.display = 'none';
-        }
-        async function loadJimengHelp(){
-            const cmd = document.getElementById('jimengHelpCommand')?.value || '';
-            const output = document.getElementById('jimengHelpOutput');
-            if(output) output.textContent = '正在加载...';
-            try {
-                const data = await fetch('/api/jimeng/help', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({command: cmd || undefined})
-                }).then(r => r.json());
-                if(output) output.textContent = data.output || data.text || data.message || '无输出';
-            } catch(e){
-                if(output) output.textContent = '加载失败: ' + (e.message || e);
-            }
-        }
-        function openCodexHelp(){
-            const el = document.getElementById('codexHelpOverlay');
-            if(el) el.style.display = 'flex';
-            loadCodexHelp();
-        }
-        function closeCodexHelp(){
-            document.getElementById('codexHelpOverlay').style.display = 'none';
-        }
-        async function loadCodexHelp(){
-            const cmd = document.getElementById('codexHelpCommand')?.value || '';
-            const output = document.getElementById('codexHelpOutput');
-            if(output) output.textContent = '正在加载...';
-            try {
-                const data = await fetch('/api/codex/help', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({command: cmd || undefined})
-                }).then(r => r.json());
-                if(output) output.textContent = data.output || data.text || data.message || '无输出';
-            } catch(e){
-                if(output) output.textContent = '加载失败: ' + (e.message || e);
-            }
-        }
-        function openGeminiCliHelp(){
-            const el = document.getElementById('geminiCliHelpOverlay');
-            if(el) el.style.display = 'flex';
-            loadGeminiCliHelp();
-        }
-        function closeGeminiCliHelp(){
-            document.getElementById('geminiCliHelpOverlay').style.display = 'none';
-        }
-        async function loadGeminiCliHelp(){
-            const cmd = document.getElementById('geminiHelpCommand')?.value || '';
-            const output = document.getElementById('geminiHelpOutput');
-            if(output) output.textContent = '正在加载...';
-            try {
-                const data = await fetch('/api/gemini-cli/help', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({command: cmd || undefined})
-                }).then(r => r.json());
-                if(output) output.textContent = data.output || data.text || data.message || '无输出';
-            } catch(e){
-                if(output) output.textContent = '加载失败: ' + (e.message || e);
-            }
-        }
-
-        // ====== Codex CLI ======
-        async function refreshCodexStatus(){
-            const statusEl = document.getElementById('codexCliStatus');
-            const infoEl = document.getElementById('codexCliInfo');
-            if(statusEl){ statusEl.textContent = '检测中...'; statusEl.classList.remove('ok','bad'); }
-            if(infoEl) infoEl.textContent = '';
-            try {
-                const data = await fetch('/api/codex/status').then(r => r.json());
-                if(statusEl){
-                    const ok = data.installed && data.logged_in;
-                    statusEl.textContent = data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装';
-                    statusEl.classList.toggle('ok', !!ok);
-                    statusEl.classList.toggle('bad', !ok);
-                }
-                if(infoEl && data.message) infoEl.textContent = data.message;
-            } catch(e){
-                if(statusEl){ statusEl.textContent = '检测失败'; statusEl.classList.add('bad'); }
-                if(infoEl) infoEl.textContent = e.message || String(e);
-            }
-        }
-
-        // ====== Gemini CLI ======
-        async function refreshGeminiCliStatus(){
-            const statusEl = document.getElementById('geminiCliStatus');
-            const infoEl = document.getElementById('geminiCliInfo');
-            if(statusEl){ statusEl.textContent = '检测中...'; statusEl.classList.remove('ok','bad'); }
-            if(infoEl) infoEl.textContent = '';
-            try {
-                const data = await fetch('/api/gemini-cli/status').then(r => r.json());
-                if(statusEl){
-                    const ok = data.installed && data.logged_in;
-                    statusEl.textContent = data.installed ? (data.logged_in ? '已登录' : '未登录') : '未安装';
-                    statusEl.classList.toggle('ok', !!ok);
-                    statusEl.classList.toggle('bad', !ok);
-                }
-                if(infoEl && data.message) infoEl.textContent = data.message;
-            } catch(e){
-                if(statusEl){ statusEl.textContent = '检测失败'; statusEl.classList.add('bad'); }
-                if(infoEl) infoEl.textContent = e.message || String(e);
-            }
-        }
 
         // ====== RH Key 管理 ======
         async function saveRhKeyOnly(kind){
@@ -3348,7 +2990,14 @@
             }
         };
 
-        window.onload = () => {
+        function resizeSharingFrame() {
+            if (!window.frameElement || document.getElementById('lanContent').hidden) return;
+            const page = document.querySelector('.page');
+            if (page) window.frameElement.style.setProperty('height', Math.ceil(page.getBoundingClientRect().height) + 4 + 'px', 'important');
+        }
+        const sharingResizeObserver = new ResizeObserver(resizeSharingFrame);
+        sharingResizeObserver.observe(document.querySelector('.page'));
+        function initApiSettings() {
             if(window.StudioTheme) window.StudioTheme.apply();
             if(window.StudioI18n) window.StudioI18n.apply();
             const embedParams = new URLSearchParams(location.search);
@@ -3358,6 +3007,7 @@
             else if(window.__settingsSection == null) window.__settingsSection = '';
             loadProviders().then(() => {
                 window.__providersReady = true;
+                if (window.frameElement) window.frameElement.dispatchEvent(new Event('settings-ready'));
                 loadTranslateConfig();
                 if(typeof applySettingsSection === 'function') applySettingsSection(window.__settingsSection);
             });
@@ -3371,8 +3021,11 @@
                 // 使用覆盖后的 renderEditor 更新 body class
                 renderEditor();
             });
-        };
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApiSettings, { once: true });
+        else initApiSettings();
     </script>
     </form>
+    <script src="/static/setting/settings-graphic.js?v=sk2"></script>
 </body>
 </html>

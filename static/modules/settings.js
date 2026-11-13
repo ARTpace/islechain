@@ -171,6 +171,19 @@ class SettingsUI {
     init() {
         try {
             this.createButtons();
+            if (!document.getElementById('settings-kit-css')) {
+                const kit = document.createElement('link');
+                kit.id = 'settings-kit-css';
+                kit.rel = 'stylesheet';
+                kit.href = '/static/setting/settings-kit.css?v=sk5';
+                document.head.appendChild(kit);
+            }
+            if (!document.getElementById('settings-graphic-js')) {
+                const gfx = document.createElement('script');
+                gfx.id = 'settings-graphic-js';
+                gfx.src = '/static/setting/settings-graphic.js?v=sk2';
+                document.head.appendChild(gfx);
+            }
             this.createPanel();
             this.createLoginModal();
             this.bindEvents();
@@ -182,6 +195,29 @@ class SettingsUI {
                     window._settingsUI.updateSettingsButtonState();
                 }
             }).catch(function() {});
+
+            // 先放进最终容器再加载，避免首次打开时移动 iframe 导致文档重载。
+            const frameIds = ['frame-api-settings', 'frame-comfyui-settings', 'frame-mcp-settings', 'frame-cli-settings'];
+            const detailHost = document.getElementById('settings-detail');
+            frameIds.forEach(id => {
+                const frame = document.getElementById(id);
+                if (frame && detailHost && frame.parentElement !== detailHost) detailHost.appendChild(frame);
+            });
+            let preloadIndex = 0;
+            const preloadNext = () => {
+                if (document.hidden) {
+                    document.addEventListener('visibilitychange', () => { if (!document.hidden) preloadNext(); }, { once: true });
+                    return;
+                }
+                const frame = document.getElementById(frameIds[preloadIndex++]);
+                if (frame && !frame.getAttribute('src') && frame.dataset.src) frame.src = frame.dataset.src;
+                if (preloadIndex < frameIds.length) setTimeout(schedulePreload, 800);
+            };
+            const schedulePreload = () => {
+                if (window.requestIdleCallback) requestIdleCallback(preloadNext, { timeout: 2500 });
+                else setTimeout(preloadNext, 1200);
+            };
+            schedulePreload();
         } catch (e) {
             console.error('SettingsUI.init error:', e);
         }
@@ -314,7 +350,7 @@ class SettingsUI {
             #settings-detail { position:relative; flex:1; min-width:0; background:var(--stage-bg, #121211); }
             #settings-look-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #121211); }
             #settings-look-pane[hidden] { display:none !important; }
-            #settings-look-pane .look-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+            #settings-look-pane .look-pane-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap:14px; }
             #settings-look-pane .look-block, #settings-look-pane .look-scale-row, #settings-look-pane .sys-tile { min-height:92px; padding:16px 18px; border:1px solid var(--border); border-radius:16px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #171716)); box-shadow:none; }
             #settings-look-pane .look-block { display:flex; flex-direction:column; justify-content:center; gap:12px; }
             #settings-look-pane .look-label { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
@@ -323,7 +359,42 @@ class SettingsUI {
             #settings-look-pane .look-swatch, #settings-look-pane #look-palette-custom { width:32px; height:32px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; background:transparent; }
             #settings-look-pane #look-palette-preview { display:flex; height:22px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
             #settings-look-pane .look-scale-row { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; font-weight:800; color:var(--text); }
-            #settings-look-pane #look-scale { height:36px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); font-size:13px; font-weight:700; padding:0 10px; }
+            #settings-look-pane #look-scale, #settings-look-pane [data-look-profile] { min-width:0; max-width:100%; height:36px; border-radius:10px; border:1px solid var(--border); background:var(--stage-bg); color:var(--text); font-size:13px; font-weight:700; padding:0 10px; }
+            #settings-look-pane .look-background-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; min-width:0; }
+            #settings-look-pane .look-background-actions button { max-width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--stage-bg); color:var(--text); cursor:pointer; }
+            #settings-look-pane .look-background-actions button:disabled { opacity:.5; cursor:default; }
+            #settings-look-pane #look-background-preview { width:112px; max-width:100%; height:70px; object-fit:cover; border:1px solid var(--border); border-radius:10px; }
+            #settings-look-pane .look-background-strength { display:flex; flex-wrap:wrap; align-items:center; gap:10px; min-width:0; }
+            #settings-look-pane #look-background-strength { flex:1 1 120px; min-width:0; max-width:260px; accent-color:var(--accent); }
+            #settings-look-pane .look-hint { margin:0; font-size:12px; font-weight:400; color:var(--muted); overflow-wrap:anywhere; }
+            #settings-look-pane #look-error { grid-column:1 / -1; margin:0; color:var(--text); overflow-wrap:anywhere; }
+            #settings-detail.sharing-combined { overflow:auto; }
+            #settings-detail.sharing-combined > iframe.settings-embedded { position:relative !important; inset:auto !important; width:100% !important; height:96px !important; display:block; }
+            #settings-detail.sharing-combined > #settings-users-pane { position:relative; inset:auto; overflow:visible; padding:16px; }
+            .user-device { display:grid; gap:5px; padding:8px; border:1px solid var(--ui-line); border-radius:8px; font-size:12px; overflow-wrap:anywhere; }
+            .user-device-actions { display:flex; gap:6px; flex-wrap:wrap; }
+            .user-device button { padding:5px 8px; border:1px solid var(--ui-line-strong); border-radius:8px; color:var(--ui-accent); background:var(--ui-accent-soft); cursor:pointer; }
+            @media(max-width:700px) { #settings-detail.sharing-combined > iframe.settings-embedded { height:164px !important; } }
+            #settings-sharing-nav { display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--ui-line); background:var(--ui-panel); }
+            #settings-sharing-nav[hidden] { display:none !important; }
+            #settings-sharing-nav button { min-height:36px; padding:6px 16px; border:1px solid var(--ui-line); border-radius:8px; background:transparent; color:var(--ui-muted); cursor:pointer; }
+            #settings-sharing-nav button[aria-selected="true"] { background:var(--ui-accent-soft); color:var(--ui-accent); border-color:var(--ui-accent); }
+            #settings-detail:has(> #settings-sharing-nav:not([hidden])) { padding-top:58px; }
+            #settings-detail:has(> #settings-sharing-nav:not([hidden])) > :is(iframe.settings-embedded,#settings-users-pane) { top:58px !important; height:calc(100% - 58px) !important; }
+            #settings-sharing-nav { position:absolute; top:0; left:0; right:0; z-index:4; }
+            .users-pane-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; color:var(--ui-text); }
+            #settings-users-pane .users-pane-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr)); align-items:start; gap:10px; }
+            #settings-users-pane .user-card { justify-content:flex-start; }
+            #settings-users-pane .user-card details { min-width:0; }
+            #settings-users-pane .user-card summary { cursor:pointer; color:var(--ui-muted); font-size:12px; padding:5px 0; }
+            #settings-users-pane .user-card details[open] > :not(summary) { margin-top:8px; }
+            #settings-users-pane .user-card { background:var(--ui-panel); border-color:var(--ui-line); border-radius:12px; padding:14px; min-height:0; gap:10px; }
+            #settings-users-pane .user-card-actions button:not(.user-delete-btn), #settings-users-pane .user-reset-save { background:var(--ui-accent-soft); color:var(--ui-accent); border-color:var(--ui-line-strong); }
+            #settings-users-pane .user-reset-row[hidden] { display:none; }
+            #settings-users-pane .user-reset-row { flex-wrap:wrap; }
+            #settings-users-pane .user-reset-row input { min-width:0; background:var(--ui-soft); }
+            .users-pane-heading h3 { margin:0 0 4px; font-size:17px; }
+            .users-pane-heading p { margin:0; font-size:12px; color:var(--ui-muted); }
             #settings-users-pane { position:absolute; inset:0; overflow:auto; padding:16px; background:var(--stage-bg, #121211); }
             #settings-users-pane[hidden] { display:none !important; }
             #settings-users-pane .users-pane-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
@@ -343,83 +414,74 @@ class SettingsUI {
             #settings-modules-pane[hidden] { display:none !important; }
             #settings-modules-pane .comfy-models-title { font-size:18px; line-height:1.2; }
             #settings-modules-pane .comfy-models-sub { margin-top:2px; font-size:12px; }
-            #settings-modules-list { display:flex; flex-direction:column; gap:10px; }
-            .module-group { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 310px), 1fr)); gap:8px; }
-            .module-group-title { grid-column:1 / -1; font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--muted); }
-            .module-row { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:0 8px 0 10px; border:1px solid var(--border); border-radius:10px; background:color-mix(in srgb, var(--text) 5%, var(--sidebar-bg, #171716)); color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; }
-            .module-row > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-            .module-switch { position:relative; width:44px; height:24px; flex:0 0 auto; border-radius:999px; border:1px solid #6e6e68; background:#2a2a28; }
-            .module-switch::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#d4d4ce; transition:transform .15s ease; }
-            .module-switch input { position:absolute; inset:0; margin:0; opacity:0; cursor:pointer; }
-            .module-row:has(input:checked) { color:var(--text); border-color:rgba(0, 240, 255, .55); }
-            .module-switch:has(input:checked) { background:#00f0ff; border-color:#00f0ff; }
-            .module-switch:has(input:checked)::after { transform:translateX(20px); background:#0b0b0a; }
-            .module-switch:has(input:disabled) { cursor:default; opacity:.5; }
-            .module-toggle-label { display:grid; justify-items:center; gap:4px; padding:7px 0; font-size:10px; cursor:pointer; }
-            .module-toggle-pair { display:flex; gap:12px; flex-shrink:0; }
-            .module-order-controls { display:grid; gap:2px; margin-left:2px; }
-            .module-order-controls button { width:24px; height:22px; padding:0; border:1px solid var(--border); border-radius:5px; background:transparent; color:var(--text); font-size:13px; cursor:pointer; }
-            .module-order-controls button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
-            .module-order-controls button:disabled { opacity:.25; cursor:default; }
-            .module-select-label { display:flex; align-items:center; gap:7px; min-width:0; cursor:pointer; }
-            .module-select-label input,.module-bulk input,.module-group-title input { accent-color:var(--accent); margin:0; flex-shrink:0; }
-            .module-select-label span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-            .module-group-title label { display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
-            .module-bulk { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--sidebar-bg); font-size:12px; }
-            .module-bulk label,.module-bulk-target { display:flex; align-items:center; gap:7px; }
-            .module-bulk button { padding:5px 9px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; font:inherit; }
-            .module-bulk button:hover:not(:disabled) { border-color:var(--accent); }
-            .module-bulk button:disabled { opacity:.35; cursor:default; }
-            .module-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:16px; }
-            .module-group { grid-template-columns:minmax(0,1fr); min-width:0; padding:8px; border:1px solid var(--border); border-radius:12px; }
-            .module-group-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; }
-            .module-group-level { font-size:11px; font-weight:500; letter-spacing:normal; }
-            .module-groups .module-row > .module-name { min-width:0; }
-            .module-groups .module-toggle-pair { margin-left:auto; }
-            @media(max-width:700px) { .module-groups { grid-template-columns:minmax(0,1fr); } }
-            .module-row { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr) auto; min-height:52px; gap:6px; padding:3px 6px 3px 2px; touch-action:pan-y; transition:transform .18s ease; }
-            .module-row.is-selected { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--sidebar-bg)); }
-            .module-row.is-dragging { z-index:3; opacity:.95; box-shadow:0 8px 22px #0005; border-color:var(--accent); transition:none; cursor:grabbing; }
-            .module-row.drop-before { box-shadow:0 -3px 0 var(--accent); }
-            .module-row.drop-after { box-shadow:0 3px 0 var(--accent); }
-            .module-name { min-width:0; overflow:hidden; }
-            .module-select-label { min-height:44px; gap:6px; }
-            .module-select-label input,.module-bulk input,.module-group-title input { width:22px; height:22px; }
-            .module-toggle-label { min-height:44px; justify-content:center; }
-            .module-group-title label { min-height:48px; }
-            .module-order-controls { display:flex; }
-            .module-drag { width:44px; min-height:44px; border:1px solid var(--border); border-radius:8px; color:var(--text); background:transparent; touch-action:none; cursor:grab; font-size:24px; }
-            .module-bulk { position:sticky; bottom:0; z-index:2; box-shadow:0 -6px 20px #0002; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
-            .module-bulk button,.module-bulk label { min-height:44px; }
-            .module-bulk-target { flex-wrap:wrap; }
-            @media(prefers-reduced-motion:reduce) { .module-row { transition:none; } }
-            .module-touch-hint { color:var(--muted); font-size:12px; margin:0; }
-            .module-groups { grid-template-columns:minmax(0,1fr); }
-            .module-app-control { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; }
-            .module-app-control small { display:block; color:var(--muted); font-size:11px; font-weight:400; margin-top:5px; }
+            #settings-modules-list { display:flex; flex-direction:column; gap:10px; color:var(--ui-text); }
+            .module-touch-hint { margin:0; font-size:12px; color:var(--ui-muted); }
+            .module-groups { display:grid; grid-template-columns:minmax(260px,1fr) minmax(0,2fr); gap:12px; align-items:start; }
+            .module-group { min-width:0; padding:10px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-panel); display:grid; gap:4px; }
             details.module-apps { display:block; }
-            .module-apps summary { cursor:pointer; list-style:none; }
+            .module-group-title { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; color:var(--ui-text); font-size:12px; font-weight:700; }
+            .module-group-title label,.module-select-label { display:flex; align-items:center; gap:7px; min-width:0; cursor:pointer; }
+            .module-group-level { font-size:11px; font-weight:400; color:var(--ui-muted); }
+            .module-apps summary { cursor:pointer; list-style:none; margin-bottom:6px; }
             .module-apps summary::-webkit-details-marker { display:none; }
-            .module-apps summary::after { content:'展开 ＋'; display:block; text-align:right; font-size:12px; color:var(--muted); padding:0 8px 8px; }
-            .module-apps[open] summary::after { content:'收起 −'; }
-            .module-app-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:60vh; overflow-y:auto; padding:4px; overscroll-behavior:contain; }
-            @media(min-width:1200px) { .module-app-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+            .module-apps summary::after { content:none; }
+            .module-app-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 8px; }
+            .module-row { position:relative; display:grid; grid-template-columns:24px minmax(0,1fr) auto; align-items:center; gap:6px; min-height:40px; padding:2px 6px; border:1px solid transparent; border-radius:8px; background:var(--ui-soft); color:var(--ui-text); font-size:12px; cursor:pointer; touch-action:pan-y; }
+            .module-row:hover { border-color:var(--ui-line-strong); }
+            .module-row.is-selected { background:var(--ui-accent-soft); border-color:var(--ui-accent); }
+            .module-name { min-width:0; overflow:hidden; }
+            .module-select-label { min-height:34px; }
+            .module-select-label span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .module-select-label input,.module-bulk input,.module-group-title input { width:16px; height:16px; margin:0; flex-shrink:0; accent-color:var(--ui-accent); }
+            .module-order-controls { display:flex; }
+            .module-drag { touch-action:none; }
+            .module-order-controls button { width:24px; height:32px; padding:0; border:0; border-radius:5px; background:transparent; color:var(--ui-muted); cursor:grab; touch-action:none; font-size:18px; }
+            .module-order-controls button:focus-visible,.module-switch:focus-within { outline:2px solid var(--ui-accent); outline-offset:2px; }
+            .module-toggle-pair { display:flex; gap:10px; margin-left:auto; }
+            .module-toggle-label { display:grid; justify-items:center; gap:2px; font-size:9px; color:var(--ui-muted); cursor:pointer; }
+            .module-switch { position:relative; display:block; width:32px; height:18px; border:1px solid var(--ui-line-strong); border-radius:999px; background:var(--ui-line); }
+            .module-switch::after { content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:var(--ui-muted); pointer-events:none; transition:transform .15s ease; }
+            .module-switch input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+            .module-switch:has(input:checked) { background:var(--ui-accent-soft); border-color:var(--ui-accent); }
+            .module-switch:has(input:checked)::after { transform:translateX(14px); background:var(--ui-accent); }
+            .module-switch:has(input:disabled) { opacity:.45; }
+            .module-switch input:disabled { cursor:not-allowed; }
+            .module-app-control small { display:block; font-size:10px; font-weight:400; color:var(--ui-muted); margin-top:2px; }
+            .module-row.is-dragging { z-index:3; opacity:.9; box-shadow:var(--ui-shadow-strong); border-color:var(--ui-accent); cursor:grabbing; }
+            .module-row.drop-before { box-shadow:0 -2px 0 var(--ui-accent); }
+            .module-row.drop-after { box-shadow:0 2px 0 var(--ui-accent); }
+            .module-bulk { position:sticky; bottom:0; z-index:2; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:8px; border:1px solid var(--ui-line); border-radius:10px; background:var(--ui-panel); box-shadow:var(--ui-shadow); color:var(--ui-text); font-size:12px; }
+            .module-bulk label,.module-bulk-target { display:flex; align-items:center; gap:6px; }
+            .module-bulk button { min-height:30px; padding:4px 9px; border:1px solid var(--ui-line-strong); border-radius:8px; background:var(--ui-accent-soft); color:var(--ui-accent); font:inherit; cursor:pointer; }
+            .module-bulk button:hover:not(:disabled) { border-color:var(--ui-accent); }
+            .module-bulk button:disabled,.module-order-controls button:disabled { opacity:.4; cursor:not-allowed; }
+            @media(max-width:1100px) { .module-groups { grid-template-columns:minmax(0,1fr); } .module-group:not(.module-apps) { grid-template-columns:repeat(2,minmax(0,1fr)); } .module-group-title { grid-column:1 / -1; } }
             @media(max-width:700px) {
-                .module-app-grid { grid-template-columns:minmax(0,1fr); max-height:none; overflow:visible; }
-                .module-row { grid-template-columns:36px minmax(0,1fr); }
-                .module-row .module-toggle-pair { grid-column:2; justify-self:start; margin-left:0; gap:24px; }
-                .module-order-controls { grid-row:1 / 3; }
-                .module-select-label span { white-space:normal; }
-                .module-bulk { gap:8px; }
-                .module-bulk-target { flex:1 1 100%; justify-content:space-between; }
+                .module-app-grid,.module-group:not(.module-apps) { grid-template-columns:minmax(0,1fr); }
+                .module-row { min-height:48px; grid-template-columns:32px minmax(0,1fr) auto; }
+                .module-order-controls button { width:32px; height:44px; }
+                .module-select-label,.module-toggle-label { min-height:44px; align-content:center; }
+                .module-bulk button,.module-bulk label { min-height:44px; }
+                .module-bulk-target { flex:1 1 100%; }
                 .module-bulk-target button { flex:1; }
+                .module-select-label span { white-space:normal; }
             }
+            @media(prefers-reduced-motion:reduce) { .module-switch::after { transition:none; } }
             @media(max-width:600px) {
                 .module-toggle-pair { gap:10px; margin-left:auto; }
                 .module-toggle-pair { gap:6px; }
                 .module-bulk { gap:6px 12px; }
             }
             #settings-detail iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; visibility:visible; filter:none; transform:none; pointer-events:auto; }
+            #settings-panel .settings-loading { position:absolute; inset:0; z-index:0; padding:26px 28px; display:flex; flex-direction:column; gap:12px; }
+            #settings-panel .settings-loading[hidden] { display:none !important; }
+            #settings-panel .sl-line { height:13px; border-radius:7px; background:linear-gradient(90deg, rgba(127,127,127,.07), rgba(127,127,127,.18), rgba(127,127,127,.07)); background-size:200% 100%; animation:slShimmer 1.15s linear infinite; }
+            #settings-panel .sl-line.sl-head { height:20px; margin-bottom:4px; }
+            #settings-panel .sl-line.w30 { width:30%; } #settings-panel .sl-line.w45 { width:45%; }
+            #settings-panel .sl-line.w60 { width:60%; } #settings-panel .sl-line.w80 { width:80%; }
+            #settings-panel .sl-line.w100 { width:100%; }
+            @keyframes slShimmer { from { background-position:100% 0; } to { background-position:-100% 0; } }
+            @media (prefers-reduced-motion: reduce) { #settings-panel .sl-line { animation: none; } }
             #settings-panel .settings-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
             #settings-panel .settings-top { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); }
             #settings-panel .settings-top h2 { margin:0; font-size:16px; font-weight:800; color:var(--text); }
@@ -436,6 +498,29 @@ class SettingsUI {
             #settings-panel .settings-frame-host[hidden] { display:none !important; }
             #settings-panel iframe.settings-embedded { position:absolute; inset:0; width:100%; height:100%; border:0; opacity:1; visibility:visible; filter:none; transform:none; pointer-events:auto; }
             #settings-panel .settings-stack { display:flex; flex-direction:column; gap:12px; max-width:560px; }
+            /* 手机设置改为顶部单行分类，给详情保留完整宽度；全部操作仍可横滑访问。 */
+            @media (max-width: 700px) {
+                #settings-panel { inset:8px !important; border-radius:14px !important; }
+                #settings-panel .settings-split { flex-direction:column; min-width:0; }
+                #settings-panel .settings-side { width:100%; flex:0 0 auto; border-right:0; border-bottom:1px solid var(--border); }
+                #settings-panel .settings-side > div:first-child { padding:10px 12px !important; }
+                #settings-close-btn { min-width:36px; min-height:36px; }
+                #settings-panel .settings-side-scroll { flex-direction:row; flex:none; gap:8px; padding:0 10px 10px; overflow-x:auto; overscroll-behavior-x:contain; }
+                #settings-panel .settings-side-scroll > .set-card { flex:0 0 auto; width:auto; min-height:44px; padding:8px 10px; gap:8px; white-space:nowrap; }
+                #settings-panel .settings-side-scroll .set-card-ico { width:26px; height:26px; border-radius:8px; }
+                #settings-panel .settings-side-scroll .set-card-sub, #settings-panel .settings-side-scroll .set-card-arrow { display:none; }
+                #settings-panel .settings-side-scroll .set-card-title { font-size:13px; }
+                #settings-panel .comfy-card-actions { flex-shrink:0; }
+                #settings-detail { min-height:0; width:100%; }
+                #settings-look-pane { padding:12px; }
+                #settings-look-pane .look-pane-grid { grid-template-columns:minmax(0,1fr); gap:10px; }
+                #settings-look-pane .look-block, #settings-look-pane .look-scale-row, #settings-look-pane .sys-tile { min-width:0; min-height:76px; padding:12px; }
+                #settings-look-pane .look-scale-row { flex-wrap:wrap; }
+                #settings-look-pane #look-panel-alpha { width:min(148px, 38vw) !important; }
+                #settings-panel .settings-loading { padding:16px; }
+                #comfy-log-panel { flex:0 0 min(300px, 80vw); }
+                #comfy-log-path { min-width:0; overflow-wrap:anywhere; }
+            }
         `;
         document.head.appendChild(style);
 
@@ -685,7 +770,7 @@ class SettingsUI {
                 </button>
                 <button id="settings-lan-btn" class="set-card" style="--sc:#84cc16;--sc2:#d9f99d;">
                     <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg></span>
-                    <span class="set-card-body"><span class="set-card-title">局域网共享</span><span class="set-card-sub">让同一局域网的人访问本机</span></span>
+                    <span class="set-card-body"><span class="set-card-title">共享与用户</span><span class="set-card-sub">连接共享、访问设备与用户账号</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
                 <div id="settings-comfyui-btn" class="set-card" style="--sc:#8b5cf6;--sc2:#c084fc;">
@@ -711,16 +796,17 @@ class SettingsUI {
                     </div>
                     <pre id="comfy-log-content" style="margin:0;padding:10px;background:#141414;color:#e1dfd6;border-radius:8px;font-size:10.5px;max-height:160px;overflow:auto;white-space:pre-wrap;">(加载中...)</pre>
                 </div>
+                <button id="settings-cli-btn" class="set-card" type="button" style="--sc:#22c55e;--sc2:#86efac;display:none;">
+                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></span>
+                    <span class="set-card-body"><span class="set-card-title">CLI 工具</span><span class="set-card-sub">识别、安装与验证本机 CLI</span></span>
+                    <span class="set-card-arrow">&#8250;</span>
+                </button>
                 <button id="settings-mcp-btn" class="set-card" type="button" style="--sc:#ec4899;--sc2:#f9a8d4;display:none;">
                     <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
                     <span class="set-card-body"><span class="set-card-title">MCP 工具</span><span class="set-card-sub">管理外部工具服务与授权</span></span>
                     <span class="set-card-arrow">›</span>
                 </button>
-                <button id="settings-users-btn" class="set-card" style="--sc:#f59e0b;--sc2:#fbbf24;display:none;">
-                    <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
-                    <span class="set-card-body"><span class="set-card-title">用户管理</span><span class="set-card-sub">管理用户和重置密码</span></span>
-                    <span class="set-card-arrow">›</span>
-                </button>
+
                 <button id="settings-look-btn" class="set-card" type="button" style="--sc:#a78bfa;--sc2:#cbc9c0;">
                     <span class="set-card-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
                     <span class="set-card-body"><span class="set-card-title">界面外观</span><span class="set-card-sub">主题、底色、透明和缩放</span></span>
@@ -735,6 +821,13 @@ class SettingsUI {
             </div>
             </aside>
             <div id="settings-detail">
+                <div id="settings-loading" class="settings-loading" hidden>
+                    <div class="sl-line sl-head w45"></div>
+                    <div class="sl-line w80"></div>
+                    <div class="sl-line w100"></div>
+                    <div class="sl-line w60"></div>
+                    <div class="sl-line w100"></div>
+                </div>
                 <div id="settings-comfy-models-pane" hidden>
                     <div>
                         <div class="comfy-models-title">ComfyUI 模型</div>
@@ -745,12 +838,13 @@ class SettingsUI {
                 <div id="settings-modules-pane" hidden>
                     <div>
                         <div class="comfy-models-title">功能模块</div>
-                        <div class="comfy-models-sub">勾选功能或整组后可批量开关；用 ↑ ↓ 调整组内顺序。本机设置保存在当前浏览器，访客权限由主机统一设置。固定开启项和仅限本机项不会被批量操作改变。</div>
+                        <div class="comfy-models-sub">本机显示：控制自己的导航入口；访客可用：控制访客权限。固定项不可关闭。</div>
                     </div>
                     <div id="settings-modules-list"></div>
                 </div>
                 <div id="settings-look-pane" hidden>
-                    <div class="look-pane-grid">
+                    <div class="look-pane-grid look-organized">
+                        <section class="look-section"><h3>主题与配色</h3><div class="look-section-body">
                         <div class="look-block">
                             <div class="look-label">主题</div>
                             <div style="display:flex;gap:8px;" id="look-theme-row">
@@ -758,9 +852,13 @@ class SettingsUI {
                                 <button type="button" data-look-theme="dark">深色</button>
                             </div>
                         </div>
+                        </div></section>
+                        <section class="look-section look-switches"><h3>界面行为</h3><div class="look-section-body">
                         <button id="look-scan-btn" class="sys-tile" type="button" style="--tile:#00f0ff;--tile2:#06b6d4;"><span class="sys-tile-txt"><span class="sys-tile-title">背景扫描线</span><span id="look-scan-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="look-scan-trail">关</span></button>
                         <button id="sys-lock-btn" class="sys-tile" type="button" style="--tile:#00f0ff;--tile2:#06b6d4;"><span class="sys-tile-ico"><svg id="sys-icon-lock-open" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><svg id="sys-icon-lock-closed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg></span><span class="sys-tile-txt"><span class="sys-tile-title">锁定侧边栏</span><span id="sys-lock-status" class="sys-tile-sub">关闭</span></span><span class="sys-tile-trail" id="sys-lock-trail">关</span></button>
-                        <div class="look-block" style="grid-column:1 / -1;">
+                        </div></section>
+                        <section class="look-section look-colors"><h3>色彩方案</h3><div class="look-section-body">
+                        <div class="look-block">
                             <div class="look-label">界面底色</div>
                             <div id="look-palette-row">
                                 <button type="button" class="look-swatch" data-look-palette="ink" title="墨灰" style="background:linear-gradient(135deg,#14161c 0 34%,#1c202a 34% 67%,#252b38 67% 100%);"></button>
@@ -768,19 +866,43 @@ class SettingsUI {
                                 <button type="button" class="look-swatch" data-look-palette="pine" title="松绿" style="background:linear-gradient(135deg,#101916 0 34%,#17241f 34% 67%,#20302a 67% 100%);"></button>
                                 <button type="button" class="look-swatch" data-look-palette="dusk" title="暮紫" style="background:linear-gradient(135deg,#16141f 0 34%,#211c2e 34% 67%,#2c243d 67% 100%);"></button>
                                 <button type="button" class="look-swatch" data-look-palette="sand" title="暖棕" style="background:linear-gradient(135deg,#1a1612 0 34%,#262018 34% 67%,#32281e 67% 100%);"></button>
-                                <input id="look-palette-custom" type="color" title="自定义颜色" value="#1a2744">
+                                <label class="look-custom-color" title="选择自定义底色"><input id="look-palette-custom" type="color" aria-label="自定义底色" value="#1a2744"><span>自选</span></label>
                             </div>
                             <div id="look-palette-preview" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
                         </div>
-                        <label class="look-scale-row" style="grid-column:1 / -1;"><span>面板透明</span><span style="display:flex;align-items:center;gap:10px;"><input id="look-panel-alpha" type="range" min="0" max="40" step="1" value="20" style="width:148px;accent-color:var(--accent);"><span id="look-panel-alpha-val">20%</span></span></label>
+                        <label class="look-scale-row look-alpha"><span>面板透明</span><span style="display:flex;align-items:center;gap:10px;"><input id="look-panel-alpha" type="range" min="0" max="40" step="1" value="20" style="width:148px;accent-color:var(--accent);"><span id="look-panel-alpha-val">20%</span></span></label>
                         <div class="look-block">
                             <div class="look-label">强调色</div>
-                            <div id="look-accent-row"><button type="button" data-look-accent="" title="默认" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891b2,#7c3aed,#d97706,#059669,#e11d48,#0891b2);cursor:pointer;"></button><button type="button" data-look-accent="cyan" title="青" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#06b6d4;cursor:pointer;"></button><button type="button" data-look-accent="violet" title="紫" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#a78bfa;cursor:pointer;"></button><button type="button" data-look-accent="amber" title="琥珀" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fbbf24;cursor:pointer;"></button><button type="button" data-look-accent="emerald" title="绿" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#34d399;cursor:pointer;"></button><button type="button" data-look-accent="rose" title="玫红" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fb7185;cursor:pointer;"></button></div>
+                            <div id="look-accent-row"><button type="button" data-look-accent="" title="默认" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:conic-gradient(#0891b2,#7c3aed,#d97706,#059669,#e11d48,#0891b2);cursor:pointer;"></button><button type="button" data-look-accent="cyan" title="青" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#06b6d4;cursor:pointer;"></button><button type="button" data-look-accent="violet" title="紫" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#a78bfa;cursor:pointer;"></button><button type="button" data-look-accent="amber" title="琥珀" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fbbf24;cursor:pointer;"></button><button type="button" data-look-accent="emerald" title="绿" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#34d399;cursor:pointer;"></button><button type="button" data-look-accent="rose" title="玫红" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:#fb7185;cursor:pointer;"></button><label style="display:flex;align-items:center;gap:8px;">自定义<input id="look-accent-custom" type="color" title="自定义强调色" value="#c7501f"></label></div>
                         </div>
+                        </div></section>
+                        <section class="look-section"><h3>布局与质感</h3><div class="look-section-body look-layout-options">
+                        <label class="look-scale-row"><span>风格预设</span><select data-look-profile="style"><option value="standard">标准 · 跟随原有质感</option><option value="cartoon">卡通 · 柔和色块</option><option value="scifi">科幻 · 低对比技术纹理</option><option value="glass">玻璃 · 半透明与磨砂高光</option></select></label>
+                        <p class="look-hint">风格仅改变公共面板的表面质感，保留默认边框、圆角和交互反馈；圆角与层次仍由下方参数控制。配色与背景保持不变。</p>
                         <label class="look-scale-row"><span>界面缩放</span><select id="look-scale"></select></label>
+                        <label class="look-scale-row"><span>界面疏密</span><select data-look-profile="density"><option value="compact">紧凑</option><option value="standard">标准</option><option value="relaxed">宽松</option></select></label>
+                        <label class="look-scale-row"><span>圆角</span><select data-look-profile="radius"><option value="crisp">利落</option><option value="standard">标准</option><option value="soft">柔和</option></select></label>
+                        <label class="look-scale-row"><span>层次</span><select data-look-profile="depth"><option value="flat">扁平</option><option value="standard">标准</option><option value="raised">立体</option></select></label>
+                        </div></section>
+                        <section class="look-section look-background-section"><h3>背景图片 / 视频</h3><div class="look-section-body">
+                        <div class="look-block">
+                            <div class="look-label">为工作界面添加图片或动态背景</div>
+                            <div class="look-background-actions">
+                                <img id="look-background-preview" alt="当前背景图预览" hidden>
+                                <span id="look-background-empty" class="look-hint">尚未添加背景</span><span id="look-background-video-label" class="look-hint" hidden>已保存视频背景 · 静音循环播放</span>
+                                <input id="look-background-file" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" hidden>
+                                <button id="look-background-add" type="button"><span class="look-add-label">添加背景</span></button>
+                                <button id="look-background-remove" type="button" disabled>移除</button>
+                            </div>
+                            <label class="look-background-strength"><span>叠加强度</span><input id="look-background-strength" type="range" min="0" max="100" step="1" value="20"><output id="look-background-strength-value" for="look-background-strength">20%</output></label>
+                            <p class="look-hint">仅保存在当前浏览器，不上传服务器。支持 PNG、JPEG、WebP，以及 MP4 / WebM 视频（不超过 50 MB，建议短循环）。视频静音播放，页面隐藏或减少动态效果时暂停；清理浏览器数据会移除背景。</p>
+                        </div>
+                        </div></section>
+                        <p id="look-error" role="alert" hidden></p>
                     </div>
                 </div>
                 <div id="settings-users-pane" hidden>
+                    <div class="users-pane-heading"><div><h3>用户与访问设备</h3><p>账号下展示关联设备；未关联账号的访问记录单独成卡。</p></div></div>
                     <div class="users-pane-grid" id="settings-users-grid"></div>
                 </div>
             </div>
@@ -895,21 +1017,25 @@ class SettingsUI {
         const lanBtn = document.getElementById('settings-lan-btn');
         const comfyBtn = document.getElementById('settings-comfyui-btn');
         const mcpBtn = document.getElementById('settings-mcp-btn');
+        const cliBtn = document.getElementById('settings-cli-btn');
         if (apiBtn) apiBtn.onclick = (e) => { e.stopPropagation(); this.showSection('api'); };
         if (lanBtn) lanBtn.onclick = (e) => { e.stopPropagation(); this.showSection('lan'); };
         if (comfyBtn) comfyBtn.onclick = (e) => { e.stopPropagation(); this.showSection('comfy'); };
         if (mcpBtn) mcpBtn.onclick = (e) => { e.stopPropagation(); this.showSection('mcp'); };
+        if (cliBtn) cliBtn.onclick = (e) => { e.stopPropagation(); this.showSection('cli'); };
         const lookBtn = document.getElementById('settings-look-btn');
         if (lookBtn) lookBtn.onclick = (e) => { e.stopPropagation(); this.showSection('look'); };
         const modulesBtn = document.getElementById('settings-modules-btn');
         if (modulesBtn) modulesBtn.onclick = (e) => { e.stopPropagation(); this.showSection('modules'); };
         
+        document.querySelectorAll('[data-sharing-tab]').forEach(btn => { btn.onclick = () => this.showSection(btn.dataset.sharingTab); });
         const usersBtn = document.getElementById('settings-users-btn');
         if (usersBtn) usersBtn.onclick = (e) => { e.stopPropagation(); this.showSection('users'); };
         
         document.addEventListener('click', (e) => {
             if (this.panelVisible && 
-                !this.panelEl.contains(e.target) && 
+                !this.panelEl.contains(e.target) &&
+                !e.composedPath().includes(this.panelEl) &&
                 e.target !== this.buttonEl) {
                 this.hidePanel();
             }
@@ -1152,29 +1278,47 @@ class SettingsUI {
     }
 
     bindLookSettings() {
+        let backgroundBusy = false;
+        const backgroundFile = document.getElementById('look-background-file');
+        const backgroundAdd = document.getElementById('look-background-add');
+        const backgroundRemove = document.getElementById('look-background-remove');
+        const backgroundStrength = document.getElementById('look-background-strength');
+        const backgroundValue = document.getElementById('look-background-strength-value');
+        const showLookError = error => {
+            const alert = document.getElementById('look-error');
+            if (!alert) return;
+            alert.textContent = error ? '外观设置未保存：' + (error.message || String(error)) : '';
+            alert.hidden = !error;
+        };
         const paint = () => {
             const dark = document.body.classList.contains('theme-dark') ||
                 document.documentElement.classList.contains('studio-theme-dark');
             document.querySelectorAll('[data-look-theme]').forEach(btn => {
                 const on = btn.dataset.lookTheme === (dark ? 'dark' : 'light');
+                btn.setAttribute('aria-pressed', String(on));
                 btn.style.background = on ? 'var(--accent)' : 'transparent';
-                btn.style.color = on ? '#141414' : 'var(--text)';
+                btn.style.color = on ? 'var(--accent-ink, var(--ui-accent-ink))' : 'var(--text)';
                 btn.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
             });
             const scan = window.StudioLook ? window.StudioLook.scanlines() : false;
             const scanStatus = document.getElementById('look-scan-status');
             const scanTrail = document.getElementById('look-scan-trail');
             if (scanStatus) scanStatus.textContent = scan ? '开启，深色界面会叠一层细横线' : '关闭';
-            if (scanTrail) scanTrail.textContent = scan ? '开' : '关';
+            if (scanTrail) { scanTrail.textContent = ''; scanTrail.classList.add('studio-switch-indicator'); scanTrail.classList.toggle('is-on', scan); scanTrail.setAttribute('aria-hidden', 'true'); }
             const accent = window.StudioLook ? window.StudioLook.accent() : '';
             document.querySelectorAll('[data-look-accent]').forEach(btn => {
                 const on = btn.dataset.lookAccent === accent;
+                if (btn.dataset.lookAccent && window.StudioLook) btn.style.background = window.StudioLook.accentColor(btn.dataset.lookAccent);
                 btn.style.outline = on ? '2px solid var(--text)' : 'none';
                 btn.style.outlineOffset = '2px';
             });
             const palette = window.StudioLook && window.StudioLook.palette ? window.StudioLook.palette() : 'ink';
             document.querySelectorAll('[data-look-palette]').forEach(btn => {
                 const on = btn.dataset.lookPalette === palette;
+                if (window.StudioLook && window.StudioLook.paletteColors) {
+                    const colors = window.StudioLook.paletteColors(btn.dataset.lookPalette);
+                    btn.style.background = `linear-gradient(135deg,${colors[0]} 0 34%,${colors[1]} 34% 67%,${colors[2]} 67% 100%)`;
+                }
                 btn.style.outline = on ? '2px solid var(--text)' : 'none';
                 btn.style.outlineOffset = '2px';
             });
@@ -1182,6 +1326,10 @@ class SettingsUI {
             if (custom && window.StudioLook && window.StudioLook.paletteColor && document.activeElement !== custom) {
                 custom.value = window.StudioLook.paletteColor();
             }
+            const hex = document.getElementById('look-palette-hex');
+            if (hex && document.activeElement !== hex && custom) hex.value = custom.value;
+            const accentCustom = document.getElementById('look-accent-custom');
+            if (accentCustom && document.activeElement !== accentCustom) accentCustom.value = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : window.StudioLook.accentColor(accent);
             const preview = document.getElementById('look-palette-preview');
             if (preview) {
                 const root = getComputedStyle(document.documentElement);
@@ -1197,6 +1345,38 @@ class SettingsUI {
                 const current = window.StudioLook.panelAlpha();
                 alpha.value = String(current);
                 if (alphaVal) alphaVal.textContent = current + '%';
+            }
+            const profile = window.StudioLook && window.StudioLook.profile ? window.StudioLook.profile() : {};
+            document.querySelectorAll('[data-look-profile]').forEach(select => {
+                select.disabled = !window.StudioLook || !window.StudioLook.setProfile;
+                select.value = profile[select.dataset.lookProfile] || 'standard';
+            });
+            const background = window.StudioLook && window.StudioLook.background ? window.StudioLook.background() : { image: '', strength: 20 };
+            const image = document.getElementById('look-background-preview');
+            const empty = document.getElementById('look-background-empty');
+            if (image) {
+                if (background.image) {
+                    if (image.getAttribute('src') !== background.image) image.src = background.image;
+                } else image.removeAttribute('src');
+                image.hidden = !background.image;
+            }
+            const hasBackground = !!(background.image || background.video);
+            const videoLabel = document.getElementById('look-background-video-label');
+            if (videoLabel) videoLabel.hidden = !background.video;
+            if (empty) empty.hidden = hasBackground;
+            if (backgroundAdd) {
+                backgroundAdd.disabled = backgroundBusy || !window.StudioLook || !window.StudioLook.setBackground;
+                const addLabel = backgroundAdd.querySelector('.look-add-label');
+                if (addLabel) addLabel.textContent = backgroundBusy ? '处理中…' : (hasBackground ? '更换背景' : '添加背景');
+            }
+            if (backgroundFile) backgroundFile.disabled = backgroundBusy;
+            if (backgroundRemove) backgroundRemove.disabled = backgroundBusy || !hasBackground || !window.StudioLook || !window.StudioLook.clearBackground;
+            if (backgroundStrength) {
+                backgroundStrength.disabled = backgroundBusy || !hasBackground || !window.StudioLook || !window.StudioLook.setBackgroundStrength;
+                if (document.activeElement !== backgroundStrength) {
+                    backgroundStrength.value = String(background.strength);
+                    if (backgroundValue) backgroundValue.textContent = background.strength + '%';
+                }
             }
             const scale = document.getElementById('look-scale');
             if (scale && window.StudioScale && !scale.dataset.ready) {
@@ -1252,8 +1432,75 @@ class SettingsUI {
                 paint();
             };
         }
+        const paletteHex = document.getElementById('look-palette-hex');
+        if (paletteHex) paletteHex.oninput = () => {
+            if (/^#[0-9a-fA-F]{6}$/.test(paletteHex.value)) window.StudioLook.setPaletteColor(paletteHex.value);
+        };
+        const accentCustom = document.getElementById('look-accent-custom');
+        if (accentCustom) accentCustom.oninput = () => window.StudioLook.setAccent(accentCustom.value);
+        document.querySelectorAll('[data-look-profile]').forEach(select => {
+            select.onchange = () => {
+                try {
+                    window.StudioLook.setProfile(select.dataset.lookProfile, select.value);
+                    showLookError(null);
+                } catch (error) {
+                    showLookError(error);
+                }
+                paint();
+            };
+        });
+        if (backgroundAdd && backgroundFile) backgroundAdd.onclick = () => backgroundFile.click();
+        if (backgroundFile) backgroundFile.onchange = async () => {
+            const file = backgroundFile.files && backgroundFile.files[0];
+            if (!file || backgroundBusy) {
+                backgroundFile.value = '';
+                return;
+            }
+            backgroundBusy = true;
+            showLookError(null);
+            paint();
+            try {
+                await window.StudioLook.setBackground(file);
+            } catch (error) {
+                showLookError(error);
+            } finally {
+                backgroundFile.value = '';
+                backgroundBusy = false;
+                paint();
+            }
+        };
+        if (backgroundRemove) backgroundRemove.onclick = async () => {
+            if (backgroundBusy) return;
+            backgroundBusy = true;
+            showLookError(null);
+            paint();
+            try {
+                await window.StudioLook.clearBackground();
+            } catch (error) {
+                showLookError(error);
+            } finally {
+                backgroundBusy = false;
+                paint();
+            }
+        };
+        if (backgroundStrength) backgroundStrength.oninput = () => {
+            const next = Number(backgroundStrength.value);
+            if (backgroundValue) backgroundValue.textContent = next + '%';
+            try {
+                window.StudioLook.setBackgroundStrength(next);
+                showLookError(null);
+            } catch (error) {
+                showLookError(error);
+                const current = window.StudioLook.background().strength;
+                backgroundStrength.value = String(current);
+                if (backgroundValue) backgroundValue.textContent = current + '%';
+            }
+        };
         window.addEventListener('studio-theme-change', paint);
         window.addEventListener('studio-look-change', paint);
+        if (this._backgroundErrorHandler) window.removeEventListener('studio-background-error', this._backgroundErrorHandler);
+        this._backgroundErrorHandler = event => showLookError(new Error(event.detail));
+        window.addEventListener('studio-background-error', this._backgroundErrorHandler);
         paint();
     }
 
@@ -1318,17 +1565,35 @@ class SettingsUI {
         this.panelVisible = false;
     }
 
+    showFrameLoading() {
+        const el = document.getElementById('settings-loading');
+        if (el) el.hidden = false;
+    }
+
+    hideFrameLoading() {
+        const el = document.getElementById('settings-loading');
+        if (el) el.hidden = true;
+    }
+
     showSection(name) {
-        const adminOnly = name === 'api' || name === 'lan' || name === 'comfy' || name === 'mcp' || name === 'modules' || name === 'users' || name === 'comfy-models' || name === 'translate';
+        const adminOnly = name === 'api' || name === 'lan' || name === 'comfy' || name === 'mcp' || name === 'cli' || name === 'modules' || name === 'users' || name === 'comfy-models' || name === 'translate';
         if (adminOnly && !AuthManager.isAdmin()) name = 'look';
+        if (name === 'users') name = 'lan';
         this.currentSection = name;
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
+        document.getElementById('settings-detail')?.classList.toggle('sharing-combined', name === 'lan');
+        const sharingNav = document.getElementById('settings-sharing-nav');
+        if (sharingNav) {
+            sharingNav.hidden = !['lan', 'users'].includes(name);
+            sharingNav.querySelectorAll('[data-sharing-tab]').forEach(btn => btn.setAttribute('aria-selected', String(btn.dataset.sharingTab === name)));
+        }
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-cli-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
             const on = (name === 'api' && id === 'settings-api-btn')
-                || (name === 'lan' && id === 'settings-lan-btn')
+                || (['lan', 'users'].includes(name) && id === 'settings-lan-btn')
                 || (name === 'comfy' && id === 'settings-comfyui-btn')
                 || (name === 'mcp' && id === 'settings-mcp-btn')
+                || (name === 'cli' && id === 'settings-cli-btn')
                 || (name === 'look' && id === 'settings-look-btn')
                 || (name === 'modules' && id === 'settings-modules-btn')
                 || (name === 'users' && id === 'settings-users-btn');
@@ -1345,6 +1610,7 @@ class SettingsUI {
         };
         if (name === 'look') {
             hideEmbedded();
+            this.hideFrameLoading();
             if (usersPane) usersPane.hidden = true;
             if (modulesPane) modulesPane.hidden = true;
             if (lookPane) lookPane.hidden = false;
@@ -1352,26 +1618,22 @@ class SettingsUI {
         }
         if (name === 'modules') {
             hideEmbedded();
+            this.hideFrameLoading();
             if (usersPane) usersPane.hidden = true;
             if (lookPane) lookPane.hidden = true;
             if (modulesPane) modulesPane.hidden = false;
             this.renderModules();
             return;
         }
-        if (name === 'users') {
-            hideEmbedded();
-            if (lookPane) lookPane.hidden = true;
-            if (modulesPane) modulesPane.hidden = true;
-            if (usersPane) usersPane.hidden = false;
-            this.showUserList();
-            return;
-        }
         if (lookPane) lookPane.hidden = true;
         if (modulesPane) modulesPane.hidden = true;
-        if (usersPane) usersPane.hidden = true;
+        if (usersPane) usersPane.hidden = name !== 'lan';
+        if (name === 'lan') this.showUserList();
+        this.showFrameLoading();
         if (name === 'api' || name === 'lan') this.mountSettingsFrame('api-settings', name);
         if (name === 'comfy') this.mountSettingsFrame('comfyui-settings');
         if (name === 'mcp') this.mountSettingsFrame('mcp-settings');
+        if (name === 'cli') this.mountSettingsFrame('cli-settings');
     }
 
     async showComfyModels() {
@@ -1381,7 +1643,7 @@ class SettingsUI {
         }
         this._modelsReturn = this.currentSection && this.currentSection !== 'comfy-models' ? this.currentSection : (this._modelsReturn || 'api');
         this.currentSection = 'comfy-models';
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-cli-btn', 'settings-look-btn', 'settings-modules-btn', 'settings-users-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.classList.toggle('is-on', id === 'settings-comfyui-btn');
         });
@@ -1394,6 +1656,7 @@ class SettingsUI {
         if (modulesPane) modulesPane.hidden = true;
         if (usersPane) usersPane.hidden = true;
         if (host) host.querySelectorAll('iframe').forEach(frame => frame.classList.remove('settings-embedded'));
+        this.hideFrameLoading();
         if (modelsPane) modelsPane.hidden = false;
         const grid = document.getElementById('settings-comfy-models-grid');
         if (grid && window.ModelVisibility) await ModelVisibility.mount(grid);
@@ -1409,17 +1672,30 @@ class SettingsUI {
             if (frame !== target) frame.classList.remove('settings-embedded');
         });
         if (firstPlace) host.appendChild(target);
+        if (this.currentSection !== 'lan') target.style.removeProperty('height');
         target.classList.add('settings-embedded');
         target.classList.remove('active');
         const base = target.dataset.src || '';
-        const needsLoad = !target.getAttribute('src') || target.src.includes('embed=1');
-        if (needsLoad) {
-            target.addEventListener('load', () => {
-                if (id === 'api-settings') this.applyFrameSection(target, this._apiSection);
-            }, { once: true });
+        const hasSrc = !!target.getAttribute('src');
+        const doc = target.contentDocument;
+        const frameReady = id === 'api-settings' ? !!target.contentWindow?.__providersReady : !!(doc && doc.readyState === 'complete' && doc.body && doc.body.childElementCount > 0);
+        const onLoaded = () => {
+            if (id === 'api-settings') this.applyFrameSection(target, this._apiSection);
+            if (target.classList.contains('settings-embedded')) this.hideFrameLoading();
+        };
+        if (id === 'api-settings' && !frameReady) {
+            if (target._settingsReadyHandler) target.removeEventListener('settings-ready', target._settingsReadyHandler);
+            target._settingsReadyHandler = onLoaded;
+            target.addEventListener('settings-ready', onLoaded, { once: true });
+        }
+        if (!hasSrc || target.src.includes('embed=1')) {
+            target.addEventListener('load', onLoaded, { once: true });
             target.src = base;
-        } else if (id === 'api-settings') {
-            this.applyFrameSection(target, section);
+        } else if (!frameReady) {
+            // 预取中：等加载结束再切分节，避免落到默认页
+            target.addEventListener('load', onLoaded, { once: true });
+        } else {
+            onLoaded();
         }
         if (typeof syncThemeToFrame === 'function') syncThemeToFrame(target);
     }
@@ -1588,7 +1864,7 @@ class SettingsUI {
         if (iconOpen) iconOpen.style.display = isLocked ? 'none' : 'block';
         if (iconClosed) iconClosed.style.display = isLocked ? 'block' : 'none';
         if (status) status.textContent = isLocked ? '已锁定' : '关闭';
-        if (trail) trail.textContent = isLocked ? '开' : '关';
+        if (trail) { trail.textContent = ''; trail.classList.add('studio-switch-indicator'); trail.classList.toggle('is-on', isLocked); trail.setAttribute('aria-hidden', 'true'); }
         if (tile) tile.style.setProperty('--tile', isLocked ? '#f59e0b' : '#00f0ff'),
                  tile.style.setProperty('--tile2', isLocked ? '#d97706' : '#06b6d4');
     }
@@ -1665,14 +1941,14 @@ class SettingsUI {
             this.buttonEl.style.cursor = 'pointer';
         }
         const admin = loggedIn && AuthManager.isAdmin();
-        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-modules-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
+        ['settings-api-btn', 'settings-lan-btn', 'settings-comfyui-btn', 'settings-mcp-btn', 'settings-cli-btn', 'settings-modules-btn', 'settings-users-btn', 'sys-restart-btn'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (!admin) el.style.display = 'none';
             else if (id === 'settings-users-btn') el.style.display = 'flex';
             else el.style.display = '';
         });
-        if (!admin && ['api', 'lan', 'comfy', 'mcp', 'modules', 'users', 'comfy-models', 'translate'].includes(this.currentSection)) this.showSection('look');
+        if (!admin && ['api', 'lan', 'comfy', 'mcp', 'cli', 'modules', 'users', 'comfy-models', 'translate'].includes(this.currentSection)) this.showSection('look');
     }
     
     escapeHtml(str) {
@@ -1703,11 +1979,19 @@ class SettingsUI {
             grid.innerHTML = '<div class="user-card">' + this.escapeHtml(e.message || '获取用户列表失败') + '</div>';
             return;
         }
+        let clients = [];
+        let clientError = '';
+        try {
+            const response = await AuthManager.authFetch('/api/lan/clients', { cache:'no-store' });
+            if (!response.ok) throw new Error('访问设备读取失败');
+            clients = (await response.json()).clients || [];
+        } catch (error) { clientError = error.message; }
+        const deviceMarkup = item => {
+            const ip = this.escapeHtml(item.ip || '');
+            return '<div class="user-device"><strong>' + this.escapeHtml(item.note || item.ip) + '</strong><span>' + ip + ' · ' + (item.blocked ? '已禁用' : item.online ? '在线' : '离线') + '</span><span>最近访问：' + this.escapeHtml(item.lastSeen ? new Date(item.lastSeen).toLocaleString() : '暂无记录') + '</span><div class="user-device-actions"><button type="button" data-device-note="' + ip + '">备注</button><button type="button" data-device-block="' + ip + '" data-blocked="' + String(!!item.blocked) + '">' + (item.blocked ? '解除禁用' : '禁用设备') + '</button></div></div>';
+        };
         const currentUser = AuthManager.getUser() || {};
-        if (!users.length) {
-            grid.innerHTML = '<div class="user-card">还没有用户</div>';
-            return;
-        }
+
         grid.innerHTML = users.map(u => {
             const isSelf = u.username === currentUser.username;
             const canDelete = !u.is_admin;
@@ -1721,6 +2005,8 @@ class SettingsUI {
                             <div style="font-size:12px;color:var(--muted);margin-top:4px;">${isSelf ? '当前账号' : ''}${isSelf && u.is_admin ? ' · ' : ''}${u.is_admin ? '管理员' : (isSelf ? '' : '普通用户')}</div>
                         </div>
                     </div>
+                    <details><summary>设备与账号管理 · ${clients.filter(item => [...(item.usernames || []), ...(item.onlineUsers || [])].includes(u.username)).length} 台设备</summary>
+                    ${clients.filter(item => [...(item.usernames || []), ...(item.onlineUsers || [])].includes(u.username)).map(deviceMarkup).join('') || '<span style="font-size:12px;color:var(--ui-muted)">暂无已关联设备</span>'}
                     <div class="user-card-actions">
                         <button type="button" class="user-reset-btn">重置密码</button>
                         ${canDelete ? '<button type="button" class="user-delete-btn">删除</button>' : ''}
@@ -1730,10 +2016,32 @@ class SettingsUI {
                         <button type="button" class="user-reset-save">确认</button>
                     </div>
                     <div class="user-card-error" style="display:none;color:#ef4444;font-size:12px;"></div>
+                    </details>
                 </div>
             `;
         }).join('');
-        grid.querySelectorAll('.user-card').forEach(card => {
+        const knownNames = new Set(users.map(user => user.username));
+        grid.innerHTML += clients.filter(item => ![...(item.usernames || []), ...(item.onlineUsers || [])].some(name => knownNames.has(name))).map(item => '<div class="user-card"><strong>未关联账号的设备</strong>' + deviceMarkup(item) + '</div>').join('');
+        if (clientError) { const warning = document.createElement('p'); warning.textContent = clientError; grid.appendChild(warning); }
+        grid.querySelectorAll('[data-device-note], [data-device-block]').forEach(button => {
+            button.onclick = async () => {
+                const ip = button.dataset.deviceNote || button.dataset.deviceBlock;
+                const payload = { ip };
+                if (button.hasAttribute('data-device-note')) {
+                    const item = clients.find(item => item.ip === ip);
+                    const note = window.prompt('设备备注（最多60字）', item?.note || '');
+                    if (note === null) return;
+                    payload.note = note;
+                } else payload.blocked = button.dataset.blocked !== 'true';
+                button.disabled = true;
+                try {
+                    const response = await AuthManager.authFetch('/api/lan/clients', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+                    if (!response.ok) throw new Error('设备设置保存失败');
+                    await this.showUserList();
+                } catch(error) { this.showToast(error.message); button.disabled = false; }
+            };
+        });
+        grid.querySelectorAll('.user-card[data-username]').forEach(card => {
             const username = card.dataset.username;
             const error = card.querySelector('.user-card-error');
             const showCardError = (message) => {

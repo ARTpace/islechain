@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ArtCanvas",
+  "productName": "IsleChain",
   "version": "1.0.0",
   "identifier": "com.artpace.artcanvas",
   "build": {
@@ -11,12 +11,14 @@
     "windows": [
       {
         "label": "main",
-        "title": "ArtCanvas",
+        "title": "IsleChain",
         "width": 1440,
         "height": 900,
         "minWidth": 960,
         "minHeight": 640,
-        "url": "waiting.html"
+        "url": "waiting.html",
+        "transparent": true,
+        "backgroundColor": "#00000000"
       }
     ],
     "security": {

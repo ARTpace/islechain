@@ -15,12 +15,123 @@ from core.canvas_agent import run_agent, run_model, validate_proposal
 
 
 class MCPTests(unittest.IsolatedAsyncioTestCase):
+    async def test_repeated_invalid_json_stops_with_actionable_error(self):
+        count = 0
+        def handler(request):
+            nonlocal count
+            count += 1
+            return httpx.Response(200, json={'choices': [{'message': {'role': 'assistant',
+                'tool_calls': [{'id': str(count), 'type': 'function', 'function': {
+                    'name': 'canvas_propose_workflow', 'arguments': '{} {}'}}]}}]})
+        original = httpx.AsyncClient
+        with patch('core.canvas_agent.httpx.AsyncClient', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+            result = await run_model('https://model.test/v1', {}, 'test', [], [],
+                snapshot={'nodes': [], 'connections': []})
+        self.assertEqual(count, 3)
+        self.assertIsNone(result['proposal'])
+        self.assertIn('已停止', result['text'])
+        self.assertIn('请勿拼接', result['trace'][-1]['error'])
+
+    async def test_plugin_proposal_finishes_without_another_model_round(self):
+        from core.comfy_workflow_builds import ComfyBuilds
+        from core.node_plugin_builds import NodePluginBuilds
+        root = Path(self.directory.name)
+        comfy = ComfyBuilds(root / 'builds', root, 'test', 'canvas', 'localhost:8188')
+        plugins = NodePluginBuilds(comfy)
+        candidate = plugins.create({'typeId': 'test.finish', 'version': '1.0.0', 'title': '测试',
+            'fields': [{'id': 'text', 'label': '文本', 'component': 'text', 'default': 'ok'}],
+            'execution': {'kind': 'host.text', 'operation': 'identity', 'textField': 'text'}},
+            [{'expectedText': 'ok'}])
+        plugins.test(candidate['id'])
+        count = 0
+        def handler(request):
+            nonlocal count
+            count += 1
+            self.assertEqual(count, 1, '成功后不应再让模型生成重复工作流')
+            return httpx.Response(200, json={'choices': [{'message': {'role': 'assistant',
+                'tool_calls': [{'id': 'finish', 'type': 'function', 'function': {
+                    'name': 'canvas_propose_plugin', 'arguments': json.dumps({
+                        'candidate_id': candidate['id'], 'revision': candidate['revision']})}}]}}]})
+        original = httpx.AsyncClient
+        with patch('core.canvas_agent.httpx.AsyncClient', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+            result = await run_model('https://model.test/v1', {}, 'test', [], [],
+                snapshot={'nodes': [], 'connections': []}, comfy=comfy)
+        self.assertEqual(count, 1)
+        self.assertEqual(len(result['proposal']['nodes']), 1)
+        self.assertEqual(result['trace'][-1]['status'], 'completed')
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.settings = patch.object(mcp_tools, 'settings_path', return_value=Path(self.directory.name) / 'servers.json')
         self.settings.start()
         self.addCleanup(self.settings.stop)
+
+    async def test_channel_errors_explain_status_and_redact_credentials(self):
+        original = httpx.AsyncClient
+        for status, hint in [(400, '拒绝请求'), (429, '限流或额度不足')]:
+            def handler(request):
+                return httpx.Response(status, json={'error': {'message': 'detail Bearer private-test-key'}})
+            with patch('core.canvas_agent.httpx.AsyncClient', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+                with self.assertRaises(mcp_tools.MCPError) as caught:
+                    await run_model('https://model.test/v1', {'Authorization': 'Bearer private-test-key'}, 'test', [], [])
+            self.assertIn(hint, str(caught.exception))
+            self.assertNotIn('private-test-key', str(caught.exception))
+            self.assertNotIn('确认模型支持工具调用', str(caught.exception))
+
+    async def test_failed_tool_emits_validation_reason(self):
+        original = httpx.AsyncClient
+        count = 0
+        def handler(request):
+            nonlocal count
+            count += 1
+            message = {'role': 'assistant', 'content': 'done'}
+            if count == 1:
+                message = {'role': 'assistant', 'tool_calls': [{'id': 'bad', 'type': 'function',
+                    'function': {'name': 'canvas_test_config_node', 'arguments': '{invalid'}}]}
+            return httpx.Response(200, json={'choices': [{'message': message}]})
+        events = []
+        async def emit(item):
+            events.append(item)
+        with patch('core.canvas_agent.httpx.AsyncClient', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+            result = await run_model('https://model.test/v1', {}, 'test', [], [], snapshot={'nodes': [], 'connections': []}, emit=emit)
+        failure = next(item for item in events if item.get('status') == 'failed')
+        self.assertIn('error', failure)
+        self.assertEqual(result['trace'][0]['error'], failure['error'])
+
+    async def test_plugin_output_mismatch_is_reported_as_failed_tool(self):
+        from core.comfy_workflow_builds import ComfyBuilds
+        from core.node_plugin_builds import NodePluginBuilds
+        root = Path(self.directory.name)
+        comfy = ComfyBuilds(root / 'builds', root, 'test', 'canvas', 'localhost:8188')
+        candidate = NodePluginBuilds(comfy).create({
+            'typeId': 'test.mismatch', 'version': '1.0.0', 'title': '测试',
+            'fields': [{'id': 'text', 'label': '文本', 'component': 'text', 'default': 'actual'}],
+            'execution': {'kind': 'host.text', 'operation': 'identity', 'textField': 'text'}},
+            [{'expectedText': 'different'}])
+        count = 0
+        def handler(request):
+            nonlocal count
+            count += 1
+            message = {'role': 'assistant', 'content': 'done'}
+            if count == 1:
+                message['tool_calls'] = [{'id': 'test', 'type': 'function', 'function': {
+                    'name': 'canvas_test_plugin', 'arguments': json.dumps({'candidate_id': candidate['id']})}}]
+            else:
+                report = json.loads(json.loads(request.content)['messages'][-1]['content'])
+                self.assertEqual(report['status'], 'failed')
+                self.assertEqual(report['report']['results'][0]['actualText'], 'actual')
+            return httpx.Response(200, json={'choices': [{'message': message}]})
+        original = httpx.AsyncClient
+        events = []
+        async def emit(item):
+            events.append(item)
+        with patch('core.canvas_agent.httpx.AsyncClient', side_effect=lambda **kw: original(transport=httpx.MockTransport(handler), **kw)):
+            result = await run_model('https://model.test/v1', {}, 'test', [], [],
+                snapshot={'nodes': [], 'connections': []}, emit=emit, comfy=comfy)
+        self.assertEqual(result['trace'][0]['status'], 'failed')
+        self.assertIn('实际输出与预期不符', result['trace'][0]['error'])
+        self.assertTrue(any(item.get('status') == 'failed' for item in events))
 
     def server(self):
         return mcp_tools.save_server({'id': 'fixture', 'transport': 'stdio', 'command': sys.executable,
@@ -67,6 +178,7 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
             catalog = {tool.name for tool in await mcp_tools.catalog(client)}
             self.assertTrue({'add', 'private_tool'} <= catalog)
             result = await client.call_tool('add', {'left': 2, 'right': 5})
+            self.assertFalse(result.isError)
             self.assertIn('7', mcp_tools.bounded_result(result))
         async with mcp_tools.tool_pool(['fixture']) as (tools, calls):
             self.assertEqual(len(tools), 1)
@@ -367,6 +479,120 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(progress, '工具进度通知没有到达事件流')
         self.assertTrue(any('步' in (item.get('message') or '') for item in progress))
         await mcp_tools.close_pool()
+
+    async def test_execution_typeerror_never_repeats_side_effect(self):
+        from core.canvas_agent import _call_tool
+        class Client:
+            count = 0
+            async def call_tool(self, name, arguments, progress_callback=None):
+                self.count += 1
+                raise TypeError('failure AFTER external write')
+        client = Client()
+        async def emit(item):
+            pass
+        with self.assertRaisesRegex(mcp_tools.MCPError, '可能已经执行'):
+            await _call_tool(client, 'write', {}, 'write', emit)
+        self.assertEqual(client.count, 1)
+        class OldClient:
+            async def call_tool(self, name, arguments):
+                return types.SimpleNamespace(isError=False, model_dump=lambda **kw: {'content': []})
+        await _call_tool(OldClient(), 'read', {}, 'read', emit)
+
+    async def test_tool_failure_keeps_reason_and_redacts_saved_credentials(self):
+        from core.canvas_agent import _call_tool
+        from mcp.types import CallToolResult, TextContent
+        mcp_tools.save_server({'id': 'secret', 'url': 'https://example.test',
+                               'headers': {'Authorization': 'Bearer private-token-123'}})
+        class Client:
+            async def call_tool(self, name, arguments):
+                return CallToolResult(isError=True, content=[TextContent(type='text',
+                    text='missing file photo.png; private-token-123; Bearer unexpected-token')])
+        async def emit(item):
+            pass
+        with self.assertRaises(mcp_tools.MCPError) as caught:
+            await _call_tool(Client(), 'crop', {}, 'crop', emit)
+        self.assertIn('missing file photo.png', str(caught.exception))
+        self.assertNotIn('private-token-123', str(caught.exception))
+        self.assertNotIn('unexpected-token', str(caught.exception))
+
+    def test_credentials_are_encrypted_on_disk_and_legacy_save_migrates(self):
+        path = mcp_tools.settings_path()
+        path.write_text(json.dumps({'servers': [{'id': 'legacy', 'url': 'https://example.test',
+            'headers': {'Authorization': 'Bearer legacy-private-secret'}, 'env': {'KEY': 'legacy-env-secret'}}]}))
+        self.assertEqual(mcp_tools.servers()[0].env['KEY'], 'legacy-env-secret')
+        mcp_tools.save_server({'id': 'legacy', 'enabled': False})
+        raw = path.read_text()
+        self.assertNotIn('legacy-private-secret', raw)
+        self.assertNotIn('legacy-env-secret', raw)
+        self.assertIn('windows-dpapi-v1', raw)
+        self.assertEqual(mcp_tools.servers()[0].headers['Authorization'], 'Bearer legacy-private-secret')
+
+    async def test_offline_server_does_not_hide_healthy_tools(self):
+        self.server()
+        events = []
+        async def emit(item):
+            events.append(item)
+        async with mcp_tools.tool_pool(['missing', 'fixture'], on_error=emit) as (tools, calls):
+            alias = mcp_tools.tool_alias('fixture', 'add')
+            client, name, _, _ = calls[alias]
+            result = await mcp_tools.call_once(client, name, {'left': 2, 'right': 3})
+            self.assertFalse(result.isError)
+            self.assertIn('5', mcp_tools.bounded_result(result))
+            self.assertEqual(len(tools), 1)
+        self.assertEqual(events[0]['name'], 'missing')
+        await mcp_tools.close_pool()
+
+    async def test_lists_follow_pages_and_do_not_hide_transport_failure(self):
+        class Client:
+            async def list_prompts(self, cursor=None):
+                return types.SimpleNamespace(prompts=[cursor or 'first'], nextCursor='second' if cursor is None else None)
+        self.assertEqual(await mcp_tools.list_prompts(Client()), ['first', 'second'])
+        class Broken:
+            async def list_prompts(self, cursor=None):
+                raise OSError('offline')
+        with self.assertRaisesRegex(mcp_tools.MCPError, '不代表列表为空'):
+            await mcp_tools.list_prompts(Broken())
+        class Loop:
+            async def list_prompts(self, cursor=None):
+                return types.SimpleNamespace(prompts=[], nextCursor='repeat')
+        with self.assertRaisesRegex(mcp_tools.MCPError, '分页异常'):
+            await mcp_tools.list_prompts(Loop())
+
+    async def test_broken_connection_is_replaced_on_next_request(self):
+        server = self.server()
+        async with mcp_tools.pooled_session(server) as first:
+            with self.assertRaises(mcp_tools.MCPError):
+                await mcp_tools.call_once(first, 'add', {'a': object()})
+        async with mcp_tools.pooled_session(server) as second:
+            self.assertIsNot(first, second)
+            result = await mcp_tools.call_once(second, 'add', {'left': 3, 'right': 4})
+            self.assertFalse(result.isError)
+            self.assertIn('7', mcp_tools.bounded_result(result))
+        await mcp_tools.close_pool()
+
+    async def test_idle_pool_closes_without_waiting_for_another_acquire(self):
+        import asyncio
+        server = self.server()
+        with patch.object(mcp_tools, 'POOL_IDLE_SECONDS', 0.02):
+            entry = await mcp_tools.acquire(server)
+            await mcp_tools.release(entry)
+            await asyncio.wait_for(asyncio.shield(entry.task), timeout=5)
+            self.assertTrue(entry.task.done())
+        await mcp_tools.close_pool()
+
+    async def test_resource_and_template_pages_are_both_collected(self):
+        class Client:
+            async def list_resources(self, cursor=None):
+                return types.SimpleNamespace(resources=[cursor or 'r1'], nextCursor='r2' if cursor is None else None)
+            async def list_resource_templates(self, cursor=None):
+                return types.SimpleNamespace(resourceTemplates=[cursor or 't1'], nextCursor='t2' if cursor is None else None)
+        self.assertEqual(await mcp_tools.list_resources(Client()), (['r1', 'r2'], ['t1', 't2']))
+        class Unsupported(Client):
+            def get_server_capabilities(self):
+                return types.SimpleNamespace(resources=None, prompts=None)
+            async def list_resources(self, cursor=None):
+                raise AssertionError('unsupported capability must not be requested')
+        self.assertEqual(await mcp_tools.list_resources(Unsupported()), ([], []))
 
     def test_approval_endpoint_rejects_unknown_ids(self):
         import asyncio as _asyncio

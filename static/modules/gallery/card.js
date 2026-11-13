@@ -267,47 +267,8 @@
             ? `<button onclick="${vpHandler}" class="gallery-vpfab" title="查看提示词" aria-label="查看提示词" style="left:12px;bottom:12px;${BTN_INLINE}"><svg${SVG_22}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`
             : '';
 
-        // 徽标：右下角 model 名称（悬停显示）
+        // 展示区卡片不再显示模型标识（产品要求）；record.model 仍保留给提示词面板/版本历史
         let badgeHTML = '';
-        if (features.modelBadge === 'auto') {
-            let badgeText = record.model;
-            // 如果没有model字段，从图片URL路径提取
-            if (!badgeText && (record.images && record.images[0])) {
-                const url = record.images[0];
-                // 尝试从路径中提取：/output/xxx/xxx/xxx.png
-                const pathMatch = url.match(/\/output\/[^/]+\/([^/]+)(?:\/|$)/);
-                if (pathMatch) {
-                    badgeText = pathMatch[1].toUpperCase();
-                } else {
-                    // 备选：取路径中倒数第二个文件夹名
-                    const parts = url.split('/').filter(Boolean);
-                    if (parts.length >= 2) {
-                        badgeText = parts[parts.length - 2].toUpperCase();
-                    }
-                }
-            }
-            // 视频记录：从 video URL 路径提取（与图片逻辑对称）
-            if (!badgeText && (record.videos && record.videos[0])) {
-                const vurl = record.videos[0];
-                const vMatch = vurl.match(/\/output\/[^/]+\/([^/]+)(?:\/|$)/);
-                if (vMatch) {
-                    badgeText = vMatch[1].toUpperCase();
-                } else {
-                    const vparts = vurl.split('/').filter(Boolean);
-                    if (vparts.length >= 2) {
-                        badgeText = vparts[vparts.length - 2].toUpperCase();
-                    }
-                }
-            }
-            if (badgeText) {
-                // [Bugfix] 改用内联 style + .model-badge 已有 CSS，不再依赖 Tailwind 预编译类
-                // 旧的 `bg-black/60 backdrop-blur text-[9px]` 是 Tailwind v3 类，
-                // 预编译的 tailwind.min.css 不一定包含，导致徽标透明看不见。
-                badgeHTML = `<div class="model-badge" style="position:absolute;bottom:12px;right:12px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;font-size:10px;line-height:1;font-weight:700;color:#fcfcfb;letter-spacing:.04em;">${escapeHTML(badgeText)}</div>`;
-            }
-        } else if (typeof features.modelBadge === 'string' && features.modelBadge) {
-            badgeHTML = `<div class="model-badge absolute bottom-3 right-3 z-10"><img src="${features.modelBadge}" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>`;
-        }
 
         // 批量勾选框
         const batchHTML = features.batchSelect ? `

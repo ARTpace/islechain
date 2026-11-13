@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
-    <title>TTS 语音合成 | ART AI</title>
+    <title>TTS 语音合成 | IsleChain</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -19,9 +20,9 @@
     </script>
     <script src="/static/modules/auth-token.js"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <script src="/static/lucide.min.js"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+
     <script src="/static/history-bulk-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
@@ -36,42 +37,42 @@
         :root { --bg-base: #f8f8f8; --text-main: #1a1a1a; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #0b0b0a; }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
         *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
-        *::-webkit-scrollbar-thumb { background-color:#d8d8d8!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
+        *::-webkit-scrollbar-thumb { background-color:var(--ui-soft)!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
         * { scrollbar-width:thin!important; scrollbar-color:#d8d8d8 transparent!important; }
         body { background-color:var(--bg-base); font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--text-main); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
         .layout-container { max-width:var(--max-w); margin:0 auto; padding:0 40px; }
         @media(max-width:768px){ .layout-container{ padding:0 16px; } }
         @media(max-width:640px){ .layout-container{ padding:0 12px; } }
-        .console-card { background:#fbfaf9; border:1px solid rgba(0, 0, 0, 0.08); box-shadow:0 2px 10px rgba(0, 0, 0, 0.02); }
+        .console-card { background:var(--ui-panel); border:1px solid rgba(0, 0, 0, 0.08); box-shadow:0 2px 10px rgba(0, 0, 0, 0.02); }
         /* === 暗色主题（复用 zimage） === */
         body.studio-theme-dark { --bg-base:#0b0b0a; --text-main:#f6f6f4; }
-        body.studio-theme-dark .console-card { background:#151515!important; border-color:rgba(0, 240, 255, 0.12)!important; }
+        body.studio-theme-dark .console-card { background:var(--ui-panel)!important; border-color:rgba(0, 240, 255, 0.12)!important; }
         body.studio-theme-dark .bg-gray-50\/50 { background:rgba(255, 255, 255, 0.05)!important; }
-        body.studio-theme-dark textarea { color:#f6f6f4!important; }
-        body.studio-theme-dark textarea::placeholder { color:#65645d!important; }
-        body.studio-theme-dark input { color:#f6f6f4!important; }
-        body.studio-theme-dark input::placeholder { color:#65645d!important; }
-        body.studio-theme-dark .text-gray-400 { color:#9f9d94!important; }
-        body.studio-theme-dark .text-gray-500 { color:#9e9c94!important; }
-        body.studio-theme-dark .text-gray-600 { color:#dfddd4!important; }
-        body.studio-theme-dark .text-gray-700 { color:#f6f6f4!important; }
+        body.studio-theme-dark textarea { color:var(--ui-text)!important; }
+        body.studio-theme-dark textarea::placeholder { color:var(--ui-muted)!important; }
+        body.studio-theme-dark input { color:var(--ui-text)!important; }
+        body.studio-theme-dark input::placeholder { color:var(--ui-muted)!important; }
+        body.studio-theme-dark .text-gray-400 { color:var(--ui-muted)!important; }
+        body.studio-theme-dark .text-gray-500 { color:var(--ui-muted)!important; }
+        body.studio-theme-dark .text-gray-600 { color:var(--ui-text)!important; }
+        body.studio-theme-dark .text-gray-700 { color:var(--ui-text)!important; }
         /* === 按钮（复用 zimage） === */
-        .btn-render { background:rgba(0, 0, 0, 0.06)!important; color:#0b0b0a!important; transition:all 0.3s ease; border:1px solid rgba(0, 0, 0, 0.1); }
+        .btn-render { background:rgba(0, 0, 0, 0.06)!important; color:var(--ui-text)!important; transition:all 0.3s ease; border:1px solid rgba(0, 0, 0, 0.1); }
         .btn-render:hover { background:rgba(0, 0, 0, 0.1)!important; transform:translateY(-1px); }
-        .btn-render:disabled { background:#cccccc!important; cursor:not-allowed; color:#666666!important; border-color:transparent!important; }
+        .btn-render:disabled { background:var(--ui-soft)!important; cursor:not-allowed; color:var(--ui-muted)!important; border-color:transparent!important; }
         body.studio-theme-dark .btn-render { background:rgba(0, 240, 255, 0.1)!important; color:#00f0ff!important; border-color:rgba(0, 240, 255, 0.2)!important; }
         body.studio-theme-dark .btn-render:hover { background:rgba(0, 240, 255, 0.18)!important; }
-        body.studio-theme-dark .btn-render:disabled { background:#2e2e2b!important; color:#65645d!important; border-color:transparent!important; }
+        body.studio-theme-dark .btn-render:disabled { background:var(--ui-panel)!important; color:var(--ui-muted)!important; border-color:transparent!important; }
         /* === 控件按钮（复用 zimage） === */
-        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:#f1f1f1; color:#333333; transition:all 0.15s; white-space:nowrap; }
-        .anima-ctrl:hover { background:#e5e5e5; }
-        .anima-ctrl.active { background:#0b0b0a; color:#fbfaf9; }
-        body.studio-theme-dark .anima-ctrl { background:rgba(255, 255, 255, 0.08); color:#dfddd4; }
+        .anima-ctrl { height:32px; padding:0 10px; border:none; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; background:var(--ui-panel); color:var(--ui-text); transition:all 0.15s; white-space:nowrap; }
+        .anima-ctrl:hover { background:var(--ui-panel); }
+        .anima-ctrl.active { background:var(--ui-panel); color:var(--ui-text); }
+        body.studio-theme-dark .anima-ctrl { background:rgba(255, 255, 255, 0.08); color:var(--ui-text); }
         body.studio-theme-dark .anima-ctrl:hover { background:rgba(255, 255, 255, 0.14); }
-        body.studio-theme-dark .anima-ctrl.active { background:#00f0ff; color:#0b0b0a; }
+        body.studio-theme-dark .anima-ctrl.active { background:#00f0ff; color:var(--ui-text); }
         /* === 下拉菜单（复用 zimage） === */
         .anima-ctrl-wrap { position:relative; }
-        .anima-ctrl-menu { display:none; position:fixed; background:#2a2a2a; border-radius:12px; padding:6px; z-index:9999; min-width:140px; box-shadow:0 8px 24px rgba(0, 0, 0, 0.3); max-height:70vh; overflow-y:auto; }
+        .anima-ctrl-menu { display:none; position:fixed; background:var(--ui-panel); border-radius:12px; padding:6px; z-index:9999; min-width:140px; box-shadow:0 8px 24px rgba(0, 0, 0, 0.3); max-height:70vh; overflow-y:auto; }
         /* tts 菜单向下弹出：入场方向改为自上方滑入，缩放原点置顶（与 zimage 向上弹出相反） */
         html body .anima-ctrl-menu { transform-origin: top center; }
         html body .anima-ctrl-menu:not(.is-open):not(.open):not(.force-open) { transform: translateY(-6px) scale(0.985); }
@@ -80,48 +81,48 @@
            是视口而非 .anima-ctrl-wrap，会与 top 双重约束把菜单高度压扁成一条
            （实测 306px → 13px）。这里显式声明，防止后续误加。 */
         html body .anima-ctrl-menu { bottom: auto; }
-        .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:#999999; font-size:12px; transition:all 0.15s; }
-        .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:#fbfaf9; }
-        .anima-ctrl-menu-item.active { color:#fbfaf9; background:rgba(74, 222, 128, 0.10); }
+        .anima-ctrl-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; color:var(--ui-muted); font-size:12px; transition:all 0.15s; }
+        .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:var(--ui-text); }
+        .anima-ctrl-menu-item.active { color:var(--ui-text); background:rgba(74, 222, 128, 0.10); }
         .anima-ctrl-menu-item .chk { margin-left:auto; }
-        body.studio-theme-dark .anima-ctrl-menu { background:#1f1f1d; box-shadow:0 8px 32px rgba(0, 0, 0, 0.5); }
-        body.studio-theme-dark .anima-ctrl-menu-item { color:#a8a79e; }
-        body.studio-theme-dark .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:#fbfaf9; }
+        body.studio-theme-dark .anima-ctrl-menu { background:var(--ui-panel); box-shadow:0 8px 32px rgba(0, 0, 0, 0.5); }
+        body.studio-theme-dark .anima-ctrl-menu-item { color:var(--ui-muted); }
+        body.studio-theme-dark .anima-ctrl-menu-item:hover { background:rgba(255, 255, 255, 0.06); color:var(--ui-text); }
         /* === 控制栏（复用 zimage） === */
         .control-bar { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:nowrap; padding:8px 12px; justify-content:space-between; }
         /* === 输入框 === */
-        .tts-input { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0, 0, 0, 0.1); border-radius:10px; background:#fbfaf9; color:#20201e; outline:none; transition:all 0.15s; -webkit-appearance:none; -moz-appearance:none; appearance:none; }
+        .tts-input { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0, 0, 0, 0.1); border-radius:10px; background:var(--ui-panel); color:var(--ui-text); outline:none; transition:all 0.15s; -webkit-appearance:none; -moz-appearance:none; appearance:none; }
         .tts-input:focus { border-color:rgba(6, 182, 212, 0.5); box-shadow:0 0 0 3px rgba(0, 0, 0, 0.1); }
-        .tts-input option { color:#20201e; background:#fbfaf9; padding:6px; }
-        .tts-input optgroup { color:#86857c; background:#fbfaf9; font-style:normal; font-weight:600; }
-        body.studio-theme-dark .tts-input { background:rgba(23, 23, 22, 0.6); border-color:rgba(0, 240, 255, 0.18); color:#f6f6f4; }
+        .tts-input option { color:var(--ui-text); background:var(--ui-panel); padding:6px; }
+        .tts-input optgroup { color:var(--ui-muted); background:var(--ui-panel); font-style:normal; font-weight:600; }
+        body.studio-theme-dark .tts-input { background:rgba(23, 23, 22, 0.6); border-color:rgba(0, 240, 255, 0.18); color:var(--ui-text); }
         body.studio-theme-dark .tts-input:focus { border-color:rgba(0, 240, 255, 0.5); box-shadow:0 0 0 3px rgba(0, 240, 255, 0.1); }
-        body.studio-theme-dark .tts-input::placeholder { color:#65645d; }
-        body.studio-theme-dark .tts-input option { color:#f6f6f4; background:#171717; padding:6px; }
-        body.studio-theme-dark .tts-input option:checked { background:linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.25)); color:#fbfaf9; }
-        body.studio-theme-dark .tts-input optgroup { color:#9f9d95; background:#171717; font-weight:600; }
+        body.studio-theme-dark .tts-input::placeholder { color:var(--ui-muted); }
+        body.studio-theme-dark .tts-input option { color:var(--ui-text); background:var(--ui-panel); padding:6px; }
+        body.studio-theme-dark .tts-input option:checked { background:linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.25)); color:var(--ui-text); }
+        body.studio-theme-dark .tts-input optgroup { color:var(--ui-muted); background:var(--ui-panel); font-weight:600; }
         /* select 包裹容器：右侧放自定义箭头，避免 background-image 在 select 上被平铺 */
         .tts-select-wrap { position:relative; display:block; width:100%; }
-        .tts-select-wrap::after { content:''; position:absolute; right:12px; top:50%; width:10px; height:10px; transform:translateY(-50%) rotate(45deg); border-right:2px solid #06b6d4; border-bottom:2px solid #06b6d4; pointer-events:none; transition:border-color 0.15s; }
-        .tts-select-wrap:hover::after { border-right-color:#06b6d4; border-bottom-color:#06b6d4; }
+        .tts-select-wrap::after { content:''; position:absolute; right:12px; top:50%; width:10px; height:10px; transform:translateY(-50%) rotate(45deg); border-right:2px solid var(--ui-accent); border-bottom:2px solid var(--ui-accent); pointer-events:none; transition:border-color 0.15s; }
+        .tts-select-wrap:hover::after { border-right-color:var(--ui-accent); border-bottom-color:var(--ui-accent); }
         body.studio-theme-dark .tts-select-wrap::after { border-right-color:#00f0ff; border-bottom-color:#00f0ff; }
         body.studio-theme-dark .tts-select-wrap:hover::after { border-right-color:#00f0ff; border-bottom-color:#00f0ff; }
         .tts-select-wrap select.tts-input { padding-right:30px; cursor:pointer; }
         /* 数字输入框微调：去掉原生 spinner 的灰白色 */
         input[type=number].tts-input::-webkit-inner-spin-button, input[type=number].tts-input::-webkit-outer-spin-button { opacity:0.5; }
         input[type=number].tts-input:hover::-webkit-inner-spin-button, input[type=number].tts-input:hover::-webkit-outer-spin-button { opacity:1; }
-        .tts-textarea { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0, 0, 0, 0.1); border-radius:10px; background:#fbfaf9; color:#20201e; outline:none; resize:none; transition:all 0.15s; min-height:120px; padding-bottom:36px; }
-        body.studio-theme-dark .tts-textarea { background:rgba(23, 23, 22, 0.6); border-color:rgba(0, 240, 255, 0.18); color:#f6f6f4; }
+        .tts-textarea { width:100%; padding:8px 12px; font-size:13px; border:1px solid rgba(0, 0, 0, 0.1); border-radius:10px; background:var(--ui-panel); color:var(--ui-text); outline:none; resize:none; transition:all 0.15s; min-height:120px; padding-bottom:36px; }
+        body.studio-theme-dark .tts-textarea { background:rgba(23, 23, 22, 0.6); border-color:rgba(0, 240, 255, 0.18); color:var(--ui-text); }
         body.studio-theme-dark .tts-textarea:focus { border-color:rgba(0, 240, 255, 0.5); box-shadow:0 0 0 3px rgba(0, 240, 255, 0.1); }
-        body.studio-theme-dark .tts-textarea::placeholder { color:#65645d; }
+        body.studio-theme-dark .tts-textarea::placeholder { color:var(--ui-muted); }
         .tts-textarea-wrapper { position:relative; }
-        .tts-textarea-wrapper select { height:26px; border:1px solid rgba(0, 0, 0, 0.06); border-radius:5px 0 0 5px; background:rgba(0, 0, 0, 0.04); color:#555555; font-size:10px; padding:0 4px; outline:none; cursor:pointer; }
+        .tts-textarea-wrapper select { height:26px; border:1px solid rgba(0, 0, 0, 0.06); border-radius:5px 0 0 5px; background:rgba(0, 0, 0, 0.04); color:var(--ui-muted); font-size:10px; padding:0 4px; outline:none; cursor:pointer; }
         .tts-textarea-wrapper select:focus { border-color:rgba(6, 182, 212, 0.3); }
-        body.studio-theme-dark .tts-textarea-wrapper select { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.08); color:#9e9c94; }
+        body.studio-theme-dark .tts-textarea-wrapper select { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.08); color:var(--ui-muted); }
         body.studio-theme-dark .tts-textarea-wrapper select:focus { border-color:rgba(0, 240, 255, 0.3); }
-        body.studio-theme-dark .tts-textarea-wrapper select option { background:#171717; color:#f6f6f4; }
-        .tts-corner-btn { position:absolute; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border:1px solid rgba(0, 0, 0, 0.06); border-radius:7px; background:rgba(0, 0, 0, 0.04); color:#666666; cursor:pointer; user-select:none; transition:all 0.15s; z-index:2; }
-        .tts-corner-btn:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:#06b6d4; transform:translateY(-1px); }
+        body.studio-theme-dark .tts-textarea-wrapper select option { background:var(--ui-panel); color:var(--ui-text); }
+        .tts-corner-btn { position:absolute; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border:1px solid rgba(0, 0, 0, 0.06); border-radius:7px; background:rgba(0, 0, 0, 0.04); color:var(--ui-muted); cursor:pointer; user-select:none; transition:all 0.15s; z-index:2; }
+        .tts-corner-btn:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:var(--ui-accent); transform:translateY(-1px); }
         .tts-corner-btn:active { transform:scale(0.9); }
         .char-count-label { color:rgba(0, 0, 0, 0.3); }
         body.studio-theme-dark .char-count-label { color:rgba(255, 255, 255, 0.25); }
@@ -129,29 +130,29 @@
         .tts-corner-btn[data-state="loading"] svg { animation:pt-spin 0.9s linear infinite; opacity:0.7; }
         .tts-corner-btn[data-state="ok"] { color:#16a34a !important; border-color:rgba(22, 163, 74, 0.3) !important; background:rgba(22, 163, 74, 0.08) !important; }
         .tts-corner-btn[data-state="fail"] { color:#dc2626 !important; border-color:rgba(220, 38, 38, 0.3) !important; background:rgba(220, 38, 38, 0.08) !important; }
-        .studio-theme-dark .tts-corner-btn { background:rgba(255, 255, 255, 0.06) !important; border-color:rgba(255, 255, 255, 0.08) !important; color:#9e9c94 !important; }
+        .studio-theme-dark .tts-corner-btn { background:rgba(255, 255, 255, 0.06) !important; border-color:rgba(255, 255, 255, 0.08) !important; color:var(--ui-muted) !important; }
         .studio-theme-dark .tts-corner-btn:hover { background:rgba(0, 240, 255, 0.1) !important; border-color:rgba(0, 240, 255, 0.3) !important; color:#00f0ff !important; }
         .studio-theme-dark .tts-corner-btn[data-state="ok"] { color:#4ade80 !important; background:rgba(74, 222, 128, 0.1) !important; border-color:rgba(74, 222, 128, 0.3) !important; }
         .studio-theme-dark .tts-corner-btn[data-state="fail"] { color:#f87171 !important; background:rgba(248, 113, 113, 0.1) !important; border-color:rgba(248, 113, 113, 0.3) !important; }
         @keyframes pt-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         .tts-textarea:focus { border-color:rgba(6, 182, 212, 0.5); box-shadow:0 0 0 3px rgba(0, 0, 0, 0.1); }
         /* === 参数面板项的 label === */
-        .advanced-item label { color:#5e5d56 !important; }
-        body.studio-theme-dark .advanced-item label { color:#9f9d95 !important; }
+        .advanced-item label { color:var(--ui-muted) !important; }
+        body.studio-theme-dark .advanced-item label { color:var(--ui-muted) !important; }
         /* === 多人对话：说话人卡片 === */
         .speaker-card { padding:10px 12px; border-radius:12px; border:1.5px solid rgba(6, 182, 212, 0.15); background:linear-gradient(180deg, rgba(6, 182, 212, 0.03), rgba(6, 182, 212, 0.01)); transition:all 0.2s; }
         .speaker-card:hover { border-color:rgba(6, 182, 212, 0.3); }
         body.studio-theme-dark .speaker-card { border-color:rgba(0, 240, 255, 0.15); background:linear-gradient(180deg, rgba(0, 240, 255, 0.03), rgba(6, 182, 212, 0.01)); }
         body.studio-theme-dark .speaker-card:hover { border-color:rgba(0, 240, 255, 0.3); }
         /* 播客风格按钮 */
-        .podcast-style-btn { padding:4px 10px; border-radius:6px; border:1px solid rgba(168, 85, 247, 0.2); background:rgba(168, 85, 247, 0.05); color:#a855f7; font-size:10px; cursor:pointer; transition:all 0.15s; }
+        .podcast-style-btn { padding:4px 10px; border-radius:6px; border:1px solid rgba(168, 85, 247, 0.2); background:rgba(168, 85, 247, 0.05); color:var(--ui-accent); font-size:10px; cursor:pointer; transition:all 0.15s; }
         .podcast-style-btn:hover { background:rgba(168, 85, 247, 0.15); border-color:rgba(168, 85, 247, 0.4); }
-        .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(139, 92, 246, 0.2)); border-color:rgba(168, 85, 247, 0.5); color:#c084fc; font-weight:600; }
-        body.studio-theme-dark .podcast-style-btn { background:rgba(168, 85, 247, 0.08); color:#c084fc; border-color:rgba(168, 85, 247, 0.25); }
+        .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(139, 92, 246, 0.2)); border-color:rgba(168, 85, 247, 0.5); color:var(--ui-accent); font-weight:600; }
+        body.studio-theme-dark .podcast-style-btn { background:rgba(168, 85, 247, 0.08); color:var(--ui-accent); border-color:rgba(168, 85, 247, 0.25); }
         body.studio-theme-dark .podcast-style-btn:hover { background:rgba(168, 85, 247, 0.18); }
-        body.studio-theme-dark .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(139, 92, 246, 0.25)); color:#d7d5cc; }
+        body.studio-theme-dark .podcast-style-btn.active { background:linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(139, 92, 246, 0.25)); color:var(--ui-text); }
         .speaker-card-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-        .speaker-badge { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fbfaf9; flex-shrink:0; }
+        .speaker-badge { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--ui-text); flex-shrink:0; }
         .speaker-badge-1 { background:linear-gradient(135deg, #06b6d4, #0891b2); }
         .speaker-badge-2 { background:linear-gradient(135deg, #06b6d4, #06b6d4); }
         .speaker-badge-3 { background:linear-gradient(135deg, #f59e0b, #f97316); }
@@ -162,14 +163,14 @@
         body.studio-theme-dark .speaker-badge-4 { background:linear-gradient(135deg, #c084fc, #06b6d4); }
         .speaker-name-input { flex:1; height:22px; padding:0 6px; border:1px solid rgba(0, 0, 0, 0.08); border-radius:6px; font-size:11px; font-weight:600; background:rgba(255, 255, 255, 0.6); outline:none; }
         .speaker-name-input:focus { border-color:rgba(6, 182, 212, 0.5); }
-        body.studio-theme-dark .speaker-name-input { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.1); color:#f6f6f4; }
+        body.studio-theme-dark .speaker-name-input { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.1); color:var(--ui-text); }
         .speaker-audio-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
         .speaker-audio-btns { display:flex; align-items:center; gap:4px; flex:1; }
-        .speaker-audio-btn { height:22px; padding:0 8px; border:1px dashed rgba(0, 0, 0, 0.15); border-radius:6px; font-size:9.5px; cursor:pointer; background:rgba(255, 255, 255, 0.5); color:#666666; display:flex; align-items:center; gap:3px; transition:all 0.15s; white-space:nowrap; }
-        .speaker-audio-btn:hover { border-color:rgba(6, 182, 212, 0.5); color:#06b6d4; background:rgba(6, 182, 212, 0.05); }
-        body.studio-theme-dark .speaker-audio-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.1); color:#9e9c94; }
+        .speaker-audio-btn { height:22px; padding:0 8px; border:1px dashed rgba(0, 0, 0, 0.15); border-radius:6px; font-size:9.5px; cursor:pointer; background:rgba(255, 255, 255, 0.5); color:var(--ui-muted); display:flex; align-items:center; gap:3px; transition:all 0.15s; white-space:nowrap; }
+        .speaker-audio-btn:hover { border-color:rgba(6, 182, 212, 0.5); color:var(--ui-accent); background:rgba(6, 182, 212, 0.05); }
+        body.studio-theme-dark .speaker-audio-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.1); color:var(--ui-muted); }
         body.studio-theme-dark .speaker-audio-btn:hover { border-color:rgba(0, 240, 255, 0.5); color:#00f0ff; }
-        .speaker-audio-name { font-size:10px; color:#999999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
+        .speaker-audio-name { font-size:10px; color:var(--ui-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
         /* 说话人音频卡片（复用 ref-audio-card 风格） */
         .speaker-audio-card { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px; background:linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)); border:1px solid rgba(0, 0, 0, 0.06); margin-top:4px; }
         body.studio-theme-dark .speaker-audio-card { background:linear-gradient(180deg, rgba(20, 20, 20, 0.8), rgba(14, 14, 13, 0.8)); border-color:rgba(0, 240, 255, 0.1); }
@@ -182,38 +183,38 @@
         .speaker-audio-card .ref-icon-btn svg { width:11px; height:11px; }
         .speaker-fields { display:flex; gap:4px; }
         .speaker-field-input { height:22px; padding:0 6px; border:1px solid rgba(0, 0, 0, 0.08); border-radius:6px; font-size:10px; background:rgba(255, 255, 255, 0.6); outline:none; }
-        .speaker-field-input::placeholder { color:#bbbbbb; }
+        .speaker-field-input::placeholder { color:var(--ui-text); }
         .speaker-field-input:focus { border-color:rgba(6, 182, 212, 0.5); }
-        body.studio-theme-dark .speaker-field-input { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.1); color:#f6f6f4; }
-        .speaker-field-input::placeholder { color:#65645d; }
+        body.studio-theme-dark .speaker-field-input { background:rgba(255, 255, 255, 0.06); border-color:rgba(255, 255, 255, 0.1); color:var(--ui-text); }
+        .speaker-field-input::placeholder { color:var(--ui-muted); }
         /* === 参考音频：固定高度容器，防止导入前后布局跳动 === */
         .ref-audio-holder { position:relative; min-height:54px; display:flex; flex-direction:column; }
         /* === 参考音频：空状态（极致紧凑） === */
         .ref-audio-empty { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:3px; padding:4px 6px 5px; border-radius:7px; background:linear-gradient(180deg, rgba(6, 182, 212, 0.04), rgba(6, 182, 212, 0.02)); border:1.5px dashed rgba(0, 0, 0, 0.10); cursor:pointer; transition:all 0.2s var(--easing); margin-top:3px; flex:1; }
         .ref-audio-empty:hover { border-color:rgba(6, 182, 212, 0.5); background:linear-gradient(180deg, rgba(6, 182, 212, 0.08), rgba(6, 182, 212, 0.04)); }
-        .ref-audio-empty.drag-over { border-color:#06b6d4; background:rgba(0, 0, 0, 0.10); transform:scale(1.005); }
+        .ref-audio-empty.drag-over { border-color:var(--ui-accent); background:rgba(0, 0, 0, 0.10); transform:scale(1.005); }
         body.studio-theme-dark .ref-audio-empty { background:linear-gradient(180deg, rgba(0, 240, 255, 0.04), rgba(6, 182, 212, 0.02)); border-color:rgba(255, 255, 255, 0.10); }
         body.studio-theme-dark .ref-audio-empty:hover { border-color:rgba(0, 240, 255, 0.5); background:linear-gradient(180deg, rgba(0, 240, 255, 0.08), rgba(6, 182, 212, 0.04)); }
         body.studio-theme-dark .ref-audio-empty.drag-over { border-color:#00f0ff; background:rgba(0, 240, 255, 0.10); }
         /* 空状态：单行紧凑布局（图标 + 文案 + 按钮） */
         .ref-audio-empty-row { display:flex; align-items:center; gap:6px; min-height:22px; }
-        .ref-audio-empty-icon { width:18px; height:18px; border-radius:5px; background:linear-gradient(135deg, rgba(6, 182, 212, 0.14), rgba(6, 182, 212, 0.14)); display:flex; align-items:center; justify-content:center; color:#06b6d4; transition:all 0.2s; flex-shrink:0; }
+        .ref-audio-empty-icon { width:18px; height:18px; border-radius:5px; background:linear-gradient(135deg, rgba(6, 182, 212, 0.14), rgba(6, 182, 212, 0.14)); display:flex; align-items:center; justify-content:center; color:var(--ui-accent); transition:all 0.2s; flex-shrink:0; }
         .ref-audio-empty:hover .ref-audio-empty-icon { transform:scale(1.05); }
         body.studio-theme-dark .ref-audio-empty-icon { background:linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(0, 240, 255, 0.16)); color:#00f0ff; }
-        .ref-audio-empty-text { font-size:10.5px; color:#86857c; font-weight:500; flex:1; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        body.studio-theme-dark .ref-audio-empty-text { color:#9e9c94; }
+        .ref-audio-empty-text { font-size:10.5px; color:var(--ui-muted); font-weight:500; flex:1; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        body.studio-theme-dark .ref-audio-empty-text { color:var(--ui-muted); }
         .ref-audio-empty-actions { display:flex; gap:5px; }
-        .ref-action-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 6px; border:1px solid rgba(0, 0, 0, 0.08); border-radius:5px; font-size:9.5px; font-weight:500; cursor:pointer; background:#fbfaf9; color:#444444; transition:all 0.15s; }
-        .ref-action-btn:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(6, 182, 212, 0.3); color:#06b6d4; }
+        .ref-action-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 6px; border:1px solid rgba(0, 0, 0, 0.08); border-radius:5px; font-size:9.5px; font-weight:500; cursor:pointer; background:var(--ui-panel); color:var(--ui-text); transition:all 0.15s; }
+        .ref-action-btn:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(6, 182, 212, 0.3); color:var(--ui-accent); }
         .ref-action-btn-lg { height:26px; padding:0 10px; font-size:11px; font-weight:600; border-radius:6px; gap:4px; }
         .ref-action-btn-record { color:#ef4444; border-color:rgba(239, 68, 68, 0.2); background:rgba(239, 68, 68, 0.06); }
         .ref-action-btn-record:hover { background:rgba(239, 68, 68, 0.12); border-color:rgba(239, 68, 68, 0.4); color:#dc2626; }
-        .ref-action-btn-voice { color:#06b6d4; border-color:rgba(239, 68, 68, 0.2); background:rgba(239, 68, 68, 0.06); pointer-events:auto !important; opacity:1 !important; }
-        .ref-action-btn-voice:hover { background:rgba(239, 68, 68, 0.12); border-color:rgba(239, 68, 68, 0.4); color:#0891b2; }
-        body.studio-theme-dark .ref-action-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.08); color:#dfddd4; }
+        .ref-action-btn-voice { color:var(--ui-accent); border-color:rgba(239, 68, 68, 0.2); background:rgba(239, 68, 68, 0.06); pointer-events:auto !important; opacity:1 !important; }
+        .ref-action-btn-voice:hover { background:rgba(239, 68, 68, 0.12); border-color:rgba(239, 68, 68, 0.4); color:var(--ui-accent); }
+        body.studio-theme-dark .ref-action-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.08); color:var(--ui-text); }
         body.studio-theme-dark .ref-action-btn:hover { background:rgba(0, 240, 255, 0.1); border-color:rgba(0, 240, 255, 0.3); color:#00f0ff; }
-        body.studio-theme-dark .ref-action-btn-record { color:#cfcdc4; border-color:rgba(239, 68, 68, 0.25); background:rgba(239, 68, 68, 0.08); }
-        body.studio-theme-dark .ref-action-btn-record:hover { background:rgba(239, 68, 68, 0.15); border-color:rgba(239, 68, 68, 0.4); color:#cfcdc4; }
+        body.studio-theme-dark .ref-action-btn-record { color:var(--ui-text); border-color:rgba(239, 68, 68, 0.25); background:rgba(239, 68, 68, 0.08); }
+        body.studio-theme-dark .ref-action-btn-record:hover { background:rgba(239, 68, 68, 0.15); border-color:rgba(239, 68, 68, 0.4); color:var(--ui-text); }
         body.studio-theme-dark .ref-action-btn-voice { color:#00f0ff; border-color:rgba(0, 240, 255, 0.25); background:rgba(0, 240, 255, 0.08); }
         body.studio-theme-dark .ref-action-btn-voice:hover { background:rgba(0, 240, 255, 0.15); border-color:rgba(0, 240, 255, 0.4); color:#00f0ff; }
         /* === 参考音频：录音中状态 === */
@@ -230,27 +231,27 @@
         body.studio-theme-dark .ref-audio-card::before { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f0ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); opacity:0.08; }
         body.studio-theme-dark .ref-audio-card:hover { box-shadow:0 2px 8px rgba(29, 29, 28, 0.4); }
         /* .ref-audio-card-top removed — card is now a single flex row */
-        .ref-play-btn-lg { width:30px; height:30px; border-radius:7px; border:1px solid rgba(0, 0, 0, 0.08); background:rgba(0, 0, 0, 0.03); color:#555555; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s var(--easing); flex-shrink:0; position:relative; }
-        .ref-play-btn-lg:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:#06b6d4; transform:scale(1.06); }
+        .ref-play-btn-lg { width:30px; height:30px; border-radius:7px; border:1px solid rgba(0, 0, 0, 0.08); background:rgba(0, 0, 0, 0.03); color:var(--ui-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s var(--easing); flex-shrink:0; position:relative; }
+        .ref-play-btn-lg:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:var(--ui-accent); transform:scale(1.06); }
         .ref-play-btn-lg:active { transform:scale(0.92); }
-        .ref-play-btn-lg.playing { background:rgba(239, 68, 68, 0.12); border-color:rgba(6, 182, 212, 0.35); color:#06b6d4; animation:record-pulse-cyan 1.8s ease-out infinite; }
-        body.studio-theme-dark .ref-play-btn-lg { border-color:rgba(255, 255, 255, 0.08); background:rgba(255, 255, 255, 0.04); color:#9e9c94; }
+        .ref-play-btn-lg.playing { background:rgba(239, 68, 68, 0.12); border-color:rgba(6, 182, 212, 0.35); color:var(--ui-accent); animation:record-pulse-cyan 1.8s ease-out infinite; }
+        body.studio-theme-dark .ref-play-btn-lg { border-color:rgba(255, 255, 255, 0.08); background:rgba(255, 255, 255, 0.04); color:var(--ui-muted); }
         body.studio-theme-dark .ref-play-btn-lg:hover { background:rgba(0, 240, 255, 0.1); border-color:rgba(0, 240, 255, 0.3); color:#00f0ff; }
         body.studio-theme-dark .ref-play-btn-lg.playing { background:rgba(0, 240, 255, 0.12); border-color:rgba(0, 240, 255, 0.35); color:#00f0ff; animation:record-pulse-cyan-dark 1.8s ease-out infinite; }
         /* 单行信息：文件名 + 时间紧凑并排 */
         .ref-audio-info { flex:0 1 auto; min-width:0; display:flex; align-items:center; gap:5px; overflow:hidden; }
-        .ref-audio-info-name { font-size:10.5px; font-weight:600; color:#464540; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; flex:0 1 auto; max-width:120px; min-width:0; }
-        body.studio-theme-dark .ref-audio-info-name { color:#f6f6f4; }
-        .ref-audio-info-time { font-size:9px; color:#a19f97; font-variant-numeric:tabular-nums; letter-spacing:0.02em; line-height:1.1; flex-shrink:0; white-space:nowrap; }
-        body.studio-theme-dark .ref-audio-info-time { color:#9f9d94; }
+        .ref-audio-info-name { font-size:10.5px; font-weight:600; color:var(--ui-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; flex:0 1 auto; max-width:120px; min-width:0; }
+        body.studio-theme-dark .ref-audio-info-name { color:var(--ui-text); }
+        .ref-audio-info-time { font-size:9px; color:var(--ui-muted); font-variant-numeric:tabular-nums; letter-spacing:0.02em; line-height:1.1; flex-shrink:0; white-space:nowrap; }
+        body.studio-theme-dark .ref-audio-info-time { color:var(--ui-muted); }
         .ref-audio-actions { display:flex; gap:3px; flex-shrink:0; }
-        .ref-icon-btn { width:28px; height:28px; border:none; border-radius:6px; background:rgba(0, 0, 0, 0.03); border:1px solid rgba(0, 0, 0, 0.06); color:#666666; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.18s var(--easing); }
-        .ref-icon-btn:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:#06b6d4; transform:translateY(-1px); }
+        .ref-icon-btn { width:28px; height:28px; border:none; border-radius:6px; background:rgba(0, 0, 0, 0.03); border:1px solid rgba(0, 0, 0, 0.06); color:var(--ui-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.18s var(--easing); }
+        .ref-icon-btn:hover { background:rgba(0, 0, 0, 0.1); border-color:rgba(6, 182, 212, 0.3); color:var(--ui-accent); transform:translateY(-1px); }
         .ref-icon-btn:active { transform:scale(0.9) translateY(0); }
         .ref-icon-btn-danger:hover { background:rgba(239, 68, 68, 0.1); border-color:rgba(239, 68, 68, 0.3); color:#ef4444; }
-        body.studio-theme-dark .ref-icon-btn { color:#9e9c94; background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.08); }
+        body.studio-theme-dark .ref-icon-btn { color:var(--ui-muted); background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.08); }
         body.studio-theme-dark .ref-icon-btn:hover { background:rgba(0, 240, 255, 0.12); border-color:rgba(0, 240, 255, 0.3); color:#00f0ff; }
-        body.studio-theme-dark .ref-icon-btn-danger:hover { background:rgba(239, 68, 68, 0.12); border-color:rgba(239, 68, 68, 0.35); color:#cfcdc4; }
+        body.studio-theme-dark .ref-icon-btn-danger:hover { background:rgba(239, 68, 68, 0.12); border-color:rgba(239, 68, 68, 0.35); color:var(--ui-text); }
         /* === 波形音轨（极致紧凑） === */
         .ref-audio-waveform { position:relative; flex:1; min-width:0; height:36px; background:linear-gradient(180deg, rgba(6, 182, 212, 0.04), rgba(6, 182, 212, 0.02)); border-radius:4px; cursor:pointer; overflow:hidden; }
         .ref-audio-waveform::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.2), transparent); }
@@ -265,7 +266,7 @@
         .ref-voice-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 7px; border:1px solid transparent; border-radius:5px; font-size:9.5px; font-weight:600; cursor:pointer; transition:all 0.18s var(--easing); position:relative; overflow:hidden; }
         .ref-voice-btn svg { flex-shrink:0; }
         /* 音色库：主按钮，撑满 */
-        .ref-voice-btn-primary { flex:1; justify-content:center; background:linear-gradient(135deg, #06b6d4 0%, #06b6d4 100%); color:#fbfaf9; border-color:rgba(239, 68, 68, 0.4); box-shadow:0 1.5px 5px rgba(6, 182, 212, 0.28); position:relative; }
+        .ref-voice-btn-primary { flex:1; justify-content:center; background:linear-gradient(135deg, #06b6d4 0%, #06b6d4 100%); color:var(--ui-text); border-color:rgba(239, 68, 68, 0.4); box-shadow:0 1.5px 5px rgba(6, 182, 212, 0.28); position:relative; }
         .ref-voice-btn-primary::before { content:''; position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent); pointer-events:none; border-radius:5px 5px 0 0; }
         .ref-voice-btn-primary::after { content:''; position:absolute; inset:0; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' opacity='0.18'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>"); background-repeat:no-repeat; background-position:right -2px center; background-size:22px 22px; pointer-events:none; }
         .ref-voice-btn-primary:hover { transform:translateY(-1px); box-shadow:0 3px 10px rgba(6, 182, 212, 0.42); border-color:rgba(6, 182, 212, 0.6); }
@@ -288,8 +289,8 @@
         /* === 空状态下的音色入口（极简） === */
         .ref-voice-mini-row { display:flex; align-items:center; gap:3px; }
         .ref-voice-mini-btn { display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 7px; border:1px solid transparent; border-radius:5px; font-size:9.5px; font-weight:600; cursor:pointer; transition:all 0.18s var(--easing); }
-        .ref-voice-mini-btn-primary { background:linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%); color:#0891b2; border-color:rgba(6, 182, 212, 0.28); }
-        .ref-voice-mini-btn-primary:hover { background:linear-gradient(135deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.22) 100%); color:#0e7490; border-color:rgba(6, 182, 212, 0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(6, 182, 212, 0.18); }
+        .ref-voice-mini-btn-primary { background:linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%); color:var(--ui-accent); border-color:rgba(6, 182, 212, 0.28); }
+        .ref-voice-mini-btn-primary:hover { background:linear-gradient(135deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.22) 100%); color:var(--ui-accent); border-color:rgba(6, 182, 212, 0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(6, 182, 212, 0.18); }
         .ref-voice-mini-btn-import { background:linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(16, 185, 129, 0.10) 100%); color:#008766; border-color:rgba(6, 182, 212, 0.28); margin-left:auto; }
         .ref-voice-mini-btn-import:hover { background:linear-gradient(135deg, rgba(6, 182, 212, 0.22) 0%, rgba(16, 185, 129, 0.18) 100%); color:#006b51; border-color:rgba(6, 182, 212, 0.5); transform:translateY(-1px); box-shadow:0 2px 5px rgba(16, 185, 129, 0.18); }
         body.studio-theme-dark .ref-voice-mini-btn-primary { background:linear-gradient(135deg, rgba(0, 240, 255, 0.14) 0%, rgba(6, 182, 212, 0.14) 100%); color:#00f0ff; border-color:rgba(0, 240, 255, 0.32); }
@@ -304,41 +305,41 @@
         .advanced-window { width:min(560px, 92%); max-height:80vh; display:flex; flex-direction:column; background:linear-gradient(165deg, #1c1c1b 0%, #101010 100%); border-radius:16px; border:1px solid rgba(255, 255, 255, 0.1); box-shadow:0 30px 80px rgba(0, 0, 0, 0.5); overflow:hidden; animation:adv-pop 0.18s ease-out; }
         @keyframes adv-pop { from { transform:scale(0.96); opacity:0; } to { transform:scale(1); opacity:1; } }
         .advanced-window-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid rgba(255, 255, 255, 0.1); }
-        .advanced-window-title { margin:0; font-size:14px; color:#fbfaf9; font-weight:600; }
+        .advanced-window-title { margin:0; font-size:14px; color:var(--ui-text); font-weight:600; }
         .advanced-close-btn { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(255, 255, 255, 0.1); border-radius:8px; color:rgba(255, 255, 255, 0.7); cursor:pointer; transition:all 0.15s; }
         .advanced-close-btn:hover { background:rgba(255, 80, 80, 0.18); border-color:rgba(255, 80, 80, 0.4); color:#ff6b6b; }
         .advanced-window-body { flex:1; overflow-y:auto; padding:16px 18px 20px; }
         .advanced-window-body::-webkit-scrollbar { width:8px!important; }
         .advanced-window-body::-webkit-scrollbar-thumb { background-color:rgba(255, 255, 255, 0.15)!important; border:2px solid transparent!important; background-clip:padding-box!important; border-radius:8px!important; }
-        .advanced-window-body .text-gray-400 { color:#a8a79e !important; }
-        .advanced-window-body .text-gray-500 { color:#c5c4bb !important; }
-        .advanced-window-body .text-gray-600 { color:#dfddd4 !important; }
-        .advanced-window-body .text-xs { color:#dfddd4; }
-        .advanced-window-body .text-\[10px\] { color:#a8a79e; }
+        .advanced-window-body .text-gray-400 { color:var(--ui-muted) !important; }
+        .advanced-window-body .text-gray-500 { color:var(--ui-text) !important; }
+        .advanced-window-body .text-gray-600 { color:var(--ui-text) !important; }
+        .advanced-window-body .text-xs { color:var(--ui-text); }
+        .advanced-window-body .text-\[10px\] { color:var(--ui-muted); }
         .advanced-window-body input[type=range] { background:rgba(255, 255, 255, 0.12) !important; }
         .advanced-window-body input[type=range]::-webkit-slider-thumb { background:#00f0ff !important; }
-        .advanced-window-body .tts-input { background:rgba(23, 23, 22, 0.6) !important; border-color:rgba(0, 240, 255, 0.18) !important; color:#f6f6f4 !important; }
+        .advanced-window-body .tts-input { background:rgba(23, 23, 22, 0.6) !important; border-color:rgba(0, 240, 255, 0.18) !important; color:var(--ui-text) !important; }
         .advanced-window-body .tts-input:focus { border-color:rgba(0, 240, 255, 0.5) !important; box-shadow:0 0 0 3px rgba(0, 240, 255, 0.1) !important; }
-        .advanced-window-body .tts-input::placeholder { color:#65645d !important; }
-        .advanced-window-body .tts-input option { color:#f6f6f4 !important; background:#171717 !important; }
-        .advanced-window-body .tts-input option:checked { background:linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.25)) !important; color:#fbfaf9 !important; }
-        .advanced-window-body .tts-input optgroup { color:#9f9d95 !important; background:#171717 !important; }
+        .advanced-window-body .tts-input::placeholder { color:var(--ui-muted) !important; }
+        .advanced-window-body .tts-input option { color:var(--ui-text) !important; background:var(--ui-panel) !important; }
+        .advanced-window-body .tts-input option:checked { background:linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(6, 182, 212, 0.25)) !important; color:var(--ui-text) !important; }
+        .advanced-window-body .tts-input optgroup { color:var(--ui-muted) !important; background:var(--ui-panel) !important; }
         .advanced-window-body input[type=checkbox] { accent-color:#00f0ff !important; }
         .advanced-window-body .tts-select-wrap::after { border-right-color:#00f0ff !important; border-bottom-color:#00f0ff !important; }
         .advanced-window-body .tts-select-wrap:hover::after { border-right-color:#00f0ff !important; border-bottom-color:#00f0ff !important; }
         .advanced-window-body #seedInput,
         .advanced-window-body #durationInput,
-        .advanced-window-body #savePrefix { background:rgba(23, 23, 22, 0.6); border:1px solid rgba(0, 240, 255, 0.18); color:#f6f6f4; }
+        .advanced-window-body #savePrefix { background:rgba(23, 23, 22, 0.6); border:1px solid rgba(0, 240, 255, 0.18); color:var(--ui-text); }
         .advanced-window-body #seedInput::placeholder,
         .advanced-window-body #durationInput::placeholder,
-        .advanced-window-body #savePrefix::placeholder { color:#65645d; }
+        .advanced-window-body #savePrefix::placeholder { color:var(--ui-muted); }
         .advanced-window-body #stepsValue,
         .advanced-window-body #cfgValue,
         .advanced-window-body #speedValue,
         .advanced-window-body #tShiftValue,
         .advanced-window-body #posTempValue,
         .advanced-window-body #classTempValue,
-        .advanced-window-body #layerPenaltyValue { color:#c5c4bb; }
+        .advanced-window-body #layerPenaltyValue { color:var(--ui-text); }
         .advanced-window-body button.text-cyan-500,
         .advanced-window-body .text-cyan-500 { color:#00f0ff !important; }
         /* === Masonry 网格（复用 zimage） === */
@@ -346,9 +347,9 @@
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
         @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
         @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
-        .masonry-item { border-radius:16px; overflow:hidden; background:#fbfaf9; border:1px solid rgba(0, 0, 0, 0.06); transition:all 0.3s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
+        .masonry-item { border-radius:16px; overflow:hidden; background:var(--ui-panel); border:1px solid rgba(0, 0, 0, 0.06); transition:all 0.3s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
         .masonry-item:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(0, 0, 0, 0.08); }
-        body.studio-theme-dark .masonry-item { background:#151515; border-color:rgba(0, 240, 255, 0.1); }
+        body.studio-theme-dark .masonry-item { background:var(--ui-panel); border-color:rgba(0, 240, 255, 0.1); }
         .date-separator { display:flex; align-items:center; gap:12px; padding:12px 0 8px; column-span:all; }
         .date-separator .sep-line { flex:1; height:1px; background:rgba(0, 0, 0, 0.06); }
         body.studio-theme-dark .date-separator .sep-line { background:rgba(255, 255, 255, 0.08); }
@@ -357,7 +358,7 @@
         /* === 进度条 === */
         .progress-inline { display:none; margin-top:12px; padding:12px 16px; background:linear-gradient(135deg,rgba(6, 182, 212, 0.06),rgba(6, 182, 212, 0.04)); border-radius:12px; border:1px solid rgba(6, 182, 212, 0.15); }
         .progress-inline.active { display:block; }
-        .progress-bar-track { flex:1; height:8px; background:#eeede9; border-radius:999px; overflow:hidden; }
+        .progress-bar-track { flex:1; height:8px; background:var(--ui-panel); border-radius:999px; overflow:hidden; }
         .progress-bar-fill { height:100%; width:0%; background:linear-gradient(90deg,#06b6d4,#06b6d4); border-radius:999px; transition:width 0.3s ease; }
         body.studio-theme-dark .progress-bar-track { background:rgba(255, 255, 255, 0.1); }
         body.studio-theme-dark .progress-inline { background:linear-gradient(135deg,rgba(0, 240, 255, 0.06),rgba(6, 182, 212, 0.04)); border-color:rgba(0, 240, 255, 0.15); }
@@ -366,15 +367,15 @@
         .voice-picker-overlay.is-open { display:flex; }
         .voice-picker-window { width:min(900px, 100%); max-height:75vh; display:flex; flex-direction:column; background:linear-gradient(165deg, #1c1c1b 0%, #101010 100%); border-radius:16px; border:1px solid rgba(255, 255, 255, 0.1); box-shadow:0 30px 80px rgba(0, 0, 0, 0.5); overflow:hidden; }
         .voice-picker-header { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255, 255, 255, 0.1); }
-        .voice-picker-search { flex:1; height:36px; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(255, 255, 255, 0.1); border-radius:999px; padding:0 12px; color:#fbfaf9; font-size:13px; outline:none; }
+        .voice-picker-search { flex:1; height:36px; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(255, 255, 255, 0.1); border-radius:999px; padding:0 12px; color:var(--ui-text); font-size:13px; outline:none; }
         .voice-picker-search:focus { border-color:rgba(0, 240, 255, 0.5); }
         .voice-picker-search::placeholder { color:rgba(255, 255, 255, 0.4); }
         .voice-picker-body { flex:1; display:flex; overflow:hidden; }
         /* 侧边栏分类 */
         .voice-picker-sidebar { width:180px; flex-shrink:0; border-right:1px solid rgba(255, 255, 255, 0.08); padding:8px 0; overflow-y:auto; background:rgba(0, 0, 0, 0.15); }
-        .voice-sidebar-section { padding:4px 12px 2px; font-size:9px; font-weight:700; color:#9f9d94; text-transform:uppercase; letter-spacing:0.08em; margin-top:4px; }
-        .voice-sidebar-item { display:flex; align-items:center; gap:8px; padding:7px 12px; margin:1px 6px; border-radius:8px; cursor:pointer; transition:all 0.15s; font-size:12px; color:#9e9c94; }
-        .voice-sidebar-item:hover { background:rgba(255, 255, 255, 0.06); color:#f6f6f4; }
+        .voice-sidebar-section { padding:4px 12px 2px; font-size:9px; font-weight:700; color:var(--ui-muted); text-transform:uppercase; letter-spacing:0.08em; margin-top:4px; }
+        .voice-sidebar-item { display:flex; align-items:center; gap:8px; padding:7px 12px; margin:1px 6px; border-radius:8px; cursor:pointer; transition:all 0.15s; font-size:12px; color:var(--ui-muted); }
+        .voice-sidebar-item:hover { background:rgba(255, 255, 255, 0.06); color:var(--ui-text); }
         .voice-sidebar-item.active { background:rgba(0, 240, 255, 0.12); color:#00f0ff; }
         .voice-sidebar-item .count { margin-left:auto; font-size:10px; color:rgba(255, 255, 255, 0.3); }
         .voice-sidebar-divider { height:1px; background:rgba(255, 255, 255, 0.06); margin:6px 12px; }
@@ -387,19 +388,19 @@
         .voice-card.selected { border-color:#00f0ff; background:rgba(0, 240, 255, 0.12); box-shadow:0 0 12px rgba(0, 240, 255, 0.2); }
         .voice-card-avatar { width:100%; aspect-ratio:1; border-radius:6px; object-fit:cover; border:none; margin-bottom:4px; background:rgba(255, 255, 255, 0.05); }
         .voice-card-avatar-placeholder { width:100%; aspect-ratio:1; border-radius:6px; background:linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(6, 182, 212, 0.06)); display:flex; align-items:center; justify-content:center; margin-bottom:4px; color:rgba(255, 255, 255, 0.3); font-size:28px; }
-        .voice-card-name { color:#fbfaf9; font-size:10px; font-weight:600; margin-bottom:1px; line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .voice-card-name { color:var(--ui-text); font-size:10px; font-weight:600; margin-bottom:1px; line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .voice-card-instruct { color:rgba(255, 255, 255, 0.3); font-size:8px; line-height:1.2; }
         .voice-card-tags { display:flex; gap:2px; margin-top:2px; flex-wrap:wrap; justify-content:center; }
         .voice-card-tag { font-size:7px; padding:0px 3px; border-radius:2px; background:rgba(255, 255, 255, 0.06); color:rgba(255, 255, 255, 0.4); }
         .voice-card-tag.female { background:rgba(255, 105, 180, 0.1); color:#ff69b4; }
-        .voice-card-tag.male { background:rgba(0, 0, 0, 0.1); color:#06b6d4; }
+        .voice-card-tag.male { background:rgba(0, 0, 0, 0.1); color:var(--ui-accent); }
         .voice-picker-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid rgba(255, 255, 255, 0.1); }
         .voice-picker-hint { font-size:11px; color:rgba(0, 240, 255, 0.7); display:inline-flex; align-items:center; gap:4px; }
         .voice-picker-hint::before { content:''; width:6px; height:6px; border-radius:50%; background:#00f0ff; box-shadow:0 0 6px #00f0ff; animation:pulse-hint 1.6s infinite; }
         @keyframes pulse-hint { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.85); } }
         .voice-picker-categories { display:flex; gap:6px; padding:8px 14px; border-bottom:1px solid rgba(255, 255, 255, 0.06); overflow-x:auto; }
-        .voice-cat-btn { padding:4px 12px; border-radius:8px; border:none; background:rgba(255, 255, 255, 0.06); color:#9e9c94; font-size:11px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
-        .voice-cat-btn:hover { background:rgba(255, 255, 255, 0.1); color:#f6f6f4; }
+        .voice-cat-btn { padding:4px 12px; border-radius:8px; border:none; background:rgba(255, 255, 255, 0.06); color:var(--ui-muted); font-size:11px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+        .voice-cat-btn:hover { background:rgba(255, 255, 255, 0.1); color:var(--ui-text); }
         .voice-cat-btn.active { background:rgba(0, 240, 255, 0.15); color:#00f0ff; }
         .voice-card-preview { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(0, 0, 0, 0.6); backdrop-filter:blur(6px); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:all 0.2s; }
         .voice-card:hover .voice-card-preview { opacity:1; }
@@ -411,16 +412,16 @@
         .text-toolbar-left { display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
         .text-toolbar-sep { width:1px; height:16px; background:rgba(0, 0, 0, 0.08); margin:0 3px; flex-shrink:0; }
         body.studio-theme-dark .text-toolbar-sep { background:rgba(255, 255, 255, 0.08); }
-        .text-toolbar-label { font-size:10px; color:#999999; margin-right:2px; font-weight:500; }
-        body.studio-theme-dark .text-toolbar-label { color:#9f9d94; }
-        .text-tag { height:24px; padding:0 8px; border:1px solid rgba(0, 0, 0, 0.06); border-radius:5px; font-size:11px; font-weight:500; cursor:pointer; background:rgba(255, 255, 255, 0.6); color:#555555; transition:all 0.15s var(--easing); display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
-        .text-tag:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(6, 182, 212, 0.25); color:#06b6d4; transform:translateY(-1px); }
+        .text-toolbar-label { font-size:10px; color:var(--ui-muted); margin-right:2px; font-weight:500; }
+        body.studio-theme-dark .text-toolbar-label { color:var(--ui-muted); }
+        .text-tag { height:24px; padding:0 8px; border:1px solid rgba(0, 0, 0, 0.06); border-radius:5px; font-size:11px; font-weight:500; cursor:pointer; background:rgba(255, 255, 255, 0.6); color:var(--ui-muted); transition:all 0.15s var(--easing); display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+        .text-tag:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(6, 182, 212, 0.25); color:var(--ui-accent); transform:translateY(-1px); }
         .text-tag:active { transform:scale(0.95) translateY(0); }
-        body.studio-theme-dark .text-tag { color:#9e9c94; background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.06); }
+        body.studio-theme-dark .text-tag { color:var(--ui-muted); background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.06); }
         body.studio-theme-dark .text-tag:hover { background:rgba(0, 240, 255, 0.08); border-color:rgba(0, 240, 255, 0.25); color:#00f0ff; }
-        .text-tag-primary { background:linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(6, 182, 212, 0.06)); border-color:rgba(239, 68, 68, 0.2); color:#0891b2; font-weight:600; }
-        .text-tag-primary:hover { background:linear-gradient(135deg, rgba(6, 182, 212, 0.14), rgba(6, 182, 212, 0.1)); border-color:rgba(239, 68, 68, 0.4); color:#0e7490; }
-        body.studio-theme-dark .text-tag-primary { background:linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(6, 182, 212, 0.08)); border-color:rgba(0, 240, 255, 0.25); color:#06b6d4; }
+        .text-tag-primary { background:linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(6, 182, 212, 0.06)); border-color:rgba(239, 68, 68, 0.2); color:var(--ui-accent); font-weight:600; }
+        .text-tag-primary:hover { background:linear-gradient(135deg, rgba(6, 182, 212, 0.14), rgba(6, 182, 212, 0.1)); border-color:rgba(239, 68, 68, 0.4); color:var(--ui-accent); }
+        body.studio-theme-dark .text-tag-primary { background:linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(6, 182, 212, 0.08)); border-color:rgba(0, 240, 255, 0.25); color:var(--ui-accent); }
         body.studio-theme-dark .text-tag-primary:hover { background:linear-gradient(135deg, rgba(0, 240, 255, 0.18), rgba(6, 182, 212, 0.12)); border-color:rgba(0, 240, 255, 0.4); color:#00f0ff; }
         .text-toolbar-divider { display:none; }
         /* === 合成文本框（连接工具栏） === */
@@ -439,26 +440,26 @@
         .tts-textarea-highlight .spk-1 { color:#00f0ff; font-weight:600; }
         .tts-textarea-highlight .spk-2 { color:#34d399; font-weight:600; }
         .tts-textarea-highlight .spk-3 { color:#fbbf24; font-weight:600; }
-        .tts-textarea-highlight .spk-4 { color:#c084fc; font-weight:600; }
+        .tts-textarea-highlight .spk-4 { color:var(--ui-accent); font-weight:600; }
         .tts-textarea-highlight .spk-tag { opacity:1; }
         /* 浅色主题 */
         body:not(.studio-theme-dark) .tts-textarea-highlight { color:rgba(0, 0, 0, 0.85); }
-        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-1 { color:#0891b2; }
-        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-2 { color:#0891b2; }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-1 { color:var(--ui-accent); }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-2 { color:var(--ui-accent); }
         body:not(.studio-theme-dark) .tts-textarea-highlight .spk-3 { color:#d97706; }
-        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-4 { color:#7c3aed; }
+        body:not(.studio-theme-dark) .tts-textarea-highlight .spk-4 { color:var(--ui-accent); }
         /* === 情绪面板 === */
 
-        .emotion-menu-section { padding:6px 12px 4px; font-size:9px; font-weight:600; color:#666666; text-transform:uppercase; letter-spacing:0.08em; }
+        .emotion-menu-section { padding:6px 12px 4px; font-size:9px; font-weight:600; color:var(--ui-muted); text-transform:uppercase; letter-spacing:0.08em; }
         .emotion-menu-divider { height:1px; background:rgba(0, 0, 0, 0.06); margin:4px 0; }
-        body.studio-theme-dark .emotion-menu-section { color:#9f9d94; }
+        body.studio-theme-dark .emotion-menu-section { color:var(--ui-muted); }
         body.studio-theme-dark .emotion-menu-divider { background:rgba(255, 255, 255, 0.06); }
 
         /* === 高级参数项 === */
         .advanced-item { margin-bottom:12px; }
         .advanced-item:last-child { margin-bottom:0; }
-        input[type="range"] { -webkit-appearance:none; height:4px; background:#eeede9; border-radius:2px; outline:none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; background:#06b6d4; border-radius:50%; cursor:pointer; transition:all 0.15s; }
+        input[type="range"] { -webkit-appearance:none; height:4px; background:var(--ui-panel); border-radius:2px; outline:none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; background:var(--ui-accent); border-radius:50%; cursor:pointer; transition:all 0.15s; }
         input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.2); box-shadow:0 0 0 4px rgba(239, 68, 68, 0.2); }
         body.studio-theme-dark input[type="range"] { background:rgba(255, 255, 255, 0.1); }
         body.studio-theme-dark input[type="range"]::-webkit-slider-thumb { background:#00f0ff; }
@@ -466,8 +467,8 @@
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
         /* === Range Slider === */
-        input[type="range"] { -webkit-appearance:none; height:6px; background:#eeede9; border-radius:3px; outline:none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:#0b0b0a; border-radius:50%; cursor:pointer; }
+        input[type="range"] { -webkit-appearance:none; height:6px; background:var(--ui-panel); border-radius:3px; outline:none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:var(--ui-panel); border-radius:50%; cursor:pointer; }
         body.studio-theme-dark input[type="range"] { background:rgba(255, 255, 255, 0.15); }
         body.studio-theme-dark input[type="range"]::-webkit-slider-thumb { background:#00f0ff; }
         /* === Checkbox === */
@@ -478,33 +479,33 @@
         .audio-result-card:hover { transform:translateY(-3px); box-shadow:0 12px 32px rgba(0, 0, 0, 0.08); }
         body.studio-theme-dark .audio-result-card { background:linear-gradient(180deg, #151515 0%, #0b0b0a 100%); border-color:rgba(0, 240, 255, 0.1); }
         .audio-result-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
-        .audio-result-icon { width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(6, 182, 212, 0.12)); display:flex; align-items:center; justify-content:center; color:#06b6d4; flex-shrink:0; transition:all 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .audio-result-icon { width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(6, 182, 212, 0.12)); display:flex; align-items:center; justify-content:center; color:var(--ui-accent); flex-shrink:0; transition:all 0.25s cubic-bezier(0.4,0,0.2,1); }
         .audio-result-icon.play-btn { cursor:pointer; border:1px solid transparent; }
-        .audio-result-icon.play-btn:hover { background:linear-gradient(135deg, #06b6d4, #06b6d4); color:#fbfaf9; transform:scale(1.08); box-shadow:0 4px 16px rgba(6, 182, 212, 0.35); }
+        .audio-result-icon.play-btn:hover { background:linear-gradient(135deg, #06b6d4, #06b6d4); color:var(--ui-text); transform:scale(1.08); box-shadow:0 4px 16px rgba(6, 182, 212, 0.35); }
         .audio-result-icon.play-btn:active { transform:scale(0.94); }
-        .audio-result-icon.play-btn.playing { background:linear-gradient(135deg, #06b6d4, #06b6d4); color:#fbfaf9; box-shadow:0 4px 16px rgba(239, 68, 68, 0.4); animation:pulse-play 2s ease-in-out infinite; }
+        .audio-result-icon.play-btn.playing { background:linear-gradient(135deg, #06b6d4, #06b6d4); color:var(--ui-text); box-shadow:0 4px 16px rgba(239, 68, 68, 0.4); animation:pulse-play 2s ease-in-out infinite; }
         body.studio-theme-dark .audio-result-icon { background:linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(6, 182, 212, 0.12)); color:#00f0ff; }
         body.studio-theme-dark .audio-result-icon.play-btn:hover { background:linear-gradient(135deg, #00f0ff, #06b6d4); box-shadow:0 4px 16px rgba(0, 240, 255, 0.4); }
         body.studio-theme-dark .audio-result-icon.play-btn.playing { background:linear-gradient(135deg, #06b6d4, #00f0ff); box-shadow:0 4px 16px rgba(0, 240, 255, 0.5); }
         .audio-result-info { flex:1; min-width:0; }
-        .audio-result-title { display:block; font-size:13px; font-weight:600; color:#1a1a1a; letter-spacing:0.01em; }
-        body.studio-theme-dark .audio-result-title { color:#f6f6f4; }
-        .audio-result-instruct { display:block; font-size:12px; color:#333333; font-weight:500; }
-        body.studio-theme-dark .audio-result-instruct { color:#dfddd4; }
-        .audio-mode-badge { font-size:9px; font-weight:600; color:#06b6d4; background:rgba(0, 0, 0, 0.1); padding:2px 8px; border-radius:6px; letter-spacing:0.03em; }
+        .audio-result-title { display:block; font-size:13px; font-weight:600; color:var(--ui-text); letter-spacing:0.01em; }
+        body.studio-theme-dark .audio-result-title { color:var(--ui-text); }
+        .audio-result-instruct { display:block; font-size:12px; color:var(--ui-text); font-weight:500; }
+        body.studio-theme-dark .audio-result-instruct { color:var(--ui-text); }
+        .audio-mode-badge { font-size:9px; font-weight:600; color:var(--ui-accent); background:rgba(0, 0, 0, 0.1); padding:2px 8px; border-radius:6px; letter-spacing:0.03em; }
         body.studio-theme-dark .audio-mode-badge { color:#00f0ff; background:rgba(0, 240, 255, 0.1); }
         .audio-result-actions { display:flex; gap:4px; flex-shrink:0; }
-        .audio-action-btn { width:32px; height:32px; border-radius:8px; border:1px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0, 0, 0, 0.03); color:#888888; transition:all 0.2s cubic-bezier(0.4,0,0.2,1); text-decoration:none; position:relative; }
-        .audio-action-btn:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(239, 68, 68, 0.2); color:#06b6d4; transform:translateY(-1px); }
+        .audio-action-btn { width:32px; height:32px; border-radius:8px; border:1px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0, 0, 0, 0.03); color:var(--ui-muted); transition:all 0.2s cubic-bezier(0.4,0,0.2,1); text-decoration:none; position:relative; }
+        .audio-action-btn:hover { background:rgba(6, 182, 212, 0.08); border-color:rgba(239, 68, 68, 0.2); color:var(--ui-accent); transform:translateY(-1px); }
         .audio-action-btn:active { transform:scale(0.92) translateY(0); }
-        .audio-action-btn.play-btn { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #06b6d4, #06b6d4); color:#fbfaf9; border:none; box-shadow:0 2px 8px rgba(6, 182, 212, 0.25); }
+        .audio-action-btn.play-btn { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #06b6d4, #06b6d4); color:var(--ui-text); border:none; box-shadow:0 2px 8px rgba(6, 182, 212, 0.25); }
         .audio-action-btn.play-btn:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(239, 68, 68, 0.4); background:linear-gradient(135deg, #0891b2, #06b6d4); }
         .audio-action-btn.play-btn:active { transform:scale(0.94); }
         .audio-action-btn.play-btn.playing { background:linear-gradient(135deg, #06b6d4, #06b6d4); animation:pulse-play 2s ease-in-out infinite; }
         .audio-action-btn.fav-btn { color:#d4a017; }
         .audio-action-btn.fav-btn:hover { background:rgba(245, 158, 11, 0.1); border-color:rgba(245, 158, 11, 0.3); color:#f59e0b; }
         .audio-action-btn.fav-btn[data-fav="1"] { color:#f59e0b; background:rgba(245, 158, 11, 0.1); }
-        body.studio-theme-dark .audio-action-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.06); color:#9e9c94; }
+        body.studio-theme-dark .audio-action-btn { background:rgba(255, 255, 255, 0.04); border-color:rgba(255, 255, 255, 0.06); color:var(--ui-muted); }
         body.studio-theme-dark .audio-action-btn:hover { background:rgba(0, 240, 255, 0.08); border-color:rgba(0, 240, 255, 0.2); color:#00f0ff; }
         body.studio-theme-dark .audio-action-btn.play-btn { box-shadow:0 2px 8px rgba(0, 240, 255, 0.3); }
         body.studio-theme-dark .audio-action-btn.play-btn:hover { box-shadow:0 4px 16px rgba(0, 240, 255, 0.5); }
@@ -519,11 +520,11 @@
         .audio-preview-modal { width:min(640px, 90vw); background:linear-gradient(165deg, #1c1c1b 0%, #101010 100%); border-radius:20px; border:1px solid rgba(255, 255, 255, 0.08); box-shadow:0 30px 80px rgba(0, 0, 0, 0.5); overflow:hidden; transform:translateY(20px) scale(0.96); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
         .audio-preview-overlay.is-open .audio-preview-modal { transform:translateY(0) scale(1); }
         .audio-preview-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid rgba(255, 255, 255, 0.06); }
-        .audio-preview-header-title { font-size:13px; font-weight:600; color:#f6f6f4; display:flex; align-items:center; gap:8px; }
-        .audio-preview-close { width:28px; height:28px; border-radius:8px; border:none; background:rgba(255, 255, 255, 0.06); color:#9e9c94; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+        .audio-preview-header-title { font-size:13px; font-weight:600; color:var(--ui-text); display:flex; align-items:center; gap:8px; }
+        .audio-preview-close { width:28px; height:28px; border-radius:8px; border:none; background:rgba(255, 255, 255, 0.06); color:var(--ui-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
         .audio-preview-close:hover { background:rgba(239, 68, 68, 0.15); color:#f87171; }
         .audio-preview-body { padding:20px; }
-        .audio-preview-text { font-size:16px; line-height:1.8; color:#f6f6f4; padding:16px 20px; background:rgba(255, 255, 255, 0.03); border-radius:12px; border:1px solid rgba(255, 255, 255, 0.06); margin-bottom:16px; max-height:300px; overflow-y:auto; word-break:break-all; }
+        .audio-preview-text { font-size:16px; line-height:1.8; color:var(--ui-text); padding:16px 20px; background:rgba(255, 255, 255, 0.03); border-radius:12px; border:1px solid rgba(255, 255, 255, 0.06); margin-bottom:16px; max-height:300px; overflow-y:auto; word-break:break-all; }
         .audio-preview-text em { font-style:normal; color:#00f0ff; font-weight:600; }
         .audio-preview-text .seg { transition:background 0.15s, color 0.15s; border-radius:3px; padding:0 1px; }
         .audio-preview-text .seg.played { color:rgba(235, 233, 228, 0.45); }
@@ -540,44 +541,44 @@
         .audio-preview-waveform canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
         .audio-preview-waveform-progress { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(0, 240, 255, 0.15), rgba(6, 182, 212, 0.1)); pointer-events:none; transition:width 0.1s linear; z-index:2; }
         .audio-preview-controls { display:flex; align-items:center; gap:12px; }
-        .audio-preview-play { width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg, #00f0ff, #06b6d4); color:#fbfaf9; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0, 240, 255, 0.3); transition:all 0.2s; flex-shrink:0; }
+        .audio-preview-play { width:44px; height:44px; border-radius:50%; border:none; background:linear-gradient(135deg, #00f0ff, #06b6d4); color:var(--ui-text); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0, 240, 255, 0.3); transition:all 0.2s; flex-shrink:0; }
         .audio-preview-play:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(0, 240, 255, 0.4); }
         .audio-preview-play:active { transform:scale(0.94); }
         .audio-preview-play.playing { animation:pulse-play 2s ease-in-out infinite; }
-        .audio-preview-time { font-size:12px; color:#9e9c94; font-variant-numeric:tabular-nums; flex-shrink:0; }
+        .audio-preview-time { font-size:12px; color:var(--ui-muted); font-variant-numeric:tabular-nums; flex-shrink:0; }
         .audio-preview-meta { display:flex; gap:8px; margin-left:auto; }
         .audio-preview-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; background:rgba(0, 240, 255, 0.1); color:#00f0ff; }
         .audio-preview-actions { display:flex; gap:8px; padding:12px 20px; border-top:1px solid rgba(255, 255, 255, 0.06); justify-content:flex-end; }
-        .audio-preview-action-btn { height:30px; padding:0 14px; border-radius:8px; border:1px solid rgba(255, 255, 255, 0.1); background:rgba(255, 255, 255, 0.04); color:#9e9c94; cursor:pointer; font-size:11px; font-weight:500; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s; }
-        .audio-preview-action-btn:hover { background:rgba(255, 255, 255, 0.08); color:#f6f6f4; border-color:rgba(255, 255, 255, 0.2); }
+        .audio-preview-action-btn { height:30px; padding:0 14px; border-radius:8px; border:1px solid rgba(255, 255, 255, 0.1); background:rgba(255, 255, 255, 0.04); color:var(--ui-muted); cursor:pointer; font-size:11px; font-weight:500; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s; }
+        .audio-preview-action-btn:hover { background:rgba(255, 255, 255, 0.08); color:var(--ui-text); border-color:rgba(255, 255, 255, 0.2); }
         .audio-preview-action-btn svg { width:13px; height:13px; }
         @keyframes shake { from { transform:translateX(0); } to { transform:translateX(2px); } }
         .audio-action-btn.is-fav { color:#f59e0b!important; }
         .audio-action-btn.is-fav svg { fill:#f59e0b; }
         /* === 工具栏 === */
-        .tts-toolbar { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; margin-bottom:12px; background:#fbfaf9; border-radius:12px; border:1px solid rgba(0, 0, 0, 0.06); }
-        body.studio-theme-dark .tts-toolbar { background:#151515; border-color:rgba(0, 240, 255, 0.1); }
+        .tts-toolbar { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; margin-bottom:12px; background:var(--ui-panel); border-radius:12px; border:1px solid rgba(0, 0, 0, 0.06); }
+        body.studio-theme-dark .tts-toolbar { background:var(--ui-panel); border-color:rgba(0, 240, 255, 0.1); }
         .tts-toolbar-left, .tts-toolbar-right { display:flex; align-items:center; gap:6px; }
-        .toolbar-btn { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0, 0, 0, 0.04); color:#666666; transition:all 0.15s; }
-        .toolbar-btn:hover { background:rgba(0, 0, 0, 0.08); color:#333333; }
-        .toolbar-btn.active { background:rgba(6, 182, 212, 0.15); color:#06b6d4; }
-        body.studio-theme-dark .toolbar-btn { background:rgba(255, 255, 255, 0.06); color:#9e9c94; }
-        body.studio-theme-dark .toolbar-btn:hover { background:rgba(255, 255, 255, 0.1); color:#f6f6f4; }
+        .toolbar-btn { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(0, 0, 0, 0.04); color:var(--ui-muted); transition:all 0.15s; }
+        .toolbar-btn:hover { background:rgba(0, 0, 0, 0.08); color:var(--ui-text); }
+        .toolbar-btn.active { background:rgba(6, 182, 212, 0.15); color:var(--ui-accent); }
+        body.studio-theme-dark .toolbar-btn { background:rgba(255, 255, 255, 0.06); color:var(--ui-muted); }
+        body.studio-theme-dark .toolbar-btn:hover { background:rgba(255, 255, 255, 0.1); color:var(--ui-text); }
         body.studio-theme-dark .toolbar-btn.active { background:rgba(0, 240, 255, 0.15); color:#00f0ff; }
         .toolbar-btn-danger:hover { background:rgba(239, 68, 68, 0.15)!important; color:#ef4444!important; }
         .tts-search-box { display:flex; align-items:center; background:rgba(0, 0, 0, 0.04); border-radius:8px; padding:0 8px; height:32px; }
         body.studio-theme-dark .tts-search-box { background:rgba(255, 255, 255, 0.06); }
-        .tts-search-box input { border:none; background:none; outline:none; font-size:12px; color:#333333; width:150px; }
-        body.studio-theme-dark .tts-search-box input { color:#f6f6f4; }
-        .tts-search-box input::placeholder { color:#999999; }
-        .tts-search-clear { border:none; background:none; color:#999999; cursor:pointer; font-size:16px; padding:0 4px; }
-        .tts-search-clear:hover { color:#333333; }
+        .tts-search-box input { border:none; background:none; outline:none; font-size:12px; color:var(--ui-text); width:150px; }
+        body.studio-theme-dark .tts-search-box input { color:var(--ui-text); }
+        .tts-search-box input::placeholder { color:var(--ui-muted); }
+        .tts-search-clear { border:none; background:none; color:var(--ui-muted); cursor:pointer; font-size:16px; padding:0 4px; }
+        .tts-search-clear:hover { color:var(--ui-text); }
         /* 批量选择 */
         .audio-result-card.batch-mode .audio-batch-checkbox { display:flex; }
-        .audio-batch-checkbox { display:none; position:absolute; top:12px; left:12px; width:22px; height:22px; border-radius:6px; border:2px solid rgba(0, 0, 0, 0.2); background:#fbfaf9; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; z-index:10; }
-        .audio-batch-checkbox:hover { border-color:#06b6d4; }
-        .audio-batch-checkbox.checked { background:#06b6d4; border-color:#06b6d4; }
-        body.studio-theme-dark .audio-batch-checkbox { background:#151515; border-color:rgba(255, 255, 255, 0.2); }
+        .audio-batch-checkbox { display:none; position:absolute; top:12px; left:12px; width:22px; height:22px; border-radius:6px; border:2px solid rgba(0, 0, 0, 0.2); background:var(--ui-panel); cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; z-index:10; }
+        .audio-batch-checkbox:hover { border-color:var(--ui-accent); }
+        .audio-batch-checkbox.checked { background:var(--ui-accent); border-color:var(--ui-accent); }
+        body.studio-theme-dark .audio-batch-checkbox { background:var(--ui-panel); border-color:rgba(255, 255, 255, 0.2); }
         .audio-batch-checkbox.checked svg { display:block; }
         /* 列表视图 */
         .tts-list-view { display:flex!important; flex-direction:column!important; column-count:1!important; gap:8px!important; }
@@ -592,9 +593,9 @@
         /* === 右键菜单 === */
         .audio-context-menu { position:fixed; z-index:9999; min-width:160px; background:rgba(255, 255, 255, 0.95); backdrop-filter:blur(16px); border:1px solid rgba(0, 0, 0, 0.08); border-radius:12px; box-shadow:0 8px 32px rgba(0, 0, 0, 0.12); padding:4px; }
         body.studio-theme-dark .audio-context-menu { background:rgba(24, 24, 23, 0.95); border-color:rgba(255, 255, 255, 0.1); box-shadow:0 8px 32px rgba(0, 0, 0, 0.4); }
-        .context-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px; color:#333333; transition:all 0.12s; }
+        .context-menu-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--ui-text); transition:all 0.12s; }
         .context-menu-item:hover { background:rgba(0, 0, 0, 0.05); }
-        body.studio-theme-dark .context-menu-item { color:#dfddd4; }
+        body.studio-theme-dark .context-menu-item { color:var(--ui-text); }
         body.studio-theme-dark .context-menu-item:hover { background:rgba(255, 255, 255, 0.06); }
         .context-menu-danger { color:#ef4444; }
         .context-menu-danger:hover { background:rgba(239, 68, 68, 0.1)!important; }
@@ -607,8 +608,8 @@
         @keyframes record-pulse-cyan { 0% { box-shadow:0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow:0 0 0 8px rgba(239, 68, 68, 0); } 100% { box-shadow:0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes record-pulse-cyan-dark { 0% { box-shadow:0 0 0 0 rgba(0, 240, 255, 0.4); } 70% { box-shadow:0 0 0 8px rgba(0, 240, 255, 0); } 100% { box-shadow:0 0 0 0 rgba(0, 240, 255, 0); } }
         .ref-action-btn-record.recording-active { animation:record-pulse 1.2s ease-out infinite; background:rgba(239, 68, 68, 0.15); border-color:rgba(239, 68, 68, 0.5); }
-        body.studio-theme-dark .audio-action-btn { background:rgba(255, 255, 255, 0.06); color:#9e9c94; }
-        body.studio-theme-dark .audio-action-btn:hover { background:rgba(255, 255, 255, 0.1); color:#f6f6f4; }
+        body.studio-theme-dark .audio-action-btn { background:rgba(255, 255, 255, 0.06); color:var(--ui-muted); }
+        body.studio-theme-dark .audio-action-btn:hover { background:rgba(255, 255, 255, 0.1); color:var(--ui-text); }
         /* 波形容器 */
         .audio-waveform-container { position:relative; height:68px; border-radius:12px; overflow:hidden; background:linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.01)); cursor:pointer; }
         .audio-waveform-container::after { content:''; position:absolute; top:0; left:var(--mouse-x, 50%); width:1px; height:100%; background:rgba(239, 68, 68, 0.4); pointer-events:none; opacity:0; transition:opacity 0.15s; }
@@ -620,10 +621,10 @@
         .audio-progress-overlay { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(6, 182, 212, 0.25), rgba(6, 182, 212, 0.25)); pointer-events:none; transition:width 0.1s linear; }
         body.studio-theme-dark .audio-progress-overlay { background:linear-gradient(90deg, rgba(0, 240, 255, 0.25), rgba(6, 182, 212, 0.25)); }
         .audio-result-footer { display:flex; align-items:center; gap:8px; margin-top:10px; }
-        .audio-duration { font-size:11px; font-weight:600; color:#333333; font-variant-numeric:tabular-nums; }
-        body.studio-theme-dark .audio-duration { color:#f6f6f4; }
-        .audio-timestamp { font-size:10px; color:#999999; }
-        body.studio-theme-dark .audio-timestamp { color:#9f9d94; }
+        .audio-duration { font-size:11px; font-weight:600; color:var(--ui-text); font-variant-numeric:tabular-nums; }
+        body.studio-theme-dark .audio-duration { color:var(--ui-text); }
+        .audio-timestamp { font-size:10px; color:var(--ui-muted); }
+        body.studio-theme-dark .audio-timestamp { color:var(--ui-muted); }
         /* 入场动画 */
         .animate-in { animation:slideUp 0.4s cubic-bezier(0.4,0,0.2,1); }
         @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
@@ -662,6 +663,7 @@
             * { animation: none !important; transition: none !important; }
         }
     </style>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body class="antialiased">
     <header class="pt-5 pb-4" style="flex-shrink:1; min-height:0; overflow-y:auto;">
@@ -736,7 +738,7 @@
                                     <button onclick="startRecording()" class="ref-icon-btn" title="重新录音" style="color:#ef4444;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                                     </button>
-                                    <button onclick="openVoicePicker()" class="ref-icon-btn" title="从音色库替换" style="color:#06b6d4;">
+                                    <button onclick="openVoicePicker()" class="ref-icon-btn" title="从音色库替换" style="color:var(--ui-accent);">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                                     </button>
                                     <button onclick="document.getElementById('refAudioInput').click()" class="ref-icon-btn" title="替换音频文件">
@@ -933,7 +935,7 @@
                                             <span class="text-[9px] text-gray-400">字数</span>
                                             <input id="genreWordCount" type="number" value="500" min="100" max="5000" step="100" style="flex:1;height:22px;border:1px solid rgba(0, 0, 0, 0.08);border-radius:4px;font-size:10px;padding:0 4px;background:transparent;outline:none;">
                                         </div>
-                                        <button onclick="executeGenreConvert()" style="margin-top:6px;width:100%;padding:6px 0;border-radius:6px;background:linear-gradient(135deg, #a855f7, #7c3aed);color:#fbfaf9;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">✨ 开始转写</button>
+                                        <button onclick="executeGenreConvert()" style="margin-top:6px;width:100%;padding:6px 0;border-radius:6px;background:linear-gradient(135deg, #a855f7, #7c3aed);color:var(--ui-text);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">✨ 开始转写</button>
                                     </div>
                                 </div>
                             </div>
@@ -954,7 +956,7 @@
                                     <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE2')" style="font-family:monospace;">ZHE2 <span class="text-gray-400 text-[10px]">折</span></div>
                                     <div class="anima-ctrl-menu-item" onclick="insertTag('SHE2')" style="font-family:monospace;">SHE2 <span class="text-gray-400 text-[10px]">蛇</span></div>
                                     <div class="anima-ctrl-menu-item" onclick="insertTag('ZHE1')" style="font-family:monospace;">ZHE1 <span class="text-gray-400 text-[10px]">遮</span></div>
-                                    <div class="anima-ctrl-menu-item" style="font-size:10px;color:#999999;padding:6px 12px;">英文: [B EY1 S] bass</div>
+                                    <div class="anima-ctrl-menu-item" style="font-size:10px;color:var(--ui-muted);padding:6px 12px;">英文: [B EY1 S] bass</div>
                                 </div>
                             </div>
                             <div class="text-toolbar-sep"></div>
@@ -986,10 +988,10 @@
                         <!-- 多人对话：说话人快捷标签（仅 multi 模式显示） -->
                         <div id="multiSpeakerToolbar" class="text-toolbar" style="display:none;border-top:none;border-radius:0 0 8px 8px;margin-top:-4px;">
                             <span class="text-toolbar-label">角色</span>
-                            <button onclick="insertSpeakerTag(1)" class="text-tag" style="background:linear-gradient(135deg,rgba(0, 0, 0, 0.1),rgba(8, 145, 178, 0.06));border-color:rgba(6, 182, 212, 0.25);color:#0891b2;font-weight:600;">S1</button>
-                            <button onclick="insertSpeakerTag(2)" class="text-tag" style="background:linear-gradient(135deg,rgba(6, 182, 212, 0.1),rgba(239, 68, 68, 0.06));border-color:rgba(6, 182, 212, 0.25);color:#0891b2;font-weight:600;">S2</button>
+                            <button onclick="insertSpeakerTag(1)" class="text-tag" style="background:linear-gradient(135deg,rgba(0, 0, 0, 0.1),rgba(8, 145, 178, 0.06));border-color:rgba(6, 182, 212, 0.25);color:var(--ui-accent);font-weight:600;">S1</button>
+                            <button onclick="insertSpeakerTag(2)" class="text-tag" style="background:linear-gradient(135deg,rgba(6, 182, 212, 0.1),rgba(239, 68, 68, 0.06));border-color:rgba(6, 182, 212, 0.25);color:var(--ui-accent);font-weight:600;">S2</button>
                             <button onclick="insertSpeakerTag(3)" class="text-tag" style="background:linear-gradient(135deg,rgba(245, 158, 11, 0.1),rgba(249, 115, 22, 0.06));border-color:rgba(245, 158, 11, 0.25);color:#d97706;font-weight:600;">S3</button>
-                            <button onclick="insertSpeakerTag(4)" class="text-tag" style="background:linear-gradient(135deg,rgba(168, 85, 247, 0.1),rgba(99, 102, 241, 0.06));border-color:rgba(168, 85, 247, 0.25);color:#7c3aed;font-weight:600;">S4</button>
+                            <button onclick="insertSpeakerTag(4)" class="text-tag" style="background:linear-gradient(135deg,rgba(168, 85, 247, 0.1),rgba(99, 102, 241, 0.06));border-color:rgba(168, 85, 247, 0.25);color:var(--ui-accent);font-weight:600;">S4</button>
                             <span class="text-[9px] text-gray-400 ml-1">选中文本点按钮加角色前缀</span>
                         </div>
                         <div class="tts-textarea-wrapper">
@@ -1001,7 +1003,7 @@
                             <div id="charCount" class="char-count-label" style="position:absolute;bottom:8px;left:10px;font-size:9px;pointer-events:none;z-index:2;">0 字</div>
                             <div style="position:absolute;bottom:6px;right:36px;display:none;" id="translateBtnWrap">
                                 <div style="display:flex;align-items:center;gap:2px;">
-                                    <select id="translateLangSelect" style="height:26px;border:1px solid rgba(0, 0, 0, 0.06);border-radius:5px 0 0 5px;background:rgba(0, 0, 0, 0.04);color:#555555;font-size:10px;padding:0 4px;outline:none;cursor:pointer;" onchange="document.getElementById('languageSelect').value=this.value">
+                                    <select id="translateLangSelect" style="height:26px;border:1px solid rgba(0, 0, 0, 0.06);border-radius:5px 0 0 5px;background:rgba(0, 0, 0, 0.04);color:var(--ui-muted);font-size:10px;padding:0 4px;outline:none;cursor:pointer;" onchange="document.getElementById('languageSelect').value=this.value">
                                         <option value="en">🇺🇸 英语</option>
                                         <option value="ja">🇯🇵 日语</option>
                                         <option value="ko">🇰🇷 韩语</option>
@@ -1033,7 +1035,7 @@
                             </div>
                             <div class="advanced-window-body">
                                 <div class="text-[10px] font-bold text-gray-400 uppercase mb-3">高级生成设置</div>
-                        
+
                         <!-- 推理步数 -->
                         <div class="advanced-item">
                             <div class="flex items-center justify-between mb-1">
@@ -1333,7 +1335,7 @@
             <div class="voice-picker-header">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <input id="voiceSearchInput" type="text" class="voice-picker-search" placeholder="搜索角色名、分类、指令..." oninput="filterVoices(this.value)">
-                <button onclick="closeVoicePicker()" class="anima-ctrl" style="background:rgba(255, 255, 255, 0.1);color:#fbfaf9;">关闭</button>
+                <button onclick="closeVoicePicker()" class="anima-ctrl" style="background:rgba(255, 255, 255, 0.1);color:var(--ui-text);">关闭</button>
             </div>
             <div class="voice-picker-body">
                 <!-- 侧边栏分类 -->
@@ -1350,11 +1352,11 @@
             <div class="voice-picker-footer">
                 <span class="voice-picker-hint">点击卡片导入音色（多人模式下导入到当前说话人）</span>
                 <div style="display:flex;gap:6px;">
-                    <button onclick="refreshVoiceLibrary()" class="anima-ctrl" style="background:rgba(168, 85, 247, 0.15);color:#a855f7;border:1px solid rgba(168, 85, 247, 0.3);gap:4px;">
+                    <button onclick="refreshVoiceLibrary()" class="anima-ctrl" style="background:rgba(168, 85, 247, 0.15);color:var(--ui-accent);border:1px solid rgba(168, 85, 247, 0.3);gap:4px;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
                         刷新
                     </button>
-                    <button onclick="openImportVoiceModal()" class="anima-ctrl" style="background:rgba(6, 182, 212, 0.15);color:#06b6d4;border:1px solid rgba(6, 182, 212, 0.3);gap:4px;">
+                    <button onclick="openImportVoiceModal()" class="anima-ctrl" style="background:rgba(6, 182, 212, 0.15);color:var(--ui-accent);border:1px solid rgba(6, 182, 212, 0.3);gap:4px;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                         导入音色
                     </button>
@@ -1366,9 +1368,9 @@
 
     <!-- 导入音色悬浮界面 -->
     <div id="importVoiceOverlay" class="voice-picker-overlay" onclick="if(event.target===this)closeImportVoiceModal()" style="display:none;">
-        <div style="background:#1c1c1b;border:1px solid rgba(255, 255, 255, 0.1);border-radius:16px;width:400px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0, 0, 0, 0.5);">
+        <div style="background:var(--ui-panel);border:1px solid rgba(255, 255, 255, 0.1);border-radius:16px;width:400px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0, 0, 0, 0.5);">
             <div style="padding:16px 20px;border-bottom:1px solid rgba(255, 255, 255, 0.08);display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#fbfaf9;font-size:14px;font-weight:600;">导入音色</span>
+                <span style="color:var(--ui-text);font-size:14px;font-weight:600;">导入音色</span>
                 <button onclick="closeImportVoiceModal()" style="background:none;border:none;color:rgba(255, 255, 255, 0.5);cursor:pointer;font-size:18px;">✕</button>
             </div>
             <div style="padding:20px;">
@@ -1382,7 +1384,7 @@
                     </div>
                     <input type="file" id="importAudioInput" accept="audio/*" style="display:none" onchange="onImportAudioSelected(this)">
                 </div>
-                
+
                 <!-- 头像上传 -->
                 <div style="margin-bottom:16px;">
                     <label style="color:rgba(255, 255, 255, 0.6);font-size:11px;display:block;margin-bottom:6px;">角色头像</label>
@@ -1391,29 +1393,29 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         </div>
                         <div>
-                            <button onclick="document.getElementById('importAvatarInput').click()" style="background:rgba(255, 255, 255, 0.08);border:1px solid rgba(255, 255, 255, 0.15);border-radius:6px;padding:6px 12px;color:#fbfaf9;font-size:11px;cursor:pointer;">选择图片</button>
+                            <button onclick="document.getElementById('importAvatarInput').click()" style="background:rgba(255, 255, 255, 0.08);border:1px solid rgba(255, 255, 255, 0.15);border-radius:6px;padding:6px 12px;color:var(--ui-text);font-size:11px;cursor:pointer;">选择图片</button>
                             <div style="color:rgba(255, 255, 255, 0.3);font-size:10px;margin-top:4px;">支持 JPG/PNG/WebP</div>
                         </div>
                     </div>
                     <input type="file" id="importAvatarInput" accept="image/*" style="display:none" onchange="onImportAvatarSelected(this)">
                 </div>
-                
+
                 <!-- 名称 -->
                 <div style="margin-bottom:12px;">
                     <label style="color:rgba(255, 255, 255, 0.6);font-size:11px;display:block;margin-bottom:6px;">音色名称 *</label>
-                    <input id="importVoiceName" type="text" placeholder="如：甘雨" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:#fbfaf9;font-size:12px;outline:none;">
+                    <input id="importVoiceName" type="text" placeholder="如：甘雨" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:var(--ui-text);font-size:12px;outline:none;">
                 </div>
-                
+
                 <!-- 风格指令 -->
                 <div style="margin-bottom:12px;">
                     <label style="color:rgba(255, 255, 255, 0.6);font-size:11px;display:block;margin-bottom:6px;">风格指令</label>
-                    <input id="importVoiceInstruct" type="text" placeholder="如：女，中音调" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:#fbfaf9;font-size:12px;outline:none;">
+                    <input id="importVoiceInstruct" type="text" placeholder="如：女，中音调" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:var(--ui-text);font-size:12px;outline:none;">
                 </div>
-                
+
                 <!-- 分类 -->
                 <div style="margin-bottom:16px;">
                     <label style="color:rgba(255, 255, 255, 0.6);font-size:11px;display:block;margin-bottom:6px;">分类</label>
-                    <select id="importVoiceCategory" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:#fbfaf9;font-size:12px;outline:none;cursor:pointer;">
+                    <select id="importVoiceCategory" style="width:100%;height:32px;padding:0 10px;border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;background:rgba(255, 255, 255, 0.06);color:var(--ui-text);font-size:12px;outline:none;cursor:pointer;">
                         <option value="custom">自定义</option>
                         <option value="genshin">原神</option>
                         <option value="star-rail">崩坏星穹铁道</option>
@@ -1421,11 +1423,11 @@
                         <option value="other">其他</option>
                     </select>
                 </div>
-                
+
                 <!-- 按钮 -->
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
                     <button onclick="closeImportVoiceModal()" style="background:rgba(255, 255, 255, 0.08);border:1px solid rgba(255, 255, 255, 0.15);border-radius:8px;padding:8px 16px;color:rgba(255, 255, 255, 0.6);font-size:12px;cursor:pointer;">取消</button>
-                    <button onclick="submitImportVoice()" style="background:linear-gradient(135deg, #06b6d4, #0891b2);border:none;border-radius:8px;padding:8px 20px;color:#fbfaf9;font-size:12px;font-weight:600;cursor:pointer;">导入</button>
+                    <button onclick="submitImportVoice()" style="background:linear-gradient(135deg, #06b6d4, #0891b2);border:none;border-radius:8px;padding:8px 20px;color:var(--ui-text);font-size:12px;font-weight:600;cursor:pointer;">导入</button>
                 </div>
             </div>
         </div>
@@ -1458,16 +1460,16 @@
             const response = await fetch(audioUrl);
             const arrayBuffer = await response.arrayBuffer();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            
+
             const ctx = canvas.getContext('2d');
             const width = canvas.width = canvas.offsetWidth * 2;
             const height = canvas.height = canvas.offsetHeight * 2;
             ctx.scale(2, 2);
-            
+
             const data = audioBuffer.getChannelData(0);
             const step = Math.ceil(data.length / (canvas.offsetWidth));
             const amp = (canvas.offsetHeight) / 2;
-            
+
             // 获取主题色
             const isDark = document.body.classList.contains('studio-theme-dark');
             const gradient = ctx.createLinearGradient(0, 0, canvas.offsetWidth, 0);
@@ -1480,10 +1482,10 @@
                 gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.8)');
                 gradient.addColorStop(1, 'rgba(6, 182, 212, 0.8)');
             }
-            
+
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            
+
             for (let i = 0; i < canvas.offsetWidth; i++) {
                 let min = 1.0;
                 let max = -1.0;
@@ -1494,7 +1496,7 @@
                 }
                 ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
             }
-            
+
             audioContext.close();
         } catch(e) {
             console.error('波形绘制失败:', e);
@@ -1529,11 +1531,11 @@
             const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${wsProtocol}//${location.host}/api/comfyui/ws?clientId=tts-${Date.now()}`;
             ttsWs = new WebSocket(wsUrl);
-            
+
             ttsWs.onopen = () => {
                 updateStatus('idle');
             };
-            
+
             ttsWs.onmessage = (e) => {
                 try {
                     const msg = JSON.parse(e.data);
@@ -1544,12 +1546,12 @@
                     }
                 } catch(err) {}
             };
-            
+
             ttsWs.onclose = () => {
                 updateStatus('offline');
                 ttsWsReconnectTimer = setTimeout(connectTtsWs, 3000);
             };
-            
+
             ttsWs.onerror = () => {
                 updateStatus('offline');
             };
@@ -1562,13 +1564,13 @@
         const statusText = document.getElementById('statusText');
         const dotColor = document.getElementById('dotColor');
         if (!statusText || !dotColor) return;
-        
+
         const states = {
             idle: { text: '系统就绪', color: 'bg-green-500' },
             busy: { text: '生成中...', color: 'bg-yellow-500 animate-pulse' },
             offline: { text: '离线', color: 'bg-red-500' }
         };
-        
+
         const s = states[state] || states.idle;
         statusText.textContent = s.text;
         dotColor.className = `w-1.5 h-1.5 rounded-full ${s.color}`;
@@ -1616,17 +1618,17 @@
             // API 返回数组或 {items: [...]} 格式
             const allRecords = Array.isArray(data) ? data : (data.items || data.history || []);
             const ttsRecords = allRecords.filter(r => r.type === 'tts' && r.audio && r.audio.length > 0);
-            
+
             // 按时间排序（最新的在前）
             ttsRecords.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            
+
             // 只显示最近 20 条
             const records = ttsRecords.slice(0, 20);
-            
+
             // 添加日期分隔线和卡片
             let lastDateKey = '';
             const masonry = document.getElementById('masonry');
-            
+
             records.forEach(record => {
                 const dateKey = getDateKey(record.timestamp || Date.now() / 1000);
                 if (dateKey !== lastDateKey) {
@@ -1635,7 +1637,7 @@
                 }
                 createAudioCardElement(record, false, masonry);
             });
-            
+
             // 显示工具栏
             initToolbar();
         } catch(e) {
@@ -1704,12 +1706,12 @@
         document.getElementById('modeDescription').textContent = descriptions[currentMode];
         // design 模式不需要参考音频，但需要风格指令
         const noRefModes = ['design'];
-        
+
         // 获取参考音频上传区域和风格指令区域
         const refAudioUpload = document.getElementById('audioUploadZone');
         const refAudioPreview = document.getElementById('audioPreviewCard');
         const instructSection = document.getElementById('instructSection');
-        
+
         if (currentMode === 'design') {
             // 智能配音模式：禁用参考音频上传，但保留风格指令
             if (refAudioUpload) refAudioUpload.style.opacity = '0.4';
@@ -1741,7 +1743,7 @@
             refSection.style.opacity = '1';
             refSection.style.pointerEvents = 'auto';
         }
-        
+
         // multi 模式：显示多人面板
         const multiToolbar = document.getElementById('multiSpeakerToolbar');
         const synthTextarea = document.getElementById('synthText');
@@ -1771,7 +1773,7 @@
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
-            
+
             // 音频可视化
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioContext.createMediaStreamSource(stream);
@@ -1779,11 +1781,11 @@
             analyser.fftSize = 256;
             source.connect(analyser);
             drawRecordingWaveform();
-            
+
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) audioChunks.push(e.data);
             };
-            
+
             mediaRecorder.onstop = () => {
                 stream.getTracks().forEach(t => t.stop());
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -1808,11 +1810,11 @@
                 }
                 if (audioContext) { audioContext.close(); audioContext = null; }
             };
-            
+
             mediaRecorder.start();
             recordingStartTime = Date.now();
             recordingTimer = setInterval(updateRecordingTime, 100);
-            
+
             // 切换 UI
             document.getElementById('audioUploadZone').style.display = 'none';
             document.getElementById('recordingUI').style.display = 'flex';
@@ -1850,7 +1852,7 @@
         ctx.scale(2, 2);
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        
+
         function draw() {
             if (!analyser) return;
             requestAnimationFrame(draw);
@@ -1892,7 +1894,7 @@
         currentRefAudioFile = file;
         const audioUrl = url || URL.createObjectURL(file);
         currentRefAudio = audioUrl;
-        
+
         // 更新 UI
         document.getElementById('audioUploadZone').style.display = 'none';
         document.getElementById('audioPreviewCard').style.display = 'flex';
@@ -1902,7 +1904,7 @@
         nameEl.title = displayName ? `${displayName} · ${file.name}` : file.name;
         const saveBtn = document.getElementById('saveVoiceBtn');
         if (saveBtn) saveBtn.style.display = 'inline-flex';
-        
+
         // 设置音频（blob URL 不需要 token，远程 URL 需要）
         const player = document.getElementById('refAudioPlayer');
         if (audioUrl.startsWith('blob:')) {
@@ -1912,7 +1914,7 @@
             const separator = audioUrl.includes('?') ? '&' : '?';
             player.src = audioUrl + separator + 'token=' + encodeURIComponent(token);
         }
-        
+
         // 显示文件信息（audioFileMeta 容器里现在放的是时间显示，由其他函数维护；
         // 把文件大小放到文件名 title 上，悬停可见）
         const size = blobSize || file.size || 0;
@@ -2055,7 +2057,7 @@
 
     // ==================== 角色头像映射 ====================
     const CHARACTER_AVATARS = {};
-    
+
     // 从 animadex 和音色库加载头像映射
     async function loadAvatarMap() {
         // 从 animadex 加载
@@ -2077,7 +2079,7 @@
         } catch(e) {
             console.log('animadex 头像加载失败');
         }
-        
+
         // 从音色库加载头像（优先级更高）
         try {
             const res = await fetch('/api/tts/voices');
@@ -2096,7 +2098,7 @@
             console.log('音色库头像加载失败');
         }
     }
-    
+
     // 去除角色名前缀
     function stripVoiceNamePrefix(name) {
         if (name.startsWith('原神·')) {
@@ -2104,7 +2106,7 @@
         }
         return name;
     }
-    
+
     // 获取角色头像URL
     function getCharacterAvatar(name) {
         const cleanName = stripVoiceNamePrefix(name);
@@ -2113,7 +2115,7 @@
         }
         return null;
     }
-    
+
     // 从 instruct 字段解析性别
     function parseGenderFromInstruct(instruct) {
         if (!instruct) return 'unknown';
@@ -2121,7 +2123,7 @@
         if (instruct.includes('男')) return 'male';
         return 'unknown';
     }
-    
+
     // 从 instruct 字段解析年龄/音调等级
     function parseAgeFromInstruct(instruct) {
         if (!instruct) return 'unknown';
@@ -2131,12 +2133,12 @@
         if (instruct.includes('低音调')) return 'mature';
         return 'adult';
     }
-    
+
     // 获取性别标签文字
     function getGenderLabel(gender) {
         return { female: '♀ 女', male: '♂ 男', unknown: '?' }[gender] || '?';
     }
-    
+
     // ==================== 音色库 ====================
     let currentCategory = 'all';
     let previewAudio = null;
@@ -2199,33 +2201,33 @@
     function renderSidebar() {
         const sidebar = document.getElementById('voiceSidebar');
         if (!sidebar) return;
-        
+
         // 统计各分类数量
         const categories = {};
         const genders = { female: 0, male: 0, unknown: 0 };
         const ages = { child: 0, young: 0, adult: 0, mature: 0, unknown: 0 };
         let totalCount = 0;
-        
+
         for (const [name, info] of Object.entries(voiceLibrary)) {
             const cat = info.category || 'custom';
             categories[cat] = (categories[cat] || 0) + 1;
-            
+
             const gender = parseGenderFromInstruct(info.instruct);
             genders[gender] = (genders[gender] || 0) + 1;
-            
+
             const age = parseAgeFromInstruct(info.instruct);
             ages[age] = (ages[age] || 0) + 1;
-            
+
             totalCount++;
         }
-        
+
         const categoryLabels = {
             genshin: '🎮 原神',
             custom: '⭐ 自定义',
             import: '📥 导入',
             record: '🎤 录音'
         };
-        
+
         let html = `
             <div class="voice-sidebar-section">来源</div>
             <div class="voice-sidebar-item ${currentCategory === 'all' ? 'active' : ''}" onclick="filterByCategory('all')">
@@ -2233,7 +2235,7 @@
                 <span class="count">${totalCount}</span>
             </div>
         `;
-        
+
         for (const [cat, count] of Object.entries(categories)) {
             if (count === 0) continue;
             html += `
@@ -2243,10 +2245,10 @@
                 </div>
             `;
         }
-        
+
         html += `<div class="voice-sidebar-divider"></div>`;
         html += `<div class="voice-sidebar-section">性别</div>`;
-        
+
         const genderLabels = { female: '♀ 女性', male: '♂ 男性', unknown: '❓ 未知' };
         for (const [gender, count] of Object.entries(genders)) {
             if (count === 0) continue;
@@ -2257,10 +2259,10 @@
                 </div>
             `;
         }
-        
+
         html += `<div class="voice-sidebar-divider"></div>`;
         html += `<div class="voice-sidebar-section">年龄/音调</div>`;
-        
+
         const ageLabels = { child: '👶 幼', young: '🧒 少', adult: '👤 成', mature: '🧓 熟', unknown: '❓ 未知' };
         for (const [age, count] of Object.entries(ages)) {
             if (count === 0) continue;
@@ -2271,7 +2273,7 @@
                 </div>
             `;
         }
-        
+
         html += `<div class="voice-sidebar-divider"></div>`;
         html += `
             <div class="voice-sidebar-section">收藏</div>
@@ -2279,10 +2281,10 @@
                 <span>🌟 星标</span>
             </div>
         `;
-        
+
         sidebar.innerHTML = html;
     }
-    
+
     function filterByCategory(cat) {
         // 处理性别分类
         if (cat.startsWith('gender_')) {
@@ -2301,10 +2303,10 @@
         renderSidebar();
         renderVoiceGrid(document.getElementById('voiceSearchInput').value);
     }
-    
+
     let voiceFilterGender = null;
     let voiceFilterAge = null;
-    
+
     function toggleVoiceStarredFilter() {
         voiceFilterStarred = !voiceFilterStarred;
         voiceFilterGender = null;
@@ -2312,7 +2314,7 @@
         renderSidebar();
         renderVoiceGrid(document.getElementById('voiceSearchInput')?.value || '');
     }
-    
+
     function renderVoiceGrid(filter = '') {
         const grid = document.getElementById('voicePickerGrid');
         let voices = Object.entries(voiceLibrary).filter(([name, info]) => {
@@ -2324,21 +2326,21 @@
                 (info.note || '').toLowerCase().includes(filter.toLowerCase());
             const matchCat = currentCategory === 'all' || info.category === currentCategory;
             const matchStar = !voiceFilterStarred || info.starred;
-            
+
             // 性别筛选
             let matchGender = true;
             if (voiceFilterGender) {
                 const gender = parseGenderFromInstruct(info.instruct);
                 matchGender = gender === voiceFilterGender;
             }
-            
+
             // 年龄筛选
             let matchAge = true;
             if (voiceFilterAge) {
                 const age = parseAgeFromInstruct(info.instruct);
                 matchAge = age === voiceFilterAge;
             }
-            
+
             return matchSearch && matchCat && matchStar && matchGender && matchAge;
         });
 
@@ -2347,7 +2349,7 @@
             if (a[1].starred !== b[1].starred) return (b[1].starred ? 1 : 0) - (a[1].starred ? 1 : 0);
             return stripVoiceNamePrefix(a[0]).localeCompare(stripVoiceNamePrefix(b[0]), 'zh');
         });
-        
+
         if (voices.length === 0) {
             grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255, 255, 255, 0.4);padding:32px 0;font-size:13px;">暂无匹配的音色</div>';
             return;
@@ -2359,7 +2361,7 @@
             const gender = parseGenderFromInstruct(info.instruct);
             const genderClass = gender === 'female' ? 'female' : gender === 'male' ? 'male' : '';
             const genderText = getGenderLabel(gender);
-            
+
             return `
                 <div class="voice-card ${selectedVoiceName === name ? 'selected' : ''}" onclick="selectVoice('${name.replace(/'/g, "\\'")}')">
                     <button class="voice-card-preview" onclick="event.stopPropagation(); previewVoice('${name.replace(/'/g, "\\'")}', this)" title="试听">
@@ -2380,7 +2382,7 @@
             `;
         }).join('');
     }
-    
+
     // ==================== 随机音色选择 ====================
     async function randomVoice() {
         const voices = Object.entries(voiceLibrary);
@@ -2388,35 +2390,35 @@
             alert('音色库为空，请先导入音色');
             return;
         }
-        
+
         // 随机选择一个音色
         const randomIndex = Math.floor(Math.random() * voices.length);
         const [name, info] = voices[randomIndex];
-        
+
         console.log('随机选择音色:', name);
-        
+
         // 直接加载为参考音频
         selectedVoiceName = name;
         await loadSelectedVoice();
     }
-    
+
     async function randomVoicesForSpeakers() {
         const voices = Object.entries(voiceLibrary);
         if (voices.length === 0) {
             alert('音色库为空，请先导入音色');
             return;
         }
-        
+
         // 打乱音色列表
         const shuffled = [...voices].sort(() => Math.random() - 0.5);
-        
+
         // 为每个说话人分配随机音色
         for (let i = 0; i < speakerCount; i++) {
             const voiceIndex = i % shuffled.length;
             const [name, info] = shuffled[voiceIndex];
-            
+
             console.log(`说话人${i + 1} 随机音色:`, name);
-            
+
             try {
                 const audioUrl = `/api/tts/voices/file/${info.file}`;
                 const response = await fetch(audioUrl);
@@ -2425,7 +2427,7 @@
                 const fileName = info.file.split(/[\\/]/).pop();
                 const file = new File([blob], fileName, { type: blob.type || 'audio/wav' });
                 const blobUrl = URL.createObjectURL(blob);
-                
+
                 speakerData[i].audioFile = file;
                 speakerData[i].blobUrl = blobUrl;
                 speakerData[i].voiceName = name;
@@ -2436,10 +2438,10 @@
                 console.error(`加载音色 ${name} 失败:`, e);
             }
         }
-        
+
         // 刷新说话人卡片
         renderSpeakerCards();
-        
+
         // 设置音频 src
         for (let i = 0; i < speakerCount; i++) {
             const data = speakerData[i];
@@ -2500,10 +2502,10 @@
     function previewVoice(name, btn) {
         const info = voiceLibrary[name];
         if (!info || !info.file) return;
-        
+
         // 停止之前的预览
         stopPreview();
-        
+
         // 开始新预览
         previewVoiceName = name;
         btn.classList.add('playing');
@@ -2563,7 +2565,7 @@
     async function deleteSelectedVoice() {
         if (!selectedVoiceName) return;
         if (!confirm(`确定删除音色 "${selectedVoiceName}" 吗？`)) return;
-        
+
         try {
             await fetch(`/api/tts/voices/${encodeURIComponent(selectedVoiceName)}` + window.location.search, {
                 method: 'DELETE'
@@ -2583,13 +2585,13 @@
         }
         const name = prompt('请输入音色名称:');
         if (!name) return;
-        
+
         const instruct = document.getElementById('instructInput').value;
         const formData = new FormData();
         formData.append('name', name);
         formData.append('instruct', instruct);
         formData.append('file', currentRefAudioFile);
-        
+
         try {
             const res = await fetch('/api/tts/voices' + window.location.search, {
                 method: 'POST',
@@ -2608,7 +2610,7 @@
     // ==================== 导入音色 ====================
     let importAudioFile = null;
     let importAvatarFile = null;
-    
+
     function openImportVoiceModal() {
         document.getElementById('importVoiceOverlay').style.display = 'flex';
         // 重置表单
@@ -2619,18 +2621,18 @@
         importAudioFile = null;
         importAvatarFile = null;
     }
-    
+
     function closeImportVoiceModal() {
         document.getElementById('importVoiceOverlay').style.display = 'none';
     }
-    
+
     function onImportAudioSelected(input) {
         if (input.files && input.files[0]) {
             importAudioFile = input.files[0];
             document.getElementById('importAudioName').textContent = importAudioFile.name;
         }
     }
-    
+
     function onImportAvatarSelected(input) {
         if (input.files && input.files[0]) {
             importAvatarFile = input.files[0];
@@ -2641,7 +2643,7 @@
             reader.readAsDataURL(input.files[0]);
         }
     }
-    
+
     async function submitImportVoice() {
         const name = document.getElementById('importVoiceName').value.trim();
         if (!name) {
@@ -2652,10 +2654,10 @@
             alert('请上传参考音频');
             return;
         }
-        
+
         const instruct = document.getElementById('importVoiceInstruct').value.trim();
         const category = document.getElementById('importVoiceCategory').value;
-        
+
         try {
             const formData = new FormData();
             formData.append('name', name);
@@ -2665,12 +2667,12 @@
             if (importAvatarFile) {
                 formData.append('avatar', importAvatarFile);
             }
-            
+
             const resp = await fetch('/api/tts/voices/import-single' + window.location.search, {
                 method: 'POST',
                 body: formData
             });
-            
+
             const data = await resp.json();
             if (data.success) {
                 closeImportVoiceModal();
@@ -2689,19 +2691,19 @@
     async function importGenshinVoices() {
         const sourceDir = prompt('请输入原神音色库目录路径:\n例如: H:\\AI-Tools\\mys-voice-genshin\\res\\audio');
         if (!sourceDir) return;
-        
+
         if (!confirm('确定要导入原神角色音色吗？\n每个角色将选择一个代表性音频文件。')) return;
-        
+
         try {
             const formData = new FormData();
             formData.append('source_dir', sourceDir);
-            
+
             const res = await fetch('/api/tts/voices/import' + window.location.search, {
                 method: 'POST',
                 body: formData
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 // 重新加载音色库
                 await loadVoiceLibrary();
@@ -2734,12 +2736,12 @@
     let voicePickerTargetSpeaker = -1;
     let podcastStyle = 'default';
     let soloPodcastStyle = 'storytelling';
-    
+
     // ==================== 类型系统 ====================
     let genreData = [];          // 从后端加载的类型列表
     let selectedGenre = 'podcast'; // 当前选中的类型
     let selectedGenreStyle = '';   // 当前选中的风格
-    
+
     // 加载类型列表
     async function loadGenres() {
         try {
@@ -2751,7 +2753,7 @@
             console.error('加载类型列表失败:', e);
         }
     }
-    
+
     // 渲染类型列表
     function renderGenreList() {
         const container = document.getElementById('genreList');
@@ -2769,21 +2771,21 @@
         container.innerHTML = html;
         renderGenreStyles();
     }
-    
+
     // 渲染当前类型下的风格列表
     function renderGenreStyles() {
         const section = document.getElementById('genreStyleSection');
         const container = document.getElementById('genreStyleList');
         if (!section || !container) return;
-        
+
         const genre = genreData.find(g => g.key === selectedGenre);
         if (!genre) { section.style.display = 'none'; return; }
-        
+
         // 合并 solo 和 multi 风格
         const styles = { ...genre.solo_styles, ...genre.multi_styles };
         const styleKeys = Object.keys(styles);
         if (styleKeys.length === 0) { section.style.display = 'none'; return; }
-        
+
         section.style.display = '';
         let html = '';
         styleKeys.forEach((key, i) => {
@@ -2793,7 +2795,7 @@
         });
         container.innerHTML = html;
     }
-    
+
     // 选择类型
     function selectGenre(key) {
         selectedGenre = key;
@@ -2812,7 +2814,7 @@
             document.getElementById('genreBtnText').textContent = genre.icon + ' ' + genre.name;
         }
     }
-    
+
     // 选择风格
     function selectGenreStyle(key, el) {
         selectedGenreStyle = key;
@@ -2821,25 +2823,25 @@
         });
         if (el) el.classList.add('active');
     }
-    
+
     // 执行类型转换
     async function executeGenreConvert() {
         const textarea = document.getElementById('synthText');
         const text = textarea.value.trim();
         if (!text) { alert('请先输入要转换的内容'); return; }
-        
+
         // 关闭菜单
         document.getElementById('genreMenu').classList.remove('is-open');
-        
+
         const btn = document.getElementById('genreBtn');
         const btnText = document.getElementById('genreBtnText');
         const originalText = btnText.textContent;
         btnText.textContent = '处理中...';
         btn.disabled = true;
-        
+
         try {
             let content = text;
-            
+
             // URL 检测
             const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
             if (urlPattern.test(text.split('\n')[0].trim())) {
@@ -2857,10 +2859,10 @@
                     throw new Error(fetchData.detail || '链接抓取失败');
                 }
             }
-            
+
             btnText.textContent = '转写中...';
             const wordCount = document.getElementById('genreWordCount')?.value || '500';
-            
+
             // 确定人数
             const genre = genreData.find(g => g.key === selectedGenre);
             let numSpeakers = genre?.default_speakers || 2;
@@ -2869,19 +2871,19 @@
             } else if (genre?.modes?.includes('solo') && !genre?.modes?.includes('multi')) {
                 numSpeakers = 1;
             }
-            
+
             const formData = new FormData();
             formData.append('genre', selectedGenre);
             formData.append('text', content);
             formData.append('style', selectedGenreStyle || '');
             formData.append('num_speakers', numSpeakers);
             formData.append('word_count', wordCount);
-            
+
             const resp = await fetch('/api/tts/to-genre' + window.location.search, {
                 method: 'POST',
                 body: formData
             });
-            
+
             const data = await resp.json();
             if (data.success) {
                 if (data.mode === 'solo') {
@@ -2916,17 +2918,17 @@
             btn.disabled = false;
         }
     }
-    
+
     // 兼容旧接口：保留 convertToSoloPodcast 但内部路由到 genre 系统
     async function convertToSoloPodcast(style) {
         selectedGenre = 'podcast';
         selectedGenreStyle = style;
         await executeGenreConvert();
     }
-    
+
     // 页面加载时获取类型列表
     loadGenres();
-    
+
     // ==================== 多人对话设置 ====================
     function setSpeakerCount(n) {
         speakerCount = n;
@@ -3138,7 +3140,7 @@
     // ==================== 生成 ====================
     async function handleGenerate() {
         if (isGenerating) return;
-        
+
         const text = document.getElementById('synthText').value.trim();
         if (!text) {
             alert('请输入合成文本');
@@ -3186,7 +3188,7 @@
         formData.append('save_prefix', document.getElementById('savePrefix')?.value || 'tts');
         const duration = document.getElementById('durationInput')?.value;
         if (duration) formData.append('duration', duration);
-        
+
         if (currentRefAudioFile && !noRefModes.includes(currentMode) && currentMode !== 'multi') {
             formData.append('ref_audio', currentRefAudioFile);
         }
@@ -3211,14 +3213,14 @@
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!res.ok) {
                     const err = await res.json();
                     throw new Error(err.detail || '生成失败');
                 }
-                
+
                 const result = await res.json();
-                
+
                 if (result.error) {
                     throw new Error(result.error);
                 }
@@ -3251,11 +3253,11 @@
         const btn = document.getElementById('mainGenBtn');
         const btnText = document.getElementById('btnText');
         const progress = document.getElementById('progressBar');
-        
+
         btn.disabled = generating;
         btnText.textContent = generating ? '生成中...' : '生成';
         progress.classList.toggle('active', generating);
-        
+
         if (generating) {
             document.getElementById('progressFill').style.width = '0%';
             document.getElementById('progressText').textContent = `准备生成 ${total} 条...`;
@@ -3281,31 +3283,31 @@
         const cardId = `audio-card-${timestamp}`;
         // 防止重复
         if (document.getElementById(`history-${timestamp}`)) return;
-        
+
         // 添加 token 到音频 URL
         const token = localStorage.getItem('xy_auth_token') || '';
         const separator = rawAudioUrl.includes('?') ? '&' : '?';
         const audioUrl = rawAudioUrl + separator + 'token=' + encodeURIComponent(token);
-        
+
         const card = createAudioCardElement(result, animate);
         masonry.insertBefore(card, masonry.firstChild);
-        
+
         // 显示工具栏
         initToolbar();
-        
+
         // 如果是批量模式，显示复选框
         if (ttsBatchMode) {
             const cardEl = card.querySelector('.audio-result-card');
             if (cardEl) cardEl.classList.add('batch-mode');
         }
-        
+
         // 绘制波形
         setTimeout(() => {
             const canvas = card.querySelector('.audio-waveform');
             if (canvas) drawWaveform(canvas, audioUrl);
         }, 100);
     }
-    
+
     function createAudioCardElement(result, animate = true, appendTo = null) {
         const rawAudioUrl = result.audio[0];
         const timestamp = result.timestamp || Date.now() / 1000;
@@ -3313,12 +3315,12 @@
         const instruct = result.params?.instruct || '';
         const synthText = result.text || result.prompt || '';
         const cardId = `audio-card-${timestamp}`;
-        
+
         // 添加 token 到音频 URL
         const token = localStorage.getItem('xy_auth_token') || '';
         const separator = rawAudioUrl.includes('?') ? '&' : '?';
         const audioUrl = rawAudioUrl + separator + 'token=' + encodeURIComponent(token);
-        
+
         const card = document.createElement('div');
         card.className = 'masonry-item' + (animate ? ' animate-in' : '');
         card.id = `history-${timestamp}`;
@@ -3358,17 +3360,17 @@
                     onended="onAudioEnded('${cardId}')"></audio>
             </div>
         `;
-        
+
         if (appendTo) {
             appendTo.appendChild(card);
         }
-        
+
         // 绘制波形
         setTimeout(() => {
             const canvas = card.querySelector('.audio-waveform');
             if (canvas) drawWaveform(canvas, audioUrl);
         }, 100);
-        
+
         return card;
     }
 
@@ -3391,7 +3393,7 @@
                 return;
             }
         }
-        
+
         try {
             await fetch('/api/history/delete' + window.location.search, {
                 method: 'POST',
@@ -3399,7 +3401,7 @@
                 body: JSON.stringify({ timestamp: timestamp })
             });
         } catch(e) {}
-        
+
         const audio = document.getElementById(`audio-${cardId}`);
         if (audio) audio.pause();
         const card = document.getElementById(`history-${timestamp}`);
@@ -3585,19 +3587,19 @@
         ta.style.color = 'transparent';
         ta.style.textShadow = 'none';
         ta.style.caretColor = '#00f0ff';
-        
+
         const text = ta.value;
         // 转义 HTML，对 Speaker 标签着色
         let html = escHtml(text);
-        
+
         // 处理所有对话行
         html = html.replace(
             /^(\[Speaker_(\d+)\]:\s*)/gm,
             (match, tag, num) => `<span class="spk-tag spk-${num}">${tag}</span>`
         );
-        
+
         hl.innerHTML = html;
-        
+
         // 同步滚动
         hl.scrollTop = ta.scrollTop;
         hl.scrollLeft = ta.scrollLeft;
@@ -3783,7 +3785,7 @@
             return;
         }
         if (!confirm(`确定删除选中的 ${ttsSelectedCards.size} 条记录吗？`)) return;
-        
+
         const timestamps = Array.from(ttsSelectedCards);
         // 前端先移除
         timestamps.forEach(ts => {
@@ -4009,7 +4011,7 @@
     let _previewMode = '';
     let _previewTextSegments = []; // 文本分段数据
     let _previewIsPlaying = false;
-    
+
     // 文本分段：按标点符号切分，返回 [{text, start, end}, ...]
     function segmentText(text) {
         if (!text) return [];
@@ -4029,7 +4031,7 @@
         // 过滤空段
         return segments.filter(s => s.length > 0);
     }
-    
+
     // 渲染分段文本到预览区
     function renderPreviewSegments(segments) {
         const container = document.getElementById('previewText');
@@ -4043,7 +4045,7 @@
         });
         container.innerHTML = html;
     }
-    
+
     // 更新文本高亮
     function updatePreviewHighlight(pct) {
         const segments = _previewTextSegments;
@@ -4075,7 +4077,7 @@
             }
         }
     }
-    
+
     function escHtml(s) {
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
@@ -4083,39 +4085,39 @@
     function openAudioPreview(cardId, audioUrl) {
         const overlay = document.getElementById('audioPreviewOverlay');
         const audio = document.getElementById('previewAudio');
-        
+
         // 获取卡片数据
         const card = document.getElementById('history-' + cardId.replace('audio-card-', ''));
         const instruct = card?.querySelector('.audio-result-instruct')?.textContent || '';
         const synthText = card?.querySelector('.audio-result-synthtext')?.textContent || '';
         const modeBadge = card?.querySelector('.audio-mode-badge')?.textContent || '';
         const duration = card?.querySelector('.audio-duration')?.textContent || '--:--';
-        
+
         _previewAudioUrl = audioUrl;
         _previewSynthText = synthText || instruct;
         _previewMode = modeBadge;
-        
+
         // 分段渲染文本
         _previewTextSegments = segmentText(_previewSynthText);
         renderPreviewSegments(_previewTextSegments);
-        
+
         // 设置模式
         document.getElementById('previewModeBadge').textContent = modeBadge;
         document.getElementById('previewDuration').textContent = duration;
-        
+
         // 检测卡片音频是否正在播放，同步状态
         const cardAudio = document.getElementById(`audio-${cardId}`);
         const wasPlaying = cardAudio && !cardAudio.paused;
         const currentTime = cardAudio ? cardAudio.currentTime : 0;
-        
+
         // 暂停卡片音频
         if (wasPlaying) {
             cardAudio.pause();
         }
-        
+
         // 加载音频到预览
         audio.src = audioUrl;
-        
+
         // 如果卡片正在播放，同步到相同位置并继续播放
         if (wasPlaying && currentTime > 0) {
             audio.currentTime = currentTime;
@@ -4132,11 +4134,11 @@
             updatePreviewPlayBtn(false);
             updateNowPlaying(false);
         }
-        
+
         // 绘制波形
         const canvas = document.getElementById('previewWaveformCanvas');
         setTimeout(() => drawPreviewWaveform(canvas, audioUrl), 100);
-        
+
         // 显示弹窗
         overlay.style.display = 'flex';
         requestAnimationFrame(() => overlay.classList.add('is-open'));
@@ -4147,9 +4149,9 @@
         const audio = document.getElementById('previewAudio');
         const wasPlaying = !audio.paused;
         const currentTime = audio.currentTime;
-        
+
         audio.pause();
-        
+
         // 如果预览正在播放，恢复卡片音频继续播放
         if (wasPlaying && _previewAudioUrl) {
             // 找到对应的卡片音频元素
@@ -4169,11 +4171,11 @@
                 }
             }
         }
-        
+
         audio.src = '';
         overlay.classList.remove('is-open');
         setTimeout(() => overlay.style.display = 'none', 300);
-        
+
         // 重置状态
         _previewIsPlaying = false;
         _previewTextSegments = [];
@@ -4194,7 +4196,7 @@
         updatePreviewPlayBtn(_previewIsPlaying);
         updateNowPlaying(_previewIsPlaying);
     }
-    
+
     function updatePreviewPlayBtn(isPlaying) {
         const btn = document.getElementById('previewPlayBtn');
         if (isPlaying) {
@@ -4205,7 +4207,7 @@
             btn.classList.remove('playing');
         }
     }
-    
+
     function updateNowPlaying(isPlaying) {
         const el = document.getElementById('previewNowPlaying');
         if (el) el.style.display = isPlaying ? 'flex' : 'none';
@@ -4262,7 +4264,7 @@
         ctx.scale(2, 2);
         const w = rect.width;
         const h = rect.height;
-        
+
         // 生成随机波形（后续可以用真实波形替换）
         ctx.clearRect(0, 0, w, h);
         const barCount = Math.floor(w / 4);
@@ -4315,7 +4317,7 @@
         const audio = document.getElementById(`audio-${cardId}`);
         const btn = document.getElementById(`iconPlay-${cardId}`);
         if (!audio || !btn) return;
-        
+
         // 暂停其他所有音频
         document.querySelectorAll('.audio-result-card audio').forEach(a => {
             if (a.id !== `audio-${cardId}`) {
@@ -4335,7 +4337,7 @@
                 if (otherFx) { const c = otherFx.getContext('2d'); c.clearRect(0, 0, otherFx.width, otherFx.height); }
             }
         });
-        
+
         if (audio.paused) {
             audio.play();
             btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';

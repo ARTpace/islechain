@@ -3,39 +3,20 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="app-version" content="20261112017">
+    <!-- 应用自行管理深浅主题，避免扩展重复反色。 -->
+    <meta name="darkreader-lock">
     <script src="/static/modules/load-log.js?v=20261027load"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script>
-        (function(){
-            var P={ink:{d:['#14161c','#1c202a','#252b38','#343b4c','#445066'],l:['#f7f6f4','#fbfaf9','#f3f2ef','#e7e5de','#d9d6cc']},night:{d:['#0e1626','#162238','#1e2d48','#314466','#42587f'],l:['#f3f6fb','#f8fafd','#eaf0f8','#d5e0ee','#c3d0e4']},pine:{d:['#101916','#17241f','#20302a','#334840','#456056'],l:['#f3f7f4','#f8fbf8','#e7f0ea','#d3e2d8','#bdd0c4']},dusk:{d:['#16141f','#211c2e','#2c243d','#43385a','#574a72'],l:['#f6f4f9','#fbf9fd','#efeaf6','#ddd4ea','#cbbfdc']},sand:{d:['#1a1612','#262018','#32281e','#4a3c2e','#5e4e3c'],l:['#f8f5f1','#fbf9f6','#f3ece4','#e6d9cb','#d4c3b0']}};
-            function hex(h){h=String(h||'').replace('#','');if(h.length===3)h=h.replace(/./g,function(c){return c+c;});if(!/^[0-9a-f]{6}$/i.test(h))return [26,39,68];var n=parseInt(h,16);return [(n>>16)&255,(n>>8)&255,n&255];}
-            function ladder(h,dark){var base=hex(h),toward=dark?[8,10,16]:[247,246,244],steps=dark?[.34,.48,.62,.74,.84]:[.07,.03,.12,.2,.28];return steps.map(function(t){return '#'+toward.map(function(v,i){return Math.max(0,Math.min(255,Math.round(v+(base[i]-v)*t))).toString(16).padStart(2,'0');}).join('');});}
-            var dark=false,key='ink',color='#1a2744';
-            try{dark=(localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark'))==='dark';key=localStorage.getItem('studio_palette')||'ink';color=localStorage.getItem('studio_palette_color')||'#1a2744';}catch(e){}
-            var root=document.documentElement;
-            root.classList.toggle('studio-theme-dark',dark);
-            root.classList.toggle('theme-dark',dark);
-            function paintBody(){if(!document.body)return;document.body.classList.toggle('studio-theme-dark',dark);document.body.classList.toggle('theme-dark',dark);}
-            paintBody();
-            if(!document.body){new MutationObserver(function(_,obs){if(document.body){paintBody();obs.disconnect();}}).observe(root,{childList:true});}
-            var list=key==='custom'?ladder(color,dark):((P[key]||P.ink)[dark?'d':'l']);
-            var vars='--ui-bg:'+list[0]+';--ui-panel:'+list[1]+';--ui-soft:'+list[2]+';--ui-line:'+list[3]+';--ui-line-strong:'+list[4]+';--bg:'+list[0]+';--bg-base:'+list[0]+';--stage-bg:'+list[0]+';--sidebar-bg:'+list[1]+';--card:'+list[2]+';';
-            var clear=20;try{var saved=localStorage.getItem('studio_panel_alpha');if(saved!=null&&saved!==''){var n=Math.round(Number(saved));if(n>=0&&n<=40)clear=n;}}catch(e){}
-            function rgba(c,a){var p=hex(c);return 'rgba('+p[0]+','+p[1]+','+p[2]+','+a+')';}
-            var panelA=(1-clear/100).toFixed(3),softA=Math.min(1,1-Math.max(0,clear-6)/100).toFixed(3);
-            var glass='body .sidebar.sidebar,body #settings-panel{background:'+rgba(list[1],panelA)+' !important;background-color:'+rgba(list[1],panelA)+' !important;}body .console-card.console-card,body .history-bulk-toolbar.history-bulk-toolbar,body .chat-drawer.chat-drawer,body .chat-history.chat-history{background:'+rgba(list[2],softA)+' !important;background-color:'+rgba(list[2],softA)+' !important;}';
-            var style=document.createElement('style');
-            style.id='studio-palette-style';
-            style.textContent=':root{'+vars+'}html.studio-theme-dark,html.studio-theme-dark body,body.theme-dark,body.studio-theme-dark{'+vars+'}html{background:'+list[0]+';color-scheme:'+(dark?'dark':'light')+';}'+glass;
-            root.appendChild(style);
-        })();
-    </script>
+<script src="/static/js/theme.js?v=20261112004"></script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <title>ART AI</title>
+    <title>IsleChain</title>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024004">
-    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261024pal">
-    <script src="/static/js/theme.js?v=20261102look" defer></script>
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+
+    <link rel="stylesheet" href="/static/css/workspace-loading.css?v=20261108015">
+    <link rel="stylesheet" href="/static/css/appearance-settings.css?v=20261111009">
     <script src="/static/js/ui-refine.js?v=20261024004" defer></script>
     <script src="/static/js/i18n.js?v=20261024004" defer></script>
     <style>
@@ -345,7 +326,7 @@
 
         .nav-item.active {
             background: var(--accent);
-            color: #fbfaf9;
+            color: var(--ui-text);
             box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 30%, transparent);
         }
 
@@ -355,6 +336,18 @@
             border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 30%, transparent);
             box-shadow: 0 0 20px color-mix(in srgb, var(--accent-glow, #06b6d4) 15%, transparent), inset 0 0 15px color-mix(in srgb, var(--accent-glow, #06b6d4) 5%, transparent);
         }
+
+        /* 导航图标与按钮共用角色色，覆盖旧深色皮肤的青色选中态；默认色保持原有回退。 */
+        html.studio-accent-customized body .sidebar :is(.nav-item.active, .nav-child.submenu-active) {
+            color: var(--studio-accent-text, var(--accent-glow, var(--accent))) !important;
+            background: var(--studio-accent-soft, var(--ui-accent-soft)) !important;
+            border-color: var(--studio-accent-line, var(--ui-line-strong)) !important;
+            box-shadow: none !important;
+        }
+        html.studio-accent-customized body .sidebar :is(.nav-item, .nav-child):hover {
+            color: var(--studio-accent-text, var(--accent-glow, var(--accent))) !important;
+        }
+        html body .sidebar :is(.nav-item, .nav-child) > svg { color: inherit; }
 
         /* --- Collapsible Submenu Styles --- */
 
@@ -458,7 +451,7 @@
         .nav-child.submenu-active {
             opacity: 1;
             background: var(--accent);
-            color: #fbfaf9;
+            color: var(--ui-text);
             border-color: transparent;
         }
 
@@ -470,7 +463,7 @@
 
         .nav-parent.has-active-child {
             background: var(--accent);
-            color: #fbfaf9;
+            color: var(--ui-text);
         }
 
         .sidebar:hover .nav-parent.has-active-child {
@@ -859,7 +852,7 @@
             .stage { margin: 8px !important; border-radius: 18px !important; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
 </head>
 
 <body>
@@ -918,6 +911,14 @@
 
             <!-- Submenu Container - 放在 sidebar-nav 外面避免 overflow-x:hidden 裁切 -->
             <div id="comfyui-submenu" class="submenu">
+                <div class="nav-item nav-child" data-module="tripo-studio" onclick="switchUI(this, 'tripo-studio', 'comfy')" title="Tripo Studio">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5Z M3 8v9l9 5 9-5V8 M12 13v9" stroke-width="2" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">Tripo Studio</span>
+                </div>
+                <div class="nav-item nav-child" data-module="rodin3d" onclick="switchUI(this, 'rodin3d', 'comfy')" title="3D 生成（Rodin 免费预览）">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2.6 21 7.4v9.2L12 21.4 3 16.6V7.4z" stroke-width="2" stroke-linejoin="round"/><path d="m3 7.4 9 4.8 9-4.8M12 12.2v9.2" stroke-width="1.6" opacity=".7"/></svg>
+                    <span class="nav-text">3D 生成</span>
+                </div>
                 <div class="nav-item nav-child" data-module="zimage" onclick="switchUI(this, 'zimage', 'comfy')" title="文生图">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span class="nav-text" data-i18n="nav.textToImage">文生图</span>
@@ -925,6 +926,10 @@
                 <div class="nav-item nav-child" data-module="klein" onclick="switchUI(this, 'klein', 'comfy')" title="图片编辑">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span class="nav-text" data-i18n="nav.imageEdit">图片编辑</span>
+                </div>
+                <div class="nav-item nav-child" data-module="texture-repaint" onclick="switchUI(this, 'texture-repaint', 'comfy')" title="贴图重绘">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="nav-text">贴图重绘</span>
                 </div>
                 <div class="nav-item nav-child" data-module="angle" onclick="switchUI(this, 'angle', 'comfy')" title="3D视角变换">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1024,9 +1029,17 @@
 
         </aside>
 
-        <main class="stage">
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261102mono"></iframe>
+        <main class="stage" aria-busy="true">
+            <div id="workspace-loading" class="workspace-loading is-visible" role="status" aria-live="polite">
+                <div class="workspace-loading-signature" aria-hidden="true">Isle<span>Chain</span></div>
+                <div class="workspace-loading-track" aria-hidden="true"></div>
+                <div class="workspace-loading-label">正在打开工作区</div>
+            </div>
+            <iframe id="frame-tripo-studio" data-src="/tripo-studio/"></iframe>
+            <iframe id="frame-rodin3d" data-src="/static/app/rodin3d.html?v=20261111d"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261105noref"></iframe>
             <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261024008"></iframe>
+            <iframe id="frame-texture-repaint" data-src="/static/app/texture-repaint.html?v=20261105tier1"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261024008"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261024008"></iframe>
             <iframe id="frame-threeview" data-src="/static/app/threeview.html?v=20261103a"></iframe>
@@ -1039,18 +1052,20 @@
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
             <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20261024008"></iframe>
             <iframe id="frame-poster" data-src="/static/app/poster.html?v=20261024004"></iframe>
-            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261102chatalign"></iframe>
+            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261105noref"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
     <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261024009"></iframe>
-            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261102accent"></iframe>
+            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261108009"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=20261102mergetab"></iframe>
             <iframe id="frame-training" data-src="/static/app/training.html?v=20261025"></iframe>
             <iframe id="frame-generation-dashboard" data-src="/static/app/generation-dashboard.html"></iframe>
-            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261026cli"></iframe>
-            <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261024004"></iframe>
-            <iframe id="frame-mcp-settings" data-src="/static/setting/mcp-settings.html?v=20261103mcp"></iframe>
+            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261112014"></iframe>
+            <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261112015"></iframe>
+            <iframe id="frame-mcp-settings" data-src="/static/setting/mcp-settings.html?v=20261109mcp1"></iframe>
+            <iframe id="frame-cli-settings" data-src="/static/setting/cli-settings.html?v=20261109cli11"></iframe>
             <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20261024004"></iframe>
         </main>
+        <script src="/static/js/workspace-loading.js?v=20261108014"></script>
     </div>
     <script>
         window.FeatureModules = {
@@ -1121,6 +1136,7 @@
                     this._retry = setTimeout(() => { if (!document.hidden) this.loadAccess(); }, 3000);
                 }
                 this.apply();
+                if(!this.firstOn()) window.WorkspaceLoading?.activate(null);
                 return this.access;
             },
             groups: [
@@ -1132,8 +1148,11 @@
                     { id: 'asset-manager', name: '素材库' }
                 ]},
                 { title: 'ComfyUI 应用', items: [
+                    { id: 'tripo-studio', name: 'Tripo Studio' },
+                    { id: 'rodin3d', name: '3D 生成' },
                     { id: 'zimage', name: '文生图' },
                     { id: 'klein', name: '图片编辑' },
+                    { id: 'texture-repaint', name: '贴图重绘' },
                     { id: 'angle', name: '3D视角变换' },
                     { id: 'threeview', name: '三视图' },
                     { id: 'cgstyle', name: 'CG一键细化' },
@@ -1198,6 +1217,7 @@
                     if (!self.groups.some(group => group.items.some(item => item.id === id)) || self.isOn(id)) return;
                     if (frame.classList.contains('active')) lostActive = true;
                     frame.classList.remove('active');
+                    window.WorkspaceLoading?.forget(frame);
                     frame.removeAttribute('src');
                 });
                 if (lostActive && this.firstOn() && typeof switchUI === 'function') {
@@ -1224,9 +1244,10 @@
                 var saved = JSON.parse(localStorage.getItem('lastSelectedApp') || 'null');
                 if (saved && saved.id) id = saved.id;
             } catch (e) {}
-            if (id === 'gpt-chat' || id === 'online' || id === 'api-settings' || id === 'comfyui-settings' || id === 'wildcard-settings' || !FeatureModules.isOn(id)) id = FeatureModules.firstOn();
+            if (id === 'gpt-chat' || id === 'online' || id === 'api-settings' || id === 'comfyui-settings' || id === 'wildcard-settings' || id === 'cli-settings' || !FeatureModules.isOn(id)) id = FeatureModules.firstOn();
             var frame = id && document.getElementById('frame-' + id);
             if (!frame) return;
+            window.WorkspaceLoading?.activate(frame);
             if (!frame.getAttribute('src')) frame.src = frame.dataset.src;
             frame.classList.add('active');
             document.body.classList.toggle('chat-view', frame.id === 'frame-chat-gen');
@@ -1245,7 +1266,7 @@
     </script>
 
     <script src="/static/modules/model-visibility.js?v=20261024pane"></script>
-    <script src="/static/modules/settings.js?v=20261103mcpset"></script>
+    <script src="/static/modules/settings.js?v=20261112014"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -1274,12 +1295,14 @@
                 const drop = old;
                 setTimeout(() => {
                     if (!drop || drop === target || drop.classList.contains('active') || drop.classList.contains('leaving')) return;
+                    window.WorkspaceLoading?.forget(drop);
                     drop.removeAttribute('src');
                 }, 2000);
             }
         }
 
         function showFrame(target) {
+            if(target) window.WorkspaceLoading?.activate(target);
             if (!target || target.classList.contains('active')) return;
             document.querySelectorAll('iframe.leaving').forEach(f => f.classList.remove('leaving'));
             document.querySelectorAll('iframe.active').forEach(f => {
@@ -1762,11 +1785,11 @@
             if (saved) {
                 try {
                     let { id, parentId } = JSON.parse(saved);
-                    if (id === 'gpt-chat' || id === 'online' || id === 'api-settings' || id === 'comfyui-settings' || id === 'wildcard-settings' || (window.FeatureModules && !FeatureModules.isOn(id))) {
+                    if (id === 'gpt-chat' || id === 'online' || id === 'api-settings' || id === 'comfyui-settings' || id === 'wildcard-settings' || id === 'cli-settings' || (window.FeatureModules && !FeatureModules.isOn(id))) {
                         id = FeatureModules.firstOn();
                         parentId = null;
                     }
-                    if (id === 'tts' || id === 'litevideo' || id === 'threeview') parentId = 'comfy';
+                    if (id === 'tripo-studio' || id === 'tts' || id === 'litevideo' || id === 'threeview' || id === 'rodin3d') parentId = 'comfy';
                     if (id) {
                         // If it was a comfyui child item
                         if (parentId === 'comfy') {

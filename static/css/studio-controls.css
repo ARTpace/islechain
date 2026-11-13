@@ -1,0 +1,155 @@
+/* 公共浅色按钮皮肤：页面保留尺寸、排列、定位与业务行为，深色主题不参与。
+   只接管已知按钮类；色板、开关、媒体覆盖层及危险操作保持原有语义。 */
+html:not(.studio-theme-dark) body {
+    --control-radius: 8px;
+    --control-bg: var(--ui-accent-soft);
+    --control-ink: var(--ui-accent);
+    --control-line: color-mix(in srgb, var(--ui-accent) 60%, transparent);
+    --control-hover-bg: var(--studio-accent-soft-hover, color-mix(in srgb, var(--ui-accent) 20%, var(--ui-panel)));
+    --control-hover-line: color-mix(in srgb, var(--ui-accent) 75%, transparent);
+    --control-focus: var(--studio-accent-focus, color-mix(in srgb, var(--accent, var(--ui-accent)) 70%, var(--ui-text)));
+    --control-time: 140ms;
+}
+
+/* 内描边兼容原先 border:0 的按钮，不增加盒尺寸或改变手机布局。 */
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)) {
+    background: var(--control-bg) !important;
+    color: var(--control-ink) !important;
+    border-color: var(--control-line) !important;
+    border-radius: var(--control-radius) !important;
+    box-shadow: inset 0 0 0 1px var(--control-line), 0 1px 2px color-mix(in srgb, var(--ui-text) 6%, transparent) !important;
+    transition: background-color var(--control-time) ease, border-color var(--control-time) ease,
+        color var(--control-time) ease, box-shadow var(--control-time) ease;
+}
+
+/* 主操作与普通按钮共用生成键的浅底、强调色字和细描边。 */
+html:not(.studio-theme-dark) body :is(
+    .ui-btn-primary, .btn-primary, .btn.primary, .action-btn.primary-btn, .action-btn.save-btn,
+    .add-btn, button.send, button.send-btn, .btn-render, .gen-run, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger)) {
+    --control-bg: var(--ui-accent-soft);
+    --control-ink: var(--ui-accent);
+    --control-line: color-mix(in srgb, var(--ui-accent) 60%, transparent);
+    --control-active-bg: var(--control-hover-bg);
+}
+
+/* 已选项使用浅焦糖底，不把全部辅助按钮提升为主操作。 */
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .btn, .tbtn, button.chip, .chat-top-btn, .chat-icon-btn,
+    .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger
+):is(.active, .is-active, .is-on, .selected, .seed-locked, [aria-pressed="true"], [aria-expanded="true"], [aria-selected="true"]):not(:where(.primary, .btn-primary, .ui-btn-primary, .danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)) {
+    --control-bg: var(--studio-accent-soft-hover, var(--ui-accent-soft));
+    --control-ink: var(--ui-accent);
+    --control-line: var(--ui-accent);
+    --control-active-bg: var(--control-hover-bg);
+}
+
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)):hover:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"]) {
+    background: var(--control-hover-bg) !important;
+    border-color: var(--control-hover-line) !important;
+    box-shadow: inset 0 0 0 1px var(--control-hover-line), 0 2px 4px color-mix(in srgb, var(--ui-text) 8%, transparent) !important;
+}
+
+/* 按压仅改变内阴影，不覆盖页面已有的定位或变换。 */
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)):active:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"]) {
+    background: var(--control-active-bg, var(--control-hover-bg)) !important;
+    box-shadow: inset 0 0 0 1px var(--control-hover-line), inset 0 1px 2px color-mix(in srgb, var(--ui-text) 10%, transparent) !important;
+}
+
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)):focus-visible {
+    outline: 2px solid var(--control-focus) !important;
+    outline-offset: 2px;
+}
+
+/* 禁用与忙碌只呈现状态；业务仍由 disabled 或原事件处理器阻止操作。 */
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot)):is(:disabled, [aria-disabled="true"], [aria-busy="true"]) {
+    background: var(--control-bg) !important;
+    color: var(--control-ink) !important;
+    opacity: .55 !important;
+    box-shadow: inset 0 0 0 1px var(--control-line) !important;
+    cursor: not-allowed;
+}
+html:not(.studio-theme-dark) body :is(
+    .ui-btn, .ui-btn-primary, .ui-btn-ghost, .ui-icon-btn, .btn, .btn-primary, .tbtn, button.chip,
+    .chat-top-btn, .chat-icon-btn, .preset-dropdown-btn, .ratio-dropdown-btn, .res-dropdown-btn,
+    .seed-toggle-btn, .lv-seed-toggle, .gen-seg-btn, .gen-icon-btn, .gen-run,
+    .action-btn, .ghost-btn, .key-btn, .api-link-btn, .cli-quick-btn, .add-btn,
+    .anima-ctrl, .history-bulk-btn, .history-search-toggle, .prompt-chip, .random-prompt-trigger,
+    button.send, button.send-btn, .btn-render, :where(#mainGenBtn)
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"], .sk-dot))[aria-busy="true"] {
+    cursor: progress;
+}
+
+/* 生成图标跟随按钮文字，避免旧黄色或白色图标与浅底同化。 */
+html:not(.studio-theme-dark) body .gen-run .gen-run-icon { color: inherit; }
+
+/* Shared switch skin: soft track, thin outline, circular thumb. */
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch, .rh-preview-switch, .studio-switch-indicator, .cp-switch-track) {
+    position:relative !important; display:inline-block !important; box-sizing:border-box !important;
+    width:32px !important; min-width:32px !important; height:18px !important; min-height:18px !important;
+    flex:0 0 32px !important; padding:0 !important; border-radius:999px !important;
+    border:1px solid var(--ui-line-strong) !important; background:var(--ui-soft) !important;
+    box-shadow:none !important; vertical-align:middle; font-size:0 !important;
+}
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch, .rh-preview-switch, .studio-switch-indicator, .cp-switch-track)::after {
+    content:'' !important; position:absolute !important; top:2px !important; left:2px !important;
+    width:12px !important; height:12px !important; border-radius:50% !important;
+    background:var(--ui-muted) !important; box-shadow:none !important; pointer-events:none;
+    transform:translateX(0) !important; transition:transform 140ms ease,background-color 140ms ease !important;
+}
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch, .rh-preview-switch, .studio-switch-indicator):is(.on, .is-on, .active, [aria-checked="true"], :has(input:checked)),
+html body .cp-switch input:checked + .cp-switch-track {
+    background:var(--ui-accent-soft) !important; border-color:var(--ui-accent) !important;
+}
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch, .rh-preview-switch, .studio-switch-indicator):is(.on, .is-on, .active, [aria-checked="true"], :has(input:checked))::after,
+html body .cp-switch input:checked + .cp-switch-track::after {
+    transform:translateX(14px) !important; background:var(--ui-accent) !important;
+}
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch, .studio-switch-indicator):is(:disabled, [aria-disabled="true"], :has(input:disabled)),
+html body .cp-switch input:disabled + .cp-switch-track { opacity:.45 !important; cursor:not-allowed !important; }
+html body :is(.module-switch, .model-switch, .sk-switch, .toggle-switch):is(:focus-visible, :has(input:focus-visible)),
+html body .cp-switch input:focus-visible + .cp-switch-track { outline:2px solid var(--ui-accent); outline-offset:3px; }
+html body .rh-preview-switch > span { display:none; }
+html body .ui-switch { width:32px; height:18px; }
+html body .ui-switch .track { box-sizing:border-box; border:1px solid var(--ui-line-strong); background:var(--ui-soft); }
+html body .ui-switch .thumb { top:2px; left:2px; width:12px; height:12px; background:var(--ui-muted); box-shadow:none; }
+html body .ui-switch input:checked + .track { background:var(--ui-accent-soft); border-color:var(--ui-accent); }
+html body .ui-switch input:checked + .track .thumb { transform:translateX(14px); background:var(--ui-accent); }
+@media(prefers-reduced-motion:reduce) { html body :is(.module-switch,.model-switch,.sk-switch,.toggle-switch,.studio-switch-indicator,.cp-switch-track)::after { transition:none !important; } }

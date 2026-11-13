@@ -6,6 +6,7 @@
     <title>ComfyUI 设置</title>
     <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -19,11 +20,11 @@
             } catch(e) {}
         })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/tailwindcss-cdn.js?v=20261024001"></script>
     <script src="/static/lucide.min.js?v=20261024001"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+
     <script src="/static/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <style>
         /* 语义 token 统一映射到 studio-ui.css 契约（chrome 自动随深浅主题切换） */
         :root { --bg:var(--ui-bg); --panel:var(--ui-panel); --soft:var(--ui-soft); --line:var(--ui-line); --line-strong:var(--ui-line-strong); --text:var(--ui-text); --muted:var(--ui-muted); --faint:var(--ui-faint); --accent:var(--ui-accent); --accent-glow:var(--ui-accent-glow); --neon-cyan:var(--ui-accent); --neon-blue:var(--ui-accent-glow); }
@@ -71,9 +72,9 @@
         .action-btn:hover { color:var(--text); border-color:var(--text); }
         .action-btn.save-btn { background:var(--accent); color:var(--bg); border-color:var(--accent); }
         .action-btn.save-btn:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(23, 23, 22, .15); }
-        .action-btn.danger-btn { color:#dc2626; border-color:#e7e5de; background:transparent; }
-        .action-btn.danger-btn:hover { background:#f9f8f6; }
-        body.studio-theme-dark .action-btn.danger-btn { color:#cfcdc4; border-color:rgba(248, 113, 113, .3); }
+        .action-btn.danger-btn { color:#dc2626; border-color:var(--ui-line-strong); background:transparent; }
+        .action-btn.danger-btn:hover { background:var(--ui-panel); }
+        body.studio-theme-dark .action-btn.danger-btn { color:var(--ui-text); border-color:rgba(248, 113, 113, .3); }
         body.studio-theme-dark .action-btn.danger-btn:hover { background:rgba(62, 62, 57, .18); }
         /* Workflow graph */
         .graph-card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; }
@@ -154,10 +155,10 @@
         .input-row { display:grid; grid-template-columns:36px minmax(0,1fr) 120px 140px; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:11px; background:var(--soft); }
         body.studio-theme-dark .input-row { background:var(--soft); border-color:var(--line-strong); }
         .input-row.is-active { border-color:var(--text); background:var(--panel); }
-        body.studio-theme-dark .input-row.is-active { background:var(--soft); border-color:#f8f7f5; }
+        body.studio-theme-dark .input-row.is-active { background:var(--soft); border-color:var(--ui-line-strong); }
         .check-toggle { width:18px; height:18px; border:1.5px solid var(--line-strong); border-radius:5px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s ease; background:var(--panel); margin:0 auto; }
         .check-toggle.checked { background:var(--accent); border-color:var(--accent); color:var(--bg); }
-        body.studio-theme-dark .check-toggle.checked { background:#f8f7f5; color:#10100f; border-color:#f8f7f5; }
+        body.studio-theme-dark .check-toggle.checked { background:var(--ui-panel); color:var(--ui-text); border-color:var(--ui-line-strong); }
         .input-info { min-width:0; }
         .input-key { font-size:12.5px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .input-orig { font-size:10.5px; font-weight:700; color:var(--faint); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -176,7 +177,7 @@
         .dropdown-opt-row .opt-index { width:18px; text-align:center; font-size:10.5px; color:var(--faint); font-weight:800; font-variant-numeric:tabular-nums; flex:0 0 auto; }
         .dropdown-opt-row .small-input { flex:1; }
         .opt-type-tag { font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:5px; background:var(--line); color:var(--muted); letter-spacing:.04em; flex:0 0 auto; }
-        .opt-type-tag.is-num { background:rgba(6, 182, 212, .15); color:#0e7490; }
+        .opt-type-tag.is-num { background:rgba(6, 182, 212, .15); color:var(--ui-accent); }
         body.studio-theme-dark .opt-type-tag.is-num { background:rgba(0, 240, 255, .2); color:#00f0ff; }
         .opt-del { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--faint); background:transparent; flex:0 0 auto; cursor:pointer; }
         .opt-del:hover { color:#dc2626; background:rgba(239, 68, 68, .08); }
@@ -208,10 +209,10 @@
         .pfield-bool { display:flex; align-items:center; gap:10px; }
         .pfield-bool-track { position:relative; width:36px; height:20px; border-radius:999px; background:var(--soft); border:1px solid var(--line-strong); cursor:pointer; transition:background .15s ease; }
         .pfield-bool-track.on { background:var(--accent); }
-        body.studio-theme-dark .pfield-bool-track.on { background:#f8f7f5; }
-        .pfield-bool-thumb { position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fbfaf9; border-radius:50%; transition:transform .15s ease; }
-        body.studio-theme-dark .pfield-bool-thumb { background:#10100f; }
-        body.studio-theme-dark .pfield-bool-track:not(.on) .pfield-bool-thumb { background:#f8f7f5; }
+        body.studio-theme-dark .pfield-bool-track.on { background:var(--ui-panel); }
+        .pfield-bool-thumb { position:absolute; top:2px; left:2px; width:14px; height:14px; background:var(--ui-panel); border-radius:50%; transition:transform .15s ease; }
+        body.studio-theme-dark .pfield-bool-thumb { background:var(--ui-panel); }
+        body.studio-theme-dark .pfield-bool-track:not(.on) .pfield-bool-thumb { background:var(--ui-panel); }
         .pfield-bool-track.on .pfield-bool-thumb { transform:translateX(16px); }
         .pfield-image-drop { padding:18px; border:1px dashed var(--line-strong); border-radius:12px; text-align:center; color:var(--muted); font-size:11.5px; font-weight:700; background:var(--soft); cursor:pointer; transition:all .15s ease; }
         .pfield-image-drop:hover { border-color:var(--text); color:var(--text); }
@@ -270,8 +271,30 @@
             html.in-settings .layout { grid-template-columns:1fr; }
             html.in-settings .sidebar, html.in-settings .content { height:auto; overflow:visible; }
         }
+
+        /* Guided setup: connection and workflow picker on the left, editor and test on the right. */
+        .setup-hint { margin:0; color:var(--ui-muted); font-size:12px; line-height:1.6; }
+        .workflow-picker-stack { display:flex; flex-direction:column; gap:10px; }
+        .workflow-picker-stack #workflowList { max-height:280px !important; }
+        .workflow-picker-stack .upload-btn { color:var(--ui-accent); background:var(--ui-accent-soft); border-style:solid; }
+        .comfy-advanced { border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-panel); }
+        .comfy-advanced summary { padding:12px; cursor:pointer; color:var(--ui-text); font-size:12px; font-weight:700; }
+        .comfy-advanced summary span { display:block; margin-top:4px; color:var(--ui-muted); font-size:11px; font-weight:400; }
+        .comfy-advanced .side-card { border:0; border-top:1px solid var(--ui-line); border-radius:0; }
+        .comfy-editor-intro { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:10px 12px; border:1px solid var(--ui-line); border-radius:10px; background:var(--ui-panel); color:var(--ui-text); font-size:13px; }
+        .comfy-editor-intro span { color:var(--ui-muted); font-size:12px; line-height:1.5; }
+        .comfy-workbench { display:grid; grid-template-columns:minmax(0,1fr) 270px; align-items:start; gap:12px; }
+        .comfy-editor-column { min-width:0; }
+        #previewCard { position:sticky; top:0; }
+        .layout .side-title { color:var(--ui-text); font-size:12px; letter-spacing:normal; }
+        .layout .side-card { background:var(--ui-panel); border-color:var(--ui-line); }
+        html.in-settings .layout { grid-template-columns:280px minmax(0,1fr); }
+        html.in-settings .sidebar { gap:12px; }
+        .graph-card .graph-svg-wrap { height:clamp(300px,50vh,620px); }
+        @media(max-width:1200px) { .comfy-workbench { grid-template-columns:minmax(0,1fr); } #previewCard { position:static; } }
+        @media(max-width:800px) { html.in-settings .layout,.layout { grid-template-columns:minmax(0,1fr); } html.in-settings .sidebar,html.in-settings .content { height:auto; overflow:visible; } html.in-settings .page,html.in-settings .wrap { height:auto; overflow:visible; } html.in-settings,html.in-settings body { height:auto; overflow:auto; } }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
     <style id="ui-responsive">
         /* === 统一响应式：与 studio-ui.css 断点对齐（≤640 移动 / ≤1024 平板） === */
         .page { width:100%; max-width:100%; box-sizing:border-box; padding-inline:clamp(14px, 3vw, 24px); }
@@ -299,8 +322,9 @@
             .image-lightbox img { max-width:92vw; }
         }
     </style>
+    <link rel="stylesheet" href="/static/setting/settings-kit.css?v=20261111001">
 </head>
-<body>
+<body class="sk-settings-page">
     <div class="page">
         <div class="wrap">
             <header class="page-head">
@@ -314,7 +338,7 @@
             <div class="layout">
                 <aside class="sidebar">
                     <div class="side-card">
-                        <div class="side-title">ComfyUI 后端地址</div>
+                        <div class="side-title">1 · 连接 ComfyUI</div>
                         <div class="param-row">
                             <div class="param-icons">
                                 <button class="side-icon-btn" type="button" title="添加后端" onclick="addComfyInstance()"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
@@ -322,23 +346,23 @@
                             </div>
                             <div id="comfyInstancesList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"></div>
                         </div>
-                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">格式：<span style="font-family:ui-monospace,Menlo,monospace">host:port</span></div>
+                        <div style="font-size:10.5px;color:var(--faint);line-height:1.55;font-weight:600">填入运行中的 ComfyUI 地址，如 <span style="font-family:ui-monospace,Menlo,monospace">127.0.0.1:8188</span></div>
                     </div>
                     <div class="side-card">
+                        <div class="side-title">2 · 选择工作流</div><p class="setup-hint">选择已有工作流，或导入从 ComfyUI 导出的 API 格式 JSON。</p>
+                        <div class="workflow-picker-stack">
+                            <button class="upload-btn" type="button" title="导入 API 格式 JSON" onclick="document.getElementById('uploadInput').click()"><i data-lucide="upload" class="w-3.5 h-3.5"></i><span>导入工作流</span></button>
+                            <div id="workflowList" class="workflow-list" style="flex:1;min-width:0;max-height:160px"></div>
+                        </div>
+                        <input id="uploadInput" type="file" accept="application/json" style="display:none" onchange="onUpload(event)">
+                    </div>
+
+<details class="comfy-advanced"><summary>高级设置 <span>本地路径 · AI 提示词 · 缓存</span></summary>                    <div class="side-card">
                         <div class="side-title">ComfyUI 本地路径</div>
                         <div class="param-row">
                             <button class="side-icon-btn" type="button" title="保存路径" onclick="saveComfyBasePath()"><i data-lucide="save" class="w-3.5 h-3.5"></i></button>
                             <input id="comfyBasePath" type="text" placeholder="留空则不扫描本地 LoRA" title="用于扫描本地 LoRA 文件夹" style="flex:1;min-width:0;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;font-family:ui-monospace,Menlo,monospace;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line)'">
                         </div>
-                    </div>
-
-                    <div class="side-card">
-                        <div class="side-title" data-i18n="comfy.workflowList">工作流列表</div>
-                        <div class="param-row">
-                            <button class="side-icon-btn" type="button" title="上传工作流" onclick="document.getElementById('uploadInput').click()"><i data-lucide="upload" class="w-3.5 h-3.5"></i></button>
-                            <div id="workflowList" class="workflow-list" style="flex:1;min-width:0;max-height:160px"></div>
-                        </div>
-                        <input id="uploadInput" type="file" accept="application/json" style="display:none" onchange="onUpload(event)">
                     </div>
 
                     <div class="side-card">
@@ -360,20 +384,11 @@
                         </div>
                     </div>
 
-                    <div class="side-card" id="previewCard">
-                        <div class="preview-title-row">
-                            <i data-lucide="eye" class="w-4 h-4" style="color:var(--muted)"></i>
-                            <div class="preview-title" data-i18n="comfy.nodePreview">画布节点预览</div>
-                            <div class="preview-pill" data-i18n="comfy.live">实时</div>
-                        </div>
-                        <div class="preview-desc" data-i18n="comfy.previewDesc">这个工作流在画布 Comfy 节点上将显示出的控件，可直接填写并点击「运行测试」。</div>
-                        <div id="previewContent">
-                            <div class="preview-empty" data-i18n="comfy.previewEmpty">勾选节点输入字段后<br>预览将出现在这里</div>
-                        </div>
-                    </div>
-                </aside>
+</details>                </aside>
 
                 <main class="content">
+                    <div class="comfy-editor-intro"><strong>3 · 配置与测试</strong><span>点击节点选择要在画布上使用的参数 → 右侧填写并测试 → 保存配置</span></div>
+                    <div class="comfy-workbench"><div class="comfy-editor-column">
                     <div id="graphCard" class="graph-card" style="display:none">
                         <div class="graph-head">
                             <div class="graph-title-row">
@@ -414,7 +429,18 @@
                         <i data-lucide="list" class="w-3.5 h-3.5"></i>
                         <span id="nodesToggleText" data-i18n="comfy.showNodeList">显示完整节点列表</span>
                     </div>
-                    <div id="nodeList" class="node-list hidden"></div>
+                    <div id="nodeList" class="node-list hidden"></div></div>                    <div class="side-card" id="previewCard">
+                        <div class="preview-title-row">
+                            <i data-lucide="eye" class="w-4 h-4" style="color:var(--muted)"></i>
+                            <div class="preview-title">参数预览与测试</div>
+                            <div class="preview-pill" data-i18n="comfy.live">实时</div>
+                        </div>
+                        <div class="preview-desc" data-i18n="comfy.previewDesc">这个工作流在画布 Comfy 节点上将显示出的控件，可直接填写并点击「运行测试」。</div>
+                        <div id="previewContent">
+                            <div class="preview-empty" data-i18n="comfy.previewEmpty">勾选节点输入字段后<br>预览将出现在这里</div>
+                        </div>
+                    </div>
+</div>
                 </main>
 
             </div>
@@ -1204,7 +1230,7 @@
                 const preview = rawValue.length > 50 ? rawValue.slice(0,50) + '…' : rawValue;
                 valueBadge = `<span style="color:var(--muted);font-size:10.5px;font-weight:700">"</span><span style="color:var(--text);font-size:11px;font-weight:700">${escapeHtml(preview)}</span><span style="color:var(--muted);font-size:10.5px;font-weight:700">"</span>`;
             } else if(typeOf === 'number'){
-                valueBadge = `<span style="color:#0e7490;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums">${rawValue}</span>`;
+                valueBadge = `<span style="color:var(--ui-accent);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums">${rawValue}</span>`;
             } else if(typeOf === 'boolean'){
                 valueBadge = `<span style="color:${rawValue?'#15803d':'#b45309'};font-size:11px;font-weight:800">${rawValue?'✓ true':'✗ false'}</span>`;
             } else {
@@ -1830,5 +1856,6 @@
             loadCacheInfo();
         });
     </script>
+    <script src="/static/setting/settings-graphic.js?v=sk2"></script>
 </body>
 </html>

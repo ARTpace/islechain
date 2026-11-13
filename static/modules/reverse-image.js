@@ -604,6 +604,7 @@
         if (!sel) return;
         sel.innerHTML = '<option value="">自动选择</option>';
         (d.providers || []).forEach(function (p) {
+          if (p.enabled === false) return;
           if (!p.chat_models || !p.chat_models.length) return;
           var o = document.createElement('option');
           o.value = p.id;

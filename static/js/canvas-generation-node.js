@@ -5,24 +5,75 @@ const loraState = LoraManager.state;
     const cards=new Map(),running=new Map();
     let catalog=null,catalogPromise=null,panel=null,owner=null,revision=0,libraryFrame=null;
     const key=node=>canvas.id+':'+node.id;
+    // 画布每 2.5s 轮询远端版本，applyRemoteCanvasData() 会整体替换 nodes 数组（新对象）。
+    // 卡片 DOM 是复用的，事件闭包却仍指向旧对象 —— 一旦引用被换掉，用户改的提示词/参数
+    // 会写进已脱离的节点，界面又按新对象刷回旧值，表现就是「改了没用、变回上一次」。
+    // 所有读写一律经 liveNode 重定向到当前数组里的同一 id。
+    const liveNode=target=>{
+        if(!target)return target;
+        if(typeof nodes==='undefined'||!Array.isArray(nodes))return target;
+        return nodes.find(n=>n.id===target.id&&n.type===target.type)||target;
+    };
     const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     async function json(url,options){const r=await fetch(url,options),d=await r.json();if(!r.ok)throw new Error(typeof d.detail==='string'?d.detail:d.error||'加载失败');return d;}
-    function settings(node){
+    function settings(target){
+        const node=liveNode(target);
         const s=node.generationSettings ||= {};s.engine ||= 'local';s.workflow ||= 'text2image/z-image.json';
         s.controls ||= {};for(const [k,v] of Object.entries({ratioW:1,ratioH:1,res:1,batchCount:1,seedMode:'random',fixedSeed:0}))s.controls[k] ??= v;
         s.cloud ||= {};s.loras ||= [];s.negative ??= (s.fields||[]).find(f=>/negativePrompt/i.test(f.id))?.value||'';return s;
     }
-    function inputs(node){
-        const sources=orderedSources(node,generatorSources(node)),linked=imageRefsOnly(sources.flatMap(s=>s.refs||[]));
-        const refs=[...linked,...(node.referenceImages||[])].filter((r,i,list)=>r.url&&list.findIndex(x=>x.url===r.url)===i);
+    function inputs(target){
+        const node=liveNode(target);
+        const sources=orderedSources(node,generatorSources(node));
+        const owner=node.materialRole==='normal'&&nodes.find(n=>n.id===node.materialOwner);
+        const color=owner?.materialColor;
+        if(color)node.materialColorBasis=color;
+        const linked=color?[{url:color,name:'最终颜色图',kind:'image'}]:imageRefsOnly(sources.flatMap(s=>s.refs||[]));
+        const refs=[...linked,...(color?[]:node.referenceImages||[])].filter((r,i,list)=>r.url&&list.findIndex(x=>x.url===r.url)===i);
         return {refs,linked,linkedPrompt:sources.map(s=>s.prompt||'').filter(Boolean).join('\n\n')};
     }
     function save(node){scheduleSave();update(node);}
-    const isMoss=name=>/moss-image-sft(?:-fast|-4step)?\.json$/i.test(name);
-    function modelLabel(node){const s=settings(node);if(s.engine==='local'&&isMoss(s.workflow))return 'MOSS-Image SFT';return s.engine==='cloud'?(s.cloud.model||'选择在线模型'):(catalog?.workflows.find(w=>w.name===s.workflow)?.title||s.workflow.split('/').pop().replace(/\.json$/i,''));}
+    // 档位归并统一交给 ModelPicker：按 config.title 判断哪些文件属于同一模型，
+    // 从文件名 slug（-fast/-turbo/-4step/-6step）推断档位。以前这里对 MOSS、
+    // Qwen、Boogu 各写一条正则，加一个多档模型就要改三处，且容易漏（Boogu 就漏过）。
+    // 用户在设置里隐藏的模型不该出现在画布菜单里 —— 与文生图页共用同一份显示偏好
+    // （localStorage 同源，iframe 通过 storage 事件即时同步）。当前正在用的那行始终保留，
+    // 否则用户看不到自己选的是什么，按钮也会显示成一个菜单里不存在的模型。
+    function visibleRows(rows){
+        const mv=window.ModelVisibility;
+        if(!mv)return rows;
+        return rows.filter(r=>r.active||mv.isVisible('text:'+r.label));
+    }
+    function catalogRows(currentWorkflow){
+        const rows=window.ModelPicker?window.ModelPicker.localRows(catalog?.workflows||[],{currentWorkflow:currentWorkflow||''}):[];
+        return visibleRows(rows);
+    }
+    // 显示偏好一变（设置里关掉某个模型），已打开的菜单和卡片按钮文案立即跟着变
+    let visibilityBound=false;
+    function bindVisibility(){
+        if(visibilityBound||!window.ModelVisibility)return;
+        visibilityBound=true;
+        window.ModelVisibility.subscribe(()=>{
+            for(const node of nodes.filter(n=>n.type==='imageGen'))update(node);
+            const content=panel?.querySelector('.imagegen-panel-content');
+            if(content&&owner&&panel?.classList.contains('imagegen-model-dropdown')){
+                const node=liveNode(owner);
+                loadCatalog().then(data=>{if(panel?.contains(content))renderModels(node,content,data);}).catch(()=>{});
+            }
+        });
+    }
+    function modelLabel(node){
+        const s=settings(node);
+        if(s.engine==='cloud')return s.cloud.model||'选择在线模型';
+        const row=window.ModelPicker?window.ModelPicker.findRow(catalogRows(s.workflow),s.workflow):null;
+        const tier=window.ModelPicker?window.ModelPicker.tierOfWorkflow(s.workflow):'';
+        const base=row?row.label:(s.workflow.split('/').pop().replace(/\.json$/i,''));
+        return base+(tier?' · '+tier:'');
+    }
     function button(label,action,className=''){const b=document.createElement('button');b.type='button';b.className='imagegen-control '+className;b.textContent=label;b.onclick=action;return b;}
     function status(node,text){const card=cards.get(key(node));if(card)card.status.textContent=text;}
-    function update(node){
+    function update(target){
+        const node=liveNode(target);
         const card=cards.get(key(node));if(!card)return;const s=settings(node),c=s.controls,data=inputs(node);
         if(document.activeElement!==card.prompt)card.prompt.value=node.prompt||'';
         card.model.textContent=modelLabel(node)+' ▾';const schema=s.engine==='cloud'?schemaFor(s):null,values=schema?.source==='website'?s.cloud.website?.[s.cloud.provider+'/'+s.cloud.model]:s.cloud.params;card.summary.textContent=schema?.params?.length?schema.params.filter(p=>['ratio','size','quality','count'].includes(p.key)).map(p=>{const value=values?.[p.key]??p.default;return p.options?.find(o=>String(o.value??o)===String(value))?.label||value;}).filter(v=>v!==undefined).join(' · ')||'模型参数':c.ratioW+':'+c.ratioH+' · '+c.res+'K · ×'+c.batchCount;
@@ -53,7 +104,7 @@ const loraState = LoraManager.state;
         const root=document.createElement('div');root.className='imagegen-composer';
         const model=button(modelLabel(node)+' ▾',()=>openPanel(node,'models',model),'imagegen-model');
         const prompt=document.createElement('textarea');prompt.className='imagegen-prompt';prompt.placeholder='描述你想生成的画面…';prompt.setAttribute('aria-label','生图提示词');prompt.value=node.prompt||'';
-        prompt.oninput=()=>{node.prompt=prompt.value;scheduleSave();};prompt.onfocus=()=>pushUndo();
+        prompt.oninput=()=>{liveNode(node).prompt=prompt.value;scheduleSave();};prompt.onfocus=()=>pushUndo();
         const context=document.createElement('div');context.className='imagegen-context';const refs=document.createElement('div');refs.className='imagegen-references';
         context.setAttribute('aria-label','上游文本');context.title='来自连线节点，随上游内容同步';
         const input=document.createElement('div');input.className='imagegen-input';input.append(refs,context,prompt);
@@ -84,7 +135,7 @@ const loraState = LoraManager.state;
         if(catalog)return catalog;
         if(!catalogPromise)catalogPromise=Promise.allSettled([json('/api/providers'),json('/api/workflows/builtin')]).then(([p,w])=>{
             if(p.status==='rejected'&&w.status==='rejected')throw new Error('模型列表加载失败，请重试');
-            catalog={providers:p.status==='fulfilled'?(p.value.providers||[]).filter(p=>p.enabled!==false):[],workflows:w.status==='fulfilled'?(w.value.workflows||[]).filter(w=>w.name.startsWith('text2image/')).map(w=>({...w,title:w.title+(/boogu-base/.test(w.name)?' · Base':/boogu-turbo/.test(w.name)?' · Turbo':/moss.*-fast/.test(w.name)?' · Fast':/moss.*-4step/.test(w.name)?' · 4 Step':'')})):[],partial:p.status==='rejected'||w.status==='rejected'};return catalog;
+            catalog={providers:p.status==='fulfilled'?(p.value.providers||[]).filter(p=>p.enabled!==false):[],workflows:w.status==='fulfilled'?(w.value.workflows||[]).filter(w=>w.name.startsWith('text2image/')):[],partial:p.status==='rejected'||w.status==='rejected'};return catalog;
         }).finally(()=>{catalogPromise=null;});return catalogPromise;
     }
     function closePanel(){
@@ -99,7 +150,8 @@ const loraState = LoraManager.state;
         panel.style.width=width+'px';panel.style.left=Math.max(12,Math.min(r.left,window.innerWidth-width-12))+'px';
         panel.style.top=Math.max(12,Math.min(r.bottom+8,window.innerHeight-Math.min(panel.offsetHeight,window.innerHeight-24)-12))+'px';
     }
-    async function openPanel(node,kind,anchor){
+    async function openPanel(target,kind,anchor){
+        const node=liveNode(target);
         if(kind==='models'&&panel?.classList.contains('imagegen-model-dropdown')&&owner?.id===node.id){closePanel();return;}
         closePanel();const version=++revision;owner={id:node.id,canvasId:canvas.id,anchor};
         panel=document.createElement('section');panel.className='imagegen-panel '+(['models','parameters'].includes(kind)?'imagegen-popover':'imagegen-floating');
@@ -125,7 +177,9 @@ const loraState = LoraManager.state;
         const row=document.createElement('div');row.className='imagegen-choices';
         for(const item of values){const [value,label]=Array.isArray(item)?item:[item,item];const b=button(label,()=>{choose(value);row.querySelectorAll('button').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));});b.setAttribute('aria-pressed',String(value===current));row.append(b);}container.append(row);
     }
-    const maxRes=model=>/^agnes-image-2\.[015](?:-|$)/i.test(String(model||''))?4:2;
+    // 分辨率上限与画面比例都来自 ModelPicker，文生图页用同一份，改一处两边同步
+    const maxRes=model=>window.ModelPicker?window.ModelPicker.maxResFor(model):2;
+    const RATIO_LABELS=()=>window.ModelPicker?window.ModelPicker.RATIOS.map(r=>r.l):['1:1'];
     function modelBadge(model,provider){
         const schema=provider?.model_capabilities?.[model]?.generation_params;
         if(schema||provider?.protocol==='webai2api'){
@@ -155,16 +209,20 @@ const loraState = LoraManager.state;
         container.replaceChildren();container.optionsPanel=true;const s=settings(node),c=s.controls,redraw=()=>renderParameters(node,container);
         const declared=s.engine==='cloud'&&renderModelParams(node,container,redraw),schema=s.engine==='cloud'?schemaFor(s):null;
         if(declared&&schema?.source!=='website'){
-            if(!schema?.params?.some(p=>p.key==='ratio'))choices(group(container,'画面比例'),['21:9','16:9','3:2','4:3','1:1','3:4','2:3','9:16'],c.ratioW+':'+c.ratioH,v=>{pushUndo();[c.ratioW,c.ratioH]=v.split(':').map(Number);save(node);});
+            if(!schema?.params?.some(p=>p.key==='ratio'))choices(group(container,'画面比例'),RATIO_LABELS(),c.ratioW+':'+c.ratioH,v=>{pushUndo();[c.ratioW,c.ratioH]=v.split(':').map(Number);save(node);});
             if(!schema?.params?.some(p=>p.key==='size')){if(schema?.size===false){const note=document.createElement('p');note.textContent='尺寸自动';container.append(note);}else{c.res=Math.min(c.res,maxRes(s.cloud.model));choices(group(container,'分辨率'),Array.from({length:maxRes(s.cloud.model)},(_,i)=>[i+1,(i+1)+'K']),c.res,v=>{pushUndo();c.res=v;save(node);});}}
         }
         if(!declared){
             const max=s.engine==='local'?2:maxRes(s.cloud.model);if(c.res>max){c.res=max;save(node);}
-            choices(group(container,'画面比例'),['21:9','16:9','3:2','4:3','1:1','3:4','2:3','9:16'],c.ratioW+':'+c.ratioH,v=>{pushUndo();[c.ratioW,c.ratioH]=v.split(':').map(Number);save(node);});
+            choices(group(container,'画面比例'),RATIO_LABELS(),c.ratioW+':'+c.ratioH,v=>{pushUndo();[c.ratioW,c.ratioH]=v.split(':').map(Number);save(node);});
             choices(group(container,'分辨率'),Array.from({length:max},(_,i)=>[i+1,(i+1)+'K']),c.res,v=>{pushUndo();c.res=v;save(node);});
         }
-        if(s.engine==='local'&&isMoss(s.workflow))choices(group(container,'模型质量'),[['text2image/moss-image-sft.json','高'],['text2image/moss-image-sft-fast.json','低'],['text2image/moss-image-sft-4step.json','极速']],s.workflow,v=>{pushUndo();s.workflow=v;save(node);});
-        if(s.engine==='local'&&/boogu-(base|turbo)\.json$/i.test(s.workflow))choices(group(container,'模型质量'),[['text2image/boogu-base.json','高'],['text2image/boogu-turbo.json','低']],s.workflow,v=>{pushUndo();s.workflow=v;save(node);});
+        // 多档模型（MOSS / Qwen / Boogu……）的「模型质量」统一从工作流归并结果得来，
+        // 不再逐个硬编码：只要同一模型的各档 config.title 一致，这里自动出现档位选项
+        if(s.engine==='local'&&window.ModelPicker){
+            const row=window.ModelPicker.findRow(catalogRows(s.workflow),s.workflow);
+            if(row&&row.multi)choices(group(container,'模型质量'),row.workflows.map(name=>[name,window.ModelPicker.tierOfWorkflow(name)||'高']),s.workflow,v=>{pushUndo();s.workflow=v;save(node);});
+        }
         if(s.engine==='local'&&/ideogram4/i.test(s.workflow))choices(group(container,'模型质量'),[['Quality','高'],['Default','中'],['Turbo','低']],s.qualities?.ideogram||'Default',v=>{pushUndo();s.qualities={...s.qualities,ideogram:v};save(node);});
         if(s.engine==='cloud'&&!declared)choices(group(container,'图像质量'),[['high','高'],['medium','中'],['low','低']],s.cloud.quality||'medium',v=>{pushUndo();s.cloud.quality=v;save(node);});
         if(!declared||!schemaFor(s)?.params?.some(p=>p.key==='count'))choices(group(container,'生成数量'),[1,2,3,4],c.batchCount,v=>{pushUndo();c.batchCount=v;save(node);});
@@ -209,27 +267,63 @@ const loraState = LoraManager.state;
         }
     }
     function renderModels(node,container,data){
-        container.replaceChildren();const search=document.createElement('input');search.className='imagegen-search';search.placeholder='搜索本地或在线模型';search.setAttribute('aria-label','搜索生图模型');const searchRow=document.createElement('div');searchRow.className='imagegen-model-search';
-        const refresh=button('↻',async()=>{refresh.disabled=true;catalog=null;try{const fresh=await loadCatalog();if(panel?.contains(container)){data=fresh;draw();update(node);place(owner.anchor);}}catch(error){refresh.title=error.message;}finally{refresh.disabled=false;}},'imagegen-model-refresh');refresh.title='刷新模型';refresh.setAttribute('aria-label','刷新模型');searchRow.append(search,refresh);container.append(searchRow);
-        const list=document.createElement('div');list.className='imagegen-model-list';container.append(list);
-        function draw(){
-            list.replaceChildren();const query=search.value.trim().toLowerCase(),s=settings(node);
-            const groups=[['本地 ComfyUI',data.workflows.filter((w,i,all)=>!isMoss(w.name)||i===all.findIndex(x=>isMoss(x.name))).map(w=>({label:isMoss(w.name)?'MOSS-Image SFT':w.title,name:isMoss(w.name)?(isMoss(s.workflow)?s.workflow:(data.workflows.find(x=>x.name==='text2image/moss-image-sft.json')?.name||w.name)):w.name}))],...data.providers.map(p=>[p.name||p.id,(p.image_models||[]).map(m=>({label:typeof m==='string'?m:m.id||m.name,provider:p.id}))])];
-            for(const [title,entries] of groups){const matches=entries.filter(e=>(title+' '+e.label).toLowerCase().includes(query));if(!matches.length)continue;const section=group(list,title);
-                for(const entry of matches){const on=entry.provider?s.engine==='cloud'&&s.cloud.provider===entry.provider&&s.cloud.model===entry.label:s.engine==='local'&&s.workflow===entry.name;
-                    const option=button(entry.label+(on?' ✓':''),()=>{pushUndo();if(entry.provider){s.engine='cloud';s.cloud.provider=entry.provider;s.cloud.model=entry.label;}else{s.engine='local';s.workflow=entry.name;s.unet='';}save(node);closePanel();},'imagegen-model-option');const badge=document.createElement('span');badge.className='imagegen-model-badge';badge.textContent=modelBadge(entry.label,entry.provider?data.providers.find(p=>p.id===entry.provider):null);if(badge.textContent){badge.title=badge.textContent;option.append(badge);}section.append(option);}
-            }
-            if(!list.childElementCount)list.textContent='没有匹配的模型';if(data.partial)list.append(document.createTextNode('部分模型列表未加载，点击刷新重试'));
+        if(!window.ModelPicker){container.textContent='模型选择组件未加载';return;}
+        bindVisibility();
+        const s=settings(node);
+        // /api/providers 的 image_models 可能是字符串或 {id,name}，统一成组件要的形状
+        const providers=(data.providers||[]).map(p=>({
+            id:p.id,name:p.name,enabled:p.enabled,
+            models:(p.image_models||[]).map(m=>typeof m==='string'?m:{id:m.id||m.name,label:m.id||m.name})
+        }));
+        const pick=(row,meta)=>{
+            pushUndo();
+            if(row.kind==='cloud'){s.engine='cloud';s.cloud.provider=row.provider;s.cloud.model=row.model;}
+            else{s.engine='local';s.workflow=row.workflow;s.unet='';}
+            save(node);
+            // 行内切档不关面板：用户常常要连着比几档，关掉就得再点开一次
+            if(meta?.fromTier){update(node);return;}
+            closePanel();
+        };
+        container.replaceChildren();
+        // 与文生图页共用同一份 ComfyUI 可用性状态：没运行时本地模型置灰、只留当前正在用的那个。
+        const comfyOffline=Boolean(window.ComfyStatus&&window.ComfyStatus.offline());
+        const localRows=visibleRows(window.ModelPicker.localRows(data.workflows,{currentWorkflow:s.workflow}));
+        window.ModelPicker.render(container,{
+            host:'canvas',
+            rows:comfyOffline?window.ComfyStatus.keepLocalRow(localRows,s.workflow):localRows,
+            comfyOffline:comfyOffline,
+            groups:window.ModelPicker.cloudGroups(providers,{currentProvider:s.cloud.provider,currentModel:s.cloud.model}),
+            features:{search:true,refresh:true,searchPlaceholder:'搜索本地或在线模型',localTitle:'本地 ComfyUI'},
+            badgeOf:row=>row.kind==='cloud'?modelBadge(row.model,data.providers.find(p=>p.id===row.provider)||null):'',
+            onPick:pick,
+            onRefresh:async()=>{
+                catalog=null;
+                if(window.ComfyStatus)await window.ComfyStatus.refresh();
+                const fresh=await loadCatalog();
+                if(panel?.contains(container)){renderModels(node,container,fresh);update(node);place(owner.anchor);}
+            },
+            emptyText:'没有匹配的模型'
+        });
+        // 面板打开时才探测一次：状态若变了（ComfyUI 刚启停）重画，不然用户会对着过期列表发呆。
+        if(window.ComfyStatus){
+            window.ComfyStatus.refresh().then(()=>{
+                if(!panel||!panel.contains(container)||owner?.id!==node.id)return;
+                if(Boolean(window.ComfyStatus.offline())===comfyOffline)return;
+                renderModels(node,container,data);
+            }).catch(()=>{});
         }
-        search.oninput=draw;draw();search.focus({preventScroll:true});
+        if(data.partial)container.append(document.createTextNode('部分模型列表未加载，点击刷新重试'));
+        const search=container.querySelector('.mp-search');
+        if(search)search.focus({preventScroll:true});
     }
-    function addReference(node,ref){
+    function addReference(target,ref){
+        const node=liveNode(target);
         const url=new URL(ref.url,location.origin);if(!['http:','https:'].includes(url.protocol))throw new Error('参考图地址无效');if(inputs(node).refs.some(r=>r.url===ref.url))return;
         pushUndo();node.referenceImages=[...(node.referenceImages||[]),{url:ref.url,name:ref.name||'参考图',kind:'image'}];save(node);
     }
-    async function upload(node,files){
+    async function upload(target,files){
         const images=Array.from(files).filter(f=>f.type.startsWith('image/'));if(!images.length)throw new Error('请选择图片文件');
-        status(node,'正在导入参考图…');const form=new FormData();images.forEach(file=>form.append('files',file));const result=await json('/api/ai/upload',{method:'POST',body:form});for(const ref of result.files||[])addReference(node,ref);update(node);
+        status(target,'正在导入参考图…');const form=new FormData();images.forEach(file=>form.append('files',file));const result=await json('/api/ai/upload',{method:'POST',body:form});for(const ref of result.files||[])addReference(target,ref);update(target);
     }
     function renderReferences(node,container){
         const input=document.createElement('input');input.type='file';input.accept='image/*';input.multiple=true;input.hidden=true;
@@ -266,7 +360,7 @@ const loraState = LoraManager.state;
         if(event.data?.type!=='prompt-library:toggle')return;
         const {key:selectionKey,item}=event.data;
         if(typeof selectionKey!=='string'||selectionKey.length>500||!item||typeof item.positive!=='string'||item.positive.length>20000)return;
-        const node=current.node;pushUndo();const selections=node.promptLibrarySelections ||= {};
+        const node=liveNode(current.node);pushUndo();const selections=node.promptLibrarySelections ||= {};
         if(Object.hasOwn(selections,selectionKey))delete selections[selectionKey];else selections[selectionKey]={positive:item.positive,negative:String(item.negative||'').slice(0,20000)};
         const owned=node.promptLibraryOwned ||= {};
         for(const field of ['positive','negative']){
@@ -281,11 +375,12 @@ const loraState = LoraManager.state;
         window.BUILTIN_WF_META=catalog?.workflows||[];LoraManager.setWorkflowFilter(settings(node).workflow);
         loraPickerInit();const shell=document.getElementById('loraPickerShell');shell.classList.add('prompt-embedded');container.append(shell);
         const apply=items=>{
-            if(!alive(version,node))return;
-            pushUndo();const s=settings(node),previous=node.loraOwnedWords||[];
+            const target=liveNode(node);
+            if(!alive(version,target))return;
+            pushUndo();const s=settings(target),previous=target.loraOwnedWords||[];
             s.loras=items.map(item=>({...item}));
-            const result=GenerationPromptLibrary.reconcile(node.prompt,new Set(previous),LoraManager.collectTriggerWords(s.loras));
-            node.prompt=result.text;node.loraOwnedWords=[...result.owned];save(node);
+            const result=GenerationPromptLibrary.reconcile(target.prompt,new Set(previous),LoraManager.collectTriggerWords(s.loras));
+            target.prompt=result.text;target.loraOwnedWords=[...result.owned];save(target);
         };
         await loraPickerOpen(apply);
         if(!alive(version,node)){loraPickerClose();shell.classList.remove('prompt-embedded');document.body.append(shell);return;}
@@ -304,7 +399,7 @@ const loraState = LoraManager.state;
         return {prompt:snapshot.prompt,model:s.cloud.model,provider_id:p.id,protocol:p.protocol||'openai',size:snapshot.size.width+'x'+snapshot.size.height,quality:s.cloud.quality||'medium',reference_images:snapshot.refs,generation_params:params,feature:'online-'+s.cloud.model.replace(/[^a-zA-Z0-9_-]/g,'-').toLowerCase()};
     }
     async function execute(node,options){
-        const s=JSON.parse(JSON.stringify(settings(node))),data=inputs(node),prompt=[node.prompt,data.linkedPrompt].filter(Boolean).join('\n\n').trim();if(!prompt)throw new Error('请输入提示词，或连接上游提示词节点');
+        const s=JSON.parse(JSON.stringify(settings(node))),data=inputs(node),prompt=(options.materialPrompt??[node.prompt,data.linkedPrompt].filter(Boolean).join('\n\n')).trim();if(!prompt)throw new Error('请输入提示词，或连接上游提示词节点');
         await loadCatalog();if(s.engine==='local'||!schemaFor(s))s.controls.res=Math.min(s.controls.res,s.engine==='local'?2:maxRes(s.cloud.model));
         const snapshot={settings:s,prompt,refs:data.refs,size:sizeFor(s.controls)};
         let payload,kind;
@@ -330,7 +425,10 @@ const loraState = LoraManager.state;
             await new Promise(resolve=>setTimeout(resolve,1200));
         }
     }
-    async function complete(node,task,options){
+    async function complete(targetNode,task,options){
+        // 收尾必须写到当前数组里的同一个 id：远端同步会换掉 node 对象，
+        // 用旧对象收尾会让 generatedOutputs 落在已脱离的节点上，且 task 永远清不掉。
+        const node=liveNode(targetNode);
         if(!task.requests.length)throw new Error('未保存到任务编号，请检查任务状态后再试');
         for(const request of task.requests){
             if(request.done)continue;
@@ -338,9 +436,10 @@ const loraState = LoraManager.state;
             try{result=await wait(request,options);}catch(error){if(!error.terminal)throw error;request.done=true;request.error=error.message;scheduleSave();continue;}
             const items=(result.images||[]).map(item=>({url:typeof item==='string'?item:item.url,kind:'image',run:{id:request.id,prompt:task.snapshot.prompt,model:task.snapshot.settings.engine==='cloud'?task.snapshot.settings.cloud?.model:task.snapshot.settings.workflow}})).filter(i=>i.url);
             if(!items.length){request.done=true;request.error='模型未返回图片';scheduleSave();continue;}
-            if(canvas.id!==task.canvasId||!nodes.includes(node))return;
+            if(canvas.id!==task.canvasId||!nodes.some(n=>n.id===node.id))return;
+            window.CanvasMaterials?.recordGeneration(node,items,task.snapshot);
             pushUndo();const fresh=items.filter(item=>!(node.generatedOutputs||[]).some(old=>old.url===item.url&&old.run?.id===request.id));node.generatedOutputs=[...(node.generatedOutputs||[]),...fresh];
-            const out=outputForNode(node,(node.w||440)+80);if(out)appendOutputImagesWithoutDuplicates(out,fresh);syncConnectedOutputsFromGenerated(node,fresh);request.done=true;render();scheduleSave();
+            const out=node.materialRole?null:outputForNode(node,(node.w||440)+80);if(out)appendOutputImagesWithoutDuplicates(out,fresh);syncConnectedOutputsFromGenerated(node,fresh);request.done=true;render();scheduleSave();
         }
         const errors=task.requests.filter(request=>request.error);
         if(errors.length){const error=new Error(errors.map(request=>request.error).join('；'));error.terminal=true;throw error;}
@@ -352,10 +451,24 @@ const loraState = LoraManager.state;
         const promise=Promise.resolve().then(operation).catch(error=>{node.runStatus='failed';node.runError=error.message;if(node.imageGenerationTask){if(error.terminal||!node.imageGenerationTask.requests.length)delete node.imageGenerationTask;else node.imageGenerationTask.paused=true;}throw error;}).finally(()=>{node.running=false;running.delete(id);update(node);scheduleSave();});
         running.set(id,promise);return promise;
     }
-    function run(id,options={}){const node=nodes.find(n=>n.id===id&&n.type==='imageGen');if(!node)return Promise.reject(new Error('生图节点不存在'));if(running.has(key(node)))return running.get(key(node));return node.imageGenerationTask?resume(node,options):track(node,()=>execute(node,options));}
+    function run(id,options={}){
+        const node=nodes.find(n=>n.id===id&&n.type==='imageGen');
+        if(!node)return Promise.reject(new Error('生图节点不存在'));
+        if(running.has(key(node)))return running.get(key(node));
+        const task=node.imageGenerationTask;
+        // 用户主动点「生成」= 用当前提示词重开一次。旧任务若已无未完成请求（或已暂停），
+        // 必须丢掉，否则会 resume 旧 snapshot，改了提示词也只会重复上一次的图。
+        if(task&&(task.paused||!task.requests.some(r=>!r.done)))delete node.imageGenerationTask;
+        return node.imageGenerationTask?resume(node,options):track(node,()=>execute(node,options));
+    }
     function resume(node,options={}){const task=node.imageGenerationTask;task.paused=false;return track(node,()=>complete(node,task,options));}
     document.addEventListener('pointerdown',event=>{if(panel&&!panel.contains(event.target)&&!owner?.anchor?.contains(event.target))closePanel();});
     document.addEventListener('keydown',event=>{if(event.key==='Escape'&&panel){event.preventDefault();event.stopImmediatePropagation();closePanel();}},true);
     window.addEventListener('resize',()=>{if(owner)place(owner.anchor);});
-    window.CanvasImageGeneration={body,preserve,sync,run};
+    function recover(id){
+        const node=nodes.find(n=>n.id===id&&n.type==='imageGen');
+        if(!node?.imageGenerationTask)return Promise.reject(new Error('没有已保存的生图任务，不会自动重发'));
+        return running.get(key(node))||resume(node);
+    }
+    window.CanvasImageGeneration={body,preserve,sync,run,recover};
 })();

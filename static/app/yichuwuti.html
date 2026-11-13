@@ -9,40 +9,41 @@
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+<script src="/static/js/theme.js?v=20261111016"></script>
+
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <script src="/static/modules/yichuwuti-image-viewer.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261108011">
     <style>
         :root { --bg-base: #f7f7f5; --text-main: #141414; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
         *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
-        *::-webkit-scrollbar-thumb { background-color: #d8d8d8 !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
-        *::-webkit-scrollbar-thumb:hover { background-color: #c0c0c0 !important; }
+        *::-webkit-scrollbar-thumb { background-color: var(--ui-soft) !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
+        *::-webkit-scrollbar-thumb:hover { background-color: var(--ui-soft) !important; }
         *::-webkit-scrollbar-corner { background: transparent !important; }
         * { scrollbar-width: thin !important; scrollbar-color: #d8d8d8 transparent !important; }
         body { background-color: var(--bg-base); font-family: "Inter", -apple-system, "PingFang SC", sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
         .layout-container { max-width: var(--max-w); margin: 0 auto; padding: 0 40px; }
         .console-card { background: var(--ui-panel); border: 1px solid var(--ui-line); box-shadow: var(--ui-shadow); }
-        .theme-dark .console-card { background: #151515; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        .theme-dark .console-card { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
         .theme-dark .bg-gray-50\/50 { background: rgba(20, 20, 20, 0.5) !important; }
-        .theme-dark .bg-white { background: #151515 !important; }
+        .theme-dark .bg-white { background: var(--ui-panel) !important; }
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
-        .theme-dark .text-gray-700 { color: #e3e1d9 !important; }
-        .theme-dark .bg-gray-100 { background: #20201e !important; }
+        .theme-dark .text-gray-700 { color: var(--ui-text) !important; }
+        .theme-dark .bg-gray-100 { background: var(--ui-panel) !important; }
         .upload-zone { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         .upload-zone.hidden { display: none !important; }
         .preview-image { max-width: 100%; max-height: 300px; border-radius: 16px; display: none; margin-top: 15px; object-fit: contain; }
         .preview-image.active { display: block; }
-        .btn-render { background: #0b0b0a; color: #fbfaf9; transition: all 0.3s ease; }
-        .btn-render:hover { transform: translateY(-1px); background: #222222; }
-        .btn-render:disabled { background: #cccccc; cursor: not-allowed; }
+        .btn-render { background: var(--ui-panel); color: var(--ui-text); transition: all 0.3s ease; }
+        .btn-render:hover { transform: translateY(-1px); background: var(--ui-panel); }
+        .btn-render:disabled { background: var(--ui-soft); cursor: not-allowed; }
         input::-webkit-inner-spin-button { display: none; }
-        
+
         .btn-remove-glow {
             background: linear-gradient(135deg, #06b6d4, #06b6d4);
-            color: #fbfaf9;
+            color: var(--ui-text);
             border: none;
             box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), 0 0 30px rgba(6, 182, 212, 0.15);
             transition: all 0.3s ease;
@@ -57,7 +58,7 @@
             transform: none;
             box-shadow: none;
         }
-        
+
         .canvas-container {
             position: relative;
             background: rgba(16, 16, 16, 0.05);
@@ -90,7 +91,7 @@
             position: absolute;
             pointer-events: none;
             border-radius: 50%;
-            border: 2px solid #0891b2;
+            border: 2px solid var(--ui-accent);
             box-shadow: 0 0 10px rgba(8, 145, 178, 0.5);
             transform: translate(-50%, -50%);
             will-change: transform;
@@ -115,7 +116,7 @@
         }
         .upload-overlay:hover {
             background: rgba(6, 182, 212, 0.06);
-            border-color: #06b6d4;
+            border-color: var(--ui-accent);
         }
         .upload-overlay.hidden {
             display: none;
@@ -130,7 +131,7 @@
             margin-bottom: 8px;
         }
         .theme-dark .upload-text {
-            color: #aaaaaa;
+            color: var(--ui-muted);
         }
         .upload-hint {
             font-size: 0.85rem;
@@ -162,7 +163,7 @@
             min-width: 40px;
             text-align: right;
             font-size: 0.85rem;
-            color: #0891b2;
+            color: var(--ui-accent);
             font-weight: 700;
         }
         .color-picker-wrapper {
@@ -173,7 +174,7 @@
         .color-picker-wrapper input[type="color"] {
             width: 32px;
             height: 32px;
-            border: 2px solid #0891b2;
+            border: 2px solid var(--ui-accent);
             border-radius: 8px;
             cursor: pointer;
             background: transparent;
@@ -205,7 +206,7 @@
             font-weight: 600;
         }
         .theme-dark .progress-text {
-            color: #aaaaaa;
+            color: var(--ui-muted);
         }
         .result-section {
             margin-top: 20px;
@@ -222,7 +223,7 @@
             border: 1px solid var(--ui-line);
         }
         .theme-dark .result-item {
-            background: #151515;
+            background: var(--ui-panel);
             border-color: rgba(0, 240, 255, 0.08);
         }
         .result-item img {
@@ -242,7 +243,7 @@
             background: var(--ui-soft);
         }
         .theme-dark .result-item .result-label {
-            color: #aaaaaa;
+            color: var(--ui-muted);
             background: rgba(0, 0, 0, 0.2);
         }
         .result-item .result-actions {
@@ -284,11 +285,11 @@
             justify-content: center;
             gap: 6px;
             background: rgba(6, 182, 212, 0.05);
-            color: #0891b2;
+            color: var(--ui-accent);
         }
         .btn-secondary:hover {
             background: rgba(6, 182, 212, 0.1);
-            border-color: #06b6d4;
+            border-color: var(--ui-accent);
         }
         .theme-dark .btn-secondary {
             background: rgba(0, 240, 255, 0.05);
@@ -310,7 +311,7 @@
         }
         .theme-dark .image-size-info {
             background: rgba(0, 240, 255, 0.05);
-            color: #aaaaaa;
+            color: var(--ui-muted);
         }
     </style>
 
@@ -345,6 +346,9 @@ body { overflow-x: hidden; }
 img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-width: 100%; height: auto; }
 </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+    <script src="/static/modules/comfy-progress.js?v=20261105toolruntime2"></script>
+    <script src="/static/modules/comfy-tool-runtime.js?v=20261105toolruntime4"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -417,79 +421,19 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         </div>
     </main>
     <script>
-        const _isLocalAccess = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-        let COMFYUI_SERVER = 'http://127.0.0.1:8188';
-        let IS_LOCAL_SERVER = _isLocalAccess;
+        // 服务器地址解析、请求封装、任务提交统一由 comfy-tool-runtime.js 提供
+        const tool = ComfyTool.create({
+            keepAlive: true,
+            // 节点中文名来自工作流 _meta.title，延迟取值（本页工作流运行时才构建）
+            nodeTitles: (id) => WORKFLOW_CONFIG.workflow?.[id]?._meta?.title || ''
+        });
+        const CLIENT_ID = tool.clientId;
 
-        const CLIENT_ID = localStorage.getItem("client_id") || generateUUID();
-        if (!localStorage.getItem("client_id")) {
-            localStorage.setItem("client_id", CLIENT_ID);
-        }
+        async function loadConfig() { await tool.loadConfig(); }
 
-        
-        /** 保存到用户 output 文件夹 */
-        // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
-        function generateUUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-            });
-        }
+        const apiFetch = (url, options) => tool.apiFetch(url, options);
 
-        async function loadConfig() {
-            const localConfig = localStorage.getItem('comfyui_config');
-            if (localConfig) {
-                try {
-                    const config = JSON.parse(localConfig);
-                    const activeServer = config.active_server || '本地服务器';
-                    IS_LOCAL_SERVER = (activeServer === '本地服务器');
-                    if (activeServer === '云端服务器' && config.cloud_address) {
-                        COMFYUI_SERVER = (config.cloud_address.startsWith('http') ? config.cloud_address : `https://${config.cloud_address}`).replace(/\/+$/, '');
-                    } else if (config.local_address) {
-                        COMFYUI_SERVER = (config.local_address.startsWith('http') ? config.local_address : `http://${config.local_address}`).replace(/\/+$/, '');
-                    }
-                    return;
-                } catch (e) {
-                    console.error('解析本地配置失败:', e);
-                }
-            }
-        }
-
-        async function apiFetch(url, options = {}) {
-            if (IS_LOCAL_SERVER) {
-                const directUrl = COMFYUI_SERVER + url;
-                const response = await fetch(directUrl, options);
-                return response;
-            }
-            const headers = {
-                'X-ComfyUI-Server-Url': COMFYUI_SERVER,
-                ...(options.headers || {})
-            };
-            const response = await fetch(url, { ...options, headers });
-            return response;
-        }
-
-        function buildWsUrl() {
-            // 始终通过后端代理连接 ComfyUI WebSocket，避免直连端口问题
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            return `${protocol}//${window.location.host}/api/comfyui/ws?client_id=${CLIENT_ID}`;
-        }
-
-        async function checkServerConnection() {
-            try {
-                const statsUrl = IS_LOCAL_SERVER ? '/system_stats' : '/api/comfyui/system_stats';
-                const response = await apiFetch(statsUrl);
-                if (response.ok) {
-                    document.getElementById("statusText").innerText = "System Ready";
-                    document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-green-500 rounded-full";
-                } else {
-                    throw new Error('Server not responding');
-                }
-            } catch (e) {
-                document.getElementById("statusText").innerText = "System Offline";
-                document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-red-500 rounded-full";
-            }
-        }
+        async function checkServerConnection() { await tool.checkConnection(); }
 
         let uploadedImageName = null;
         let backgroundImage = null;
@@ -502,7 +446,6 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         let brushColor = { r: 255, g: 255, b: 255 };
         let brushIndicator = null;
         let isMouseOnCanvas = false;
-        let ws = null;
         let currentPromptId = null;
         let lastX = 0;
         let lastY = 0;
@@ -795,17 +738,17 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                 const prompt = "去除图中的绿色遮罩";
 
                 const maskCanvas = document.getElementById('maskCanvas');
-                
+
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = imageWidth;
                 tempCanvas.height = imageHeight;
                 const tempCtx = tempCanvas.getContext('2d');
-                
+
                 tempCtx.drawImage(maskCanvas, 0, 0, imageWidth, imageHeight);
-                
+
                 const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
                 const data = imageData.data;
-                
+
                 for (let i = 0; i < data.length; i += 4) {
                     const alpha = data[i + 3];
                     if (alpha > 50) {
@@ -820,27 +763,27 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                         data[i + 3] = 255;
                     }
                 }
-                
+
                 tempCtx.putImageData(imageData, 0, 0);
-                
+
                 const maskDataUrl = tempCanvas.toDataURL('image/png');
-                
+
                 const maskFormData = new FormData();
                 const maskBlob = await fetch(maskDataUrl).then(r => r.blob());
                 maskFormData.append('image', maskBlob, 'mask.png');
-                
+
                 const maskUploadRes = await fetch('/api/comfyui/upload/image', {
                     method: 'POST',
                     body: maskFormData
                 });
                 const maskUploadResult = await maskUploadRes.json();
                 const maskName = maskUploadResult.name;
-                
+
                 const inputFormData = new FormData();
                 const inputResponse = await fetch(backgroundImage.src);
                 const inputBlob = await inputResponse.blob();
                 inputFormData.append('image', inputBlob, 'input.png');
-                
+
                 const inputUploadRes = await fetch('/api/comfyui/upload/image', {
                     method: 'POST',
                     body: inputFormData
@@ -850,116 +793,15 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
 
                 const workflowData = buildWorkflow(inputName, maskName, steps, maskGrow, seed, filenamePrefix, prompt);
 
-                currentPromptId = generateUUID();
+                // 提交与等结果交给共享运行时：完成判定用 history 轮询，
+                // 不再依赖单次 WebSocket 事件（消息一旦丢失就会永久挂起）
+                const result = await tool.submit(workflowData, { onProgress: onComfyProgress });
+                currentPromptId = result.promptId;
 
-                const wsUrl = buildWsUrl();
-
-                ws = await new Promise((resolve, reject) => {
-                    const socket = new WebSocket(wsUrl);
-                    socket.onopen = () => {
-                        console.log('[ComfyUI WS] 连接成功');
-                        resolve(socket);
-                    };
-                    socket.onerror = (e) => {
-                        console.error('[ComfyUI WS] 连接失败:', e);
-                        reject(new Error('WebSocket 连接失败'));
-                    };
-                    setTimeout(() => reject(new Error('WebSocket 连接超时')), 5000);
-                });
-
-                const promptRes = await fetch('/api/comfyui/prompt', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: workflowData,
-                        client_id: CLIENT_ID,
-                        prompt_id: currentPromptId
-                    })
-                });
-
-                if (!promptRes.ok) {
-                    throw new Error(`提交任务失败: ${promptRes.status}`);
-                }
-
-                updateProgress(5, '任务已提交，等待执行...');
-
-                let workflowCompleted = false;
-
-                await new Promise((resolve, reject) => {
-                    ws.onmessage = (event) => {
-                        try {
-                            if (typeof event.data !== 'string') return;
-                            const message = JSON.parse(event.data);
-                            
-                            if (message.type === 'execution_start') {
-                                const msgData = message.data;
-                                if (msgData.prompt_id === currentPromptId) {
-                                    updateProgress(10, '开始执行工作流...');
-                                }
-                            } else if (message.type === 'progress') {
-                                const msgData = message.data;
-                                if (msgData.prompt_id === currentPromptId) {
-                                    const progress = Math.round((msgData.value / msgData.max) * 80) + 10;
-                                    updateProgress(progress, `采样中 ${msgData.value}/${msgData.max}`);
-                                }
-                            } else if (message.type === 'executing') {
-                                const msgData = message.data;
-                                if (msgData.prompt_id === currentPromptId) {
-                                    if (msgData.node === null) {
-                                        updateProgress(95, '解码保存中...');
-                                        workflowCompleted = true;
-                                        setTimeout(() => {
-                                            ws.close();
-                                            resolve();
-                                        }, 500);
-                                    } else {
-                                        updateProgress(20, `执行节点: ${msgData.node}`);
-                                    }
-                                }
-                            } else if (message.type === 'execution_cached') {
-                                updateProgress(15, '部分节点命中缓存');
-                            } else if (message.type === 'execution_error') {
-                                const msgData = message.data;
-                                if (msgData.prompt_id === currentPromptId) {
-                                    ws.close();
-                                    reject(new Error('生成过程出错: ' + (msgData.exception_message || '未知错误')));
-                                }
-                            }
-                        } catch (e) {
-                            console.error('WS 消息处理错误:', e);
-                        }
-                    };
-
-                    ws.onclose = () => {
-                        if (!workflowCompleted) {
-                            reject(new Error('WebSocket 连接意外关闭'));
-                        }
-                    };
-
-                    setTimeout(() => {
-                        reject(new Error('处理超时，请稍后重试'));
-                    }, 300000);
-                });
-
-                const historyRes = await fetch(`/api/comfyui/history/${currentPromptId}`);
-                if (!historyRes.ok) {
-                    throw new Error('获取历史记录失败');
-                }
-                
-                const historyData = await historyRes.json();
-                const promptData = historyData[currentPromptId];
-                
-                if (!promptData) {
-                    throw new Error('历史记录中未找到该任务');
-                }
-                
-                if (promptData.status && promptData.status.status_str === 'error') {
-                    throw new Error('任务执行错误: ' + JSON.stringify(promptData.status.messages));
-                }
-                
-                const outputs = promptData.outputs || {};
+                // tool.submit 内部本身就是 history 轮询，outputs 直接取，不必再查一次
+                const outputs = result.outputs || {};
                 const imageUrls = [];
-                
+
                 for (const nodeId in outputs) {
                     const output = outputs[nodeId];
                     if (output.images && output.images.length > 0) {
@@ -1001,10 +843,6 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             } finally {
                 hideProgress();
                 setLoading(false);
-                if (ws) {
-                    ws.close();
-                    ws = null;
-                }
             }
         }
 
@@ -1018,6 +856,16 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                 btn.disabled = !backgroundImage;
                 text.textContent = "万物移除";
             }
+        }
+
+        // ComfyUI 标准化进度事件 → 本页自绘进度条
+        // （本页进度条 DOM 是 progressContainer/progressFill/progressText，与工具页标准四件套不同，暂不统一样式）
+        function onComfyProgress(msg) {
+            if (msg.status === 'started') updateProgress(10, '开始执行工作流...');
+            else if (msg.status === 'executing') updateProgress(20, `执行节点: ${msg.node}`);
+            else if (msg.status === 'cached') updateProgress(15, '部分节点命中缓存');
+            else if (msg.status === 'sampling') updateProgress(Math.round((msg.value / msg.max) * 80) + 10, `采样中 ${msg.value}/${msg.max}`);
+            else if (msg.status === 'done') updateProgress(95, '解码保存中...');
         }
 
         function startProgress() {
@@ -1075,18 +923,18 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     backgroundImage = img;
                     imageWidth = img.width;
                     imageHeight = img.height;
-                    
+
                     document.getElementById('imageWidth').textContent = imageWidth;
                     document.getElementById('imageHeight').textContent = imageHeight;
-                    
+
                     const uploadOverlay = document.getElementById('uploadOverlay');
                     const canvasWrapper = document.getElementById('canvasWrapper');
-                    
+
                     uploadOverlay.classList.add('hidden');
                     canvasWrapper.style.display = 'block';
-                    
+
                     document.getElementById('changeImageBtn').style.display = 'inline-flex';
-                    
+
                     setupCanvases();
                     initMaskCanvas();
                     document.getElementById('mainGenBtn').disabled = false;
@@ -1100,25 +948,25 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             const container = document.getElementById('canvasContainer');
             const maxWidth = container.clientWidth - 32;
             const maxHeight = 600;
-            
+
             canvasScale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight, 1);
-            
+
             const displayWidth = Math.round(imageWidth * canvasScale);
             const displayHeight = Math.round(imageHeight * canvasScale);
-            
+
             const mainCanvas = document.getElementById('mainCanvas');
             const maskCanvas = document.getElementById('maskCanvas');
-            
+
             mainCanvas.width = displayWidth;
             mainCanvas.height = displayHeight;
             maskCanvas.width = displayWidth;
             maskCanvas.height = displayHeight;
-            
+
             mainCanvas.style.width = displayWidth + 'px';
             mainCanvas.style.height = displayHeight + 'px';
             maskCanvas.style.width = displayWidth + 'px';
             maskCanvas.style.height = displayHeight + 'px';
-            
+
             const mainCtx = mainCanvas.getContext('2d');
             mainCtx.drawImage(backgroundImage, 0, 0, displayWidth, displayHeight);
         }
@@ -1126,60 +974,60 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         function initMaskCanvas() {
             const maskCanvas = document.getElementById('maskCanvas');
             const maskCtx = maskCanvas.getContext('2d');
-            
+
             maskCtx.lineCap = 'round';
             maskCtx.lineJoin = 'round';
-            
+
             maskCanvas.addEventListener('mousedown', (e) => {
                 if (!backgroundImage) return;
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 isDrawing = true;
                 hasMaskDrawn = true;
                 const rect = maskCanvas.getBoundingClientRect();
                 lastX = e.clientX - rect.left;
                 lastY = e.clientY - rect.top;
-                
+
                 maskCtx.fillStyle = `rgba(${brushColor.r}, ${brushColor.g}, ${brushColor.b}, ${brushOpacity})`;
                 maskCtx.beginPath();
                 maskCtx.arc(lastX, lastY, brushSize * canvasScale / 2, 0, Math.PI * 2);
                 maskCtx.fill();
             });
-            
+
             maskCanvas.addEventListener('mousemove', (e) => {
                 updateBrushIndicatorPosition(e);
-                
+
                 if (!isDrawing) return;
                 e.preventDefault();
-                
+
                 const rect = maskCanvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
+
                 maskCtx.strokeStyle = `rgba(${brushColor.r}, ${brushColor.g}, ${brushColor.b}, ${brushOpacity})`;
                 maskCtx.lineWidth = brushSize * canvasScale;
                 maskCtx.lineCap = 'round';
                 maskCtx.lineJoin = 'round';
-                
+
                 maskCtx.beginPath();
                 maskCtx.moveTo(lastX, lastY);
                 maskCtx.lineTo(x, y);
                 maskCtx.stroke();
-                
+
                 lastX = x;
                 lastY = y;
             });
-            
+
             maskCanvas.addEventListener('mouseup', () => {
                 isDrawing = false;
             });
-            
+
             maskCanvas.addEventListener('mouseleave', () => {
                 isDrawing = false;
                 hideBrushIndicator();
             });
-            
+
             maskCanvas.addEventListener('mouseenter', () => {
                 if (!brushIndicator) {
                     brushIndicator = document.getElementById('brushIndicator');
@@ -1248,26 +1096,26 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         function changeImage() {
             const uploadOverlay = document.getElementById('uploadOverlay');
             const canvasWrapper = document.getElementById('canvasWrapper');
-            
+
             uploadOverlay.classList.remove('hidden');
             canvasWrapper.style.display = 'none';
-            
+
             backgroundImage = null;
             hasMaskDrawn = false;
-            
+
             const mainCanvas = document.getElementById('mainCanvas');
             const maskCanvas = document.getElementById('maskCanvas');
             const mainCtx = mainCanvas.getContext('2d');
             const maskCtx = maskCanvas.getContext('2d');
-            
+
             mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
             maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-            
+
             document.getElementById('imageWidth').textContent = '-';
             document.getElementById('imageHeight').textContent = '-';
             document.getElementById('changeImageBtn').style.display = 'none';
             document.getElementById('mainGenBtn').disabled = true;
-            
+
             document.getElementById('fileInput').click();
         }
 

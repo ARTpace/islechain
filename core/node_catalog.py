@@ -31,7 +31,7 @@ BUILTIN_NODES = [
 DEFAULT_GROUPS = [
     {'id': 'basic', 'title': '基础', 'members': ['image', 'prompt', 'loop', 'llm', 'gameFile', 'output']},
     {'id': 'generate', 'title': '生成', 'members': ['imageGen', 'generator', 'msgen', 'video', 'ltxDirector', 'minimax', 'gameSpeech', 'gameModelAsset', 'gameModel3d', 'gameAnimate3d']},
-    {'id': 'workflow', 'title': '工作流', 'members': ['comfy', 'rh']},
+    {'id': 'workflow', 'title': '工作流', 'members': ['comfy', 'rh', 'materialPbr']},
     {'id': 'game', 'title': '游戏', 'members': ['gameIdea', 'gamePlan', 'gameAssets', 'gameTable', 'gameDevelop', 'gameTest', 'gameRelease']},
 ]
 
@@ -137,6 +137,25 @@ class PythonExecution(BaseModel):
         return self
 
 
+class ComfyExecution(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    kind: Literal['comfy.workflow']
+    workflowName: str = Field(pattern=r'^custom/ai-[a-f0-9]{32}\.json$')
+    buildId: str = Field(pattern=r'^[a-f0-9]{32}$')
+    revision: str = Field(min_length=1, max_length=128)
+
+
+class CliExecution(BaseModel):
+    """本机受控 CLI（目前只有 Unity -executeMethod）。
+
+    参数不写在定义里，由节点字段提供；后端固定 argv 前缀并逐项校验，
+    不经过 shell，也不接受任意命令。与 host.http / worker.python 的区别：
+    不要求 HTTPS、不需要 trusted hash、不受 30 秒 worker 上限约束。
+    """
+    model_config = ConfigDict(extra='forbid')
+    kind: Literal['host.cli'] = 'host.cli'
+
+
 class NodeDefinition(BaseModel):
     model_config = ConfigDict(extra='forbid')
     schemaVersion: Literal[1] = 1
@@ -146,14 +165,16 @@ class NodeDefinition(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     description: str = Field(default='', max_length=400)
     keywords: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=12)
-    fields: list[ComponentField] = Field(min_length=1, max_length=20)
-    execution: Annotated[TextExecution | PipelineExecution | PythonExecution | HTTPExecution, Field(discriminator='kind')]
+    fields: list[ComponentField] = Field(min_length=0, max_length=40)
+    execution: Annotated[TextExecution | PipelineExecution | PythonExecution | HTTPExecution | ComfyExecution | CliExecution, Field(discriminator='kind')]
     ui: NodeUI | None = None
     ports: NodePorts | None = None
 
     @model_validator(mode='after')
     def valid(self):
         fields = {field.id: field for field in self.fields}
+        if not fields and not isinstance(self.execution, ComfyExecution):
+            raise ValueError('节点至少需要一个参数')
         if len(fields) != len(self.fields):
             raise ValueError('参数 ID 重复')
         if isinstance(self.execution, HTTPExecution) and any(field not in fields for field in self.execution.bodyFields.values()):
@@ -202,6 +223,8 @@ def permissions(value):
     execution = value['execution']
     if execution['kind'] == 'host.http':
         return ['http-post', 'credential-reference']
+    if execution['kind'] == 'host.cli':
+        return ['local-process']
     return (['trusted-code'] + (['python-dependencies'] if execution.get('dependencies') else [])
             if execution['kind'] == 'worker.python' else [])
 
@@ -326,12 +349,24 @@ def execute(value, params, inputs, *, trusted=False, cancel_event=None, worker_d
         raise ValueError('图片输入必须是最多8个资源ID的列表')
     values = {field.id: field.validate_value(params.get(field.id, field.default)) for field in node.fields}
     binding = node.execution
+    if isinstance(binding, ComfyExecution):
+        raise ValueError('封装工作流由 ComfyUI 任务队列执行，请从画布运行')
     if port_inputs is not None and node.ports is None:
         raise ValueError('当前节点未声明命名端口')
     if node.ports is not None and (inputs or media_inputs):
         raise ValueError('命名端口节点不接受未映射的旧文本/图片集合')
     if media_inputs and (not isinstance(binding, PythonExecution) or not binding.media):
         raise ValueError('此节点没有声明图片输入协议')
+    if isinstance(binding, CliExecution):
+        # host.cli 执行器按 typeId 分发：unity.cli 走 batchmode，uloop.cli 走已打开的编辑器主线程。
+        if node.typeId == 'uloop.cli':
+            from core import uloop_cli
+            text = uloop_cli.run(values, cancel_event, inputs)
+        else:
+            from core import unity_cli
+            text = unity_cli.run(values, cancel_event)
+        return {'status': 'succeeded', 'outputs': {'text': text},
+                'definitionHash': digest(definition(value))}
     if isinstance(binding, PythonExecution):
         normalized = definition(value)
         if not trusted and digest(normalized) not in read_catalog().get('trustedHashes', []):
@@ -409,10 +444,29 @@ def execute(value, params, inputs, *, trusted=False, cancel_event=None, worker_d
 
 def sdk():
     return {'apiVersion': 1, 'componentVersion': '1.0.0', 'components': list(COMPONENTS),
+            'workerChecklist': [
+                'execution.textField必须引用fields中已声明的text/textarea/dropdown字段，即使是纯图片worker也要声明该字段。',
+                'Pillow随运行时提供，from PIL import Image不需要查询或安装依赖。其他依赖只能放execution.dependencies，不能放definition根级。',
+                '无ports：图片协议v2，测试expectedText+imageInputs+expectedImages；有ports：协议v3，测试仅params/portInputs/expectedPorts，禁止expectedText/inputs/imageInputs/expectedImages。',
+                'stdout必须是单个JSON：{"protocolVersion":对应版本,"outputs":{声明的输出}}；图片输出必须是images-out/文件名，不是裸文件名。最多8张输出，参数上限必须与此一致。',
+                'definition传对象，不要JSON.stringify；timeoutSeconds最多30。Windows保存路径与stdout协议路径分开，stdout用"images-out/"+文件名，不用os.path.join。',
+                'worker用于算法处理，不包含AI生图模型；Pillow示意图不等于真实人像生成。需要真实人像时使用可用的ComfyUI工作流或已配置生图能力。'],
+            'namedImageExample': {
+                'definition': {'typeId': 'example.image-copy', 'version': '1.0.0', 'title': '图片处理示例',
+                    'fields': [{'id': 'text', 'label': '备注', 'component': 'text', 'default': ''}],
+                    'ports': {'inputs': [{'id': 'image', 'label': '输入图', 'type': 'image'}],
+                              'outputs': [{'id': 'images', 'label': '结果图', 'type': 'image', 'multiple': True}]},
+                    'execution': {'kind': 'worker.python', 'textField': 'text', 'media': True,
+                        'code': 'import json,sys,os\nfrom PIL import Image\nr=json.load(sys.stdin)\nos.makedirs(r["outputDir"],exist_ok=True)\np=r["outputDir"]+"/result.png"\nImage.open(r["ports"]["image"]["path"]).save(p)\nprint(json.dumps({"protocolVersion":3,"outputs":{"images":[p]}}))'}},
+                'tests': [{'params': {}, 'portInputs': {'image': {'width': 32, 'height': 24, 'color': '#ff0000'}},
+                           'expectedPorts': {'images': [{'width': 32, 'height': 24}]}}]},
             'builtinNodes': BUILTIN_NODES,
-            'executors': ['host.text', 'host.pipeline', 'worker.python', 'host.http'], 'definitionSchema': NodeDefinition.model_json_schema(),
+            'executors': ['host.text', 'host.pipeline', 'worker.python', 'host.http', 'host.cli'], 'definitionSchema': NodeDefinition.model_json_schema(),
             'uiModes': ['builtin.components', 'isolated.form', 'isolated.worker'],
-            'uiContract': 'ui.html 中使用 data-field="字段ID" 绑定 input/select/textarea，data-action 绑定按钮，支持 input type=color。HTML 白名单过滤，独立沙箱，CSS 仅影响插件视图。isolated.worker 的 script 在 iframe 内 Web Worker 运行，收取 init/change/action 消息，返回 {type:"render",html,css?} 或 {type:"change",field,value}；无 DOM、网络或原生调用。每次响应限时 2 秒。不要生成宿主 DOM 脚本。',
+            'uiContract': 'ui.html使用data-field绑定声明字段，data-action通知隔离UI Worker。isolated.form中data-action="run"可直接运行当前节点；isolated.worker接收init/change/action/state，返回render/change；真实点击action后5秒内可返回一次{type:"execute",params:{字段ID:值}}请求运行当前节点。只能使用已声明且通过类型/范围校验的参数；自动init/state不得触发执行，运行中拒绝重复任务。state包含status(idle/running/succeeded/failed)、error、text、images(只读资源URL)，应在2秒内响应，例如返回render。宿主显示可信图片预览，UI脚本不得自行加载图片或网络。CSS动画与白名单表单可用，SVG/Canvas/任意DOM/原生调用仍不可用。Comfy节点自定义ui放入comfy_create_build候选，不要另造Pillow假人像；真实生图走已测试Comfy工作流。',
+            'uiExecuteExample': {'kind': 'isolated.worker', 'height': 300,
+                'html': '<button data-action="generate">抽取并生成</button>', 'css': 'button{padding:12px;width:100%}',
+                'script': 'onmessage=({data:d})=>{if(d.type==="action"&&d.action==="generate"){postMessage({type:"execute",params:d.params});}else{postMessage({type:"render",html:"<button data-action=generate>抽取并生成</button>"});}};'},
             'workerContract': {'protocolVersion': 1, 'stdin': {'params': 'object', 'inputs': 'string[]'},
                 'stdout': {'protocolVersion': 1, 'outputs': {'text': 'string <=16000 chars'}},
                 'runtime': '随应用分发的 Python；不查找 PATH；15 秒默认、最多 30 秒、stdout/stderr 各 64KiB。',

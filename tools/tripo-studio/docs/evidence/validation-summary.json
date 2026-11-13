@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-08",
+  "plugin_version": "0.3.6",
+  "environment": {
+    "os": "Windows (source workspace, isolated test data)",
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "playwright": "1.58.2",
+    "browser": "Google Chrome 154.0.8037.57 (TRIPO_TEST_BROWSER)"
+  },
+  "build": "passed",
+  "npm_audit_known_vulnerabilities": 0,
+  "results": [
+    {
+      "command": "npm test",
+      "passed": 170,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:ui",
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:credentials",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:compat",
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v036",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v035",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v034",
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v033",
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v032",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v031",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v030",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v0212",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v0211",
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v0210",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:v029",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:host:routes",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:host",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "real_provider_calls": 0,
+  "paid_requests": 0,
+  "not_performed": [
+    "native DSH GUI",
+    "Windows DPAPI with real key",
+    "native Windows folder picker",
+    "real provider API (balance/usage/generation incl. P2.0/multiview/convert/mesh decimate)"
+  ],
+  "scope": "0.3.6 development-round run on the Windows source workspace with a mock provider; not a penetration test or provider compatibility certification."
+}

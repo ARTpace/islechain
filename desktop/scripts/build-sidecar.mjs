@@ -13,7 +13,7 @@ const appDir = path.join(here, 'src-tauri', 'sidecar-server', 'app');
 const skipDirs = new Set([
   '.git', '.github', '.venv', '.pytest_cache', '.ruff_cache', '.playwright-cli', '.oil-ui', '__pycache__',
   'node_modules', 'desktop', 'output', 'input', 'logs', 'tests', 'docs',
-  'packages', 'python', 'dist', 'build', 'conversations', 'canvases',
+  'packages', 'python', 'dist', 'build', 'conversations', 'canvases', 'projects',
   'thumbnails', 'media_previews', 'tts_voices', 'backups', 'smart-prompt-presets',
   // 运行期产物与草稿：不进安装包（artifacts 当前 700MB+，全是备份/导出，代码不引用）
   'artifacts', 'scratch',
@@ -86,6 +86,12 @@ copyDir(project, appDir, null);
 // core/ 是公共底座包（路径、配置、跨层共用逻辑），被 routers / 各内容包共同依赖。
 const required = [
   'main.py',
+  'core/canvas_store.py',
+  'core/canvas_paths.py',
+  'core/canvas_schema.py',
+  'core/canvas_bundle.py',
+  'static/schemas/canvas.schema.json',
+  'static/js/canvas-schema.js',
   'core',
   'core/user_paths.py',
   'core/media_paths.py',

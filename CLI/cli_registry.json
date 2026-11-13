@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "note": "CLI 统一注册表。新增 CLI 只需在此追加一条；install / terminal 脚本路径相对项目根目录。detector=local 走通用 PATH 探测，detector=jimeng 复用 main.py 的 WSL 适配。",
+  "clis": [
+    {
+      "id": "jimeng",
+      "name": "即梦 CLI",
+      "command": "dreamina",
+      "commands": ["dreamina", "dreamina.exe", "dreamina.cmd"],
+      "desc": "使用本机 dreamina 登录态生图 / 生视频，无需 API Key。支持 WSL；可通过 JIMENG_BIN、JIMENG_USE_WSL 指定可执行文件。",
+      "detector": "jimeng",
+      "min_version": "1.4.2",
+      "provider": { "protocol": "jimeng", "name": "即梦 CLI", "image_models": [] },
+      "install": {
+        "win32": { "script": "CLI/windows/jimeng/jimeng_cli_install.ps1", "shell": "powershell", "args": [] },
+        "darwin": { "script": "CLI/macos/jimeng/install_jimeng_cli.command", "shell": "sh", "args": [] },
+        "linux": { "script": "CLI/macos/jimeng/install_jimeng_cli.command", "shell": "sh", "args": [] }
+      },
+      "login": {
+        "mode": "qr",
+        "start": "/api/jimeng/login/start",
+        "poll": "/api/jimeng/login/status",
+        "logout": "/api/jimeng/logout",
+        "credit": "/api/jimeng/credit"
+      },
+      "help": {
+        "endpoint": "/api/jimeng/help",
+        "label": "查看 dreamina 官方命令帮助",
+        "commands": ["", "login", "logout", "user_credit", "text2image", "image2image", "image_upscale", "text2video", "image2video", "multimodal2video", "frames2video", "list_task", "query_result"]
+      }
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex CLI",
+      "command": "codex",
+      "commands": ["codex", "codex.exe", "codex.cmd"],
+      "desc": "使用本机 Codex 登录态与内置 gpt-image-2 生图，无需在本项目填写 API Key。",
+      "detector": "local",
+      "version_args": ["--version"],
+      "auth_args": ["login", "status"],
+      "provider": { "protocol": "codex", "name": "GPT CLI", "image_models": ["gpt-image-2"] },
+      "install": {
+        "win32": { "script": "CLI/windows/openai/install_openai_codex_cli.ps1", "shell": "powershell", "args": ["-NonInteractive"] },
+        "darwin": { "script": "CLI/macos/openai/install_openai_codex_cli.command", "shell": "sh", "args": [] },
+        "linux": { "script": "CLI/linux/openai/install_openai_codex_cli.sh", "shell": "sh", "args": [] }
+      },
+      "login": {
+        "mode": "terminal",
+        "terminal": {
+          "win32": "CLI/windows/openai/2-start_openai_codex_cli.bat",
+          "darwin": "CLI/macos/openai/install_openai_codex_cli.command"
+        }
+      },
+      "help": {
+        "endpoint": "/api/codex/help",
+        "label": "查看 codex 官方命令帮助",
+        "commands": ["", "exec", "login", "logout", "doctor", "mcp", "app", "update"]
+      }
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Antigravity / Gemini CLI",
+      "command": "gemini",
+      "commands": ["gemini", "gemini.cmd", "agy", "agy.exe"],
+      "desc": "使用本机 Antigravity (agy) 登录态出图，无需在本项目保存 API Key。",
+      "detector": "local",
+      "version_args": ["--version"],
+      "auth_args": ["auth", "status"],
+      "provider": { "protocol": "gemini-cli", "name": "Antigravity CLI", "image_models": [] },
+      "install": {
+        "win32": { "script": "CLI/windows/gemini/install_gemini_cli.ps1", "shell": "powershell", "args": ["-NonInteractive"] },
+        "darwin": { "script": "CLI/macos/gemini/install_gemini_cli.command", "shell": "sh", "args": [] }
+      },
+      "login": {
+        "mode": "terminal",
+        "terminal": {
+          "win32": "CLI/windows/gemini/2-start_gemini_cli.bat",
+          "darwin": "CLI/macos/gemini/2-start_gemini_cli.command"
+        }
+      },
+      "help": {
+        "endpoint": "/api/gemini-cli/help",
+        "label": "查看 gemini 官方命令帮助",
+        "commands": ["", "help", "mcp", "extensions"]
+      }
+    },
+    {
+      "id": "comfy",
+      "name": "Comfy CLI",
+      "command": "comfy",
+      "commands": ["comfy", "comfy.exe"],
+      "local_executable": "CLI/.venv-comfy/Scripts/comfy.exe",
+  "workspace": "H:/AI-Tools/ComfyUI_TE/ComfyUI",
+      "desc": "comfy-cli 1.25.0（项目隔离 venv）。无需登录即可读取 45 个模型目录与参数 schema、离线导出 API workflow；云端出图需 comfy cloud login 与额度。",
+      "detector": "local",
+      "version_args": ["--version"],
+      "version_json_path": "data.version",
+      "auth_args": ["cloud", "whoami"],
+      "auth_json_path": "data.signed_in",
+      "login": {
+        "mode": "terminal",
+        "terminal": {
+          "win32": "CLI/windows/comfy/1-login.bat"
+        }
+      }
+    },
+    {
+      "id": "tripo",
+      "name": "Tripo CLI",
+      "command": "tripo",
+      "commands": ["tripo", "tripo.cmd", "tripo.exe"],
+      "npm_package": "tripo-cli",
+      "npm_entry": "dist/cli.js",
+      "desc": "文字 / 图片 / 多视图生成 3D 模型，支持贴图、绑骨、动画与格式转换。模型列表与 dry-run 不消耗积分，正式生成需 API 积分。",
+      "detector": "local",
+      "min_version": "0.9.0",
+      "version_args": ["--version"],
+      "auth_args": ["whoami", "--json"],
+      "auth_json_path": "key",
+      "install": {
+        "win32": { "script": "CLI/windows/tripo/install_tripo_cli.ps1", "shell": "powershell", "args": [] }
+      },
+      "login": {
+        "mode": "terminal",
+        "terminal": {
+          "win32": "CLI/windows/tripo/2-login.bat"
+        }
+      }
+    }
+  ]
+}

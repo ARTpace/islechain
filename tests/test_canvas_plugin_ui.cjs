@@ -5,7 +5,7 @@ function element(tag){
         contentWindow:{postMessage(value){messages.push(value);}},
         append(){},setAttribute(key,value){this.attributes[key]=value;},innerHTML:''};
 }
-const context={window:{},Set,Map,JSON,Number,crypto:{randomUUID:()=> 'session-1'},
+const context={window:{},Set,Map,JSON,Number,String,URL,Promise,console,location:{origin:'http://localhost'},setInterval:()=>1,clearInterval:()=>{},crypto:{randomUUID:()=> 'session-1'},
     document:{documentElement:{dataset:{theme:'dark'}},createElement:element,createTextNode:text=>({textContent:text,nodeType:3})},
     addEventListener:(name,handler)=>listeners[name]=handler,
     MutationObserver:class{constructor(handler){observer=handler;}observe(){}}};
@@ -26,5 +26,12 @@ send('text','accepted');send('count',2);assert.equal(changes.length,2);
 send('text','spoof',{source:{}});send('text','spoof',{origin:'https://example.com'});
 send('count',Infinity);send('count',4);send('count','1');send('mode','not-in-options');send('enabled','yes');send('unknown','x');
 assert.equal(changes.length,2,'invalid origins, senders, fields and parameter types never reach the host');
-frame.isConnected=false;observer();send('text','removed');assert.equal(changes.length,2,'removed views lose bridge sessions');
+let resolveRun,calls=0;
+const ready=new Promise(resolve=>resolveRun=resolve);
+const runFrame=context.window.CanvasPluginUI.mount(definition,{},()=>{}, {key:'node',onRun:()=>{calls++;return ready;},getState:()=>({images:['https://evil.invalid/x','/output/a.png']})});
+const invoke=params=>listeners.message({origin:'null',source:runFrame.contentWindow,data:{channel:'art-node-form-run',session:'session-1',params}});
+invoke({count:99});invoke({unknown:'x'});
+invoke({count:2});invoke({count:2});
+Promise.resolve().then(()=>{assert.equal(calls,1,'duplicate run is blocked while pending');resolveRun();});
+runFrame.isConnected=false;frame.isConnected=false;observer();send('text','removed');assert.equal(changes.length,2,'removed views lose bridge sessions');
 console.log('CANVAS_PLUGIN_UI_OK');

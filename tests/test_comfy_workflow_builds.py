@@ -44,6 +44,18 @@ def png():
 
 
 class GraphTests(unittest.TestCase):
+    def test_custom_ui_binding_and_script_contract(self):
+        value = candidate()
+        value['ui'] = {'html': '<button data-action="run">运行</button>', 'kind': 'isolated.form'}
+        result, _ = validate_build(value, copy.deepcopy(INFO))
+        self.assertIn('ui', result)
+        value['ui']['html'] = '<input data-field="missing">'
+        with self.assertRaisesRegex(ValueError, '不存在'):
+            validate_build(value, copy.deepcopy(INFO))
+        value['ui'] = {'kind': 'isolated.worker', 'html': '<p>test</p>'}
+        with self.assertRaisesRegex(ValueError, 'script'):
+            validate_build(value, copy.deepcopy(INFO))
+
     def test_combo_schema_validates_constants_and_dropdowns(self):
         for schema in ([['normal', 'multiply']], ['COMBO', {'options': ['normal', 'multiply'], 'multiselect': False}]):
             info = copy.deepcopy(INFO)
@@ -160,6 +172,9 @@ class BuildTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        catalog_patch = patch('core.node_catalog.catalog_path', return_value=Path(self.temp.name) / 'catalog.json')
+        catalog_patch.start()
+        self.addCleanup(catalog_patch.stop)
         self.service = ComfyBuilds(Path(self.temp.name) / 'builds', Path(self.temp.name) / 'workflows',
                                    'owner', 'canvas-1', '127.0.0.1:8188', timeout=10)
         self.requests = []
@@ -205,8 +220,10 @@ class BuildTests(unittest.IsolatedAsyncioTestCase):
             self.service.templates('image.json')
 
     async def test_create_test_publish_and_pin_without_duplicate_submits(self):
-        draft = await self.service.create(candidate())
-        self.assertEqual((await self.service.create(candidate()))['id'], draft['id'])
+        value = candidate()
+        value['ui'] = {'kind': 'isolated.form', 'html': '<button data-action="run">运行</button>'}
+        draft = await self.service.create(value)
+        self.assertEqual((await self.service.create(value))['id'], draft['id'])
         with self.assertRaises(ValueError):
             await self.service.publish(draft['id'], draft['revision'])
         await self.service.start(draft['id'])
@@ -216,6 +233,17 @@ class BuildTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tested['report']['outputs'][0]['width'], 64)
         self.assertEqual(sum(path == '/prompt' for _, path, _ in self.requests), 1)
         published = await self.service.publish(tested['id'], tested['revision'])
+        from core.node_catalog import public_catalog, execute
+        definition = published['nodeDefinition']
+        self.assertEqual(definition['title'], candidate()['title'])
+        self.assertEqual(definition['execution']['kind'], 'comfy.workflow')
+        self.assertIn('data-action="run"', definition['ui']['html'])
+        self.assertEqual(definition['execution']['workflowName'], published['workflowName'])
+        catalog = public_catalog()
+        self.assertIn(definition, catalog['definitions'])
+        self.assertIn('extension:' + definition['typeId'], next(g for g in catalog['groups'] if g['id'] == 'workflow')['members'])
+        with self.assertRaisesRegex(ValueError, '任务队列'):
+            execute(definition, {}, [])
         self.assertTrue((self.service.workflow_root / published['workflowName']).exists())
         self.assertEqual(pinned_instance(self.service.workflow_root, published['workflowName'], ['127.0.0.1:8188']), '127.0.0.1:8188')
         with self.assertRaises(ValueError):

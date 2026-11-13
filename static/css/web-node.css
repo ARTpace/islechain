@@ -1,0 +1,107 @@
+/* 可运行网页节点（static/modules/web-node.js 配套样式） */
+
+#webNodeLayer { position:absolute; left:0; top:0; width:0; height:0; pointer-events:none; }
+
+.web-node { display:flex; flex-direction:column; height:100%; min-height:0; gap:8px; }
+/* 固定高度的节点让 body 撑满，slot 才能吃下剩余空间 */
+.webapp-node.sized { display:flex; flex-direction:column; }
+.webapp-node.sized .node-body { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+.web-node-bar { display:flex; align-items:center; gap:2px; flex:0 0 auto; }
+.web-node-src {
+    flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:6px;
+    color:var(--muted); font-size:11px; line-height:1.4;
+}
+.web-node-src span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.web-node-src svg { width:13px; height:13px; flex:0 0 13px; }
+.web-node-btn {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; flex:0 0 26px; padding:0; border:0; border-radius:8px;
+    background:transparent; color:var(--muted); cursor:pointer; transition:background .15s var(--ease), color .15s var(--ease);
+}
+.web-node-btn:hover { background:var(--soft-2); color:var(--text); }
+.web-node-btn svg { width:14px; height:14px; }
+.web-node-btn.is-on { background:var(--strong); color:var(--strong-text); }
+
+.web-node-slot {
+    position:relative; flex:1 1 auto; min-height:160px;
+    border:1px dashed var(--line-2); border-radius:12px; overflow:hidden;
+    background:var(--soft);
+}
+.node.sized .web-node-slot { border-style:solid; }
+.web-node.has-content .web-node-slot { border-color:transparent; background:transparent; }
+.web-node-empty {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; color:var(--muted); font-size:12px; cursor:pointer; user-select:none;
+    background:linear-gradient(180deg, var(--soft), var(--soft-2));
+}
+.web-node-empty svg { width:22px; height:22px; opacity:.75; }
+.web-node-empty:hover { color:var(--text); }
+.web-node.has-content .web-node-empty { display:none; }
+
+/* iframe 常驻层：非交互态完全透明不挡事件 */
+.web-node-view {
+    position:absolute; display:block; pointer-events:none;
+    border-radius:12px; overflow:hidden; background:var(--ui-panel);
+    box-shadow:0 1px 3px rgba(23,23,22,.08);
+    transition:box-shadow .16s var(--ease);
+}
+.web-node-view.is-unlocked {
+    pointer-events:auto;
+    box-shadow:0 14px 40px rgba(23,23,22,.22);
+    outline:2px solid var(--ui-accent);
+    outline-offset:-2px;
+}
+.web-node-frame { display:block; width:100%; height:100%; border:0; background:var(--ui-panel); }
+
+/* 未进入交互时的角标入口 */
+.web-node-chip {
+    position:absolute; right:8px; bottom:8px; z-index:2;
+    display:inline-flex; align-items:center; gap:5px; padding:5px 10px;
+    border:0; border-radius:999px; background:color-mix(in srgb, var(--ui-panel) 72.0%, transparent); color:var(--ui-text);
+    font-size:11px; font-weight:700; cursor:pointer; pointer-events:auto;
+    backdrop-filter:blur(6px); transition:background .15s var(--ease), transform .15s var(--ease);
+}
+.web-node-chip svg { width:12px; height:12px; }
+.web-node-chip:hover { background:color-mix(in srgb, var(--ui-panel) 90.0%, transparent); transform:translateY(-1px); }
+.web-node-view.is-unlocked .web-node-chip { display:none; }
+
+/* 编辑弹层 */
+.web-node-modal {
+    position:fixed; inset:0; z-index:4000; display:flex; align-items:center; justify-content:center;
+    padding:24px; background:color-mix(in srgb, var(--ui-panel) 42.0%, transparent); backdrop-filter:blur(3px);
+}
+.web-node-dialog {
+    width:min(720px, 100%); max-height:min(86vh, 760px); display:flex; flex-direction:column; gap:12px;
+    padding:18px; border:1px solid var(--line-2); border-radius:20px;
+    background:var(--card-solid); color:var(--text); box-shadow:0 24px 70px rgba(0,0,0,.28);
+}
+.web-node-dialog-head { display:flex; align-items:center; justify-content:space-between; }
+.web-node-dialog-head strong { font-size:14px; font-weight:800; }
+.web-node-tabs { display:flex; align-items:center; gap:6px; }
+.web-node-tabs > button, .web-node-pick {
+    padding:6px 12px; border:1px solid var(--line-2); border-radius:999px;
+    background:transparent; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer;
+}
+.web-node-tabs > button.active { background:var(--strong); border-color:var(--strong); color:var(--strong-text); }
+.web-node-pick { margin-left:auto; }
+.web-node-tabs > button:hover, .web-node-pick:hover { color:var(--text); }
+.web-node-tabs > button.active:hover { color:var(--strong-text); }
+.web-node-input, .web-node-code {
+    width:100%; padding:10px 12px; border:1px solid var(--line-2); border-radius:12px;
+    background:var(--soft); color:var(--text); font-size:12.5px; outline:none;
+}
+.web-node-input:focus, .web-node-code:focus { border-color:var(--strong); background:var(--panel); }
+.web-node-code { flex:1 1 auto; min-height:220px; resize:vertical; font-family:"SFMono-Regular",Consolas,monospace; font-size:12px; line-height:1.55; }
+.web-node-scale { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11.5px; }
+.web-node-scale input { flex:1 1 auto; accent-color:var(--strong); }
+.web-node-scale b { min-width:52px; text-align:right; color:var(--text); font-weight:700; }
+.web-node-tip { margin:0; color:var(--faint); font-size:11px; line-height:1.6; }
+.web-node-tip code { padding:1px 4px; border-radius:4px; background:var(--soft-2); font-size:10.5px; }
+.web-node-dialog-foot { display:flex; justify-content:flex-end; gap:8px; }
+.web-node-ghost, .web-node-primary {
+    padding:8px 16px; border-radius:10px; border:1px solid var(--line-2);
+    background:transparent; color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;
+}
+.web-node-ghost:hover { background:var(--soft-2); }
+.web-node-primary { background:var(--strong); border-color:var(--strong); color:var(--strong-text); }
+.web-node-primary:hover { opacity:.88; }

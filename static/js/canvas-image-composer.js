@@ -14,7 +14,7 @@ function renderImageEditComposer(node) {
         panel.setAttribute('aria-label', '图片编辑创作控制台');
         const frame = document.createElement('iframe');
         frame.title = '文生图创作控制台';
-        frame.src = '/static/app/zimage.html?canvasComposer=1&v=20261028015';
+        frame.src = '/static/app/zimage.html?canvasComposer=1&v=20261105noref';
         panel.appendChild(frame);
         ['pointerdown','mousedown','wheel','dblclick'].forEach(type=>panel.addEventListener(type,event=>event.stopPropagation()));
         board.appendChild(panel);

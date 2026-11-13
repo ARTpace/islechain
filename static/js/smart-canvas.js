@@ -1173,7 +1173,7 @@ function canvasListUrlForProject(projectId){
 }
 function backToCanvasList(){
     savePromptDraftForCurrent();
-    window.location.href = canvasListUrlForProject(canvas?.project || sourceProjectId || 'default');
+    window.location.href = canvasListUrlForProject(sourceProjectId || canvas?.project || 'default');
 }
 function promptPlainText(){
     return originalPromptTextFromParts(collectPromptParts());
@@ -7374,7 +7374,206 @@ function smartGroupBodyHtml(node){
         ${members.length ? '' : `<div class="smart-group-empty"><i data-lucide="plus"></i><span>拖入图片自动收进分组</span></div>`}
     </div>`;
 }
+let smartBlenderProviders = null;
+
+function loadSmartBlenderProviders(){
+    if(smartBlenderProviders !== null) return;
+    smartBlenderProviders = [];
+    fetch('/api/providers').then(res => res.json()).then(data => {
+        smartBlenderProviders = (data.providers || [])
+            .filter(item => item.enabled !== false && (item.chat_models || []).length)
+            .map(item => ({id: item.id, name: item.name || item.id, models: item.chat_models || []}));
+        render();
+    }).catch(() => {});
+}
+
+function smartBlenderSelectHtml(node){
+    loadSmartBlenderProviders();
+    const options = smartBlenderProviders.flatMap(provider => provider.models.map(model => {
+        const value = `${provider.id}|${model}`;
+        const selected = node.modelRef === value ? 'selected' : '';
+        return `<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(provider.name + ' · ' + model)}</option>`;
+    })).join('');
+    return `<select class="blender-model" style="width:100%;margin-top:6px;border-radius:8px;background:var(--ui-soft);border:1px solid var(--ui-line-strong);color:var(--ui-text);font-size:11px;padding:5px">
+        <option value="">默认渠道</option>${options}
+    </select>`;
+}
+
+function createBlenderNode(x, y){
+    pushUndo();
+    const node = {
+        id: uid('blender'),
+        type: 'smart-blender',
+        x, y,
+        w: 340,
+        prompt: '',
+        modelRef: '',
+        status: 'idle',
+        statusText: '',
+        logs: [],
+        created_at: Date.now()
+    };
+    nodes.push(node);
+    selectedId = node.id;
+    render();
+    scheduleSave();
+    return node;
+}
+
+// 建模人设：管取舍方向；具体手法与标杆脚本在 packs/blender-skills/<id>/SKILL.md
+let smBlenderPresets = null;
+
+function loadSmBlenderPresets(){
+    if(smBlenderPresets !== null) return;
+    smBlenderPresets = [];
+    fetch('/api/game-projects/presets').then(res => res.json()).then(data => {
+        smBlenderPresets = (data.presets || []).filter(item => (item.kinds || []).includes('model'));
+        render();
+    }).catch(() => {});
+}
+
+function smartBlenderPresetHtml(node){
+    loadSmBlenderPresets();
+    const current = node.presetId || 'default';
+    const preset = smBlenderPresets.find(item => item.id === current);
+    const options = smBlenderPresets.map(item =>
+        `<option value="${escapeHtml(item.id)}" ${item.id === current ? 'selected' : ''}>${escapeHtml(item.name)}</option>`
+    ).join('');
+    return `<div style="margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="opacity:.6;font-size:11px">建模人设</span>
+            <button class="blender-preset-info" type="button" title="查看人设详情与工作手册" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:6px;border:1px solid var(--ui-line-strong);background:var(--ui-panel);color:var(--ui-accent);font-size:10px;line-height:16px;cursor:pointer">手册</button>
+        </div>
+        <select class="blender-preset" style="width:100%;border-radius:8px;background:var(--ui-soft);border:1px solid var(--ui-line-strong);color:var(--ui-text);font-size:11px;padding:5px">${options || '<option value="default">通用助手</option>'}</select>
+        <div class="blender-preset-desc" style="font-size:10px;line-height:1.4;opacity:.55;margin-top:3px">${escapeHtml(preset ? preset.description : '按当前想法完成任务，不额外引入风格约束。')}</div>
+    </div>`;
+}
+
+function blenderNodeBodyHtml(node){
+    const logs = (node.logs || []).slice(-5);
+    const tone = node.status === 'failed' ? '#f87171'
+        : (node.status === 'produced' || node.status === 'imported') ? '#4ade80' : '#7dd3fc';
+    return `
+        <div style="width:314px;padding:8px;color:var(--ui-text)">
+            <div style="opacity:.6;font-size:11px;margin-bottom:4px">建模需求</div>
+            <textarea class="blender-prompt" placeholder="例如：建一个低多边形木箱，边长 1 米，深棕色木质材质…" style="width:100%;height:84px;resize:none;border-radius:8px;background:var(--ui-soft);border:1px solid var(--ui-line-strong);color:var(--ui-text);font-size:12px;padding:7px;line-height:1.5">${escapeHtml(node.prompt || '')}</textarea>
+            ${smartBlenderPresetHtml(node)}
+            ${smartBlenderSelectHtml(node)}
+            <button class="blender-run" type="button" ${node.running ? 'disabled' : ''} style="width:100%;margin-top:8px;padding:7px;border-radius:8px;border:1px solid var(--ui-line-strong);background:var(--ui-panel);color:var(--ui-text);font-size:12px;cursor:pointer">${node.running ? '建模中…' : '让 AI 建模'}</button>
+            <div class="blender-status" style="font-size:11px;margin-top:6px;color:${tone};min-height:14px">${escapeHtml(node.statusText || '')}</div>
+            ${node.jobId && node.status === 'failed' ? '<button class="blender-salvage" type="button" style="width:100%;margin-top:6px;padding:6px;border-radius:8px;border:1px solid var(--ui-line-strong);background:var(--ui-panel);color:var(--ui-accent);font-size:11px;cursor:pointer">回收 Blender 里已建的模型</button>' : ''}
+            <div class="blender-logs" style="margin-top:4px;max-height:96px;overflow:auto;font-size:10px;line-height:1.5;opacity:.62">${logs.map(line => `<div>${escapeHtml(line)}</div>`).join('')}</div>
+            ${node.reply ? `<div style="margin-top:6px;font-size:11px;line-height:1.5;opacity:.8;border-top:1px solid #1d2833;padding-top:6px">${escapeHtml(node.reply)}</div>` : ''}
+        </div>`;
+}
+
+async function smartBlenderImport(node, jobId){
+    const res = await fetch('/api/dcc/jobs/' + encodeURIComponent(jobId) + '/import', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+    });
+    if(!res.ok){
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || ('回收产物失败 ' + res.status));
+    }
+    const data = await res.json();
+    let created = 0;
+    (data.items || []).forEach(item => {
+        const fresh = item && item.node;
+        if(!fresh || !fresh.id) return;
+        if(nodes.some(n => n.id === fresh.id)) return;
+        // 后端已经写进画布文件，这里补内存副本
+        if(fresh.w == null) fresh.w = 240;
+        if(fresh.h == null) fresh.h = 300;
+        fresh.x = node.x + 360;
+        fresh.y = node.y + created * 320;
+        nodes.push(fresh);
+        created += 1;
+    });
+    node.statusText = created ? `已回收 ${created} 个产物` : '没有新产物';
+}
+
+async function runSmartBlenderNode(node){
+    if(!node || node.running) return;
+    const prompt = String(node.prompt || '').trim();
+    if(!prompt){ if(window.toast) window.toast('请先填写建模需求'); return; }
+    if(!canvasId){ if(window.toast) window.toast('画布还没加载完成'); return; }
+    node.running = true;
+    node.status = 'submitting';
+    node.statusText = '提交建模任务…';
+    node.logs = [];
+    node.reply = '';
+    render();
+    try{
+        const res = await fetch('/api/dcc/build-model', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                canvasId,
+                prompt,
+                presetId: node.presetId || 'default',
+                provider: (node.modelRef || '').split('|')[0] || '',
+                model: (node.modelRef || '').split('|')[1] || ''
+            })
+        });
+        if(!res.ok){
+            const detail = await res.json().catch(() => ({}));
+            throw new Error(detail.detail || ('提交失败 ' + res.status));
+        }
+        const data = await res.json();
+        node.jobId = data.jobId;
+        node.statusText = 'Blender 正在建模…';
+        render();
+        const deadline = Date.now() + 16 * 60 * 1000;
+        while(Date.now() < deadline){
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            let job = null;
+            try{
+                const jobRes = await fetch('/api/dcc/jobs/' + encodeURIComponent(node.jobId));
+                if(!jobRes.ok) continue;
+                job = await jobRes.json();
+            }catch(err){
+                continue;
+            }
+            node.logs = (job.logs || []).map(entry => entry.line).filter(Boolean);
+            node.statusText = job.stage || job.status || '';
+            if(job.reply) node.reply = job.reply;
+            render();
+            if(job.status === 'failed'){
+                const ready = (job.products || []).filter(item => item.kind === 'model' || item.kind === 'image');
+                if(ready.length){
+                    node.status = 'produced';
+                    node.statusText = '对话中断，正在回收 Blender 里的产物…';
+                    render();
+                    try{
+                        await smartBlenderImport(node, node.jobId);
+                        return;
+                    }catch(err){}
+                    node.status = 'failed';
+                }
+                throw new Error(job.error || '建模失败');
+            }
+            if(job.status === 'produced' || job.status === 'imported'){
+                node.status = 'produced';
+                await smartBlenderImport(node, node.jobId);
+                return;
+            }
+        }
+        throw new Error('建模超时（16 分钟）');
+    }catch(err){
+        node.status = 'failed';
+        node.statusText = err && err.message ? err.message : String(err);
+    }finally{
+        node.running = false;
+        render();
+        scheduleSave();
+        if(typeof refreshIcons === 'function') refreshIcons();
+    }
+}
+
 function nodeBodyHtml(node, layout){
+    if(node.type === 'smart-blender') return blenderNodeBodyHtml(node);
     if(node.type === 'model3d') return model3dNodeBodyHtml(node, layout);
     if(node.type === 'smart-minimax') return smartMinimaxBodyHtml(node);
     if(node.type === 'smart-group') return smartGroupBodyHtml(node);
@@ -7702,7 +7901,7 @@ function render(){
         .sort((a, b) => (isSmartGroupNode(a) ? 0 : 1) - (isSmartGroupNode(b) ? 0 : 1))
         .map(node => {
         const imgs = node.images || [];
-        const title = node.type === 'model3d' ? '3D 资产' : node.type === 'smart-group' ? (node.title === '万能分组' ? '智能分组' : (node.title || '智能分组')) : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : node.type === 'smart-minimax' ? 'MiniMax H3' : (imgs.length > 1 ? 'Group' : imgs.length ? 'Image' : escapeHtml(tr('smart.createImportNode')));
+        const title = node.type === 'model3d' ? '3D 模型' : node.type === 'smart-group' ? (node.title === '万能分组' ? '智能分组' : (node.title || '智能分组')) : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : node.type === 'smart-minimax' ? 'MiniMax H3' : (imgs.length > 1 ? 'Group' : imgs.length ? 'Image' : escapeHtml(tr('smart.createImportNode')));
         const scale = nodeScale(node);
         const layout = imageLayout(imgs, scale, node);
         const isPrompt = node.type === 'smart-prompt';
@@ -7755,6 +7954,7 @@ function render(){
         const fresh = renderedNodeEls.get(entry.node.id);
         if(!fresh) return;
         world.appendChild(fresh);
+        if(entry.node && entry.node.type === 'model3d') mountSmartModelViewers(fresh, entry.node);
         const reusable = reusableNodes.get(entry.node.id);
         if(reusable){
             transplantSmartMediaElements(reusable, fresh);
@@ -7775,7 +7975,7 @@ function render(){
     world.insertAdjacentHTML('beforeend', renderConnections());
     const nodesHtml = nodes.map(node => {
         const imgs = node.images || [];
-        const title = node.type === 'model3d' ? '3D 资产' : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : (imgs.length > 1 ? 'Group' : 'Image');
+        const title = node.type === 'model3d' ? '3D 模型' : node.type === 'smart-prompt' ? 'Prompt' : node.type === 'smart-loop' ? 'Loop' : (imgs.length > 1 ? 'Group' : 'Image');
         const scale = nodeScale(node);
         const layout = imageLayout(imgs, scale, node);
         const isPrompt = node.type === 'smart-prompt';
@@ -15885,6 +16085,7 @@ function createNodeFromMenu(type){
     if(type === 'prompt') created = createPromptNode(p.x - 158, p.y - 97);
     else if(type === 'loop') created = createLoopNode(p.x - 135, p.y - 95);
     else if(type === 'minimax') created = createMinimaxNode(p.x - 520, p.y - 320);
+    else if(type === 'blenderGen') created = createBlenderNode(p.x - 170, p.y - 120);
     else created = createImageNodeAt(p);
     createMenuGroupId = groupId;
     addCreatedNodeToMenuGroup(created);
@@ -19164,25 +19365,87 @@ async function exportMinimaxTimeline(node, options={}){
     }
 }
 
-// 外部拖入的 3D 资产节点（图片/模型从 AssetVault 或系统拖入画布时创建）
+// 外部拖入的 3D 模型节点（图片/模型从 AssetVault 或系统拖入画布时创建）
 function model3dNodeBodyHtml(node, layout){
     const sizeText = node.size ? ` · ${(node.size/1048576).toFixed(2)} MiB` : '';
-    return `<div style="padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center">
-        <div style="width:100%;height:150px;display:flex;align-items:center;justify-content:center;background:#0c1118;border:1px solid #223;border-radius:8px;color:#5b7686" class="model3d-thumb">
-            <i data-lucide="box" style="width:44px;height:44px"></i>
+    return `<div style="padding:10px;display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:100%;height:170px;position:relative">
+            <div data-smart-model-viewer="1" data-url="${escapeAttr(node.url || '')}" style="width:100%;height:100%;border-radius:8px;overflow:hidden;background:#0c1118;border:1px solid var(--ui-line-strong);display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:var(--ui-muted)">3D 预览加载中…</span></div>
+            <button type="button" class="model3d-spin" title="${node.spinPaused ? '继续旋转' : '暂停旋转'}" style="position:absolute;right:6px;top:6px;z-index:2;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--ui-line-strong);background:color-mix(in srgb, var(--ui-panel) 82%, transparent);color:var(--ui-text);cursor:pointer"><i data-lucide="${node.spinPaused ? 'play' : 'pause'}" style="width:14px;height:14px"></i></button>
         </div>
-        <div style="font-size:12px;color:#cdd9e5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(node.name || '3D 模型')}${escapeHtml(sizeText)}</div>
+        <div style="font-size:12px;color:var(--ui-text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(node.name || '3D 模型')}${escapeHtml(sizeText)}</div>
         <div style="display:flex;gap:8px">
-            <button type="button" class="model3d-preview" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">预览</button>
-            <button type="button" class="model3d-download" style="background:#1b2530;color:#cdd9e5;border:1px solid #33454f;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">下载</button>
+            <button type="button" class="model3d-download" style="background:var(--ui-panel);color:var(--ui-text);border:1px solid var(--ui-line-strong);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">下载</button>
         </div>
     </div>`;
 }
 
-// 供 external-asset-drop.js 调用：把拖入的模型文件上传并生成为 3D 资产节点
+/* 内嵌 GLB 预览。<model-viewer> 元素按 node.id 缓存，避免每次重绘新建 WebGL 上下文。*/
+const smartModelViewerCache = new Map();
+
+function smartModelViewerHolder(node){
+    const src = node.url || '';
+    const cached = smartModelViewerCache.get(node.id);
+    if(cached && cached.dataset.src === src && cached.dataset.ready === '1'){
+        const live = cached.querySelector('model-viewer');
+        if(live){
+            if(node.spinPaused) live.removeAttribute('auto-rotate');
+            else live.setAttribute('auto-rotate', '');
+        }
+        return cached;
+    }
+    const holder = document.createElement('div');
+    holder.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center';
+    holder.dataset.src = src;
+    const defined = !!(window.customElements && customElements.get('model-viewer'));
+    if(src && defined){
+        const viewer = document.createElement('model-viewer');
+        viewer.setAttribute('src', src);
+        viewer.setAttribute('alt', node.name || '3D 模型');
+        viewer.setAttribute('camera-controls', '');
+        if(!node.spinPaused) viewer.setAttribute('auto-rotate', '');
+        viewer.setAttribute('rotation-per-second', '22deg');
+        viewer.setAttribute('shadow-intensity', '0.8');
+        viewer.setAttribute('exposure', '1.1');
+        viewer.setAttribute('interaction-prompt', 'none');
+        viewer.setAttribute('style', 'width:100%;height:100%;--poster-color:transparent');
+        holder.appendChild(viewer);
+        holder.dataset.ready = '1';
+    } else {
+        holder.dataset.ready = '0';
+        holder.innerHTML = '<span style="font-size:11px;color:var(--ui-muted)">' + (src ? '3D 预览加载中…' : '暂无模型文件') + '</span>';
+        if(src && window.customElements && !window.__smModelViewerPending){
+            window.__smModelViewerPending = true;
+            customElements.whenDefined('model-viewer').then(() => {
+                window.__smModelViewerPending = false;
+                try{ render(); }catch(err){}
+            });
+        }
+    }
+    smartModelViewerCache.set(node.id, holder);
+    return holder;
+}
+
+function mountSmartModelViewers(rootEl, node){
+    if(!rootEl || !node) return;
+    const host = rootEl.querySelector('[data-smart-model-viewer]');
+    if(!host) return;
+    const holder = smartModelViewerHolder(node);
+    if(holder.parentElement !== host) host.replaceChildren(holder);
+}
+
+// 供 external-asset-drop.js 调用：把拖入的模型文件上传并生成为 3D 模型节点
 window.__assetDropCreateModelNode = async (files, point) => {
+    const list = [...(files || [])];
+    if(!list.length) throw new Error('没有可导入的模型文件');
+    // 节点预览、下载都只认 glb，模型统一先转换再入库；FBX/OBJ 的贴图依赖交给 convert 消费。
+    const converted = [];
+    for(const file of list){
+        if(window.GameModelImport?.isModel?.(file)) converted.push(await window.GameModelImport.convert(file, list));
+    }
+    if(!converted.length) throw new Error('没有识别到可导入的模型（支持 GLB、glTF、FBX、OBJ、STL、PLY）');
     const fd = new FormData();
-    for (const f of (files || [])) fd.append('files', f, f.name);
+    for(const f of converted) fd.append('files', f, f.name);
     const res = await fetch('/api/local-assets/upload', {method:'POST', body:fd});
     if(!res.ok) throw new Error('上传失败 ' + res.status);
     const data = await res.json().catch(() => ({files:[]}));
@@ -19206,12 +19469,51 @@ window.__assetDropCreateModelNode = async (files, point) => {
     }
     render();
     scheduleSave();
-    if(typeof window.toast === 'function') window.toast('已创建 ' + items.length + ' 个 3D 资产节点');
+    if(typeof window.toast === 'function') window.toast('已创建 ' + items.length + ' 个模型节点');
 };
 
 // 节点通过 innerHTML 重建，预览/下载按钮使用事件委托
 if(world){
     world.addEventListener('click', e => {
+        const blenderRun = e.target.closest && e.target.closest('.blender-run');
+        if(blenderRun){
+            e.stopPropagation();
+            const el = blenderRun.closest('.image-node');
+            const node = el && nodes.find(n => n.id === el.dataset.id);
+            if(node) runSmartBlenderNode(node);
+            return;
+        }
+        const blenderSalvage = e.target.closest && e.target.closest('.blender-salvage');
+        if(blenderSalvage){
+            e.stopPropagation();
+            const el = blenderSalvage.closest('.image-node');
+            const node = el && nodes.find(n => n.id === el.dataset.id);
+            if(!node || !node.jobId) return;
+            node.statusText = '正在回收 Blender 里的产物…';
+            render();
+            smartBlenderImport(node, node.jobId).then(() => {
+                node.status = 'produced';
+            }).catch(err => {
+                node.status = 'failed';
+                node.statusText = (err && err.message) || '回收失败';
+            }).finally(() => {
+                render();
+                if(typeof scheduleSave === 'function') scheduleSave();
+            });
+            return;
+        }
+        const spin = e.target.closest && e.target.closest('.model3d-spin');
+        if(spin){
+            e.stopPropagation();
+            const el = spin.closest('.image-node');
+            const node = el && nodes.find(n => n.id === el.dataset.id);
+            if(node){
+                node.spinPaused = !node.spinPaused;
+                render();
+                if(typeof scheduleSave === 'function') scheduleSave();
+            }
+            return;
+        }
         const preview = e.target.closest && e.target.closest('.model3d-preview');
         const download = e.target.closest && e.target.closest('.model3d-download');
         if(preview){
@@ -19228,5 +19530,42 @@ if(world){
                 a.href = node.url; a.download = node.name || 'model.glb'; a.click();
             }
         }
+    });
+    // 建模节点的输入框和渠道下拉同样走委托，节点重建不会丢事件
+    world.addEventListener('input', e => {
+        const prompt = e.target.closest && e.target.closest('.blender-prompt');
+        if(!prompt) return;
+        const el = prompt.closest('.image-node');
+        const node = el && nodes.find(n => n.id === el.dataset.id);
+        if(node) node.prompt = prompt.value;
+    });
+    // 「建模人设 · 手册」按钮：悬浮卡展示人设职责与作业手册，走 event 委托，节点重建不丢
+    world.addEventListener('click', e => {
+        const info = e.target.closest && e.target.closest('.blender-preset-info');
+        if(!info) return;
+        e.stopPropagation();
+        const host = info.closest('.image-node');
+        const node = host && nodes.find(n => n.id === host.dataset.id);
+        window.PresetInfo?.open(info, node?.presetId || 'default');
+    });
+    world.addEventListener('change', e => {
+        const preset = e.target.closest && e.target.closest('.blender-preset');
+        if(preset){
+            const host = preset.closest('.image-node');
+            const node = host && nodes.find(n => n.id === host.dataset.id);
+            if(node){
+                node.presetId = preset.value;
+                const picked = (smBlenderPresets || []).find(item => item.id === node.presetId);
+                const desc = host.querySelector('.blender-preset-desc');
+                if(desc) desc.textContent = picked ? picked.description : '';
+                scheduleSave();
+            }
+            return;
+        }
+        const select = e.target.closest && e.target.closest('.blender-model');
+        if(!select) return;
+        const el = select.closest('.image-node');
+        const node = el && nodes.find(n => n.id === el.dataset.id);
+        if(node){ node.modelRef = select.value; scheduleSave(); }
     });
 }

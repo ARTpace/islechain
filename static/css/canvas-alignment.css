@@ -1,0 +1,75 @@
+/* 画布对齐组件样式（配合 static/modules/canvas-alignment.js）
+   参考线覆盖层 + 多选对齐条。默认浅色，dark 主题走 .theme-dark 覆盖。 */
+
+.canvas-align-guides {
+    position: absolute;
+    inset: 0;
+    z-index: 26;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.canvas-align-guide {
+    position: absolute;
+    display: block;
+    background: var(--accent, #06b6d4);
+    opacity: .85;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #06b6d4) 22%, transparent);
+}
+
+.canvas-align-guide.is-v { width: 1px; }
+.canvas-align-guide.is-h { height: 1px; }
+
+.canvas-align-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ui-panel) 96.0%, transparent);
+    border: 1px solid var(--ui-line-strong);
+    box-shadow: 0 12px 30px rgba(23, 23, 22, .12);
+}
+
+/* 排列模式下由工具条自己承担外框，避免和 selection-hub 的胶囊叠两层 */
+.selection-hub.arrange-toolbar {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.canvas-align-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ui-muted);
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease;
+}
+
+.canvas-align-btn:hover { background: var(--ui-panel); color: var(--ui-text); }
+.canvas-align-btn:active { transform: scale(.94); }
+.canvas-align-btn svg { width: 15px; height: 15px; }
+
+.canvas-align-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: var(--ui-panel);
+}
+
+.theme-dark .canvas-align-bar {
+    background: var(--panel, #1c1c1a);
+    border-color: var(--line, #2e2e2b);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+}
+
+.theme-dark .canvas-align-btn { color: var(--muted, #9a9a93); }
+.theme-dark .canvas-align-btn:hover { background: var(--soft, #262623); color: var(--text, #f2f2ef); }
+.theme-dark .canvas-align-divider { background: var(--line, #2e2e2b); }

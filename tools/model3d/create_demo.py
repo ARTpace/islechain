@@ -36,7 +36,7 @@ def create_demo():
     rotations=accessor([0,0,0,1,0,1,0,0,0,0,0,-1],'VEC4',5126)
     parts=[('Body',[0,1.1,0],[.65,.85,.4],0),('Head',[0,1.8,0],[.58,.5,.5],1),('Arm L',[-.5,1.1,0],[.22,.85,.25],0),
            ('Arm R',[.5,1.1,0],[.22,.85,.25],0),('Leg L',[-.2,.35,0],[.25,.7,.3],1),('Leg R',[.2,.35,0],[.25,.7,.3],1)]
-    document=dict(asset=dict(version='2.0',generator='Art Canvas original demo'),scene=0,scenes=[dict(nodes=[0])],
+    document=dict(asset=dict(version='2.0',generator='IsleChain original demo'),scene=0,scenes=[dict(nodes=[0])],
         nodes=[dict(name='Robot',children=list(range(1,7)))]+[dict(name=name,mesh=material,translation=position,scale=scale) for name,position,scale,material in parts],
         materials=[dict(pbrMetallicRoughness=dict(baseColorFactor=[.2,.65,.65,1],metallicFactor=.25,roughnessFactor=.45)),dict(pbrMetallicRoughness=dict(baseColorFactor=[.95,.65,.25,1],metallicFactor=.1,roughnessFactor=.6))],
         meshes=[dict(primitives=[dict(attributes=dict(POSITION=p,NORMAL=n),indices=i,material=m)]) for m in range(2)],

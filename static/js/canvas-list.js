@@ -25,13 +25,13 @@ function rememberProjectId(pid){
     try { localStorage.setItem(CANVAS_LIST_PROJECT_KEY, pid); } catch(e){}
 }
 
-function formatCanvasTime(value){
+function formatCanvasTime(value, dateOnly = false){
     if(!value) return '--';
     const raw = Number(value);
     const time = raw < 10000000000 ? raw * 1000 : raw;
     const date = new Date(time);
     if(Number.isNaN(date.getTime())) return '--';
-    return date.toLocaleString(langIsEn() ? 'en-US' : 'zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return date.toLocaleString(langIsEn() ? 'en-US' : 'zh-CN', { month:'2-digit', day:'2-digit', ...(dateOnly ? {} : { hour:'2-digit', minute:'2-digit' }) });
 }
 
 function renderCanvasIcon(icon, size = 16){
@@ -61,7 +61,6 @@ const newCanvasBtn = document.getElementById('newCanvasBtn');
 const boardRefreshBtn = document.getElementById('boardRefresh');
 const boardResetViewBtn = document.getElementById('boardResetView');
 const pasteCanvasBtn = document.getElementById('pasteCanvasBtn');
-const emptyCreateCanvasBtn = document.getElementById('emptyCreateCanvasBtn');
 const statusEl = document.getElementById('boardStatus');
 
 /* ===== State ===== */
@@ -88,10 +87,13 @@ function setStatus(text){
 }
 
 /* ===== Viewport math (mirrors smart-canvas.js) ===== */
+let viewportFrame = 0;
 function applyViewport(){
-    boardWorld.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
-    board.style.backgroundSize = `${120 * viewport.scale}px ${120 * viewport.scale}px, ${120 * viewport.scale}px ${120 * viewport.scale}px, ${24 * viewport.scale}px ${24 * viewport.scale}px`;
-    board.style.backgroundPosition = `${viewport.x}px ${viewport.y}px, ${viewport.x}px ${viewport.y}px, ${viewport.x}px ${viewport.y}px`;
+    if(viewportFrame) return;
+    viewportFrame = requestAnimationFrame(() => {
+        viewportFrame = 0;
+        boardWorld.style.transform = `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`;
+    });
 }
 function screenToWorld(clientX, clientY){
     const rect = board.getBoundingClientRect();
@@ -360,7 +362,7 @@ function updateBoardHeader(){
 
 function autoLayoutNulls(items){
     // grid layout for cards with null board position; persist each once.
-    const X0 = 40, Y0 = 40, XSTRIDE = 276, YSTRIDE = 176, COLS = 4;
+    const X0 = 40, Y0 = 40, XSTRIDE = 276, YSTRIDE = 202, COLS = 4;
     const positioned = items.filter(c => c.board_x != null && c.board_y != null);
     const nulls = items.filter(c => c.board_x == null || c.board_y == null);
     // start index after existing positioned grid slots to reduce overlap
@@ -374,6 +376,29 @@ function autoLayoutNulls(items){
     });
 }
 
+async function arrangeBoardByTime(){
+    const button = document.getElementById('boardArrange');
+    const items = canvasesInProject(currentProjectId).slice().sort((a, b) =>
+        (Number(b.updated_at || b.created_at) || 0) - (Number(a.updated_at || a.created_at) || 0));
+    if(!items.length) return;
+    button.disabled = true;
+    closeCreateCard();
+    closeCardMenu();
+    const columns = Math.max(1, Math.min(6, Math.floor((board.clientWidth - 80) / 276)));
+    items.forEach((canvas, index) => {
+        canvas.board_x = 40 + (index % columns) * 276;
+        canvas.board_y = 90 + Math.floor(index / columns) * 252;
+    });
+    renderBoard();
+    resetView();
+    // ponytail: save sequentially with the existing metadata API, no bulk endpoint.
+    try {
+        for(const canvas of items) await persistMeta(canvas.id, { board_x:canvas.board_x, board_y:canvas.board_y });
+    } finally {
+        button.disabled = false;
+    }
+}
+
 function renderBoard(){
     updateBoardHeader();
     const items = canvasesInProject(currentProjectId);
@@ -385,6 +410,46 @@ function renderBoard(){
     refreshIcons();
 }
 
+// ponytail: reuse canvas media listing; cache previews for this page session only.
+const cardPreviewCache = new Map();
+const cardPreviewObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        cardPreviewObserver.unobserve(entry.target);
+        loadCardPreview(entry.target);
+    });
+}, { rootMargin: '80px' });
+
+async function loadCardPreview(card){
+    const id = card.dataset.canvasId;
+    const storageKey = 'canvas-card-preview:' + id;
+    const revision = card.dataset.previewRevision;
+    if (!cardPreviewCache.has(id)) {
+        try {
+            const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+            if(saved && saved.revision === revision && Array.isArray(saved.items)) cardPreviewCache.set(id, Promise.resolve(saved.items));
+        } catch (_) {}
+    }
+    if (!cardPreviewCache.has(id)) {
+        cardPreviewCache.set(id, fetch(`/api/canvases/${encodeURIComponent(id)}/media`)
+            .then(response => { if (!response.ok) throw new Error('preview'); return response.json(); })
+            .then(data => {
+                const items = (data.assets || data.files || []).filter(item => kindOf(item) === 'image').slice(0, 3);
+                try { sessionStorage.setItem(storageKey, JSON.stringify({ revision, items })); } catch (_) {}
+                return items;
+            }));
+    }
+    try {
+        const items = await cardPreviewCache.get(id);
+        if (!card.isConnected) return;
+        const stack = card.querySelector('.ws-card-previews');
+        stack.innerHTML = items.map((item, index) => `<img src="${escapeAttr(`/api/media-preview?url=${encodeURIComponent(item.url)}&w=256&v=${encodeURIComponent(item.mtime || revision)}`)}" alt="" loading="lazy" decoding="async" draggable="false" style="--preview-index:${index}">`).join('');
+        stack.querySelectorAll('img').forEach(img => { img.onerror = () => img.remove(); });
+    } catch (_) {
+        cardPreviewCache.delete(id);
+    }
+}
+
 function buildCard(c){
     const isSmart = (c.kind || 'classic') === 'smart';
     const card = document.createElement('div');
@@ -392,20 +457,21 @@ function buildCard(c){
         + (String(c.color || '').trim() ? ' cc-marked' : '')
         + (clipboardCanvasId === c.id ? ' cut' : '');
     card.dataset.canvasId = c.id;
+    card.dataset.previewRevision = String(c.updated_at || c.created_at || 0);
     card.style.left = (c.board_x || 0) + 'px';
     card.style.top = (c.board_y || 0) + 'px';
-    // 卡片布局：顶部=类型标签+更多按钮；中部=标题；底部=节点数·时间。已移除图标。
+    // Previews sit behind the folder face; existing click and drag targets stay intact.
     card.innerHTML = `
+        <div class="ws-card-previews" role="button" tabindex="0" aria-label="${L('打开画布','Open canvas')}"></div>
         <div class="ws-card-top">
-            <span class="ws-card-kind ${isSmart ? 'smart' : 'classic'}">${c.kind === 'game' ? L('游戏项目','Game project') : isSmart ? compactLabel('智能画布','智能','Smart') : compactLabel('普通画布','普通','Classic')}</span>
-            <button class="ws-card-enter" type="button" title="${L('进入画布','Open canvas')}" aria-label="${L('进入画布','Open canvas')}"><i data-lucide="arrow-up-right"></i></button>
+            <span class="ws-card-kind ${c.kind === 'game' ? 'game' : isSmart ? 'smart' : 'classic'}">${c.kind === 'game' ? L('游戏项目','Game project') : isSmart ? compactLabel('智能画布','智能','Smart') : compactLabel('普通画布','普通','Classic')}</span>
             <button class="ws-card-menu" type="button" title="${L('更多','More')}" aria-label="${L('更多','More')}"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
         </div>
-        <div class="ws-card-title">${escapeHtml(c.title)}</div>
+        <div class="ws-card-title" role="button" tabindex="0" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
         <div class="ws-card-meta">
             <span class="ws-card-nodes">${(c.node_count != null ? c.node_count : 0)} ${L('节点','nodes')}</span>
             <span class="ws-card-meta-dot"></span>
-            <span class="ws-card-time">${formatCanvasTime(c.updated_at || c.created_at)}</span>
+            <span class="ws-card-time" title="${formatCanvasTime(c.updated_at || c.created_at)}">${formatCanvasTime(c.updated_at || c.created_at, true)}</span>
         </div>
         <div class="ws-card-delete-confirm">
             <div class="ws-card-delete-title">${L('移入回收站？','Move to trash?')}</div>
@@ -414,13 +480,18 @@ function buildCard(c){
                 <button class="ws-card-delete-no" type="button">${L('取消','Cancel')}</button>
             </div>
         </div>`;
+    cardPreviewObserver.observe(card);
     attachCardDrag(card, c);
     const menuBtn = card.querySelector('.ws-card-menu');
     menuBtn.onmousedown = e => e.stopPropagation();
     menuBtn.onclick = e => { e.stopPropagation(); openCardMenu(c.id, menuBtn); };
-    const enterBtn = card.querySelector('.ws-card-enter');
-    enterBtn.onmousedown = e => e.stopPropagation();
-    enterBtn.onclick = e => { e.stopPropagation(); openCanvas(c); };
+    card.querySelectorAll('.ws-card-title, .ws-card-previews').forEach(target => {
+        target.onmousedown = e => e.stopPropagation();
+        target.onclick = e => { e.stopPropagation(); openCanvas(c); };
+        target.onkeydown = e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCanvas(c); }
+        };
+    });
     card.querySelector('.ws-card-delete-confirm').onmousedown = e => e.stopPropagation();
     card.querySelector('.ws-card-delete-yes').onclick = e => { e.stopPropagation(); deleteCanvas(c.id); };
     card.querySelector('.ws-card-delete-no').onclick = e => { e.stopPropagation(); card.classList.remove('confirming-delete'); };
@@ -432,7 +503,7 @@ function attachCardDrag(card, c){
     card.addEventListener('mousedown', e => {
         if(e.button !== 0) return;
         if(e.target.closest('.ws-card-menu')) return;
-        if(e.target.closest('.ws-card-enter')) return;
+        if(e.target.closest('.ws-card-title, .ws-card-previews')) return;
         if(e.target.closest('.ws-card-delete-confirm')) return;
         if(card.querySelector('.ws-card-title-input')) return; // editing title
         e.stopPropagation();
@@ -448,15 +519,17 @@ function attachCardDrag(card, c){
             }
             if(moved){
                 c.board_x = origX + dx; c.board_y = origY + dy;
-                card.style.left = c.board_x + 'px';
-                card.style.top = c.board_y + 'px';
+                card.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
             }
         };
         const onUp = () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
             card.classList.remove('dragging');
+            card.style.transform = '';
             if(moved){
+                card.style.left = c.board_x + 'px';
+                card.style.top = c.board_y + 'px';
                 persistMeta(c.id, { board_x: Math.round(c.board_x), board_y: Math.round(c.board_y) });
             } else {
                 openCanvasAssets(c);
@@ -472,15 +545,15 @@ function openCanvas(c){
     const project = encodeURIComponent(c.project || currentProjectId || 'default');
     rememberProjectId(c.project || currentProjectId || 'default');
     window.location.href = (c.kind === 'smart')
-        ? `/static/smart-canvas.html?id=${enc}&project=${project}&v=2026.07.03.4`
-        : `/static/canvas.html?id=${enc}&project=${project}&v=2026.07.03.4`;
+        ? `/static/smart-canvas.html?id=${enc}&project=${project}&fromCanvasList=1&v=20261105preset1`
+        : `/static/canvas.html?id=${enc}&project=${project}&fromCanvasList=1&v=20261105web1`;
 }
 
 /* ===== Card create flow ===== */
 let createCardEl = null;
 let createKind = 'classic';
 function closeCreateCard(){ createCardEl?.remove(); createCardEl = null; }
-function openCreateCard(worldPt){
+function openCreateCard(worldPt, anchor = null){
     closeCreateCard();
     closeCardMenu();
     createKind = 'classic';
@@ -500,7 +573,16 @@ function openCreateCard(worldPt){
             <button class="ws-create-confirm" type="button">${L('创建','Create')}</button>
             <button class="ws-create-cancel" type="button">${L('取消','Cancel')}</button>
         </div>`;
-    boardWorld.appendChild(el);
+    if(anchor){
+        document.body.appendChild(el);
+        const rect = anchor.getBoundingClientRect();
+        el.style.position = 'fixed';
+        el.style.zIndex = '100';
+        el.style.left = Math.max(8, Math.min(rect.right - el.offsetWidth, window.innerWidth - el.offsetWidth - 8)) + 'px';
+        el.style.top = Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - el.offsetHeight - 8)) + 'px';
+    } else {
+        boardWorld.appendChild(el);
+    }
     createCardEl = el;
     el.addEventListener('mousedown', e => e.stopPropagation());
     const input = el.querySelector('.ws-create-input');
@@ -751,44 +833,35 @@ function createZipBlob(entries){
 }
 
 async function exportCanvasWithResources(id){
-    const c = canvases.find(x => x.id === id);
-    setStatus(L('正在收集资源...','Collecting assets...'));
+    setStatus(L('正在导出资源包...','Exporting bundle...'));
     try {
-        const res = await fetch(`/api/canvases/${encodeURIComponent(id)}`);
-        if(!res.ok) throw new Error('export failed');
-        const data = await res.json();
-        const cv = data.canvas || data;
-        const base = safeExportBase((c?.title) || cv.title || 'canvas');
-        const urls = collectCanvasResourceUrls(cv).slice(0, 1000);
-        const usedNames = new Set(['canvas.json', 'resources-manifest.json']);
-        const entries = [{ name:'canvas.json', bytes:ZIP_ENCODER.encode(JSON.stringify(cv, null, 2)) }];
-        const manifest = [];
-        let skipped = 0;
-        for(let i = 0; i < urls.length; i++){
-            const url = urls[i];
-            try {
-                const bytes = await fetchResourceBytes(url);
-                const name = exportResourceName(url, i, usedNames);
-                entries.push({ name, bytes });
-                manifest.push({ url, file:name, size:bytes.length });
-            } catch(e) {
-                skipped++;
-                manifest.push({ url, skipped:true, reason:String(e?.message || e || 'fetch failed').slice(0, 120) });
-            }
-        }
-        entries.push({ name:'resources-manifest.json', bytes:ZIP_ENCODER.encode(JSON.stringify({ canvas_id:id, resources:manifest }, null, 2)) });
-        const blob = createZipBlob(entries);
+        const res = await fetch(`/api/canvases/${encodeURIComponent(id)}/export`);
+        if(!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Export failed');
+        const blob = await res.blob();
         const href = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = href;
-        a.download = `${base}.zip`;
+        a.download = `${safeExportBase(canvases.find(x => x.id === id)?.title || 'canvas')}.zip`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(href), 1500);
-        const included = Math.max(0, entries.length - 2);
-        setStatus(skipped
-            ? L(`已导出，跳过 ${skipped} 个资源`, `Exported, skipped ${skipped} assets`)
-            : L(`已导出 ${included} 个资源`, `Exported ${included} assets`));
-    } catch(e){ console.error(e); setStatus(L('导出失败','Export failed')); }
+        setStatus(res.headers.get('X-Canvas-Self-Contained') === 'true'
+            ? L('资源包已导出','Bundle exported')
+            : L('已导出，包含外部或缺失资源，详见包内清单','Exported with external or missing dependencies; see manifest'));
+    } catch(e){ console.error(e); setStatus(String(e.message || L('导出失败','Export failed'))); }
+}
+
+async function importCanvasBundle(file){
+    if(!file) return;
+    setStatus(L('正在导入资源包...','Importing bundle...'));
+    try {
+        const form = new FormData(); form.append('file', file);
+        const res = await fetch('/api/canvases/import', {method:'POST', body:form});
+        const data = await res.json();
+        if(!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : L('资源包无效','Invalid bundle'));
+        await loadAll();
+        setStatus(data.selfContained ? L('画布已导入默认项目','Canvas imported into Default')
+            : L('已导入默认项目，部分资源依赖外部来源','Imported into Default with external dependencies'));
+    } catch(e){ console.error(e); setStatus(String(e.message || L('导入失败','Import failed'))); }
 }
 
 /* ===== Cut / paste a canvas across projects ===== */
@@ -996,14 +1069,10 @@ board.addEventListener('dblclick', e => {
     openCreateCard(screenToWorld(e.clientX, e.clientY));
 });
 
-newCanvasBtn.addEventListener('click', () => openCreateCard(boardCenterWorld()));
-emptyCreateCanvasBtn?.addEventListener('mousedown', e => e.stopPropagation());
-emptyCreateCanvasBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    openCreateCard(boardCenterWorld());
-});
+newCanvasBtn.addEventListener('click', () => openCreateCard(boardCenterWorld(), newCanvasBtn));
 boardRefreshBtn.addEventListener('click', loadAll);
 boardResetViewBtn.addEventListener('click', resetView);
+document.getElementById('boardArrange').addEventListener('click', arrangeBoardByTime);
 pasteCanvasBtn?.addEventListener('click', pasteCanvas);
 
 newProjectBtn.addEventListener('click', openNewProject);
@@ -1257,3 +1326,10 @@ window.StudioI18n?.apply?.();
 applyViewport();
 loadAll();
 refreshIcons();
+
+const importBundleInput = document.getElementById('importBundleInput');
+document.getElementById('importBundleBtn')?.addEventListener('click', () => importBundleInput?.click());
+importBundleInput?.addEventListener('change', async () => {
+    await importCanvasBundle(importBundleInput.files?.[0]);
+    importBundleInput.value = '';
+});

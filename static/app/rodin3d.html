@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D 生成</title>
+<link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+<script src="/static/js/theme-default.js"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ui-bg, #0d0f12); color: var(--ui-text, #e8eaee); font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #view { position: fixed; top: 0; left: 0; width: calc(100% - 304px); height: 100%; border: 0; background: var(--ui-bg, #0d0f12); }
+
+  .panel {
+    position: fixed; left: 16px; top: 16px; width: 310px; max-height: calc(100vh - 32px);
+    display: flex; flex-direction: column; gap: 0;
+    background: color-mix(in srgb, var(--ui-panel, #16191f) 88%, transparent);
+    border: 1px solid var(--ui-line, #262b33); border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(12px); overflow: hidden; z-index: 5;
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid var(--ui-line, #262b33); }
+  .panel-head b { font-size: 14px; font-weight: 600; letter-spacing: .2px; }
+  .panel-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  .panel.is-collapsed .panel-body { display: none; }
+  .panel.is-collapsed .panel-head { border-bottom: 0; }
+
+  .icon-btn { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--ui-line, #262b33); border-radius: 7px; background: var(--ui-soft, #1c2027); color: var(--ui-muted, #8c93a1); cursor: pointer; }
+  .icon-btn:hover { color: var(--ui-text, #e8eaee); border-color: var(--ui-line-strong, #3a4150); }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .icon-btn[hidden] { display: none; }
+  .panel-tools { display: flex; align-items: center; gap: 6px; }
+  .icon-btn:disabled { opacity: .35; cursor: default; }
+  .face-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .face-value { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ui-text, #e8eaee); }
+  .face-slider { width: 100%; margin: 4px 0; accent-color: var(--ui-accent, #2f6bff); cursor: pointer; }
+  .face-slider:disabled { opacity: .35; cursor: default; }
+  .adaptive-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 12px; color: var(--ui-muted, #8c93a1); }
+  .adaptive-row[hidden] { display: none; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field[hidden] { display: none; }
+  .seg.two { grid-template-columns: repeat(2, 1fr); }
+  .hint { line-height: 1.6; overflow-wrap: anywhere; }
+  .label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ui-text, #e8eaee); }
+  .label em { font-style: normal; font-weight: 500; color: var(--ui-muted, #8c93a1); }
+
+  .upload { position: relative; display: grid; place-items: center; min-height: 132px; padding: 10px; border: 1px dashed var(--ui-line-strong, #3a4150); border-radius: 11px; background: var(--ui-soft, #1c2027); cursor: pointer; overflow: hidden; transition: border-color .15s, background .15s; }
+  .upload:hover, .upload.is-over { border-color: var(--ui-accent, #2f6bff); background: color-mix(in srgb, var(--ui-accent, #2f6bff) 10%, var(--ui-soft, #1c2027)); }
+  .upload.has-image { border-style: solid; padding: 0; background: #0a0c10; }
+  .upload img { display: none; width: 100%; height: 132px; object-fit: contain; }
+  .upload.has-image img { display: block; }
+  .upload.has-image .upload-empty { display: none; }
+  .upload-empty { display: grid; justify-items: center; gap: 5px; color: var(--ui-muted, #8c93a1); text-align: center; }
+  .upload-empty svg { width: 22px; height: 22px; color: var(--ui-accent, #2f6bff); }
+  .upload-empty b { font-size: 12.5px; font-weight: 600; color: var(--ui-text, #e8eaee); }
+  .upload-empty small { font-size: 11px; }
+
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 4px; border-radius: 10px; background: var(--ui-soft, #1c2027); }
+  .seg button { display: grid; gap: 1px; justify-items: center; padding: 7px 4px; border: 0; border-radius: 7px; background: transparent; color: var(--ui-text, #e8eaee); opacity: .62; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, opacity .15s; }
+  .seg button small { font-size: 10px; font-weight: 500; opacity: .8; }
+  .seg button:hover { opacity: .92; }
+  .seg button.is-active { background: var(--ui-accent, #2f6bff); color: var(--ui-accent-ink, #fff); opacity: 1; }
+  .seg button.is-active small { opacity: .85; }
+
+  textarea, input[type="text"], input[type="number"] { width: 100%; padding: 9px 10px; border: 1px solid var(--ui-line, #262b33); border-radius: 9px; background: var(--ui-soft, #1c2027); color: var(--ui-text, #e8eaee); font: inherit; font-size: 12.5px; outline: none; resize: vertical; }
+  textarea { min-height: 62px; }
+  textarea:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: var(--ui-accent, #2f6bff); }
+  textarea::placeholder, input::placeholder { color: var(--ui-faint, #5d6472); }
+
+  .primary { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; height: 40px; border: 0; border-radius: 10px; background: linear-gradient(135deg, var(--ui-accent, #2f6bff), var(--ui-accent-glow, var(--ui-accent))); color: var(--ui-accent-ink, #fff); font-size: 13px; font-weight: 700; letter-spacing: .3px; cursor: pointer; box-shadow: 0 8px 20px color-mix(in srgb, var(--ui-accent, #2f6bff) 28%, transparent); }
+  .primary:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  .primary svg { width: 15px; height: 15px; }
+
+  .progress { display: grid; gap: 6px; }
+  .progress[hidden] { display: none; }
+  .track { height: 4px; border-radius: 999px; background: var(--ui-soft, #1c2027); overflow: hidden; }
+  .fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--ui-accent, #2f6bff), var(--ui-accent-glow, var(--ui-accent))); transition: width .35s ease; }
+  .progress-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--ui-muted, #8c93a1); }
+  .progress-meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress-meta span:last-child { font-variant-numeric: tabular-nums; }
+
+  .result { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--ui-line, #262b33); border-radius: 11px; background: var(--ui-soft, #1c2027); }
+  .result[hidden] { display: none; }
+  .result .ghost { height: 36px; font-size: 12.5px; }
+  .download { position: relative; }
+  .download .ghost { width: 100%; }
+  .download .caret { width: 12px; height: 12px; margin-left: 2px; transition: transform .18s ease; }
+  .download.is-open .caret { transform: rotate(180deg); }
+  .fmt-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); padding: 5px; display: flex; flex-direction: column; gap: 2px; background: var(--ui-panel, #16191f); border: 1px solid var(--ui-line, #262b33); border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .5); z-index: 9; }
+  .fmt-menu[hidden] { display: none; }
+  .fmt-menu button { padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ui-text, #e8eaee); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+  .fmt-menu button:hover { background: var(--ui-soft, #1c2027); }
+  .fmt-menu button:disabled { opacity: .45; cursor: default; }
+  .redo-row { display: flex; align-items: center; gap: 8px; }
+  .redo-row[hidden] { display: none; }
+  .redo-row .ghost { flex: 1; }
+  .redo-left { font-size: 11px; color: var(--ui-muted, #8c93a1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .kv { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; }
+  .kv span { color: var(--ui-muted, #8c93a1); }
+  .kv b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 3px; }
+  .ghost { display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; border: 1px solid var(--ui-line-strong, #3a4150); border-radius: 8px; background: transparent; color: var(--ui-text, #e8eaee); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .ghost:hover { border-color: var(--ui-accent, #2f6bff); }
+  .ghost:disabled { opacity: .4; cursor: default; }
+  .ghost[hidden] { display: none; }
+  .ghost svg { width: 14px; height: 14px; }
+
+  details { border-top: 1px solid var(--ui-line, #262b33); padding-top: 10px; }
+  summary { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--ui-muted, #8c93a1); cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { color: var(--ui-text, #e8eaee); }
+  details[open] summary { margin-bottom: 9px; }
+  .empty { font-size: 11.5px; color: var(--ui-muted, #8c93a1); padding: 4px 0; }
+
+  .advanced { display: grid; gap: 7px; }
+  .advanced[open] { display: grid; }
+  .hint { font-size: 11px; color: var(--ui-muted, #8c93a1); }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ui-muted, #8c93a1); }
+  .dot.ok { background: #35c46a; }
+  .dot.bad { background: #e0554d; }
+
+  .log { max-height: 62px; overflow-y: auto; font-family: ui-monospace, monospace; font-size: 10.5px; line-height: 1.6; color: var(--ui-muted, #8c93a1); white-space: pre-wrap; word-break: break-all; }
+  .log:empty { display: none; }
+
+  /* 右侧资产栏：生成过的模型按缩略图排成网格 */
+  .assetbar {
+    position: fixed; right: 16px; top: 16px; bottom: 16px; width: 272px;
+    display: flex; flex-direction: column;
+    background: color-mix(in srgb, var(--ui-panel, #16191f) 88%, transparent);
+    border: 1px solid var(--ui-line, #262b33); border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(12px); overflow: hidden; z-index: 5;
+  }
+  .assetbar-head { display: flex; align-items: center; gap: 7px; padding: 12px 12px 11px; border-bottom: 1px solid var(--ui-line, #262b33); }
+  .assetbar-head b { font-size: 13.5px; font-weight: 600; letter-spacing: .2px; }
+  .assetbar-head .count { font-size: 11px; color: var(--ui-muted, #8c93a1); }
+  .assetbar-head .icon-btn { margin-left: auto; }
+
+  /* 预览信息 + 显示开关：原来浮在画面左上角会被生成面板挡住，统一收到右栏 */
+  .viewer-info { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 10px 12px; border-bottom: 1px solid var(--ui-line, #262b33); font-size: 11.5px; }
+  .viewer-info span { color: var(--ui-muted, #8c93a1); }
+  .viewer-info b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--ui-text, #e8eaee); }
+  .viewer-switches { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--ui-line, #262b33); }
+  .viewer-switches .sw-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ui-text, #e8eaee); cursor: pointer; }
+  .viewer-switches .sw-label svg { width: 14px; height: 14px; color: var(--ui-muted, #8c93a1); }
+  .switch { position: relative; width: 42px; height: 24px; margin-left: auto; flex: none; border: 0; padding: 0; border-radius: 14px; background: var(--ui-line-strong, #3a4150); cursor: pointer; transition: background .16s; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--ui-text); transition: transform .16s; }
+  .switch.on { background: linear-gradient(100deg, var(--ui-accent-glow, var(--ui-accent)), var(--ui-accent)); }
+  .switch.on::after { background: var(--ui-accent-ink); }
+  .switch.on::after { transform: translateX(18px); }
+  .switch:disabled { opacity: .35; cursor: default; }
+  .adaptive-row .switch { margin-left: 0; }
+  .asset-grid { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; }
+  .asset-foot { padding: 9px 12px; border-top: 1px solid var(--ui-line, #262b33); font-size: 11px; line-height: 1.5; color: var(--ui-muted, #8c93a1); font-variant-numeric: tabular-nums; }
+  .asset-foot:empty { display: none; }
+  .asset-foot b { color: var(--ui-text, #e8eaee); font-weight: 600; }
+  .asset-card { position: relative; aspect-ratio: 1; padding: 0; border: 1px solid var(--ui-line, #262b33); border-radius: 10px; background: var(--ui-soft, #1c2027); overflow: hidden; cursor: pointer; transition: border-color .15s; }
+  .asset-card:hover { border-color: var(--ui-line-strong, #3a4150); }
+  .asset-card.is-active { border-color: var(--ui-accent, #2f6bff); }
+  .asset-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .asset-card .ph { display: grid; place-items: center; width: 100%; height: 100%; color: var(--ui-faint, #5d6472); }
+  .asset-card .ph svg { width: 22px; height: 22px; }
+  .asset-card .meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 5px 3px; font-family: ui-monospace, monospace; font-size: 9.5px; line-height: 1.2; color: #d3d8e0; background: linear-gradient(transparent, rgba(0, 0, 0, .78)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .14s; }
+  .asset-card:hover .meta, .asset-card.is-active .meta { opacity: 1; }
+  .asset-empty { grid-column: 1 / -1; padding: 20px 0; text-align: center; font-size: 11.5px; color: var(--ui-muted, #8c93a1); }
+
+  .modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .55); z-index: 20; }
+  .modal[hidden] { display: none; }
+  .modal-card { width: 340px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--ui-line, #262b33); border-radius: 14px; background: var(--ui-panel, #16191f); box-shadow: 0 24px 60px rgba(0, 0, 0, .55); }
+  .modal-card h3 { margin: 0; font-size: 13.5px; }
+</style>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
+</head>
+<body>
+  <iframe id="view" title="3D 预览" src="/api/model3d/viewer?v=20261110a"></iframe>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <b>3D 生成</b>
+      <div class="panel-tools">
+      <button type="button" class="icon-btn" id="channelToggle" title="网页通道 · 点击切换 API" aria-label="网页通道 · 点击切换 API"></button>
+      <button type="button" class="icon-btn" id="connectionSettings" title="连接设置" aria-label="连接设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m10 3-1 3-3 1-3 3 2 3-1 3 3 2 3-1 3 2 3-2 1-3 3-2-1-3-3-1-1-3Z"/></svg></button>
+      <button type="button" class="icon-btn" id="precheckBtn" title="免费预检：检查输入和连接，不生成模型" aria-label="免费预检" hidden disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3M8 14h8"/></svg>
+      </button>
+      <button class="icon-btn" id="collapseBtn" title="收起面板">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      <div class="seg two" id="channelSeg" aria-label="调用通道" hidden>
+        <button type="button" data-channel="webai2api" class="is-active">webai2api</button>
+        <button type="button" data-channel="api">API · Tripo</button>
+      </div>
+      <section id="tripoControls" hidden aria-label="Tripo API"></section>
+      <div id="webControls">
+      <div class="seg two" id="modeSeg" aria-label="3D 操作">
+        <button type="button" data-mode="generate" class="is-active">生成模型<small>图片转 3D</small></button>
+        <button type="button" data-mode="topology">低模拓扑<small>混元 3D</small></button>
+      </div>
+      <div class="field" id="providerField">
+        <div class="label">生成模型</div>
+        <div class="seg two" id="providerSeg">
+          <button type="button" data-provider="hyper3d" class="is-active">Hyper3D</button>
+          <button type="button" data-provider="hunyuan">混元图生低模</button>
+        </div>
+      </div>
+      <div class="field" id="imageField">
+        <div class="label">参考图</div>
+        <div class="upload" id="uploadZone">
+          <img id="thumb" alt="参考图">
+          <div class="upload-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <b>上传图片</b>
+            <small>点击选择 · 拖入 · 或 Ctrl+V 粘贴</small>
+            <small id="imageLimit">png / jpg / webp，≤24MB</small>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+      </div>
+
+      <div class="field" id="modelField" hidden>
+        <div class="label">输入模型</div>
+        <button type="button" class="ghost" id="modelUploadBtn">上传 OBJ / GLB / FBX</button>
+        <input type="file" id="modelInput" accept=".obj,.glb,.fbx" hidden>
+        <button type="button" class="ghost" id="useCurrentBtn" disabled>使用当前预览模型</button>
+        <div class="hint" id="modelName" hidden></div>
+      </div>
+
+      <div class="field" id="topologyField" hidden>
+        <div class="face-heading"><div class="label">模型面数</div><output class="face-value" id="faceCountValue" for="faceCountInput">20,000</output></div>
+        <div class="adaptive-row" id="adaptiveFacesLabel"><span>自适应面数</span><button type="button" class="switch on" id="adaptiveFaces" role="switch" aria-checked="true" aria-label="自适应面数"></button></div>
+        <input type="range" class="face-slider" id="faceCountInput" aria-label="目标面数" min="100" max="60000" step="1" value="20000" disabled>
+        <div class="label">拓扑类型</div>
+        <div class="seg two" id="topologySeg">
+          <button type="button" data-topology="quad" class="is-active">四边面</button>
+          <button type="button" data-topology="triangle">三角面</button>
+        </div>
+      </div>
+
+      <div class="field" id="effortField">
+        <div class="label">精细度</div>
+        <div class="seg" id="effortSeg">
+          <button type="button" data-effort="low">低<small>面数少</small></button>
+          <button type="button" data-effort="medium" class="is-active">中<small>推荐</small></button>
+          <button type="button" data-effort="high">高<small>更细</small></button>
+        </div>
+      </div>
+
+      <div class="field" id="promptField">
+        <div class="label">补充提示词 <em>可选</em></div>
+        <textarea id="promptInput" placeholder="描述材质、风格或要保留的细节"></textarea>
+      </div>
+
+      <button id="genBtn" class="primary" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/></svg>
+        <span id="genLabel">立即生成</span>
+      </button>
+
+      <div class="progress" id="progressWrap" hidden>
+        <div class="track"><div class="fill" id="progressFill"></div></div>
+        <div class="progress-meta"><span id="progressStatus">准备中…</span><span id="progressPercent">0%</span></div>
+      </div>
+
+      <div class="result" id="resultBox" hidden>
+        <div class="download">
+          <button id="downloadBtn" class="ghost" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12m0 0 4-4m-4 4-4-4"/><path d="M4 20h16"/></svg>
+            <span id="downloadLabel">下载 GLB</span>
+            <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 15 6-6 6 6"/></svg>
+          </button>
+          <div class="fmt-menu" id="fmtMenu" hidden>
+            <button type="button" data-fmt="fbx">fbx</button>
+            <button type="button" data-fmt="glb">glb</button>
+            <button type="button" data-fmt="stl">stl</button>
+            <button type="button" data-fmt="obj">obj</button>
+            <button type="button" data-fmt="usdz">usdz</button>
+          </div>
+        </div>
+        <div class="redo-row" id="redoRow" hidden>
+          <button id="redoBtn" class="ghost" type="button">重做几何</button>
+          <span class="redo-left" id="redoLeft"></span>
+        </div>
+      </div>
+
+      <button id="connBtn" class="ghost" hidden><span class="dot" id="connDot"></span><span id="connText">连接设置</span></button>
+
+      <div class="log" id="logBox"></div>
+      </div>
+    </div>
+  </aside>
+
+  <aside class="assetbar" id="assetbar">
+    <div class="assetbar-head">
+      <b>资产</b>
+      <span class="count" id="historyCount"></span>
+      <button class="icon-btn" id="historyRefresh" title="刷新资产列表">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+    <div class="viewer-info">
+      <span>模型面数</span><b id="stFaces">—</b>
+      <span>顶点数</span><b id="stVerts">—</b>
+      <span>文件大小</span><b id="stSize">—</b>
+    </div>
+    <div class="viewer-switches">
+      <span class="sw-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        地面网格
+      </span>
+      <button class="switch on" id="gridSwitch" type="button" role="switch" aria-checked="true" aria-label="地面网格" title="显示 / 隐藏地面网格"></button>
+    </div>
+    <div class="asset-grid" id="assetGrid"></div>
+    <div class="asset-foot" id="assetFoot"></div>
+  </aside>
+
+  <div class="modal" id="connModal" hidden>
+    <div class="modal-card">
+      <h3>webai2api 连接</h3>
+      <div class="field">
+        <div class="label">服务地址</div>
+        <input type="text" id="baseInput" placeholder="http://127.0.0.1:3005">
+      </div>
+      <div class="field">
+        <div class="label">API Key</div>
+        <input type="text" id="keyInput" placeholder="留空表示沿用已保存的">
+      </div>
+      <div class="row">
+        <button id="connCancel" class="ghost">取消</button>
+        <button id="connSave" class="primary" style="height:32px;font-size:12px;">保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var view = $('view');
+
+  var STAGE_TEXT = {
+    launching_browser: '启动浏览器',
+    submitting: '提交任务',
+    waiting_for_preview: '等待生成',
+    decoding_mesh: '解码网格',
+    processing: '混元拓扑处理中',
+    ready_to_submit: '参数就绪'
+  };
+  var STATUS_TEXT = {
+    queued: '排队中',
+    running: '生成中',
+    validated: '预检通过',
+    preview_ready: '预览完成（未取到网格）',
+    succeeded: '已完成',
+    failed: '失败',
+    needs_review: '需人工确认'
+  };
+
+  var state = { image: '', effort: 'medium', taskId: '', previewUrl: '', timer: 0, busy: false, downloadFmt: 'glb',
+    mode: 'generate', provider: 'hyper3d', topology: 'quad', model: null, loadedTaskId: '', resultTaskId: '', loadedBytes: 0, taskProvider: 'hyper3d' };
+
+  function updateActions() {
+    var topology = state.mode === 'topology';
+    $('genBtn').disabled = state.busy || !(topology ? state.model : state.image);
+    $('precheckBtn').disabled = state.busy || !(topology ? state.model : state.image);
+    $('useCurrentBtn').disabled = state.busy || !state.loadedTaskId || state.loadedBytes > 24 * 1048576;
+    $('useCurrentBtn').title = state.loadedBytes > 24 * 1048576 ? '当前模型超过 24MB，请先简化后上传' : '';
+    $('modelUploadBtn').disabled = state.busy;
+    $('adaptiveFaces').disabled = state.busy;
+    $('faceCountInput').disabled = state.busy || (topology && $('adaptiveFaces').getAttribute('aria-checked') === 'true');
+    $('faceCountValue').textContent = topology && $('adaptiveFaces').getAttribute('aria-checked') === 'true' ? '自动' : Number($('faceCountInput').value).toLocaleString();
+    $('downloadBtn').disabled = state.busy || !state.resultTaskId;
+    document.querySelectorAll('#modeSeg button, #topologySeg button, #providerSeg button').forEach(function (button) { button.disabled = state.busy; });
+    setGenLabel(state.busy ? '处理中…' : topology ? '开始拓扑' : state.provider === 'hunyuan' ? '生成低模' : '立即生成');
+    $('genBtn').title = topology || state.provider === 'hunyuan' ? '正式生成会消耗混元网站额度' : '';
+    window.dispatchEvent(new Event('canvas3d-state'));
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    var hunyuanImage = mode === 'generate' && state.provider === 'hunyuan';
+    $('providerField').hidden = mode !== 'generate';
+    $('imageField').hidden = mode !== 'generate';
+    $('effortField').hidden = mode !== 'generate' || hunyuanImage;
+    $('promptField').hidden = mode !== 'generate' || hunyuanImage;
+    $('modelField').hidden = mode !== 'topology';
+    $('topologyField').hidden = mode !== 'topology' && !hunyuanImage;
+    $('adaptiveFacesLabel').hidden = hunyuanImage;
+    $('precheckBtn').hidden = mode !== 'topology' && !hunyuanImage;
+    $('imageLimit').textContent = hunyuanImage ? 'png / jpg / webp，≤10MB，宽高至少 128 像素' : 'png / jpg / webp，≤24MB';
+    document.querySelectorAll('#modeSeg button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.mode === mode);
+    });
+    updateActions();
+    refreshRedo();
+  }
+
+  $('providerSeg').addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-provider]');
+    if (!button || state.busy) return;
+    state.provider = button.dataset.provider;
+    document.querySelectorAll('#providerSeg button').forEach(function (item) {
+      item.classList.toggle('is-active', item === button);
+    });
+    setMode(state.mode);
+  });
+
+  $('modeSeg').addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-mode]');
+    if (button && !state.busy) setMode(button.dataset.mode);
+  });
+  $('topologySeg').addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-topology]');
+    if (!button || state.busy) return;
+    state.topology = button.dataset.topology;
+    Array.prototype.forEach.call($('topologySeg').children, function (item) {
+      item.classList.toggle('is-active', item === button);
+    });
+  });
+  $('modelUploadBtn').addEventListener('click', function () { $('modelInput').click(); });
+  $('adaptiveFaces').addEventListener('click', function () {
+    var enabled = this.getAttribute('aria-checked') !== 'true';
+    this.setAttribute('aria-checked', String(enabled));
+    this.classList.toggle('on', enabled);
+    updateActions();
+  });
+  $('faceCountInput').addEventListener('input', function () {
+    $('faceCountValue').textContent = Number(this.value).toLocaleString();
+  });
+  $('modelInput').addEventListener('change', function () {
+    var file = $('modelInput').files[0];
+    if (!file || state.busy) return;
+    if (!/\.(obj|glb|fbx)$/i.test(file.name) || !file.size || file.size > 24 * 1048576) {
+      log('请选择不超过 24MB 的 OBJ / GLB / FBX 模型'); return;
+    }
+    // 保留 File，提交时才编码，避免把大模型存入 localStorage。
+    state.model = { file: file };
+    $('modelName').textContent = file.name + ' · ' + fmtSize(file.size);
+    $('modelName').hidden = false;
+    updateActions();
+  });
+  $('useCurrentBtn').addEventListener('click', function () {
+    if ($('useCurrentBtn').disabled) return;
+    state.model = { source_task_id: state.loadedTaskId };
+    $('modelName').textContent = '当前模型 ' + state.loadedTaskId.slice(0, 8) + ' · ' + fmtSize(state.loadedBytes);
+    $('modelName').hidden = false;
+    updateActions();
+  });
+
+  function log(text) {
+    var box = $('logBox');
+    var now = new Date();
+    var stamp = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+    box.textContent = '[' + stamp + '] ' + text + '\n' + box.textContent.split('\n').slice(0, 5).join('\n');
+  }
+
+  function setProgress(pct, text) {
+    $('progressWrap').hidden = false;
+    $('progressFill').style.width = Math.max(0, Math.min(100, pct)) + '%';
+    $('progressPercent').textContent = Math.round(pct) + '%';
+    if (text !== undefined) $('progressStatus').textContent = text;
+  }
+
+  function fmtSize(bytes) {
+    var n = Number(bytes) || 0;
+    if (!n) return '—';
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  // ---------------------------------------------------------------- 预览器通信
+
+  var viewerReady = false;
+  var viewerWaiters = [];
+
+  function markViewerReady() {
+    if (viewerReady) return;
+    viewerReady = true;
+    viewerWaiters.splice(0).forEach(function (fn) { fn(); });
+  }
+
+  function whenViewerReady() {
+    if (viewerReady) return Promise.resolve();
+    return new Promise(function (resolve) {
+      viewerWaiters.push(resolve);
+      setTimeout(resolve, 20000);
+    });
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== view.contentWindow) return;
+    var data = event.data || {};
+    if (data.type === 'model-ready') {
+      markViewerReady();
+    } else if (data.type === 'model-loaded') {
+      markViewerReady();
+      setProgress(100, '已载入预览');
+      if (view.contentWindow) view.contentWindow.postMessage({ type: 'set-grid', visible: gridOn }, '*');
+      var thumbnailTaskId = state.loadedTaskId;
+      setTimeout(function () { makeThumb(thumbnailTaskId); }, 1200);
+    } else if (data.type === 'model-reference') {
+      var waiter = captureWaiters[data.requestId];
+      if (waiter && data.blob) { delete captureWaiters[data.requestId]; waiter(data.blob); }
+    } else if (data.type === 'model-error') {
+      log('预览加载失败：' + (data.message || '未知原因'));
+      setProgress(92, '预览加载失败，可下载后本地查看');
+    }
+  });
+
+  var probe = setInterval(function () {
+    try { view.contentWindow.postMessage({ type: 'query-ready' }, '*'); } catch (err) { /* 预览器还没起来 */ }
+  }, 1000);
+  whenViewerReady().then(function () { clearInterval(probe); });
+
+  function loadIntoViewer(buffer) {
+    return whenViewerReady().then(function () {
+      view.contentWindow.postMessage({ type: 'load-model', buffer: buffer }, '*', [buffer]);
+    });
+  }
+
+  var externalAssetMode = false;
+  window.canvas3d = {
+    website: function (input, dryRun) {
+      state.provider = input.provider;
+      state.image = input.image || state.image;
+      state.effort = input.effort || 'medium';
+      state.topology = input.quad ? 'quad' : 'triangle';
+      $('faceCountInput').value = input.faces || 20000;
+      $('adaptiveFaces').setAttribute('aria-checked', String(!!input.adaptive));
+      $('promptInput').value = input.prompt || '';
+      state.maxCredits = input.maxCredits;
+      setMode(input.topology ? 'topology' : 'generate');
+      if (input.topology) submitTopology(dryRun); else submitGeneration(dryRun);
+    },
+    assetMode: function (channel) { externalAssetMode = channel === 'api'; if (!externalAssetMode) loadHistory(); },
+    refreshActions: function () { setMode(state.mode); },
+    busy: function () { return state.busy; },
+    image: function () { return state.image; },
+    preview: function (buffer) {
+      state.taskProvider = 'tripo';
+      state.previewUrl = '';
+      $('redoRow').hidden = true;
+      $('stFaces').textContent = '—'; $('stVerts').textContent = '—';
+      $('stSize').textContent = fmtSize(buffer.byteLength);
+      return loadIntoViewer(buffer);
+    }
+  };
+
+  // ---------------------------------------------------------------- 配置
+
+  function loadConfig() {
+    return fetch('/api/rodin3d/config', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (cfg) {
+        state.config = cfg;
+        var ok = !!(cfg.has_key && cfg.reachable);
+        $('connDot').className = 'dot ' + (ok ? 'ok' : 'bad');
+        $('connText').textContent = cfg.has_key ? (cfg.reachable ? '已连接' : '服务不可达') : '未配置 Key';
+        $('connBtn').hidden = ok;
+        $('baseInput').value = cfg.base_url || '';
+        return cfg;
+      })
+      .catch(function () {
+        $('connDot').className = 'dot bad';
+        $('connText').textContent = '连接失败';
+        $('connBtn').hidden = false;
+      });
+  }
+
+  $('connBtn').addEventListener('click', function () { $('connModal').hidden = false; });
+  $('connCancel').addEventListener('click', function () { $('connModal').hidden = true; });
+  $('connSave').addEventListener('click', function () {
+    var body = { base_url: $('baseInput').value.trim(), api_key: $('keyInput').value.trim() };
+    fetch('/api/rodin3d/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status)); return d; }); })
+      .then(function () { $('keyInput').value = ''; $('connModal').hidden = true; log('连接设置已保存'); return loadConfig(); })
+      .catch(function (e) { log('保存失败：' + e.message); });
+  });
+
+  // ---------------------------------------------------------------- 选图
+
+  var uploadZone = $('uploadZone');
+  var fileInput = $('fileInput');
+
+  function applyFile(file) {
+    if (!file || state.busy || state.mode !== 'generate') return;
+    if (!/^image\//.test(file.type)) { log('只支持图片文件'); return; }
+    var limit = state.provider === 'hunyuan' ? 10 : 24;
+    if (file.size > limit * 1048576) { log('图片超过 ' + limit + 'MB（当前 ' + fmtSize(file.size) + '）'); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      state.image = String(reader.result || '');
+      $('thumb').src = state.image;
+      uploadZone.classList.add('has-image');
+      $('genBtn').disabled = false;
+      setGenLabel('立即生成');
+      log('已选择 ' + file.name + ' · ' + fmtSize(file.size));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  uploadZone.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () { applyFile(fileInput.files && fileInput.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (type) {
+    uploadZone.addEventListener(type, function (e) { e.preventDefault(); uploadZone.classList.add('is-over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (type) {
+    uploadZone.addEventListener(type, function (e) { e.preventDefault(); uploadZone.classList.remove('is-over'); });
+  });
+  uploadZone.addEventListener('drop', function (e) {
+    var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    applyFile(file);
+  });
+
+  // 剪贴板粘贴：只要有图片就接管，粘贴文字不受影响
+  document.addEventListener('paste', function (e) {
+    if (window.canvas3d && window.canvas3d.precheck) return;
+    var data = e.clipboardData;
+    if (!data) return;
+    var items = data.items || [];
+    for (var i = 0; i < items.length; i++) {
+      if (!items[i].type || !/^image\//.test(items[i].type)) continue;
+      var blob = items[i].getAsFile();
+      if (!blob) continue;
+      e.preventDefault();
+      var ext = (/^image\/([a-z0-9.+-]+)/i.exec(blob.type) || [])[1] || 'png';
+      if (ext === 'jpeg') ext = 'jpg';
+      applyFile(new File([blob], '粘贴图片.' + ext, { type: blob.type }));
+      return;
+    }
+  });
+
+  // ---------------------------------------------------------------- 精细度
+
+  function setEffort(value) {
+    var target = $('effortSeg').querySelector('button[data-effort="' + value + '"]');
+    if (!target) return;
+    state.effort = target.dataset.effort;
+    Array.prototype.forEach.call($('effortSeg').children, function (b) {
+      b.classList.toggle('is-active', b === target);
+    });
+  }
+
+  $('effortSeg').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-effort]');
+    if (!btn) return;
+    setEffort(btn.dataset.effort);
+  });
+
+  function setGenLabel(text) {
+    $('genLabel').textContent = text;
+  }
+
+  // ---------------------------------------------------------------- 提交
+
+
+  function submitRequest(body, endpoint) {
+    return fetch(endpoint || '/api/rodin3d/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.text().then(function (text) {
+        var data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (err) { data = null; }
+        if (!response.ok) throw new Error((data && data.detail) || ('HTTP ' + response.status));
+        if (!data) throw new Error('服务返回内容无法解析');
+        return data;
+      });
+    });
+  }
+
+  function submitGeneration(dryRun) {
+    if (state.mode === 'topology') { submitTopology(false); return; }
+    if (!state.image || state.busy) return;
+    var hunyuan = state.provider === 'hunyuan';
+    var tripo = state.provider === 'tripo';
+    var faceCount = Number($('faceCountInput').value);
+    if (hunyuan && (!Number.isInteger(faceCount) || faceCount < 100 || faceCount > 60000)) {
+      $('faceCountInput').reportValidity();
+      log('目标面数必须是 100～60,000 的整数');
+      return;
+    }
+
+    state.busy = true;
+    updateActions();
+    state.previewUrl = '';
+    $('redoRow').hidden = true;
+    $('genBtn').disabled = true;
+    setGenLabel('生成中…');
+    $('downloadBtn').disabled = true;
+    $('resultBox').hidden = false;
+    $('stFaces').textContent = '—';
+    $('stVerts').textContent = '—';
+    $('stSize').textContent = '—';
+    setProgress(6, '正在提交…');
+    log('提交任务（' + state.effort + '）…');
+
+    var body = { image: state.image, provider: state.provider, effort: state.effort,
+      prompt: hunyuan ? null : ($('promptInput').value.trim() || null),
+      idempotency_key: 'canvas-image-' + crypto.randomUUID() };
+    if (hunyuan) Object.assign(body, { dry_run: dryRun === true, face_count: faceCount, topology: state.topology });
+    if (tripo) Object.assign(body, { dry_run: dryRun === true, prompt: null, max_credits: state.maxCredits });
+    saveLastSubmit();
+
+    submitRequest(body).catch(function (error) {
+      if (hunyuan || tripo) throw error;
+      if (!/Failed to fetch|NetworkError|Load failed/.test(error.message)) throw error;
+      log('连接被中断，2 秒后重试一次…');
+      return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return submitRequest(body); });
+    }).then(function (data) {
+      state.taskId = data.id;
+      log('已受理，任务号 ' + data.id);
+      setProgress(12, '任务已排队');
+      poll();
+    }).catch(function (error) {
+      state.busy = false;
+      updateActions();
+      $('genBtn').disabled = false;
+      setGenLabel('重新生成');
+      var reason = String(error.message || '未知错误').slice(0, 120);
+      setProgress(0, '提交失败 · ' + reason);
+      log('提交失败：' + reason);
+    });
+  }
+  $('genBtn').addEventListener('click', function () { submitGeneration(false); });
+
+  function submitTopology(dryRun) {
+    if (!state.model || state.busy) return;
+    var faceCount = $('adaptiveFaces').getAttribute('aria-checked') === 'true' ? null : Number($('faceCountInput').value);
+    if (faceCount !== null && (!Number.isInteger(faceCount) || faceCount < 100 || faceCount > 60000)) {
+      $('faceCountInput').reportValidity();
+      log('目标面数必须是 100～60,000 的整数');
+      return;
+    }
+    var input = state.model;
+    state.busy = true;
+    state.previewUrl = '';
+    state.taskProvider = 'hunyuan';
+    $('redoRow').hidden = true;
+    updateActions();
+    setProgress(5, dryRun ? '正在免费预检…' : '正在提交拓扑…');
+    var body = { topology: state.topology, dry_run: dryRun,
+      idempotency_key: 'canvas-topology-' + crypto.randomUUID() };
+    if (faceCount !== null) body.face_count = faceCount;
+    var readInput = input.source_task_id ? Promise.resolve({ source_task_id: input.source_task_id }) : new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve({ filename: input.file.name, base64: String(reader.result).split(',')[1] }); };
+      reader.onerror = function () { reject(new Error('模型文件读取失败')); };
+      reader.readAsDataURL(input.file);
+    });
+    // 混元提交只发一次；连接中断或 needs_review 时先检查网站，避免重复消耗额度。
+    readInput.then(function (data) {
+      return submitRequest(Object.assign(body, data), '/api/rodin3d/topology');
+    }).then(function (data) {
+      state.taskId = data.id;
+      $('downloadBtn').disabled = true;
+      log((dryRun ? '预检' : '拓扑') + '已受理，任务号 ' + data.id);
+      poll();
+    }).catch(function (error) {
+      state.busy = false;
+      updateActions();
+      setProgress(0, '提交失败：' + error.message);
+      log('提交失败：' + error.message + '；若连接中断，请先检查混元网站资产记录');
+    });
+  }
+
+  $('precheckBtn').addEventListener('click', function () {
+    if (window.canvas3d.precheck) { window.canvas3d.precheck(); return; }
+    if (state.mode === 'topology') submitTopology(true);
+    else submitGeneration(true);
+  });
+
+  // ---------------------------------------------------------------- 轮询
+
+  function applyTask(task) {
+    state.taskProvider = task.provider || 'hyper3d';
+    if (task.faces) $('stFaces').textContent = Number(task.faces).toLocaleString();
+    if (task.vertices) $('stVerts').textContent = Number(task.vertices).toLocaleString();
+    var preview = (task.output || {}).preview_url;
+    state.previewUrl = state.taskProvider === 'hyper3d' ? (preview || '') : '';
+  }
+
+  function poll() {
+    clearTimeout(state.timer);
+    fetch('/api/rodin3d/task/' + state.taskId, { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status)); return d; }); })
+      .then(function (task) {
+        applyTask(task);
+        var status = String(task.status || '');
+
+        if (status === 'succeeded') { finish(state.taskId, task); return; }
+        if (status === 'submitted') {
+          state.busy = false; updateActions();
+          setProgress(100, '已提交网站，文件请在官网查看');
+          var website = task.website_url || (task.output || {}).website_url || (task.output || {}).url;
+          if (website && /^https:\/\/studio\.tripo3d\.(ai|com)\//.test(website)) {
+            var link = document.createElement('a'); link.href = website; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '查看 Tripo 任务'; $('logBox').appendChild(link);
+          }
+          return;
+        }
+
+        if (status === 'validated' || status === 'preview_ready' || status === 'failed' || status === 'needs_review') {
+          state.busy = false;
+          updateActions();
+          if (status === 'validated') {
+            setProgress(100, '预检通过，未消耗生成额度');
+            log('预检通过；点击正式生成按钮才会生成并消耗额度');
+          } else if (status === 'preview_ready') {
+            setProgress(70, '只拿到预览链接，未取到网格');
+          } else if (status === 'failed') {
+            setProgress(0, '失败 · ' + (task.error || '未知原因'));
+            log('生成失败：' + String(task.error || '未知原因').slice(0, 160));
+          } else {
+            setProgress(60, '提交状态不确定，请先检查网站，勿重复提交');
+            log('提交状态不确定：' + String(task.error || '未返回原因').replace(/\s+/g, ' ').slice(0, 160));
+            if (task.hint) log('提示：' + String(task.hint).slice(0, 160));
+          }
+          return;
+        }
+
+        var pct = 15;
+        if (status === 'running') pct = 30;
+        if (task.stage === 'submitting') pct = 22;
+        if (task.stage === 'waiting_for_preview') pct = 55;
+        if (task.stage === 'decoding_mesh') pct = 88;
+        setProgress(pct, (STATUS_TEXT[status] || status || '处理中') + (STAGE_TEXT[task.stage] ? ' · ' + STAGE_TEXT[task.stage] : ''));
+        state.timer = setTimeout(poll, 3000);
+      })
+      .catch(function (error) {
+        setProgress(0, '查询失败：' + error.message);
+        state.timer = setTimeout(poll, 6000);
+      });
+  }
+
+  // ---------------------------------------------------------------- 完成后载入预览
+
+  function finish(taskId, task) {
+    state.busy = true;
+    state.taskId = taskId;
+    state.resultTaskId = taskId;
+    updateActions();
+    $('resultBox').hidden = false;
+    setProgress(95, '取回 GLB…');
+    loadHistory();
+    refreshRedo();
+
+    fetch('/api/rodin3d/task/' + taskId + '/file', { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(function (buffer) {
+        state.loadedTaskId = taskId;
+        state.loadedBytes = buffer.byteLength;
+        updateActions();
+        $('stSize').textContent = fmtSize(buffer.byteLength);
+        setProgress(98, '载入预览…');
+        return loadIntoViewer(buffer);
+      })
+      .catch(function (error) {
+        setProgress(90, '文件取回失败：' + error.message);
+        log('文件取回失败：' + error.message + '（任务 ' + taskId + ' 仍可在历史里重试）');
+      }).then(function () {
+        state.busy = false;
+        updateActions();
+      });
+  }
+
+  // ---------------------------------------------------------------- 重做（每任务 10 次）
+
+  function refreshRedo() {
+    var row = $('redoRow');
+    if (state.mode !== 'generate' || state.provider !== 'hyper3d' || !state.previewUrl || state.taskProvider !== 'hyper3d') { row.hidden = true; return; }
+    row.hidden = false;
+    $('redoLeft').textContent = '查询中…';
+    fetch('/api/rodin3d/redo?task_url=' + encodeURIComponent(state.previewUrl), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || typeof data.left !== 'number') { row.hidden = true; return; }
+        $('redoLeft').textContent = '剩余 ' + data.left + '/' + data.limit + ' 次';
+        $('redoBtn').disabled = data.left <= 0;
+      })
+      .catch(function () { row.hidden = true; });
+  }
+
+  function submitRedo() {
+    if (state.mode !== 'generate' || state.provider !== 'hyper3d' || state.taskProvider !== 'hyper3d' || !state.previewUrl || state.busy) return;
+    if (!window.confirm('重做会用掉 1 次免费重做（每个模型共 10 次），重新生成几何。继续？')) return;
+    state.busy = true;
+    updateActions();
+    $('redoBtn').disabled = true;
+    $('genBtn').disabled = true;
+    setGenLabel('重做中…');
+    $('downloadBtn').disabled = true;
+    setProgress(10, '正在提交重做…');
+    log('重做几何…');
+    fetch('/api/rodin3d/redo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_url: state.previewUrl, prompt: $('promptInput').value.trim() || null })
+    })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status)); return d; }); })
+      .then(function (data) {
+        state.taskId = data.id;
+        $('redoLeft').textContent = '剩余 ' + data.left + '/' + (data.limit || 10) + ' 次';
+        log('重做已受理（' + data.id + '），剩余 ' + data.left + ' 次');
+        setProgress(15, '重做已排队');
+        poll();
+      })
+      .catch(function (error) {
+        state.busy = false;
+        updateActions();
+        $('genBtn').disabled = false;
+        $('redoBtn').disabled = false;
+        setGenLabel('重新生成');
+        setProgress(0, '重做失败：' + error.message);
+        log('重做失败：' + error.message);
+      });
+  }
+
+  $('redoBtn').addEventListener('click', submitRedo);
+
+  function openTask(taskId) {
+    if (state.busy) return;
+    state.taskId = taskId;
+    state.busy = true;
+    state.previewUrl = '';
+    $('redoRow').hidden = true;
+    updateActions();
+    $('resultBox').hidden = false;
+    $('downloadBtn').disabled = false;
+    if (state.image) setGenLabel('重新生成');
+    setProgress(20, '载入任务 ' + String(taskId).slice(0, 8) + '…');
+    fetch('/api/rodin3d/task/' + taskId, { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status)); return d; }); })
+      .then(function (task) {
+        applyTask(task);
+        refreshRedo();
+        if (task.status === 'succeeded') finish(taskId, task);
+        else poll();
+      })
+      .catch(function (error) {
+        state.busy = false;
+        updateActions();
+        setProgress(0, '载入失败：' + error.message);
+      });
+  }
+
+  var FORMAT_LABEL = { fbx: 'FBX', glb: 'GLB', stl: 'STL', obj: 'OBJ', usdz: 'USDZ' };
+  var downloadWrap = document.querySelector('.download');
+
+  function closeFmtMenu() {
+    $('fmtMenu').hidden = true;
+    downloadWrap.classList.remove('is-open');
+  }
+
+  $('downloadBtn').addEventListener('click', function (event) {
+    event.stopPropagation();
+    if ($('downloadBtn').disabled) return;
+    var open = $('fmtMenu').hidden;
+    $('fmtMenu').hidden = !open;
+    downloadWrap.classList.toggle('is-open', open);
+  });
+  document.addEventListener('click', function (event) {
+    if (!downloadWrap.contains(event.target)) closeFmtMenu();
+  });
+
+  $('fmtMenu').addEventListener('click', function (event) {
+    var fmt = event.target.getAttribute && event.target.getAttribute('data-fmt');
+    if (!fmt) return;
+    closeFmtMenu();
+    state.downloadFmt = fmt;
+    $('downloadLabel').textContent = '下载 ' + (FORMAT_LABEL[fmt] || fmt.toUpperCase());
+    downloadTask(fmt);
+  });
+
+  function filenameFrom(disposition, fallback) {
+    var matched = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition || '');
+    if (!matched) return fallback;
+    try { return decodeURIComponent(matched[1]); } catch (error) { return matched[1]; }
+  }
+
+  function downloadTask(fmt) {
+    if (!state.resultTaskId || state.busy) return;
+    var resultTaskId = state.resultTaskId;
+    var label = $('downloadLabel');
+    label.textContent = fmt === 'glb' ? '准备中…' : '转换 ' + (FORMAT_LABEL[fmt] || fmt.toUpperCase()) + '…';
+    $('downloadBtn').disabled = true;
+    fetch('/api/rodin3d/task/' + resultTaskId + '/file?fmt=' + fmt, { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) {
+          return response.json().then(
+            function (data) { throw new Error((data && data.detail) || ('HTTP ' + response.status)); },
+            function () { throw new Error('HTTP ' + response.status); }
+          );
+        }
+        var name = filenameFrom(response.headers.get('content-disposition'), 'model3d_' + resultTaskId.slice(0, 8) + '.' + fmt);
+        return response.blob().then(function (blob) { return { blob: blob, name: name }; });
+      })
+      .then(function (data) {
+        var url = URL.createObjectURL(data.blob);
+        var anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = data.name;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+        log('已下载 ' + data.name + '（' + fmtSize(data.blob.size) + '）');
+      })
+      .catch(function (error) {
+        log('下载失败：' + error.message);
+        setProgress(0, '下载失败：' + error.message);
+      })
+      .then(function () {
+        label.textContent = '下载 ' + (FORMAT_LABEL[state.downloadFmt] || String(state.downloadFmt).toUpperCase());
+        $('downloadBtn').disabled = false;
+      });
+  }
+
+  // ---------------------------------------------------------------- 资产（历史）
+
+  var THUMB_KEY = 'rodin3d_thumbs_v1';
+  var CUBE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>';
+
+  function thumbMap() {
+    try { return JSON.parse(localStorage.getItem(THUMB_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+
+  function saveThumb(id, dataUrl) {
+    var map = thumbMap();
+    map[id] = dataUrl;
+    try { localStorage.setItem(THUMB_KEY, JSON.stringify(map)); } catch (e) { /* 配额满就算了 */ }
+  }
+
+  function setActiveCard(id) {
+    var cards = $('assetGrid').querySelectorAll('.asset-card');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].classList.toggle('is-active', cards[i].dataset.id === id);
+    }
+  }
+
+  function loadStats() {
+    fetch('/api/rodin3d/stats', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var foot = $('assetFoot');
+        if (externalAssetMode) return;
+        if (!data || !data.total) { foot.textContent = ''; foot.title = ''; return; }
+        foot.innerHTML = '今日生成 <b>' + data.today + '</b> 个 · 累计 <b>' + data.total + '</b> 个';
+        foot.title = data.last_at ? '最近一次：' + data.last_at : '';
+      })
+      .catch(function () { /* 统计失败不影响列表 */ });
+  }
+
+  function loadHistory() {
+    if (externalAssetMode) return;
+    loadStats();
+    fetch('/api/rodin3d/history?limit=30', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (externalAssetMode) return;
+        var items = (data && data.items) || [];
+        var thumbs = thumbMap();
+        $('historyCount').textContent = items.length ? String(items.length) : '';
+        var grid = $('assetGrid');
+        grid.innerHTML = '';
+        if (!items.length) { grid.innerHTML = '<div class="asset-empty">还没有生成记录</div>'; return; }
+        items.forEach(function (item) {
+          var id = String(item.id || '');
+          var card = document.createElement('button');
+          card.type = 'button';
+          card.className = 'asset-card';
+          card.dataset.id = id;
+          var provider = item.provider === 'hunyuan' ? (item.operation === 'image-to-low-poly' ? '混元图生低模' : '混元拓扑') : 'Hyper3D';
+          card.title = provider + ' · ' + id.slice(0, 8) + ' · ' + fmtSize(item.bytes);
+          card.innerHTML = (thumbs[id] ? '<img src="' + thumbs[id] + '" alt="">' : '<span class="ph">' + CUBE_SVG + '</span>')
+            + '<span class="meta">' + provider + ' · ' + id.slice(0, 8) + '</span>';
+          card.addEventListener('click', function () { if (!state.busy) { setActiveCard(id); openTask(id); } });
+          grid.appendChild(card);
+        });
+        setActiveCard(state.taskId);
+      })
+      .catch(function () { /* 历史失败不影响主流程 */ });
+  }
+
+  $('historyRefresh').addEventListener('click', function () { loadHistory(); log('资产列表已刷新'); });
+
+  // ---------------------------------------------------------------- 地面网格
+
+  var gridOn = true;
+
+  $('gridSwitch').addEventListener('click', function () {
+    gridOn = !gridOn;
+    $('gridSwitch').classList.toggle('on', gridOn);
+    $('gridSwitch').setAttribute('aria-checked', String(gridOn));
+    if (view.contentWindow) view.contentWindow.postMessage({ type: 'set-grid', visible: gridOn }, '*');
+    log('地面网格：' + (gridOn ? '显示' : '隐藏'));
+  });
+
+  // 模型载入后截一帧当缩略图，存本地，下次打开资产栏就能看到
+  var captureSeq = 0;
+  var captureWaiters = {};
+
+  function captureView() {
+    return new Promise(function (resolve, reject) {
+      var requestId = 'c' + (++captureSeq);
+      var timer = setTimeout(function () { delete captureWaiters[requestId]; reject(new Error('截图超时')); }, 10000);
+      captureWaiters[requestId] = function (blob) { clearTimeout(timer); resolve(blob); };
+      view.contentWindow.postMessage({ type: 'capture-model-reference', requestId: requestId }, '*');
+    });
+  }
+
+  function blobToThumb(blob) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        var size = 240;
+        var canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        var ctx = canvas.getContext('2d');
+        var scale = Math.max(size / img.width, size / img.height);
+        var w = img.width * scale;
+        var h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  function makeThumb(taskId) {
+    if (!taskId) return;
+    captureView()
+      .then(blobToThumb)
+      .then(function (dataUrl) {
+        if (!dataUrl) return;
+        saveThumb(taskId, dataUrl);
+        var card = $('assetGrid').querySelector('.asset-card[data-id="' + taskId + '"]');
+        if (!card) return;
+        var ph = card.querySelector('.ph');
+        if (ph) ph.outerHTML = '<img src="' + dataUrl + '" alt="">';
+      })
+      .catch(function () { /* 截图失败就保持占位图 */ });
+  }
+
+  // ---------------------------------------------------------------- 上次提交（支持重新生成）
+
+  var LAST_SUBMIT_KEY = 'rodin3d_last_submit_v1';
+
+  function saveLastSubmit() {
+    try {
+      localStorage.setItem(LAST_SUBMIT_KEY, JSON.stringify({
+        image: state.image,
+        effort: state.effort,
+        provider: state.provider,
+        topology: state.topology,
+        face_count: Number($('faceCountInput').value),
+        prompt: $('promptInput').value.trim(),
+        at: Date.now()
+      }));
+    } catch (error) {
+      // 图片太大超过 localStorage 配额时放弃记忆，不影响本次生成
+    }
+  }
+
+  function restoreLastSubmit() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LAST_SUBMIT_KEY) || 'null'); } catch (error) { saved = null; }
+    if (!saved || !saved.image) return false;
+    state.image = saved.image;
+    $('thumb').src = saved.image;
+    $('uploadZone').classList.add('has-image');
+    $('promptInput').value = saved.prompt || '';
+    setEffort(saved.effort || 'medium');
+    state.provider = saved.provider === 'hunyuan' ? 'hunyuan' : 'hyper3d';
+    state.topology = saved.topology === 'triangle' ? 'triangle' : 'quad';
+    $('faceCountInput').value = saved.face_count || 20000;
+    document.querySelectorAll('#providerSeg button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.provider === state.provider);
+    });
+    document.querySelectorAll('#topologySeg button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.topology === state.topology);
+    });
+    setMode(state.mode);
+    $('genBtn').disabled = false;
+    setGenLabel('重新生成');
+    return true;
+  }
+
+  // ---------------------------------------------------------------- 折叠
+
+  $('collapseBtn').addEventListener('click', function () {
+    $('panel').classList.toggle('is-collapsed');
+  });
+
+  // ---------------------------------------------------------------- 启动
+
+  loadConfig();
+  loadHistory();
+  restoreLastSubmit();
+
+  var preload = new URLSearchParams(location.search).get('task');
+  if (preload && /^[a-f0-9]{32}$/.test(preload)) {
+    setActiveCard(preload);
+    openTask(preload);
+  }
+})();
+</script>
+<link rel="stylesheet" href="/static/css/theme.css?v=20261108011">
+<link rel="stylesheet" href="/static/app/rodin3d-tripo.css">
+<script src="/static/modules/image-generation-workflow.js"></script>
+<script type="module" src="/static/app/rodin3d-tripo.js"></script>
+</body>
+</html>

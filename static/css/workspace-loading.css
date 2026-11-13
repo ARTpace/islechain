@@ -1,0 +1,16 @@
+.workspace-loading{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:32px;background:var(--ui-bg);color:var(--ui-muted);opacity:0;visibility:hidden;pointer-events:none;transition:opacity 180ms ease,visibility 0s linear 180ms}
+.workspace-loading.is-visible{opacity:1;visibility:visible;transition:opacity 120ms ease}
+.workspace-loading-signature{color:var(--ui-text);font:500 17px/1.4 "Segoe UI",sans-serif;letter-spacing:.24em;padding-left:.24em}
+.workspace-loading-signature span{font-weight:300;opacity:.6}
+.workspace-loading-track{position:relative;width:112px;height:1px;margin:26px 0 18px;overflow:hidden;background:var(--ui-line)}
+.workspace-loading-track::after{content:'';position:absolute;inset:0;background:var(--ui-text);opacity:.6;transform:translateX(-100%)}
+.workspace-loading.is-visible .workspace-loading-track::after{animation:workspace-glide 1.8s cubic-bezier(.45,0,.25,1) infinite}
+.workspace-loading-label{font-size:12px;line-height:1.6;letter-spacing:.08em}
+@keyframes workspace-glide{0%{transform:translateX(-100%)}65%,100%{transform:translateX(100%)}}
+.stage iframe.active.workspace-waiting{opacity:0;pointer-events:none;transform:translateY(4px)}
+.stage iframe{transition:opacity 220ms ease,transform 220ms cubic-bezier(.2,.7,.3,1),visibility 0s linear 220ms}
+.stage iframe.active{transition:opacity 220ms ease,transform 220ms cubic-bezier(.2,.7,.3,1),visibility 0s}
+.sidebar .nav-item:active,.sidebar .nav-child:active{transform:translateY(1px)}
+
+
+@media(prefers-reduced-motion:reduce){.workspace-loading,.stage iframe,.stage iframe.active{transition:none}.workspace-loading.is-visible .workspace-loading-track::after{animation:none;transform:none;opacity:.3}.stage iframe.active.workspace-waiting,.sidebar .nav-item:active,.sidebar .nav-child:active{transform:none}}

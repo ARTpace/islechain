@@ -6,24 +6,25 @@
     <title>随机生成器</title>
     <script src="/static/modules/auth-token.js"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark');if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
-    <link rel="stylesheet" href="/static/theme.css">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <style>
         :root{--bg:var(--ui-bg);--text-main:var(--ui-text);--accent:var(--ui-accent);--card-bg:var(--ui-panel);--border:var(--ui-line);--text-sub:var(--ui-muted);}
         body{background:var(--bg);color:var(--text-main);font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:0;min-height:100vh;padding:24px;}
         body.studio-theme-dark{--bg:var(--ui-bg);--text-main:var(--ui-text);--card-bg:var(--ui-panel);--border:var(--ui-line);--text-sub:var(--ui-muted);}
-        
+
         .container{max-width:600px;margin:0 auto;}
         .header{margin-bottom:24px;}
         .header h1{font-size:20px;font-weight:800;margin:0 0 4px;}
         .header p{font-size:12px;color:var(--text-sub);margin:0;}
-        
+
         .card{background:var(--card-bg);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:12px;}
-        
+
         .source-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
         .source-row:last-child{border-bottom:none;}
         .source-icon{font-size:20px;width:32px;text-align:center;}
@@ -31,40 +32,40 @@
         .source-name{font-size:13px;font-weight:700;}
         .source-count{font-size:11px;color:var(--text-sub);}
         .source-controls{display:flex;align-items:center;gap:8px;}
-        
-        .toggle{position:relative;width:36px;height:20px;background:#cccccc;border-radius:10px;cursor:pointer;transition:background 0.2s;}
+
+        .toggle{position:relative;width:36px;height:20px;background:var(--ui-soft);border-radius:10px;cursor:pointer;transition:background 0.2s;}
         .toggle.active{background:var(--accent);}
-        .toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fbfaf9;border-radius:50%;transition:transform 0.2s;}
+        .toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--ui-panel);border-radius:50%;transition:transform 0.2s;}
         .toggle.active::after{transform:translateX(16px);}
-        
+
         select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text-main);outline:none;}
         select:focus{border-color:var(--accent);}
-        
+
         .count-input{width:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;text-align:center;background:transparent;color:var(--text-main);outline:none;}
         .count-input:focus{border-color:var(--accent);}
-        
+
         .btn{height:40px;padding:0 24px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:8px;}
-        .btn-primary{background:var(--accent);color:#fbfaf9;}
+        .btn-primary{background:var(--accent);color:var(--ui-text);}
         .btn-primary:hover{opacity:0.9;transform:translateY(-1px);}
         .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-main);}
         .btn-ghost:hover{background:rgba(0, 0, 0, 0.04);}
         body.studio-theme-dark .btn-ghost:hover{background:rgba(255, 255, 255, 0.04);}
-        
+
         .btn-row{display:flex;gap:8px;margin-top:16px;}
-        
+
         .result-box{margin-top:16px;padding:16px;border-radius:12px;background:rgba(6, 182, 212, 0.05);border:1px solid rgba(6, 182, 212, 0.2);}
         .result-title{font-size:11px;font-weight:800;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;}
         .result-content{font-size:12px;line-height:1.8;}
         .result-item{display:inline-block;padding:4px 8px;margin:2px;border-radius:6px;background:rgba(6, 182, 212, 0.1);font-weight:600;}
-        
+
         .empty-state{text-align:center;padding:40px;color:var(--text-sub);}
         .empty-state .icon{font-size:48px;margin-bottom:12px;opacity:0.5;}
         .empty-state .text{font-size:13px;font-weight:600;}
-        
+
         .toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:1000;transform:translateX(120%);transition:transform 0.3s ease;}
         .toast.show{transform:translateX(0);}
-        .toast.success{background:#10b981;color:#fbfaf9;}
-        .toast.error{background:#ef4444;color:#fbfaf9;}
+        .toast.success{background:#10b981;color:var(--ui-text);}
+        .toast.error{background:#ef4444;color:var(--ui-text);}
     </style>
     <style id="ui-responsive">
         /* === 统一响应式：与 studio-ui.css 断点对齐（≤640 移动） === */
@@ -76,7 +77,13 @@
             .btn-row { flex-direction:column; }
             .btn-row .btn { width:100%; }
             .source-row { flex-wrap:wrap; }
-            .source-controls { flex-wrap:wrap; }
+            /* 分类下拉独占下一行，给数量框与开关保留位置。 */
+            .source-info { min-width:0; overflow-wrap:anywhere; }
+            .source-icon, .toggle, .count-input { flex-shrink:0; }
+            .source-controls { flex-wrap:wrap; flex-basis:100%; min-width:0; }
+            .source-controls select { flex:1; min-width:0; max-width:100%; }
+            .result-content, .result-item { overflow-wrap:anywhere; max-width:100%; }
+            .toast { max-width:calc(100vw - 28px); right:14px; box-sizing:border-box; overflow-wrap:anywhere; }
         }
     </style>
 </head>
@@ -232,13 +239,13 @@
         // === 随机生成 ===
         async function randomAll() {
             const config = {};
-            
+
             // 收集配置
             for (const id of Object.keys(sources)) {
                 const toggle = document.getElementById(`${id}Toggle`);
                 const category = document.getElementById(`${id}Category`);
                 const countInput = document.getElementById(`${id}Count`);
-                
+
                 config[id] = {
                     enabled: toggle ? toggle.classList.contains('active') : true,
                     category: category ? category.value : undefined,
@@ -267,29 +274,29 @@
         function renderResult(result) {
             const box = document.getElementById('resultBox');
             const content = document.getElementById('resultContent');
-            
+
             let html = '';
-            
+
             for (const [id, item] of Object.entries(result)) {
                 const source = sources[id];
                 if (!source) continue;
-                
+
                 html += `<div style="margin-bottom:8px;">`;
                 html += `<strong>${source.icon} ${source.name}:</strong> `;
-                
+
                 if (Array.isArray(item)) {
                     html += item.map(i => `<span class="result-item">${i.name || i.id}</span>`).join(' ');
                 } else {
                     html += `<span class="result-item">${item.name || item.id}</span>`;
                 }
-                
+
                 html += `</div>`;
             }
-            
+
             if (!html) {
                 html = '<div style="color:var(--text-sub);">未选择任何随机源</div>';
             }
-            
+
             content.innerHTML = html;
             box.style.display = 'block';
         }
@@ -300,7 +307,7 @@
                 showToast('没有可复制的结果', 'error');
                 return;
             }
-            
+
             let text = '';
             for (const [id, item] of Object.entries(lastResult)) {
                 if (Array.isArray(item)) {
@@ -310,9 +317,9 @@
                 }
                 text += ', ';
             }
-            
+
             text = text.replace(/, $/, '');
-            
+
             navigator.clipboard.writeText(text).then(() => {
                 showToast('已复制到剪贴板', 'success');
             }).catch(() => {

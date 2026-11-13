@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.node_catalog import ComponentField, Identifier, digest
+from core.node_catalog import ComponentField, Identifier, NodeUI, digest
 
 
 class ComfyField(BaseModel):
@@ -29,6 +29,7 @@ class BuildRequest(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     workflow: dict[str, Any]
     fields: list[ComfyField] = Field(default_factory=list, max_length=40)
+    ui: NodeUI | None = None
 
 
 def input_specs(info):
@@ -167,5 +168,12 @@ def validate_build(value, object_info):
         for option in field.options:
             check_scalar(option, spec, field.id)
         target['inputs'][field.input] = field.default
+    if request.ui is not None:
+        from core.node_plugin_ui import normalize_form
+        request.ui.html = normalize_form(request.ui.html, {f.id: f for f in request.fields})
+        if bool(request.ui.script) != (request.ui.kind == 'isolated.worker'):
+            raise ValueError('isolated.worker必须提供script，isolated.form不接受脚本')
     result = request.model_dump(mode='json')
+    if request.ui is None:
+        result.pop('ui', None)
     return result, digest(used)

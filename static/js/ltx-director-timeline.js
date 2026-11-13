@@ -75,7 +75,7 @@ const STYLES = `
     padding-bottom: 4px;
   }
   .pr-wrapper.drag-active {
-    outline: 2px dashed #888888;
+    outline: 2px dashed var(--ui-line-strong);
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
   }
@@ -93,9 +93,9 @@ const STYLES = `
     flex-wrap: wrap;
   }
   .pr-btn {
-    background: #222222;
-    color: #e0e0e0;
-    border: 1px solid #111111;
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 11px;
@@ -107,18 +107,18 @@ const STYLES = `
     transition: all 0.2s ease;
   }
   .pr-btn:hover {
-    background: #333333;
-    border-color: #555555;
+    background: var(--ui-soft);
+    border-color: var(--ui-line-strong);
   }
   .pr-btn-danger:hover {
-    background: #252522;
-    border-color: #cc4444;
-    color: #cccbc2;
+    background: var(--ui-panel);
+    border-color: var(--ui-error);
+    color: var(--ui-text);
   }
   .pr-canvas {
     border-radius: 6px;
-    border: 1px solid #111111;
-    background: #2a2a2a;
+    border: 1px solid var(--ui-line-strong);
+    background: var(--ui-panel);
     cursor: pointer;
     width: 100%;
     outline: none;
@@ -138,7 +138,7 @@ const STYLES = `
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #a19f97;
+    color: var(--ui-muted);
     margin-bottom: 4px;
   }
   .pr-prompt-area {
@@ -146,9 +146,9 @@ const STYLES = `
     min-height: 72px;
     height: 72px;
     flex: 0 0 72px;
-    background: #222222;
-    color: #e0e0e0;
-    border: 1px solid #111111;
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 8px;
     resize: vertical;
@@ -159,14 +159,14 @@ const STYLES = `
     transition: border-color 0.2s ease;
   }
   .pr-prompt-area:focus {
-    border-color: #888888;
+    border-color: var(--ui-line-strong);
   }
   .pr-audio-info {
     width: 100%;
     height: 100%;
-    background: #181818;
-    color: #aaaaaa;
-    border: 1px solid #111111;
+    background: var(--ui-panel);
+    color: var(--ui-muted);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 10px;
     font-size: 12px;
@@ -174,10 +174,10 @@ const STYLES = `
     box-sizing: border-box;
     display: none;
   }
-  .pr-audio-info span { color: #fcfcfb; font-weight: 500; }
+  .pr-audio-info span { color: var(--ui-text); font-weight: 500; }
   .pr-controls-group {
-    background: #1e1e1e;
-    border: 1px solid #333333;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 6px 10px;
     display: flex;
@@ -196,21 +196,21 @@ const STYLES = `
   }
   .pr-height-resizer {
     height: 6px;
-    background: #2a2a2a;
+    background: var(--ui-panel);
     cursor: ns-resize;
     border-radius: 3px;
     margin: 2px 0;
     transition: background 0.15s;
-    border: 1px solid #1e1e1e;
+    border: 1px solid var(--ui-line-strong);
   }
   .pr-height-resizer:hover {
-    background: #444444;
-    border-color: #555555;
+    background: var(--ui-soft);
+    border-color: var(--ui-line-strong);
   }
   .pr-strength-label {
     font-size: 11px;
     font-weight: 600;
-    color: #fcfcfb;
+    color: var(--ui-text);
     white-space: nowrap;
     margin-left: auto;
   }
@@ -219,11 +219,11 @@ const STYLES = `
     appearance: none;
     width: 80px;
     height: 4px;
-    background: #444444;
+    background: var(--ui-soft);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
-    border: 1px solid #222222;
+    border: 1px solid var(--ui-line-strong);
   }
   .pr-strength-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -231,7 +231,7 @@ const STYLES = `
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #aaaaaa;
+    background: var(--ui-soft);
     cursor: pointer;
   }
   .pr-strength-slider:disabled {
@@ -240,9 +240,9 @@ const STYLES = `
   }
   .pr-strength-input {
     font-size: 12px;
-    color: #fcfcfb;
-    background: #222222;
-    border: 1px solid #444444;
+    color: var(--ui-text);
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
     width: 52px;
     text-align: center;
@@ -262,8 +262,8 @@ const STYLES = `
   }
   .pr-gap-menu {
     position: fixed;
-    background: #1e1e1e;
-    border: 1px solid #444444;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 4px;
     display: flex;
@@ -273,9 +273,9 @@ const STYLES = `
     box-shadow: 0 4px 16px rgba(0,0,0,0.6);
   }
   .pr-gap-menu-btn {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border: 1px solid #333333;
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
     padding: 6px 14px;
     font-size: 11px;
@@ -289,8 +289,8 @@ const STYLES = `
     transition: background 0.15s ease;
   }
   .pr-gap-menu-btn:hover {
-    background: #3a3a3a;
-    border-color: #666666;
+    background: var(--ui-soft);
+    border-color: var(--ui-line-strong);
   }
   .pr-player-controls {
     display: flex;
@@ -302,9 +302,9 @@ const STYLES = `
     width: 100%;
   }
   .pr-icon-btn {
-    background: #2a2a2a;
-    border: 1px solid #444444;
-    color: #eeeeee;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
+    color: var(--ui-text);
     cursor: pointer;
     padding: 6px 12px;
     border-radius: 4px;
@@ -317,24 +317,24 @@ const STYLES = `
     pointer-events: none;
   }
   .pr-icon-btn:hover {
-    color: #fcfcfb;
-    background: #3a3a3a;
-    border-color: #666666;
+    color: var(--ui-text);
+    background: var(--ui-soft);
+    border-color: var(--ui-line-strong);
   }
   .pr-icon-btn.active {
-    color: #4fff8f;
-    border-color: #4fff8f;
-    background: #30302c;
+    color: var(--ui-success);
+    border-color: var(--ui-success);
+    background: var(--ui-panel);
   }
   .pr-seek-bar {
     -webkit-appearance: none;
     appearance: none;
     height: 6px;
-    background: #444444;
+    background: var(--ui-soft);
     border-radius: 3px;
     outline: none;
     cursor: pointer;
-    border: 1px solid #222222;
+    border: 1px solid var(--ui-line-strong);
   }
   .pr-seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -342,9 +342,9 @@ const STYLES = `
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #ff4444;
+    background: var(--ui-error);
     cursor: pointer;
-    border: 2px solid #222222;
+    border: 2px solid var(--ui-line-strong);
   }
   .pr-timeline-viewport {
     width: 100%;
@@ -355,17 +355,17 @@ const STYLES = `
     height: 10px;
   }
   .pr-timeline-viewport::-webkit-scrollbar-track {
-    background: #151515;
+    background: var(--ui-panel);
     border-radius: 5px;
   }
   .pr-timeline-viewport::-webkit-scrollbar-thumb {
-    background: #444444;
+    background: var(--ui-soft);
     border-radius: 5px;
-    border: 1px solid #0b0b0a;
+    border: 1px solid var(--ui-line-strong);
   }
   .pr-timeline-viewport::-webkit-scrollbar-thumb:hover {
-    background: #666666;
-    border-color: #0b0b0a;
+    background: var(--ui-soft);
+    border-color: var(--ui-line-strong);
   }
   .pr-zoom-controls {
     display: flex;
@@ -378,7 +378,7 @@ const STYLES = `
     -webkit-appearance: none;
     appearance: none;
     height: 4px;
-    background: #444444;
+    background: var(--ui-soft);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -389,7 +389,7 @@ const STYLES = `
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #aaaaaa;
+    background: var(--ui-soft);
     cursor: pointer;
   }
   .pr-right-group {
@@ -399,19 +399,19 @@ const STYLES = `
   }
   .pr-segment-bounds {
     font-size: 12px;
-    color: #aaaaaa;
+    color: var(--ui-muted);
     font-family: monospace;
   }
   .pr-timecode {
     font-size: 14px;
     font-weight: bold;
-    color: #e0e0e0;
+    color: var(--ui-text);
     font-family: monospace;
   }
   .pr-settings-menu {
     position: fixed;
-    background: #1e1e1e;
-    border: 1px solid #444444;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 10px;
     display: flex;
@@ -424,11 +424,11 @@ const STYLES = `
   .pr-settings-title {
     font-size: 11px;
     font-weight: 600;
-    color: #888888;
+    color: var(--ui-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding-bottom: 4px;
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid var(--ui-line-strong);
     margin-bottom: 2px;
   }
   .pr-settings-row {
@@ -439,21 +439,21 @@ const STYLES = `
   }
   .pr-settings-label {
     font-size: 12px;
-    color: #bbbbbb;
+    color: var(--ui-text);
     flex: 1;
     white-space: nowrap;
   }
   .pr-number-control {
     display: flex;
     align-items: center;
-    border: 1px solid #444444;
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
-    background: #2a2a2a;
+    background: var(--ui-panel);
     overflow: hidden;
   }
   .pr-number-btn {
-    background: #333333;
-    color: #aaaaaa;
+    background: var(--ui-soft);
+    color: var(--ui-muted);
     border: none;
     width: 20px;
     height: 22px;
@@ -466,12 +466,12 @@ const STYLES = `
     user-select: none;
   }
   .pr-number-btn:hover {
-    background: #444444;
-    color: #fcfcfb;
+    background: var(--ui-soft);
+    color: var(--ui-text);
   }
   .pr-settings-input {
     background: transparent;
-    color: #e0e0e0;
+    color: var(--ui-text);
     border: none;
     padding: 0 4px;
     font-size: 12px;
@@ -488,9 +488,9 @@ const STYLES = `
     margin: 0;
   }
   .pr-settings-select {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border: 1px solid #444444;
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
     padding: 3px 4px;
     font-size: 12px;
@@ -499,14 +499,14 @@ const STYLES = `
   }
   .pr-settings-divider {
     border: none;
-    border-top: 1px solid #2a2a2a;
+    border-top: 1px solid var(--ui-line-strong);
     margin: 2px 0;
   }
   .pr-settings-toggle-btn {
     width: 100%;
-    background: #252525;
-    color: #aaaaaa;
-    border: 1px solid #333333;
+    background: var(--ui-panel);
+    color: var(--ui-muted);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 4px;
     padding: 5px 8px;
     font-size: 11px;
@@ -515,13 +515,13 @@ const STYLES = `
     transition: all 0.15s;
   }
   .pr-settings-toggle-btn:hover {
-    background: #2e2e2e;
-    color: #cccccc;
-    border-color: #555555;
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    border-color: var(--ui-line-strong);
   }
   .pr-settings-close-btn {
     background: transparent;
-    color: #888888;
+    color: var(--ui-muted);
     border: none;
     cursor: pointer;
     padding: 2px;
@@ -532,13 +532,13 @@ const STYLES = `
     transition: all 0.15s;
   }
   .pr-settings-close-btn:hover {
-    color: #fcfcfb;
+    color: var(--ui-text);
     background: rgba(255,255,255,0.1);
   }
   .pr-segmented-control {
     display: flex;
-    background: #1e1e1e;
-    border: 1px solid #333333;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
     border-radius: 6px;
     padding: 2px;
     width: 110px;
@@ -554,15 +554,15 @@ const STYLES = `
     line-height: 18px;
     cursor: pointer;
     border-radius: 4px;
-    color: #888888;
+    color: var(--ui-muted);
     transition: all 0.15s ease;
   }
   .pr-segment.active {
-    background: #333333;
-    color: #fcfcfb;
+    background: var(--ui-soft);
+    color: var(--ui-text);
   }
   .pr-segment:hover:not(.active) {
-    color: #cccccc;
+    color: var(--ui-text);
   }
 `;
 
@@ -1026,13 +1026,13 @@ class TimelineEditor {
     const updateToggleStyle = (isOn) => {
       toggleBtn.textContent = isOn ? "Custom Audio: ON" : "Custom Audio: OFF";
       if (isOn) {
-        toggleBtn.style.background = "#21211f";
-        toggleBtn.style.borderColor = "#32322e";
-        toggleBtn.style.color = "#e0e0e0";
+        toggleBtn.style.background = "var(--ui-soft)";
+        toggleBtn.style.borderColor = "var(--ui-line-strong)";
+        toggleBtn.style.color = "var(--ui-text)";
       } else {
-        toggleBtn.style.background = "#222222";
-        toggleBtn.style.borderColor = "#111111";
-        toggleBtn.style.color = "#e0e0e0";
+        toggleBtn.style.background = "var(--ui-panel)";
+        toggleBtn.style.borderColor = "var(--ui-line)";
+        toggleBtn.style.color = "var(--ui-text)";
       }
     };
 
@@ -1874,9 +1874,9 @@ class TimelineEditor {
 
 
     // Render Track Backgrounds
-    this.ctx.fillStyle = "#111111"; // Image track bg
+    this.ctx.fillStyle = "var(--ui-line)"; // Image track bg
     this.ctx.fillRect(0, RULER_HEIGHT, width, this.blockHeight);
-    this.ctx.fillStyle = "#111111"; // Audio track bg
+    this.ctx.fillStyle = "var(--ui-line)"; // Audio track bg
     this.ctx.fillRect(0, RULER_HEIGHT + this.blockHeight, width, this.audioTrackHeight);
 
 
@@ -3123,7 +3123,7 @@ class TimelineEditor {
       openBtn.onclick = () => {
         const win = window.open();
         if (win) {
-          win.document.write(`<body style="margin:0;display:flex;justify-content:center;align-items:center;background:#0e0e0e;height:100vh;"><img style="max-width:100%;max-height:100%;" src="${seg.imageB64}" /></body>`);
+          win.document.write(`<body style="margin:0;display:flex;justify-content:center;align-items:center;background:var(--ui-panel);height:100vh;"><img style="max-width:100%;max-height:100%;" src="${seg.imageB64}" /></body>`);
           win.document.close();
         }
         this.dismissContextMenu();
@@ -3180,7 +3180,7 @@ class TimelineEditor {
     const delBtn = document.createElement("button");
     delBtn.className = "pr-gap-menu-btn";
     delBtn.innerHTML = `Delete`;
-    delBtn.style.color = "#ff4444";
+    delBtn.style.color = "var(--ui-error)";
     delBtn.onclick = () => {
       this.selectionType = trackType === "audio" ? "audio" : "image";
       const list = trackType === "audio" ? this.timeline.audioSegments : this.timeline.segments;

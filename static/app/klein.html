@@ -10,43 +10,44 @@
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
     <script src="/static/modules/image-editor.js?v=20261024001"></script>
     <style>
         :root { --accent: #06b6d4; --bg: #f7f7f5; --card: #fbfaf9; --easing: cubic-bezier(0.4, 0, 0.2, 1); }
         *::-webkit-scrollbar { width:10px!important; height:10px!important; background:transparent!important; }
         *::-webkit-scrollbar-track { background:transparent!important; border:none!important; }
-        *::-webkit-scrollbar-thumb { background-color:#d8d8d8!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
-        *::-webkit-scrollbar-thumb:hover { background-color:#c0c0c0!important; }
+        *::-webkit-scrollbar-thumb { background-color:var(--ui-soft)!important; border:3px solid transparent!important; border-right-width:5px!important; background-clip:padding-box!important; border-radius:10px!important; }
+        *::-webkit-scrollbar-thumb:hover { background-color:var(--ui-soft)!important; }
         *::-webkit-scrollbar-corner { background:transparent!important; }
         * { scrollbar-width:thin!important; scrollbar-color:#d8d8d8 transparent!important; }
         body { background-color: var(--bg); font-family: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--accent); -webkit-font-smoothing: antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
         .container-box { max-width: 1280px; width:100%; margin: 0 auto; padding: 0 40px; margin-top: 50px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
-        .nano-input { background: var(--card); border: 1px solid #f5f5f3; transition: all 0.3s var(--easing); }
-        .nano-input:focus { border-color: #0b0b0a; box-shadow: 0 0 0 1px #0b0b0a; }
-        .upload-item { background: var(--card); border: 1px dashed #eeede9; transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
-        .upload-item:hover { border-color: #0b0b0a; background: #fbfaf9; transform: translateY(-2px); }
-        .upload-item.drag-over { border-style: solid; border-color: #0b0b0a; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); }
+        .nano-input { background: var(--card); border: 1px solid var(--ui-line-strong); transition: all 0.3s var(--easing); }
+        .nano-input:focus { border-color: var(--ui-line-strong); box-shadow: 0 0 0 1px #0b0b0a; }
+        .upload-item { background: var(--card); border: 1px dashed var(--ui-line-strong); transition: all 0.4s var(--easing); position: relative; overflow: hidden; }
+        .upload-item:hover { border-color: var(--ui-line-strong); background: var(--ui-panel); transform: translateY(-2px); }
+        .upload-item.drag-over { border-style: solid; border-color: var(--ui-line-strong); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); }
         .preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.5s var(--easing); }
-        .glass-btn { background: #181817; transition: all 0.3s var(--easing); }
-        .glass-btn:hover { background: #0b0b0a; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1); }
+        .glass-btn { background: var(--ui-panel); transition: all 0.3s var(--easing); }
+        .glass-btn:hover { background: var(--ui-panel); transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1); }
         .glass-btn:active { transform: scale(0.98); }
-        .glass-btn:disabled { background: #666666; cursor: not-allowed; opacity: 0.5; }
-        .engine-panel { background: #fbfaf9; border: 1px solid #f5f5f3; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .engine-label { display: flex; align-items: center; gap: 6px; color: #9f9d95; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
-        .engine-switch { background: #f9f9f7; border: 1px solid #f6f6f4; border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
+        .glass-btn:disabled { background: var(--ui-soft); cursor: not-allowed; opacity: 0.5; }
+        .engine-panel { background: var(--ui-panel); border: 1px solid var(--ui-line-strong); border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .engine-label { display: flex; align-items: center; gap: 6px; color: var(--ui-muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+        .engine-switch { background: var(--ui-panel); border: 1px solid var(--ui-line-strong); border-radius: 999px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
         /* 提供商切换器:只有 2 个选项,用 2 列 */
         .provider-switch { grid-template-columns: 1fr 1fr !important; }
         /* 模型区:4 个模型一行(桌面),1fr 1fr 1fr 1fr */
         #modelSwitch { grid-template-columns: repeat(4, 1fr) !important; }
-        .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #86857c; font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
-        .engine-btn.active { background: #fbfaf9; color: #181817; box-shadow: 0 1px 3px rgba(23, 23, 22, .08); }
-        .engine-btn:not(.active):hover { color: #181817; background: rgba(0, 0, 0, .04); }
+        .engine-btn { border-radius: 999px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ui-muted); font-size: 10px; font-weight: 600; letter-spacing: .02em; transition: all .25s var(--easing); cursor: pointer; }
+        .engine-btn.active { background: var(--ui-panel); color: var(--ui-text); box-shadow: 0 1px 3px rgba(23, 23, 22, .08); }
+        .engine-btn:not(.active):hover { color: var(--ui-text); background: rgba(0, 0, 0, .04); }
         .masonry-grid { column-count:2; column-gap:12px; }
         .masonry-grid .date-separator { column-span:all; display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
         .masonry-grid .date-separator .sep-line { flex:1; height:1px; background:rgba(0, 0, 0, 0.08); }
-        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:#999999; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+        .masonry-grid .date-separator .sep-label { font-size:10px; font-weight:700; color:var(--ui-muted); text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
         @media(min-width:640px){ .masonry-grid{ column-gap:16px; } }
         @media(min-width:768px){ .masonry-grid{ column-count:3; column-gap:20px; } }
         @media(min-width:1024px){ .masonry-grid{ column-count:4; } }
@@ -56,51 +57,51 @@
         @media(min-width:640px){ .masonry-grid.thumb-large{ column-count:2!important; column-gap:18px!important; } .masonry-grid.thumb-small{ column-count:5!important; } }
         @media(min-width:768px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
         @media(min-width:1024px){ .masonry-grid.thumb-large{ column-count:3!important; } .masonry-grid.thumb-small{ column-count:6!important; } }
-        .masonry-item { border-radius:24px; overflow:hidden; background:#eeeeee; border:1px solid #f7f7f5; transition:all 0.5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
+        .masonry-item { border-radius:24px; overflow:hidden; background:var(--ui-panel); border:1px solid var(--ui-line-strong); transition:all 0.5s var(--easing); position:relative; break-inside:avoid; margin-bottom:12px; }
         .masonry-item:hover { transform:translateY(-6px); box-shadow:0 20px 40px rgba(0, 0, 0, 0.08); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes b-loading { 0%{transform:scale(1);background:#0b0b0a} 50%{transform:scale(1.15);background:#444444} 100%{transform:scale(1);background:#0b0b0a} }
+        @keyframes b-loading { 0%{transform:scale(1);background:var(--ui-panel)} 50%{transform:scale(1.15);background:var(--ui-soft)} 100%{transform:scale(1);background:var(--ui-panel)} }
         .loading-box { width: 10px; height: 10px; animation: b-loading 1s infinite var(--easing); }
-        
+
         .gallery-lightbox:hover #lightboxPrevBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
         .gallery-lightbox:hover #lightboxNextBtn:not([style*="display: none"]) { opacity: 1 !important; pointer-events: auto !important; }
-        
+
         body.studio-theme-dark .engine-panel {
-            background: #151515 !important;
-            border-color: #20201e !important;
+            background: var(--ui-panel) !important;
+            border-color: var(--ui-line-strong) !important;
         }
-        
+
         body.studio-theme-dark .engine-switch {
-            background: #0b0b0a !important;
-            border-color: #20201e !important;
+            background: var(--ui-panel) !important;
+            border-color: var(--ui-line-strong) !important;
         }
-        
+
         body.studio-theme-dark .engine-btn.active {
             background: rgba(0, 240, 255, 0.18) !important;
             color: #00f0ff !important;
             box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.45), 0 0 8px rgba(0, 240, 255, 0.25) !important;
         }
-        
+
         body.studio-theme-dark .engine-btn:not(.active) {
-            color: #9f9d94 !important;
+            color: var(--ui-muted) !important;
         }
-        
+
         body.studio-theme-dark .engine-btn:not(.active):hover {
             background: rgba(0, 240, 255, 0.08) !important;
             color: #00f0ff !important;
         }
-        
+
         body.studio-theme-dark .engine-label {
             color: #00f0ff !important;
         }
-        
+
         /* 槽位序号角标:图1/图2 (Krea2 双图模式) 或 主图/参考图 */
         .slot-badge {
             position: absolute;
             top: 8px;
             left: 8px;
             background: rgba(0, 0, 0, 0.62);
-            color: #fbfaf9;
+            color: var(--ui-text);
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
@@ -111,54 +112,54 @@
         }
 
         body.studio-theme-dark .upload-item {
-            background: #151515 !important;
-            border-color: #20201e !important;
+            background: var(--ui-panel) !important;
+            border-color: var(--ui-line-strong) !important;
         }
-        
+
         body.studio-theme-dark .upload-item:hover {
             border-color: #00f0ff !important;
             background: rgba(0, 240, 255, 0.05) !important;
         }
-        
+
         body.studio-theme-dark #localParams .bg-white {
-            background: #151515 !important;
-            border-color: #20201e !important;
+            background: var(--ui-panel) !important;
+            border-color: var(--ui-line-strong) !important;
         }
-        
+
         body.studio-theme-dark #toolbarFixed {
             background: rgba(14, 14, 13, 0.95) !important;
             border-color: rgba(250, 249, 247, 0.08) !important;
         }
         body.studio-theme-dark .masonry-item {
-            background: #151515 !important;
-            border-color: #20201e !important;
+            background: var(--ui-panel) !important;
+            border-color: var(--ui-line-strong) !important;
         }
         body.studio-theme-dark .masonry-grid .date-separator .sep-line {
             background: rgba(255, 255, 255, 0.08);
         }
         body.studio-theme-dark .masonry-grid .date-separator .sep-label {
-            color: #86857c;
+            color: var(--ui-muted);
         }
         body.studio-theme-dark #loadMoreTrigger {
-            color: #86857c;
+            color: var(--ui-muted);
         }
-        
+
         body.studio-theme-dark #imgCount {
             background: rgba(0, 240, 255, 0.15) !important;
             color: #00f0ff !important;
         }
-        
+
         .toggle-switch {
             position: relative;
             width: 44px;
             height: 24px;
-            background: #eeede9;
+            background: var(--ui-panel);
             border-radius: 999px;
             cursor: pointer;
             transition: all 0.3s var(--easing);
         }
         .toggle-switch.active {
-            background: #06b6d4;
+            background: var(--ui-accent);
         }
         .toggle-switch::after {
             content: '';
@@ -167,7 +168,7 @@
             left: 2px;
             width: 20px;
             height: 20px;
-            background: #fbfaf9;
+            background: var(--ui-panel);
             border-radius: 50%;
             transition: all 0.3s var(--easing);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -179,15 +180,15 @@
         /* 连续编辑历史条 */
         .history-strip { display:flex; gap:6px; overflow-x:auto; padding:4px 0; scrollbar-width:thin; }
         .history-strip::-webkit-scrollbar { height:4px!important; }
-        .history-strip::-webkit-scrollbar-thumb { background:#d8d8d8!important; border-radius:4px!important; }
-        .history-item { flex:0 0 auto; width:56px; height:56px; border-radius:10px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all .2s; position:relative; background:#f7f7f5; }
-        .history-item:hover { border-color:#06b6d4; transform:scale(1.08); }
-        .history-item.active { border-color:#181817; box-shadow:0 0 0 2px rgba(24, 24, 23, .15); }
+        .history-strip::-webkit-scrollbar-thumb { background:var(--ui-soft)!important; border-radius:4px!important; }
+        .history-item { flex:0 0 auto; width:56px; height:56px; border-radius:10px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all .2s; position:relative; background:var(--ui-panel); }
+        .history-item:hover { border-color:var(--ui-accent); transform:scale(1.08); }
+        .history-item.active { border-color:var(--ui-line-strong); box-shadow:0 0 0 2px rgba(24, 24, 23, .15); }
         .history-item img { width:100%; height:100%; object-fit:cover; }
-        .history-item .hist-idx { position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:900; color:#fbfaf9; background:rgba(0, 0, 0, .55); border-radius:4px; padding:0 3px; line-height:14px; }
-        .history-item .hist-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(220, 38, 38, .85); color:#fbfaf9; font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; cursor:pointer; border:none; line-height:16px; padding:0; }
+        .history-item .hist-idx { position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:900; color:var(--ui-text); background:rgba(0, 0, 0, .55); border-radius:4px; padding:0 3px; line-height:14px; }
+        .history-item .hist-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(220, 38, 38, .85); color:var(--ui-text); font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; cursor:pointer; border:none; line-height:16px; padding:0; }
         .history-item:hover .hist-del { display:flex; }
-        body.studio-theme-dark .history-item { background:#20201e; border-color:transparent; }
+        body.studio-theme-dark .history-item { background:var(--ui-panel); border-color:transparent; }
         body.studio-theme-dark .history-item:hover { border-color:#00f0ff; }
         body.studio-theme-dark .history-item.active { border-color:#00f0ff; box-shadow:0 0 0 2px rgba(0, 240, 255, .2); }
 
@@ -247,8 +248,8 @@
             .gen-btn { padding:10px 0 !important; }
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
@@ -334,6 +335,7 @@
         }
     </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 
 <body class="antialiased transition-colors duration-300">
@@ -465,7 +467,7 @@
     <script>
         lucide.createIcons();
 
-        
+
         /** 保存到用户 output 文件夹 */
         // 图片归档复用 comfyui-utils.js 的 saveToUserOutput。
         function generateUUID() {
@@ -1162,12 +1164,12 @@
                 html = '<div class="relative group"><img src="' + thumbUrl(imgs[0], 768) + '" data-original-src="' + imgs[0] + '" class="w-full" style="display:block; object-fit:contain;"></div>';
             } else if (imgs.length <= 4) {
                 html = '<div class="grid grid-cols-2 gap-0.5">' + imgs.map(function(u) {
-                    return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;"></div>';
+                    return '<div class="relative overflow-hidden group" style="background:var(--ui-panel);"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;"></div>';
                 }).join('') + '</div>';
             } else {
                 html = '<div class="grid grid-cols-2 gap-0.5">' + imgs.slice(-4).map(function(u, i) {
                     var overlay = i === 3 ? '<div class="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-bold pointer-events-none">+' + (imgs.length - 3) + '</div>' : '';
-                    return '<div class="relative overflow-hidden group" style="background:#f5f5f5;"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;">' + overlay + '</div>';
+                    return '<div class="relative overflow-hidden group" style="background:var(--ui-panel);"><img src="' + thumbUrl(u, 400) + '" data-original-src="' + u + '" class="w-full" loading="lazy" style="display:block; object-fit:contain;">' + overlay + '</div>';
                 }).join('') + '</div>';
             }
             imgContainer.outerHTML = html;

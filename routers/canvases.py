@@ -6,8 +6,12 @@ import uuid
 import urllib.parse
 import hashlib
 import asyncio
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from threading import Lock
+from core.canvas_store import store_for
+from core.canvas_paths import CanvasPaths
+from core.game_projects import atomic_write
 
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from pydantic import BaseModel
@@ -33,7 +37,6 @@ MEDIA_PREVIEW_DIR = os.path.join(USER_DATA_DIR, "media_previews")
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 # 线程锁定义
-CANVAS_LOCK = Lock()
 HISTORY_LOCK = Lock()
 
 # ----------------------------------------------------------------------
@@ -49,6 +52,8 @@ class CanvasCreateRequest(BaseModel):
     board_y: Optional[float] = None
 
 class CanvasSaveRequest(BaseModel):
+    schema_version: Optional[int] = None
+    base_revision: Optional[int] = None
     title: str = "未命名画布"
     icon: str = "🧩"
     nodes: List[Dict[str, Any]] = []
@@ -99,36 +104,13 @@ def sanitize_folder_name(title, canvas_id):
     return f"{name}_{suffix}" if name else suffix
 
 def get_canvas_output_dir(canvas):
-    """获取画布的输出目录路径(含用户隔离)"""
-    deps = _get_main_deps()
-    get_user_dirname = deps["get_user_dirname"]
-    owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
-    folder = canvas.get("output_folder", "")
-    if owner and folder:
-        return os.path.join(OUTPUT_DIR, owner, folder)
-    elif folder:
-        return os.path.join(OUTPUT_DIR, folder)
-    elif owner:
-        path = os.path.join(OUTPUT_DIR, owner)
-        os.makedirs(path, exist_ok=True)
-        return path
-    return OUTPUT_DIR
+    owner = _get_main_deps()['get_user_dirname'](canvas.get('owner')) or ''
+    return str(CanvasPaths(store_for(CANVAS_DIR), OUTPUT_DIR, INPUT_DIR).media_root(canvas, 'output', owner))
+
 
 def get_canvas_asset_dir(canvas):
-    """获取画布的资产目录路径(含用户隔离)"""
-    deps = _get_main_deps()
-    get_user_dirname = deps["get_user_dirname"]
-    owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
-    folder = canvas.get("output_folder", "")
-    if owner and folder:
-        return os.path.join(INPUT_DIR, owner, folder)
-    elif folder:
-        return os.path.join(INPUT_DIR, folder)
-    elif owner:
-        path = os.path.join(INPUT_DIR, owner)
-        os.makedirs(path, exist_ok=True)
-        return path
-    return INPUT_DIR
+    owner = _get_main_deps()['get_user_dirname'](canvas.get('owner')) or ''
+    return str(CanvasPaths(store_for(CANVAS_DIR), OUTPUT_DIR, INPUT_DIR).media_root(canvas, 'input', owner))
 
 def build_asset_url(canvas, filename):
     """构建 asset 文件的 URL 路径(含用户隔离)"""
@@ -138,27 +120,22 @@ def build_asset_url(canvas, filename):
         owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
         folder = canvas.get("output_folder", "")
         if owner and folder:
-            return f"/assets/{owner}/{folder}/{filename}"
+            return urllib.parse.quote(f"/assets/{owner}/{folder}/{filename}", safe='/')
         elif folder:
-            return f"/assets/{folder}/{filename}"
+            return urllib.parse.quote(f"/assets/{folder}/{filename}", safe='/')
         elif owner:
-            return f"/assets/{owner}/{filename}"
+            return urllib.parse.quote(f"/assets/{owner}/{filename}", safe='/')
         else:
-            return f"/assets/{filename}"
-    return f"/assets/{filename}"
+            return urllib.parse.quote(f"/assets/{filename}", safe='/')
+    return urllib.parse.quote(f"/assets/{filename}", safe='/')
 
 def canvas_path(canvas_id):
-    cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", canvas_id or "")
-    if not cleaned:
-        raise HTTPException(status_code=400, detail="无效的画布 ID")
-    return os.path.join(CANVAS_DIR, f"{cleaned}.json")
+    store = store_for(CANVAS_DIR)
+    return str(store.directory(canvas_id) / 'project.json' if store.published(canvas_id) else store.legacy_file(canvas_id))
 
-def save_canvas(canvas):
-    deps = _get_main_deps()
-    now_ms = deps["now_ms"]
-    canvas["updated_at"] = now_ms()
-    with CANVAS_LOCK:
-        deps["atomic_write_json"](canvas_path(canvas["id"]), canvas)
+
+def save_canvas(canvas, base_revision=None, fields=None):
+    return store_for(CANVAS_DIR).save(canvas, base_revision=base_revision, fields=fields)
 
 def new_canvas(title="未命名画布", icon="layers", owner=None):
     deps = _get_main_deps()
@@ -170,8 +147,6 @@ def new_canvas(title="未命名画布", icon="layers", owner=None):
 
     # 创建画布专属输出文件夹(含用户目录嵌套)
     user_dirname = get_user_dirname(owner) if owner else ""
-    canvas_dir = os.path.join(OUTPUT_DIR, user_dirname, folder_name) if user_dirname else os.path.join(OUTPUT_DIR, folder_name)
-    os.makedirs(canvas_dir, exist_ok=True)
 
     canvas = {
         "id": canvas_id,
@@ -185,25 +160,14 @@ def new_canvas(title="未命名画布", icon="layers", owner=None):
         "connections": [],
         "viewport": {"x": 0, "y": 0, "scale": 1},
     }
-    save_canvas(canvas)
-    return canvas
+    return store_for(CANVAS_DIR).publish(canvas, [{'owner': user_dirname, 'folder': folder_name}])
 
 def load_canvas(canvas_id):
-    path = canvas_path(canvas_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="画布不存在")
-    with open(path, 'r', encoding='utf-8') as f:
-        canvas = json.load(f)
-    if canvas.get("deleted_at"):
-        raise HTTPException(status_code=404, detail="画布已在回收站")
-    return canvas
+    return store_for(CANVAS_DIR).read(canvas_id)
+
 
 def load_canvas_any(canvas_id):
-    path = canvas_path(canvas_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="画布不存在")
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return store_for(CANVAS_DIR).read(canvas_id, include_deleted=True)
 
 def canvas_record(data):
     image_source = None
@@ -228,45 +192,18 @@ def canvas_record(data):
     }
 
 def cleanup_expired_canvas_trash():
-    deps = _get_main_deps()
-    now_ms = deps["now_ms"]
-    cutoff = now_ms() - CANVAS_TRASH_RETENTION_MS
-    with CANVAS_LOCK:
-        if not os.path.exists(CANVAS_DIR):
-            return
-        for filename in os.listdir(CANVAS_DIR):
-            if not filename.endswith(".json"):
-                continue
-            path = os.path.join(CANVAS_DIR, filename)
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                deleted_at = int(data.get("deleted_at") or 0)
-                if deleted_at and deleted_at < cutoff:
-                    os.remove(path)
-            except Exception:
-                continue
+    cutoff = _get_main_deps()['now_ms']() - CANVAS_TRASH_RETENTION_MS
+    store = store_for(CANVAS_DIR)
+    for data in store.documents():
+        if data.get('deleted_at') and int(data['deleted_at']) < cutoff:
+            store.purge(data['id'])
+
 
 def iter_canvas_records(include_deleted=False, owner_filter=None):
     cleanup_expired_canvas_trash()
-    records = []
-    if not os.path.exists(CANVAS_DIR):
-        return records
-    for filename in os.listdir(CANVAS_DIR):
-        if not filename.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(CANVAS_DIR, filename), 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception:
-            continue
-        is_deleted = bool(data.get("deleted_at"))
-        if include_deleted != is_deleted:
-            continue
-        if owner_filter is not None and data.get("owner") != owner_filter:
-            continue
-        records.append(canvas_record(data))
-    return records
+    return [canvas_record(data) for data in store_for(CANVAS_DIR).documents()
+            if bool(data.get('deleted_at')) == include_deleted
+            and (owner_filter is None or data.get('owner') == owner_filter)]
 
 def list_canvases(owner_filter=None):
     records = iter_canvas_records(include_deleted=False, owner_filter=owner_filter)
@@ -293,11 +230,19 @@ def collect_local_media_urls(value: Any) -> List[str]:
             urls.extend(collect_local_media_urls(item))
     return urls
 
-def local_media_path_from_url(url: str) -> Optional[str]:
+def local_media_path_from_url(url: str, trusted=False) -> Optional[str]:
     """Resolve a local media URL using the same one-to-one mapping as app mounts."""
     if not url:
         return None
-    clean = urllib.parse.unquote(str(url).split("?", 1)[0]).replace("\\", "/")
+    import main
+    mapped = CanvasPaths(store_for(CANVAS_DIR), OUTPUT_DIR, INPUT_DIR,
+                         authorize=None if trusted else lambda c: main.validate_canvas_owner(c, '')).resolve_media(url)
+    if mapped is not None:
+        return str(mapped) if mapped.exists() else None
+    parts = urllib.parse.urlsplit(str(url))
+    if parts.scheme or parts.netloc:
+        return None
+    clean = urllib.parse.unquote(parts.path).replace("\\", "/")
     if clean.startswith("/api/storage-files/"):
         # 注: main.py 无 storage_file_path 函数也无 /api/storage-files 路由(HEAD 潜在
         # NameError 死分支)。此处安全降级为 None, 与"无法解析"语义一致。
@@ -329,7 +274,11 @@ def generated_media_path_from_url(url: str) -> Optional[str]:
     if not path or not os.path.isfile(path):
         return None
     path = os.path.realpath(path)
-    for root in (OUTPUT_OUTPUT_DIR, OUTPUT_DIR):
+    roots = [OUTPUT_OUTPUT_DIR, OUTPUT_DIR]
+    for directory in store_for(CANVAS_DIR).root.glob('*'):
+        if directory.is_dir() and not directory.name.startswith('.'):
+            roots.append(str(directory / 'outputs'))
+    for root in roots:
         root_abs = os.path.realpath(root)
         try:
             if os.path.commonpath([root_abs, path]) == root_abs:
@@ -343,7 +292,7 @@ def json_references_media_path(value: Any, target_path: str) -> bool:
     target = os.path.normcase(os.path.realpath(target_path))
     if isinstance(value, str):
         try:
-            resolved = local_media_path_from_url(value.strip())
+            resolved = local_media_path_from_url(value.strip(), trusted=True)
         except (HTTPException, OSError, ValueError):
             return False
         return bool(resolved and os.path.normcase(os.path.realpath(resolved)) == target)
@@ -355,11 +304,17 @@ def json_references_media_path(value: Any, target_path: str) -> bool:
 
 def persisted_json_references_media_path(target_path: str) -> bool:
     """Scan persisted user documents before deleting generated media."""
+    from core.canvas_store import store_for
+    store = store_for(CANVAS_DIR)
+    try:
+        if any(json_references_media_path(document, target_path) for document in store.documents()):
+            return True
+    except (HTTPException, OSError, ValueError):
+        return True
     candidates = [ASSET_LIBRARY_PATH]
-    for root in (CANVAS_DIR, CONVERSATION_DIR):
-        if os.path.isdir(root):
-            for current, _, files in os.walk(root):
-                candidates.extend(os.path.join(current, name) for name in files if name.lower().endswith(".json"))
+    if os.path.isdir(CONVERSATION_DIR):
+        for current, _, files in os.walk(CONVERSATION_DIR):
+            candidates.extend(os.path.join(current, name) for name in files if name.lower().endswith('.json'))
     seen: set = set()
     for path in candidates:
         path = os.path.abspath(path)
@@ -578,6 +533,56 @@ async def get_canvas(canvas_id: str, token: str = ""):
     validate_canvas_owner(canvas, token)
     return {"canvas": canvas}
 
+
+@router.get('/api/canvases/{canvas_id}/export')
+async def export_canvas_bundle(canvas_id: str, token: str = '', strict: bool = False):
+    import main
+    import shutil
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+    from core.canvas_bundle import export_bundle
+    canvas = _owned_canvas(canvas_id)
+    main.validate_canvas_owner(canvas, token)
+
+    def resolve(url):
+        path = urllib.parse.unquote(urllib.parse.urlsplit(url).path)
+        prefix = '/assets/' if path.startswith('/assets/') else '/output/'
+        main.assert_account_media(path[len(prefix):])
+        return main.local_media_path_from_url(url)
+
+    archive, manifest = await asyncio.to_thread(export_bundle, store_for(CANVAS_DIR), canvas_id, resolve, strict)
+    return FileResponse(archive, media_type='application/zip', filename=canvas_id + '.zip',
+                        headers={'X-Canvas-Self-Contained': str(manifest['selfContained']).lower()},
+                        background=BackgroundTask(shutil.rmtree, archive.parent))
+
+
+@router.post('/api/canvases/import')
+async def import_canvas_bundle(file: UploadFile = File(...), token: str = ''):
+    import tempfile
+    from core.canvas_bundle import import_bundle, MAX_COMPRESSED
+    deps = _get_main_deps()
+    username = deps['get_username_by_token'](token)
+    if not username:
+        raise HTTPException(401, '请先登录后再使用')
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix='canvas-import-', suffix='.zip', delete=False) as target:
+            path = Path(target.name)
+            total = 0
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_COMPRESSED:
+                    raise HTTPException(413, '压缩包超过配额')
+                target.write(chunk)
+        canvas, manifest = await asyncio.to_thread(import_bundle, store_for(CANVAS_DIR), path, username,
+                                                    deps['get_user_dirname'](username), sanitize_folder_name)
+        return {'canvas': canvas, 'selfContained': manifest.get('selfContained', False),
+                'dependencies': manifest.get('dependencies', [])}
+    finally:
+        await file.close()
+        if path is not None:
+            path.unlink(missing_ok=True)
+
 @router.put("/api/canvases/{canvas_id}")
 async def update_canvas(canvas_id: str, payload: CanvasSaveRequest, token: str = ""):
     deps = _get_main_deps()
@@ -601,8 +606,14 @@ def _save_canvas_payload(canvas, payload):
     canvas["viewport"] = payload.viewport
     # 保存生成日志（最多 500 条；从 Infinite-Canvas 移植：画布层独立日志管理）
     canvas["logs"] = list(payload.logs or [])[-500:]
-    save_canvas(canvas)
-    return {"canvas": canvas}
+    if payload.schema_version is not None:
+        canvas['schema_version'] = payload.schema_version
+    warnings = save_canvas(canvas, base_revision=payload.base_revision,
+                           fields={'title', 'icon', 'nodes', 'connections', 'viewport', 'logs'})
+    response = {'canvas': canvas}
+    if warnings:
+        response['canvas'] = {**canvas, '_schema_warnings': warnings}
+    return response
 
 @router.delete("/api/canvases/{canvas_id}")
 async def delete_canvas(canvas_id: str, token: str = ""):
@@ -631,7 +642,7 @@ async def delete_canvas_log(canvas_id: str, payload: DeleteCanvasLogRequest, tok
         raise HTTPException(status_code=400, detail="缺少日志 ID")
 
     def remove_log_record():
-        with CANVAS_LOCK:
+        with store_for(CANVAS_DIR).lock(canvas_id):
             canvas = _owned_canvas(canvas_id)
             validate_canvas_owner(canvas, token)
             current_updated_at = int(canvas.get("updated_at") or 0)
@@ -689,7 +700,7 @@ async def delete_canvas_log(canvas_id: str, payload: DeleteCanvasLogRequest, tok
             return removed, skipped, previews
 
         def locked_cleanup():
-            with CANVAS_LOCK:
+            with store_for(CANVAS_DIR).media_cleanup_lock():
                 return cleanup_unreferenced_media()
 
         removed_files, skipped_referenced, removed_previews = await asyncio.to_thread(locked_cleanup)
@@ -720,9 +731,7 @@ async def purge_canvas(canvas_id: str, token: str = ""):
     validate_canvas_owner = deps["validate_canvas_owner"]
     canvas = load_canvas_any(canvas_id)
     validate_canvas_owner(canvas, token)
-    path = canvas_path(canvas_id)
-    if os.path.exists(path):
-        os.remove(path)
+    store_for(CANVAS_DIR).purge(canvas_id)
     return {"ok": True}
 
 @router.get("/api/canvases/{canvas_id}/files")
@@ -826,8 +835,7 @@ async def upload_assets(canvas_id: str, files: List[UploadFile] = File(...)):
             ext = ".bin"
         filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
         path = os.path.join(asset_dir, filename)
-        with open(path, "wb") as f:
-            f.write(content)
+        atomic_write(path, content)
         url_path = build_asset_url(canvas, filename)
         uploaded.append({"url": url_path, "name": file.filename or filename})
     return {"files": uploaded}
@@ -846,15 +854,16 @@ async def copy_asset_from_canvas(canvas_id: str, payload: dict = None):
             continue
         clean_url = url.split("?")[0]
         relative = clean_url[len("/output/"):]
-        source_path = os.path.join(OUTPUT_DIR, relative)
+        import main
+        main.assert_account_media(relative)
+        source_path = local_media_path_from_url(url) or ''
         if not os.path.exists(source_path):
             continue
         ext = os.path.splitext(relative)[1].lower() or ".png"
         filename = f"asset_{uuid.uuid4().hex[:12]}{ext}"
         dest_path = os.path.join(asset_dir, filename)
         try:
-            import shutil
-            shutil.copy2(source_path, dest_path)
+            atomic_write(dest_path, Path(source_path).read_bytes())
             url_path = build_asset_url(canvas, filename)
             copied.append({"url": url_path, "name": filename, "original": url})
         except Exception as e:
@@ -950,7 +959,10 @@ def _media_entry(full_path):
     if ext not in CANVAS_ASSET_EXTS:
         return None
     full_abs = os.path.abspath(full_path)
-    if full_abs.startswith(os.path.abspath(OUTPUT_DIR) + os.sep):
+    project_url = CanvasPaths(store_for(CANVAS_DIR), OUTPUT_DIR, INPUT_DIR).url_for_path(full_abs)
+    if project_url:
+        url = project_url
+    elif full_abs.startswith(os.path.abspath(OUTPUT_DIR) + os.sep):
         url = "/output/" + os.path.relpath(full_abs, OUTPUT_DIR).replace(os.sep, "/")
     elif full_abs.startswith(os.path.abspath(INPUT_DIR) + os.sep):
         url = "/assets/" + os.path.relpath(full_abs, INPUT_DIR).replace(os.sep, "/")
@@ -993,41 +1005,30 @@ def _scan_media_dir(root, items, seen, since=0):
 
 
 def _canvas_media_items(canvas):
-    """画布相关媒体：画布输出目录 + 节点引用的 /output 结果 + 画布资产目录 + 画布期间存进用户资产的图片。"""
+    """仅收集画布专属目录及节点明确引用的媒体，不扫描用户素材池。"""
     items = []
     seen = set()
     folder = str(canvas.get("output_folder") or "").strip()
-    if folder:
+    dedicated = bool(folder) or store_for(CANVAS_DIR).published(canvas['id'])
+    if dedicated:
         _scan_media_dir(get_canvas_output_dir(canvas), items, seen)
-    # 抠图 / 图片编辑的结果不一定落在画布目录，靠节点里引用的 /output/... 兜住
+        _scan_media_dir(get_canvas_asset_dir(canvas), items, seen)
+    references = [canvas.get("nodes") or [], canvas.get("connections") or []]
+    urls = collect_local_media_urls(references)
+    # 兼容节点文本中嵌入的历史生成链接。
     try:
-        blob = json.dumps(canvas.get("nodes") or [], ensure_ascii=False)
-        blob += json.dumps(canvas.get("connections") or [], ensure_ascii=False)
+        blob = json.dumps(references, ensure_ascii=False)
     except (TypeError, ValueError):
         blob = ""
-    for match in CANVAS_OUTPUT_REF_RE.finditer(blob):
-        rel = urllib.parse.unquote(match.group(1)).replace("\\", "/").lstrip("/")
-        if not rel or ".." in rel:
-            continue
-        full = os.path.abspath(os.path.join(OUTPUT_DIR, rel.replace("/", os.sep)))
-        if full in seen:
+    urls.extend('/output/' + match.group(1) for match in CANVAS_OUTPUT_REF_RE.finditer(blob))
+    for url in urls:
+        full = local_media_path_from_url(url)
+        if not full or full in seen:
             continue
         item = _media_entry(full)
         if item:
             seen.add(full)
             items.append(item)
-    # 画布自己的资产目录（上传图片、抠图另存到画布文件夹）
-    _scan_media_dir(get_canvas_asset_dir(canvas), items, seen)
-    # 用户资产目录：只取画布创建之后写入的文件，避免把整个素材池倒出来
-    owner = canvas.get("owner") or ""
-    if owner:
-        try:
-            since = float(canvas.get("created_at") or 0) / 1000.0
-        except (TypeError, ValueError):
-            since = 0
-        deps = _get_main_deps()
-        user_asset_dir = os.path.join(INPUT_DIR, deps["get_user_dirname"](owner))
-        _scan_media_dir(user_asset_dir, items, seen, since=since)
     items.sort(key=lambda item: item["mtime"], reverse=True)
     return items
 

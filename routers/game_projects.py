@@ -124,10 +124,13 @@ def reference_content(text, images, repository, owner):
             main().assert_account_media(clean[len(prefix):])
             resolved = main().local_media_path_from_url(url)
             root = Path(main().ASSETS_DIR if prefix == '/assets/' else main().OUTPUT_DIR).resolve()
-            if not resolved or not Path(resolved).resolve().is_relative_to(root):
+            legacy_path = resolved and Path(resolved).resolve().is_relative_to(root)
+            project_url = main()._canvas_media_paths(authorize=True).url_for_path(resolved) if resolved and not legacy_path else None
+            if not resolved or (not project_url and not Path(resolved).resolve().is_relative_to(root)):
                 raise HTTPException(422, '参考图路径无效')
             path = Path(resolved).resolve()
-            main().assert_account_media(path.relative_to(root).as_posix())
+            if not project_url:
+                main().assert_account_media(path.relative_to(root).as_posix())
         if not path.is_file() or path.stat().st_size > MAX_IMAGE_BYTES:
             raise HTTPException(413, '参考图缺失或超过 40 MiB')
         inspect_image(path.read_bytes(), ImageSpec(width=1, height=1, format='png'))
@@ -198,6 +201,25 @@ def create_project(request: CreateProject, token: str = ''):
 def role_presets(token: str = ''):
     identity(token)
     return dict(presets=public_presets(), version=PRESET_VERSION)
+
+
+@router.get('/blender-skills')
+def blender_skills(token: str = ''):
+    """建模作业手册列表：packs/blender-skills/ 下的目录。人设与手册可以分开选。"""
+    identity(token)
+    from core.blender_skills import list_skills
+    return dict(skills=list_skills())
+
+
+@router.get('/preset-detail')
+def role_preset_detail(id: str = 'default', token: str = ''):
+    """人设详情悬浮卡：完整人设（含职责提示词）+ 该人设默认配的建模作业手册全文。"""
+    identity(token)
+    from core.blender_skills import document
+    from core.game_role_presets import detail_preset
+    preset = detail_preset(id)
+    skill = document(preset['id']) if 'model' in preset.get('kinds', []) else None
+    return dict(preset=preset, skill=skill)
 
 
 @router.post('/import-backup')
@@ -714,6 +736,11 @@ def owned_source(project, source_url, token):
     canvases = importlib.import_module('routers.canvases')
     roots = [Path(module.get_user_output_dir(project.owner)[0]).resolve(),
              Path(canvases.get_canvas_asset_dir(canvas)).resolve()]
+    if not any(path.is_relative_to(root) for root in roots):
+        from core.canvas_store import store_for
+        roots.extend(Path(module.get_canvas_output_dir(document)).resolve()
+                     for document in store_for(module.CANVAS_DIR).documents()
+                     if document.get('owner') == project.owner)
     if not any(path.is_relative_to(root) for root in roots):
         raise HTTPException(403, '无权访问该源文件')
     if not path.is_file():

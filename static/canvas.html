@@ -2,10 +2,24 @@
 <html lang="zh-CN" data-studio-scale="off">
 <head>
     <meta charset="UTF-8">
+    <!-- 桌面叠加模式标记：必须在 canvas.js 之前记下来。
+         画布启动流程会改写 location（openCanvas/replaceState），
+         之后再去读 ?mode=desktop 已经读不到了。 -->
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search);
+        window.__CANVAS_MODE__ = q.get('mode') || '';
+        window.__CANVAS_ID__ = q.get('id') || '';
+        if (window.__CANVAS_MODE__ === 'desktop') {
+          document.documentElement.classList.add('desktop-overlay');
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>无限画布</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
     <script>
         (function(){
             try {
@@ -18,17 +32,19 @@
         })();
     </script>
     <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script src="/static/js/theme.js?v=20261102look"></script>
+    <script type="module" src="/static/vendor/model-viewer.min.js?v=20261104glb"></script>
+
     <script src="/static/js/touch-mouse.js?v=20261024001"></script>
     <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/canvas.css?v=20261104menu2">
-    <link rel="stylesheet" href="/static/css/canvas-agent.css?v=20261103mcpset">
-    <link rel="stylesheet" href="/static/css/canvas-mask-editor.css?v=20261028028">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
-    <link rel="stylesheet" href="/static/css/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/canvas-media.css?v=20261103cutfollow1">
-    <link rel="stylesheet" href="/static/css/game-pipeline.css?v=20261102picker2">
-    <link rel="stylesheet" href="/static/css/game-model3d.css?v=20261102-3d2">
+    <link rel="stylesheet" href="/static/css/canvas.css?v=20261111005">
+    <link rel="stylesheet" href="/static/css/canvas-agent.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/canvas-mask-editor.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/canvas-overlay.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/canvas-media.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/game-pipeline.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/game-model3d.css?v=20261108011">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -46,10 +62,12 @@
             .board { min-width: 0; }
         }
     </style>
-<link rel="stylesheet" href="/static/css/game-extra-nodes.css?v=20261102nodes2">
-    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=20261103shared">
-    <link rel="stylesheet" href="/static/css/canvas-generation-node.css?v=20261103native1">
+<link rel="stylesheet" href="/static/css/game-extra-nodes.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/canvas-generation-node.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/model-picker.css?v=20261108011">
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261101sharedprompts">
+<link rel="stylesheet" href="/static/css/canvas-asset-split.css?v=20261111split1">
 </head>
 <body>
     <div id="shell" class="shell no-canvas">
@@ -65,24 +83,25 @@
             <div id="quickToolbar" class="panel toolbar editor-only collapsed">
                 <button class="tool-btn toolbar-toggle" type="button" onclick="toggleQuickToolbar()" title="展开快捷菜单" aria-label="展开快捷菜单"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
                 <div class="toolbar-items">
-                    <button class="tool-btn" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
-                    <button class="tool-btn" onclick="addPromptNode()"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
-                    <button class="tool-btn" onclick="addLoopNode()"><i data-lucide="repeat-2" class="w-4 h-4"></i><span data-i18n="canvas.loop">循环</span></button>
-                    <button class="tool-btn" onclick="addLLMNode()"><i data-lucide="message-square-text" class="w-4 h-4"></i>LLM</button>
-                    <button class="tool-btn" onclick="addImageGenerationNode()"><i data-lucide="sparkles" class="w-4 h-4"></i><span>图像生成</span></button>
-                    <button class="tool-btn" onclick="addGeneratorNode()"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
-                    <button class="tool-btn" onclick="addMsGenNode()"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.msGenerate">MS生成</span></button>
-                    <button class="tool-btn" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
-                    <button class="tool-btn" onclick="addRhNode()"><i data-lucide="workflow" class="w-4 h-4"></i><span data-i18n="canvas.rhGenerate">RH生成</span></button>
-                    <button class="tool-btn" onclick="addComfyNode()"><i data-lucide="workflow" class="w-4 h-4"></i>ComfyUI</button>
-                    <button class="tool-btn" onclick="addLTXDirectorNode()"><i data-lucide="film" class="w-4 h-4"></i><span data-i18n="canvas.ltxDirector">LTX Director</span></button>
-                    <button class="tool-btn" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
-                    <button class="tool-btn" onclick="groupSelectedImages()"><i data-lucide="group" class="w-4 h-4"></i><span data-i18n="canvas.group">分组</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建图片节点" onclick="addImageNode()"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.image">图片</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建提示词节点" onclick="addPromptNode()"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建循环节点" onclick="addLoopNode()"><i data-lucide="repeat-2" class="w-4 h-4"></i><span data-i18n="canvas.loop">循环</span></button>
+                    <button class="tool-btn" data-tool="create" data-tool-break title="新建 LLM 节点" onclick="addLLMNode()"><i data-lucide="message-square-text" class="w-4 h-4"></i><span>LLM</span></button>
+                    <button class="tool-btn" data-tool="create" data-tool-break title="新建图像生成节点" onclick="addImageGenerationNode()"><i data-lucide="sparkles" class="w-4 h-4"></i><span>图像生成</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建 API 生成节点" onclick="addGeneratorNode()"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建 Modelscope 生成节点" onclick="addMsGenNode()"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.msGenerate">MS生成</span></button>
+                    <button class="tool-btn" data-tool="create" data-tool-break title="新建视频生成节点" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建 RH 生成节点" onclick="addRhNode()"><i data-lucide="workflow" class="w-4 h-4"></i><span data-i18n="canvas.rhGenerate">RH生成</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建 ComfyUI 生成节点" onclick="addComfyNode()"><i data-lucide="workflow" class="w-4 h-4"></i><span>ComfyUI</span></button>
+                    <button class="tool-btn" data-tool="create" title="新建 LTX Director 节点" onclick="addLTXDirectorNode()"><i data-lucide="film" class="w-4 h-4"></i><span data-i18n="canvas.ltxDirector">LTX Director</span></button>
+                    <button class="tool-btn" data-tool="create" data-tool-break title="新建 Output 节点" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i><span>Output</span></button>
+                    <button class="tool-btn" data-tool="group" data-tool-break title="Ctrl+G 编组（任意类型节点）" onclick="groupSelectedImages()"><i data-lucide="group" class="w-4 h-4"></i><span data-i18n="canvas.group">分组</span></button>
+                    <button class="tool-btn" data-tool="ungroup" title="Ctrl+Shift+G 解组" onclick="ungroupSelectedGroups()"><i data-lucide="ungroup" class="w-4 h-4"></i><span>解组</span></button>
                 </div>
                 <div class="toolbar-fixed">
                     <button id="canvasAgentToggle" class="tool-btn" type="button" title="画布 AI 对话" aria-label="画布 AI 对话" aria-expanded="false"><i data-lucide="sparkles" class="w-4 h-4"></i><span>AI 对话</span></button>
                     <button id="gameProjectToggle" hidden class="tool-btn" type="button" title="游戏项目" aria-label="游戏项目"><i data-lucide="gamepad-2" class="w-4 h-4"></i><span>项目管理</span></button>
-                    <button id="workflowTransferToggle" class="tool-btn toolbar-workflow" type="button" title="导入导出工作流" aria-label="导入导出工作流"><i data-lucide="package-open" class="w-4 h-4"></i><span>工作流</span></button>
+                    <button id="workflowTransferToggle" class="tool-btn toolbar-workflow" type="button" title="工作流与节点包" aria-label="工作流与节点包"><i data-lucide="package-open" class="w-4 h-4"></i><span>工作流</span></button>
                     <button id="canvasAssetToggle" class="tool-btn toolbar-asset canvas-asset-toggle" type="button" title="资产库" aria-label="资产库"><i data-lucide="library" class="w-4 h-4"></i><span>资产库</span></button>
                     <button id="canvasLogToggle" class="tool-btn toolbar-log" type="button" onclick="openCanvasLog(event)" title="日志" aria-label="日志" data-i18n-title="canvas.logs"><i data-lucide="list-todo" class="w-4 h-4"></i><span data-i18n="canvas.logs">日志</span></button>
                 </div>
@@ -96,11 +115,19 @@
             <div id="selectionBox" class="selection-box"></div>
             <div id="selectionHub" class="selection-hub"></div>
             <div id="createMenu" class="create-menu">
+                <button class="menu-btn" onclick="menuAdd('assetSplit')"><i data-lucide="scissors" class="w-4 h-4"></i><span>素材拆分</span></button>
                 <button class="menu-btn" onclick="menuAdd('image')"><i data-lucide="image-plus" class="w-4 h-4"></i><span data-i18n="canvas.imageCard">上传节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('prompt')"><i data-lucide="text-cursor-input" class="w-4 h-4"></i><span data-i18n="canvas.prompt">提示词</span></button>
                 <button class="menu-btn" onclick="menuAdd('loop')"><i data-lucide="repeat-2" class="w-4 h-4"></i><span data-i18n="canvas.loopNode">循环节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('llm')"><i data-lucide="message-square-text" class="w-4 h-4"></i><span data-i18n="canvas.llmNode">LLM 节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('imageGen')"><i data-lucide="sparkles" class="w-4 h-4"></i><span>图像生成</span></button>
+                <button class="menu-btn" onclick="menuAdd('cliComfy')"><i data-lucide="workflow" class="w-4 h-4"></i><span>Comfy CLI</span></button>
+                <button class="menu-btn" onclick="menuAdd('cliTripo')"><i data-lucide="box" class="w-4 h-4"></i><span>Tripo CLI</span></button>
+                <button class="menu-btn" onclick="menuAdd('cliJimeng')"><i data-lucide="sparkles" class="w-4 h-4"></i><span>即梦 CLI</span></button>
+                <button class="menu-btn" onclick="menuAdd('cliCodex')"><i data-lucide="code" class="w-4 h-4"></i><span>Codex CLI</span></button>
+                <button class="menu-btn" onclick="menuAdd('cliGemini')"><i data-lucide="bot" class="w-4 h-4"></i><span>Antigravity CLI</span></button>
+                <button class="menu-btn" onclick="menuAdd('blenderGen')"><i data-lucide="boxes" class="w-4 h-4"></i><span>AI 建模</span></button>
+                <button class="menu-btn" onclick="menuAdd('blenderScene')"><i data-lucide="clapperboard" class="w-4 h-4"></i><span>Blender 场景</span></button>
                 <button class="menu-btn" onclick="menuAdd('generator')"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
                 <button class="menu-btn" onclick="menuAdd('msgen')"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.modelscopeGenerate">Modelscope生成</span></button>
                 <button class="menu-btn" onclick="menuAdd('video')"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerateNode">视频生成</span></button>
@@ -108,6 +135,7 @@
                 <button class="menu-btn" onclick="menuAdd('comfy')"><i data-lucide="workflow" class="w-4 h-4"></i><span data-i18n="canvas.comfyGenerate">ComfyUI 生成</span></button>
                 <button class="menu-btn" onclick="menuAdd('ltxDirector')"><i data-lucide="film" class="w-4 h-4"></i><span data-i18n="canvas.ltxDirector">LTX Director</span></button>
                 <button class="menu-btn" onclick="menuAdd('minimax')"><i data-lucide="sparkles" class="w-4 h-4"></i><span>MiniMax H3</span></button>
+                <button class="menu-btn" onclick="menuAdd('webapp')"><i data-lucide="app-window" class="w-4 h-4"></i><span>网页节点</span></button>
                 <button class="menu-btn" onclick="menuAdd('output')"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
             </div>
             <div id="linkCreateMenu" class="create-menu"></div>
@@ -141,7 +169,7 @@
             <aside id="workflowTransferModal" class="workflow-transfer-panel">
                 <div class="workflow-transfer-head">
                     <div>
-                        <div class="workflow-transfer-title">导入导出工作流</div>
+                        <div class="workflow-transfer-title">工作流与节点包</div>
                         <div id="workflowTransferSub" class="workflow-transfer-sub">导出框选节点，或把工作流导入到当前画布</div>
                     </div>
                     <button class="canvas-asset-icon-btn" type="button" onclick="closeWorkflowTransferModal()" title="关闭"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -165,6 +193,15 @@
                             <span>拖入 JSON / ZIP 工作流</span>
                             <small>或点击选择文件</small>
                         </div>
+                    </section>
+                    <section class="workflow-transfer-card node-package-card">
+                        <div class="workflow-transfer-card-head"><i data-lucide="package-plus" class="w-4 h-4"></i><strong>节点包与插件</strong></div>
+                        <p>导入 .artnode / .zip 节点包。候选测试、安装进度与真实测试记录都保留在这里。</p>
+                        <div class="workflow-transfer-actions">
+                            <button class="workflow-transfer-btn primary" type="button" onclick="CanvasComfyBuilds.importPackage()"><i data-lucide="upload" class="w-4 h-4"></i><span>导入节点包</span></button>
+                            <button class="workflow-transfer-btn secondary" type="button" onclick="CanvasComfyBuilds.refresh()"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span>刷新记录</span></button>
+                        </div>
+                        <div id="nodePackageRecords" class="node-package-records"></div>
                     </section>
                 </div>
             </aside>
@@ -360,7 +397,7 @@
                     </div>
                 </div>
                 <div class="image-edit-actions">
-                    <span id="imageEditZoomLabel" style="color:#9f9d95;font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
+                    <span id="imageEditZoomLabel" style="color:var(--ui-muted);font-size:11px;font-weight:800;padding:0 4px;margin-right:auto;cursor:pointer;user-select:none" title="双击重置缩放" ondblclick="resetImageEditZoom()">100%</span>
                     <button class="image-edit-btn secondary" type="button" onclick="resetCropBox()"><i data-lucide="rotate-ccw" class="w-4 h-4"></i><span data-i18n="canvas.reset">重置</span></button>
                     <button class="image-edit-btn secondary" type="button" onclick="closeImageEditor()" data-i18n="common.cancel">取消</button>
                     <button id="imageEditApplyBtn" class="image-edit-btn primary" type="button" onclick="applyImageEdit()"><i data-lucide="crop" class="w-4 h-4"></i><span data-i18n="canvas.applyCrop">应用裁剪</span></button>
@@ -382,7 +419,7 @@
         </div>
     </div>
 
-    <script src="/static/js/ltx-director-timeline.js?v=20261024001"></script>
+    <script src="/static/js/ltx-director-timeline.js?v=20261108011"></script>
     <script src="/static/js/image-cutout-client.js?v=20261101cutoutmethods"></script>
     <script src="/static/js/canvas-mask-editor.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/card-progress.js?v=20261026image-ready"></script>
@@ -392,29 +429,67 @@
     <script src="/static/app/lora-picker.js?v=20261101sharedprompts"></script>
     <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedprompts"></script>
     <script src="/static/modules/generation-prompt-library.js?v=20261101sharedprompts"></script>
-    <script src="/static/modules/image-generation-workflow.js?v=20261103native1"></script>
+    <script src="/static/modules/image-generation-workflow.js?v=20261105lr8guard1"></script>
     <script src="/static/modules/generation-options-panel.js?v=20261103shared"></script>
-    <script src="/static/js/canvas-generation-node.js?v=20261103native1"></script>
+    <script src="/static/modules/model-visibility.js?v=20261105canvasvis1"></script>
+    <script src="/static/modules/model-picker.js?v=20261105tier1"></script>
+    <script src="/static/modules/comfy-status.js?v=20261105shared3"></script>
+    <link rel="stylesheet" href="/static/css/canvas-alignment.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/video-trimmer.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/canvas-quick-start.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/web-node.css?v=20261108011">
+    <script src="/static/modules/canvas-alignment.js?v=20261105align1"></script>
+    <script src="/static/modules/canvas-history.js?v=20261105align1"></script>
+    <script src="/static/modules/video-trimmer.js?v=20261105align1"></script>
+    <script src="/static/modules/canvas-quick-start.js?v=20261105align1"></script>
+    <script src="/static/modules/web-node.js?v=20261105web3"></script>
+    <script src="/static/js/canvas-generation-node.js?v=20261105tier1"></script>
+    <link rel="stylesheet" href="/static/css/canvas-materials.css?v=20261108011">
+    <script src="/static/js/canvas-material-plan.js?v=20261105personas3"></script>
+    <script src="/static/js/canvas-materials.js?v=20261105unified-model1"></script>
+    <script src="/static/js/canvas-material-preview.js?v=20261105uv-views1"></script>
     <script src="/static/js/canvas-color-tags.js?v=20261103cutfollow1"></script>
-    <script src="/static/js/canvas-image-tools.js?v=20261028033"></script>
+    <script src="/static/js/canvas-image-tools.js?v=20261108011"></script>
     <script src="/static/modules/comfyui-registry.js?v=20261028033"></script>
     <script src="/static/modules/comfyui-gaoqingxiufu.js?v=20261028033"></script>
     <script src="/static/modules/comfyui-kuotu.js?v=20261028033"></script>
     <script src="/static/modules/comfyui-watermark-removal.js?v=20261028033"></script>
-    <script src="/static/js/canvas-plugin-ui.js?v=20261104sdk1"></script>
-    <script src="/static/js/canvas-node-catalog.js?v=20261104menu2"></script>
-    <script src="/static/js/canvas-comfy-builds.js?v=20261104env1"></script>
-    <script src="/static/js/canvas.js?v=20261104media1"></script>
+    <script src="/static/js/canvas-plugin-ui.js?v=20261104uibridge1"></script>
+    <script src="/static/js/sprite-sheet-split.js?v=20261111split1"></script>
+    <script src="/static/js/asset-split-export.js?v=20261111split1"></script>
+    <script src="/static/js/canvas-asset-split.js?v=20261111split1"></script>
+    <script src="/static/js/canvas-node-catalog.js?v=20261109uloop4"></script>
+    <script src="/static/js/canvas-comfy-builds.js?v=20261104uibridge1"></script>
+    <script src="/static/nodes/shared/node-controls.js?v=20261105controls1"></script>
+    <script src="/static/nodes/cli-gen/index.js?v=20261108011"></script>
+    <link rel="stylesheet" href="/static/nodes/blender-gen/workspace.css?v=20261108011">
+    <script src="/static/nodes/blender-gen/workspace.js?v=20261108009"></script>
+    <script src="/static/nodes/blender-gen/index.js?v=20261108011"></script>
+    <script src="/static/nodes/msgen/index.js?v=20261108011"></script>
+    <script src="/static/nodes/loop/index.js?v=20261108011"></script>
+    <script src="/static/nodes/llm/index.js?v=20261108011"></script>
+    <script src="/static/nodes/generator/index.js?v=20261108011"></script>
+    <script src="/static/nodes/video/index.js?v=20261108011"></script>
+    <script src="/static/nodes/ltx-director/index.js?v=20261108011"></script>
+    <script src="/static/nodes/minimax/helpers.js?v=20261104nodes9"></script>
+    <script src="/static/nodes/minimax/runninghub.js?v=20261104nodes9"></script>
+    <script src="/static/nodes/minimax/index.js?v=20261108011"></script>
+    <script src="/static/js/preset-info.js?v=20261108011"></script>
+    <script src="/static/js/canvas-generation-sources.js?v=20261111split1"></script>
+    <script src="/static/js/canvas-schema.js?v=20261106persistence"></script>
+    <script src="/static/js/canvas.js?v=20261111split1"></script>
+    <script src="/static/modules/canvas-overlay-bridge.js?v=20261106clear3"></script>
     <script src="/static/js/game-pipeline.js?v=20261102-3d3"></script>
     <script src="/static/js/game-authoring.js?v=20261102-authoring1"></script>
-    <script src="/static/js/game-development.js?v=20261102unified1"></script>
+    <script src="/static/js/game-development.js?v=20261104nodes3"></script>
     <script src="/static/js/game-asset-intake.js?v=20261103intake1"></script>
-    <script src="/static/js/game-model-import.js?v=20261102-3d3"></script>
-    <script src="/static/js/game-model3d.js?v=20261102-3d3"></script>
+    <script src="/static/js/game-model-import.js?v=20261104matasset3"></script>
+    <script src="/static/js/game-model3d.js?v=20261108009"></script>
     <script src="/static/js/game-extra-nodes.js?v=20261104shared1"></script>
-    <script src="/static/js/game-workflow.js?v=20261104shared1"></script>
-    <script src="/static/modules/external-asset-drop.js?v=20261102extdrop1"></script>
-    <script src="/static/js/canvas-agent-state.js?v=20261102chat1"></script>
-    <script src="/static/js/canvas-agent.js?v=20261104media1"></script>
+    <script src="/static/js/game-workflow.js?v=20261105removed-legacy1"></script>
+    <script src="/static/modules/external-asset-drop.js?v=20261104nomid1"></script>
+    <script src="/static/js/canvas-agent-markdown.js?v=20261104gemini1"></script>
+    <script src="/static/js/canvas-agent-state.js?v=20261104gemini1"></script>
+    <script src="/static/js/canvas-agent.js?v=20261104gemini1"></script>
 </body>
 </html>

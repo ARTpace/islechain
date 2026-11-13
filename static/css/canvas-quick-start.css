@@ -1,0 +1,71 @@
+/* 画布快速开始样式（配合 static/modules/canvas-quick-start.js） */
+
+.canvas-quick-start {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 8px 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--ui-line-strong);
+}
+
+.canvas-quick-start-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+    padding-left: 2px;
+}
+
+.canvas-quick-start-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.canvas-quick-start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 30px;
+    padding: 0 9px;
+    border-radius: 9px;
+    border: 1px solid var(--ui-line-strong);
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.canvas-quick-start-btn svg { width: 13px; height: 13px; flex: none; }
+.canvas-quick-start-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.canvas-quick-start-btn:hover {
+    background: color-mix(in srgb, var(--accent, #06b6d4) 10%, #fff);
+    border-color: color-mix(in srgb, var(--accent, #06b6d4) 30%, #eae8e1);
+    color: var(--ui-text);
+}
+
+.canvas-quick-start-btn.is-disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    background: var(--ui-panel);
+}
+
+.canvas-quick-start-hint {
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--ui-muted);
+    padding-left: 2px;
+}
+
+.theme-dark .canvas-quick-start { border-bottom-color: var(--line, #2e2e2b); }
+.theme-dark .canvas-quick-start-title,
+.theme-dark .canvas-quick-start-hint { color: var(--ui-muted); }
+.theme-dark .canvas-quick-start-btn { background: var(--soft, #262623); border-color: var(--line, #2e2e2b); color: var(--muted, #a8a8a1); }
+.theme-dark .canvas-quick-start-btn:hover { color: var(--text, #f2f2ef); }
+.theme-dark .canvas-quick-start-btn.is-disabled { background: var(--ui-panel); }

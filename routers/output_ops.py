@@ -5,7 +5,7 @@
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from typing import List
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from starlette.responses import Response
 import asyncio, os, requests, subprocess, uuid
 import mimetypes
@@ -72,8 +72,11 @@ async def download_output(url: str, name: str = "", inline: bool = False):
 @router.get("/api/open-output-folder")
 async def open_output_folder(path: str = ""):
     """在资源管理器中打开 output 目录中的图片所在文件夹"""
-    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
-    full_path = os.path.join(_main.OUTPUT_DIR, safe_path)
+    path = unquote(path)
+    _main.assert_account_media(path)
+    mapped = _main._canvas_media_paths(authorize=True).resolve_write_path(path, 'output', write=False)
+    from core.canvas_paths import safe_path
+    full_path = str(mapped if mapped is not None else safe_path(_main.OUTPUT_DIR, path))
     folder = os.path.dirname(full_path) if os.path.isfile(full_path) else full_path
     if not os.path.exists(folder):
         raise HTTPException(status_code=404, detail=f"目录不存在: {folder}")
@@ -90,11 +93,11 @@ async def open_output_folder(path: str = ""):
 @router.get("/api/delete-output-file")
 async def delete_output_file(path: str = ""):
     """删除 output 目录中的图片文件"""
-    safe_path = os.path.normpath(path).lstrip("\\/").lstrip("/")
-    full_path = os.path.join(_main.OUTPUT_DIR, safe_path)
-    output_root = os.path.abspath(_main.OUTPUT_DIR)
-    if not os.path.abspath(full_path).startswith(output_root):
-        raise HTTPException(status_code=403, detail="不允许删除 output 目录之外")
+    path = unquote(path)
+    _main.assert_account_media(path)
+    mapped = _main._canvas_media_paths(authorize=True).resolve_write_path(path, 'output')
+    from core.canvas_paths import safe_path
+    full_path = str(mapped if mapped is not None else safe_path(_main.OUTPUT_DIR, path))
     if not os.path.isfile(full_path):
         return {"ok": False, "error": "文件不存在", "path": full_path}
     try:

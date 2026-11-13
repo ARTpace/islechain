@@ -116,7 +116,7 @@
     },
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
-      "lora_name": "qwen2.1\\Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors",
+      "lora_name": "qwen2.1\\Qwen-Image-2.1-LR-8step-lora-r128.safetensors",
       "strength_model": 1.0,
       "model": [
         "3",

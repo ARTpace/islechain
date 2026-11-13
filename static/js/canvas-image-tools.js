@@ -238,19 +238,19 @@ function openCanvasComfyEditDialog(node, cfg) {
     const canvasId = canvas && canvas.id;
     const dialog = document.createElement('dialog');
     dialog.id = 'canvasComfyEdit';
-    dialog.style.cssText = 'margin:auto;padding:0;border:1px solid #475569;border-radius:16px;background:#17202c;color:#f8fafc;width:min(520px,94vw);box-shadow:0 20px 80px #0009;';
+    dialog.style.cssText = 'margin:auto;padding:0;border:1px solid var(--ui-line-strong);border-radius:16px;background:var(--ui-panel);color:var(--ui-text);width:min(520px,94vw);box-shadow:0 20px 80px #0009;';
     dialog.setAttribute('aria-label', cfg.label);
     const body = typeof registry.settings === 'function' ? registry.settings({}) : '';
     dialog.innerHTML = `
         <div style="display:flex;flex-direction:column;max-height:92dvh">
-            <header style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #334155">
-                <div style="flex:1"><strong>${cfg.label}</strong><div style="font-size:12px;color:#b5c7da">基于选中图片生成，结果作为新节点</div></div>
-                <button type="button" data-close aria-label="取消" style="min-width:40px;min-height:40px;border:0;background:#243245;color:#fff;border-radius:8px">✕</button>
+            <header style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--ui-line-strong)">
+                <div style="flex:1"><strong>${cfg.label}</strong><div style="font-size:12px;color:var(--ui-muted)">基于选中图片生成，结果作为新节点</div></div>
+                <button type="button" data-close aria-label="取消" style="min-width:40px;min-height:40px;border:0;background:var(--ui-soft);color:var(--ui-text);border-radius:8px">✕</button>
             </header>
             <div class="cce-body" style="padding:8px 16px;overflow:auto">${body}</div>
-            <div class="cce-footer" style="display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid #334155">
-                <span class="cce-status" role="status" style="font-size:12px;color:#b5c7da;flex:1">调整参数后点击生成</span>
-                <button type="button" class="cce-generate" data-generate style="min-height:44px;padding:8px 18px;background:#047857;color:#fff;border:0;border-radius:8px">${cfg.label}</button>
+            <div class="cce-footer" style="display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid var(--ui-line-strong)">
+                <span class="cce-status" role="status" style="font-size:12px;color:var(--ui-muted);flex:1">调整参数后点击生成</span>
+                <button type="button" class="cce-generate" data-generate style="min-height:44px;padding:8px 18px;background:var(--ui-accent);color:var(--ui-accent-ink);border:0;border-radius:8px">${cfg.label}</button>
             </div>
         </div>`;
     document.body.appendChild(dialog);

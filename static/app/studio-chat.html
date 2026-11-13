@@ -6,9 +6,10 @@
 <title>对话生图</title>
 <script src="/static/modules/auth-token.js"></script>
 <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261102look"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
 <script src="/static/js/ui-refine.js?v=20261024001"></script>
-<link rel="stylesheet" href="/static/css/studio-ui.css">
+<link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 <style>
 :root { --bg: var(--ui-bg); --card: var(--ui-panel); --line: var(--ui-line); --text: var(--ui-text); --muted: var(--ui-muted); --accent: var(--ui-accent); }
 html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
@@ -29,7 +30,7 @@ html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font
 .composer { border:1px solid var(--ui-line-strong); border-radius:22px; background:var(--ui-soft); padding:12px; }
 textarea { width:100%; min-height:52px; max-height:140px; border:0; resize:none; outline:none; background:transparent; color:var(--text); font:14px/1.5 inherit; }
 .bar { display:flex; justify-content:flex-end; }
-.send { width:36px; height:36px; border:0; border-radius:50%; background:var(--accent); color:#181818; font-weight:800; cursor:pointer; }
+.send { width:36px; height:36px; border:0; border-radius:50%; background:var(--accent); color:var(--ui-text); font-weight:800; cursor:pointer; }
 .send:disabled { opacity:.45; }
 
 /* studio-ui 响应式（外层 chrome 流式 + 移动兜底） */
@@ -44,6 +45,7 @@ body { overflow-x: hidden; }
   * { animation: none !important; transition: none !important; }
 }
 </style>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body>
 <div class="page">

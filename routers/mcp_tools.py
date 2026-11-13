@@ -44,8 +44,35 @@ async def list_servers():
     return {'servers': [mcp_tools.public(server) for server in mcp_tools.servers()]}
 
 
+@router.get('/unity-projects')
+async def list_unity_projects(refresh: bool = False):
+    """画布「Unity CLI」节点用：列出本机 Hub 注册的 Unity 工程与已安装编辑器。"""
+    from core import unity_projects
+    return unity_projects.discover(force=refresh)
+
+
+@router.get('/unity-editor-methods')
+async def list_unity_editor_methods(project: str = ''):
+    """扫描指定 Unity 工程里的静态无参编辑器方法，标注是否适合批处理。"""
+    from core import unity_projects
+    return unity_projects.editor_methods(project)
+
+
+@router.get('/uloop-features')
+async def list_uloop_features(project: str = '', refresh: bool = False):
+    """uloop 节点用：按工程路径自动检测 uloop CLI、插件能力与可用功能。"""
+    from core import uloop_features
+    if refresh:
+        uloop_features._CACHE.clear()
+    return uloop_features.discover(project)
+
+
 @router.get('/node-catalog')
 async def get_node_catalog():
+    # 内置 CLI 节点：首次打开画布/节点目录时幂等安装，之后走用户自己的 catalog。
+    from core import unity_cli_node, uloop_cli_node
+    unity_cli_node.ensure_installed()
+    uloop_cli_node.ensure_installed()
     return {**node_catalog.public_catalog(), 'sdk': node_catalog.sdk()}
 
 
@@ -112,7 +139,7 @@ async def run_config_node(value: dict, owner: str = Depends(local_request)):
         if f"{item['typeId']}@{item['version']}" not in node_catalog.public_catalog()['hashes']:
             raise ValueError('该节点版本已停用；数据与连线仍然保留')
         event, run_id = None, value.get('runId')
-        if item['execution']['kind'] in ('worker.python', 'host.http'):
+        if item['execution']['kind'] in ('worker.python', 'host.http', 'host.cli'):
             event = node_worker.register(owner, run_id)
         try:
             return await asyncio.to_thread(node_catalog.execute, item, value.get('params', {}),
@@ -139,6 +166,11 @@ def comfy_context(canvas_id, token=''):
     main.validate_canvas_owner(_owned_canvas(canvas_id), token)
     return ComfyBuilds(main.USER_DATA_DIR + '/comfy-builds', main.WORKFLOW_DIR,
                       main.get_username_by_token(token), canvas_id, main.COMFYUI_ADDRESS)
+
+
+def dcc_context(canvas_id, token=''):
+    from routers.dcc_bridge import dcc_service
+    return dcc_service(canvas_id, token)
 
 
 @router.get('/comfy-builds')
@@ -248,7 +280,7 @@ async def list_tools(server_id: str):
         async with mcp_tools.pooled_session(get_server(server_id)) as client:
             tools = await mcp_tools.catalog(client)
             return {'tools': [dict(tool.model_dump(mode='json', exclude_none=True),
-                risk=mcp_tools.tool_risk(mcp_tools.annotations_of(tool))) for tool in tools]}
+                risk=mcp_tools.tool_risk(mcp_tools.annotations_of(tool), tool.name)) for tool in tools]}
     except mcp_tools.MCPError as exc:
         raise HTTPException(502, str(exc)) from None
 
@@ -320,7 +352,10 @@ async def call_tool(server_id: str, payload: ToolCall):
         async with mcp_tools.pooled_session(server) as client:
             if payload.name not in {tool.name for tool in await mcp_tools.catalog(client)}:
                 raise HTTPException(404, '工具已不可用，请刷新工具列表')
-            return json.loads(mcp_tools.bounded_result(await client.call_tool(payload.name, payload.arguments)))
+            result = await mcp_tools.call_once(client, payload.name, payload.arguments)
+            if getattr(result, 'isError', False):
+                raise mcp_tools.MCPError(mcp_tools.tool_error(result))
+            return json.loads(mcp_tools.bounded_result(result))
     except mcp_tools.MCPError as exc:
         raise HTTPException(502, str(exc)) from None
 
@@ -446,7 +481,8 @@ async def agent(payload: AgentRequest, token: str = ''):
                 include_media=payload.includeMedia,
                 approve=make_approver(queue),
                 context=context,
-                comfy=comfy_context(payload.canvasId, token))
+                comfy=comfy_context(payload.canvasId, token),
+                dcc=dcc_context(payload.canvasId, token))
             await queue.put({'type': 'result', **result})
         except asyncio.CancelledError:
             raise

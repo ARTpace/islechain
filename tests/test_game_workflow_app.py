@@ -11,6 +11,7 @@ import core.user_paths
 core.user_paths.migrate_project_user_data = lambda *a, **k: []
 import core.media_migration
 core.media_migration.migrate = lambda *a, **k: {}
+import core.game_role_presets
 import main, json, httpx
 from fastapi.testclient import TestClient
 main.save_users({'tester': {'token': 'workflow-test'}, 'other': {'token': 'workflow-other'}})
@@ -54,7 +55,7 @@ assert proposal.status_code == 200, proposal.text
 p = proposal.json()['project']
 candidate = p['candidates'][-1]
 assert candidate['status'] == 'valid', candidate
-assert candidate['presetId'] == 'game-director' and candidate['presetVersion'] == 1
+assert candidate['presetId'] == 'game-director' and candidate['presetVersion'] == core.game_role_presets.PRESET_VERSION
 assert '游戏制作人' in calls[0]['messages'][0]['content']
 assert '猫咪修理飞船' in calls[0]['messages'][1]['content']
 assert client.post(root + '/asset-candidates', headers=headers, json={'baseRevision': p['revision']}).status_code == 409

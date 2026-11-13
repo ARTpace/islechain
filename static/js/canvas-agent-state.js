@@ -11,8 +11,11 @@
         // Do not serialize MCP credentials, tool outputs, canvas snapshots, or pending edit payloads.
         const value={draft:String(session.draft || '').slice(0,16000),model:session.model || '',serverIds:(session.serverIds || []).slice(0,8),
             messages:session.messages.slice(-40).map(message=>({id:message.id,role:message.role,text:message.text || '',summary:message.summary || '',status:message.status,
+                modelLabel:String(message.modelLabel || '').slice(0,80),
+                thinkingMs:Number.isFinite(message.thinkingMs)?Math.max(0,Math.round(message.thinkingMs)):undefined,
+                elapsedMs:Number.isFinite(message.elapsedMs)?Math.max(0,Math.round(message.elapsedMs)):undefined,
                 references:(message.references || []).slice(0,24).map(item=>({id:item.id,label:item.label})),
-                trace:(message.trace || []).slice(-64).map(item=>({name:item.name,status:item.status}))}))};
+                trace:(message.trace || []).slice(-64).map(item=>({name:item.name,status:item.status,error:String(item.error || '').slice(0,1200)}))}))};
         localStorage.setItem(prefix+id,JSON.stringify(value));
     }
     function load(id) {
@@ -20,6 +23,9 @@
         try {value=JSON.parse(localStorage.getItem(prefix+id) || '{}');if(!value || typeof value!=='object')value={};} catch {value={};}
         const messages=(Array.isArray(value.messages)?value.messages:[]).filter(message=>message && typeof message.id==='string' && ['user','assistant'].includes(message.role)).slice(-40)
             .map(message=>({...message,text:String(message.text || '').slice(0,16000),summary:String(message.summary || '').slice(0,4000),
+                modelLabel:String(message.modelLabel || '').slice(0,80),
+                thinkingMs:Number.isFinite(message.thinkingMs)?Math.max(0,Math.round(message.thinkingMs)):undefined,
+                elapsedMs:Number.isFinite(message.elapsedMs)?Math.max(0,Math.round(message.elapsedMs)):undefined,
                 trace:Array.isArray(message.trace)?message.trace.filter(item=>item && typeof item.name==='string').slice(-64):[],
                 references:Array.isArray(message.references)?message.references.filter(item=>item && typeof item.id==='string' && typeof item.label==='string').slice(0,24):[],
                 status:message.status==='working'?'interrupted':message.status==='proposed'?'expired':message.status}));

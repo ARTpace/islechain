@@ -1,0 +1,22 @@
+.blender-workspace{display:flex;gap:12px;min-width:0;color:var(--ui-text);background:var(--ui-panel);border-radius:16px;padding:12px;box-sizing:border-box}
+.bw-nav{display:flex;flex-direction:column;gap:6px;flex:0 0 44px}.bw-nav button{border:0;background:transparent;color:var(--ui-muted);border-radius:10px;padding:9px 3px;cursor:pointer;display:flex;align-items:center;flex-direction:column;gap:4px;font-size:11px}.bw-nav button.active{background:var(--ui-soft);color:var(--ui-accent)}.bw-nav svg{width:19px;height:19px}.bw-content{flex:1;min-width:0}.bw-content>header{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;font-size:14px}.bw-expand{background:none;border:0;color:var(--ui-muted);cursor:pointer}.bw-expand svg{width:16px;height:16px}.bw-preview{position:relative;height:270px;border-radius:12px;background:#17181b;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--ui-muted);font-size:12px}.bw-preview>svg{width:36px;height:36px}.bw-editor{margin-top:12px}.bw-model-controls>.blender-stage,.bw-model-controls>.llm-pane-label{display:none!important}.bw-model-controls .blender-prompt{height:64px!important;min-height:64px}.bw-settings{margin-top:10px;font-size:12px;color:var(--ui-muted)}.bw-settings summary{cursor:pointer;padding:6px}.bw-unavailable{display:flex;align-items:center;flex-direction:column;gap:12px;text-align:center;padding:18px 5px;color:var(--ui-muted);font-size:12px}.bw-unavailable svg{width:24px;height:24px}.bw-unavailable strong{color:var(--ui-text)}.blender-workspace.expanded .bw-preview{position:relative;height:420px}.bw-nav button:focus-visible,.bw-expand:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+
+.bw-preview>canvas,.bw-preview>model-viewer{width:100%;height:100%}.bw-model-controls .blender-preset-wrap,.bw-model-controls .blender-budget{margin-top:8px}
+
+.bw-model-controls .blender-run{flex:1;min-height:36px;border:0;border-radius:9px;background:var(--ui-accent);color:var(--ui-accent-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.bw-model-controls .blender-run:disabled{opacity:.6;cursor:wait}.bw-model-controls .blender-run svg{width:16px;height:16px}
+.bw-model-controls .blender-budget span{opacity:1!important;color:var(--ui-text)}.bw-model-controls .blender-prompt{resize:vertical;max-height:220px}
+
+.bw-model-controls .gen-run-row{display:flex;gap:6px;margin-top:10px}
+
+
+/* 大图切换与可滚动缩略图栏；不覆盖底层模型状态。 */
+.bw-has-references .blender-refs{position:absolute;bottom:6px;left:6px;right:6px;display:flex;flex-wrap:nowrap!important;overflow-x:auto;gap:6px!important;width:auto;height:72px;margin:0!important;z-index:4}
+.bw-has-references .blender-ref{width:64px!important;height:64px!important;flex:0 0 64px!important;border:2px solid var(--ui-line-strong)!important;box-sizing:border-box}
+.bw-has-references .blender-ref.active{border-color:var(--ui-accent)!important}.bw-has-references .blender-ref:focus-visible{outline:2px solid var(--ui-line-strong);outline-offset:-4px}
+.bw-reference-main{position:absolute;inset:0 0 84px;width:100%;height:calc(100% - 84px);object-fit:contain;background:var(--ui-panel);z-index:3}
+.bw-reference-main[hidden]{display:none}.bw-show-reference .blender-spin{display:none!important}
+
+.bw-model-main{position:absolute;inset:0;width:100%;height:100%}.bw-has-references .bw-model-main{bottom:84px;height:calc(100% - 84px)}
+.bw-model-main[hidden]{display:none!important}.bw-model-thumbnail{padding:0;background:var(--ui-panel);cursor:pointer;overflow:hidden;display:block}
+.bw-model-thumbnail model-viewer{display:block;width:100%;height:100%;pointer-events:none}

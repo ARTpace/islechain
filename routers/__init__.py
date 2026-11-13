@@ -43,6 +43,7 @@ _SUBROUTERS = (
     "output_ops",
     "canvas_tasks",
     "cli_tools",
+    "cli_manager",
     "lora_scan",
     "asset_library",
     "static_files",
@@ -70,10 +71,16 @@ _SUBROUTERS = (
     "game_development_tasks",
     "game_native_runtime",
     "game_model3d",
+    "model3d_viewer",
+    "rodin3d",
     "game_audio",
     "game_node_assets",
     "mcp_tools",
     "generation_dashboard",
+    "dcc_bridge",
+    "ability_packs",
+    "materials",
+    "tripo_studio",
 )
 
 __all__ = list(_SUBROUTERS)

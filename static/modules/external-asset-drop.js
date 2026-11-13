@@ -26,6 +26,9 @@
   const inGameCanvas = el => !!(el && el.closest && el.closest('.gp-work-node, [data-game-canvas], #game-canvas, .game-pipeline'));
 
   let overlay = null;
+  let lastDragOverAt = 0;
+  let watchdogTimer = null;
+
   function ensureOverlay() {
     if (overlay) return overlay;
     overlay = document.createElement('div');
@@ -46,13 +49,29 @@
     document.body.appendChild(overlay);
     return overlay;
   }
+  function startWatchdog() {
+    if (watchdogTimer) return;
+    // 兜底：拖拽事件流中断（松手后没收到 drop / 拖出窗口 / 拖拽被系统取消）时，
+    // 只要超过 800ms 没有新的 dragover 就强制收起提示，避免提示残留。
+    watchdogTimer = setInterval(() => {
+      if (Date.now() - lastDragOverAt > 800) hideOverlay();
+    }, 300);
+  }
+  function stopWatchdog() {
+    if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null; }
+  }
   function showOverlay(label) {
     const o = ensureOverlay();
     const hint = o.querySelector('#external-asset-drop-hint');
-    if (hint) hint.textContent = label || '松开以导入资产';
-    o.style.display = 'flex';
+    const text = label || '松开以导入资产';
+    if (hint && hint.textContent !== text) hint.textContent = text;
+    if (o.style.display !== 'flex') o.style.display = 'flex';
+    startWatchdog();
   }
-  function hideOverlay() { if (overlay) overlay.style.display = 'none'; }
+  function hideOverlay() {
+    stopWatchdog();
+    if (overlay && overlay.style.display !== 'none') overlay.style.display = 'none';
+  }
 
   async function uploadAssets(files) {
     const fd = new FormData();
@@ -109,6 +128,8 @@
   }
 
   async function handleDrop(e) {
+    // 松手即收起拖拽提示：无论后续走哪条分支（输入栏插入 / 画布建节点 / 忽略），都不能残留。
+    hideOverlay();
     const dt = e.dataTransfer;
     if (!isExternalDrag(dt)) return;
     const files = Array.from(dt?.files || []);
@@ -135,7 +156,7 @@
       // 图片落在非输入区：交给画布自身的图片拖入逻辑（如智能画布建图节点），不处理。
     }
 
-    // 模型：交给当前画布注册的钩子创建 3D 资产节点。
+    // 模型：交给当前画布注册的钩子创建模型资产节点。
     if (models.length) {
       const hook = window.__assetDropCreateModelNode;
       if (typeof hook === 'function') {
@@ -154,26 +175,38 @@
   }
 
   function onDragOver(e) {
-    if (!isExternalDrag(e.dataTransfer)) return;
+    if (!isExternalDrag(e.dataTransfer)) { hideOverlay(); return; }
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    if (!inGameCanvas(e.target)) {
-      const models = Array.from(e.dataTransfer.files || []).filter(isModelFile).length;
-      showOverlay(models ? '松开以创建 3D 资产节点' : '松开以上传图片到输入栏');
-    } else {
-      hideOverlay();
-    }
+    try { e.dataTransfer.dropEffect = 'copy'; } catch (_) {}
+    lastDragOverAt = Date.now();
+    if (inGameCanvas(e.target)) { hideOverlay(); return; }
+    // dragover 阶段浏览器出于安全不暴露文件名，files 往往为空；能读到就按后缀判断，读不到按图片处理。
+    const files = Array.from(e.dataTransfer.files || []);
+    const hasModel = files.some(isModelFile);
+    const hasImage = !files.length || files.some(isImageFile);
+    if (!hasModel && !hasImage) { hideOverlay(); return; }
+    showOverlay(hasModel ? '松开以创建 3D 资产节点' : '松开以上传图片到输入栏');
   }
   function onDragLeave(e) {
-    // 仅在真正离开窗口时隐藏，避免子元素冒泡误触。
-    if (e.clientX <= 0 && e.clientY <= 0) hideOverlay();
-    if (!e.relatedTarget && !e.toElement) hideOverlay();
+    // 指针离开视口边界：立即收起。
+    if (e.clientX <= 0 || e.clientY <= 0) { hideOverlay(); return; }
+    // relatedTarget 为空时无法区分「离开窗口」和「在子元素间移动」，交给 watchdog 兜底，避免闪烁。
   }
 
   document.addEventListener('dragover', onDragOver, false);
   document.addEventListener('dragleave', onDragLeave, false);
   document.addEventListener('drop', handleDrop, false);
   document.addEventListener('dragend', hideOverlay, true);
+
+  // 多重兜底：任何一次松手、拖拽结束、切窗口、按 Esc、页面隐藏都收起提示，
+  // 保证提示不会卡在界面上（这是之前 drop 后提示残留的根因）。
+  window.addEventListener('drop', hideOverlay, true);
+  window.addEventListener('dragend', hideOverlay, true);
+  window.addEventListener('mouseup', hideOverlay, true);
+  window.addEventListener('pointerup', hideOverlay, true);
+  window.addEventListener('blur', hideOverlay);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideOverlay(); }, true);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hideOverlay(); });
 
   function toast(msg) {
     if (typeof window.toast === 'function') { window.toast(msg); return; }

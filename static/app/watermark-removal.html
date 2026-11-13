@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-    <script src="/static/theme.js?v=20261024bar"></script>
+<script src="/static/js/theme.js?v=20261111016"></script>
+
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/history-bulk-manager.js"></script>
@@ -19,32 +20,32 @@
 <script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
     <script src="/static/modules/gallery/display.js?v=20261031b"></script>
-    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261102accent">
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261108011">
     <style>
         :root { --bg-base: #f7f7f5; --text-main: #141414; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
         *::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
-        *::-webkit-scrollbar-thumb { background-color: #d8d8d8 !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
-        *::-webkit-scrollbar-thumb:hover { background-color: #c0c0c0 !important; }
+        *::-webkit-scrollbar-thumb { background-color: var(--ui-soft) !important; border: 3px solid transparent !important; border-right-width: 5px !important; background-clip: padding-box !important; border-radius: 10px !important; }
+        *::-webkit-scrollbar-thumb:hover { background-color: var(--ui-soft) !important; }
         *::-webkit-scrollbar-corner { background: transparent !important; }
         * { scrollbar-width: thin !important; scrollbar-color: #d8d8d8 transparent !important; }
         body { background-color: var(--bg-base); font-family: "Inter", -apple-system, "PingFang SC", sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
         .layout-container { max-width: var(--max-w); margin: 0 auto; padding: 0 40px; }
         .console-card { background: var(--ui-panel); border: 1px solid var(--ui-line); box-shadow: var(--ui-shadow); }
-        .theme-dark .console-card { background: #151515; border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        .theme-dark .console-card { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
         .theme-dark .bg-gray-50\/50 { background: rgba(20, 20, 20, 0.5) !important; }
-        .theme-dark .bg-white { background: #151515 !important; }
+        .theme-dark .bg-white { background: var(--ui-panel) !important; }
         .theme-dark .border-gray-100 { border-color: rgba(0, 240, 255, 0.1) !important; }
-        .theme-dark .text-gray-700 { color: #e3e1d9 !important; }
-        .theme-dark .bg-gray-100 { background: #20201e !important; }
+        .theme-dark .text-gray-700 { color: var(--ui-text) !important; }
+        .theme-dark .bg-gray-100 { background: var(--ui-panel) !important; }
         .upload-zone { border-radius: 24px; padding: 3rem 2rem; min-height: 200px; position: relative; }
-        .btn-render { background: #0b0b0a; color: #fbfaf9; transition: all 0.3s ease; }
-        .btn-render:hover { transform: translateY(-1px); background: #222222; }
-        .btn-render:disabled { background: #cccccc; cursor: not-allowed; }
+        .btn-render { background: var(--ui-panel); color: var(--ui-text); transition: all 0.3s ease; }
+        .btn-render:hover { transform: translateY(-1px); background: var(--ui-panel); }
+        .btn-render:disabled { background: var(--ui-soft); cursor: not-allowed; }
         input::-webkit-inner-spin-button { display: none; }
         .model-select { background: var(--ui-soft); border: 1px solid var(--ui-line); border-radius: 12px; padding: 8px 12px; font-size: 14px; outline: none; cursor: pointer; transition: all 0.3s; width: 100%; }
         .model-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
-        .theme-dark .model-select { background: #151515; border-color: rgba(0, 240, 255, 0.15); color: #e3e1d9; }
+        .theme-dark .model-select { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.15); color: var(--ui-text); }
         .theme-dark .model-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2); }
 
         .param-slider-row {
@@ -62,7 +63,7 @@
             letter-spacing: 0.03em;
             min-width: 80px;
         }
-        .theme-dark .param-slider-row label { color: #a19f97; }
+        .theme-dark .param-slider-row label { color: var(--ui-muted); }
         .param-stepper {
             display: flex;
             align-items: center;
@@ -74,7 +75,7 @@
         }
         .theme-dark .param-stepper {
             border-color: rgba(0, 240, 255, 0.15);
-            background: #151515;
+            background: var(--ui-panel);
         }
         .param-stepper button {
             width: 28px;
@@ -90,8 +91,8 @@
             justify-content: center;
             transition: all 0.15s;
         }
-        .param-stepper button:hover { background: rgba(0, 0, 0, 0.05); color: #181817; }
-        .theme-dark .param-stepper button:hover { background: rgba(255, 255, 255, 0.08); color: #eeede9; }
+        .param-stepper button:hover { background: rgba(0, 0, 0, 0.05); color: var(--ui-text); }
+        .theme-dark .param-stepper button:hover { background: rgba(255, 255, 255, 0.08); color: var(--ui-text); }
         .param-stepper span {
             width: 44px;
             text-align: center;
@@ -104,7 +105,7 @@
             line-height: 28px;
         }
         .theme-dark .param-stepper span {
-            color: #eeede9;
+            color: var(--ui-text);
             border-color: rgba(0, 240, 255, 0.15);
         }
         .param-toggle {
@@ -118,8 +119,8 @@
             transition: all 0.2s;
             flex-shrink: 0;
         }
-        .theme-dark .param-toggle { background: #464540; }
-        .param-toggle.on { background: #06b6d4; }
+        .theme-dark .param-toggle { background: var(--ui-soft); }
+        .param-toggle.on { background: var(--ui-accent); }
         .param-toggle::after {
             content: '';
             position: absolute;
@@ -133,7 +134,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
         }
         .param-toggle.on::after { left: 18px; }
-        .theme-dark .param-toggle.on { background: #06b6d4; }
+        .theme-dark .param-toggle.on { background: var(--ui-accent); }
         .adv-toggle {
             background: none;
             border: none;
@@ -149,7 +150,7 @@
             gap: 4px;
             transition: color 0.2s;
         }
-        .adv-toggle:hover { color: #86857c; }
+        .adv-toggle:hover { color: var(--ui-muted); }
         .adv-toggle svg { width: 12px; height: 12px; transition: transform 0.2s; }
         .adv-toggle.open svg { transform: rotate(90deg); }
         .adv-panel {
@@ -160,13 +161,13 @@
         }
         .theme-dark .adv-panel { border-color: rgba(0, 240, 255, 0.1); }
         .adv-panel.open { display: block; }
-        .theme-dark .btn-render { background: #20201e; color: #f6f6f4; }
-        .theme-dark .btn-render:hover { background: #3e3e39; }
-        .theme-dark .btn-render:disabled { background: #3e3e39; color: #63625c; }
+        .theme-dark .btn-render { background: var(--ui-panel); color: var(--ui-text); }
+        .theme-dark .btn-render:hover { background: var(--ui-soft); }
+        .theme-dark .btn-render:disabled { background: var(--ui-soft); color: var(--ui-muted); }
 
         .btn-wr-glow {
             background: linear-gradient(135deg, #06b6d4, #06b6d4);
-            color: #fbfaf9;
+            color: var(--ui-text);
             border: none;
             box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), 0 0 30px rgba(6, 182, 212, 0.15);
             transition: all 0.3s ease;
@@ -218,7 +219,7 @@
             background: var(--ui-soft);
             flex-shrink: 0;
         }
-        .theme-dark .uploaded-thumb { border-color: rgba(0, 240, 255, 0.15); background: #151515; }
+        .theme-dark .uploaded-thumb { border-color: rgba(0, 240, 255, 0.15); background: var(--ui-panel); }
         .uploaded-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .uploaded-thumb .thumb-remove {
             position: absolute;
@@ -228,7 +229,7 @@
             height: 20px;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.6);
-            color: #fbfaf9;
+            color: var(--ui-text);
             border: none;
             cursor: pointer;
             display: flex;
@@ -243,7 +244,7 @@
             left: 0; right: 0; bottom: 0;
             font-size: 8px;
             font-weight: 700;
-            color: #fbfaf9;
+            color: var(--ui-text);
             background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
             padding: 12px 4px 3px;
             text-align: center;
@@ -259,7 +260,7 @@
             letter-spacing: 0.04em;
             margin-top: 8px;
         }
-        .theme-dark .uploaded-summary { color: #a19f97; }
+        .theme-dark .uploaded-summary { color: var(--ui-muted); }
 
         .wr-prompt-input {
             width: 100%;
@@ -275,7 +276,7 @@
             color: var(--ui-text);
         }
         .wr-prompt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
-        .theme-dark .wr-prompt-input { background: #151515; border-color: rgba(0, 240, 255, 0.15); color: #eeede9; }
+        .theme-dark .wr-prompt-input { background: var(--ui-panel); border-color: rgba(0, 240, 255, 0.15); color: var(--ui-text); }
         .theme-dark .wr-prompt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2); }
 
         .upload-zone-empty {
@@ -290,8 +291,8 @@
             margin-top: 4px;
         }
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261102accent">
-    <link rel="stylesheet" href="/static/css/studio-ui.css">
+    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 <style id="ui-responsive">
 /* 响应式底座：避免横向溢出；flex/grid 子项允许收缩 */
 body { overflow-x: hidden; }
@@ -319,6 +320,9 @@ body { overflow-x: hidden; }
 img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-width: 100%; height: auto; }
 </style>
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
+    <script src="/static/modules/comfy-progress.js?v=20261105toolruntime2"></script>
+    <script src="/static/modules/comfy-tool-runtime.js?v=20261105toolruntime4"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -445,9 +449,13 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
     <script>
         lucide.createIcons();
 
-        const _isLocalAccess = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-        let COMFYUI_SERVER = 'http://127.0.0.1:8188';
-        let IS_LOCAL_SERVER = _isLocalAccess;
+        // 服务器地址解析、请求封装、进度条、任务提交统一由 comfy-tool-runtime.js 提供
+        const tool = ComfyTool.create({
+            keepAlive: true,
+            // 本页提交的是 BASE_WORKFLOW 的深拷贝，节点中文名直接查原始模板
+            nodeTitles: (id) => BASE_WORKFLOW[id]?._meta?.title || ''
+        });
+        const CLIENT_ID = tool.clientId;
 
         // 基础工作流（来自 图片去水印-工作流.json），提交前按 UI 参数覆写节点 14/17
         const BASE_WORKFLOW = {
@@ -467,6 +475,8 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     "auto_save": false,
                     "filename_prefix": "GJJ/批量去水印",
                     "filename_regex": "",
+                    // 新版节点把 keep_model 提为必填。默认 false = 跑完释放模型，不常驻显存
+                    "keep_model": false,
                     "image": ["17", 0]
                 },
                 "class_type": "GJJ_BatchWatermarkRemover",
@@ -484,69 +494,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             }
         };
 
-        function generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) { try { return crypto.randomUUID(); } catch (e) { } }
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
-        const CLIENT_ID = localStorage.getItem("client_id") || generateUUID();
-        localStorage.setItem("client_id", CLIENT_ID);
 
-        async function loadConfig() {
-            const localConfig = localStorage.getItem('comfyui_config');
-            if (localConfig) {
-                try {
-                    const config = JSON.parse(localConfig);
-                    const activeServer = config.active_server || '本地服务器';
-                    IS_LOCAL_SERVER = (activeServer === '本地服务器');
-                    if (!IS_LOCAL_SERVER && config.cloud_address) {
-                        COMFYUI_SERVER = (config.cloud_address.startsWith('http') ? config.cloud_address : `https://${config.cloud_address}`).replace(/\/+$/, '');
-                        return;
-                    }
-                } catch (e) { console.error('解析本地配置失败:', e); }
-            }
-            try {
-                const res = await fetch('/api/comfyui/instances');
-                if (res.ok) {
-                    const data = await res.json();
-                    const instances = data.instances || [];
-                    if (instances.length > 0) {
-                        COMFYUI_SERVER = `http://${instances[0]}`;
-                        console.log('从后端获取 ComfyUI 地址:', COMFYUI_SERVER);
-                    }
-                }
-            } catch (e) {
-                console.warn('获取后端 ComfyUI 地址失败，使用默认值:', e);
-            }
-        }
+        async function loadConfig() { await tool.loadConfig(); }
 
-        async function apiFetch(url, options = {}) {
-            if (url.startsWith('/api/')) return await fetch(url, options);
-            return await fetch('/api/comfyui' + url, options);
-        }
-
-        function buildWsUrl() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            return `${protocol}//${window.location.host}/api/comfyui/ws?client_id=${CLIENT_ID}`;
-        }
-
-        async function checkServerConnection() {
-            try {
-                const statsUrl = IS_LOCAL_SERVER ? '/system_stats' : '/api/comfyui/system_stats';
-                const response = await apiFetch(statsUrl);
-                if (response.ok) {
-                    document.getElementById("statusText").innerText = "System Ready";
-                    document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-green-500 rounded-full";
-                } else {
-                    throw new Error('Server not responding');
-                }
-            } catch (e) {
-                document.getElementById("statusText").innerText = "System Offline";
-                document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-red-500 rounded-full";
-            }
-        }
+        // 注意：本页 getResult 已改用 tool.historyEntry，不要再拿裸 /history/ 路径调 apiFetch
+        const apiFetch = (url, options) => tool.apiFetch(url, options);
+        async function checkServerConnection() { await tool.checkConnection(); }
 
         // 统一缩略图配置
         window.GALLERY_CONFIG = {
@@ -823,19 +776,10 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             const placeholder = createPlaceholder("去水印处理中 · 0/" + uploadedImages.length);
             document.getElementById('masonry').prepend(placeholder);
 
+            let ok = false;
             try {
                 await syncAllToComfyBackend();
                 const { workflow, selectedImagesJson } = buildWorkflow();
-                currentPromptId = generateUUID();
-
-                const wsUrl = buildWsUrl();
-                const ws = await new Promise((resolve, reject) => {
-                    const socket = new WebSocket(wsUrl);
-                    socket.onopen = () => { console.log('[ComfyUI WS] 连接成功'); resolve(socket); };
-                    socket.onerror = () => reject(new Error('WebSocket 连接失败'));
-                    setTimeout(() => reject(new Error('WebSocket 连接超时')), 5000);
-                });
-
                 // extra_pnginfo.workflow.nodes[].properties 是 GJJ_MultiImageLoader 读取 selected_images 的官方通道
                 // （该字段不在 INPUT_TYPES，inputs.selected_images 会被 ComfyUI 默默丢弃）
                 const extraPngInfo = {
@@ -850,76 +794,32 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                     }
                 };
 
-                await new Promise((resolve, reject) => {
-                    let processedCount = 0;
-                    let lastProgress = { value: 0, max: 1 };
-                    ws.onmessage = (event) => {
-                        try {
-                            if (typeof event.data !== 'string') return;
-                            const message = JSON.parse(event.data);
-                            if (message.data?.prompt_id && message.data.prompt_id !== currentPromptId) return;
-                            if (message.type === 'execution_start') {
-                                updateRealProgress({ type: 'comfyui_progress', status: 'started', value: 0, max: 1, node: '' });
-                            } else if (message.type === 'progress') {
-                                lastProgress = { value: message.data.value || 0, max: message.data.max || 1 };
-                                updateRealProgress({ type: 'comfyui_progress', status: 'sampling', value: lastProgress.value, max: lastProgress.max, node: message.data.node || '' });
-                            } else if (message.type === 'executing') {
-                                if (message.data.node === null) {
-                                    updateRealProgress({ type: 'comfyui_progress', status: 'done', value: 1, max: 1, node: '' });
-                                    setTimeout(() => { ws.close(); resolve(getResult(currentPromptId, placeholder)); }, 500);
-                                } else {
-                                    updateRealProgress({ type: 'comfyui_progress', status: 'executing', value: 0, max: 1, node: message.data.node || '' });
-                                }
-                            } else if (message.type === 'execution_cached') {
-                                updateRealProgress({ type: 'comfyui_progress', status: 'cached', value: 0, max: 1, node: 'cached' });
-                            } else if (message.type === 'executed' && message.data?.output) {
-                                // 累计输出图片（多图）
-                                if (message.data.output.images) {
-                                    processedCount += message.data.output.images.length;
-                                    document.getElementById('progressStatus').textContent = `已处理 ${processedCount} 张...`;
-                                }
-                            } else if (message.type === 'execution_error') {
-                                ws.close();
-                                reject(new Error(message.data.exception_message || '执行错误'));
-                            }
-                        } catch (e) { reject(e); }
-                    };
-                    apiFetch('/prompt', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: workflow,
-                            client_id: CLIENT_ID,
-                            prompt_id: currentPromptId,
-                            extra_data: { extra_pnginfo: extraPngInfo }
-                        })
-                    }).then(async (response) => {
-                        if (!response.ok) { const errorText = await response.text(); reject(new Error(`HTTP ${response.status}: ${errorText}`)); return; }
-                        const result = await response.json();
-                        currentPromptId = result.prompt_id;
-                        document.getElementById('progressStatus').textContent = '任务已提交，等待执行...';
-                    }).catch(reject);
+                // 提交与等结果交给共享运行时：完成判定用 history 轮询，
+                // 不再依赖单次 WebSocket 事件（消息一旦丢失就会永久挂起）
+                const result = await tool.submit(workflow, {
+                    onProgress: updateRealProgress,
+                    extraData: { extra_pnginfo: extraPngInfo }
                 });
+                currentPromptId = result.promptId;
+                ok = await getResult(currentPromptId, placeholder);
             } catch (e) {
                 if (placeholder && placeholder.parentNode) placeholder.remove();
                 alert(e.message || "去水印失败");
             } finally {
                 isGenerating = false;
-                completeProgress();
-                setTimeout(() => hideProgress(), 1500);
+                // 失败时不再显示「生成完成」，直接收起进度条
+                if (ok) { completeProgress(); setTimeout(() => hideProgress(), 1500); }
+                else { hideProgress(); }
                 setLoading(false);
             }
         }
 
         async function getResult(promptId, placeholder) {
             try {
-                const res = await apiFetch(`/history/${promptId}`);
-                if (!res.ok) throw new Error('获取历史记录失败');
-                const history = await res.json();
-                const promptData = history[promptId];
-                if (!promptData) throw new Error('历史记录中未找到该任务');
-                if (promptData.status && promptData.status.status_str === 'error') throw new Error('任务执行错误');
-                const outputs = promptData.outputs || {};
+                // 走共享运行时取历史（同源代理），不要用裸 /history/ 路径直连 8188
+                const entry = await tool.historyEntry(promptId);
+                if (!entry) throw new Error('历史记录中未找到该任务');
+                const outputs = entry.outputs || {};
                 const allImageUrls = [];
                 for (const nodeId in outputs) {
                     const nodeOutput = outputs[nodeId];
@@ -968,9 +868,11 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
                 } catch (e) { console.error('保存历史记录失败:', e); }
 
                 if (placeholder && placeholder.parentNode) placeholder.remove();
+                return true;
             } catch (e) {
                 if (placeholder && placeholder.parentNode) placeholder.remove();
                 alert('获取结果失败: ' + e.message);
+                return false;
             }
         }
 
@@ -990,50 +892,12 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             lucide.createIcons();
         }
 
-        function startProgress() {
-            const el = document.getElementById('progressInline');
-            if (el) el.classList.add('active');
-            document.getElementById('progressFill').style.width = '0%';
-            document.getElementById('progressPercent').textContent = '0%';
-            document.getElementById('progressStatus').textContent = '正在提交任务...';
-        }
-
-        function updateRealProgress(msg) {
-            const fill = document.getElementById('progressFill');
-            const percent = document.getElementById('progressPercent');
-            const status = document.getElementById('progressStatus');
-            if (msg.status === 'started') {
-                fill.style.width = '2%'; percent.textContent = '2%'; status.textContent = 'ComfyUI 开始执行...';
-            } else if (msg.status === 'executing') {
-                fill.style.width = '5%'; percent.textContent = '5%'; status.textContent = `执行节点: ${getNodeTitle(msg.node)}`;
-            } else if (msg.status === 'cached') {
-                status.textContent = '部分节点命中缓存';
-            } else if (msg.status === 'sampling') {
-                const value = msg.value || 0, max = msg.max || 1;
-                const finalPct = 10 + Math.round((value / max) * 80);
-                fill.style.width = `${finalPct}%`; percent.textContent = `${finalPct}%`; status.textContent = `去水印中 ${value}/${max}`;
-            } else if (msg.status === 'done') {
-                fill.style.width = '95%'; percent.textContent = '95%'; status.textContent = '收尾保存中...';
-            }
-        }
-
-        function getNodeTitle(nodeId) {
-            const node = BASE_WORKFLOW[nodeId];
-            return node?._meta?.title || `节点 ${nodeId}`;
-        }
-
-        function completeProgress() {
-            const el = document.getElementById('progressFill');
-            if (el) el.style.width = '100%';
-            document.getElementById('progressPercent').textContent = '100%';
-            document.getElementById('progressStatus').textContent = '生成完成！';
-        }
-
-        function hideProgress() {
-            const el = document.getElementById('progressInline');
-            if (el) el.classList.remove('active');
-            currentPromptId = null;
-        }
+        // 进度条绘制统一由共享运行时负责（多页同一套 DOM 契约）
+        function startProgress(text) { tool.startProgress(text); }
+        // 常驻 WS 会收到别的任务的消息，非生成期间必须忽略
+        function updateRealProgress(msg) { if (!isGenerating) return; tool.updateProgress(msg); }
+        function completeProgress() { tool.completeProgress(); }
+        function hideProgress() { tool.hideProgress(); currentPromptId = null; }
 
         function createPlaceholder(text) {
             const div = document.createElement('div');
@@ -1051,19 +915,7 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
             GalleryList.load(0).then(() => {
                 window.HistoryBulkManager?.attach({ masonry: '#masonry' });
             });
-            setInterval(async () => {
-                try {
-                    const res = await fetch("/api/queue_status?client_id=" + encodeURIComponent(CLIENT_ID));
-                    const data = await res.json();
-                    if (data.total > 0) {
-                        document.getElementById("statusText").innerText = `Queueing ${data.position}/${data.total}`;
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse";
-                    } else {
-                        document.getElementById("statusText").innerText = "System Ready";
-                        document.getElementById("dotColor").className = "w-1.5 h-1.5 bg-black rounded-full";
-                    }
-                } catch (e) { }
-            }, 3000);
+            setInterval(() => tool.queueStatus(CLIENT_ID), 3000);
             lucide.createIcons();
         };
     </script>

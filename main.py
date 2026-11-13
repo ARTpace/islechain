@@ -19,6 +19,7 @@ import tempfile
 import threading
 from contextvars import ContextVar
 import concurrent.futures
+import weakref
 import zipfile
 from io import BytesIO
 import requests
@@ -185,6 +186,8 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"局域网共享启动失败: {exc}")
     yield
+    from routers.tripo_studio import stop as stop_tripo_studio
+    await stop_tripo_studio()
     print("Application shutting down.")
     try:
         from core import mcp_tools
@@ -1259,33 +1262,19 @@ def sanitize_folder_name(title, canvas_id):
     suffix = canvas_id[:8]
     return f"{name}_{suffix}" if name else suffix
 
+def _canvas_media_paths(authorize=False):
+    from core.canvas_store import store_for
+    from core.canvas_paths import CanvasPaths
+    return CanvasPaths(store_for(CANVAS_DIR), OUTPUT_DIR, INPUT_DIR,
+                       authorize=(lambda c: validate_canvas_owner(c, '')) if authorize else None)
+
+
 def get_canvas_output_dir(canvas):
-    """获取画布的输出目录路径(含用户隔离)"""
-    owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
-    folder = canvas.get("output_folder", "")
-    if owner and folder:
-        return os.path.join(OUTPUT_DIR, owner, folder)
-    elif folder:
-        return os.path.join(OUTPUT_DIR, folder)
-    elif owner:
-        path = os.path.join(OUTPUT_DIR, owner)
-        os.makedirs(path, exist_ok=True)
-        return path
-    return OUTPUT_DIR
+    return str(_canvas_media_paths().media_root(canvas, 'output', get_user_dirname(canvas.get('owner')) or ''))
+
 
 def get_canvas_asset_dir(canvas):
-    """获取画布的资产目录路径(含用户隔离)"""
-    owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
-    folder = canvas.get("output_folder", "")
-    if owner and folder:
-        return os.path.join(INPUT_DIR, owner, folder)
-    elif folder:
-        return os.path.join(INPUT_DIR, folder)
-    elif owner:
-        path = os.path.join(INPUT_DIR, owner)
-        os.makedirs(path, exist_ok=True)
-        return path
-    return INPUT_DIR
+    return str(_canvas_media_paths().media_root(canvas, 'input', get_user_dirname(canvas.get('owner')) or ''))
 
 def build_output_url(canvas, filename, username=None, subfolder=None):
     """构建 output 文件的 URL 路径"""
@@ -1293,22 +1282,22 @@ def build_output_url(canvas, filename, username=None, subfolder=None):
         owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
         folder = canvas.get("output_folder", "")
         if owner and folder:
-            return f"/output/{owner}/{folder}/{filename}"
+            return urllib.parse.quote(f"/output/{owner}/{folder}/{filename}", safe='/')
         elif folder:
-            return f"/output/{folder}/{filename}"
+            return urllib.parse.quote(f"/output/{folder}/{filename}", safe='/')
         elif owner:
-            return f"/output/{owner}/{filename}"
+            return urllib.parse.quote(f"/output/{owner}/{filename}", safe='/')
         else:
-            return f"/output/{filename}"
+            return urllib.parse.quote(f"/output/{filename}", safe='/')
     elif username:
         user_dirname = get_user_dirname(username)
         if subfolder:
-            return f"/output/{user_dirname}/{subfolder}/{filename}"
-        return f"/output/{user_dirname}/{filename}"
+            return urllib.parse.quote(f"/output/{user_dirname}/{subfolder}/{filename}", safe='/')
+        return urllib.parse.quote(f"/output/{user_dirname}/{filename}", safe='/')
     else:
         if subfolder:
-            return f"/output/{subfolder}/{filename}"
-        return f"/output/{filename}"
+            return urllib.parse.quote(f"/output/{subfolder}/{filename}", safe='/')
+        return urllib.parse.quote(f"/output/{filename}", safe='/')
 
 def build_asset_url(canvas, filename):
     """构建 asset 文件的 URL 路径(含用户隔离)"""
@@ -1316,14 +1305,14 @@ def build_asset_url(canvas, filename):
         owner = get_user_dirname(canvas.get("owner")) if canvas.get("owner") else ""
         folder = canvas.get("output_folder", "")
         if owner and folder:
-            return f"/assets/{owner}/{folder}/{filename}"
+            return urllib.parse.quote(f"/assets/{owner}/{folder}/{filename}", safe='/')
         elif folder:
-            return f"/assets/{folder}/{filename}"
+            return urllib.parse.quote(f"/assets/{folder}/{filename}", safe='/')
         elif owner:
-            return f"/assets/{owner}/{filename}"
+            return urllib.parse.quote(f"/assets/{owner}/{filename}", safe='/')
         else:
-            return f"/assets/{filename}"
-    return f"/assets/{filename}"
+            return urllib.parse.quote(f"/assets/{filename}", safe='/')
+    return urllib.parse.quote(f"/assets/{filename}", safe='/')
 
 QUEUE = []
 QUEUE_LOCK = Lock()
@@ -1882,6 +1871,9 @@ IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-1")
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
 MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
 AI_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "300"))
+# 在线生图经常要排几分钟队，上游常常在 5 分钟后才返回图片。
+# 用 AI_REQUEST_TIMEOUT 会把「已出图但还没回包」的请求提前掐掉，单独给生图一条更长的上限。
+IMAGE_REQUEST_TIMEOUT = float(os.getenv("IMAGE_REQUEST_TIMEOUT", "1200"))
 IMAGE_POLL_INTERVAL = float(os.getenv("IMAGE_POLL_INTERVAL", "2"))
 
 def model_list(env_name, primary, defaults):
@@ -1958,8 +1950,9 @@ async def serve_output_file(path: str):
         raise HTTPException(status_code=404, detail="File not found")
     assert_account_media(clean_path)
 
-    full_path = os.path.abspath(os.path.join(OUTPUT_DIR, clean_path))
-    output_root = os.path.abspath(OUTPUT_DIR)
+    mapped = _canvas_media_paths(authorize=True).resolve_write_path(clean_path, 'output', write=False)
+    full_path = os.path.abspath(mapped if mapped is not None else os.path.join(OUTPUT_DIR, clean_path))
+    output_root = os.path.abspath(OUTPUT_DIR) if mapped is None else os.path.dirname(full_path)
 
     # 确保请求的路径在 OUTPUT_DIR 内
     if not full_path.startswith(output_root):
@@ -1988,6 +1981,8 @@ async def serve_output_file(path: str):
         ".flac": "audio/flac",
         ".aac": "audio/aac",
         ".m4a": "audio/mp4",
+        ".glb": "model/gltf-binary",
+        ".gltf": "model/gltf+json",
     }.get(ext, "application/octet-stream")
 
     is_media = ext in ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mov')
@@ -2016,8 +2011,9 @@ async def serve_asset_file(path: str):
     if clean_path.startswith("uploads/"):
         clean_path = "library/_local/" + clean_path[len("uploads/"):]
 
-    full_path = os.path.abspath(os.path.join(INPUT_DIR, clean_path))
-    input_root = os.path.abspath(INPUT_DIR)
+    mapped = _canvas_media_paths(authorize=True).resolve_write_path(clean_path, 'input', write=False)
+    full_path = os.path.abspath(mapped if mapped is not None else os.path.join(INPUT_DIR, clean_path))
+    input_root = os.path.abspath(INPUT_DIR) if mapped is None else os.path.dirname(full_path)
 
     if not full_path.startswith(input_root):
         raise HTTPException(status_code=404, detail="File not found")
@@ -2149,6 +2145,9 @@ class ChatRequest(BaseModel):
     provider: str = "comfly"
     ms_model: str = ""
     system_prompt: str = Field(default="", max_length=20000)
+    # 对话生图复用画布 AI 的工具循环；关闭后退回纯流式代理。
+    use_tools: bool = True
+    mcp_server_ids: List[str] = []
 
 class MsGenerateRequest(BaseModel):
     prompt: str
@@ -2167,6 +2166,8 @@ class CanvasLLMRequest(BaseModel):
     messages: List[Dict[str, str]] = []
     provider: str = "comfly"
     ms_model: str = ""
+    images: List[str] = Field(default_factory=list)
+    videos: List[str] = Field(default_factory=list)
 
 class ConversationCreateRequest(BaseModel):
     title: str = "新对话"
@@ -2643,13 +2644,23 @@ def get_comfy_history(comfy_address, prompt_id):
         return {}
 
 def safe_user_id(user_id, request: Request):
+    """把用户名映射成稳定的 ASCII 目录名。
+
+    纯 ASCII 用户名保持原规则（兼容已有目录）；含中文等非 ASCII 字符的用户名，
+    旧逻辑会整段被替换成 '-' 后落到 anonymous，导致所有中文用户共用同一个
+    账号目录（会话、资产库互相串）。这里改为「可读前缀 + 稳定哈希」，保证唯一。
+    """
     candidate = (user_id or "").strip()
-    if not candidate and request.client:
+    if not candidate and request and request.client:
         candidate = f"ip-{request.client.host}"
     if not candidate:
         candidate = "anonymous"
-    candidate = re.sub(r"[^a-zA-Z0-9_.-]", "-", candidate)[:80].strip(".-")
-    return candidate or "anonymous"
+    if candidate.isascii():
+        cleaned = re.sub(r"[^a-zA-Z0-9_.-]", "-", candidate)[:80].strip(".-")
+        return cleaned or "anonymous"
+    ascii_part = re.sub(r"[^a-zA-Z0-9]", "", candidate)[:12].lower()
+    digest = hashlib.sha1(candidate.encode("utf-8")).hexdigest()[:10]
+    return (ascii_part + "-" if ascii_part else "u-") + digest
 
 def user_dir(user_id):
     path = os.path.join(CONVERSATION_DIR, user_id)
@@ -2766,57 +2777,28 @@ def list_conversations(user_id):
     return records
 
 def canvas_path(canvas_id):
-    cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", canvas_id or "")
-    if not cleaned:
-        raise HTTPException(status_code=400, detail="无效的画布 ID")
-    return os.path.join(CANVAS_DIR, f"{cleaned}.json")
+    from routers.canvases import canvas_path as path
+    return path(canvas_id)
+
 
 def save_canvas(canvas):
-    canvas["updated_at"] = now_ms()
-    with CANVAS_LOCK:
-        atomic_write_json(canvas_path(canvas["id"]), canvas, ensure_ascii=False, indent=2)
+    from core.canvas_store import store_for
+    return store_for(CANVAS_DIR).save(canvas)
 
-def new_canvas(title="未命名画布", icon="layers", owner=None):
-    timestamp = now_ms()
-    canvas_id = uuid.uuid4().hex
-    folder_name = sanitize_folder_name(title, canvas_id)
 
-    # 创建画布专属输出文件夹(含用户目录嵌套)
-    user_dirname = get_user_dirname(owner) if owner else ""
-    canvas_dir = os.path.join(OUTPUT_DIR, user_dirname, folder_name) if user_dirname else os.path.join(OUTPUT_DIR, folder_name)
-    os.makedirs(canvas_dir, exist_ok=True)
+def new_canvas(title='未命名画布', icon='layers', owner=None):
+    from routers.canvases import new_canvas as create
+    return create(title, icon, owner)
 
-    canvas = {
-        "id": canvas_id,
-        "title": (title or "未命名画布")[:80],
-        "icon": (icon or "🧩")[:4],
-        "owner": owner,
-        "output_folder": folder_name,
-        "created_at": timestamp,
-        "updated_at": timestamp,
-        "nodes": [],
-        "connections": [],
-        "viewport": {"x": 0, "y": 0, "scale": 1},
-    }
-    save_canvas(canvas)
-    return canvas
 
 def load_canvas(canvas_id):
-    path = canvas_path(canvas_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="画布不存在")
-    with open(path, 'r', encoding='utf-8') as f:
-        canvas = json.load(f)
-    if canvas.get("deleted_at"):
-        raise HTTPException(status_code=404, detail="画布已在回收站")
-    return canvas
+    from core.canvas_store import store_for
+    return store_for(CANVAS_DIR).read(canvas_id)
+
 
 def load_canvas_any(canvas_id):
-    path = canvas_path(canvas_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="画布不存在")
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    from core.canvas_store import store_for
+    return store_for(CANVAS_DIR).read(canvas_id, include_deleted=True)
 
 def canvas_record(data):
     return {
@@ -2834,39 +2816,16 @@ def canvas_record(data):
     }
 
 def cleanup_expired_canvas_trash():
-    cutoff = now_ms() - CANVAS_TRASH_RETENTION_MS
-    with CANVAS_LOCK:
-        for filename in os.listdir(CANVAS_DIR):
-            if not filename.endswith(".json"):
-                continue
-            path = os.path.join(CANVAS_DIR, filename)
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                deleted_at = int(data.get("deleted_at") or 0)
-                if deleted_at and deleted_at < cutoff:
-                    os.remove(path)
-            except Exception:
-                continue
+    from routers.canvases import cleanup_expired_canvas_trash as cleanup
+    cleanup()
+
 
 def iter_canvas_records(include_deleted=False, owner_filter=None):
+    from core.canvas_store import store_for
     cleanup_expired_canvas_trash()
-    records = []
-    for filename in os.listdir(CANVAS_DIR):
-        if not filename.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(CANVAS_DIR, filename), 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception:
-            continue
-        is_deleted = bool(data.get("deleted_at"))
-        if include_deleted != is_deleted:
-            continue
-        if owner_filter is not None and data.get("owner") != owner_filter:
-            continue
-        records.append(canvas_record(data))
-    return records
+    return [canvas_record(data) for data in store_for(CANVAS_DIR).documents()
+            if bool(data.get('deleted_at')) == include_deleted
+            and (owner_filter is None or data.get('owner') == owner_filter)]
 
 def list_canvases(owner_filter=None):
     records = iter_canvas_records(include_deleted=False, owner_filter=owner_filter)
@@ -2918,25 +2877,13 @@ def project_canvas_counts(owner):
     return counts
 
 def move_canvases_to_default(owner, project_id):
-    """项目被删除后，其画布回落到默认项目。返回迁移数量。"""
+    from core.canvas_store import store_for
     moved = 0
-    with CANVAS_LOCK:
-        for filename in os.listdir(CANVAS_DIR):
-            if not filename.endswith(".json"):
-                continue
-            path = os.path.join(CANVAS_DIR, filename)
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            except (OSError, ValueError):
-                continue
-            if data.get("owner") != owner:
-                continue
-            if (data.get("project") or DEFAULT_PROJECT_ID) != project_id:
-                continue
-            data["project"] = DEFAULT_PROJECT_ID
-            data["updated_at"] = now_ms()
-            atomic_write_json(path, data, ensure_ascii=False, indent=2)
+    store = store_for(CANVAS_DIR)
+    for data in store.documents():
+        if data.get('owner') == owner and (data.get('project') or DEFAULT_PROJECT_ID) == project_id:
+            data['project'] = DEFAULT_PROJECT_ID
+            store.save(data)
             moved += 1
     return moved
 
@@ -3040,6 +2987,19 @@ def text_delta_from_chat_chunk(data):
         return "".join(parts)
     return str(content) if content else ""
 
+def reasoning_delta_from_chat_chunk(data):
+    """思考型模型（DeepSeek-R1 / Qwen-Thinking 等）把推理过程放在 delta.reasoning_content，
+    这里单独取出来；没有就返回空串，调用方据此判断是否需要推送思考事件。"""
+    choices = data.get("choices") or []
+    if not choices:
+        return ""
+    delta = choices[0].get("delta") or {}
+    for key in ("reasoning_content", "reasoning"):
+        value = delta.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
 def sse_event(data):
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -3097,7 +3057,7 @@ def extract_task_id(data):
     return None
 
 async def wait_for_image_task(client, task_id):
-    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    deadline = time.monotonic() + IMAGE_REQUEST_TIMEOUT
     last_payload = {}
     while time.monotonic() < deadline:
         response = await client.get(f"{AI_BASE_URL}/v1/images/tasks/{task_id}", headers=api_headers())
@@ -3178,7 +3138,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
         if not orig_filename:
             return value
         # 复制到新子文件夹位置
-        orig_path = os.path.join(OUTPUT_DIR, *value.replace("/output/", "", 1).split("/"))
+        orig_path = local_media_path_from_url(value) or ''
         if os.path.exists(orig_path):
             import shutil
             os.makedirs(canvas_output_dir, exist_ok=True)
@@ -3188,7 +3148,7 @@ async def save_ai_image_to_output(image_data, prefix="online_", canvas=None, use
                 pass
         return _url(orig_filename)
     try:
-        async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT, connect=20.0)) as client:
             response = await client.get(value)
             response.raise_for_status()
             content_type = response.headers.get("Content-Type", "")
@@ -3286,7 +3246,7 @@ async def _gen_openai_responses(client, base_url, api_key, model, prompt, size, 
         f"{base_url.rstrip('/')}/v1/responses",
         headers=_openai_headers(base_url, api_key),
         json=body,
-        timeout=httpx.Timeout(connect=20.0, read=300.0, write=120.0),
+        timeout=httpx.Timeout(connect=20.0, read=IMAGE_REQUEST_TIMEOUT, write=120.0),
     )
     resp.raise_for_status()
     data = resp.json()
@@ -3382,7 +3342,7 @@ async def _gen_modelscope(client, base_url, api_key, model, prompt, size, qualit
         except Exception:
             pass
         raise HTTPException(status_code=502, detail=f"ModelScope 未返回 task_id：{raw}")
-    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    deadline = time.monotonic() + IMAGE_REQUEST_TIMEOUT
     last_payload = raw
     while time.monotonic() < deadline:
         await asyncio.sleep(IMAGE_POLL_INTERVAL)
@@ -3789,7 +3749,7 @@ async def _gen_runninghub(client, provider_cfg, model, prompt, size, quality, re
     raw = resp.json()
     task_id = raw.get("data",{}).get("taskId") or raw.get("data",{}).get("task_id")
     if task_id:
-        deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+        deadline = time.monotonic() + IMAGE_REQUEST_TIMEOUT
         while time.monotonic() < deadline:
             qresp = await client.get(f"{rh_base}/enterprise-api/consumerApi/query", headers=hdrs, params={"taskId":task_id})
             qresp.raise_for_status()
@@ -3808,7 +3768,7 @@ async def wait_for_image_task_v2(client, task_id, tasks_base=None, key=None):
     """Poll async image generation task for any OpenAI-compatible protocol."""
     base = (tasks_base or AI_BASE_URL).rstrip("/")
     key = key or AI_API_KEY
-    deadline = time.monotonic() + AI_REQUEST_TIMEOUT
+    deadline = time.monotonic() + IMAGE_REQUEST_TIMEOUT
     last_payload = {}
     while time.monotonic() < deadline:
         resp = await client.get(f"{base}/v1/images/tasks/{task_id}", headers={"Accept":"application/json","Authorization":f"Bearer {sanitize_api_key(key)}"})
@@ -3848,7 +3808,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
         except ValueError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
     
-    async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT, connect=20.0)) as client:
         # ModelScope 专用（使用 async task API，与 OpenAI 标准不同）
         if str(provider_id).lower() == "modelscope" or str(prov.get("id", "")).lower() == "modelscope":
             return await _gen_modelscope(client, prov["base_url"], prov["api_key"], model, prompt, size, q, refs)
@@ -4096,7 +4056,10 @@ def output_file_from_url(url):
         return game_project_media_path(url.split("?", 1)[0])
     if not url or not (url.startswith("/output/") or url.startswith("/assets/")):
         return None
-    clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
+    mapped = _canvas_media_paths(authorize=bool(REQUEST_TOKEN.get())).resolve_media(url)
+    if mapped is not None:
+        return str(mapped) if mapped.is_file() else None
+    clean = urllib.parse.unquote(urllib.parse.urlsplit(url).path).replace("\\", "/")
     if clean.startswith("/assets/"):
         root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
         rel = clean[len("/assets/"):]
@@ -4125,7 +4088,10 @@ def asset_library_item_path(url):
     url = str(url or "")
     if not (url.startswith("/output/") or url.startswith("/assets/")):
         return None
-    clean = urllib.parse.unquote(url.split("?", 1)[0]).replace("\\", "/")
+    mapped = _canvas_media_paths(authorize=bool(REQUEST_TOKEN.get())).resolve_media(url)
+    if mapped is not None:
+        return str(mapped)
+    clean = urllib.parse.unquote(urllib.parse.urlsplit(url).path).replace("\\", "/")
     if clean.startswith("/assets/"):
         root = ASSETS_DIR if os.path.isdir(ASSETS_DIR) else INPUT_DIR
         rel = clean[len("/assets/"):]
@@ -4533,9 +4499,9 @@ def generate_video_preview_image(path: str, width: int) -> Image.Image:
 # --- 路径转换辅助函数 ---
 
 def output_path_for(filename, category="output"):
-    if category == "input":
-        return os.path.join(INPUT_DIR, filename)
-    return os.path.join(OUTPUT_DIR, filename)
+    from core.game_projects import safe_path
+    mapped = _canvas_media_paths().resolve_write_path(filename, category)
+    return str(mapped if mapped is not None else safe_path(INPUT_DIR if category == 'input' else OUTPUT_DIR, filename))
 
 def output_url_for(filename, category="output"):
     if category == "input":
@@ -5824,6 +5790,9 @@ def _local_upload_kind_ext(filename, content_type):
         if ext not in image_exts:
             ext = ".jpg" if "jpeg" in ct else ".webp" if "webp" in ct else ".gif" if "gif" in ct else ".png"
         return "image", ext
+    # 3D 素材只按扩展名识别：外部软件回传的模型没有可信 content-type。
+    if ext in {".glb", ".gltf", ".fbx", ".obj", ".blend", ".usd", ".usdz", ".stl", ".abc", ".ply"}:
+        return "model", ext
     return None, ext
 
 def _local_upload_display_name(filename):
@@ -6023,14 +5992,8 @@ def canvas_assets_index():
     canvas_counts = {"all": 0, "smart": 0, "classic": 0}
     item_counts = {"all": 0, "smart": 0, "classic": 0}
     cleanup_expired_canvas_trash()
-    for filename in os.listdir(CANVAS_DIR):
-        if not filename.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(CANVAS_DIR, filename), "r", encoding="utf-8") as f:
-                canvas = json.load(f)
-        except Exception:
-            continue
+    from core.canvas_store import store_for
+    for canvas in store_for(CANVAS_DIR).documents():
         if canvas.get("deleted_at"):
             continue
         record = canvas_record(canvas)
@@ -6393,11 +6356,17 @@ def collect_local_media_urls(value: Any) -> List[str]:
     return urls
 
 
-def local_media_path_from_url(url: str) -> Optional[str]:
+def local_media_path_from_url(url: str, trusted=False) -> Optional[str]:
+    mapped = _canvas_media_paths(authorize=not trusted and bool(REQUEST_TOKEN.get())).resolve_media(url)
+    if mapped is not None:
+        return str(mapped) if mapped.is_file() else None
     """Resolve a local media URL using the same one-to-one mapping as app mounts."""
     if not url:
         return None
-    clean = urllib.parse.unquote(str(url).split("?", 1)[0]).replace("\\", "/")
+    parts = urllib.parse.urlsplit(str(url))
+    if parts.scheme or parts.netloc:
+        return None
+    clean = urllib.parse.unquote(parts.path).replace("\\", "/")
     if clean.startswith("/api/storage-files/"):
         rest = clean[len("/api/storage-files/"):].lstrip("/")
         kind, _, rel = rest.partition("/")
@@ -6432,7 +6401,10 @@ def generated_media_path_from_url(url: str) -> Optional[str]:
     if not path or not os.path.isfile(path):
         return None
     path = os.path.realpath(path)
-    for root in (OUTPUT_OUTPUT_DIR, OUTPUT_DIR):
+    from core.canvas_store import store_for
+    roots = [OUTPUT_OUTPUT_DIR, OUTPUT_DIR]
+    roots.extend(str(p / 'outputs') for p in store_for(CANVAS_DIR).root.glob('*') if p.is_dir() and not p.name.startswith('.'))
+    for root in roots:
         root_abs = os.path.realpath(root)
         try:
             if os.path.commonpath([root_abs, path]) == root_abs:
@@ -6447,7 +6419,7 @@ def json_references_media_path(value: Any, target_path: str) -> bool:
     target = os.path.normcase(os.path.realpath(target_path))
     if isinstance(value, str):
         try:
-            resolved = local_media_path_from_url(value.strip())
+            resolved = local_media_path_from_url(value.strip(), trusted=True)
         except (HTTPException, OSError, ValueError):
             return False
         return bool(resolved and os.path.normcase(os.path.realpath(resolved)) == target)
@@ -6460,11 +6432,17 @@ def json_references_media_path(value: Any, target_path: str) -> bool:
 
 def persisted_json_references_media_path(target_path: str) -> bool:
     """Scan persisted user documents before deleting generated media."""
+    from core.canvas_store import store_for
+    store = store_for(CANVAS_DIR)
+    try:
+        if any(json_references_media_path(document, target_path) for document in store.documents()):
+            return True
+    except (HTTPException, OSError, ValueError):
+        return True
     candidates = [ASSET_LIBRARY_PATH]
-    for root in (CANVAS_DIR, CONVERSATION_DIR):
-        if os.path.isdir(root):
-            for current, _, files in os.walk(root):
-                candidates.extend(os.path.join(current, name) for name in files if name.lower().endswith(".json"))
+    if os.path.isdir(CONVERSATION_DIR):
+        for current, _, files in os.walk(CONVERSATION_DIR):
+            candidates.extend(os.path.join(current, name) for name in files if name.lower().endswith('.json'))
     seen: set = set()
     for path in candidates:
         path = os.path.abspath(path)
@@ -6791,18 +6769,9 @@ class SaveHistoryRequest(BaseModel):
 
 
 def _url_to_output_path(url: str) -> Optional[str]:
-    """把 /output/... URL 解析为本地绝对路径;不在 OUTPUT_DIR 内则返回 None"""
-    if not url or not url.startswith("/output/"):
+    if not url or not url.startswith('/output/'):
         return None
-    rel = url[len("/output/"):].replace("\\", "/")
-    if ".." in rel.split("/"):
-        return None
-    full = os.path.abspath(os.path.join(OUTPUT_DIR, rel))
-    root = os.path.abspath(OUTPUT_DIR)
-    if not full.startswith(root + os.sep) and full != root:
-        return None
-    return full
-
+    return local_media_path_from_url(url)
 
 
 
@@ -8154,7 +8123,21 @@ _comfyui_process: Optional[subprocess.Popen] = None
 
 
 _comfy_health_cache = None
-_comfy_health_lock = asyncio.Lock()
+
+# asyncio.Lock 在首次 acquire 时绑定到当时的事件循环，一旦那个循环结束
+# （重启/热重载/不同线程里跑过 asyncio.run），后续请求就会抛
+# `Lock object is bound to a different event loop`，而且锁可能永远停在 locked 状态，
+# 把所有请求拖死。所以按循环分配锁：每个 loop 一把，互不干扰。
+_comfy_health_locks: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+
+
+def _comfy_health_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _comfy_health_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _comfy_health_locks[loop] = lock
+    return lock
 
 
 async def get_comfyui_health() -> bool:
@@ -8164,7 +8147,15 @@ async def get_comfyui_health() -> bool:
         return False
     addr = COMFYUI_INSTANCES[0]
     # 父页面、对话页和多个访客复用一次短探测，避免重复连接 ComfyUI。
-    async with _comfy_health_lock:
+    lock = _comfy_health_lock()
+    acquired = False
+    try:
+        try:
+            # 锁只是为了合并并发探测，不该成为故障点：卡住就退化成无锁探测。
+            await asyncio.wait_for(lock.acquire(), timeout=8.0)
+            acquired = True
+        except asyncio.TimeoutError:
+            pass
         if _comfy_health_cache and _comfy_health_cache[0] == addr and time.monotonic() < _comfy_health_cache[1]:
             return _comfy_health_cache[2]
         reachable = False
@@ -8176,6 +8167,9 @@ async def get_comfyui_health() -> bool:
             pass
         _comfy_health_cache = (addr, time.monotonic() + 3, reachable)
         return reachable
+    finally:
+        if acquired:
+            lock.release()
 
 
 
@@ -9591,7 +9585,7 @@ async def build_online_image_result(payload: OnlineImageRequest, username: str =
         "prompt": payload.prompt,
         "images": local_images,
         "timestamp": time.time() * 1000,
-        "type": feature if feature else "online",
+        "type": online_feature,
         "model": model,
         "provider_id": provider_id,
         "protocol": prov["protocol"],
@@ -9619,11 +9613,12 @@ from routers import random_sources, wildcards
 from routers import prompt_libraries, shared_folders
 from routers import lora_manager, poster, translate, prompt_dict
 from routers import chat, history, gallery, smart_prompt, angle, modelscope
-from routers import presets, output_ops, canvas_tasks, cli_tools, lora_scan
+from routers import presets, output_ops, canvas_tasks, cli_tools, cli_manager, lora_scan
 from routers import asset_library, static_files, canvas_workflows, smart_canvas
 from routers import ms_generate
 from routers import canvas_comfy, proxy_download, workflows_legacy, animadex, characters, artists
 from routers import media_ops, ideogram4, restart, interrogate
+from routers.desktop_overlay import router as desktop_overlay_router
 from routers import online_gen, output_zip, user_assets
 from routers import training
 # 游戏工作台与 MCP 画布助手：game_projects 必须排在其余 game 模块之前，
@@ -9631,8 +9626,11 @@ from routers import training
 # 若它先被加载，routers.game_projects 会被固化成模块而非 router。
 from routers import game_projects
 from routers import game_workspace, game_testing, game_code_candidates
-from routers import game_development_tasks, game_native_runtime, game_model3d, game_audio
+from routers import game_development_tasks, game_native_runtime, game_model3d, model3d_viewer, game_audio, rodin3d
 from routers import game_node_assets, mcp_tools, generation_dashboard
+from routers import dcc_bridge
+from routers import ability_packs
+from routers import materials
 
 app.include_router(auth)
 app.include_router(canvases)
@@ -9661,6 +9659,7 @@ app.include_router(presets)
 app.include_router(output_ops)
 app.include_router(canvas_tasks)
 app.include_router(cli_tools)
+app.include_router(cli_manager)
 app.include_router(lora_scan)
 app.include_router(asset_library)
 app.include_router(static_files)
@@ -9674,6 +9673,7 @@ app.include_router(animadex)
 app.include_router(characters)
 app.include_router(artists)
 app.include_router(media_ops)
+app.include_router(desktop_overlay_router)
 app.include_router(ideogram4)
 app.include_router(restart)
 app.include_router(interrogate)
@@ -9690,10 +9690,15 @@ app.include_router(game_code_candidates)
 app.include_router(game_development_tasks)
 app.include_router(game_native_runtime)
 app.include_router(game_model3d)
+app.include_router(model3d_viewer)
+app.include_router(rodin3d)
 app.include_router(game_audio)
 app.include_router(game_node_assets)
 app.include_router(mcp_tools)
 app.include_router(generation_dashboard)
+app.include_router(dcc_bridge)
+app.include_router(ability_packs)
+app.include_router(materials)
 app.include_router(game_projects)
 
 from core import lan_sharing
@@ -9704,6 +9709,11 @@ app.include_router(feature_access_router)
 from core.generation_data import install as install_generation_data
 install_generation_data(app)
 
+
+
+# Standalone Tripo Studio (local-only, lazily started).
+from routers import tripo_studio
+app.include_router(tripo_studio)
 
 if __name__ == "__main__":
     import uvicorn

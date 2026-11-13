@@ -309,8 +309,33 @@ async function build(options){
                 }
 
                 // 注入自定义 LoRA 节点（ComfyUI/local 模式下所有工作流都支持）
+                // 三道护栏，避免"过量计算"（双重蒸馏 → 画面糊成斑块）：
+                //   1) 工作流已内置同名 LoRA → 不再重复叠加
+                //   2) 工作流已内置任意加速/蒸馏 LoRA（fast/turbo 档）→ 任何另一种加速 LoRA
+                //      都会变成双重蒸馏，画面细节直接崩坏，一律拦掉
+                //   3) qwen-2.1「高」档是 25 步无加速 LoRA 的官方配方，再挂蒸馏/加速 LoRA
+                //      等于用少步数模型跑满步数，同样过采样发糊
                 if (loras.length) {
-                    LoraManager.injectNodes(workflow, loras);
+                    const normLora = value => String(value || '').replace(/\\/g, '/').split('/').pop().toLowerCase();
+                    // 加速/蒸馏类 LoRA 的命名特征（viggle-turbo / *step-lora / lightning 等）
+                    const ACCEL_RE = /viggle|turbo|step-lora|[468]step|lightning/i;
+                    const builtinLoras = new Set(Object.values(workflow)
+                        .filter(node => node && typeof node.class_type === 'string' && node.class_type.includes('Lora'))
+                        .map(node => normLora(node.inputs && node.inputs.lora_name)));
+                    const builtinHasAccel = Array.from(builtinLoras).some(name => ACCEL_RE.test(name));
+                    const t2iHighTier = /qwen-image-2\.1\.json$/i.test(lockedWorkflow || '');
+                    const skipped = [];
+                    const extraLoras = loras.filter(lora => {
+                        const name = lora.name || '';
+                        if (builtinLoras.has(normLora(name))) { skipped.push(name); return false; }
+                        if (builtinHasAccel && ACCEL_RE.test(name)) { skipped.push(name); return false; }
+                        if (t2iHighTier && ACCEL_RE.test(name)) { skipped.push(name); return false; }
+                        return true;
+                    });
+                    if (skipped.length) {
+                        console.warn('[ImageGenerationWorkflow] 已跳过与工作流重复/冲突的 LoRA：', skipped);
+                    }
+                    LoraManager.injectNodes(workflow, extraLoras);
                 }
 
                 // 合并额外负面提示词到工作流的默认负面提示词

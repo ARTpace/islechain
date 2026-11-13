@@ -1,0 +1,190 @@
+/* 视频裁剪弹层样式（配合 static/modules/video-trimmer.js） */
+
+.vt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: color-mix(in srgb, var(--ui-panel) 52.0%, transparent);
+    backdrop-filter: blur(6px);
+}
+
+.vt-panel {
+    width: min(880px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 18px 18px;
+    border-radius: 20px;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
+    box-shadow: 0 30px 80px rgba(23, 23, 22, .28);
+}
+
+.vt-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vt-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ui-text);
+}
+
+.vt-close,
+.vt-play,
+.vt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--ui-line-strong);
+    background: var(--ui-panel);
+    color: var(--ui-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+.vt-close { width: 30px; padding: 0; justify-content: center; }
+.vt-close svg,
+.vt-play svg { width: 14px; height: 14px; }
+
+.vt-close:hover,
+.vt-play:hover,
+.vt-btn:hover { background: var(--ui-panel); color: var(--ui-text); }
+
+.vt-btn.is-primary {
+    background: var(--accent, #06b6d4);
+    border-color: transparent;
+    color: var(--ui-text);
+}
+
+.vt-btn.is-primary:hover { filter: brightness(1.06); }
+.vt-btn[disabled] { opacity: .55; cursor: default; }
+
+.vt-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: var(--ui-panel);
+    overflow: hidden;
+}
+
+.vt-stage video {
+    display: block;
+    max-width: 100%;
+    max-height: 46vh;
+    background: var(--ui-panel);
+}
+
+.vt-play {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    background: color-mix(in srgb, var(--ui-panel) 68.0%, transparent);
+    border-color: color-mix(in srgb, var(--ui-line-strong) 22.0%, transparent);
+    color: var(--ui-text);
+    backdrop-filter: blur(6px);
+}
+
+.vt-play:hover { background: color-mix(in srgb, var(--ui-panel) 84.0%, transparent); color: var(--ui-text); }
+
+.vt-track {
+    position: relative;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line-strong);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.vt-range {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 10px 0 0 10px;
+    background: color-mix(in srgb, var(--accent, #06b6d4) 18%, transparent);
+    border-left: 2px solid var(--accent, #06b6d4);
+    border-right: 2px solid var(--accent, #06b6d4);
+}
+
+.vt-handle {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 24px;
+    margin-top: -12px;
+    border-radius: 6px;
+    background: var(--accent, #06b6d4);
+    box-shadow: 0 2px 8px rgba(23, 23, 22, .22);
+    cursor: ew-resize;
+}
+
+.vt-handle.is-start { left: -7px; }
+.vt-handle.is-end { right: -7px; }
+.vt-handle::after {
+    content: '';
+    position: absolute;
+    inset: 7px 5px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--ui-panel) 78.0%, transparent);
+}
+
+.vt-playhead {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 1px;
+    background: var(--ui-panel);
+    opacity: .5;
+    pointer-events: none;
+}
+
+.vt-readout {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ui-muted);
+}
+
+.vt-tag { color: var(--ui-muted); }
+.vt-time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ui-text); }
+.vt-length { margin-left: auto; font-weight: 700; color: var(--accent, #06b6d4); }
+
+.vt-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vt-status { font-size: 11px; color: var(--ui-muted); }
+.vt-spacer { flex: 1; }
+
+.theme-dark .vt-panel { background: var(--panel, #1c1c1a); border-color: var(--line, #2e2e2b); }
+.theme-dark .vt-title { color: var(--text, #f2f2ef); }
+.theme-dark .vt-close,
+.theme-dark .vt-btn { background: var(--soft, #262623); border-color: var(--line, #2e2e2b); color: var(--muted, #a8a8a1); }
+.theme-dark .vt-close:hover,
+.theme-dark .vt-btn:hover { background: var(--ui-panel); color: var(--text, #f2f2ef); }
+.theme-dark .vt-track { background: var(--ui-panel); border-color: var(--ui-line-strong); }
+.theme-dark .vt-readout { color: var(--muted, #a8a8a1); }
+.theme-dark .vt-time { color: var(--text, #f2f2ef); }
+.theme-dark .vt-status { color: var(--ui-muted); }

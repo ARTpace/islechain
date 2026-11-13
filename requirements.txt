@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 requests
 pydantic
+jsonschema>=4.23,<5
 python-multipart
 httpx>=0.28.0
 mcp>=1.12,<2

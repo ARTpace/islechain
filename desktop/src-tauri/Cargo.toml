@@ -1,14 +1,17 @@
 [package]
 name = "art-canvas"
 version = "1.0.0"
-description = "ArtCanvas 桌面版"
-authors = ["ArtCanvas"]
+description = "IsleChain 桌面版"
+authors = ["IsleChain"]
 edition = "2021"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "wry"] }
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
 tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
 url = "2"

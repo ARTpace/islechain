@@ -1,0 +1,117 @@
+/* 桌面叠加模式（canvas.html?mode=desktop）
+ *
+ * 目标：只剩节点浮在桌面上。背景、网格、工具栏全部透明或隐藏，
+ * 真正的"点击穿透"由 Rust 侧 SetWindowRgn 裁剪窗口区域实现，
+ * CSS 只负责视觉，不负责命中。 */
+
+html.desktop-overlay,
+html:has(body.desktop-overlay),
+html.studio-theme-dark:has(body.desktop-overlay),
+body.desktop-overlay,
+body.studio-theme-dark.desktop-overlay,
+html.studio-theme-dark body.desktop-overlay,
+html.studio-theme-dark body.desktop-overlay .shell,
+html.studio-theme-dark body.desktop-overlay .shell .board,
+body.studio-theme-dark.desktop-overlay .shell,
+body.studio-theme-dark.desktop-overlay .shell .board,
+body.desktop-overlay #shell,
+body.desktop-overlay #board,
+body.desktop-overlay #world {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+body.desktop-overlay #board {
+    cursor: default;
+}
+
+/* 非节点的一切都藏掉 */
+body.desktop-overlay .topbar,
+body.desktop-overlay #minimap,
+body.desktop-overlay #canvasArrangeBtn,
+body.desktop-overlay #dropOverlay,
+body.desktop-overlay #canvasAssetPanel,
+body.desktop-overlay #selectionBox,
+body.desktop-overlay #selectionHub,
+body.desktop-overlay .create-menu,
+body.desktop-overlay #linkControls,
+body.desktop-overlay .canvas-gate,
+body.desktop-overlay .canvas-meta-pop {
+    display: none !important;
+}
+
+/* 连线要看见。命中范围由 bridge 把 path 包围盒并进窗口区域；
+ * 拖线期间 Rust 把区域放成整屏，不靠这里裁切。 */
+body.desktop-overlay .node {
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .22);
+    outline: none !important;
+}
+
+/* 常驻控制条：窗口区域永远至少包含它，否则节点全删了就点不到窗口了 */
+.overlay-dock {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ui-panel) 82.0%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .38);
+    border: 1px solid color-mix(in srgb, var(--ui-line-strong) 10.0%, transparent);
+}
+
+.overlay-dock button {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: color-mix(in srgb, var(--ui-text) 78.0%, transparent);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.overlay-dock button:hover {
+    background: color-mix(in srgb, var(--ui-panel) 14.0%, transparent);
+    color: var(--ui-text);
+}
+
+/* 退出透明：和上面两个功能键拉开一点，用暖色提示"这是出口" */
+.overlay-dock .dock-exit {
+    margin-left: 3px;
+    background: rgba(255, 138, 92, .18);
+    color: #ffb08a;
+}
+
+.overlay-dock .dock-exit:hover {
+    background: rgba(255, 138, 92, .34);
+    color: var(--ui-text);
+}
+
+.overlay-dock svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* 命令面板在透明态下必须保留：它和 dock 是仅存的操作入口。
+ * 别给它加 display:none；这里只把底色压实，避免透出桌面导致文字读不清。 */
+body.desktop-overlay .command-palette {
+    background: color-mix(in srgb, var(--ui-panel) 97.0%, transparent);
+    color: var(--ui-text);
+    border-color: color-mix(in srgb, var(--ui-line-strong) 18.0%, transparent);
+}
+body.desktop-overlay .cp-row:hover,
+body.desktop-overlay .cp-row.active { background: color-mix(in srgb, var(--ui-panel) 10.0%, transparent); }
+body.desktop-overlay .cp-bar input {
+    background: color-mix(in srgb, var(--ui-panel) 8.0%, transparent);
+    color: var(--ui-text);
+    border-color: color-mix(in srgb, var(--ui-line-strong) 16.0%, transparent);
+}
+

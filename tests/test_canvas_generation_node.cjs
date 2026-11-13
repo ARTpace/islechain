@@ -13,7 +13,7 @@ const context={window:{innerWidth:1200,innerHeight:900,addEventListener(type,fn)
  ImageGenerationWorkflow:{build:async options=>{context.localOptions=options;return {workflow:{built:true},name:options.workflowName};}},createCanvasComfyTask:async payload=>{localCreates++;context.localPayload=payload;return {task_id:'local1'};},
  cascadeFetch:async url=>{if(url.endsWith(remoteFailure||'never'))return {ok:true,json:async()=>({status:'failed',error:'remote failed'})};if(failNext){failNext=false;throw new Error('network');}return {ok:true,json:async()=>({status:'succeeded',result:{images:['/output/'+url.split('/').pop()+'.png']}})};}
 };
-vm.createContext(context);vm.runInContext(fs.readFileSync('static/modules/generation-options-panel.js','utf8'),context);vm.runInContext(fs.readFileSync('static/modules/generation-prompt-library.js','utf8'),context);context.GenerationPromptLibrary=context.window.GenerationPromptLibrary;vm.runInContext(fs.readFileSync('static/js/canvas-generation-node.js','utf8'),context);
+vm.createContext(context);vm.runInContext(fs.readFileSync('static/modules/model-picker.js','utf8'),context);vm.runInContext(fs.readFileSync('static/modules/generation-options-panel.js','utf8'),context);vm.runInContext(fs.readFileSync('static/modules/generation-prompt-library.js','utf8'),context);context.GenerationPromptLibrary=context.window.GenerationPromptLibrary;vm.runInContext(fs.readFileSync('static/js/canvas-generation-node.js','utf8'),context);
 const api=context.window.CanvasImageGeneration,bodyA=api.body(a),bodyB=api.body(b);
 const inputA=bodyA.children[0],refsA=inputA.children[0],contextA=inputA.children[1],promptA=inputA.children[2],promptB=bodyB.children[0].children[2];
 assert.equal(inputA.className,'imagegen-input');assert.equal(bodyA.children[2].children[0].className,'imagegen-control imagegen-model');
@@ -29,18 +29,24 @@ const card={style:{},classList:{toggle(){}},contains:x=>x===bodyA};assert(api.pr
  await bodyB.children[2].children[0].onclick();
  const dropdown=elements.find(e=>e.className?.includes('imagegen-model-dropdown'));
  assert(dropdown);assert.equal(dropdown.children.length,1,'model dropdown has no title or prompt header');
- const menu=dropdown.children[0],searchRow=menu.children[0],list=menu.children[1];
- assert.equal(searchRow.children[1]['aria-label'],'刷新模型');
- assert.equal(list.children[0].children[1].children[0].textContent,'2K','model displays max resolution badge');
- assert.equal(list.children[0].children.length,2,'MOSS appears once, after its group label');
- list.children[0].children[1].onclick();assert.equal(b.generationSettings.workflow,'text2image/moss-image-sft.json');
+ const content=dropdown.children[0],menu=content.children[0],searchRow=menu.children[0],list=menu.children[1];
+ assert.equal(searchRow.children[1]['aria-label'],'刷新模型列表');
+ const firstItem=list.children[1];
+ assert.equal(firstItem.className,'mp-item','group label comes before the first row');
+ const firstRow=firstItem.children[0];
+ assert.equal(firstRow.className.split(' ')[0],'mp-row');
+ assert.equal(firstRow.children.filter(c=>c.className==='mp-badge').length,0,'local rows carry no cloud-only badge');
+ assert.equal(list.children.filter(c=>c.className==='mp-item'&&c.children.length===2).length,1,'MOSS appears once even though it has three tiers');
+ assert(firstItem.children[1],'multi-tier row carries a tier switcher');
+ assert.equal(list.children.filter(c=>c.className==='mp-item')[0].children[1].children[0].textContent,'高','tier sub-options list every tier');
+ firstRow.onclick();assert.equal(b.generationSettings.workflow,'text2image/moss-image-sft.json');
  await bodyB.children[2].children[1].onclick();
  const quality=elements.find(e=>e.className?.startsWith('generation-options-segments')&&e.children.some(c=>c.textContent==='极速'));
  const resolutions=elements.filter(e=>e.className?.startsWith('generation-options-segments')).find(e=>e.children.some(c=>c.textContent==='1K'));assert.deepEqual(resolutions.children.map(c=>c.textContent),['1K','2K']);
  assert(elements.some(e=>e.className==='generation-options-ratio-icon'),'shared panel renders ratio icons');
  assert(quality,'MOSS quality is available in parameters');quality.children[2].onclick();
  assert.equal(b.generationSettings.workflow,'text2image/moss-image-sft-4step.json');
- assert.equal(bodyB.children[2].children[0].textContent,'MOSS-Image SFT ▾');
+ assert.equal(bodyB.children[2].children[0].textContent,'MOSS-Image SFT · 极速 ▾');
 
  await bodyA.children[1].children[0].onclick();const frame=elements.find(e=>e.tag==='iframe');assert(frame,'shared prompt library opens outside the card');assert(!bodyA.contains(frame));
  const toggle={type:'prompt-library:toggle',key:'style',item:{positive:'new style',negative:'bad texture'}};
@@ -57,9 +63,10 @@ const card={style:{},classList:{toggle(){}},contains:x=>x===bodyA};assert(api.pr
  await new Promise(resolve=>setImmediate(resolve));a.prompt='下一轮提示词';unblock();await first;release=null;
  assert.equal(creates,1);assert.equal(context.payload.prompt,'角色A\n\n连接的提示词');assert.equal(context.payload.size,'1536x2048');assert.equal(context.payload.reference_images.length,1);assert.equal(a.out.images.length,1);assert.equal(a.runStatus,'done');assert.equal(a.imageGenerationTask,undefined);
  failNext=true;await assert.rejects(api.run('a'),/network/);assert.equal(a.imageGenerationTask.paused,true);assert.equal(creates,2);
- await api.run('a');assert.equal(creates,2,'network recovery must not resubmit');assert.equal(a.out.images.length,2);
- await api.run('b');assert.equal(localCreates,1);assert.equal(creates,2,'local selection must never fall back online');assert.equal(context.localPayload.workflow_data.built,true);assert.equal(b.runStatus,'done');
- a.generationSettings.controls.batchCount=2;remoteFailure='task3';await assert.rejects(api.run('a'),/remote failed/);assert.equal(creates,4);assert.equal(a.out.images.length,3,'other accepted batch tasks must still be collected after one fails');assert.equal(a.imageGenerationTask,undefined);
+ // 已暂停的旧任务在下一次点击生成时被丢弃（改过的提示词不能复用旧 snapshot）
+ await api.run('a');assert.equal(creates,3,'generating again after a pause resubmits instead of resuming stale snapshot');assert.equal(a.out.images.length,2);
+ await api.run('b');assert.equal(localCreates,1);assert.equal(creates,3,'local selection must never fall back online');assert.equal(context.localPayload.workflow_data.built,true);assert.equal(b.runStatus,'done');
+ a.generationSettings.controls.batchCount=2;remoteFailure='task4';await assert.rejects(api.run('a'),/remote failed/);assert.equal(creates,5);assert.equal(a.out.images.length,3,'other accepted batch tasks must still be collected after one fails');assert.equal(a.imageGenerationTask,undefined);
  context.nodes.splice(0,1);api.sync();await assert.rejects(api.run('a'),/不存在/);
  console.log('CANVAS_GENERATION_NATIVE_OK');
 })().catch(error=>{console.error(error);process.exitCode=1;});

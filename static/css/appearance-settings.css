@@ -1,0 +1,50 @@
+/* 外观页用设置行而非巨型卡片；作用域仅限外观面板。 */
+#settings-look-pane .look-pane-grid.look-organized { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--look-section-gap,16px); align-items:start; max-width:1080px; margin:0 auto; }
+#settings-look-pane .look-section { min-width:0; padding:var(--look-section-pad,18px); border:1px solid var(--ui-line); border-radius:var(--ui-r); background:color-mix(in srgb,var(--ui-panel) var(--studio-panel-opacity,80%),transparent); box-shadow:var(--ui-shadow); }
+#settings-look-pane .look-section h3 { margin:0 0 12px; font-size:14px; font-weight:650; color:var(--ui-text); }
+#settings-look-pane .look-section-body { display:flex; flex-direction:column; gap:0; min-width:0; }
+#settings-look-pane .look-section :is(.look-block,.look-scale-row,.sys-tile) { min-height:0; margin:0; padding:var(--look-row-pad,12px) 0 !important; border:0; border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+#settings-look-pane .look-section :is(.look-block,.look-scale-row,.sys-tile) + :is(.look-block,.look-scale-row,.sys-tile) { border-top:1px solid var(--ui-line); }
+#settings-look-pane .look-block { gap:10px; }
+#settings-look-pane .look-label { font-size:12px; font-weight:500; letter-spacing:0; color:var(--ui-muted); }
+#settings-look-pane .look-scale-row { font-size:13px; font-weight:500; min-height:58px; }
+#settings-look-pane .sys-tile { width:100%; display:flex; align-items:center; gap:12px; text-align:left; }
+#settings-look-pane .sys-tile-title { font-size:13px; font-weight:550; }
+#settings-look-pane .sys-tile-sub { font-size:11px; line-height:1.5; letter-spacing:0; }
+#settings-look-pane .sys-tile-trail { margin-left:auto; font-size:12px; color:var(--ui-muted); }
+#settings-look-pane .sys-tile-ico { width:32px; height:32px; border-radius:8px; }
+#settings-look-pane .look-colors { grid-column:1; grid-row:2; }
+#settings-look-pane .look-background-section { grid-column:1 / -1; }
+#settings-look-pane #look-theme-row { max-width:280px; }
+#settings-look-pane #look-palette-preview { height:8px; border:0; margin-top:2px; }
+#settings-look-pane :is(#look-palette-row,#look-accent-row) { gap:10px; }
+#settings-look-pane :is(#look-palette-row,#look-accent-row) > button { width:28px !important; height:28px !important; flex-shrink:0; }
+#settings-look-pane .look-custom-color, #settings-look-pane #look-accent-row > label { display:inline-flex; align-items:center; gap:6px !important; font-size:12px; color:var(--ui-muted); cursor:pointer; }
+#settings-look-pane input[type="color"] { appearance:none; -webkit-appearance:none; width:28px !important; height:28px !important; padding:0; border:1px solid var(--ui-line-strong) !important; border-radius:50% !important; overflow:hidden; background:none; cursor:pointer; }
+#settings-look-pane input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
+#settings-look-pane input[type="color"]::-webkit-color-swatch { border:0; border-radius:50%; }
+#settings-look-pane input[type="color"]::-moz-color-swatch { border:0; border-radius:50%; }
+#settings-look-pane .look-background-actions { gap:12px; }
+#settings-look-pane #look-background-add { min-width:112px; }
+#settings-look-pane #look-background-add .look-add-label { display:inline !important; }
+#settings-look-pane #look-background-preview { width:96px; height:60px; }
+#settings-look-pane .look-background-strength { max-width:480px; margin-top:12px; font-size:13px; }
+#settings-look-pane .look-background-strength output { min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
+#settings-look-pane .look-hint { font-size:11px; line-height:1.6; }
+#settings-look-pane .look-background-section .look-hint:last-child { margin-top:12px; }
+@media(max-width:760px) {
+ #settings-look-pane .look-pane-grid.look-organized { grid-template-columns:minmax(0,1fr); gap:var(--look-section-gap,12px); }
+ #settings-look-pane .look-colors { grid-column:auto; grid-row:auto; }
+ #settings-look-pane .look-section { padding:var(--look-section-pad,14px); }
+}
+/* 让正在操作的设置页直接展示整体档位，不再用固定卡片样式遮住变化。 */
+html[data-appearance-density="compact"] #settings-look-pane { --look-section-gap:10px; --look-section-pad:12px; --look-row-pad:8px; }
+html[data-appearance-density="relaxed"] #settings-look-pane { --look-section-gap:22px; --look-section-pad:24px; --look-row-pad:18px; }
+html[data-appearance-radius] #settings-look-pane :is(select,[data-look-theme],.look-background-actions button) { border-radius:var(--ui-r-sm) !important; }
+#settings-look-pane { background:transparent !important; }
+#settings-look-pane .look-section-body { --sk-surface:transparent; }
+/* 设置是独立覆盖层，需要自己的背景底层才能直观看到图片和强度。 */
+html.studio-has-background #settings-panel { isolation:isolate; }
+html.studio-has-background #settings-panel::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none; background-image:var(--studio-background-image); background-position:center; background-size:cover; opacity:var(--studio-background-strength,0); border-radius:inherit; }
+
+

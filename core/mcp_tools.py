@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import time
@@ -58,7 +59,32 @@ def settings_path():
 
 
 def servers():
-    return [Server.model_validate(item) for item in load_settings(settings_path()).get('servers', [])]
+    import os
+    from core.node_credentials import unprotect
+    items, legacy = [], False
+    for stored in load_settings(settings_path()).get('servers', []):
+        item = dict(stored)
+        credentials = item.pop('credentials', None)
+        if credentials:
+            item.update(json.loads(unprotect(credentials, 'mcp-server:' + item['id'])))
+        elif item.get('headers') or item.get('env'):
+            legacy = True
+        items.append(Server.model_validate(item))
+    if legacy and os.name == 'nt':
+        _save_servers(items)
+    return items
+
+
+def _save_servers(items):
+    from core.node_credentials import protect
+    records = []
+    for item in items:
+        record = item.model_dump(exclude={'headers', 'env'})
+        if item.headers or item.env:
+            record['credentials'] = protect(json.dumps({'headers': item.headers, 'env': item.env}),
+                                            'mcp-server:' + item.id)
+        records.append(record)
+    save_settings(settings_path(), {'servers': records})
 
 
 def public(server):
@@ -76,12 +102,54 @@ def save_server(value):
     current = [entry for entry in current if entry.id != item.id] + [item]
     if len(current) > 16:
         raise MCPError('最多配置 16 个 MCP 服务')
-    save_settings(settings_path(), {'servers': [entry.model_dump() for entry in current]})
+    _save_servers(current)
     return item
 
 
 def remove_server(server_id):
-    save_settings(settings_path(), {'servers': [s.model_dump() for s in servers() if s.id != server_id]})
+    _save_servers([s for s in servers() if s.id != server_id])
+
+
+# Variables a child process needs to start at all. Everything else is withheld:
+# api.env holds provider keys, and a third-party stdio server reads the whole
+# environment in one line. Servers that need more declare it in their own env.
+ENV_ALLOWLIST = frozenset({
+    'PATH', 'HOME', 'USERPROFILE', 'SYSTEMROOT', 'SYSTEMDRIVE', 'TEMP', 'TMP', 'TMPDIR',
+    'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM', 'SHELL',
+    'APPDATA', 'LOCALAPPDATA', 'PROGRAMDATA', 'PROGRAMFILES', 'PROGRAMFILES(X86)',
+    'COMMONPROGRAMFILES', 'PROGRAMW6432', 'COMSPEC', 'PATHEXT',
+    'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'OS',
+    'HOMEDRIVE', 'HOMEPATH', 'USERNAME', 'USERDOMAIN',
+    'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME',
+})
+
+def safe_env(server):
+    """Allowlisted host variables plus the server's own declared values."""
+    import os
+    env = {key: value for key, value in os.environ.items() if key.upper() in ENV_ALLOWLIST}
+    env.update(server.env or {})
+    return env
+
+
+LOG_LIMIT = 2 * 1024 * 1024
+
+
+def stderr_log(server, stack):
+    """Capture stderr to a size-capped file. It is a third-party author's only
+    debugging channel, and it never travels back to the model."""
+    from core.user_paths import user_data_dir
+    folder = Path(user_data_dir()) / 'mcp-logs'
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / ('%s.log' % re.sub(r'[^\w.-]', '_', server.id))
+        if path.exists() and path.stat().st_size > LOG_LIMIT:
+            path.replace(path.with_suffix('.log.1'))
+    except OSError:
+        return stack.enter_context(open(os.devnull, 'w'))
+    try:
+        return stack.enter_context(open(path, 'a', encoding='utf-8', errors='replace'))
+    except OSError:
+        return stack.enter_context(open(os.devnull, 'w'))
 
 
 async def _connect(server, stack):
@@ -94,11 +162,10 @@ async def _connect(server, stack):
     except ImportError:
         raise MCPError('缺少 MCP SDK，请安装更新后的 requirements.txt') from None
     if server.transport == 'stdio':
-        # SDK launches argv directly, without shell=True. Discard stderr: it may contain credentials.
-        import os
-        error_log = stack.enter_context(open(os.devnull, 'w'))
+        # SDK launches argv directly, without shell=True.
         streams = await stack.enter_async_context(stdio_client(StdioServerParameters(
-            command=server.command, args=server.args, env=server.env or None, cwd=server.cwd), errlog=error_log))
+            command=server.command, args=server.args, env=safe_env(server), cwd=server.cwd),
+            errlog=stderr_log(server, stack)))
     elif server.transport == 'sse':
         streams = await stack.enter_async_context(sse_client(server.url, headers=server.headers,
             timeout=20, sse_read_timeout=90))
@@ -178,7 +245,12 @@ async def _run_pooled(server, entry):
             entry.client = client
             if not entry.ready.done():
                 entry.ready.set_result(client)
-            await entry.stop.wait()
+            while not entry.stop.is_set():
+                try:
+                    await asyncio.wait_for(entry.stop.wait(), POOL_IDLE_SECONDS)
+                except asyncio.TimeoutError:
+                    if not entry.refs and time.monotonic() - entry.last_used >= POOL_IDLE_SECONDS:
+                        break
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -225,6 +297,8 @@ async def acquire(server):
     try:
         client = await asyncio.wait_for(asyncio.shield(entry.ready), 40)
     except asyncio.CancelledError:
+        async with lock:
+            entry.refs = max(0, entry.refs - 1)
         raise
     except Exception:
         async with lock:
@@ -254,6 +328,12 @@ async def pooled_session(server):
     entry = await acquire(server)
     try:
         yield entry.client
+    except asyncio.CancelledError:
+        entry.broken = True
+        raise
+    except Exception:
+        entry.broken = True
+        raise
     finally:
         await release(entry)
 
@@ -288,15 +368,19 @@ def annotations_of(tool):
         return {}
 
 
-def tool_risk(annotations):
-    """readonly / mutating / destructive; missing hints are treated as destructive."""
-    if not annotations:
+READONLY_PREFIXES = ('get_', 'list_', 'search_', 'read_', 'describe_', 'status', 'look')
+
+
+def tool_risk(annotations, name=''):
+    """readonly / mutating / destructive. Servers that declare no hints fall back
+    to a read-only name heuristic; anything unrecognised stays destructive."""
+    if annotations:
+        if annotations.get('readOnlyHint') is True:
+            return 'readonly'
+        if annotations.get('destructiveHint') is False:
+            return 'mutating'
         return 'destructive'
-    if annotations.get('readOnlyHint') is True:
-        return 'readonly'
-    if annotations.get('destructiveHint') is False:
-        return 'mutating'
-    return 'destructive'
+    return 'readonly' if name.lower().startswith(READONLY_PREFIXES) else 'destructive'
 
 
 def tool_alias(server_id, name):
@@ -381,27 +465,76 @@ def bounded_result(result):
     return text
 
 
+def tool_error(result, limit=1200):
+    detail = '\n'.join(str(getattr(block, 'text', ''))[:limit]
+                       for block in (getattr(result, 'content', []) or [])[:8])
+    try:
+        secrets = [value for server in servers() for value in (*server.headers.values(), *server.env.values()) if value]
+    except Exception:
+        secrets = []
+    for secret in sorted(secrets, key=len, reverse=True):
+        detail = detail.replace(secret, '[已隐藏]')
+        if secret.lower().startswith('bearer '):
+            detail = detail.replace(secret[7:], '[已隐藏]')
+    detail = re.sub(r'(?i)(Bearer\s+)[^\s\"\'<>]+|(?:sk-|ghp-)[a-zA-Z0-9_-]+', '[已隐藏]', detail)
+    return ('工具返回失败：' + detail.strip())[:limit] if detail.strip() else '工具返回失败，服务未提供错误详情'
+
+
+async def call_once(client, name, arguments, progress=None):
+    """Never retry execution to discover SDK compatibility or recover a connection."""
+    import inspect
+    options = {'progress_callback': progress} if progress is not None and 'progress_callback' in inspect.signature(client.call_tool).parameters else {}
+    try:
+        return await client.call_tool(name, arguments, **options)
+    except BaseException as exc:
+        for entry in list(_POOL.values()):
+            if entry.client is client:
+                entry.broken = True
+        if isinstance(exc, asyncio.CancelledError):
+            raise
+        if not isinstance(exc, Exception):
+            raise
+        raise MCPError('MCP 工具调用中断；操作可能已经执行，请核查外部状态后再决定是否重试') from None
+
+
 @asynccontextmanager
-async def tool_pool(server_ids):
+async def tool_pool(server_ids, on_error=None):
     configured = {item.id: item for item in servers()}
     if len(set(server_ids)) > 8:
         raise MCPError('一次最多使用 8 个 MCP 服务')
     entries, tools, calls = [], [], {}
+    async def discover(server_id):
+        server = configured.get(server_id)
+        if not server or not server.enabled:
+            raise MCPError(f'MCP 服务 {server_id} 不存在或已停用')
+        entry = await acquire(server)
+        entries.append(entry)
+        try:
+            return server, entry, await catalog(entry.client)
+        except BaseException:
+            entry.broken = True
+            raise
     try:
-        for server_id in dict.fromkeys(server_ids):
-            server = configured.get(server_id)
-            if not server or not server.enabled:
-                raise MCPError(f'MCP 服务 {server_id} 不存在或已停用')
-            entry = await acquire(server)
-            entries.append(entry)
-            for tool in await catalog(entry.client):
+        ids = list(dict.fromkeys(server_ids))
+        results = await asyncio.gather(*(discover(server_id) for server_id in ids), return_exceptions=True)
+        for server_id, result in zip(ids, results):
+            if isinstance(result, BaseException):
+                if isinstance(result, asyncio.CancelledError):
+                    raise result
+                if on_error is None:
+                    raise MCPError(f'MCP 服务 {server_id} 连接或工具发现失败') from None
+                await on_error({'type': 'tool', 'name': server_id, 'status': 'failed',
+                                'error': 'MCP 服务连接或工具发现失败，其他可用服务继续运行'})
+                continue
+            server, entry, available = result
+            for tool in available:
                 if tool.name not in server.enabledTools:
                     continue
                 alias = tool_alias(server.id, tool.name)
                 tools.append({'type': 'function', 'function': {'name': alias,
                     'description': f'{server.id} / {tool.name}: {tool.description or ""}'[:1500],
                     'parameters': tool.inputSchema}})
-                risk = 'trusted' if server.trustTools else tool_risk(annotations_of(tool))
+                risk = 'trusted' if server.trustTools else tool_risk(annotations_of(tool), tool.name)
                 calls[alias] = (entry.client, tool.name, server.id, risk)
         if len(tools) > 128 or len(json.dumps(tools).encode()) > 160000:
             raise MCPError('已启用工具过多，请减少选择')
@@ -413,19 +546,35 @@ async def tool_pool(server_ids):
 
 # --- resources and prompts ----------------------------------------------------
 
+async def _pages(client, method, attribute, capability):
+    capabilities = client.get_server_capabilities() if hasattr(client, 'get_server_capabilities') else None
+    if capabilities is not None and getattr(capabilities, capability, None) is None:
+        return []
+    items, cursor, seen = [], None, set()
+    try:
+        for _ in range(8):
+            page = await getattr(client, method)(cursor=cursor)
+            items.extend(getattr(page, attribute))
+            if len(items) > 128:
+                raise MCPError('MCP 列表超过 128 项')
+            cursor = page.nextCursor
+            if not cursor:
+                return items
+            if cursor in seen:
+                break
+            seen.add(cursor)
+        raise MCPError('MCP 列表分页异常或过多')
+    except asyncio.CancelledError:
+        raise
+    except MCPError:
+        raise
+    except Exception:
+        raise MCPError('MCP 列表读取失败，请检查服务状态；此结果不代表列表为空') from None
+
+
 async def list_resources(client):
-    resources, templates = [], []
-    try:
-        page = await client.list_resources()
-        resources = list(page.resources)
-    except Exception:
-        resources = []
-    try:
-        page = await client.list_resource_templates()
-        templates = list(page.resourceTemplates)
-    except Exception:
-        templates = []
-    return resources, templates
+    return (await _pages(client, 'list_resources', 'resources', 'resources'),
+            await _pages(client, 'list_resource_templates', 'resourceTemplates', 'resources'))
 
 
 async def read_resource(client, uri):
@@ -439,11 +588,7 @@ async def read_resource(client, uri):
 
 
 async def list_prompts(client):
-    try:
-        page = await client.list_prompts()
-    except Exception:
-        return []
-    return list(page.prompts)
+    return await _pages(client, 'list_prompts', 'prompts', 'prompts')
 
 
 async def get_prompt(client, name, arguments=None):

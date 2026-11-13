@@ -412,6 +412,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
 
     function updateTriggerButtonStyle(btn) {
         if (!btn) return;
+        btn.setAttribute('aria-pressed', String(randomEnabled));
         const dark = isDarkTheme();
         // 色子正面颜色：暗色主题用浅灰，亮色主题用深灰
         const faceBase = dark ? '#cbcac1' : '#555555';
