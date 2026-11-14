@@ -257,3 +257,6 @@ data/tripo-studio/
 # Python 缓存
 .pytest_cache/
 .ruff_cache/
+
+# 本机开发快捷方式（内含绝对路径，不跨机器可移植；入口用 dev-desktop.bat）
+/*.lnk
