@@ -148,7 +148,10 @@ async def upload_image(files: List[UploadFile] = File(...)):
         for addr in _main.COMFYUI_INSTANCES:
             try:
                 files_data = {'image': (file.filename, content, file.content_type)}
-                response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
+                response = await asyncio.to_thread(
+                    requests.post, f"http://{addr}/upload/image",
+                    files=files_data, timeout=5,
+                )
                 if response.status_code == 200:
                     last_result = response.json()
                     success_count += 1

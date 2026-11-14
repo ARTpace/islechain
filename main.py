@@ -242,16 +242,91 @@ _STATIC_TEXT_EXTS = ('.js', '.mjs', '.css', '.json', '.svg', '.html', '.txt', '.
 
 
 class StaticTextGZipMiddleware(GZipMiddleware):
+    """静态文本压缩 + 压缩结果复用。
+
+    父类每次请求都重新 gzip 一遍文件，2MB 的贴图重绘引擎反复吃 CPU。
+    这里按「路径 + 文件 mtime/size」缓存压缩后的字节，命中就直接发，
+    未命中仍完整走父类逻辑，只是旁路收集一次响应体，行为完全不变。
+    """
+
+    _cache = {}              # path -> (stamp, asgi_headers, gzip_body)
+    _hits = 0
+    _misses = 0
+    _MAX_ITEMS = 64
+    _MAX_ITEM_BYTES = 8 * 1024 * 1024
+
+    @staticmethod
+    def _stamp(path):
+        try:
+            if path.startswith('/prompt/static/'):
+                root, rel = globals().get('PROMPT_STATIC_DIR'), path[len('/prompt/static/'):]
+            elif path.startswith('/static/'):
+                root, rel = globals().get('STATIC_DIR'), path[len('/static/'):]
+            else:
+                return None
+            if not root or '..' in rel:
+                return None
+            st = os.stat(os.path.join(root, *rel.split('/')))
+            return (st.st_mtime_ns, st.st_size)
+        except (OSError, ValueError, TypeError):
+            return None
+
     async def __call__(self, scope, receive, send):
         path = scope.get('path', '') if scope.get('type') == 'http' else ''
         hit = (
             path.startswith(('/static/', '/prompt/static/'))
             and path.lower().endswith(_STATIC_TEXT_EXTS)
         )
-        if hit:
-            await super().__call__(scope, receive, send)
-        else:
+        if not hit:
             await self.app(scope, receive, send)
+            return
+
+        raw_headers = dict(scope.get('headers', []))
+        accept = raw_headers.get(b'accept-encoding', b'').decode('latin-1', 'ignore').lower()
+        # 只缓存「无条件 GET 且接受 gzip」的完整响应。条件请求（304）、
+        # HEAD、Range、非 gzip 客户端一律交给父类，避免返回过期或错误的状态码。
+        cacheable = (
+            scope.get('method', 'GET') == 'GET'
+            and 'gzip' in accept
+            and not any(k in raw_headers for k in (b'if-none-match', b'if-modified-since', b'range'))
+        )
+        if not cacheable:
+            await super().__call__(scope, receive, send)
+            return
+
+        stamp = self._stamp(path)
+        if stamp is None:
+            await super().__call__(scope, receive, send)
+            return
+
+        cached = self._cache.get(path)
+        if cached and cached[0] == stamp:
+            type(self)._hits += 1
+            await send({'type': 'http.response.start', 'status': 200, 'headers': cached[1]})
+            await send({'type': 'http.response.body', 'body': cached[2]})
+            return
+
+        type(self)._misses += 1
+        start_msg, chunks = None, []
+
+        async def capture(message):
+            nonlocal start_msg
+            if message['type'] == 'http.response.start':
+                start_msg = message
+            elif message['type'] == 'http.response.body':
+                chunks.append(message.get('body', b''))
+            await send(message)
+
+        await super().__call__(scope, receive, capture)
+
+        if start_msg and start_msg.get('status') == 200 and chunks:
+            headers = list(start_msg.get('headers', []))
+            lower = {k.lower(): v for k, v in headers}
+            body = b''.join(chunks)
+            if lower.get(b'content-encoding') == b'gzip' and 0 < len(body) <= self._MAX_ITEM_BYTES:
+                if len(self._cache) >= self._MAX_ITEMS:
+                    self._cache.clear()
+                self._cache[path] = (stamp, headers, body)
 
 
 app.add_middleware(StaticTextGZipMiddleware, minimum_size=1024, compresslevel=6)
@@ -7031,7 +7106,7 @@ async def _smart_prompt_comfyui(req: SmartPromptRequest):
             raise
         except Exception as e:
             last_status = f"poll_err: {e}"
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
 
     raise HTTPException(status_code=504, detail=f"ComfyUI timeout (180s), last_status={last_status}")
 
@@ -8916,7 +8991,10 @@ async def _tts_generate_inner(request: Request, token: str):
         if target:
             try:
                 files_data = {'image': (ref_audio_filename, content, ref_audio.content_type or 'audio/wav')}
-                requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+                await asyncio.to_thread(
+                    requests.post, f"http://{target}/upload/image",
+                    files=files_data, timeout=10,
+                )
             except Exception as e:
                 print(f"[TTS] 上传参考音频失败: {e}")
 
@@ -8942,7 +9020,10 @@ async def _tts_generate_inner(request: Request, token: str):
                 if target:
                     try:
                         files_data = {'image': (fname, content, spk_audio.content_type or 'audio/wav')}
-                        resp = requests.post(f"http://{target}/upload/image", files=files_data, timeout=10)
+                        resp = await asyncio.to_thread(
+                            requests.post, f"http://{target}/upload/image",
+                            files=files_data, timeout=10,
+                        )
                         print(f"[TTS-Multi] speaker_{i}: upload response={resp.status_code} {resp.text[:200]}")
                     except Exception as e:
                         print(f"[TTS-Multi] speaker_{i}: upload FAILED: {e}")
