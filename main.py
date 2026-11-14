@@ -299,7 +299,11 @@ class StaticTextGZipMiddleware(GZipMiddleware):
             await super().__call__(scope, receive, send)
             return
 
-        cached = self._cache.get(path)
+        # Cache-Control 依赖 ?v= 版本戳，缓存键必须带上完整 query，
+        # 否则无版本戳的请求会误用带版本戳那次的响应头。
+        qs_bytes = scope.get('query_string', b'') or b''
+        cache_key = path + ('?' + qs_bytes.decode('latin-1') if qs_bytes else '')
+        cached = self._cache.get(cache_key)
         if cached and cached[0] == stamp:
             type(self)._hits += 1
             await send({'type': 'http.response.start', 'status': 200, 'headers': cached[1]})
@@ -326,7 +330,7 @@ class StaticTextGZipMiddleware(GZipMiddleware):
             if lower.get(b'content-encoding') == b'gzip' and 0 < len(body) <= self._MAX_ITEM_BYTES:
                 if len(self._cache) >= self._MAX_ITEMS:
                     self._cache.clear()
-                self._cache[path] = (stamp, headers, body)
+                self._cache[cache_key] = (stamp, headers, body)
 
 
 app.add_middleware(StaticTextGZipMiddleware, minimum_size=1024, compresslevel=6)
@@ -2026,15 +2030,16 @@ class NoCacheStaticFiles(StarletteStaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if hasattr(response, 'headers'):
-            if path.lower().endswith('.html'):
-                # 页面骨架每次取新的，避免 iframe 与路由信息陈旧。
+            qs = scope.get('query_string', b'') or b''
+            versioned = any(part.startswith(b'v=') for part in qs.split(b'&'))
+            # 带 ?v= 版本戳的资源才给短缓存，且刻意不用 immutable：
+            # 万一改了文件忘换戳，最多 5 分钟后自动回到最新版。
+            # 无版本戳的资源继续每次校验 ETag，行为与原来一致。
+            if path.lower().endswith('.html') and not versioned:
+                # 主控制台 / 登录页这类页面骨架每次取新的，避免 iframe
+                # 与路由信息陈旧；带版本戳的 app 页可以放心复用。
                 response.headers['Cache-Control'] = 'no-store'
             else:
-                qs = scope.get('query_string', b'') or b''
-                versioned = any(part.startswith(b'v=') for part in qs.split(b'&'))
-                # 带 ?v= 版本戳的资源才给短缓存，且刻意不用 immutable：
-                # 万一改了文件忘换戳，最多 5 分钟后自动回到最新版。
-                # 无版本戳的资源继续每次校验 ETag，行为与原来一致。
                 response.headers['Cache-Control'] = (
                     'public, max-age=300, must-revalidate' if versioned else 'no-cache'
                 )
