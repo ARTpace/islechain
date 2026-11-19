@@ -98,15 +98,18 @@ class WebaiGatewayTests(unittest.TestCase):
         node = next(n for n in source.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'run_canvas_image_task')
         task = {'id': 't', 'status': 'queued'}
         seen = []
+        finished = []
         async def build(payload, username=None, on_progress=None):
             on_progress({'source': 'website', 'stage': 'running', 'progress': 37})
             seen.append(dict(task['progress']))
             on_progress({'source': 'local', 'stage': 'saving', 'progress': None})
             return {'images': ['saved.png']}
         context = {'_main': SimpleNamespace(CANVAS_TASK_LOCK=Lock(), CANVAS_TASKS={'t': task},
-                    OnlineImageRequest=object, build_online_image_result=build), 'time': __import__('time')}
+                    OnlineImageRequest=object, build_online_image_result=build,
+                    finish_chat_generation=lambda *args, **kwargs: finished.append((args, kwargs))), 'time': __import__('time')}
         exec(compile(ast.Module(body=[node], type_ignores=[]), '<canvas-task>', 'exec'), context)
-        asyncio.run(context['run_canvas_image_task']('t', object()))
+        asyncio.run(context['run_canvas_image_task']('t', SimpleNamespace(conversation_id='c', message_id='m')))
+        self.assertEqual(finished, [(("c", "m", ["saved.png"]), {"user_id": ""})])
         self.assertEqual(seen[0]['progress'], 37)
         self.assertEqual(task['progress']['stage'], 'saving')
         self.assertEqual(task['status'], 'succeeded')

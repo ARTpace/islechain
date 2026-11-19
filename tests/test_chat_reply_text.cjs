@@ -47,7 +47,8 @@ const nodes=[];
 ctx.document={createElement(){const node={children:[],append(...items){this.children.push(...items);},remove(){this.removed=true;}};nodes.push(node);return node;}};
 ctx.chatBusy=false;
 ctx.chatParameterContext=()=>({engine:'cloud',model:'test'});
-let submitted=0;
+let submitted=0, cancelledLoads=0;
+ctx.conversationLoader={cancel(){cancelledLoads++;}};
 ctx.applyChatParameters=()=>{};ctx.showPending=()=>{};
 ctx.drawWithConsole=async spec=>{assert.equal(spec.prompt,'pig');submitted++;};
 const bubble={appendChild(node){this.actions=node;}};
@@ -59,4 +60,5 @@ ctx.offerChatImageGeneration(bubble,{prompt:'pig'},[],{engine:'cloud',model:'tes
 bubble.actions.children[1].onclick().then(()=>{
     assert.equal(submitted,1,'one click submits the prepared prompt');
     assert.equal(ctx.chatBusy,false);
+    assert.equal(cancelledLoads,1,'confirmed generation cancels stale history loading');
 }).catch(error=>{console.error(error);process.exitCode=1;});

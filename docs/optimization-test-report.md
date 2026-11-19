@@ -5,7 +5,9 @@
 
 ## 结果
 
-主要聊天与画布往返流程已实测通过；整体尚未全绿，两个已记录的测试替身问题仍失败，并观察到窄窗口画布工具栏排版问题。本轮仅测试及记录，未修改业务实现。
+初测主要聊天与画布往返流程通过，发现下述三项问题。后续已按用户要求全部修复：补齐测试替身并增加取消历史读取/生成结果回写断言；素材建游戏按钮改为工具栏统一的图标＋span 结构，进度更新仅修改标签并保留图标。
+
+修复验证：`test_chat_reply_text.cjs`、`test_game_asset_intake.cjs` 通过；网关 Python 9 项及 6 个子测试通过；资源版本检查通过。实际约 723 像素宽页面已加载新版，工具栏不再出现纵向文字挤入标题，按钮仍直接可达。仅复测受影响项，未重复运行初测中其他已通过检查。下表保留首次测试结果。
 
 | 检查 | 结果 |
 | --- | --- |
@@ -27,7 +29,7 @@
 - 测试结束恢复原“1只猪”会话，未发送消息、发起生成或删除数据。
 - 本轮页面控制台未捕获 error 级别记录；不等同于后台全部日志无错误。
 
-## 未通过项
+## 初测问题（现均已修复）
 
 1. `tests/test_chat_reply_text.cjs`：局部执行确认生成函数时，测试上下文缺少 `conversationLoader`，报 ReferenceError。渲染部分断言通过，但整个检查失败；不能按首行成功日志算通过。
 2. `tests/test_webai_gateway.py::WebaiGatewayTests::test_canvas_task_persists_reported_progress`：SimpleNamespace 未提供 `finish_chat_generation`。本轮仍复现先前记录的 AttributeError。

@@ -95,18 +95,24 @@
     window.GameAssetIntake={supported,safeURL,upload,fromRefs,summary,selectedRefs,droppedFiles};
     const toolbar=document.getElementById('gameProjectToggle');
     if(toolbar){
-        const button=document.createElement('button');button.type='button';button.className=toolbar.className;button.textContent='用选中素材做游戏';button.title='选中图片、生成结果、音频或模型节点后点击';toolbar.after(button);
+        const button=document.createElement('button');button.type='button';button.className=toolbar.className;
+        // Match the fixed toolbar's icon + span contract so narrow layouts keep one-click access.
+        button.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 4 5 8-5 8H5l-4-8 4-8Z"/><path d="M8 9v6M5 12h6M16 11h.01M18 14h.01"/></svg><span>用选中素材做游戏</span>';
+        button.setAttribute('aria-label','用选中素材做游戏');
+        button.title='用选中素材做游戏：选中图片、生成结果、音频或模型节点后点击';
+        const label=button.querySelector('span');
+        toolbar.after(button);
         button.onclick=async()=>{
             const refs=selectedRefs();if(!refs.length){alert('先在画布上选中要用于游戏的素材节点。');return;}
             button.disabled=true;
             try{
                 const p=await window.GamePipeline.ensureProject();
-                const result=await fromRefs(p.id,refs,message=>{button.textContent=message;});
+                const result=await fromRefs(p.id,refs,message=>{label.textContent=message;button.title=message;});
                 await window.GamePipeline.canvasLoaded();
                 if(result.failed.length||result.skipped.length)alert(summary(result));
                 if(result.added||result.reused)window.GameDevelopment.openWorkbench(p.id);
             }catch(error){alert(error.message);}
-            finally{button.disabled=false;button.textContent='用选中素材做游戏';}
+            finally{button.disabled=false;label.textContent='用选中素材做游戏';button.title='用选中素材做游戏：选中图片、生成结果、音频或模型节点后点击';}
         };
     }
 })();
