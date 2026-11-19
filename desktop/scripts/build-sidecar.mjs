@@ -3,10 +3,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {syncAssets} from '../../scripts/asset-versions.mjs';
 
 const here = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const project = path.resolve(here, '..');
 const appDir = path.join(here, 'src-tauri', 'sidecar-server', 'app');
+if (syncAssets({root: project, check:true}).length) {
+  throw new Error('资源版本过期，请先运行 node scripts/asset-versions.mjs');
+}
 
 // 注意：tools/ 不能整目录排除 —— main.py 顶层依赖 tools.performance_timing 与
 // tools.api_compat，缺了它服务起不来。改为只裁掉里面的大体积数据目录（见 prunedSubdirs）。
@@ -135,6 +139,9 @@ const required = [
   'static/js/canvas-comfy-builds.js',
   'data/media-folders.json',
   'static/modules/model-features.js',
+  'providers/config.py',
+  'providers/catalog.py',
+  'core/json_store.py',
   'style_packs',
   'character_packs',
   'content_packs',

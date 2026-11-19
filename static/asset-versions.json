@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "assets": {
+    "/static/css/chat-layout.css": "4c0624761c09f35c",
+    "/static/css/zimage.css": "5edfea65dc65f8d4",
+    "/static/js/canvas-list.js": "fc8ed577e76a20bf",
+    "/static/js/canvas.js": "affc46dd44a7a85a",
+    "/static/js/smart-canvas.js": "7f4a4e7d9090640c",
+    "/static/modules/chat-conversations.js": "f032f9d7f0b1ef2a",
+    "/static/modules/chat-image-generation.js": "c420619aa3f55761",
+    "/static/modules/chat-media.js": "e20421f7b523fc9a",
+    "/static/modules/chat-outline.css": "4fbfc04d0fe14ecb",
+    "/static/modules/chat-outline.js": "54640f823ba8b652",
+    "/static/modules/chat-session.js": "e4a52d294bf4fe40",
+    "/static/modules/chat-transcript.js": "02b4b6e1a07c7ae0",
+    "/static/modules/page-lifecycle.js": "351ca1fa2112c0ff"
+  }
+}
