@@ -1,9 +1,33 @@
 """系统配置相关路由"""
-import main as _main  # P2 惰性依赖（2026-10-22 断循环）：见本文件 __getattr__
-from fastapi import APIRouter, HTTPException, Request
+import json
+import os
+import re
 from typing import List
-import os, json, re, httpx
 
+import httpx
+from fastapi import APIRouter, HTTPException, Request
+
+import main as _main  # P2 惰性依赖（2026-10-22 断循环）：见本文件 __getattr__
+from providers.catalog import (
+    CODEX_DEFAULT_IMAGE_MODELS,
+    builtin_default_models,
+)
+from providers.catalog import (
+    GEMINI_CLI_DEFAULT_IMAGE_MODELS as GEMINI_CLI_DEFAULT_IMAGE_MODELS,
+)
+from providers.catalog import (
+    JIMENG_DEFAULT_IMAGE_MODELS as JIMENG_DEFAULT_IMAGE_MODELS,
+)
+from providers.catalog import (
+    JIMENG_DEFAULT_VIDEO_MODELS as JIMENG_DEFAULT_VIDEO_MODELS,
+)
+from providers.catalog import (
+    MODELSCOPE_DEFAULT_IMAGE_MODELS as MODELSCOPE_DEFAULT_IMAGE_MODELS,
+)
+from providers.catalog import (
+    RUNNINGHUB_DEFAULT_IMAGE_MODELS as RUNNINGHUB_DEFAULT_IMAGE_MODELS,
+)
+from providers.config import ProviderStore, normalize_provider, provider_key_env, public_provider
 
 # No prefix - use full paths
 router = APIRouter()
@@ -26,7 +50,7 @@ async def webai2api_status(request: Request, provider_id: str = "webai2api", ref
         return {"online": False, "management_url": management_url,
                 "message": str(getattr(exc, 'detail', exc))[:250]}
     if request.method == 'POST':
-        providers = _main.load_api_providers()
+        providers = provider_store().load()
         for item in providers:
             if item['id'] == provider_id:
                 # 参数同步仅更新用户已添加的模型，模型目录不等于已选列表。
@@ -39,7 +63,7 @@ async def webai2api_status(request: Request, provider_id: str = "webai2api", ref
                 }
                 result = {**result, **{key: item.get(key, []) for key in ('image_models', 'chat_models', 'video_models')},
                           'model_capabilities': item['model_capabilities']}
-        _main.save_api_providers(providers)
+        provider_store().save(providers)
     return {"online": True, "management_url": management_url, **result}
 
 
@@ -48,7 +72,7 @@ async def ai_config():
     preferred_chat_model = next((m for m in _main.CHAT_MODELS if m == "gpt-5.5"), _main.CHAT_MODELS[0] if _main.CHAT_MODELS else _main.CHAT_MODEL)
     all_chat_providers = []
     all_api_providers = []
-    providers = _main.load_api_providers()
+    providers = provider_store().load()
     for p in providers:
         if p.get("chat_models"):
             all_chat_providers.append({
@@ -78,38 +102,14 @@ async def ai_models():
 
 
 # 内置平台默认模型（按 provider_id 区分）
-MODELSCOPE_DEFAULT_IMAGE_MODELS = [
-    "Tongyi-MAI/Z-Image-Turbo",
-    "Qwen/Qwen-Image-2512",
-    "Qwen/Qwen-Image-Edit-2511",
-    "black-forest-labs/FLUX.2-klein-9B",
-]
-JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro", "5.0", "4.7", "4.6", "4.5", "4.1", "4.0", "3.1", "3.0"]
-JIMENG_DEFAULT_VIDEO_MODELS = ["VideoGen-720p", "VideoGen-1080p", "VideoGen-4K"]
-CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2"]
-GEMINI_CLI_DEFAULT_IMAGE_MODELS = ["imagen-3", "imagen-3-2k", "Nano-Banana", "$imagegen"]
-RUNNINGHUB_DEFAULT_IMAGE_MODELS = [
-    "Tongyi-MAI/Z-Image-Turbo",
-    "Qwen/Qwen-Image-2512",
-    "Qwen/Qwen-Image-Edit-2511",
-    "black-forest-labs/FLUX.2-klein-9B",
-]
 
 
-def builtin_default_models(provider_id: str):
-    """返回内置平台的默认 image_models（当 provider 自定义为空时使用）"""
-    pid = (provider_id or "").lower()
-    if pid == "modelscope":
-        return list(MODELSCOPE_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "jimeng":
-        return list(JIMENG_DEFAULT_IMAGE_MODELS), [], list(JIMENG_DEFAULT_VIDEO_MODELS)
-    if pid == "codex":
-        return list(CODEX_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "gemini-cli":
-        return list(GEMINI_CLI_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "runninghub":
-        return list(RUNNINGHUB_DEFAULT_IMAGE_MODELS), [], []
-    return [], [], []
+def provider_store():
+    return ProviderStore()
+
+
+def visible_provider(provider):
+    return public_provider(provider, read_key=_main.read_api_env_value, visitor=_main.LAN_VISITOR.get())
 
 
 @router.get("/api/providers/models")
@@ -172,7 +172,7 @@ async def get_global_token():
 @router.get("/api/providers")
 async def api_providers():
     """获取 API 提供商列表"""
-    return {"providers": [_main.public_provider(p) for p in _main.load_api_providers()]}
+    return {"providers": [visible_provider(p) for p in provider_store().load()]}
 
 
 @router.put("/api/providers")
@@ -182,10 +182,10 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
     env_updates = {}
 
     raw_primary_flags = [bool(getattr(item, "primary", False)) for item in payload]
-    existing = {p.get("id"): p for p in _main.load_api_providers()}
+    existing = {p.get("id"): p for p in provider_store().load()}
 
     for item in payload:
-        provider = _main.normalize_provider(item.dict(exclude={"api_key"}))
+        provider = normalize_provider(item.dict(exclude={"api_key"}))
         old = existing.get(provider["id"]) or {}
         for key in ("ms_loras", "rh_apps", "rh_workflows", "image_generation_endpoint", "image_edit_endpoint", "model_capabilities"):
             if key in old and not provider.get(key):
@@ -201,7 +201,7 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
         providers.append(provider)
 
         if item.api_key is not None:
-            env_updates[_main.provider_key_env(provider["id"])] = item.api_key.strip()
+            env_updates[provider_key_env(provider["id"])] = item.api_key.strip()
 
         if provider["id"] == "comfly":
             env_updates["COMFLY_BASE_URL"] = provider["base_url"]
@@ -218,7 +218,7 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
         for i, p in enumerate(providers):
             p["primary"] = (i == winner)
 
-    _main.save_api_providers(providers)
+    provider_store().save(providers)
 
     if env_updates:
         _main.update_env_values(env_updates)
@@ -231,7 +231,7 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
     except Exception:
         pass
 
-    return {"providers": [_main.public_provider(p) for p in providers]}
+    return {"providers": [visible_provider(p) for p in providers]}
 
 
 @router.post("/api/providers/test-connection")
@@ -248,7 +248,7 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
     if any(ch in api_key for ch in ("•", "…", "****")):
         api_key = ""
     if not api_key and payload.provider_id:
-        api_key = _main.read_api_env_value(_main.provider_key_env(payload.provider_id))
+        api_key = _main.read_api_env_value(provider_key_env(payload.provider_id))
 
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
@@ -357,7 +357,7 @@ async def probe_async_endpoint(payload: _main.TestConnectionPayload):
     if any(ch in api_key for ch in ("•", "…", "****")):
         api_key = ""
     if not api_key and payload.provider_id:
-        api_key = _main.read_api_env_value(_main.provider_key_env(payload.provider_id))
+        api_key = _main.read_api_env_value(provider_key_env(payload.provider_id))
 
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
@@ -413,7 +413,7 @@ async def fetch_upstream_models_from_payload(payload: _main.TestConnectionPayloa
     if any(ch in api_key for ch in ("•", "…", "****")):
         api_key = ""
     if not api_key and payload.provider_id:
-        api_key = _main.read_api_env_value(_main.provider_key_env(payload.provider_id))
+        api_key = _main.read_api_env_value(provider_key_env(payload.provider_id))
     return await _main.fetch_models_from_upstream(payload.base_url, api_key)
 
 
@@ -421,7 +421,7 @@ async def fetch_upstream_models_from_payload(payload: _main.TestConnectionPayloa
 async def fetch_upstream_models(provider_id: str):
     """从已保存的上游接口拉取模型列表"""
     provider = _main.get_api_provider_exact(provider_id)
-    api_key = _main.read_api_env_value(_main.provider_key_env(provider["id"]))
+    api_key = _main.read_api_env_value(provider_key_env(provider["id"]))
     if not api_key:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
     return await _main.fetch_models_from_upstream(provider.get("base_url") or "", api_key)

@@ -155,7 +155,7 @@ CANVAS_TASK_LOCK = Lock()
 APP_BOOT_ID = uuid.uuid4().hex
 AI_IMAGE_TASKS = {}  # {task_id: {status, result, updated_at, ...}}
 AI_IMAGE_TASK_LOCK = Lock()
-IMAGE_REQUEST_MODES = {"openai", "openai-json", "openai-video-proxy", "openai-responses", "openai-async-image"}
+from providers.config import IMAGE_REQUEST_MODES
 OPENAI_ASYNC_IMAGE_DEFAULT_MODELS = ["gpt-image-2-all"]
 OPENAI_ASYNC_IMAGE_TASK_TIMEOUT = 1800
 OPENAI_ASYNC_IMAGE_POLL_INTERVAL = 5
@@ -1340,19 +1340,9 @@ API_PROVIDERS_FILE = os.path.join(USER_DATA_DIR, "api_providers.json")
 
 
 def migrate_api_providers_from_app_dir():
-    """把安装目录里的旧配置搬进用户目录。目标已存在则不覆盖，保留个人修改。"""
-    legacy = os.path.join(BASE_DIR, "api_providers.json")
-    if os.path.exists(API_PROVIDERS_FILE) or not os.path.exists(legacy):
-        return
-    try:
-        with open(legacy, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if not isinstance(data, list) or not data:
-            return
-        atomic_write_json(API_PROVIDERS_FILE, data, ensure_ascii=False, indent=2)
-        print(f"[art-canvas] 已从安装目录迁移 API 提供商配置: {API_PROVIDERS_FILE}")
-    except Exception as e:
-        print(f"[art-canvas] API 提供商配置迁移失败: {e}")
+    from providers.config import ProviderStore
+    ProviderStore(API_PROVIDERS_FILE, BASE_DIR).migrate()
+
 
 def sanitize_folder_name(title, canvas_id):
     """生成安全的文件夹名称"""
@@ -1434,31 +1424,7 @@ USERS_FILE = os.path.join(USER_DATA_DIR, "users.json")
 def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-def atomic_write_json(path, data, encoding="utf-8", **json_kwargs):
-    """原子化 JSON 落盘：同目录临时文件写入 + fsync + os.replace 原地替换。
-
-    旧写法直接 open(path, 'w')，一旦进程在写入中途崩溃/断电，原文件已被
-    截断成半截 JSON（数据全丢）。本函数保证任何时刻磁盘上要么是旧完整
-    文件、要么是新完整文件。json_kwargs 透传给 json.dump，默认
-    ensure_ascii=False, indent=2（与既有落盘格式一致）。
-    """
-    json_kwargs.setdefault("ensure_ascii", False)
-    json_kwargs.setdefault("indent", 2)
-    directory = os.path.dirname(os.path.abspath(path)) or "."
-    os.makedirs(directory, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=directory)
-    try:
-        with os.fdopen(fd, "w", encoding=encoding) as f:
-            json.dump(data, f, **json_kwargs)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, path)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+from core.json_store import atomic_write_json
 
 
 _USERS_CACHE = {"path": None, "data": None}
@@ -1679,179 +1645,26 @@ def get_user_input_dir(username):
 
 # --- API 提供商管理辅助函数 ---
 
-MODELSCOPE_DEFAULT_LORAS = [
-    {
-        "id": "Daniel8152/film",
-        "name": "Z-Image Film",
-        "target_model": "Tongyi-MAI/Z-Image-Turbo",
-        "strength": 0.8,
-        "enabled": True,
-        "note": "",
-    },
-    {
-        "id": "Daniel8152/Qwen-Image-2512-Film",
-        "name": "Qwen Image 2512 Film",
-        "target_model": "Qwen/Qwen-Image-2512",
-        "strength": 0.8,
-        "enabled": True,
-        "note": "",
-    },
-    {
-        "id": "Daniel8152/Klein-enhance",
-        "name": "Klein enhance",
-        "target_model": "black-forest-labs/FLUX.2-klein-9B",
-        "strength": 0.8,
-        "enabled": True,
-        "note": "",
-    },
-]
+from providers.catalog import MODELSCOPE_DEFAULT_LORAS, BUILTIN_PROVIDERS
 
-BUILTIN_PROVIDERS = [
-    {
-        "id": "modelscope",
-        "name": "ModelScope",
-        "base_url": "https://api-inference.modelscope.cn/v1",
-        "protocol": "openai",
-        "image_models": [
-            "Tongyi-MAI/Z-Image-Turbo",
-            "Qwen/Qwen-Image-2512",
-            "Qwen/Qwen-Image-Edit-2511",
-            "black-forest-labs/FLUX.2-klein-9B"
-        ],
-        "chat_models": ["Qwen/Qwen3-235B-A22B-Instruct-2507", "Qwen/Qwen3-Coder-480B-A35B-Instruct"],
-        "video_models": [],
-        "ms_loras": MODELSCOPE_DEFAULT_LORAS,
-        "primary": False,
-        "enabled": True,
-    },
-    {
-        "id": "runninghub",
-        "name": "RunningHub",
-        "base_url": "https://www.runninghub.ai",
-        "protocol": "runninghub",
-        "image_models": [],
-        "chat_models": [],
-        "video_models": [],
-        "primary": False,
-        "enabled": True,
-    },
-    {
-        "id": "volcengine",
-        "name": "火山引擎",
-        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-        "protocol": "volcengine",
-        "image_models": [],
-        "chat_models": [],
-        "video_models": [],
-        "primary": False,
-        "enabled": True,
-    },
-]
+from providers.config import ProviderStore, ensure_builtin_providers
 
-def ensure_builtin_providers(providers):
-    """只迁移已有平台配置，不自动添加推荐平台。"""
-    changed = False
-    # 为已存在的 ModelScope 补 LoRA 默认值
-    for p in providers:
-        if p.get("id") == "modelscope" and not p.get("ms_loras"):
-            p["ms_loras"] = list(MODELSCOPE_DEFAULT_LORAS)
-            changed = True
-    return providers, changed
 
 def load_api_providers():
-    """从文件加载用户自行添加的 API 提供商列表。"""
-    migrate_api_providers_from_app_dir()
-    if not os.path.exists(API_PROVIDERS_FILE):
-        try:
-            atomic_write_json(API_PROVIDERS_FILE, [], ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-        return []
-    try:
-        with open(API_PROVIDERS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            if not isinstance(data, list):
-                data = []
-    except Exception:
-        data = []
-    data, changed = ensure_builtin_providers(data)
-    if changed:
-        try:
-            atomic_write_json(API_PROVIDERS_FILE, data, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-    return data
+    return ProviderStore(API_PROVIDERS_FILE, BASE_DIR).load()
+
 
 def save_api_providers(providers):
-    """保存 API 提供商列表到文件"""
-    try:
-        atomic_write_json(API_PROVIDERS_FILE, providers, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Failed to save API providers: {e}")
+    ProviderStore(API_PROVIDERS_FILE, BASE_DIR).save(providers)
 
-def provider_key_env(provider_id):
-    """生成提供商 API Key 的环境变量名"""
-    return f"{provider_id.upper()}_API_KEY"
 
-def clean_model_labels(raw, models):
-    if not isinstance(raw, dict):
-        return {}
-    allowed = {str(model).strip() for model in (models or []) if str(model).strip()}
-    labels = {}
-    for key, value in raw.items():
-        model = str(key or "").strip()
-        name = str(value or "").strip()[:40]
-        if model in allowed and name:
-            labels[model] = name
-    return labels
+from providers.config import provider_key_env, clean_model_labels, normalize_provider
+from providers.config import public_provider as _public_provider
 
-def normalize_provider(data):
-    """规范化提供商数据"""
-    image_models = data.get("image_models") or []
-    chat_models = data.get("chat_models") or []
-    video_models = data.get("video_models") or []
-    return {
-        "id": data.get("id", "").strip(),
-        "name": data.get("name", "").strip(),
-        "base_url": data.get("base_url", "").strip(),
-        "protocol": data.get("protocol", "openai"),
-        "model_capabilities": data.get("model_capabilities") or {},
-        "image_request_mode": normalize_image_request_mode(data.get("image_request_mode", "")),
-        "image_models": image_models,
-        "chat_models": chat_models,
-        "video_models": video_models,
-        "model_labels": clean_model_labels(data.get("model_labels"), list(image_models) + list(chat_models) + list(video_models)),
-        "ms_loras": data.get("ms_loras") or [],
-        "primary": bool(data.get("primary", False)),
-        "enabled": bool(data.get("enabled", True)),
-    }
 
 def public_provider(provider):
-    """返回公开的提供商信息(隐藏 API Key)"""
-    env_key = provider_key_env(provider["id"])
-    has_key = bool(os.getenv(env_key, "") or read_api_env_value(env_key))
-    key_preview = ''
-    if has_key and not LAN_VISITOR.get():
-        raw = os.getenv(env_key, "") or read_api_env_value(env_key)
-        key_preview = raw[:4] + '••••' + raw[-4:] if len(raw) > 8 else '••••••••'
-    return {
-        "id": provider["id"],
-        "name": provider["name"],
-        "base_url": provider["base_url"],
-        "protocol": provider["protocol"],
-        "model_capabilities": provider.get("model_capabilities") or {},
-        "image_request_mode": normalize_image_request_mode(provider.get("image_request_mode", "")),
-        "image_models": provider["image_models"] or (["gpt-image-2"] if provider_protocol(provider) == "codex" else []),
-        "chat_models": provider["chat_models"],
-        "video_models": provider.get("video_models") or [],
-        "model_labels": provider.get("model_labels") or {},
-        "ms_loras": provider.get("ms_loras") or [],
-        "primary": provider["primary"],
-        "enabled": provider["enabled"],
-        "has_key": has_key,
-        "key_preview": key_preview,
-        "key_env": env_key,
-    }
+    return _public_provider(provider, read_key=read_api_env_value, visitor=LAN_VISITOR.get())
+
 
 def get_provider_api_key(provider_id: str) -> str:
     """从 API/.env 读取指定 provider 的 API Key（优先读实时文件，避免沿用进程启动时的旧值）"""
@@ -3330,10 +3143,7 @@ def _resolve_image_provider(provider_id, protocol_hint=None):
     }
 
 
-def normalize_image_request_mode(mode):
-    """统一 image_request_mode 值"""
-    m = str(mode or "").strip().lower()
-    return m if m in IMAGE_REQUEST_MODES else "openai"
+from providers.config import normalize_image_request_mode
 
 def normalize_image_request_mode_display(mode):
     m = normalize_image_request_mode(mode)
@@ -6391,37 +6201,9 @@ async def index():
 
 
 # 内置平台默认模型（按 provider_id 区分）
-MODELSCOPE_DEFAULT_IMAGE_MODELS = [
-    "Tongyi-MAI/Z-Image-Turbo",
-    "Qwen/Qwen-Image-2512",
-    "Qwen/Qwen-Image-Edit-2511",
-    "black-forest-labs/FLUX.2-klein-9B",
-]
-JIMENG_DEFAULT_IMAGE_MODELS = ["5.0Pro", "5.0", "4.7", "4.6", "4.5", "4.1", "4.0", "3.1", "3.0"]
-JIMENG_DEFAULT_VIDEO_MODELS = ["VideoGen-720p", "VideoGen-1080p", "VideoGen-4K"]
-CODEX_DEFAULT_IMAGE_MODELS = ["gpt-image-2"]
-GEMINI_CLI_DEFAULT_IMAGE_MODELS = ["imagen-3", "imagen-3-2k", "Nano-Banana", "$imagegen"]
-RUNNINGHUB_DEFAULT_IMAGE_MODELS = [
-    "Tongyi-MAI/Z-Image-Turbo",
-    "Qwen/Qwen-Image-2512",
-    "Qwen/Qwen-Image-Edit-2511",
-    "black-forest-labs/FLUX.2-klein-9B",
-]
-
-def builtin_default_models(provider_id: str):
-    """返回内置平台的默认 image_models（当 provider 自定义为空时使用）"""
-    pid = (provider_id or "").lower()
-    if pid == "modelscope":
-        return list(MODELSCOPE_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "jimeng":
-        return list(JIMENG_DEFAULT_IMAGE_MODELS), [], list(JIMENG_DEFAULT_VIDEO_MODELS)
-    if pid == "codex":
-        return list(CODEX_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "gemini-cli":
-        return list(GEMINI_CLI_DEFAULT_IMAGE_MODELS), [], []
-    if pid == "runninghub":
-        return list(RUNNINGHUB_DEFAULT_IMAGE_MODELS), [], []
-    return [], [], []
+from providers.catalog import (MODELSCOPE_DEFAULT_IMAGE_MODELS, JIMENG_DEFAULT_IMAGE_MODELS,
+    JIMENG_DEFAULT_VIDEO_MODELS, CODEX_DEFAULT_IMAGE_MODELS, GEMINI_CLI_DEFAULT_IMAGE_MODELS,
+    RUNNINGHUB_DEFAULT_IMAGE_MODELS, builtin_default_models)
 
 
 @app.post("/api/config/update")
