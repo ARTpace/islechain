@@ -36,9 +36,10 @@ const page=read('static/app/zimage.html');
 // 参考图展示使用缩略图，发送和编辑仍保留原始地址。
 const referenceImages = [];
 const referenceContext = {
+    window:{},
     thread: { querySelector: () => null, appendChild() {} },
     document: { createElement(tag) {
-        const element = { dataset:{}, append() {}, appendChild() {}, setAttribute(key, value) { this[key] = value; } };
+        const element = { dataset:{}, querySelector(){return null;}, append() {}, appendChild() {}, setAttribute(key, value) { this[key] = value; } };
         if (tag === 'img') referenceImages.push(element);
         return element;
     } },
@@ -46,8 +47,9 @@ const referenceContext = {
     stampChatTime() {}, ensureUserActions() {}, scrollThread() {}
 };
 vm.createContext(referenceContext);
-vm.runInContext(page.slice(page.indexOf('            function addUser('), page.indexOf('            function addAssistant(')), referenceContext);
-const referenceRow = referenceContext.addUser('', 'id', 1, [{url:'/original.png',name:'ref'}]);
+vm.runInContext(read('static/modules/chat-transcript.js'), referenceContext);
+const transcript=referenceContext.window.ChatTranscript.create({thread:referenceContext.thread,previewSrc:referenceContext.chatPreviewSrc});
+const referenceRow = transcript.addUser('', 'id', 1, [{url:'/original.png',name:'ref'}]);
 assert.equal(referenceImages[0].loading, 'lazy');
 assert.equal(referenceImages[0].decoding, 'async');
 assert.equal(referenceImages[0].src, '/preview?url=%2Foriginal.png');

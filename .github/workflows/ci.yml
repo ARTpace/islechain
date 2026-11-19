@@ -21,6 +21,8 @@ jobs:
           node tests/test_chat_outline.cjs
           node tests/test_chat_composer.cjs
           node tests/test_chat_image_actions.cjs
+          node tests/test_chat_history_paging.cjs
+          node tests/test_chat_restore_ready.cjs
           node tests/test_chat_reply_boxes.cjs
           node tests/test_chat_reply_text.cjs
           node tests/test_webai_controls.cjs

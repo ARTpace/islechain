@@ -23,6 +23,8 @@ core/                                                 公共底座
 
 首批展示拆分：`static/css/zimage.css` 与 `static/css/chat-layout.css` 保持原加载顺序；`static/modules/chat-media.js` 创建按自然尺寸适配的图片卡片，`chat-transcript.js` 负责思考过程展示。页面仍负责生成、历史记录和媒体动作装配。`chat-outline.js` 的 `mount(thread)` 返回 `{dispose}`，重复挂载复用实例，释放时清理观察器与监听。验证入口：`tests/test_chat_presentation.cjs`、`tests/test_chat_outline.cjs`，以及 CI 的 Chat presentation job。
 
+消息展示续批：`ChatTranscript.create({thread, previewSrc, onUser, onAssistant, onAppend})` 为每个容器创建独立的用户/助手消息展示实例；`stampChatTime` 与 `formatChatTime` 统一时间展示。页面保留消息操作与发送业务，通过回调装配；不改变历史数据、参考图原始地址与返回节点类型。
+
 | 文件 | 职责 |
 |---|---|
 | `main.py` | FastAPI 主入口：应用装配、认证中间件、生成/对话/画布/资产等核心路由（近万行，拆分中） |
