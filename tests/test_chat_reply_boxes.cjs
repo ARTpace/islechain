@@ -13,6 +13,7 @@ const ctx={window:{},document:{createElement:element,createTextNode:text=>({text
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync('static/js/canvas-agent-markdown.js','utf8'),ctx);
 vm.runInContext(fs.readFileSync('static/modules/content-preview.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync('static/modules/chat-transcript.js','utf8'),ctx);
 const start=html.indexOf('            function chatReplySegments(');
 vm.runInContext(html.slice(start,html.indexOf('            function paintAssistant(',start)),ctx);
 const source='说明\n```json\n{ "html": "<script>test</script>" }\n```\n结束';

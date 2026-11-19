@@ -4198,7 +4198,7 @@
     <link rel="stylesheet" href="/static/modules/chat-outline.css?v=20261119005">
     <script src="/static/modules/chat-outline.js?v=20261119010"></script>
     <script src="/static/modules/chat-media.js?v=20261119010"></script>
-    <script src="/static/modules/chat-transcript.js?v=20261119011"></script>
+    <script src="/static/modules/chat-transcript.js?v=20261119012"></script>
     <script src="/static/modules/chat-assistant.js?v=20261026references"></script>
     <script src="/static/js/canvas-agent-markdown.js?v=20261119001"></script>
     <link rel="stylesheet" href="/static/modules/content-preview.css?v=20261119008">
@@ -4657,53 +4657,15 @@
             function chatJsonPreview(value, key, depth) { return window.StudioContentPreview.jsonPreview(value, key, depth); }
             function renderChatReply(host, text) { window.StudioContentPreview.render(host, text); }
             function createChatReplyStream(bubble) {
-                let target = '', shown = '', timer = null, done;
-                const tick = () => {
-                    timer = null;
-                    const remaining = target.slice(shown.length);
-                    const chars = Array.from(remaining);
-                    shown += chars.slice(0, Math.max(2, Math.ceil(chars.length / 10))).join('');
-                    paintAssistant(bubble, shown, true);
-                    scrollThread();
-                    if (shown !== target) timer = setTimeout(tick, 24);
-                    else if (done) { done(); done = null; }
-                };
-                return {
-                    push(text) {
-                        if (!text.startsWith(shown)) shown = '';
-                        target = text;
-                        if (timer === null && shown !== target) timer = setTimeout(tick, 24);
-                    },
-                    finish() {
-                        return shown === target ? Promise.resolve() : new Promise(resolve => { done = resolve; });
-                    },
-                    stop() {
-                        clearTimeout(timer); timer = null;
-                        if (done) { done(); done = null; }
-                    }
-                };
+                return window.ChatTranscript.createReplyStream({
+                    paint: (text, streaming) => paintAssistant(bubble, text, streaming),
+                    onUpdate: scrollThread
+                });
             }
             function paintAssistant(bubble, raw, streaming = false) {
-                const parts = splitChatReply(raw, streaming);
-                Array.from(bubble.childNodes).forEach(node => {
-                    if (node.nodeType === 3) node.remove();
+                window.ChatTranscript.paintReply(bubble, splitChatReply(raw, streaming), {
+                    render: renderChatReply, onActions: ensureChatActions
                 });
-                let replyEl = bubble.querySelector('.chat-reply');
-                if (!replyEl) {
-                    replyEl = document.createElement('div');
-                    replyEl.className = 'chat-reply';
-                    const think = bubble.querySelector('.chat-think');
-                    if (think) think.after(replyEl);
-                    else bubble.insertBefore(replyEl, bubble.firstChild);
-                }
-                // 模型常在句间塞 3~5 个换行，pre-wrap 会把空行原样撑成大片空白；显示时彻底压掉空行，只保留单换行
-                const shown = String(parts.reply || '')
-                    .replace(/\r\n?/g, '\n')
-                    .replace(/[ \t\u00a0\u3000]+$/gm, '')
-                    .trim();
-                renderChatReply(replyEl, shown);
-                replyEl.style.display = shown ? '' : 'none';
-                ensureChatActions(bubble, parts.prompt);
             }
             function conversationCopyText() {
                 const lines = [];

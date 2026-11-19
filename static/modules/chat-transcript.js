@@ -119,5 +119,53 @@
         }
         return {addUser, addAssistant};
     }
-    window.ChatTranscript = {paintThinking, formatChatTime, stampChatTime, create};
+    function createReplyStream({paint, onUpdate = () => {}}) {
+        let target = '', shown = '', timer = null, done;
+        const tick = () => {
+            timer = null;
+            const remaining = target.slice(shown.length);
+            const chars = Array.from(remaining);
+            shown += chars.slice(0, Math.max(2, Math.ceil(chars.length / 10))).join('');
+            paint(shown, true);
+            onUpdate();
+            if (shown !== target) timer = setTimeout(tick, 24);
+            else if (done) { done(); done = null; }
+        };
+        return {
+            push(text) {
+                if (!text.startsWith(shown)) shown = '';
+                target = text;
+                if (timer === null && shown !== target) timer = setTimeout(tick, 24);
+            },
+            finish() {
+                return shown === target ? Promise.resolve() : new Promise(resolve => { done = resolve; });
+            },
+            stop() {
+                clearTimeout(timer); timer = null;
+                if (done) { done(); done = null; }
+            }
+        };
+    }
+    function paintReply(bubble, parts, {render, onActions = () => {}}) {
+        Array.from(bubble.childNodes).forEach(node => {
+            if (node.nodeType === 3) node.remove();
+        });
+        let replyEl = bubble.querySelector('.chat-reply');
+        if (!replyEl) {
+            replyEl = document.createElement('div');
+            replyEl.className = 'chat-reply';
+            const think = bubble.querySelector('.chat-think');
+            if (think) think.after(replyEl);
+            else bubble.insertBefore(replyEl, bubble.firstChild);
+        }
+        // 模型常在句间塞 3~5 个换行，pre-wrap 会把空行原样撑成大片空白；显示时彻底压掉空行，只保留单换行
+        const shown = String(parts.reply || '')
+            .replace(/\r\n?/g, '\n')
+            .replace(/[ \t\u00a0\u3000]+$/gm, '')
+            .trim();
+        render(replyEl, shown);
+        replyEl.style.display = shown ? '' : 'none';
+        onActions(bubble, parts.prompt);
+    }
+    window.ChatTranscript = {paintThinking, formatChatTime, stampChatTime, create, createReplyStream, paintReply};
 })();

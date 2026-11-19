@@ -18,6 +18,7 @@ jobs:
       - name: Check extracted components and integration
         run: |
           node tests/test_chat_presentation.cjs
+          node tests/test_chat_stream.cjs
           node tests/test_chat_outline.cjs
           node tests/test_chat_composer.cjs
           node tests/test_chat_image_actions.cjs

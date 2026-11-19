@@ -3,6 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 function element(tag) {
     return {tag, children:[], dataset:{}, style:{}, events:{}, textContent:'', scrollHeight:200, scrollTop:0, clientHeight:200,
+        get childNodes(){return this.children;},
         setAttribute(key,value){this[key]=value;}, addEventListener(name,fn){this.events[name]=fn;},
         appendChild(node){this.children.push(node);}, append(...nodes){this.children.push(...nodes);},
         insertBefore(node){this.children.unshift(node);}, remove(){this.removed=true;},
@@ -50,4 +51,18 @@ const secondThread=element('div');
 ctx.window.ChatTranscript.create({thread:secondThread}).addUser('another');
 assert.equal(secondThread.children.length,1);
 assert.equal(thread.children.length,2,'instances must not share message containers');
+let rendered, actionPrompt;
+const replyBubble=element('div');
+const media=element('img'); replyBubble.appendChild(media);
+ctx.window.ChatTranscript.paintReply(replyBubble,{reply:'  hello\r\nworld  ',prompt:'image prompt'},{
+    render:(host,text)=>{rendered={host,text};},onActions:(_,prompt)=>{actionPrompt=prompt;}
+});
+assert.equal(rendered.text,'hello\nworld');
+assert.equal(rendered.host.className,'chat-reply');
+assert.equal(actionPrompt,'image prompt');
+assert(replyBubble.children.includes(media),'reply updates must preserve generated media');
+const replyNode=rendered.host;
+ctx.window.ChatTranscript.paintReply(replyBubble,{reply:'',prompt:''},{render:()=>{}});
+assert.equal(replyNode.style.display,'none');
+assert.equal(replyBubble.children.length,2,'updates reuse reply DOM');
 console.log('Chat presentation: natural image ratio, original URL and thinking updates passed');

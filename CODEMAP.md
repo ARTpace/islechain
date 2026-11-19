@@ -25,6 +25,8 @@ core/                                                 公共底座
 
 消息展示续批：`ChatTranscript.create({thread, previewSrc, onUser, onAssistant, onAppend})` 为每个容器创建独立的用户/助手消息展示实例；`stampChatTime` 与 `formatChatTime` 统一时间展示。页面保留消息操作与发送业务，通过回调装配；不改变历史数据、参考图原始地址与返回节点类型。
 
+回复展示续批：`ChatTranscript.paintReply(bubble, parts, {render, onActions})` 复用正文节点并保留图片等其他内容；`createReplyStream({paint, onUpdate})` 管理逐步显示、完成等待与停止计时器。`splitChatReply` 等控制指令解析仍归页面业务。验证入口补充 `tests/test_chat_stream.cjs`（Unicode、内容改写、实例隔离和取消）。
+
 | 文件 | 职责 |
 |---|---|
 | `main.py` | FastAPI 主入口：应用装配、认证中间件、生成/对话/画布/资产等核心路由（近万行，拆分中） |
