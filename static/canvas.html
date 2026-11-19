@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-studio-scale="off">
 <head>
-<script src="/static/js/ui-confirm.js?v=20261119002"></script>
+<script src="/static/js/ui-confirm.js?v=2d9efc667b902fdc"></script>
     <meta charset="UTF-8">
     <!-- 桌面叠加模式标记：必须在 canvas.js 之前记下来。
          画布启动流程会改写 location（openCanvas/replaceState），
@@ -19,8 +19,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>无限画布</title>
-    <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261119001"></script>
+    <script src="/static/js/theme-default.js?v=f7be51b7fc08f7f7"></script>
+<script src="/static/js/theme.js?v=2a226b3401fc7842"></script>
     <script>
         (function(){
             try {
@@ -32,20 +32,20 @@
             } catch(e) {}
         })();
     </script>
-    <script src="/static/vendor/js/lucide.js?v=20261024001"></script>
-    <script type="module" src="/static/vendor/model-viewer.min.js?v=20261104glb"></script>
+    <script src="/static/vendor/js/lucide.js?v=187a756625c5ce74"></script>
+    <script type="module" src="/static/vendor/model-viewer.min.js?v=8923739c8c1b4a02"></script>
 
-    <script src="/static/js/touch-mouse.js?v=20261024001"></script>
-    <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/canvas.css?v=20261119001">
-    <link rel="stylesheet" href="/static/css/canvas-agent.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/canvas-mask-editor.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/theme.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/canvas-overlay.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/canvas-media.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/game-pipeline.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/game-model3d.css?v=20261108011">
+    <script src="/static/js/touch-mouse.js?v=44e687594d160a3d"></script>
+    <script src="/static/js/i18n.js?v=c603ddbdd4169071"></script>
+    <link rel="stylesheet" href="/static/css/canvas.css?v=e8d385dbb7294abc">
+    <link rel="stylesheet" href="/static/css/canvas-agent.css?v=37a70c5872e9ff95">
+    <link rel="stylesheet" href="/static/css/canvas-mask-editor.css?v=175091eed7b2a600">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=f4c06ab3913c94fe">
+    <link rel="stylesheet" href="/static/css/theme.css?v=ab7b7529203a252f">
+    <link rel="stylesheet" href="/static/css/canvas-overlay.css?v=7b44ea37ca66754a">
+    <link rel="stylesheet" href="/static/css/canvas-media.css?v=f45e41c8c8c6cbaa">
+    <link rel="stylesheet" href="/static/css/game-pipeline.css?v=7dc013dad67ad6e2">
+    <link rel="stylesheet" href="/static/css/game-model3d.css?v=88fd3b3ef1f83d88">
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端堆叠 */
         html, body { overflow-x: hidden; }
@@ -63,12 +63,12 @@
             .board { min-width: 0; }
         }
     </style>
-<link rel="stylesheet" href="/static/css/game-extra-nodes.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/canvas-generation-node.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/model-picker.css?v=20261108011">
-    <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261101sharedprompts">
-<link rel="stylesheet" href="/static/css/canvas-asset-split.css?v=20261111split1">
+<link rel="stylesheet" href="/static/css/game-extra-nodes.css?v=42fb602f0faf1639">
+    <link rel="stylesheet" href="/static/css/generation-options-panel.css?v=02d38f2902506a3f">
+    <link rel="stylesheet" href="/static/css/canvas-generation-node.css?v=8ef0a45134f500b4">
+    <link rel="stylesheet" href="/static/css/model-picker.css?v=6fbbb18c31c328d9">
+    <link rel="stylesheet" href="/static/app/lora-picker.css?v=f8f1854a2fdb188d">
+<link rel="stylesheet" href="/static/css/canvas-asset-split.css?v=6dfb7749ae3a6447">
 </head>
 <body>
     <div id="shell" class="shell no-canvas">
@@ -420,80 +420,80 @@
         </div>
     </div>
 
-    <script src="/static/js/ltx-director-timeline.js?v=20261108011"></script>
-    <script src="/static/js/image-cutout-client.js?v=20261101cutoutmethods"></script>
-    <script src="/static/js/canvas-mask-editor.js?v=20261101cutoutmethods"></script>
-    <script src="/static/modules/card-progress.js?v=20261026image-ready"></script>
-    <script src="/static/js/canvas-image-versions.js?v=20261028006"></script>
-    <script src="/static/js/canvas-image-composer.js?v=20261028015"></script>
-    <script src="/static/modules/lora-manager.js?v=20261102lorabtn"></script>
-    <script src="/static/app/lora-picker.js?v=20261101sharedprompts"></script>
-    <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedprompts"></script>
-    <script src="/static/modules/generation-prompt-library.js?v=20261115001"></script>
-    <script src="/static/modules/image-generation-workflow.js?v=20261115001"></script>
-    <script src="/static/modules/generation-options-panel.js?v=20261115003"></script>
-    <script src="/static/modules/model-availability.js?v=20261115001"></script>
-    <script src="/static/modules/model-availability-filter.js?v=20261115001"></script>
-    <script src="/static/modules/model-visibility.js?v=20261115001"></script>
-    <script src="/static/modules/model-picker.js?v=20261115004"></script>
-    <script src="/static/modules/comfy-status.js?v=20261105shared3"></script>
-    <link rel="stylesheet" href="/static/css/canvas-alignment.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/video-trimmer.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/canvas-quick-start.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/web-node.css?v=20261108011">
-    <script src="/static/modules/canvas-alignment.js?v=20261105align1"></script>
-    <script src="/static/modules/canvas-history.js?v=20261105align1"></script>
-    <script src="/static/modules/video-trimmer.js?v=20261105align1"></script>
-    <script src="/static/modules/canvas-quick-start.js?v=20261105align1"></script>
-    <script src="/static/modules/web-node.js?v=20261105web3"></script>
-    <script src="/static/js/canvas-generation-node.js?v=20261115004"></script>
-    <link rel="stylesheet" href="/static/css/canvas-materials.css?v=20261108011">
-    <script src="/static/js/canvas-material-plan.js?v=20261105personas3"></script>
-    <script src="/static/js/canvas-materials.js?v=20261105unified-model1"></script>
-    <script src="/static/js/canvas-material-preview.js?v=20261105uv-views1"></script>
-    <script src="/static/js/canvas-color-tags.js?v=20261103cutfollow1"></script>
-    <script src="/static/js/canvas-image-tools.js?v=20261108011"></script>
-    <script src="/static/modules/comfyui-registry.js?v=20261028033"></script>
-    <script src="/static/modules/comfyui-gaoqingxiufu.js?v=20261028033"></script>
-    <script src="/static/modules/comfyui-kuotu.js?v=20261028033"></script>
-    <script src="/static/modules/comfyui-watermark-removal.js?v=20261028033"></script>
-    <script src="/static/js/canvas-plugin-ui.js?v=20261104uibridge1"></script>
-    <script src="/static/js/sprite-sheet-split.js?v=20261111split1"></script>
-    <script src="/static/js/asset-split-export.js?v=20261111split1"></script>
-    <script src="/static/js/canvas-asset-split.js?v=20261111split1"></script>
-    <script src="/static/js/canvas-node-catalog.js?v=20261109uloop4"></script>
-    <script src="/static/js/canvas-comfy-builds.js?v=20261119002"></script>
-    <script src="/static/nodes/shared/node-controls.js?v=20261105controls1"></script>
-    <script src="/static/nodes/cli-gen/index.js?v=20261108011"></script>
-    <link rel="stylesheet" href="/static/nodes/blender-gen/workspace.css?v=20261108011">
-    <script src="/static/nodes/blender-gen/workspace.js?v=20261108009"></script>
-    <script src="/static/nodes/blender-gen/index.js?v=20261119002"></script>
-    <script src="/static/nodes/msgen/index.js?v=20261108011"></script>
-    <script src="/static/nodes/loop/index.js?v=20261108011"></script>
-    <script src="/static/nodes/llm/index.js?v=20261108011"></script>
-    <script src="/static/nodes/generator/index.js?v=20261108011"></script>
-    <script src="/static/nodes/video/index.js?v=20261108011"></script>
-    <script src="/static/nodes/ltx-director/index.js?v=20261108011"></script>
-    <script src="/static/nodes/minimax/helpers.js?v=20261104nodes9"></script>
-    <script src="/static/nodes/minimax/runninghub.js?v=20261104nodes9"></script>
-    <script src="/static/nodes/minimax/index.js?v=20261108011"></script>
-    <script src="/static/js/preset-info.js?v=20261108011"></script>
-    <script src="/static/js/canvas-generation-sources.js?v=20261111split1"></script>
-    <script src="/static/js/canvas-schema.js?v=20261106persistence"></script>
-    <script src="/static/modules/page-lifecycle.js?v=351ca1fa2112c0ff"></script>
+    <script src="/static/js/ltx-director-timeline.js?v=2d48e71999da6b40"></script>
+    <script src="/static/js/image-cutout-client.js?v=5117d13d5f0970df"></script>
+    <script src="/static/js/canvas-mask-editor.js?v=a641413d40d42dd0"></script>
+    <script src="/static/modules/card-progress.js?v=eb744f6aace719a1"></script>
+    <script src="/static/js/canvas-image-versions.js?v=c809b3bf0528a257"></script>
+    <script src="/static/js/canvas-image-composer.js?v=199da55f0fd9544a"></script>
+    <script src="/static/modules/lora-manager.js?v=3d67609bee7d8a42"></script>
+    <script src="/static/app/lora-picker.js?v=864536abc854549f"></script>
+    <script src="/static/modules/prompt-gallery-ui.js?v=c8a4b611f0a3fd7a"></script>
+    <script src="/static/modules/generation-prompt-library.js?v=42def36129df5c64"></script>
+    <script src="/static/modules/image-generation-workflow.js?v=af4350028f49c3bc"></script>
+    <script src="/static/modules/generation-options-panel.js?v=ba5fcc9868770ba8"></script>
+    <script src="/static/modules/model-availability.js?v=5f825fd5993f2e33"></script>
+    <script src="/static/modules/model-availability-filter.js?v=2ee9477546200bfa"></script>
+    <script src="/static/modules/model-visibility.js?v=38e35344713ad387"></script>
+    <script src="/static/modules/model-picker.js?v=1d510e65fd1f2790"></script>
+    <script src="/static/modules/comfy-status.js?v=04093b85971c2806"></script>
+    <link rel="stylesheet" href="/static/css/canvas-alignment.css?v=423940b567b03765">
+    <link rel="stylesheet" href="/static/css/video-trimmer.css?v=00d6f63ae58b9d04">
+    <link rel="stylesheet" href="/static/css/canvas-quick-start.css?v=85d9b02292f9a2d2">
+    <link rel="stylesheet" href="/static/css/web-node.css?v=a698bed464dce3d2">
+    <script src="/static/modules/canvas-alignment.js?v=387430230e66b046"></script>
+    <script src="/static/modules/canvas-history.js?v=6467c81da2e8f22f"></script>
+    <script src="/static/modules/video-trimmer.js?v=9d0c5a03cd22520e"></script>
+    <script src="/static/modules/canvas-quick-start.js?v=ba2ca38d8a340100"></script>
+    <script src="/static/modules/web-node.js?v=4e44c7c9e225957c"></script>
+    <script src="/static/js/canvas-generation-node.js?v=3ebe0e34aa3d302a"></script>
+    <link rel="stylesheet" href="/static/css/canvas-materials.css?v=974a24bcd0b446d4">
+    <script src="/static/js/canvas-material-plan.js?v=cb05b84744f8ce3a"></script>
+    <script src="/static/js/canvas-materials.js?v=4b3975f190eadc60"></script>
+    <script src="/static/js/canvas-material-preview.js?v=b64a76c384659106"></script>
+    <script src="/static/js/canvas-color-tags.js?v=42b16126eec1f08e"></script>
+    <script src="/static/js/canvas-image-tools.js?v=967b4c277162af3b"></script>
+    <script src="/static/modules/comfyui-registry.js?v=be26df16a72144d6"></script>
+    <script src="/static/modules/comfyui-gaoqingxiufu.js?v=c3c0f546927389e4"></script>
+    <script src="/static/modules/comfyui-kuotu.js?v=d3b614ed141617ff"></script>
+    <script src="/static/modules/comfyui-watermark-removal.js?v=f10563b738f5efdf"></script>
+    <script src="/static/js/canvas-plugin-ui.js?v=26b7b4e9ae455fc7"></script>
+    <script src="/static/js/sprite-sheet-split.js?v=3a9328e7209f92d5"></script>
+    <script src="/static/js/asset-split-export.js?v=6d435e8581012b5c"></script>
+    <script src="/static/js/canvas-asset-split.js?v=e929a3e8e7cd036d"></script>
+    <script src="/static/js/canvas-node-catalog.js?v=ea134390d7299e85"></script>
+    <script src="/static/js/canvas-comfy-builds.js?v=b0cf45082fa75aa9"></script>
+    <script src="/static/nodes/shared/node-controls.js?v=413a946a047f95a8"></script>
+    <script src="/static/nodes/cli-gen/index.js?v=88d5a200b25990f5"></script>
+    <link rel="stylesheet" href="/static/nodes/blender-gen/workspace.css?v=2796da18db6f6e1b">
+    <script src="/static/nodes/blender-gen/workspace.js?v=1c08d1679ad60ab5"></script>
+    <script src="/static/nodes/blender-gen/index.js?v=a10d75d0371ae235"></script>
+    <script src="/static/nodes/msgen/index.js?v=e3d7f9cefa487a50"></script>
+    <script src="/static/nodes/loop/index.js?v=1c168df661e2f64f"></script>
+    <script src="/static/nodes/llm/index.js?v=c0270d7d56973686"></script>
+    <script src="/static/nodes/generator/index.js?v=4f884421eb237f74"></script>
+    <script src="/static/nodes/video/index.js?v=6da3fd35503d4a12"></script>
+    <script src="/static/nodes/ltx-director/index.js?v=fae766274ea9b6ee"></script>
+    <script src="/static/nodes/minimax/helpers.js?v=46a6285154abd1f3"></script>
+    <script src="/static/nodes/minimax/runninghub.js?v=6b712a9824c7f9ab"></script>
+    <script src="/static/nodes/minimax/index.js?v=05f10522a2482123"></script>
+    <script src="/static/js/preset-info.js?v=fe725527b788cf43"></script>
+    <script src="/static/js/canvas-generation-sources.js?v=667e479aa86ebf3a"></script>
+    <script src="/static/js/canvas-schema.js?v=d0ed50ed3535139d"></script>
+    <script src="/static/modules/page-lifecycle.js?v=4b1347b2e80f2363"></script>
     <script src="/static/js/canvas.js?v=affc46dd44a7a85a"></script>
-    <script src="/static/modules/canvas-overlay-bridge.js?v=20261106clear3"></script>
-    <script src="/static/js/game-pipeline.js?v=20261102-3d3"></script>
-    <script src="/static/js/game-authoring.js?v=20261102-authoring1"></script>
-    <script src="/static/js/game-development.js?v=20261119002"></script>
-    <script src="/static/js/game-asset-intake.js?v=20261103intake1"></script>
-    <script src="/static/js/game-model-import.js?v=20261104matasset3"></script>
-    <script src="/static/js/game-model3d.js?v=20261119002"></script>
-    <script src="/static/js/game-extra-nodes.js?v=20261104shared1"></script>
-    <script src="/static/js/game-workflow.js?v=20261105removed-legacy1"></script>
-    <script src="/static/modules/external-asset-drop.js?v=20261104nomid1"></script>
-    <script src="/static/js/canvas-agent-markdown.js?v=20261115001"></script>
-    <script src="/static/js/canvas-agent-state.js?v=20261115001"></script>
-    <script src="/static/js/canvas-agent.js?v=20261115001"></script>
+    <script src="/static/modules/canvas-overlay-bridge.js?v=da25b16b61b9e054"></script>
+    <script src="/static/js/game-pipeline.js?v=c4e7803b17094ae5"></script>
+    <script src="/static/js/game-authoring.js?v=4e7684120d9bfd13"></script>
+    <script src="/static/js/game-development.js?v=07842bcef29d8ea0"></script>
+    <script src="/static/js/game-asset-intake.js?v=b16f30ce0c783f8b"></script>
+    <script src="/static/js/game-model-import.js?v=3b5b5ee81dc38a0e"></script>
+    <script src="/static/js/game-model3d.js?v=37aa22965066c3d2"></script>
+    <script src="/static/js/game-extra-nodes.js?v=cf361cc212b70c25"></script>
+    <script src="/static/js/game-workflow.js?v=ecb57d18337237fe"></script>
+    <script src="/static/modules/external-asset-drop.js?v=3cd3330ae77f3a9c"></script>
+    <script src="/static/js/canvas-agent-markdown.js?v=ab4e07a1e3fe8b90"></script>
+    <script src="/static/js/canvas-agent-state.js?v=d2c5cac6b88b606f"></script>
+    <script src="/static/js/canvas-agent.js?v=27553815813c9250"></script>
 </body>
 </html>

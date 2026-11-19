@@ -1,3 +1,4 @@
+// 历史打包草稿，当前发布不调用；桌面使用 build-sidecar.mjs + asset-versions.mjs。
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';

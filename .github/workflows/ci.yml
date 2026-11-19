@@ -21,9 +21,13 @@ jobs:
           node tests/test_chat_stream.cjs
           node tests/test_chat_session.cjs
           node tests/test_chat_wait.cjs
+          node tests/test_chat_request.cjs
+          node tests/test_chat_actions.cjs
           node tests/test_chat_generation.cjs
           node tests/test_chat_conversations.cjs
+          node tests/test_chat_persistence.cjs
           node tests/test_page_lifecycle.cjs
+          node tests/test_page_poll.cjs
           node tests/asset-versions.test.mjs
           node scripts/asset-versions.mjs --check
           node tests/test_chat_outline.cjs

@@ -23,7 +23,7 @@
 })();
 (function () {
     var s = document.createElement('script');
-    s.src = '/static/js/theme.js?v=20261108014';
+    s.src = '/static/js/theme.js?v=2a226b3401fc7842';
     s.async = false;
     document.head.appendChild(s);
 })();

@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<script src="/static/js/ui-confirm.js?v=20261119002"></script>
+<script src="/static/js/ui-confirm.js?v=2d9efc667b902fdc"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D 视角变换</title>
-    <script src="/static/modules/auth-token.js?v=20261024001"></script>
+    <script src="/static/modules/auth-token.js?v=02163d3364d870e5"></script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
-    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
-    <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261119001"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=dc2ee2aead1954dc">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=f4c06ab3913c94fe">
+    <script src="/static/js/theme-default.js?v=f7be51b7fc08f7f7"></script>
+<script src="/static/js/theme.js?v=2a226b3401fc7842"></script>
 
     <style>
         * {
@@ -726,13 +726,13 @@
     </style>
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
-    <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
-    <script src="/static/modules/gallery/actions.js?v=20261119002"></script>
-    <script src="/static/modules/gallery/list.js?v=20261102scopebtn"></script>
-<script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
-    <script src="/static/modules/gallery/display.js?v=20261031b"></script>
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=95ca507d9c5a545b">
+    <script src="/static/modules/gallery/prompt-panel.js?v=4786dd6733e3d332"></script>
+    <script src="/static/modules/gallery/actions.js?v=71da88ee426993b0"></script>
+    <script src="/static/modules/gallery/list.js?v=f871ff3312eb5ea0"></script>
+<script src="/static/modules/gallery/card.js?v=ee23162f674e66ac"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=f9aec83224d856c7"></script>
+    <script src="/static/modules/gallery/display.js?v=cdf991001b5fa923"></script>
 
     <!-- ===== studio-ui 统一响应式 + 双主题（scoped，外层 chrome token 化） ===== -->
     <style id="ui-responsive">
@@ -832,8 +832,9 @@
             * { animation: none !important; }
         }
     </style>
-    <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
-<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
+    <script src="/static/modules/comfyui-utils.js?v=688303b0ef09f849"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=460040be5321afd3">
+    <script src="/static/modules/page-lifecycle.js?v=4b1347b2e80f2363"></script>
 </head>
 <body>
     <div class="app-container">
@@ -1001,9 +1002,9 @@
         </div>
     </div>
 
-    <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-    <script src="/static/three.min.js?v=20261024001"></script>
-    <script src="/static/OrbitControls.js?v=20261024001"></script>
+    <script src="/static/modules/image-viewer.js?v=e520b85d3bdd7bf3"></script>
+    <script src="/static/three.min.js?v=7ae04663bb431808"></script>
+    <script src="/static/OrbitControls.js?v=5742860df2533c1c"></script>
 
     <script>
         // 自动检测访问来源：localhost/127.0.0.1 使用直连模式，局域网使用代理模式
@@ -1860,7 +1861,7 @@
             setupViewerControls();
             initWebSocket();
             checkServerConnection();
-            setInterval(checkServerConnection, 5000);
+            PageLifecycle.poll(checkServerConnection, 5000);
 
             // 加载历史记录
             GalleryList.load(0).then(() => {

@@ -116,5 +116,44 @@
         }
         return {load, cancel};
     }
-    root.ChatConversations = {create, createLoader};
+    // Snapshot the write target before awaiting I/O; never redirect an old write to a new chat.
+    function createPersistence({fetch, getHeaders, getOwner, getConversationId, onRemember, onInvalidate}) {
+        async function post(id, action, payload, headers = getHeaders()) {
+            return fetch('/api/conversations' + (id ? '/' + encodeURIComponent(id) + '/' + action : ''), {
+                method:'POST', headers, body:JSON.stringify(payload)
+            });
+        }
+        async function saveImage(src) {
+            if (!src) return;
+            const owner = getOwner(), originalId = getConversationId(), headers = getHeaders();
+            let id = originalId;
+            if (!id) {
+                try {
+                    const created = await post('', '', {title:'对话生图'}, headers);
+                    if (created.ok) id = (await created.json()).conversation?.id || '';
+                } catch (_) {}
+            }
+            if (owner !== getOwner() || originalId !== getConversationId()) throw new Error('对话已切换，图片未写入新对话');
+            if (!id) throw new Error('图片已生成，但对话创建失败');
+            if (!originalId) onRemember(id);
+            const saved = await post(id, 'images', {image_urls:[src]}, headers);
+            if (!saved.ok) throw new Error('图片已生成，但对话图片保存失败');
+            onInvalidate();
+        }
+        async function removeMessages(id, ids) {
+            if (!id || !ids.length) return true;
+            const response = await post(id, 'messages/delete', {message_ids:ids});
+            if (!response.ok) return false;
+            onInvalidate();
+            return true;
+        }
+        async function markPending(messageId) {
+            const id = getConversationId();
+            if (!id || !messageId) return null;
+            const response = await post(id, 'pending', {message_id:messageId});
+            return response.ok ? response.json() : null;
+        }
+        return {saveImage, removeMessages, markPending};
+    }
+    root.ChatConversations = {create, createLoader, createPersistence};
 })(window);

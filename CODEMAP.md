@@ -21,19 +21,15 @@ core/                                                 公共底座
 
 项目结构、公共组件复用与分阶段重构计划见 [项目优化开发方案](docs/project-optimization-plan.md)（分批实施，验收状态见文档）。
 
-首批展示拆分：`static/css/zimage.css` 与 `static/css/chat-layout.css` 保持原加载顺序；`static/modules/chat-media.js` 创建按自然尺寸适配的图片卡片，`chat-transcript.js` 负责思考过程展示。页面仍负责生成、历史记录和媒体动作装配。`chat-outline.js` 的 `mount(thread)` 返回 `{dispose}`，重复挂载复用实例，释放时清理观察器与监听。验证入口：`tests/test_chat_presentation.cjs`、`tests/test_chat_outline.cjs`，以及 CI 的 Chat presentation job。
+公共聊天组件：`static/css/zimage.css`、`chat-layout.css` 保持样式顺序；`chat-media.js` 按图片自然尺寸适配；`chat-transcript.js` 提供容器隔离的消息、思考过程、时间与流式正文展示。`chat-actions.js` 的 `create` 返回直接消息操作、复制与 dispose，页面通过重发/输入/提示词/删除回调装配业务。
 
-消息展示续批：`ChatTranscript.create({thread, previewSrc, onUser, onAssistant, onAppend})` 为每个容器创建独立的用户/助手消息展示实例；`stampChatTime` 与 `formatChatTime` 统一时间展示。页面保留消息操作与发送业务，通过回调装配；不改变历史数据、参考图原始地址与返回节点类型。
+会话与传输：`chat-conversations.js` 管理历史分页缓存、createLoader 的读取取消/乱序隔离，以及 createPersistence 的图片保存、消息删除、pending 写入与旧账号写入保护。`chat-session.js` 提供 request（登录/422 不降级）、readEvents（SSE 解码与 reader 释放）和 createWaitMonitor（等待计时/空闲超时）；正常结束、失败降级与 finally 均停止旧等待监控。`chat-image-generation.js` 管理控制指令与逐批提交/保存顺序。模型/参数、引擎和消息节点绑定留在页面。验证入口：`test_chat_{presentation,stream,actions,request,conversations,persistence,session,wait,generation}.cjs`。
 
-回复展示续批：`ChatTranscript.paintReply(bubble, parts, {render, onActions})` 复用正文节点并保留图片等其他内容；`createReplyStream({paint, onUpdate})` 管理逐步显示、完成等待与停止计时器。`splitChatReply` 等控制指令解析仍归页面业务。验证入口补充 `tests/test_chat_stream.cjs`（Unicode、内容改写、实例隔离和取消）。
+缓存页面生命周期：`page-lifecycle.js` 提供 register、setActive、setFrameActive、canDispose、canReleaseFrame 与 poll(callback, delay, {onError})。poll 在隐藏时暂停、不重叠异步调用、异常后继续且销毁时释放，不能单凭该钩子允许淘汰。画布与未知草稿页面保守缓存。11 个工具页接入健康/队列展示轮询，zimage 自动生成按钮展示刷新也接入；实际任务、录音和保存不暂停。`chat-outline.js` 提供重复挂载保护与 dispose。验证：`test_page_lifecycle.cjs`、`test_page_poll.cjs`、`test_chat_outline.cjs`。
 
-会话与传输：`static/modules/chat-conversations.js` 管理历史分页缓存与会话载入序列，拒绝过期、跨账号或生成开始后的读取结果；`chat-session.js` 管理 SSE 分块解码、reader 释放及 `createWaitMonitor({controller,onWait})` 的等待计时/空闲超时。`onWait` 接收累计秒数，清理时接收 null；`activity` 重置空闲期限，`stop` 幂等清理，`timedOut` 区分超时与用户停止。正常 SSE 结束、失败降级和 finally 都结束监控，避免旧计时器中断后续生图；`chat-image-generation.js` 负责控制指令解析与逐批提交/保存顺序。页面继续装配引擎、模型和参数、任务 UI 及会话持久化绑定。验证：`test_chat_conversations.cjs`、`test_chat_session.cjs`、`test_chat_wait.cjs`、`test_chat_generation.cjs`。
+平台配置：`providers/config.py` 管理 ProviderStore、规范化与公开字段；`catalog.py` 为推荐目录；`schemas.py` 为请求契约；`upstream.py` 为上游模型发现与唯一分类实现，均不导入 main。配置路由直接依赖对应模块；main 保留兼容导出，认证/用户上下文仍由入口装配。`tools/api_compat.py` 提供请求地址与密钥清理兼容；`core/json_store.py` 提供原子 JSON 写入。验证：`test_provider_config.py`、`test_provider_upstream.py`、`test_json_store.py`。
 
-缓存页面生命周期：`static/modules/page-lifecycle.js` 通过同源方法传递 iframe 激活状态，支持注册 activate/deactivate/dispose/canDispose。主界面切换通知子页面；聊天导航、普通画布计时、智能画布计时与兜底元数据轮询可暂停。未知页面及画布编辑器不自动淘汰；聊天页有任务、草稿或参考图时不淘汰。`test_page_lifecycle.cjs` 覆盖协议；浏览器已走通会话恢复、草稿保留和画布往返，完整性能及多工具验收仍待完成。
-
-平台配置：`providers/config.py` 管理 ProviderStore、规范化与公开字段投影；`providers/catalog.py` 是推荐平台与默认模型的唯一目录。配置路由直接调用存储，`main.py` 保留兼容适配；密钥读取、认证上下文及上游请求仍由现有基础设施提供。`core/json_store.py` 提供共享原子 JSON 写入。验证：`test_provider_config.py`、`test_json_store.py`。
-
-资源版本：`scripts/asset-versions.mjs` 为清单中的 JS/CSS 计算内容版本，更新 HTML 引用并生成 `static/asset-versions.json`；`--check` 只校验不写文件。CI 与桌面装配前执行检查；保持原生脚本顺序和格式。未纳入清单的历史资源仍按原加载机制运行。验证：`tests/asset-versions.test.mjs`。
+资源版本：`scripts/asset-versions.mjs` 自动发现 HTML 直接引用的本地 JS/CSS，显式处理主题叶资源→js/theme.js→theme.js，再更新 HTML 与 `static/asset-versions.json`；--check 不写文件。CI/桌面源码装配检查版本；不打包或重排原生脚本。其他运行时拼接路径仍归各入口管理。验证：`tests/asset-versions.test.mjs`。完整验收缺口及两项既有测试替身失败详见优化方案。
 
 | 文件 | 职责 |
 |---|---|

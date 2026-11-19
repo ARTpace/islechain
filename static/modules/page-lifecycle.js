@@ -28,6 +28,34 @@
         hook[active ? 'activate' : 'deactivate']?.();
         return () => hooks.delete(hook);
     }
+    // Presentation polling only: running generation, recording and saves stay page-owned.
+    function poll(callback, delay, {onError = error => root.console?.error(error)} = {}) {
+        let timer = null, running = false, stopped = false;
+        function pause() {
+            if (timer !== null) root.clearTimeout(timer);
+            timer = null;
+        }
+        function schedule() {
+            if (stopped || !active || running || timer !== null) return;
+            timer = root.setTimeout(tick, delay);
+        }
+        async function tick() {
+            timer = null;
+            if (stopped || !active) return;
+            running = true;
+            try { await callback(); }
+            catch (error) { onError(error); }
+            finally { running = false; schedule(); }
+        }
+        const unregister = register({activate: schedule, deactivate: pause, dispose: stop});
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            pause();
+            unregister();
+        }
+        return stop;
+    }
     // Uninstrumented pages cannot prove they have no pending saves or tasks.
     function canDispose() {
         return hooks.size > 0 && [...hooks].every(hook => typeof hook.canDispose === 'function' && hook.canDispose());
@@ -51,5 +79,5 @@
     }
     root.document.addEventListener('load', onLoad, true);
     root.addEventListener('pagehide', onPageHide);
-    root.PageLifecycle = {register, setActive, setFrameActive, canDispose, canReleaseFrame, get active() {return active;}};
+    root.PageLifecycle = {register, poll, setActive, setFrameActive, canDispose, canReleaseFrame, get active() {return active;}};
 })(window);

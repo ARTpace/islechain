@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<script src="/static/js/ui-confirm.js?v=20261119002"></script>
+<script src="/static/js/ui-confirm.js?v=2d9efc667b902fdc"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>文字抠图</title>
-    <script src="/static/modules/auth-token.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
-    <script src="/static/lucide.min.js?v=20261024001"></script>
-    <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261119001"></script>
+    <script src="/static/modules/auth-token.js?v=02163d3364d870e5"></script>
+    <link rel="stylesheet" href="/static/tailwind.min.css?v=dc2ee2aead1954dc">
+    <script src="/static/lucide.min.js?v=82a83a2ffe91c253"></script>
+    <script src="/static/js/theme-default.js?v=f7be51b7fc08f7f7"></script>
+<script src="/static/js/theme.js?v=2a226b3401fc7842"></script>
 
-    <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/generation-ui.css?v=20261108011">
+    <script src="/static/modules/image-viewer.js?v=e520b85d3bdd7bf3"></script>
+    <link rel="stylesheet" href="/static/css/generation-ui.css?v=c087c7e3d6edfe81">
     <style>
         :root { --bg-base: #f7f7f5; --text-main: #141414; --max-w: 1280px; --easing: cubic-bezier(0.4, 0, 0.2, 1); --accent: #06b6d4; }
         *::-webkit-scrollbar { width: 10px !important; height: 10px !important; background: transparent !important; }
@@ -65,18 +65,18 @@
         }
 
     </style>
-    <link rel="stylesheet" href="/static/theme.css?v=20261108011">
-    <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
+    <link rel="stylesheet" href="/static/theme.css?v=1806ea79b5b85d71">
+    <link rel="stylesheet" href="/static/css/studio-ui.css?v=f4c06ab3913c94fe">
 
     <!-- 公共缩略图 / 历史模块（统一一处改全处同步） -->
-    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
-    <script src="/static/history-bulk-manager.js"></script>
-    <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
-    <script src="/static/modules/gallery/actions.js?v=20261119002"></script>
-    <script src="/static/modules/gallery/list.js?v=20261102scopebtn"></script>
-<script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
-    <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
-    <script src="/static/modules/gallery/display.js?v=20261031b"></script>
+    <link rel="stylesheet" href="/static/modules/gallery/style.css?v=95ca507d9c5a545b">
+    <script src="/static/history-bulk-manager.js?v=bbc4535e2fadef8c"></script>
+    <script src="/static/modules/gallery/prompt-panel.js?v=4786dd6733e3d332"></script>
+    <script src="/static/modules/gallery/actions.js?v=71da88ee426993b0"></script>
+    <script src="/static/modules/gallery/list.js?v=f871ff3312eb5ea0"></script>
+<script src="/static/modules/gallery/card.js?v=ee23162f674e66ac"></script>
+    <script src="/static/modules/gallery/context-menu.js?v=f9aec83224d856c7"></script>
+    <script src="/static/modules/gallery/display.js?v=cdf991001b5fa923"></script>
 <style id="ui-responsive">
 /* 响应式底座：避免横向溢出；flex/grid 子项允许收缩 */
 body { overflow-x: hidden; }
@@ -103,11 +103,12 @@ body { overflow-x: hidden; }
 /* 图片/结果自适应 */
 img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-width: 100%; height: auto; }
 </style>
-    <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
-    <script src="/static/modules/comfy-progress.js?v=20261105toolruntime2"></script>
-    <script src="/static/modules/comfy-tool-runtime.js?v=20261105toolruntime4"></script>
-    <script src="/static/modules/upload-zone.js?v=20261024008"></script>
-<link rel="stylesheet" href="/static/app/mobile-layout.css?v=20261111001">
+    <script src="/static/modules/comfyui-utils.js?v=688303b0ef09f849"></script>
+    <script src="/static/modules/comfy-progress.js?v=7442f623e7629c56"></script>
+    <script src="/static/modules/comfy-tool-runtime.js?v=47c0bfc41b9f0293"></script>
+    <script src="/static/modules/upload-zone.js?v=9010fdd17898112a"></script>
+<link rel="stylesheet" href="/static/app/mobile-layout.css?v=460040be5321afd3">
+    <script src="/static/modules/page-lifecycle.js?v=4b1347b2e80f2363"></script>
 </head>
 <body class="antialiased">
     <header class="pt-20 pb-12">
@@ -362,14 +363,14 @@ img, .preview-image, .preview-image-large, .result-img, .masonry-item img { max-
         window.onload = async () => {
             await loadConfig();
             checkServerConnection();
-            setInterval(checkServerConnection, 5000);
+            PageLifecycle.poll(checkServerConnection, 5000);
             loadModels();
             GalleryList.load(0).then(() => {
                 const trigger = document.getElementById('loadMoreTrigger');
                 if (trigger) { trigger.onclick = () => GalleryList.load(1); }
                 window.HistoryBulkManager?.attach({masonry:'#masonry'});
             });
-            setInterval(() => tool.queueStatus(CLIENT_ID), 3000);
+            PageLifecycle.poll(() => tool.queueStatus(CLIENT_ID), 3000);
         };
 
         document.addEventListener('keydown', (e) => {

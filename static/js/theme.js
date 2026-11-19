@@ -63,7 +63,6 @@
 
     // 公共视觉入口：独立页和 iframe 都经同一入口加载，不逐页维护组件样式。
     function ensureDesignSystem(){
-        const version = '20261119006';
         let base = document.querySelector('link[href*="/static/css/studio-ui.css"]') || document.getElementById('studio-ui-base');
         if(!base){
             base = document.createElement('link');
@@ -71,14 +70,14 @@
             base.rel = 'stylesheet';
             document.head.appendChild(base);
         }
-        const baseUrl = '/static/css/studio-ui.css?v=' + version;
+        const baseUrl = '/static/css/studio-ui.css?v=f4c06ab3913c94fe';
         if(base.getAttribute?.('href') !== baseUrl) base.href = baseUrl;
         let controls = document.getElementById('studio-controls');
         if(!controls){
             controls = document.createElement('link');
             controls.id = 'studio-controls';
             controls.rel = 'stylesheet';
-            controls.href = '/static/css/studio-controls.css?v=' + version;
+            controls.href = '/static/css/studio-controls.css?v=5d0ee25bd47d775d';
         }
         // 解析结束后放在页面局部样式之后；只兼容外观，不接管业务与布局。
         (document.body || document.head).appendChild(controls);
@@ -86,13 +85,13 @@
             const css = document.createElement('link');
             css.id = 'studio-appearance-css';
             css.rel = 'stylesheet';
-            css.href = '/static/css/appearance.css?v=' + version;
+            css.href = '/static/css/appearance.css?v=9eabf8f654e3ea94';
             (document.body || document.head).appendChild(css);
         }
         if(!document.getElementById('studio-appearance-runtime')){
             const script = document.createElement('script');
             script.id = 'studio-appearance-runtime';
-            script.src = '/static/js/appearance.js?v=' + version;
+            script.src = '/static/js/appearance.js?v=57b6c7c18eb8ad05';
             document.head.appendChild(script);
         }
     }
