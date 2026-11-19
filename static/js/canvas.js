@@ -2034,6 +2034,7 @@ function scheduleViewportSave(){
     saveLocalViewport();
 }
 function refreshOutputTimer(){
+    if(window.PageLifecycle?.active === false) { clearInterval(outputTimer); outputTimer = null; return; }
     const hasPending = nodes.some(n => n.type === 'output' && (n._pending || []).length);
     if(hasPending && !outputTimer){
         outputTimer = setInterval(() => {
@@ -14593,3 +14594,10 @@ window.__assetDropCreateModelNode = async (files, point) => {
         },
     };
 })();
+
+window.PageLifecycle?.register({
+    activate() { refreshOutputTimer(); },
+    deactivate() { clearInterval(outputTimer); outputTimer = null; },
+    dispose() { clearInterval(outputTimer); },
+    canDispose: () => false // Keep unsaved editor state and ongoing generation attached.
+});

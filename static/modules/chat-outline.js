@@ -22,10 +22,10 @@
             thread.dataset.readingHistory = '0';
             thread.scrollTo({top: thread.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
         };
-        let rows = [], buttons = [], pending = false, frame = 0, disposed = false;
+        let rows = [], buttons = [], pending = false, frame = 0, disposed = false, active = true;
         function updateActive() {
             pending = false;
-            if (disposed) return;
+            if (disposed || !active) return;
             const rect = thread.getBoundingClientRect();
             latest.hidden = !rows.length || thread.scrollHeight - thread.scrollTop - thread.clientHeight < 100;
             const anchor = composer ? composer.getBoundingClientRect() : rect;
@@ -44,9 +44,10 @@
             });
         }
         function schedule() {
-            if (!pending && !disposed) { pending = true; frame = requestAnimationFrame(updateActive); }
+            if (!pending && !disposed && active) { pending = true; frame = requestAnimationFrame(updateActive); }
         }
         function rebuild() {
+            if (!active || disposed) return;
             rows = Array.from(thread.children).filter(row => row.matches('.chat-row.user'));
             buttons = rows.map((row, index) => {
                 const button = document.createElement('button');
@@ -96,11 +97,25 @@
             window.removeEventListener('pagehide', onPageHide);
             nav.remove();
             latest.remove();
+            unregister?.();
             mounted.delete(thread);
         }
         function onPageHide(event) { if (!event.persisted) dispose(); }
         window.addEventListener('pagehide', onPageHide);
-        const instance = {dispose};
+        let unregister;
+        const instance = {dispose,
+            activate() { if (disposed || active) return; active = true; rebuild(); },
+            deactivate() {
+                active = false;
+                if (pending) cancelAnimationFrame(frame);
+                pending = false;
+                nav.hidden = latest.hidden = true;
+            }
+        };
+        unregister = window.PageLifecycle?.register({
+            activate: () => instance.activate(), deactivate: () => instance.deactivate(),
+            dispose, canDispose: () => true
+        });
         mounted.set(thread, instance);
         rebuild();
         return instance;

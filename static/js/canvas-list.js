@@ -545,6 +545,7 @@ let canvasEditorFrame = null;
 function closeCanvasEditorInList(){
     if(!canvasEditorFrame) return false;
     canvasEditorFrame.hidden = true;
+    window.PageLifecycle?.setFrameActive(canvasEditorFrame, false);
     window.frameElement?.classList.remove('canvas-editor');
     return true;
 }
@@ -567,6 +568,7 @@ function openCanvas(c){
         canvasEditorFrame.src = url;
     }
     canvasEditorFrame.hidden = false;
+    window.PageLifecycle?.setFrameActive(canvasEditorFrame, window.PageLifecycle.active);
     window.frameElement?.classList.add('canvas-editor');
 }
 

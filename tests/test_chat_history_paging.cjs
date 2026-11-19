@@ -2,8 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('static/app/zimage.html', 'utf8');
-const start = html.indexOf('            let historyOffset = 0;');
-const end = html.indexOf('            async function loadConversation(', start);
+
 let open = false, more = null, markup = '', pending;
 const requests = [];
 const panel = {
@@ -25,7 +24,15 @@ const context = {
     chatHeaders: () => ({}), chatUserId: () => 'user', conversationId: '', escapeChat: String, Date,
     splitChatReply: text => ({ reply: text }), visibleReply: String
 };
-vm.runInNewContext(html.slice(start, end), context);
+context.window = {};
+vm.runInNewContext(fs.readFileSync('static/modules/chat-conversations.js', 'utf8'), context);
+const history = context.window.ChatConversations.create({
+    document: context.document, fetch: context.fetch, getOwner: context.chatUserId,
+    getHeaders: context.chatHeaders, getConversationId: () => '',
+    preview: String, escapeChat: String
+});
+context.openHistory = history.open;
+context.invalidateHistory = history.invalidate;
 function response(start, has_more) {
     return { ok: true, json: async () => ({ has_more, conversations: Array.from({ length: 20 }, (_, i) => ({ id: start + i, title: `row${start+i}` })) }) };
 }

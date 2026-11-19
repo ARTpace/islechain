@@ -28,6 +28,13 @@ assert.equal(body.children.includes(latest),true,'button must live outside the c
 latest.onclick();
 assert.equal(destination.top,1000);
 assert.equal(thread.dataset.readingHistory,'0');
+instance.deactivate();
+assert.equal(nav.hidden,true);
+assert.equal(latest.hidden,true);
+thread.children.push(row('后台新增',700)); refresh();
+assert.equal(nav.children.length,2,'inactive outlines skip DOM rebuilding');
+instance.activate();
+assert.equal(nav.children.length,3,'reactivation refreshes background messages');
 thread.scrollTop=600; refresh();
 assert.equal(latest.hidden,true);
 thread.children=[]; refresh();

@@ -5383,6 +5383,7 @@ function handleCanvasUpdatedMessage(data={}){
     scheduleCanvasMergeReload(200);
 }
 function startCanvasMetaPoll(){
+    if(window.PageLifecycle?.active === false) return;
     // WS / iframe 转发不可靠时的兜底：定期看服务器 updated_at 是否变新，变新就合并拉取
     if(canvasMetaPollTimer) return;
     canvasMetaPollTimer = setInterval(async () => {
@@ -7857,6 +7858,7 @@ function hideRunTimerForNode(node){
     return true;
 }
 function refreshRunTimerPills(){
+    if(window.PageLifecycle?.active === false) { clearInterval(runTimerInterval); runTimerInterval = null; return; }
     const active = nodes.some(n => n.type !== 'smart-prompt' && !n.runTimerHidden && (n.pending || n.running || n.jimengPending || n.runFinishedAt));
     document.querySelectorAll('[data-run-timer]').forEach(el => {
         const node = nodes.find(n => n.id === el.dataset.runTimer);
@@ -19570,3 +19572,16 @@ if(world){
         if(node){ node.modelRef = select.value; scheduleSave(); }
     });
 }
+
+// Cached editor: pause presentation/fallback polling while retaining saves and generation.
+window.PageLifecycle?.register({
+    activate() { startCanvasMetaPoll(); refreshRunTimerPills(); },
+    deactivate() {
+        clearInterval(canvasMetaPollTimer); canvasMetaPollTimer = null;
+        clearInterval(runTimerInterval); runTimerInterval = null;
+    },
+    dispose() {
+        clearInterval(canvasMetaPollTimer); clearInterval(runTimerInterval);
+    },
+    canDispose: () => false // Preserve editor state until a verified save/task-aware eviction contract exists.
+});

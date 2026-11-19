@@ -1144,6 +1144,7 @@
             <iframe id="frame-cli-settings" data-src="/static/setting/cli-settings.html?v=20261109cli11"></iframe>
             <iframe id="frame-wildcard-settings" data-src="/static/setting/wildcard-settings.html?v=20261024004"></iframe>
         </main>
+        <script src="/static/modules/page-lifecycle.js?v=351ca1fa2112c0ff"></script>
         <script src="/static/js/workspace-loading.js?v=20261108014"></script>
     </div>
     <script>
@@ -1375,6 +1376,7 @@
                 const drop = old;
                 setTimeout(() => {
                     if (!drop || drop === target || drop.classList.contains('active') || drop.classList.contains('leaving')) return;
+                    if (!window.PageLifecycle.canReleaseFrame(drop)) return;
                     window.WorkspaceLoading?.forget(drop);
                     drop.removeAttribute('src');
                 }, 2000);
@@ -1386,6 +1388,7 @@
             if (!target || target.classList.contains('active')) return;
             document.querySelectorAll('iframe.leaving').forEach(f => f.classList.remove('leaving'));
             document.querySelectorAll('iframe.active').forEach(f => {
+                window.PageLifecycle.setFrameActive(f, false);
                 f.classList.remove('active');
                 f.classList.add('leaving');
                 const drop = f;
@@ -1393,6 +1396,7 @@
             });
             target.classList.remove('leaving');
             target.classList.add('active');
+            window.PageLifecycle.setFrameActive(target, true);
         }
 
         document.getElementById('frame-canvas').addEventListener('load', function () {

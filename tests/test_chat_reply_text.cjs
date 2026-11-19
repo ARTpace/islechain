@@ -1,7 +1,8 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const html = fs.readFileSync('static/app/zimage.html','utf8');
-const ctx = {};
+const ctx = {window:{}};
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('static/modules/chat-image-generation.js','utf8'),ctx);
 const start = html.indexOf('            function chatControlSuffix(');
 vm.runInContext(html.slice(start,html.indexOf('            // 思考过程',start)),ctx);
 const imageStart = html.indexOf('            function readImageSpec(');

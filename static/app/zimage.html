@@ -68,13 +68,13 @@
     <script src="/static/modules/prompt-picker.js?v=20261115001" defer></script>
     <script src="/static/modules/generation-controls.js?v=20261115001"></script>
     <script src="/static/modules/generation-menu-position.js?v=20261031ui2"></script>
-    <link rel="stylesheet" href="/static/css/zimage.css?v=20261119010">
+    <link rel="stylesheet" href="/static/css/zimage.css?v=5edfea65dc65f8d4">
     <link rel="stylesheet" href="/static/theme.css?v=20261108011">
     <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <link rel="stylesheet" href="/static/css/prompt-translate.css?v=20261108011">
 
     <!-- ===== studio-ui 统一响应式 + 双主题（轻量处理：仅外层 chrome token + 移动兜底，不重写内部） ===== -->
-    <link rel="stylesheet" id="ui-responsive" href="/static/css/chat-layout.css?v=20261119010">
+    <link rel="stylesheet" id="ui-responsive" href="/static/css/chat-layout.css?v=4c0624761c09f35c">
     <script src="/static/modules/comfyui-utils.js?v=20261024008"></script>
     <style id="prompt-picker-flatten">
         /* 提示词选择器不再套第二层界面：没有标题栏/关闭键，提示词库界面直接铺满整块面板 */
@@ -4195,10 +4195,14 @@
     </script>
     <link rel="stylesheet" href="/static/css/chat-region.css?v=20261108011">
     <script src="/static/modules/chat-parameters.js?v=20261119batch"></script>
-    <link rel="stylesheet" href="/static/modules/chat-outline.css?v=20261119005">
-    <script src="/static/modules/chat-outline.js?v=20261119010"></script>
-    <script src="/static/modules/chat-media.js?v=20261119010"></script>
-    <script src="/static/modules/chat-transcript.js?v=20261119012"></script>
+    <link rel="stylesheet" href="/static/modules/chat-outline.css?v=4fbfc04d0fe14ecb">
+    <script src="/static/modules/page-lifecycle.js?v=351ca1fa2112c0ff"></script>
+    <script src="/static/modules/chat-outline.js?v=54640f823ba8b652"></script>
+    <script src="/static/modules/chat-media.js?v=e20421f7b523fc9a"></script>
+    <script src="/static/modules/chat-transcript.js?v=02b4b6e1a07c7ae0"></script>
+    <script src="/static/modules/chat-conversations.js?v=f032f9d7f0b1ef2a"></script>
+    <script src="/static/modules/chat-image-generation.js?v=c420619aa3f55761"></script>
+    <script src="/static/modules/chat-session.js?v=e4a52d294bf4fe40"></script>
     <script src="/static/modules/chat-assistant.js?v=20261026references"></script>
     <script src="/static/js/canvas-agent-markdown.js?v=20261119001"></script>
     <link rel="stylesheet" href="/static/modules/content-preview.css?v=20261119008">
@@ -4617,24 +4621,7 @@
             function stampChatTime(host, ts) { window.ChatTranscript.stampChatTime(host, ts); }
             function addUser(text, msgId, ts, attachments) { return transcript.addUser(text, msgId, ts, attachments); }
             function addAssistant(msgId, ts) { return transcript.addAssistant(msgId, ts); }
-            function chatControlSuffix(raw, partial = false) {
-                const text = String(raw || '');
-                const pattern = partial ? /^[ \t]*(IMAGE|VIDEO|PARAMS|PREFS)\b[ \t]*(\{[\s\S]*|$)/gim : /^[ \t]*(IMAGE|VIDEO|PARAMS|PREFS)[ \t]*(\{[\s\S]*\})\s*$/gim;
-                for (const match of text.matchAll(pattern)) {
-                    // 代码块中的示例指令属于正文，不能当作实际控制指令。
-                    let fence = null;
-                    for (const line of text.slice(0, match.index).split('\n')) {
-                        const token = line.match(/^\s*(`{3,}|~{3,})/);
-                        if (!token) continue;
-                        if (!fence) fence = token[1];
-                        else if (token[1][0] === fence[0] && token[1].length >= fence.length) fence = null;
-                    }
-                    if (fence) continue;
-                    try { return { index:match.index, kind:match[1].toUpperCase(), value:JSON.parse(match[2]) }; }
-                    catch (_) { if (partial) return { index:match.index, kind:match[1].toUpperCase(), value:null }; }
-                }
-                return null;
-            }
+            function chatControlSuffix(raw, partial = false) { return window.ChatImageGeneration.chatControlSuffix(raw, partial); }
             function visibleReply(raw, streaming = false) {
                 const text = String(raw || '');
                 const control = chatControlSuffix(text, streaming);
@@ -4877,19 +4864,7 @@
                 if (!paths.length) return null;
                 return history.find(rec => (rec.images || []).some(url => paths.includes(mediaPath(url)))) || null;
             }
-            function readImageSpec(raw, request = '') {
-                const control = chatControlSuffix(raw);
-                if (control) return control.kind === 'IMAGE' && control.value && control.value.prompt ? control.value : null;
-                // 兼容模型漏写 IMAGE 的纯 JSON，仅对明确生图请求启用，正文示例仍保留为文本。
-                if (/(?:不要|别|不需要|无需|不用)|\b(?:don't|do not)\b/i.test(request) || !/(?:生图|出图|画一|画个|画张|绘制|画图|改图|生成\s*(?:[一二两三四1234]\s*张)|生成[^\n]*(?:图片|图像|照片|插画)|\b(?:generate|draw|create)\b[^\n]*\b(?:image|picture|photo|illustration)\b)/i.test(request)) return null;
-                let json = String(raw || '').trim();
-                const fenced = json.match(/^(`{3,}|~{3,})(?:json)?\s*\n([\s\S]*?)\n\1\s*$/i);
-                if (fenced) json = fenced[2].trim();
-                try {
-                    const value = JSON.parse(json);
-                    return value && !Array.isArray(value) && typeof value.prompt === 'string' && value.prompt.trim() ? value : null;
-                } catch (_) { return null; }
-            }
+            function readImageSpec(raw, request = '') { return window.ChatImageGeneration.readImageSpec(raw, request); }
             function offerChatImageGeneration(bubble, spec, refs, context) {
                 const actions = document.createElement('div'); actions.className = 'chat-description-actions';
                 const label = document.createElement('span'); label.textContent = '要按这个描述生成图片吗？';
@@ -4898,6 +4873,7 @@
                 no.onclick = () => actions.remove();
                 yes.onclick = async () => {
                     if (chatBusy) return;
+                    conversationLoader.cancel();
                     chatBusy = true; yes.disabled = true; no.disabled = true;
                     try {
                         const current = chatParameterContext();
@@ -5098,6 +5074,7 @@
                 });
                 add('用此生图', async () => {
                     if (chatBusy) return;
+                    conversationLoader.cancel();
                     chatBusy = true;
                     const target = addAssistant();
                     try {
@@ -5228,6 +5205,7 @@
             }
             function startNewChat() {
                 if (chatBusy) { alert('请先停止当前任务'); return; }
+                conversationLoader.cancel();
                 selectChatImage(null);
                 conversationId = '';
                 lastChatError = '';
@@ -5238,110 +5216,46 @@
                 paintEmpty();
                 document.getElementById('chatHistory')?.classList.remove('open');
             }
-            let historyOffset = 0;
-            let historyRequest = 0;
-            let historyLoadedAt = 0;
-            let historyOwner = chatUserId();
-            let historyRevision = 0;
-            let historyLoadedRevision = -1;
-            function invalidateHistory() { historyRevision++; }
-            async function openHistory(append) {
-                append = append === true;
-                const panel = document.getElementById('chatHistory');
-                if (!panel) return;
-                const owner = chatUserId();
-                if (owner !== historyOwner) { historyOwner = owner; historyLoadedAt = 0; historyRevision++; historyRequest++; panel.innerHTML = ''; }
-                if (!append && !panel.classList.toggle('open')) {
-                    historyRequest++;
-                    const pendingMore = panel.querySelector('[data-history-more]');
-                    if (pendingMore) pendingMore.disabled = false;
-                    return;
+            window.PageLifecycle.register({
+                canDispose: () => !chatBusy && !String(promptBox?.value || '').trim()
+                    && !(window._refImgMgr?.getFiles() || []).length,
+                dispose: () => conversationLoader.cancel()
+            });
+            const history = window.ChatConversations.create({
+                document, fetch: (...args) => fetch(...args),
+                getOwner: chatUserId, getHeaders: chatHeaders,
+                getConversationId: () => conversationId,
+                onLoad: id => loadConversation(id).catch(error => alert(error.message || '对话读取失败')),
+                onNew: startNewChat, confirm: text => window.StudioConfirm.ask(text),
+                onError: alert, escapeChat,
+                preview: text => splitChatReply(text).reply || visibleReply(text)
+            });
+            function invalidateHistory() { history.invalidate(); }
+            function openHistory(append) { return history.open(append); }
+            const conversationLoader = window.ChatConversations.createLoader({
+                fetch: (...args) => fetch(...args), getHeaders: chatHeaders,
+                getOwner: chatUserId, isBusy: () => chatBusy,
+                onLoaded(data, id) {
+                    const conv = data.conversation || {};
+                    if (data.boot_id) appBootId = data.boot_id;
+                    rememberConversation(conv.id || id);
+                    seen.clear();
+                    const renderStarted = performance.now();
+                    renderSavedMessages(conv.messages || [], data.boot_id || '');
+                    markExistingImages();
+                    window.ArtLoadLog?.measure('conversation:render', renderStarted, {images: thread.querySelectorAll('img').length});
+                    document.getElementById('chatHistory')?.classList.remove('open');
                 }
-                const historyBtn = document.getElementById('chatHistoryBtn');
-                if (historyBtn) panel.style.left = historyBtn.offsetLeft + 'px';
-                panel.querySelectorAll('[data-cid]').forEach(btn => btn.classList.toggle('active', btn.dataset.cid === conversationId));
-                // ponytail: 保留已加载 DOM 与分页位置，短时间重开不请求；过期时保留列表再刷新。
-                if (!append && historyLoadedAt && historyLoadedRevision === historyRevision && Date.now() - historyLoadedAt < 30000) return;
-                const request = ++historyRequest;
-                const revision = historyRevision;
-                if (!append) historyOffset = 0;
-                if (!append && !historyLoadedAt) panel.innerHTML = '<div class="chat-history-empty">正在读取</div>';
-                const more = panel.querySelector('[data-history-more]');
-                if (more) more.disabled = true;
-                try {
-                    const res = await fetch('/api/conversations?limit=20&offset=' + historyOffset, { headers: chatHeaders() });
-                    if (!res.ok) throw new Error(res.status === 401 ? '请先登录后查看历史对话' : '历史读取失败，请重新打开');
-                    const data = await res.json();
-                    if (request !== historyRequest || owner !== chatUserId() || !panel.classList.contains('open')) return;
-                    const list = data.conversations || [];
-                    if (!append) { historyLoadedAt = Date.now(); historyLoadedRevision = revision; }
-                    if (!append && !list.length) {
-                        panel.innerHTML = '<div class="chat-history-empty">还没有历史对话</div>';
-                        return;
-                    }
-                    if (more) more.remove();
-                    if (!append) panel.innerHTML = '';
-                    historyOffset += list.length;
-                    panel.insertAdjacentHTML('beforeend', list.map(item => '<div class="chat-history-row"><button type="button" class="chat-history-item' + (item.id === conversationId ? ' active' : '') + '" data-cid="' + escapeChat(item.id) + '"><span class="chat-history-title">' + escapeChat(item.title || '新对话') + '</span><span class="chat-history-sub">' + escapeChat(splitChatReply(item.last_message || '').reply || visibleReply(item.last_message || '')) + '</span></button><button type="button" class="chat-history-delete" data-delete-cid="' + escapeChat(item.id) + '" title="删除对话" aria-label="删除对话">×</button></div>').join(''));
-                    if (data.has_more) {
-                        const next = document.createElement('button');
-                        next.type = 'button';
-                        next.className = 'chat-history-item chat-history-more';
-                        next.dataset.historyMore = '1';
-                        next.textContent = '加载更多';
-                        next.onclick = () => openHistory(true);
-                        panel.appendChild(next);
-                    }
-                    panel.querySelectorAll('[data-delete-cid]').forEach(btn => {
-                        btn.onclick = async (event) => {
-                            event.stopPropagation();
-                            if (!(await window.StudioConfirm.ask('确定删除这条历史对话吗？'))) return;
-                            btn.disabled = true;
-                            try {
-                                const id = btn.dataset.deleteCid;
-                                const res = await fetch('/api/conversations/' + encodeURIComponent(id), { method:'DELETE', headers:chatHeaders() });
-                                if (!res.ok) throw new Error('删除失败，请重试');
-                                btn.closest('.chat-history-row')?.remove();
-                                invalidateHistory();
-                                if (id === conversationId) startNewChat();
-                                panel.classList.remove('open');
-                                await openHistory();
-                            } catch (e) {
-                                alert(e.message || '删除失败');
-                            } finally { btn.disabled = false; }
-                        };
-                    });
-                    panel.querySelectorAll('[data-cid]').forEach(btn => {
-                        btn.onclick = () => loadConversation(btn.getAttribute('data-cid'));
-                    });
-                } catch (e) {
-                    if (request !== historyRequest) return;
-                    if (append && more) { more.disabled = false; more.textContent = '读取失败，点击重试'; }
-                    else if (!historyLoadedAt) panel.innerHTML = '<div class="chat-history-empty">' + escapeChat(e.message || '历史读取失败，请重新打开') + '</div>';
-                }
-            }
+            });
             async function loadConversation(id) {
                 if (!id || chatBusy) return;
                 const loadStarted = performance.now();
                 lastChatError = '';
                 selectChatImage(null);
-                const res = await fetch('/api/conversations/' + encodeURIComponent(id), { headers: chatHeaders() });
-                if (!res.ok) return;
-                const data = await res.json();
-                const conv = data.conversation || {};
-                window.ArtLoadLog?.measure('conversation:fetch+json', loadStarted, {messages: (conv.messages || []).length});
-                if (data.boot_id) appBootId = data.boot_id;
-                rememberConversation(conv.id || id);
-                seen.clear();
-                const renderStarted = performance.now();
-                renderSavedMessages(conv.messages || [], data.boot_id || '');
-                markExistingImages();
-                window.ArtLoadLog?.measure('conversation:render', renderStarted, {images: thread.querySelectorAll('img').length});
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    window.ArtLoadLog?.measure('conversation:next-paint', loadStarted);
-                }));
-                document.getElementById('chatHistory')?.classList.remove('open');
+                await conversationLoader.load(id);
+                window.ArtLoadLog?.measure('conversation:fetch+render', loadStarted);
             }
+
             document.addEventListener('click', event => {
                 if (!event.composedPath().some(el => el.classList?.contains('chat-history-control'))) document.getElementById('chatHistory')?.classList.remove('open');
             });
@@ -5392,6 +5306,7 @@
                 plan.textContent = (task.snapshot.region ? '局部编辑 · 框外保留原图' : task.refs.length ? '参考图编辑' : '文生图') + ' · ' + task.snapshot.controls.batchCount + ' 张 · ' + task.snapshot.size.width + ' × ' + task.snapshot.size.height + (appliedLabels.length ? ' · 已应用：' + appliedLabels.join(' · ') : '');
                 task.rerun = async () => {
                     if (chatBusy) return;
+                    conversationLoader.cancel();
                     chatBusy = true;
                     target.querySelectorAll('[data-pending], .chat-task-bar, .chat-gen-fail').forEach(node => node.remove());
                     const next = ChatTasks.create(target); next.snapshot = ChatTasks.clone(task.snapshot); next.answerAgain = task.answerAgain;
@@ -5407,21 +5322,18 @@
                 try {
                     task.setStage('正在准备'); task.check();
                     // 普通 API 每次提交一张；网站模型保留自身 count 参数，避免重复批量。
-                    const rounds = task.engine === 'cloud' && cloudWebsiteSchema()?.source !== 'website' ? Math.min(4, Math.max(1, task.snapshot.controls.batchCount || 1)) : 1;
-                    for (let index = 0; index < rounds; index++) {
-                        task.check();
-                        task.progressCards = rounds > 1 ? (window.__chatPendingCards || []).filter(card => card.isConnected && !card.dataset.imageLoading).slice(0, 1) : null;
-                        window.__chatRenderPrompt = spec.prompt || '';
-                        window.__chatRenderRefs = task.refs;
-                        if (task.engine === 'cloud') await handleRenderCloud(spec.prompt);
-                        else if (typeof handleRender === 'function') await handleRender();
-                        task.check();
-                        await Promise.all(task.saves || []);
-                        if (task.saveError) throw task.saveError;
-                    }
-                    task.check();
-                    await Promise.all(task.saves || []);
-                    if (task.saveError) throw task.saveError;
+                    await window.ChatImageGeneration.run(task, {
+                        website: task.engine === 'cloud' && cloudWebsiteSchema()?.source === 'website',
+                        beforeRound(rounds) {
+                            task.progressCards = rounds > 1 ? (window.__chatPendingCards || []).filter(card => card.isConnected && !card.dataset.imageLoading).slice(0, 1) : null;
+                            window.__chatRenderPrompt = spec.prompt || '';
+                            window.__chatRenderRefs = task.refs;
+                        },
+                        async render() {
+                            if (task.engine === 'cloud') await handleRenderCloud(spec.prompt);
+                            else if (typeof handleRender === 'function') await handleRender();
+                        }
+                    });
                     lastChatError = ''; task.finish();
                 } catch (error) { if (!task.cancelled) lastChatError = error.message; task.finish(error); }
                 finally {
@@ -5522,6 +5434,7 @@
                     try { window.closePromptPicker(); } finally { window.__promptPickerSkipApply = false; }
                 }
                 const descriptionOnly = ChatComposer.isDescription(typed);
+                conversationLoader.cancel();
                 chatBusy = true;
                 const sendBtn = document.getElementById('mainGenBtn');
                 if (sendBtn) sendBtn.disabled = true;
@@ -5604,19 +5517,7 @@
                         if (res.status === 422 || ((res.status === 401 || res.status === 403) && /登录|login|未授权|unauthorized/i.test(failure.message))) throw new Error(failure.message);
                         throw failure;
                     }
-                    const reader = res.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const events = buffer.split('\n\n');
-                        buffer = events.pop() || '';
-                        for (const eventText of events) {
-                            const line = eventText.split('\n').find(item => item.startsWith('data:'));
-                            if (!line) continue;
-                            const event = JSON.parse(line.slice(5).trim());
+                    for await (const event of window.ChatSession.readEvents(res, responseTask.controller.signal)) {
                             lastEventAt = Date.now();
                             if (event.type === 'meta' && event.conversation) {
                                 invalidateHistory();
@@ -5651,7 +5552,6 @@
                                 if (last && last.id) bubble.closest('.chat-row').dataset.msgId = last.id;
                                 if (last && last.created_at) stampChatTime(bubble.parentElement, last.created_at);
                             }
-                        }
                     }
                     // SSE 结束（后面可能进入生图阶段），撤掉等待监控，避免误中断出图任务。
                     clearInterval(stallWatch); clearInterval(waitTicker);
@@ -5675,6 +5575,7 @@
                         responseTask.snapshot = { engine:'video' };
                         responseTask.rerun = async () => {
                             if (chatBusy) return;
+                            conversationLoader.cancel();
                             chatBusy = true;
                             const next = ChatTasks.create(bubble); next.engine = 'cloud'; next.videoBody = responseTask.videoBody; next.snapshot = responseTask.snapshot; next.rerun = responseTask.rerun; next.answerAgain = responseTask.answerAgain;
                             try { await ChatVideo.generate(bubble, videoSpec, refs, next, binding, scrollThread); }
@@ -5813,6 +5714,7 @@
             async function drawChatDirect() {
                 const text = ((promptBox && promptBox.value) || '').trim();
                 if (!text || chatBusy) return;
+                conversationLoader.cancel();
                 chatBusy = true;
                 if (genBtn) genBtn.disabled = true;
                 const bubble = addAssistant();
