@@ -21,6 +21,8 @@ core/                                                 公共底座
 
 项目结构、公共组件复用与分阶段重构计划见 [项目优化开发方案](docs/project-optimization-plan.md)（分批实施，验收状态见文档）。
 
+本轮自动检查及登录后界面验收结果见 [优化回归测试记录](docs/optimization-test-report.md)，包含未通过项和未验证范围。
+
 公共聊天组件：`static/css/zimage.css`、`chat-layout.css` 保持样式顺序；`chat-media.js` 按图片自然尺寸适配；`chat-transcript.js` 提供容器隔离的消息、思考过程、时间与流式正文展示。`chat-actions.js` 的 `create` 返回直接消息操作、复制与 dispose，页面通过重发/输入/提示词/删除回调装配业务。
 
 会话与传输：`chat-conversations.js` 管理历史分页缓存、createLoader 的读取取消/乱序隔离，以及 createPersistence 的图片保存、消息删除、pending 写入与旧账号写入保护。`chat-session.js` 提供 request（登录/422 不降级）、readEvents（SSE 解码与 reader 释放）和 createWaitMonitor（等待计时/空闲超时）；正常结束、失败降级与 finally 均停止旧等待监控。`chat-image-generation.js` 管理控制指令与逐批提交/保存顺序。模型/参数、引擎和消息节点绑定留在页面。验证入口：`test_chat_{presentation,stream,actions,request,conversations,persistence,session,wait,generation}.cjs`。
