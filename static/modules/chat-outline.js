@@ -1,7 +1,9 @@
 /* One marker per user turn; streaming token updates do not rebuild the outline. */
 (() => {
     'use strict';
+    const mounted = new WeakMap();
     function mount(thread) {
+        if (mounted.has(thread)) return mounted.get(thread);
         const nav = document.createElement('nav');
         nav.className = 'chat-outline';
         nav.setAttribute('aria-label', '对话轮次导航');
@@ -20,9 +22,10 @@
             thread.dataset.readingHistory = '0';
             thread.scrollTo({top: thread.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
         };
-        let rows = [], buttons = [], pending = false;
+        let rows = [], buttons = [], pending = false, frame = 0, disposed = false;
         function updateActive() {
             pending = false;
+            if (disposed) return;
             const rect = thread.getBoundingClientRect();
             latest.hidden = !rows.length || thread.scrollHeight - thread.scrollTop - thread.clientHeight < 100;
             const anchor = composer ? composer.getBoundingClientRect() : rect;
@@ -41,7 +44,7 @@
             });
         }
         function schedule() {
-            if (!pending) { pending = true; requestAnimationFrame(updateActive); }
+            if (!pending && !disposed) { pending = true; frame = requestAnimationFrame(updateActive); }
         }
         function rebuild() {
             rows = Array.from(thread.children).filter(row => row.matches('.chat-row.user'));
@@ -64,14 +67,17 @@
             nav.hidden = !rows.length;
             schedule();
         }
-        new MutationObserver(rebuild).observe(thread, {childList: true});
-        thread.addEventListener('scroll', () => {
+        const changes = new MutationObserver(rebuild);
+        changes.observe(thread, {childList: true});
+        const onScroll = () => {
             thread.dataset.readingHistory = thread.scrollHeight - thread.scrollTop - thread.clientHeight >= 100 ? '1' : '0';
             schedule();
-        }, {passive: true});
+        };
+        thread.addEventListener('scroll', onScroll, {passive: true});
         window.addEventListener('resize', schedule);
+        let sizes;
         if (typeof ResizeObserver !== 'undefined') {
-            const sizes = new ResizeObserver(schedule);
+            sizes = new ResizeObserver(schedule);
             sizes.observe(thread);
             if (composer) sizes.observe(composer);
         }
@@ -79,7 +85,25 @@
             const active = buttons.find(button => button.classList.contains('is-current'));
             if (active) nav.scrollTop = active.offsetTop - nav.clientHeight / 2;
         });
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            changes.disconnect();
+            sizes?.disconnect();
+            if (pending) cancelAnimationFrame(frame);
+            thread.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', schedule);
+            window.removeEventListener('pagehide', onPageHide);
+            nav.remove();
+            latest.remove();
+            mounted.delete(thread);
+        }
+        function onPageHide(event) { if (!event.persisted) dispose(); }
+        window.addEventListener('pagehide', onPageHide);
+        const instance = {dispose};
+        mounted.set(thread, instance);
         rebuild();
+        return instance;
     }
     window.ChatOutline = {mount};
 })();

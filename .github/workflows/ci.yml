@@ -7,6 +7,24 @@ on:
     branches: [main, master]
 
 jobs:
+  chat-presentation:
+    name: Chat presentation (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check extracted components and integration
+        run: |
+          node tests/test_chat_presentation.cjs
+          node tests/test_chat_outline.cjs
+          node tests/test_chat_composer.cjs
+          node tests/test_chat_image_actions.cjs
+          node tests/test_chat_reply_boxes.cjs
+          node tests/test_chat_reply_text.cjs
+          node tests/test_webai_controls.cjs
+
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest

@@ -1,0 +1,315 @@
+/* 轻量 chrome token 化：浅色用 ui token，深色由页面既有 body.studio-theme-dark 块接管 */
+body {
+    overflow-x: hidden;
+    background-color: var(--ui-bg);
+    color: var(--ui-text);
+}
+.console-card {
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line);
+    box-shadow: var(--ui-shadow);
+}
+.mode-switcher { background: var(--ui-soft); }
+.btn-render {
+    background: var(--ui-soft) !important;
+    color: var(--ui-text) !important;
+    border: 1px solid var(--ui-line-strong) !important;
+}
+
+/* 创作输入面板：磨砂底、柔光渐变与双层边缘，内容不参与透明度混合。 */
+body {
+    --composer-opacity: 52%;
+    /* 32px 背景模糊在常驻全宽输入框上每帧重算，生图（GPU 满载）时明显掉帧；
+       实测 12px 与关闭同帧率（60fps）、视觉仍是磨砂，故取 12px。 */
+    --composer-blur: 12px;
+    --composer-highlight: rgba(255, 255, 255, .85);
+    --composer-sheen: rgba(255, 255, 255, .12);
+    --composer-edge: rgba(255, 255, 255, .75);
+}
+body.studio-theme-dark {
+    --composer-opacity: 64%;
+    --composer-highlight: rgba(255, 255, 255, .23);
+    --composer-sheen: rgba(255, 255, 255, .025);
+    --composer-edge: rgba(255, 255, 255, .16);
+}
+html body header #generationComposer,
+html.studio-theme-dark body header #generationComposer,
+html body.studio-theme-dark header #generationComposer,
+html body header #generationComposer:focus-within,
+html.studio-theme-dark body header #generationComposer:focus-within,
+html body.studio-theme-dark header #generationComposer:focus-within {
+    background: linear-gradient(135deg, var(--composer-sheen), transparent 65%), color-mix(in srgb, var(--ui-panel) var(--composer-opacity), transparent) !important;
+    border-color: var(--composer-edge) !important;
+    -webkit-backdrop-filter: blur(var(--composer-blur)) saturate(155%) !important;
+    backdrop-filter: blur(var(--composer-blur)) saturate(155%) !important;
+    box-shadow: inset 0 1px 0 var(--composer-highlight), inset 0 -1px 0 rgba(255,255,255,.035), 0 12px 36px rgba(0,0,0,.14), 0 2px 5px rgba(0,0,0,.06) !important;
+    transition: border-color .24s ease, box-shadow .24s ease;
+}
+/* 聚焦只改变外缘，底色保持一致，避免深色主题点击时突然变黑。 */
+html body header #generationComposer:has(#prompt:focus),
+html.studio-theme-dark body header #generationComposer:has(#prompt:focus),
+html body.studio-theme-dark header #generationComposer:has(#prompt:focus) {
+    border-color: color-mix(in srgb, var(--ui-accent, #06b6d4) 26%, var(--composer-edge)) !important;
+    box-shadow: inset 0 1px 0 var(--composer-highlight), inset 0 -1px 0 rgba(255,255,255,.035), 0 12px 36px rgba(0,0,0,.14), 0 2px 5px rgba(0,0,0,.06), 0 0 12px color-mix(in srgb, var(--ui-accent, #06b6d4) 7%, transparent) !important;
+}
+html body header #generationComposer > div:first-child {
+    background: linear-gradient(180deg, rgba(255,255,255,.012), transparent) !important;
+}
+html body header #generationComposer #prompt {
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    border-color: transparent !important;
+}
+html body header #generationComposer .prompt-wrapper {
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(27,35,49,.025), rgba(255,255,255,.06));
+    box-shadow: inset 0 1px 3px rgba(20,28,40,.045), inset 0 -1px 0 rgba(255,255,255,.45);
+    transition: background .2s ease, box-shadow .2s ease;
+}
+html body.studio-theme-dark header #generationComposer .prompt-wrapper {
+    background: linear-gradient(180deg, rgba(7,12,22,.12), rgba(12,18,29,.09));
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.12), inset 0 -1px 0 rgba(255,255,255,.045);
+}
+html body header #generationComposer #prompt:empty::before {
+    color: var(--ui-muted, #8b8e98);
+}
+/* 不支持背景模糊时提高底色覆盖率，优先保证可读性。 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body { --composer-opacity: 94%; }
+}
+
+/* 下拉浮层统一复用半透主题底色。 */
+html body #chatModelMenu,
+html body #chatHistory,
+html body .sp-ai-drawer,
+html body .anima-ctrl-menu {
+    background:color-mix(in srgb, var(--ui-panel) 78%, transparent) !important;
+    -webkit-backdrop-filter:blur(20px) saturate(135%) !important;
+    backdrop-filter:blur(20px) saturate(135%) !important;
+    border:1px solid var(--ui-line) !important;
+    border-radius:14px !important;
+    box-shadow:0 14px 36px rgba(0,0,0,.2) !important;
+    color:var(--ui-text) !important;
+}
+html body .sp-ai-drawer button { background:transparent; color:var(--ui-text); border-radius:10px; }
+html body .sp-ai-drawer button span { color:var(--ui-muted); }
+html body .sp-ai-drawer button:hover,
+html body #chatModelMenu button.anima-ctrl-menu-item:hover,
+html body #chatModelMenu button.anima-ctrl-menu-item.active { background:color-mix(in srgb, var(--ui-accent, #00f0ff) 12%, transparent); color:var(--ui-text); }
+
+/* 顶栏透明描边，展开时柔和提亮外缘。 */
+html body #chatTopbar :is(.chat-history-control, #chatModelToggle, #chatGalleryBtn) {
+    background:transparent !important;
+    border:1px solid color-mix(in srgb, var(--ui-line-strong) 65%, transparent) !important;
+    box-shadow:none !important;
+    transition:border-color .22s ease, box-shadow .22s ease, color .22s ease;
+}
+html body #chatTopbar .chat-history-control > button { background:transparent !important; box-shadow:none !important; }
+html body #chatTopbar :is(.chat-history-control, #chatModelToggle, #chatGalleryBtn):hover {
+    border-color:color-mix(in srgb, var(--ui-text) 35%, transparent) !important;
+}
+html body #chatTopbar .chat-history-control:has(.chat-history.open),
+html body #chatTopbar .chat-history-control:has(> button:focus-visible),
+html body #chatTopbar #chatModelToggle[aria-expanded="true"],
+html body #chatTopbar #chatModelToggle:focus-visible,
+html body #chatTopbar #chatGalleryBtn.active,
+html body #chatTopbar #chatGalleryBtn:focus-visible {
+    border-color:color-mix(in srgb, var(--ui-accent, #06b6d4) 55%, var(--ui-line)) !important;
+    box-shadow:0 0 10px color-mix(in srgb, var(--ui-accent, #06b6d4) 12%, transparent) !important;
+    outline:none !important;
+}
+
+body.gallery-assets-active main { display:none !important; }
+#galleryAssetsToggle[aria-pressed="true"] { border-color:var(--ui-accent, #06b6d4); color:var(--ui-accent, #06b6d4); }
+
+#extraNegToggle,
+#reverseSettingsBtn { display:none !important; }
+.control-bar #seedToggle,
+.control-bar #seedInput { display:none !important; }
+#chatAdvancedPanel[hidden] { display:none !important; }
+#chatAdvancedBtn svg { display:block !important; width:18px; height:18px; flex-shrink:0; }
+@media(max-width:1024px) { #generationComposer #chatAdvancedBtn { width:44px; min-width:44px; padding:0 !important; } }
+html.engine-cloud #chatAdvancedBtn,
+html.engine-cloud #chatAdvancedPanel { display:none !important; }
+#chatAdvancedPanel { position:fixed; z-index:10000; box-sizing:border-box; overflow-y:auto; overscroll-behavior:contain; padding:20px; border:1px solid var(--ui-line); border-radius:18px; background:var(--ui-panel, #262626); box-shadow:0 12px 36px #0004; color:var(--ui-text); font-size:14px; }
+#chatAdvancedPanel .chat-advanced-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+#chatAdvancedPanel .chat-advanced-row>span:first-child { flex:0 0 100%; color:var(--ui-muted); font-size:13px; }
+#chatAdvancedPanel .chat-advanced-negative { padding-top:16px; margin-bottom:18px; border-top:1px solid var(--ui-line); }
+#chatAdvancedPanel .chat-advanced-negative>label { display:block; margin-bottom:10px; color:var(--ui-muted); font-size:13px; }
+#chatAdvancedPanel select { background:var(--ui-soft); color:var(--ui-text); border:0; border-radius:9px; padding:8px 10px; min-height:40px; font:inherit; }
+#chatAdvancedPanel textarea { width:100%; box-sizing:border-box; min-height:80px; margin:0 0 10px; padding:12px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-soft); color:var(--ui-text); font:inherit; line-height:1.6; resize:vertical; }
+#chatAdvancedPanel .anima-ctrl,#chatAdvancedPanel .anima-ctrl-input { min-height:40px; font-size:13px; border-radius:9px; }
+@media(max-width:600px) { #chatAdvancedPanel {padding:16px;} #chatAdvancedPanel .anima-ctrl,#chatAdvancedPanel .anima-ctrl-input,#chatAdvancedPanel select { min-height:44px; font-size:14px; } }
+#chatAdvancedPanel #extraNegPanel { display:block !important; margin:6px 0 10px; }
+#chatAdvancedPanel p { color:var(--ui-muted); margin:0; font-size:11px; }
+.chat-task-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:10px; color:var(--ui-muted); font-size:12px; }
+.chat-task-bar > button { border:1px solid var(--ui-line); border-radius:8px; padding:5px 10px; background:transparent; color:var(--ui-text); }
+/* 图片卡片下方的执行信息统一一行，参数说明并入此行，过长时省略而不是换行堆叠 */
+.chat-execution-plan { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chat-task-busy::after { content:'...'; display:inline-block; width:0; overflow:hidden; vertical-align:bottom; margin-left:5px; letter-spacing:2px; color:var(--ui-accent, #06b6d4); animation:chat-thinking-dots 1.2s steps(4,end) infinite; }
+@keyframes chat-thinking-dots { from { width:0; } to { width:1.5em; } }
+.chat-task-timer { font-variant-numeric:tabular-nums; opacity:.72; }
+/* chip 保留「图1/图2」编号与删除 ×；上轮要去掉的「取消引用」是操作条按钮，已移除 */
+.chat-image-card.is-reference { outline:2px solid var(--ui-accent, #06b6d4); outline-offset:2px; }
+body.chat-layout #refImagePreview { display:none !important; }
+.chat-ref-number { display:block; font-size:11px; color:var(--ui-muted); margin-top:4px; }
+.chat-description-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.chat-description-actions button { padding:5px 10px; border:1px solid var(--ui-line); border-radius:8px; background:transparent; color:var(--ui-text); font-size:12px; cursor:pointer; }
+.chat-description-actions button:hover { border-color:var(--ui-accent, #06b6d4); }
+
+/* 移动兜底：工具栏/控制栏换行，主区占满宽 */
+@media (max-width: 640px) {
+    #toolbarFixed .layout-container { flex-wrap: wrap; }
+    .control-bar { flex-wrap: wrap; }
+    .layout-container { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+}
+/* 对话输入栏：底栏扁平成一行，左下工具键，右侧依次参数 → 模型 → 发送。
+   中间两层 flex 组用 display:contents 摊平，顺序由 order 明确指定，
+   避免原 space-between 与嵌套宽度把发送按钮挤出卡片。 */
+body.chat-layout #generationComposer .control-bar {
+    display:flex !important; flex-direction:row !important; flex-wrap:wrap !important;
+    align-items:center !important; justify-content:flex-start !important;
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+    box-sizing:border-box !important; gap:8px !important; padding:6px 18px 10px !important;
+    overflow:visible !important;
+}
+body.chat-layout #generationComposer .control-bar > .ctrl-top-row,
+body.chat-layout #generationComposer .control-bar > .gen-row { display:contents !important; }
+body.chat-layout #generationComposer .control-bar > .prompt-row {
+    order:0; flex:0 1 auto !important; min-width:0 !important; margin:0 auto 0 0 !important; gap:6px !important;
+}
+body.chat-layout #generationComposer #dynamicParams,
+body.chat-layout #generationComposer #cloudGenControls,
+body.chat-layout #generationComposer #animaControls,
+body.chat-layout #generationComposer #batchCountWrap,
+body.chat-layout #generationComposer #chatAdvancedBtn,
+body.chat-layout #generationComposer #reverseSettingsBtn { order:1; }
+body.chat-layout #generationComposer #randomPromptContainer { display:none !important; }
+body.chat-layout #generationComposer #unifiedModelWrap { order:2; margin:0 !important; }
+body.chat-layout #generationComposer #mainGenBtn { order:3; flex:0 0 auto !important; margin:0 !important; min-width:0 !important; padding:0 14px !important; }
+/* 精简：三个工具键只留图标，模型去掉文字标签，控件统一高度 */
+body.chat-layout #generationComposer .prompt-row .btn-text,
+body.chat-layout #generationComposer .prompt-row .sp-ai-name,
+body.chat-layout #generationComposer .prompt-row #refImageBtnText,
+body.chat-layout #generationComposer #unifiedModelWrap > span { display:none !important; }
+body.chat-layout #generationComposer .prompt-row .anima-ctrl,
+body.chat-layout #generationComposer .prompt-row #smartPromptContainer button {
+    width:32px !important; min-width:32px !important; height:32px !important; min-height:32px !important;
+    padding:0 !important; justify-content:center !important; border-radius:9px !important;
+}
+body.chat-layout #generationComposer .prompt-row svg { width:15px !important; height:15px !important; }
+body.chat-layout #generationComposer .control-bar .anima-ctrl,
+body.chat-layout #generationComposer .control-bar #mainGenBtn,
+body.chat-layout #generationComposer .control-bar #unifiedModelBtn {
+    height:32px !important; min-height:32px !important; font-size:12px !important;
+}
+body.chat-layout #generationComposer .control-bar #unifiedModelBtn { width:auto !important; min-width:0 !important; max-width:170px !important; }
+/* 对话栏：参数/模型按钮文字前补语义图标；mask 继承文字色，浅色深色主题自动适配。
+   参数按钮文本由 generation-options-panel.js 每次 sync 重写，用伪元素才能留住图标。 */
+body.chat-layout #generationComposer .generation-options-trigger::before,
+body.chat-layout #generationComposer #unifiedModelBtn::before {
+    content:''; display:block; flex:0 0 14px; width:14px; height:14px;
+    background-color:currentColor;
+    -webkit-mask:var(--chat-ctrl-icon) center/contain no-repeat;
+    mask:var(--chat-ctrl-icon) center/contain no-repeat;
+}
+body.chat-layout #generationComposer .generation-options-trigger::before {
+    --chat-ctrl-icon:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'><line x1='3' y1='7' x2='21' y2='7'/><line x1='3' y1='17' x2='21' y2='17'/><circle cx='9' cy='7' r='2.2' fill='black' stroke='none'/><circle cx='15' cy='17' r='2.2' fill='black' stroke='none'/></svg>");
+}
+body.chat-layout #generationComposer #unifiedModelBtn::before {
+    --chat-ctrl-icon:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/><path d='m3.3 7 8.7 5 8.7-5'/><path d='M12 22V12'/></svg>");
+}
+@media (max-width:760px) {
+    body.chat-layout #generationComposer .control-bar > .prompt-row { width:100%; margin:0 0 2px !important; }
+}
+/* 输入区：单层内嵌面板 + 浅灰白描边，未选中偏灰、悬停/聚焦提亮 */
+html body.chat-layout header #generationComposer,
+html body.chat-layout header #generationComposer:focus-within,
+html body.chat-layout header #generationComposer:has(#prompt:focus),
+html.studio-theme-dark body.chat-layout header #generationComposer,
+html body.chat-layout.studio-theme-dark header #generationComposer {
+    border:1px solid color-mix(in srgb, var(--ui-text) 16%, transparent) !important;
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--ui-text) 2%, transparent) !important;
+    border-radius:20px !important; padding:0 !important;
+    -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+    background:var(--ui-panel) !important;
+    transition:border-color .26s ease, box-shadow .26s ease;
+}
+html body.chat-layout header #generationComposer:hover,
+html body.chat-layout header #generationComposer:focus-within,
+html body.chat-layout header #generationComposer:has(#prompt:focus) {
+    border-color:color-mix(in srgb, var(--ui-text) 44%, transparent) !important;
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--ui-text) 7%, transparent), 0 0 22px color-mix(in srgb, var(--ui-text) 6%, transparent) !important;
+}
+html body.chat-layout header #generationComposer > div:first-child,
+html body.chat-layout.studio-theme-dark header #generationComposer > div:first-child {
+    background:transparent !important; padding:16px 18px 0 !important; border-radius:20px !important;
+}
+html body.chat-layout header #generationComposer .prompt-wrapper,
+html body.chat-layout.studio-theme-dark header #generationComposer .prompt-wrapper {
+    background:transparent !important; box-shadow:none !important; border-radius:0 !important;
+}
+html body.chat-layout header #generationComposer #prompt {
+    min-height:118px !important; max-height:240px !important; padding:8px 4px 2px !important;
+    font-size:17px !important; line-height:1.65 !important;
+}
+/* 输入后右下角三个功能键：只留图标，去掉方块底与描边 */
+html body.chat-layout header #generationComposer .prompt-corner-btn,
+html body.chat-layout header #generationComposer .prompt-translate-corner,
+html body.chat-layout header #generationComposer #translateBtnContainer button {
+    background:transparent !important; border:0 !important; box-shadow:none !important;
+    color:var(--ui-muted) !important; width:28px !important; height:28px !important;
+    border-radius:8px !important;
+}
+html body.chat-layout header #generationComposer .prompt-corner-btn:hover,
+html body.chat-layout header #generationComposer .prompt-tags-switch-btn:hover,
+html body.chat-layout header #generationComposer #translateBtnContainer button:hover {
+    background:transparent !important; color:var(--ui-text) !important;
+}
+/* 空对话状态：极简呼吸光环，取代原来的长段说明 */
+.chat-empty.chat-empty--minimal {
+    margin:auto; display:flex; flex-direction:column; align-items:center; gap:16px;
+    color:var(--ui-muted); text-align:center; max-width:640px;
+    animation:chatEmptyFade .7s cubic-bezier(.2,.7,.2,1) both;
+}
+.chat-empty__mark { position:relative; width:46px; height:46px; display:grid; place-items:center; }
+.chat-empty__ring {
+    position:absolute; inset:0; border-radius:50%;
+    border:1px solid color-mix(in srgb, var(--ui-text) 16%, transparent);
+    border-top-color:color-mix(in srgb, var(--ui-accent, #06b6d4) 65%, transparent);
+    animation:chatEmptySpin 9s linear infinite, chatEmptyBreathe 3.6s ease-in-out infinite;
+}
+.chat-empty__dot {
+    width:7px; height:7px; border-radius:50%;
+    background:color-mix(in srgb, var(--ui-accent, #06b6d4) 72%, transparent);
+    box-shadow:0 0 14px color-mix(in srgb, var(--ui-accent, #06b6d4) 45%, transparent);
+    animation:chatEmptyPulse 3.6s ease-in-out infinite;
+}
+.chat-empty__label { font-size:13px; letter-spacing:.08em; opacity:.62; }
+.chat-empty__preset {
+    font-size:11px; letter-spacing:.04em; padding:4px 12px; border-radius:999px;
+    border:1px solid color-mix(in srgb, var(--ui-text) 12%, transparent); opacity:.66;
+}
+.chat-empty__preset[hidden] { display:none; }
+@keyframes chatEmptyFade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes chatEmptySpin { to { transform:rotate(360deg); } }
+@keyframes chatEmptyBreathe { 0%,100% { opacity:.45; } 50% { opacity:1; } }
+@keyframes chatEmptyPulse { 0%,100% { opacity:.5; transform:scale(.85); } 50% { opacity:1; transform:scale(1.15); } }
+/* 输入文字与边框同呼吸：未交互暗灰，悬停/聚焦提亮 */
+html body.chat-layout header #generationComposer #prompt,
+html body.chat-layout header #generationComposer #prompt:empty::before {
+    color:color-mix(in srgb, var(--ui-text) 42%, transparent) !important;
+    transition:color .26s ease;
+}
+html body.chat-layout header #generationComposer:hover #prompt,
+html body.chat-layout header #generationComposer:focus-within #prompt,
+html body.chat-layout header #generationComposer #prompt:focus,
+html body.chat-layout header #generationComposer:hover #prompt:empty::before,
+html body.chat-layout header #generationComposer:focus-within #prompt:empty::before,
+html body.chat-layout header #generationComposer #prompt:focus:empty::before {
+    color:var(--ui-text) !important;
+}

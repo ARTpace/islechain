@@ -35,7 +35,8 @@ assert(ui.includes('4K') && !ui.includes('3K'));
 assert(ui.includes('cloudWebsite_sizeBtn'));
 ctx.cloudSelectWebsiteOption('size', encodeURIComponent(JSON.stringify('4K')));
 assert.equal(ctx.cloudWebsiteRequestParams().size, '4K');
-assert(html.includes('html.engine-cloud.website-model #batchCountWrap { display:none !important; }'));
+const pageStyles = ['static/css/zimage.css', 'static/css/chat-layout.css'].map(file => fs.readFileSync(file, 'utf8')).join('\n');
+assert(pageStyles.includes('html.engine-cloud.website-model #batchCountWrap { display:none !important; }'));
 for (const key of ['ratio', 'size', 'quality', 'count', 'provider']) assert(html.includes("'cloudWebsite_" + key + "Menu'"));
 console.log('原有下拉 UI、模型参数切换与数量透传检查通过');
 

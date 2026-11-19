@@ -1,17 +1,19 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-function element(){ return {children:[], attrs:{}, style:{}, dataset:{}, classList:{toggle(){}}, setAttribute(k,v){this.attrs[k]=v;}, removeAttribute(k){delete this.attrs[k];}, appendChild(n){this.children.push(n);}, replaceChildren(...nodes){this.children=nodes;}, addEventListener(){}}; }
+function element(){ return {children:[], attrs:{}, style:{}, dataset:{}, classList:{toggle(){}}, setAttribute(k,v){this.attrs[k]=v;}, removeAttribute(k){delete this.attrs[k];}, appendChild(n){this.children.push(n);}, replaceChildren(...nodes){this.children=nodes;}, addEventListener(){}, removeEventListener(){}, remove(){this.removed=true;}}; }
 const body=element();
 body.offsetWidth=800;
 body.getBoundingClientRect=()=>({left:0,top:0,width:800});
-let refresh, destination;
+let refresh, destination, disconnected = 0, removedListeners = 0;
 const row=(text,top)=>({dataset:{chatText:text}, matches:()=>true, getBoundingClientRect:()=>({top})});
 const thread={...element(),children:[row('第一轮',100),row('第二轮',400)],scrollTop:50,scrollHeight:1000,clientHeight:400,getBoundingClientRect:()=>({top:20,left:0,width:800,bottom:420}),scrollTo:v=>destination=v};
-const context={window:{addEventListener(){}},document:{body,createElement:element,getElementById:()=>null},requestAnimationFrame:fn=>fn(),matchMedia:()=>({matches:false}),MutationObserver:class{constructor(fn){refresh=fn;}observe(){}}};
+const context={window:{addEventListener(){},removeEventListener(){removedListeners++;}},document:{body,createElement:element,getElementById:()=>null},requestAnimationFrame:fn=>fn(),matchMedia:()=>({matches:false}),MutationObserver:class{constructor(fn){refresh=fn;}observe(){}disconnect(){disconnected++;}}};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('static/modules/chat-outline.js','utf8'),context);
-context.window.ChatOutline.mount(thread);
+const instance=context.window.ChatOutline.mount(thread);
+assert.equal(context.window.ChatOutline.mount(thread),instance);
+assert.equal(body.children.length,2,'duplicate mounting must not create more controls');
 const nav=body.children[0];
 assert.equal(nav.children.length,2);
 assert.equal(nav.children[1].children[0].textContent,'第二轮');
@@ -31,4 +33,10 @@ assert.equal(latest.hidden,true);
 thread.children=[]; refresh();
 assert.equal(nav.hidden,true);
 assert.equal(nav.children.length,0);
+instance.dispose();
+instance.dispose();
+assert.equal(disconnected,1);
+assert.equal(removedListeners,2);
+assert.equal(nav.removed,true);
+assert.equal(latest.removed,true);
 console.log('Chat outline navigation passed');
