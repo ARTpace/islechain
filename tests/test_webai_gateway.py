@@ -30,6 +30,7 @@ class WebaiGatewayTests(unittest.TestCase):
             get_api_provider=lambda _: provider, provider_protocol=lambda _: 'webai2api',
             get_provider_api_key=lambda _: 'test', fetch_models_from_upstream=upstream,
             load_api_providers=lambda: [provider], save_api_providers=lambda items: saved.append(items))}
+        context['fetch_models_from_upstream'] = upstream
         context['provider_store'] = lambda: SimpleNamespace(load=lambda: [provider], save=lambda items: saved.append(items))
         exec(compile(ast.Module(body=[node], type_ignores=[]), '<sync>', 'exec'), context)
         result = asyncio.run(context['webai2api_status'](SimpleNamespace(method='GET'), 'webapi', refresh=True, model='selected'))

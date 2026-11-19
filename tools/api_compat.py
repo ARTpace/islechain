@@ -33,3 +33,8 @@ def model_items(raw, cloudflare=False):
         return [{'id': item['name'], 'type': 'text'} for item in items
                 if isinstance(item, dict) and item.get('name')]
     return items
+
+
+def sanitize_api_key(value: str) -> str:
+    """Remove non-ASCII characters from API key to prevent latin-1 encoding errors in HTTP headers."""
+    return value.encode('ascii', 'ignore').decode('ascii').strip()

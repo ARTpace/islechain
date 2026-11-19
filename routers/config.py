@@ -28,6 +28,9 @@ from providers.catalog import (
     RUNNINGHUB_DEFAULT_IMAGE_MODELS as RUNNINGHUB_DEFAULT_IMAGE_MODELS,
 )
 from providers.config import ProviderStore, normalize_provider, provider_key_env, public_provider
+from providers.schemas import ApiProviderPayload, TestConnectionPayload
+from providers.upstream import fetch_models_from_upstream, group_models
+from tools.api_compat import api_root, is_cloudflare, models_endpoint, sanitize_api_key
 
 # No prefix - use full paths
 router = APIRouter()
@@ -43,9 +46,9 @@ async def webai2api_status(request: Request, provider_id: str = "webai2api", ref
     management_url = base[:-3] if base.endswith('/v1') else base
     try:
         if refresh:
-            result = await _main.fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id), refresh=True, model=model)
+            result = await fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id), refresh=True, model=model)
         else:
-            result = await _main.fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id))
+            result = await fetch_models_from_upstream(base, _main.get_provider_api_key(provider_id))
     except Exception as exc:
         return {"online": False, "management_url": management_url,
                 "message": str(getattr(exc, 'detail', exc))[:250]}
@@ -136,7 +139,7 @@ async def provider_models(provider_id: str = ""):
         pk = _main.get_provider_api_key(prov["id"])
         if not (img or chat or vid) and pk and prov.get("base_url") and provider_id not in ("comfly", "modelscope", "jimeng", "codex", "gemini-cli"):
             try:
-                result = await _main.fetch_models_from_upstream(prov["base_url"], pk)
+                result = await fetch_models_from_upstream(prov["base_url"], pk)
                 img = result.get("image_models") or img
                 chat = result.get("chat_models") or chat
                 vid = result.get("video_models") or vid
@@ -176,7 +179,7 @@ async def api_providers():
 
 
 @router.put("/api/providers")
-async def save_providers(payload: List[_main.ApiProviderPayload]):
+async def save_providers(payload: List[ApiProviderPayload]):
     """保存 API 提供商列表"""
     providers = []
     env_updates = {}
@@ -235,7 +238,7 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
 
 
 @router.post("/api/providers/test-connection")
-async def test_provider_connection(payload: _main.TestConnectionPayload):
+async def test_provider_connection(payload: TestConnectionPayload):
     """测试请求地址是否可用:调用上游 /v1/models"""
     base_url = (payload.base_url or "").strip().rstrip("/")
     if not base_url:
@@ -253,15 +256,15 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
     if not api_key:
         raise HTTPException(status_code=400, detail="请先填写或保存 API Key")
 
-    if _main.is_cloudflare(_main.api_root(base_url)):
-        result = await _main.fetch_models_from_upstream(base_url, api_key)
+    if is_cloudflare(api_root(base_url)):
+        result = await fetch_models_from_upstream(base_url, api_key)
         return {"ok": True, "status": 200, "model_count": result["total"], **result}
-    url = _main.models_endpoint(base_url)
+    url = models_endpoint(base_url)
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers={
-                "Authorization": f"Bearer {_main.sanitize_api_key(api_key)}",
+                "Authorization": f"Bearer {sanitize_api_key(api_key)}",
                 "Accept": "application/json"
             })
 
@@ -271,35 +274,9 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
         data = resp.json() if resp.text else {}
         items = (data.get("data") if isinstance(data, dict) else None) or []
 
-        ids = []
-        for it in items:
-            if isinstance(it, str):
-                ids.append(it)
-            elif isinstance(it, dict):
-                mid = it.get("id") or it.get("name") or it.get("model")
-                if mid:
-                    ids.append(str(mid))
-
-        ids = sorted(set(ids))
-
-        from tools.webai_gateway import model_catalog
-        capabilities = model_catalog(items)
-        def classify(mid):
-            explicit = capabilities.get(mid, {}).get("type")
-            if explicit:
-                return explicit
-            lc = mid.lower()
-            video_keys = ["veo", "sora", "wan2", "wanx", "doubao-seedance", "doubao-1", "kling", "hailuo", "video", "t2v-", "i2v-", "s2v"]
-            if any(k in lc for k in video_keys):
-                return "video"
-            image_keys = ["image", "dalle", "dall-e", "imagen", "flux", "stable", "sdxl", "midjourney", "nano-banana", "ideogram", "fal-ai", "z-image", "qwen-image", "klein"]
-            if any(k in lc for k in image_keys):
-                return "image"
-            return "chat"
-
-        grouped = {"image": [], "chat": [], "video": []}
-        for mid in ids:
-            grouped[classify(mid)].append(mid)
+        catalog = group_models(items)
+        ids = catalog['all']
+        grouped = {kind: catalog[kind + '_models'] for kind in ('chat', 'image', 'video')}
 
         # /models 不校验 Token 的平台（ModelScope 不带 Key 也返回 200）
         # 再用列表里的真实模型打一次对话接口，确认 Key 能通过鉴权。
@@ -308,12 +285,12 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
                 bare = await bare_client.get(url, headers={"Accept": "application/json"})
             if bare.status_code < 400 and ids:
                 probe_model = (grouped["chat"] or ids)[0]
-                chat_url = _main.api_root(base_url) + "/chat/completions"
+                chat_url = api_root(base_url) + "/chat/completions"
                 async with httpx.AsyncClient(timeout=20) as probe_client:
                     probe = await probe_client.post(
                         chat_url,
                         headers={
-                            "Authorization": f"Bearer {_main.sanitize_api_key(api_key)}",
+                            "Authorization": f"Bearer {sanitize_api_key(api_key)}",
                             "Content-Type": "application/json",
                         },
                         json={
@@ -347,7 +324,7 @@ async def test_provider_connection(payload: _main.TestConnectionPayload):
 
 
 @router.post("/api/providers/probe-async")
-async def probe_async_endpoint(payload: _main.TestConnectionPayload):
+async def probe_async_endpoint(payload: TestConnectionPayload):
     """验证异步协议:用假 task_id 请求 GET /v1/tasks/{fake_id}"""
     base_url = (payload.base_url or "").strip().rstrip("/")
     if not base_url:
@@ -368,7 +345,7 @@ async def probe_async_endpoint(payload: _main.TestConnectionPayload):
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(probe_url, headers={
-                "Authorization": f"Bearer {_main.sanitize_api_key(api_key)}",
+                "Authorization": f"Bearer {sanitize_api_key(api_key)}",
                 "Accept": "application/json"
             })
 
@@ -407,14 +384,14 @@ async def probe_async_endpoint(payload: _main.TestConnectionPayload):
 
 
 @router.post("/api/providers/fetch-models")
-async def fetch_upstream_models_from_payload(payload: _main.TestConnectionPayload):
+async def fetch_upstream_models_from_payload(payload: TestConnectionPayload):
     """按页面当前表单值拉取模型"""
     api_key = (payload.api_key or "").strip()
     if any(ch in api_key for ch in ("•", "…", "****")):
         api_key = ""
     if not api_key and payload.provider_id:
         api_key = _main.read_api_env_value(provider_key_env(payload.provider_id))
-    return await _main.fetch_models_from_upstream(payload.base_url, api_key)
+    return await fetch_models_from_upstream(payload.base_url, api_key)
 
 
 @router.get("/api/providers/{provider_id}/fetch-models")
@@ -424,7 +401,7 @@ async def fetch_upstream_models(provider_id: str):
     api_key = _main.read_api_env_value(provider_key_env(provider["id"]))
     if not api_key:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider_id} 未配置 API Key")
-    return await _main.fetch_models_from_upstream(provider.get("base_url") or "", api_key)
+    return await fetch_models_from_upstream(provider.get("base_url") or "", api_key)
 
 
 @router.get("/api/cache/info")
