@@ -4202,7 +4202,7 @@
     <script src="/static/modules/chat-transcript.js?v=02b4b6e1a07c7ae0"></script>
     <script src="/static/modules/chat-conversations.js?v=f032f9d7f0b1ef2a"></script>
     <script src="/static/modules/chat-image-generation.js?v=c420619aa3f55761"></script>
-    <script src="/static/modules/chat-session.js?v=e4a52d294bf4fe40"></script>
+    <script src="/static/modules/chat-session.js?v=83f84fb3fe46ded7"></script>
     <script src="/static/modules/chat-assistant.js?v=20261026references"></script>
     <script src="/static/js/canvas-agent-markdown.js?v=20261119001"></script>
     <link rel="stylesheet" href="/static/modules/content-preview.css?v=20261119008">
@@ -5454,18 +5454,12 @@
                 const waitTimer = document.createElement('span');
                 waitTimer.className = 'chat-task-timer';
                 responseTask.bar.appendChild(waitTimer);
-                const waitStarted = Date.now();
-                let lastEventAt = waitStarted;
-                let stalled = false;
-                const waitTicker = setInterval(() => {
-                    const sec = Math.floor((Date.now() - waitStarted) / 1000);
-                    waitTimer.textContent = sec < 2 ? '' : '已等待 ' + sec + 's' + (sec >= 15 ? ' · 响应较慢，仍在等待模型' : '');
-                }, 1000);
-                const stallWatch = setInterval(() => {
-                    if (Date.now() - lastEventAt < 120000) return;
-                    stalled = true;
-                    responseTask.controller.abort();
-                }, 5000);
+                const waitMonitor = window.ChatSession.createWaitMonitor({
+                    controller: responseTask.controller,
+                    onWait(sec) {
+                        waitTimer.textContent = sec == null || sec < 2 ? '' : '已等待 ' + sec + 's' + (sec >= 15 ? ' · 响应较慢，仍在等待模型' : '');
+                    }
+                });
                 const requestedRegion = !preset ? ChatTasks.clone(selectedChatRegion) : override.region || null;
                 if (!preset) selectChatImage(null);  // 单轮引用，用完即弃，不留下需要手动取消的状态
                 responseTask.rerun = responseTask.answerAgain = () => sendChat({ text, refs, region:requestedRegion });
@@ -5518,7 +5512,7 @@
                         throw failure;
                     }
                     for await (const event of window.ChatSession.readEvents(res, responseTask.controller.signal)) {
-                            lastEventAt = Date.now();
+                            waitMonitor.activity();
                             if (event.type === 'meta' && event.conversation) {
                                 invalidateHistory();
                                 rememberConversation(event.conversation.id || conversationId);
@@ -5554,8 +5548,7 @@
                             }
                     }
                     // SSE 结束（后面可能进入生图阶段），撤掉等待监控，避免误中断出图任务。
-                    clearInterval(stallWatch); clearInterval(waitTicker);
-                    waitTimer.textContent = '';
+                    waitMonitor.stop();
                     responseTask.check();
                     if (thinking) paintThinking(bubble, thinking);
                     replyStream.push(full || '好的。');
@@ -5629,13 +5622,15 @@
                         if (candidate) offerChatImageGeneration(bubble, candidate, userRow._chatRefs || [], parameterContext);
                     }
                 } catch (err) {
+                    // 降级生图前结束对话监控，不能让旧 watchdog 中断后续生成。
+                    waitMonitor.stop();
                     replyStream.stop();
-                    const failure = stalled
+                    const failure = waitMonitor.timedOut
                         ? new Error('超过 2 分钟没有收到模型响应，已自动停止等待，可点「重新回答」重试')
                         : err;
                     if (videoRequested) responseTask.finish(failure);
                     // 对话模型压根用不了：不弹错误，改成和「右键直接出图」一样，把提示词直接交给生图模型
-                    if (failure && failure.chatUnavailable && !videoRequested && !stalled && !responseTask.cancelled && typed) {
+                    if (failure && failure.chatUnavailable && !videoRequested && !waitMonitor.timedOut && !responseTask.cancelled && typed) {
                         handedToImage = true;
                         try {
                             await fallBackToDirectImage(typed, refs, bubble, responseTask, failure.message);
@@ -5652,8 +5647,7 @@
                 } finally {
                     replyStream.stop();
                     responseTask.controller.signal.removeEventListener('abort', replyStream.stop);
-                    clearInterval(waitTicker); clearInterval(stallWatch);
-                    waitTimer.textContent = '';
+                    waitMonitor.stop();
                     if (!handedToImage) responseTask.finish(responseTask.error);
                     chatBusy = false;
                     if (sendBtn) sendBtn.disabled = false;

@@ -27,7 +27,7 @@ core/                                                 公共底座
 
 回复展示续批：`ChatTranscript.paintReply(bubble, parts, {render, onActions})` 复用正文节点并保留图片等其他内容；`createReplyStream({paint, onUpdate})` 管理逐步显示、完成等待与停止计时器。`splitChatReply` 等控制指令解析仍归页面业务。验证入口补充 `tests/test_chat_stream.cjs`（Unicode、内容改写、实例隔离和取消）。
 
-会话与传输：`static/modules/chat-conversations.js` 管理历史分页缓存与会话载入序列，拒绝过期、跨账号或生成开始后的读取结果；`chat-session.js` 管理 SSE 分块解码与 reader 释放；`chat-image-generation.js` 负责控制指令解析与逐批提交/保存顺序。页面继续装配引擎、模型和参数、任务 UI 及会话持久化绑定。验证：`test_chat_conversations.cjs`、`test_chat_session.cjs`、`test_chat_generation.cjs`。
+会话与传输：`static/modules/chat-conversations.js` 管理历史分页缓存与会话载入序列，拒绝过期、跨账号或生成开始后的读取结果；`chat-session.js` 管理 SSE 分块解码、reader 释放及 `createWaitMonitor({controller,onWait})` 的等待计时/空闲超时。`onWait` 接收累计秒数，清理时接收 null；`activity` 重置空闲期限，`stop` 幂等清理，`timedOut` 区分超时与用户停止。正常 SSE 结束、失败降级和 finally 都结束监控，避免旧计时器中断后续生图；`chat-image-generation.js` 负责控制指令解析与逐批提交/保存顺序。页面继续装配引擎、模型和参数、任务 UI 及会话持久化绑定。验证：`test_chat_conversations.cjs`、`test_chat_session.cjs`、`test_chat_wait.cjs`、`test_chat_generation.cjs`。
 
 缓存页面生命周期：`static/modules/page-lifecycle.js` 通过同源方法传递 iframe 激活状态，支持注册 activate/deactivate/dispose/canDispose。主界面切换通知子页面；聊天导航、普通画布计时、智能画布计时与兜底元数据轮询可暂停。未知页面及画布编辑器不自动淘汰；聊天页有任务、草稿或参考图时不淘汰。`test_page_lifecycle.cjs` 覆盖协议；浏览器已走通会话恢复、草稿保留和画布往返，完整性能及多工具验收仍待完成。
 

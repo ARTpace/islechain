@@ -1,6 +1,36 @@
-/* SSE transport only: rendering, persistence and generation decisions belong to callers. */
+/* Chat transport and wait lifetime; rendering and generation decisions belong to callers. */
 (function (root) {
     'use strict';
+    function createWaitMonitor({controller, onWait}) {
+        const startedAt = Date.now();
+        let lastEventAt = startedAt, timedOut = false, stopped = false;
+        let ticker, watchdog;
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            clearInterval(ticker);
+            clearInterval(watchdog);
+            controller.signal.removeEventListener('abort', stop);
+            onWait(null);
+        }
+        const monitor = {
+            activity() { if (!stopped) lastEventAt = Date.now(); },
+            stop,
+            get timedOut() { return timedOut; }
+        };
+        if (controller.signal.aborted) { stop(); return monitor; }
+        controller.signal.addEventListener('abort', stop, {once: true});
+        ticker = setInterval(() => {
+            if (!stopped) onWait(Math.floor((Date.now() - startedAt) / 1000));
+        }, 1000);
+        watchdog = setInterval(() => {
+            if (stopped || Date.now() - lastEventAt < 120000) return;
+            timedOut = true;
+            stop();
+            controller.abort();
+        }, 5000);
+        return monitor;
+    }
     async function* readEvents(response, signal) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -40,5 +70,5 @@
             reader.releaseLock();
         }
     }
-    root.ChatSession = {readEvents};
+    root.ChatSession = {readEvents, createWaitMonitor};
 })(window);
