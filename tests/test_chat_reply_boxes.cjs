@@ -1,5 +1,5 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
-const html=fs.readFileSync('static/app/zimage.html','utf8');
+const html=fs.readFileSync('static/app/generation-workspace.html','utf8');
 function element(tag) {
     return { tag, children:[], dataset:{}, scrollTop:0, scrollLeft:0,
         append(...nodes){this.children.push(...nodes);}, appendChild(node){this.children.push(node);},

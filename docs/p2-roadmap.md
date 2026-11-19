@@ -147,7 +147,7 @@ Week 19-20: 收尾与发布
 
 | 页面 | 优先级 | 预估工作量 |
 |---|---|---|
-| zimage.html | P1 | 2 天 |
+| generation-workspace.html | P1 | 2 天 |
 | klein.html | P1 | 3 天 |
 | angle.html | P1 | 2 天 |
 | rmbg.html | P1 | 1 天 |

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const html = fs.readFileSync('static/app/zimage.html', 'utf8').replace(/\r\n/g, '\n');
+const html = fs.readFileSync('static/app/generation-workspace.html', 'utf8').replace(/\r\n/g, '\n');
 const start = html.indexOf('        function dismissStudioMenus(event) {');
 const end = html.indexOf('        function ensurePromptPickerShell()', start);
 let handler;

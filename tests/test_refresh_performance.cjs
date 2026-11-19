@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const index = fs.readFileSync('static/index.html', 'utf8');
-const page = fs.readFileSync('static/app/zimage.html', 'utf8');
+const page = fs.readFileSync('static/app/generation-workspace.html', 'utf8');
 let requests=0, finish;
 const ctx={document:{hidden:false}, CID:'client', AbortSignal,
     fetch:()=>{requests++;return new Promise(resolve=>{finish=()=>resolve({json:async()=>({})});});}};

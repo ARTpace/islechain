@@ -34,7 +34,7 @@ static/
 │   ├── smart-canvas.js         # ✅ 智能画布（委托 canvas-engine）
 │   └── canvas-list.js          # ✅ 画布列表（委托 canvas-engine）
 ├── app/                        # 子页面 HTML（约 15 个）
-│   ├── zimage.html
+│   ├── generation-workspace.html
 │   ├── klein.html
 │   ├── angle.html
 │   ├── cgstyle.html

@@ -209,7 +209,7 @@ Playwright (E2E)
 优先级 1（低风险）：
   → settings/api-settings.html
   → settings/comfyui-settings.html
-  → app/zimage.html
+  → app/generation-workspace.html
 
 优先级 2（中风险）：
   → app/klein.html

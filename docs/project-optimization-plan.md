@@ -76,7 +76,7 @@
 | `main.py` | 约 9,800 行；许多路由反向导入入口 | 提取业务能力，入口保留装配 |
 | `static/js/smart-canvas.js` | 约 19,500 行 | 按画布状态、节点、交互、任务逐步划分 |
 | `static/js/canvas.js` | 约 14,600 行 | 先明确共享契约，再迁移公共能力 |
-| `static/app/zimage.html` | 约 7,400 行；混合布局、样式、对话与生成 | 优先拆展示与媒体，再拆会话及调度 |
+| `static/app/generation-workspace.html` | 约 7,400 行；混合布局、样式、对话与生成 | 优先拆展示与媒体，再拆会话及调度 |
 | 主题与组件样式 | 多份主题 CSS、页面内联及运行时样式共同参与 | 固定职责，减少跨层覆盖 |
 | 页面缓存 | 主界面保留多个 iframe，画布管理页保留编辑器 | 配套暂停、恢复、释放 |
 | `.github/workflows/ci.yml` | 已有 Python 检查；未见 Node 测试运行步骤 | 接入前端契约及回归测试 |
@@ -243,3 +243,10 @@ iframe 可通过同源方法或明确的消息协议接收激活状态；若使�
 第一批只做：zimage 样式分离、消息与图片展示抽取、相关测试接入，以及受影响模块的生命周期清理。不同时重写发送流程、生成后端或数据存储。
 
 交付物：模块源码、页面装配调整、直接相关测试、实际验收记录和更新后的 CODEMAP。验收通过后，再确定下一批会话与后端解耦范围。
+
+### 生成工作区入口改名（2026-11-19）
+
+- 真实页面改为 `static/app/generation-workspace.html`；旧 `zimage.html` 保留兼容跳转，保留查询参数与锚点。
+- 同步主导航、画布图片编辑入口、权限映射与测试读取路径；业务 ID 和存储键不变。
+- 验证：新旧入口权限映射测试、兼容跳转测试、资源版本检查、diff 检查通过；新页面业务内容与改名前一致（仅清理两处原有行尾空格）。
+- 扩展检查未全通过：`test_chat_parameters`、`test_chat_tasks`、`test_chat_video`、`test_dropdown_dismiss`、`test_load_log`、`test_local_image_models`、`test_local_reference_workflow`、`test_prompt_picker_dismiss`、`test_prompt_picker_live_apply` 存在断言或测试提取失败；权限测试原有三项也失败（认证替身缺失及菜单匹配）。本次未修改相关业务实现，未扩大修复范围。未做浏览器验收。

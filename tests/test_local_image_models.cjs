@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const editPage = fs.readFileSync(path.join(root, 'static/app/klein.html'), 'utf8');
-const textPage = fs.readFileSync(path.join(root, 'static/app/zimage.html'), 'utf8');
+const textPage = fs.readFileSync(path.join(root, 'static/app/generation-workspace.html'), 'utf8');
 const load = name => JSON.parse(fs.readFileSync(path.join(root, 'workflows', name), 'utf8'));
 
 for (const page of [editPage, textPage]) {

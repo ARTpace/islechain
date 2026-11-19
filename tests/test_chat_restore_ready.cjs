@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const html = fs.readFileSync('static/app/zimage.html', 'utf8').replace(/\r\n/g, '\n');
+const html = fs.readFileSync('static/app/generation-workspace.html', 'utf8').replace(/\r\n/g, '\n');
 const start = html.lastIndexOf("            if (document.readyState === 'loading')");
 const end = html.indexOf('\n        }\n    </script>', start);
 for (const readyState of ['loading', 'interactive', 'complete']) {

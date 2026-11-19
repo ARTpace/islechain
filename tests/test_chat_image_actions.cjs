@@ -32,7 +32,7 @@ assert.match(hosts[1][2].style.cssText,/right:8px;bottom:8px/);
 assert.match(hosts[0][0].style.cssText,/left:12px;bottom:12px/);
 assert.match(hosts[0][1].style.cssText,/right:12px;top:12px/);
 assert.equal(hosts[1][1].dataset.favUrl,'/image1.png');
-const page=read('static/app/zimage.html');
+const page=read('static/app/generation-workspace.html');
 // 参考图展示使用缩略图，发送和编辑仍保留原始地址。
 const referenceImages = [];
 const referenceContext = {

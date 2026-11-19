@@ -36,7 +36,7 @@ function functionSource(source, name, next = '\n        function ') {
     assert.ok(start >= 0 && end > start);
     return source.slice(start, end);
 }
-const textPage = fs.readFileSync(path.join(root, 'static/app/zimage.html'), 'utf8');
+const textPage = fs.readFileSync(path.join(root, 'static/app/generation-workspace.html'), 'utf8');
 const editPage = fs.readFileSync(path.join(root, 'static/app/klein.html'), 'utf8');
 for (const page of [textPage, editPage]) {
     for (const match of page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {

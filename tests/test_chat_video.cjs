@@ -37,7 +37,7 @@ async function run(){
     await assert.rejects(api.poll('job',new AbortController().signal),/upstream failed/);
     env.fetch=async(_,options)=>{if(options.signal.aborted)throw new DOMException('aborted','AbortError');return {ok:true,json:async()=>({status:'running'})};};
     const aborted=new AbortController();aborted.abort();await assert.rejects(api.poll('job',aborted.signal),/aborted/);
-    const html=fs.readFileSync('static/app/zimage.html','utf8');
+    const html=fs.readFileSync('static/app/generation-workspace.html','utf8');
     assert.match(html,/msg.video_urls/);assert.match(html,/videoRequested.*ChatVideo.readSpec/);
     assert.match(html,/!videoRequested && !stalled/,'video failures never fall back to image generation');
     console.log('Chat video: intent, parameters, one-click selection, reference payload, playback, persistence wiring, failure and cancellation OK');

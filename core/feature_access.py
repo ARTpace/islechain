@@ -59,7 +59,7 @@ async def required_modules(request):
         return {'tripo-studio'}
     if path == '/api/game-projects' or path.startswith('/api/game-projects/'):
         return {'canvas'}
-    if path == '/static/app/zimage.html':
+    if path in ('/static/app/zimage.html', '/static/app/generation-workspace.html'):
         return {'chat-gen' if request.query_params.get('chat') == '1' else 'zimage'}
     if path.startswith('/static/app/') and path.endswith('.html'):
         module = Path(path).stem

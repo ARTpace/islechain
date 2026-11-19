@@ -42,6 +42,7 @@ class FeatureAccessTests(unittest.TestCase):
         @self.app.get('/static/app/generation-dashboard.html')
         @self.app.get('/api/generation-data')
         @self.app.get('/static/app/zimage.html')
+        @self.app.get('/static/app/generation-workspace.html')
         async def page():return {'ok':True}
         @self.app.post('/api/generate')
         async def generate(request:features.Request):return await request.json()
@@ -60,10 +61,11 @@ class FeatureAccessTests(unittest.TestCase):
         result=self.call('/api/feature-access','POST',{'guest_disabled':['generation-dashboard','chat-gen']})
         self.assertEqual(result.status_code,200)
         self.assertEqual(self.call('/api/feature-access',guest=True).json()['visitor'],True)
-        for path in ('/static/app/generation-dashboard.html','/api/generation-data','/static/app/zimage.html?chat=1'):
+        for path in ('/static/app/generation-dashboard.html','/api/generation-data','/static/app/zimage.html?chat=1','/static/app/generation-workspace.html?chat=1'):
             self.assertEqual(self.call(path,guest=True).status_code,403)
             self.assertEqual(self.call(path).status_code,200)
-        self.assertEqual(self.call('/static/app/zimage.html',guest=True).status_code,200)
+        for path in ('/static/app/zimage.html', '/static/app/generation-workspace.html'):
+            self.assertEqual(self.call(path,guest=True).status_code,200)
         self.assertEqual(self.call('/api/feature-access','POST',{'guest_disabled':[]},guest=True).status_code,403)
         self.assertIn('chat-gen',features.guest_disabled())
 
@@ -86,6 +88,13 @@ class FeatureAccessTests(unittest.TestCase):
         source=Path('static/index.html').read_text(encoding='utf-8')
         catalog=source[source.index('            groups: ['):source.index('            map: function')]
         self.assertEqual(set(re.findall(r"id: '([^']+)'",catalog)),set(features.MODULES))
+
+    def test_workspace_entry_permissions_match_legacy(self):
+        for name in ('zimage', 'generation-workspace'):
+            for query, expected in (('', 'zimage'), ('chat=1', 'chat-gen'), ('canvasComposer=1', 'zimage')):
+                request = features.Request({'type': 'http', 'path': f'/static/app/{name}.html',
+                    'query_string': query.encode(), 'headers': []})
+                self.assertEqual(asyncio.run(features.required_modules(request)), {expected})
 
 
 if __name__=='__main__':unittest.main()

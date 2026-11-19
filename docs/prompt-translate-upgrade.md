@@ -10,7 +10,7 @@
 |---|---|---|
 | 系统字典 | `data/preset-i18n.json` | 英文 key → 中文名，约 10000+ 条 |
 | 双向映射 | `/api/preset-bidir` | 预设名 ↔ 预设 ID |
-| 翻译函数 | `app/zimage.html` | `translatePromptToCn()` / `translatePromptToEn()` 已实现逐条查字典 |
+| 翻译函数 | `app/generation-workspace.html` | `translatePromptToCn()` / `translatePromptToEn()` 已实现逐条查字典 |
 | API 翻译 | `/api/translate` | 百度翻译 / AI 模型，支持中↔英 |
 
 **问题**：智能画布（smart-canvas）的翻译按钮没有接入字典机制，直接走 API。

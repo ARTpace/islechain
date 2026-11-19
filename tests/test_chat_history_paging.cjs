@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const html = fs.readFileSync('static/app/zimage.html', 'utf8');
+const html = fs.readFileSync('static/app/generation-workspace.html', 'utf8');
 
 let open = false, more = null, markup = '', pending;
 const requests = [];

@@ -56,7 +56,7 @@ const api=ctx.window.ChatAssistant;
     const controller=new AbortController();controller.abort();
     await assert.rejects(api.composite(urls,{source:'source.png',x:0,y:0,width:1,height:1},controller.signal),/已取消/);
     assert.equal(uploadCount,before,'cancelled jobs must not upload');
-    const page=fs.readFileSync('static/app/zimage.html','utf8');
+    const page=fs.readFileSync('static/app/generation-workspace.html','utf8');
     assert.doesNotMatch(page,/\.slice\(0, 4\)/,'chat references must not be silently truncated');
     for(const m of page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/\bsrc=|application\/(?:ld\+)?json/i.test(m[1]))new vm.Script(m[2]);
     assert.equal((page.match(/await ChatAssistant.composite\(/g)||[]).length,2,'both local and API paths must compose before saving records');

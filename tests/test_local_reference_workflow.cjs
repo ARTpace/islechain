@@ -3,7 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
-const page = fs.readFileSync(path.join(root, 'static/app/zimage.html'), 'utf8');
+const page = fs.readFileSync(path.join(root, 'static/app/generation-workspace.html'), 'utf8');
 const start = page.indexOf('        async function buildLocalReferenceWorkflow(');
 const end = page.indexOf('        // === 主渲染逻辑 ===',start);
 const context = vm.createContext({fetch:async url=>({ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(root,'workflows',decodeURIComponent(url.split('/').pop())),'utf8'))})});

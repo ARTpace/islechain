@@ -49,7 +49,7 @@ assert.throws(() => api.applySampling({}, { steps:20 }), /工作流不支持/);
 assert.match(api.guide(current), /PARAMS/);
 assert.doesNotMatch(api.guide(current), /"res":|"batchCount":|"ratioW":/);
 assert.match(api.guide(current), /"resolution":1/);
-const page = fs.readFileSync('static/app/zimage.html', 'utf8');
+const page = fs.readFileSync('static/app/generation-workspace.html', 'utf8');
 for (const match of page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     if (!/\bsrc=|application\/(?:ld\+)?json/i.test(match[1])) new vm.Script(match[2]);
 }

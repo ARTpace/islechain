@@ -134,7 +134,7 @@ art-canvas/
 │   │   └── random-prompt.js            # 前端组件
 │   ├── test-random-prompt.html         # 测试页面
 │   └── app/
-│       └── zimage.html                 # 文生图界面（已集成）
+│       └── generation-workspace.html                 # 文生图界面（已集成）
 └── static/app/
     ├── character_data_full.js          # 角色数据
     └── artist_data.js                  # 画师数据

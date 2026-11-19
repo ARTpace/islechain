@@ -7,7 +7,7 @@ const response = {status: 403, headers: {get:key=>({'Server-Timing':'app;dur=12,
     'X-ArtCanvas-Boot':'new-boot','X-ArtCanvas-Perf':'20261027-2'}[key] || null)}};
 const context = {
     URL, Blob, Date, Math,
-    location: {href:'http://test/static/app/zimage.html?token=SECRET', origin:'http://test'},
+    location: {href:'http://test/static/app/generation-workspace.html?token=SECRET', origin:'http://test'},
     localStorage: {getItem:key=>store.get(key), setItem:(key,value)=>store.set(key,value)},
     performance: {now:()=>now, getEntriesByType:type=>type === 'resource' ? [{
         name:'http://test/api/conversations/private-id?token=SECRET', duration:70,

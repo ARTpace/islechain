@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const page = fs.readFileSync(path.join(__dirname, '../static/app/zimage.html'), 'utf8');
+const page = fs.readFileSync(path.join(__dirname, '../static/app/generation-workspace.html'), 'utf8');
 const script = page.match(/<script\b[^>]*src="\/static\/modules\/lora-manager\.js[^>]*><\/script>/);
 assert.ok(script);
 assert.doesNotMatch(script[0], /\b(?:defer|async)\b/, 'LoRA 模块必须先于内联别名执行');

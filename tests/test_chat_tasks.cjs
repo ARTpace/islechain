@@ -33,7 +33,7 @@ const tasks = ctx.window.ChatTasks;
     const failed = tasks.create(makeNode()); failed.snapshot = {workflow:{seed:42}};
     const failedRetry=created.at(-2); failed.finish(new Error('断网')); assert.match(failed.bar.children[0].textContent,/断网/);
     assert.equal(failedRetry.dataset.tip,'原参数重试');
-    const html = fs.readFileSync('static/app/zimage.html','utf8');
+    const html = fs.readFileSync('static/app/generation-workspace.html','utf8');
     const start = html.indexOf('        async function handleRender() {');
     const end = html.indexOf('        /* ==================== 在线API',start);
     let submitted, generated;

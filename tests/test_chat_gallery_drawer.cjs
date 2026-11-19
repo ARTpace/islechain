@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const html = fs.readFileSync('static/app/zimage.html', 'utf8');
+const html = fs.readFileSync('static/app/generation-workspace.html', 'utf8');
 assert.match(html, /nsfwEnabled:\s*false/);
 // 禁用后既不构建按钮，也不初始化过滤器、恢复旧过滤偏好。
 const extras = fs.readFileSync('static/modules/gallery/toolbar-extras.js', 'utf8');
