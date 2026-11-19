@@ -1173,6 +1173,7 @@ function canvasListUrlForProject(projectId){
 }
 function backToCanvasList(){
     savePromptDraftForCurrent();
+    if(window.parent !== window && window.parent.closeCanvasEditorInList?.()) return;
     window.location.href = canvasListUrlForProject(sourceProjectId || canvas?.project || 'default');
 }
 function promptPlainText(){
@@ -4952,7 +4953,7 @@ async function deletePromptTemplateGroup(groupId){
     const lib = activePromptLibrary();
     // 系统库的内置分组也走后端删除（后端已放开限制并把孤立条目改挂到剩余分组），两端同步。
     if(lib && !lib.readonly){
-        if(!window.confirm(tr('smart.tplDeleteGroupConfirm'))) return;
+        if(!(await window.StudioConfirm.ask(tr('smart.tplDeleteGroupConfirm')))) return;
         try {
             const data = await fetch(`/api/prompt-libraries/categories/${encodeURIComponent(groupId)}`, {method:'DELETE'})
                 .then(async r => { if(!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || '删除失败'); return r.json(); });
@@ -4962,7 +4963,7 @@ async function deletePromptTemplateGroup(groupId){
         } catch(err){ if(typeof setStatus === 'function') setStatus(err.message || '删除失败'); }
         return;
     }
-    if(!window.confirm(tr('smart.tplDeleteGroupConfirm'))) return;
+    if(!(await window.StudioConfirm.ask(tr('smart.tplDeleteGroupConfirm')))) return;
     promptTemplateGroups = promptTemplateGroups.filter(g => g.id !== groupId);
     promptPresets = promptPresets.map(p => p.category === groupId ? {...p, category:'mine'} : p);
     Object.entries(promptTemplateOverrides.editedBuiltins || {}).forEach(([id, item]) => {
@@ -7018,7 +7019,7 @@ function smartLogPreviewNode(url, kind='image'){
 async function deleteCanvasLogEntry(logId, deleteMedia=false){
     if(!canvas || !canvasId || !logId) return;
     const confirmText = deleteMedia ? tr('canvas.deleteLogMediaConfirm') : tr('canvas.deleteLogConfirm');
-    if(!confirm(confirmText)) return;
+    if(!(await window.StudioConfirm.ask(confirmText))) return;
     try {
         if(saveTimer){
             clearTimeout(saveTimer);
@@ -7123,10 +7124,10 @@ function renderSmartCanvasLog(){
     bindLogCopy('[data-prompt]', 'prompt');
     bindLogCopy('[data-error]', 'error');
     smartLogList.querySelectorAll('[data-log-delete]').forEach(button => {
-        button.onclick = e => {
+        button.onclick = async e => {
             e.stopPropagation();
             const logId = button.closest('[data-canvas-log-id]')?.dataset.canvasLogId || '';
-            deleteCanvasLogEntry(logId, button.dataset.logDelete === 'media');
+            (await deleteCanvasLogEntry(logId, button.dataset.logDelete === 'media'));
         };
     });
     refreshIcons();
@@ -16955,7 +16956,7 @@ promptPresetPanel?.addEventListener('click', e => e.stopPropagation());
 promptTemplatePanel?.addEventListener('pointerdown', e => e.stopPropagation());
 promptTemplatePanel?.addEventListener('mousedown', e => e.stopPropagation());
 promptTemplatePanel?.addEventListener('wheel', e => e.stopPropagation(), {passive:false});
-promptTemplatePanel?.addEventListener('click', e => {
+promptTemplatePanel?.addEventListener('click', async e => {
     e.stopPropagation();
     const apply = e.target.closest('[data-template-apply]');
     if(apply){ applyPromptTemplateToNode(apply.dataset.templateApply || 'positive'); return; }
@@ -16981,7 +16982,7 @@ promptTemplatePanel?.addEventListener('click', e => {
     }
     const catDelete = e.target.closest('[data-template-cat-delete]');
     if(catDelete){
-        deletePromptTemplateGroup(catDelete.dataset.templateCatDelete || '');
+        (await deletePromptTemplateGroup(catDelete.dataset.templateCatDelete || ''));
         return;
     }
     if(e.target.closest('[data-template-group-edit]')){

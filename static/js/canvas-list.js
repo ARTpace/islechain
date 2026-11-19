@@ -140,8 +140,9 @@ function resetView(){
 /* ===== Board pan & zoom ===== */
 let panState = null;
 function onBoardPanStart(e){
-    if(e.button !== 0) return;
-    if(e.target.closest('.ws-card') || e.target.closest('.ws-create-card') || e.target.closest('.ws-card-pop') || e.target.closest('button,input,textarea,select')) return;
+    if(e.button !== 1) return;
+    if(e.target.closest('input,textarea,select')) return;
+    e.preventDefault();
     closeCardMenu();
     panState = { startX: e.clientX, startY: e.clientY, ox: viewport.x, oy: viewport.y, moved: false };
     board.classList.add('panning');
@@ -540,13 +541,33 @@ function attachCardDrag(card, c){
     });
 }
 
+let canvasEditorFrame = null;
+function closeCanvasEditorInList(){
+    if(!canvasEditorFrame) return false;
+    canvasEditorFrame.hidden = true;
+    window.frameElement?.classList.remove('canvas-editor');
+    return true;
+}
+
 function openCanvas(c){
     const enc = encodeURIComponent(c.id);
     const project = encodeURIComponent(c.project || currentProjectId || 'default');
     rememberProjectId(c.project || currentProjectId || 'default');
-    window.location.href = (c.kind === 'smart')
+    const url = (c.kind === 'smart')
         ? `/static/smart-canvas.html?id=${enc}&project=${project}&fromCanvasList=1&v=20261105preset1`
         : `/static/canvas.html?id=${enc}&project=${project}&fromCanvasList=1&v=20261105web1`;
+    if(!canvasEditorFrame){
+        canvasEditorFrame = document.createElement('iframe');
+        canvasEditorFrame.title = L('画布编辑器', 'Canvas editor');
+        canvasEditorFrame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:300;background:var(--page)';
+        document.body.appendChild(canvasEditorFrame);
+    }
+    if(canvasEditorFrame.dataset.url !== url){
+        canvasEditorFrame.dataset.url = url;
+        canvasEditorFrame.src = url;
+    }
+    canvasEditorFrame.hidden = false;
+    window.frameElement?.classList.add('canvas-editor');
 }
 
 /* ===== Card create flow ===== */
@@ -943,7 +964,8 @@ async function persistMeta(id, patch){
             const idx = canvases.findIndex(x => x.id === id);
             if(idx >= 0) canvases[idx] = { ...canvases[idx], ...data.canvas };
         }
-    } catch(e){ console.error(e); setStatus(L('保存失败','Save failed')); }
+        return true;
+    } catch(e){ console.error(e); setStatus(L('保存失败','Save failed')); return false; }
 }
 
 /* ===== Delete canvas (soft -> trash, with confirm) ===== */
@@ -1060,7 +1082,7 @@ async function purgeCanvas(id){
 }
 
 /* ===== Event bindings ===== */
-board.addEventListener('mousedown', onBoardPanStart);
+board.addEventListener('mousedown', onBoardPanStart, true);
 document.addEventListener('mousemove', onBoardPanMove);
 document.addEventListener('mouseup', onBoardPanEnd);
 board.addEventListener('wheel', onBoardWheel, { passive: false });

@@ -11,7 +11,7 @@ const reverse = fs.readFileSync('static/modules/reverse-image.js', 'utf8');
 assert.match(reverse, /provider: 'vision'/);
 assert.doesNotMatch(reverse, /data-act="provider" data-value="comfyui"/);
 const html = fs.readFileSync('static/app/zimage.html', 'utf8');
-assert.match(html, /const spec = descriptionOnly \? null : readImageSpec\(full\)/);
+assert.match(html, /const spec = descriptionOnly \? null : videoRequested \? null : readImageSpec\(full, typed\)/);
 for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
     if (!/\bsrc\s*=/.test(m[1]) && !/type\s*=\s*["'](?:module|application\/json)/.test(m[1])) new Function(m[2]);
 }

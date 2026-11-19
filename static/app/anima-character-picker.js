@@ -1901,13 +1901,13 @@ function pickerClearAll() { pickerSelected = []; pickerUpdateSelectedChips(); pi
 
 
 
-function pickerClearList(type, e) {
+async function pickerClearList(type, e) {
 
 
     e.stopPropagation();
 
 
-    if (!confirm(type === 'favorites' ? '确定清空所有收藏？' : '确定清空所有历史记录？')) return;
+    if (!(await window.StudioConfirm.ask(type === 'favorites' ? '确定清空所有收藏？' : '确定清空所有历史记录？'))) return;
 
 
     if (type === 'favorites') {

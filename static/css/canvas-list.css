@@ -104,11 +104,11 @@ html[data-studio-scale="off"].studio-scale-managed .workspace {
 .ws-project-row.active .ws-proj-act.del:hover { color:var(--ui-text); background:rgba(248, 113, 113, .22); }
 
 /* delete-confirm inline */
-.ws-project-confirm { display:flex; flex-direction:column; gap:7px; padding:10px; margin:2px 0; border-radius:8px; background:var(--strong); box-shadow:0 10px 24px var(--shadow); }
-.ws-project-confirm-title { color:var(--strong-text); font-size:11px; font-weight:800; line-height:1.4; }
+.ws-project-confirm { display:flex; flex-direction:column; gap:7px; padding:10px; margin:2px 0; border-radius:8px; background:var(--ui-panel); border:1px solid var(--ui-line); box-shadow:0 10px 24px var(--shadow); }
+.ws-project-confirm-title { color:var(--ui-text); font-size:11px; font-weight:800; line-height:1.4; }
 .ws-project-confirm-actions { display:flex; gap:6px; }
 .ws-confirm-btn,.ws-cancel-btn { flex:1; height:26px; border-radius:999px; font-size:11px; font-weight:800; cursor:pointer; border:none; }
-.ws-confirm-btn { background:#dc2626; color:var(--ui-text); }
+.ws-confirm-btn { background:#dc2626; color:#fff; }
 .ws-confirm-btn:hover { background:#b91c1c; }
 .ws-cancel-btn { background:var(--soft); color:var(--text); border:1px solid var(--line); }
 
@@ -655,3 +655,34 @@ html body #boardWorld .ws-card-meta { padding:0; background:transparent; border:
     .ws-project-row .ws-project-actions { display:flex; }
     .ws-project-row .ws-project-count { display:none; }
 }
+
+/* 管理区常用操作直接显示图标，保持原点击区域与键盘焦点。 */
+#workspace :is(.ws-side-add, .ws-topbar-right > button, .ws-assets-actions > button) {
+    background:transparent !important;
+    border-color:transparent !important;
+    box-shadow:none !important;
+    color:var(--ui-muted) !important;
+    backdrop-filter:none !important;
+}
+#workspace :is(.ws-side-add, .ws-topbar-right > button, .ws-assets-actions > button):hover {
+    color:var(--ui-text) !important;
+}
+#workspace :is(.ws-topbar-right, .ws-assets-actions) > button.active {
+    color:var(--accent) !important;
+}
+
+/* 管理视图批量选择；操作条始终直接可达，沿用主题色。 */
+#workspace .ws-board { cursor:default; }
+#workspace .ws-board.panning { cursor:grabbing; }
+#boardWorld .ws-card.is-selected::before,
+#boardWorld .ws-card.is-selected::after { border-color:var(--accent); }
+.ws-selection-box { display:none; position:absolute; z-index:12; pointer-events:none; border:1px solid var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); }
+.ws-selection-tools { display:flex; align-items:center; flex-wrap:nowrap; gap:10px; padding:0; margin-right:auto; flex:0 0 auto; color:var(--ui-text); font-size:12px; white-space:nowrap; }
+#workspace .ws-topbar { flex-wrap:nowrap; overflow-x:auto; }
+#workspace .ws-topbar-left { flex-shrink:0; }
+#workspace .ws-topbar-right { flex-wrap:nowrap; }
+.ws-selection-tools[hidden] { display:none; }
+.ws-selection-tools button,.ws-selection-tools select,.ws-pop-project { padding:6px 8px; border:1px solid var(--ui-line); border-radius:var(--ui-r-sm,6px); background:var(--ui-soft); color:var(--ui-text); cursor:pointer; font:inherit; }
+.ws-selection-tools button[data-action="delete"] { color:var(--danger,#dc2626); }
+.ws-selection-tools :disabled { opacity:.5; cursor:wait; }
+.ws-pop-project { width:calc(100% - 12px); margin:4px 6px; }

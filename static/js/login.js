@@ -11,6 +11,27 @@ var loginForm = document.getElementById('loginForm');
 var loginBtn = document.getElementById('loginBtn');
 var rememberMe = document.getElementById('rememberMe');
 var forgotPassword = document.getElementById('forgotPassword');
+var authSwitch = document.getElementById('authSwitch');
+var confirmPassword = document.getElementById('confirmPassword');
+var registering = false;
+var busy = false;
+// ponytail: 复用同一表单和现有认证接口，不增加页面或依赖。
+function setMode(register) {
+    if (busy) return;
+    registering = register;
+    document.getElementById('loginTitle').textContent = register ? '创建屿链账号' : '欢迎来到屿链';
+    document.getElementById('authSubtitle').textContent = register ? '注册后即可进入你的创作工作台' : '连接灵感，开启你的创作之旅';
+    document.getElementById('confirmPasswordField').hidden = !register;
+    document.getElementById('authSwitchHint').textContent = register ? '已有账号？' : '还没有账号？';
+    authSwitch.textContent = register ? '返回登录' : '立即注册';
+    loginBtn.querySelector('.label').textContent = register ? '注册并进入 →' : '登录 →';
+    forgotPassword.hidden = register;
+    passwordInput.autocomplete = register ? 'new-password' : 'current-password';
+    confirmPassword.value = '';
+    hideError();
+    usernameInput.focus();
+}
+authSwitch.addEventListener('click', function () { setMode(!registering); });
 
 /* 前端仅记住账号；不保存密码，也不改变现有令牌的存储契约。 */
 try {
@@ -45,10 +66,13 @@ function hideError() {
         if (!loginError.classList.contains('is-on')) errorText.textContent = '';
     }, 240);
 }
-function setBusy(busy) {
+function setBusy(value) {
+    busy = value;
     loginBtn.classList.toggle('is-busy', busy);
     loginBtn.disabled = busy;
     forgotPassword.disabled = busy;
+    authSwitch.disabled = busy;
+    [usernameInput, passwordInput, confirmPassword].forEach(function (input) { input.disabled = busy; });
     loginBtn.setAttribute('aria-busy', busy ? 'true' : 'false');
 }
 function enterApp(data) {
@@ -62,10 +86,12 @@ function enterApp(data) {
 }
 
 async function submitAuth(path, label) {
+    if (busy) return;
     var username = usernameInput.value.trim();
     var password = passwordInput.value;
     if (!username) { showError('请输入用户名', usernameInput); return; }
     if (!password) { showError('请输入密码', passwordInput); return; }
+    if (registering && password !== confirmPassword.value) { showError('两次输入的密码不一致', confirmPassword); return; }
     hideError();
     setBusy(true);
     try {
@@ -76,7 +102,7 @@ async function submitAuth(path, label) {
         });
         if (!resp.ok) {
             var err = await resp.json().catch(function () { return {}; });
-            showError(err.detail || (label + '失败'));
+            showError(typeof err.detail === 'string' ? err.detail : (label + '失败，请检查用户名和密码'));
             return;
         }
         enterApp(await resp.json());
@@ -87,7 +113,7 @@ async function submitAuth(path, label) {
     }
 }
 
-function doLogin() { return submitAuth('/api/auth/login', '登录'); }
+function doLogin() { return submitAuth(registering ? '/api/auth/register' : '/api/auth/login', registering ? '注册' : '登录'); }
 
 
 loginForm.addEventListener('submit', function (e) {
@@ -99,7 +125,7 @@ forgotPassword.addEventListener('click', function () {
 });
 
 /* 开始修正输入时立刻收起错误，不打断输入 */
-[usernameInput, passwordInput].forEach(function (el) {
+[usernameInput, passwordInput, confirmPassword].forEach(function (el) {
     el.addEventListener('input', hideError);
 });
 
@@ -113,6 +139,9 @@ togglePwd.addEventListener('click', function () {
 });
 
 usernameInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+});
+confirmPassword.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
 });
 passwordInput.addEventListener('keydown', function (e) {

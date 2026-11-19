@@ -165,10 +165,10 @@
         if (task === 'preview') frame.setAttribute('sandbox', 'allow-scripts');
         shell.append(header, frame); document.body.append(shell);
         const dismiss = async () => {
-            if (task !== 'preview' && !confirm('返回画布前，请确认已保存侧栏内的修改。关闭会放弃未保存输入。')) return;
+            if (task !== 'preview' && !(await window.StudioConfirm.ask('返回画布前，请确认已保存侧栏内的修改。关闭会放弃未保存输入。'))) return;
             shell.close(); shell.remove(); await window.GamePipeline.canvasLoaded();
         };
-        close.onclick = dismiss; shell.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
+        close.onclick = dismiss; shell.addEventListener('cancel', async event => { event.preventDefault(); (await dismiss()); });
         shell.showModal();
     }
     async function advanceCandidate(node, c) {
@@ -256,7 +256,7 @@
                 if (action === 'template-3d') {
                     const workspace=await request(node,'/workspace');
                     if(!workspace.active) throw Error('请先准备工程');
-                    if(!confirm('安装 3D 起步场景将替换当前游戏入口，并保存工程恢复点。确认继续？')) return;
+                    if(!(await window.StudioConfirm.ask('安装 3D 起步场景将替换当前游戏入口，并保存工程恢复点。确认继续？'))) return;
                     await request(node,'/workspace/template-3d','POST',{baseRevision:workspace.revision});
                     delete node.build;delete node.codeCandidate;scheduleSave();notices.set(node.id,'已安装 3D 场景，请更新试玩版本；可继续让 AI 开发玩法。');return;
                 }
@@ -300,7 +300,7 @@
                     if (!model) throw new Error('请先选择已配置的聊天模型。');
                     const instruction=node.instruction?.trim() || '';
 
-                    if(!confirm('模型将按需搜索工程、增删移动文件，并在独立浏览器观察画面、运行回归，最多调用32步；关闭页面仍继续，可暂停。候选不会自动采用，可能产生多次渠道费用，是否继续？')) return;
+                    if(!(await window.StudioConfirm.ask('模型将按需搜索工程、增删移动文件，并在独立浏览器观察画面、运行回归，最多调用32步；关闭页面仍继续，可暂停。候选不会自动采用，可能产生多次渠道费用，是否继续？'))) return;
                     const input=signature(node);
                     const c=await request(node, '/code-candidates/maintenance', 'POST', {baseRevision:workspace.revision,requestId:crypto.randomUUID(),instruction:instruction || (action === 'repair' ? '修复当前构建诊断中的源码语法错误，保留原有玩法和其他正确实现。' : '根据已确认策划开发首个可玩版本，按需新建或修改模块，完成核心操作、胜负与重开并用行为回归验证。'),mode:action === 'repair' ? 'repair' : 'edit',provider:model.provider,model:model.model,maxSteps:32});
                     delete node.developmentTask;
@@ -310,7 +310,7 @@
                 if (action === 'generate') {
                     const model = window.GameWorkflow.selectedChatModel(node);
                     if (!model) throw new Error('请先选择已配置的聊天模型。');
-                    if (!confirm('调用所选模型规划多文件工程，可能产生渠道费用。候选不会自动应用，是否继续？')) return;
+                    if (!(await window.StudioConfirm.ask('调用所选模型规划多文件工程，可能产生渠道费用。候选不会自动应用，是否继续？'))) return;
                     const input = signature(node);
                     const instruction = node.instruction?.trim() || '';
                     const tables = incoming(node).filter(n => n.type === 'gameTable').map(n => project().tables.find(t => t.id === n.tableId));
@@ -323,18 +323,18 @@
                 }
                 if (action === 'continue') {
                     if (node.candidateInput !== signature(node) || (node.candidateInstruction || '').trim() !== (node.instruction || '').trim()) throw new Error('输入已变化，请重新规划。');
-                    if (!confirm('按工程方案逐文件调用模型，可能产生多次渠道费用。失败后保留进度，不自动重试。是否继续？')) return;
+                    if (!(await window.StudioConfirm.ask('按工程方案逐文件调用模型，可能产生多次渠道费用。失败后保留进度，不自动重试。是否继续？'))) return;
                     paused.delete(node.id);
                     let c = await request(node, `/code-candidates/${encodeURIComponent(node.codeCandidate.candidateId)}`);
                     await advanceCandidate(node,c); return;
                 }
                 if (action === 'apply') {
                     const c = node.codeCandidate;
-                    if(c?.kind === 'engineering' && c.status === 'ready') {if(!confirm('采用前需调用模型补充运行回归，可能产生渠道费用，是否继续？')) return; const updated=await request(node, `/code-candidates/${encodeURIComponent(c.candidateId)}/next`, 'POST', {completed:c.completedFiles}); paused.delete(node.id); await advanceCandidate(node,updated); return;}
+                    if(c?.kind === 'engineering' && c.status === 'ready') {if(!(await window.StudioConfirm.ask('采用前需调用模型补充运行回归，可能产生渠道费用，是否继续？'))) return; const updated=await request(node, `/code-candidates/${encodeURIComponent(c.candidateId)}/next`, 'POST', {completed:c.completedFiles}); paused.delete(node.id); await advanceCandidate(node,updated); return;}
                     if (c?.status !== 'ready') throw new Error('没有可采用的代码候选。');
                     if (node.candidateInput !== signature(node)) throw new Error('上游已变化，请重新生成候选。');
                     if ((node.candidateInstruction || '').trim() !== (node.instruction || '').trim()) throw new Error('修改要求已变化，请重新生成候选。');
-                    if (!confirm('确认已审阅候选？采用后保存恢复点，仍需重新构建与实际测试。')) return;
+                    if (!(await window.StudioConfirm.ask('确认已审阅候选？采用后保存恢复点，仍需重新构建与实际测试。'))) return;
                     const applied=await request(node, `/code-candidates/${encodeURIComponent(c.candidateId)}/apply`, 'POST', {baseRevision:workspace.revision});
                     delete node.codeCandidate; delete node.build; scheduleSave(); notices.set(node.id, '已采用代码，尚未验证；请更新试玩版本。');
                     if(c.kind === 'maintenance') await buildCurrent(node, applied);

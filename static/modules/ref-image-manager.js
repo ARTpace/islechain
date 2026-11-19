@@ -119,6 +119,9 @@
       'body.studio-theme-dark .ref-chip:hover{background:rgba(6, 182, 212, 0.2);border-color:rgba(6, 182, 212, 0.7);}' +
       // contenteditable placeholder
       '.prompt-editable:empty::before{content:attr(data-placeholder);color:rgba(128,128,128,0.5);pointer-events:none;}' +
+      // 图片拖入输入框时的落点高亮（只加 class，不写行内样式，方便主题覆盖）
+      '.ref-mgr-prompt-dropover{outline:2px dashed color-mix(in srgb, var(--ui-accent, #06b6d4) 80%, transparent);' +
+      'outline-offset:-2px;border-radius:8px;background:color-mix(in srgb, var(--ui-accent, #06b6d4) 6%, transparent);}' +
       // ── 占位（保留旧 API 兼容，实际不再使用） ──
       // 侧边栏容器（宽 120px 容纳 108px 堆叠 + 边距）
       '.ref-img-sidebar{width:120px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;' +
@@ -153,6 +156,13 @@
     // 状态
     this._images = []; // { file, url, name }
     this._ig = null;
+    // 提示词输入框（contenteditable）与「下一次插入的位置」锚点。
+    // addFiles(files,{insertRange}) 负责设置，_renderChips() 消费后立即清空；
+    // 不传锚点时保持旧行为（追加到末尾），因此删除/重排/历史恢复等入口不受影响。
+    this.promptEl = options.promptEl || document.getElementById('prompt') || null;
+    this._pendingInsertRange = null;
+    // 策略缝：URL → File 的转换可替换（默认同源 fetch），将来接跨域代理时不用改这里
+    this._urlToFile = options.urlToFile || null;
 
     // 回调
     this._onReverseApply = options.onReverseApply || null;
@@ -198,10 +208,106 @@
           }
         }
       }
-      if (files.length > 0) self._handleFiles(files);
+      if (files.length > 0) self._handleFiles(files, { insertRange: self._currentRange() });
     });
 
-    // ── 拖拽上传 ──
+    // ── 输入框拖入图片（宿主用 enablePromptDrop 开启）──
+    // 监听放在 document 捕获阶段，而不是 .prompt-wrapper 的冒泡阶段：
+    // ① 子元素/覆盖层 stopPropagation 不会截断；② 跨 iframe 落点也能接住；
+    // ③ 覆盖整个输入栏（含按钮行、边缘），不再要求精确命中可编辑区。
+    if (options.enablePromptDrop && self.promptEl && self.promptEl.isContentEditable) {
+      var pe = self.promptEl;
+      var zone = options.dropZone || pe.closest('.prompt-wrapper') || pe;
+      self.dropZone = zone;
+      var hover = function (on) { zone.classList.toggle('ref-mgr-prompt-dropover', !!on); };
+      var resetHover = function () { hover(false); };
+      // 只接管「文件」「图片链接」「应用内部图片」，纯文本拖入仍交给浏览器默认行为。
+      // 注意不认单独的 text/html：dragover 处于 protected mode 读不到内容，
+      // 提前 preventDefault 会把普通富文本拖入吞掉（真实拖 <img> 必带 uri-list）。
+      var acceptable = function (dt) {
+        if (!dt) return false;
+        var types = Array.prototype.slice.call(dt.types || []);
+        // 部分应用（聊天窗口 / 网页）拖图片只塞 text/html 里一个 <img>，
+        // 没有 uri-list；先放行，drop 阶段再校验内容，避免把普通文字拖拽吞掉。
+        if (types.indexOf('Files') >= 0 || types.indexOf('text/uri-list') >= 0 ||
+            types.indexOf('text/html') >= 0) return true;
+        var d = global.InternalImageDrag;
+        return !!(d && d.isInternal(dt));
+      };
+      var isInternalType = function (t) {
+        var d = global.InternalImageDrag;
+        return !!(d && d.MIMES && d.MIMES.indexOf(t) >= 0);
+      };
+      // 落点判定：DOM 归属优先，输入栏矩形（略外扩）兜底
+      var inZone = function (e) {
+        var t = e.target;
+        if (t && zone.contains && zone.contains(t)) return true;
+        try {
+          var r = zone.getBoundingClientRect();
+          var pad = 24;
+          return e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
+                 e.clientY >= r.top - pad && e.clientY <= r.bottom + pad;
+        } catch (_) { return false; }
+      };
+      // dropEffect 必须与源的 effectAllowed 兼容，否则浏览器判定不合法、根本不触发 drop
+      var applyEffect = function (dt) {
+        if (!dt) return;
+        var allowed = '';
+        try { allowed = String(dt.effectAllowed || ''); } catch (_) {}
+        var want = 'copy';
+        if (/move/i.test(allowed) && !/copy|link|all/i.test(allowed)) want = 'move';
+        else if (/link/i.test(allowed) && !/copy|move|all/i.test(allowed)) want = 'link';
+        try { dt.dropEffect = want; } catch (_) {}
+      };
+      var handleDrop = function (e) {
+        if (e.__refMgrDropHandled) return;
+        var dt = e.dataTransfer;
+        if (!acceptable(dt) || !inZone(e)) return;
+        var types = Array.prototype.slice.call(dt.types || []);
+        var hasDirect = types.some(function (t) {
+          return t === 'Files' || t === 'text/uri-list' || isInternalType(t);
+        });
+        if (!hasDirect) {
+          // 只有 text/html：确实是图片才接管，普通文字拖入交回浏览器默认行为
+          var html = '';
+          try { html = dt.getData('text/html') || ''; } catch (_) {}
+          if (!/<img\b/i.test(html)) return;
+        }
+        e.__refMgrDropHandled = true;
+        e.preventDefault(); e.stopPropagation();
+        resetHover();
+        var at = self._rangeFromPoint(e) || self._currentRange();
+        var picked = Array.prototype.slice.call(dt.files || []).filter(function (f) {
+          return f && (!f.type || String(f.type).indexOf('image/') === 0);
+        });
+        if (picked.length) {
+          self.addFiles(picked, { insertRange: at });
+          pe.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          self._ingestDroppedUrls(dt, at);
+        }
+      };
+      document.addEventListener('dragenter', function (e) {
+        if (!acceptable(e.dataTransfer) || !inZone(e)) return;
+        e.preventDefault();
+        hover(true);
+      }, true);
+      document.addEventListener('dragover', function (e) {
+        if (!acceptable(e.dataTransfer) || !inZone(e)) return;
+        e.preventDefault();              // 必须：否则浏览器不允许在该处 drop
+        e.stopPropagation();             // 防止其它模块把 dropEffect 改回 none
+        applyEffect(e.dataTransfer);
+        hover(true);
+      }, true);
+      document.addEventListener('drop', handleDrop, true);
+      document.addEventListener('dragleave', function (e) {
+        if (e.clientX <= 0 || e.clientY <= 0) resetHover();
+      }, true);
+      window.addEventListener('drop', resetHover, true);
+      window.addEventListener('dragend', resetHover, true);
+    }
+
+    // ── 拖拽上传（缩略图容器，保留原能力）──
     var _dragCounter = 0;
     this.container.addEventListener('dragenter', function (e) {
       e.preventDefault();
@@ -256,9 +362,191 @@
     });
   };
 
-  // ── 处理文件 ──
-  RefImageManager.prototype._handleFiles = function (files) {
+  // ── 插入位置：取当前光标 Range（必须落在提示词框内，否则交给默认追加逻辑）──
+  RefImageManager.prototype._currentRange = function () {
+    try {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        var r = sel.getRangeAt(0);
+        if (this.promptEl && this.promptEl.contains(r.startContainer)) return r.cloneRange();
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  // ── 插入位置：把 drop 的屏幕坐标换算成输入框内的光标 Range ──
+  RefImageManager.prototype._rangeFromPoint = function (e) {
+    var pe = this.promptEl;
+    if (!pe || e == null) return null;
+    try {
+      var r = null;
+      if (typeof document.caretRangeFromPoint === 'function') {
+        r = document.caretRangeFromPoint(e.clientX, e.clientY);
+      } else if (typeof document.caretPositionFromPoint === 'function') {
+        var p = document.caretPositionFromPoint(e.clientX, e.clientY);
+        if (p && p.offsetNode) {
+          r = document.createRange();
+          r.setStart(p.offsetNode, p.offset);
+          r.collapse(true);
+        }
+      }
+      if (r && pe.contains(r.startContainer)) return r;
+    } catch (_) {}
+    return null;
+  };
+
+  // ── URL → File 默认策略（同源 fetch；内容类型缺失时按扩展名兜底）──
+  RefImageManager.prototype._defaultUrlToFile = function (u) {
     var self = this;
+    var drag = global.InternalImageDrag;
+    return fetch(u).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      if (!blob) return null;
+      var type = String(blob.type || '');
+      if (type.indexOf('image/') !== 0) {
+        // 鉴权页 / 404 返回 HTML 时不能静默吞掉：按失败处理，走下面的源图位图回退
+        var guess = ((drag && drag.fileName(u)) || String(u)).match(/\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+        if (!guess) throw new Error('response is not an image');
+        var sub = guess[1].toLowerCase() === 'jpg' ? 'jpeg' : guess[1].toLowerCase();
+        type = 'image/' + sub;
+      }
+      var ext = (type.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '');
+      var name = (drag && drag.fileName(u)) ||
+        ('dropped_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '.' + ext);
+      return new File([blob], name, { type: type });
+    }).catch(function () {
+      // 跨域 / 404 / 需鉴权的原图地址取不到时，退回拖拽源已加载的位图，
+      // 避免「拖了完全没反应」。同源图可画进 canvas；跨域图会 taint，安全降级为 null。
+      var src = drag && drag.lastSource && drag.lastSource();
+      if (!src || !src.el || !src.el.complete || !src.el.naturalWidth) return null;
+      return self._elementToFile(src.el, src.name || 'dropped.png');
+    });
+  };
+
+  // 把已加载的 <img> 画进 canvas 转 File（失败一律返回 null，不抛异常）
+  RefImageManager.prototype._elementToFile = function (img, name) {
+    return new Promise(function (resolve) {
+      try {
+        var c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        c.toBlob(function (blob) {
+          resolve(blob ? new File([blob], name, { type: blob.type || 'image/png' }) : null);
+        }, 'image/png');
+      } catch (_) { resolve(null); }
+    });
+  };
+
+  // ── 拖入的不是本地文件，而是应用内部图片 / 网页 <img> / 图片 URL ──
+  RefImageManager.prototype._ingestDroppedUrls = function (dt, at) {
+    var self = this;
+    var drag = global.InternalImageDrag;
+    var urls = [];
+    var push = function (u, strict) {
+      u = String(u || '').trim();
+      if (!u || u.charAt(0) === '#') return;
+      if (drag) u = drag.originalUrl(u);   // 缩略图接口还原成原图，避免生成时上传低清图
+      // 内部端点 / 无扩展名 URL 也接受；text/plain 仍要求明显是图片，避免误收纯文本
+      if (!/^https?:\/\/|^\/|^blob:|^data:image\//i.test(u)) return;
+      if (strict && !/\.(png|jpe?g|webp|gif|bmp|avif|tiff?)(\?|$)/i.test(u)) return;
+      if (urls.indexOf(u) < 0) urls.push(u);
+    };
+    // 1) 应用内部图片：对话消息图 / 生成展示区图 / 画布输出图（统一自定义 MIME）
+    if (drag) drag.collect(dt).forEach(function (u) { push(u, false); });
+    // 1b) 跨 iframe / protected mode 下自定义 MIME 可能取不到，用拖拽源记录兜底
+    if (drag && drag.lastSource) {
+      var src = drag.lastSource();
+      if (src && src.url && Date.now() - (src.ts || 0) < 15000) push(src.url, false);
+    }
+    // 2) 网页 / 聊天记录里的 <img>
+    try {
+      var html = dt.getData('text/html') || '';
+      if (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        Array.prototype.forEach.call(doc.querySelectorAll('img[src]'), function (im) {
+          push(im.getAttribute('src'), false);
+        });
+      }
+    } catch (_) {}
+    // 3) URI 列表（画布输出图走这里，故不要求扩展名）
+    try {
+      String(dt.getData('text/uri-list') || '').split(/\r?\n/).forEach(function (line) {
+        push(line, false);
+      });
+    } catch (_) {}
+    // 4) 纯文本兜底：严格判定，避免把普通文字当成图片
+    if (!urls.length) {
+      try {
+        String(dt.getData('text/plain') || '').split(/\r?\n/).forEach(function (line) {
+          push(line, true);
+        });
+      } catch (_) {}
+    }
+    if (!urls.length) {
+      // 连 URL 都拿不到（例如某些应用只塞了位图、跨 frame 丢了 MIME）：
+      // 直接用拖拽源里已加载的 <img> 位图，保证「拖了就有图」。
+      var onlySrc = drag && drag.lastSource && drag.lastSource();
+      if (onlySrc && onlySrc.el && onlySrc.el.complete && onlySrc.el.naturalWidth) {
+        self._elementToFile(onlySrc.el, onlySrc.name || 'dropped.png').then(function (f) {
+          if (!f) return;
+          self.addFiles([f], { insertRange: at });
+          if (self.promptEl) self.promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        return true;
+      }
+      if (typeof global.toast === 'function') global.toast('图片导入失败：没有读到图片地址，可先保存到本地再拖入');
+      return false;
+    }
+    var convert = this._urlToFile || this._defaultUrlToFile;
+    Promise.all(urls.slice(0, 8).map(function (u) {
+      return convert.call(self, u);
+    })).then(function (files) {
+      var ok = files.filter(Boolean);
+      if (!ok.length) {
+        // 以前这里静默返回，用户看到的就是「拖了没反应」。给出可见反馈。
+        if (typeof global.toast === 'function') global.toast('图片导入失败：无法读取该图片，可先保存到本地再拖入');
+        return;
+      }
+      // 异步回来后 DOM 可能已变，锚点失效时 _handleFiles 会自动退回末尾
+      self.addFiles(ok, { insertRange: at });
+      if (self.promptEl) self.promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    return true;
+  };
+
+  // ── 处理文件 ──
+  // opts.insertRange：把新 chip 插到该 Range（粘贴/拖放时光标或落点）；不传则追加到末尾。
+  RefImageManager.prototype._handleFiles = function (files, opts) {
+    var self = this;
+    if (opts && opts.insertRange && this.promptEl && this.promptEl.isContentEditable) {
+      try {
+        var r = opts.insertRange.cloneRange();
+        if (this.promptEl.contains(r.startContainer)) {
+          if (!r.collapsed) {
+            // 覆盖选区：先把选区里的 chip 从数据层移除，否则 render 会把删掉的 chip 又画回来
+            var frag = r.cloneContents();
+            var picked = {};
+            if (frag.querySelectorAll) {
+              Array.prototype.forEach.call(frag.querySelectorAll('.ref-chip'), function (c) {
+                var id = c.getAttribute && c.getAttribute('data-id');
+                if (id) picked[id] = true;
+              });
+            }
+            if (Object.keys(picked).length) {
+              this._images = this._images.filter(function (img) {
+                if (!picked[img.id]) return true;
+                try { URL.revokeObjectURL(img.url); } catch (_) {}
+                return false;
+              });
+            }
+            r.deleteContents();
+          }
+          this._pendingInsertRange = r;
+        }
+      } catch (_) {}
+    }
     var added = false;
     var skipped = 0;
     var batchFp = {};
@@ -276,15 +564,17 @@
       added = true;
     });
     if (skipped > 0) console.log('[RefImgMgr] skipped', skipped, 'duplicates');
-    if (!added) return;
+    if (!added) { this._pendingInsertRange = null; return; }
     this.render();
+    // 兜底：legacy / 异常路径没有消费锚点时也不残留，避免影响下一次 render
+    this._pendingInsertRange = null;
     if (typeof this._onChange === 'function') this._onChange(this._images.length);
     document.dispatchEvent(new Event('ref-images-changed'));
   };
 
   // ── 上传（公开 API） ──
-  RefImageManager.prototype.addFiles = function (files) {
-    this._handleFiles(files ? Array.from(files) : []);
+  RefImageManager.prototype.addFiles = function (files, opts) {
+    this._handleFiles(files ? Array.from(files) : [], opts);
   };
   RefImageManager.prototype.getFiles = function () {
     return this._images;
@@ -555,9 +845,16 @@
     var promptEl = document.getElementById('prompt');
     if (!promptEl || !promptEl.isContentEditable) {
       // 兼容旧版：若还是 textarea，则使用独立的 chip bar
+      this._pendingInsertRange = null;
       this._renderChipsLegacy();
       return;
     }
+
+    // 本轮新增 chip 的插入锚点（粘贴/拖放传入）；用前检查是否仍落在输入框内，
+    // DOM 变动会让 Range 失效，失效就退回原来的「追加到末尾」行为。
+    var insertRange = this._pendingInsertRange || null;
+    this._pendingInsertRange = null;
+    if (insertRange && !promptEl.contains(insertRange.startContainer)) insertRange = null;
 
     // 1) DOM → 数据 反向同步
     //   浏览器原生删除（Backspace/Delete/剪切/划选删除）常常绕过 keydown 拦截，
@@ -627,10 +924,29 @@
           + '<img class="ref-chip-thumb" src="' + img.url + '" />'
           + '<span class="ref-chip-name">' + label + '</span>'
           + '<button class="ref-chip-x" type="button" data-id="' + img.id + '" title="删除" aria-label="删除">' + ICON_X + '</button>';
-        // 插入到 prompt 末尾（不抢用户当前光标）
-        promptEl.appendChild(chip);
-        // 加个空格分隔（让 chip 后面能继续输入文字）
-        promptEl.appendChild(document.createTextNode(' '));
+        // 插入位置：有锚点就插到光标/落点，否则退回末尾；chip 后补空格保证能继续输入
+        var space = document.createTextNode(' ');
+        if (insertRange && promptEl.contains(insertRange.startContainer)) {
+          try {
+            insertRange.collapse(true);
+            insertRange.insertNode(chip);
+            insertRange.setStartAfter(chip);
+            insertRange.collapse(true);
+            insertRange.insertNode(space);
+            insertRange.setStartAfter(space);
+            insertRange.collapse(true);
+            var sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(insertRange); }
+          } catch (_) {
+            promptEl.appendChild(chip);
+            promptEl.appendChild(space);
+            insertRange = null;
+          }
+        } else {
+          promptEl.appendChild(chip);
+          promptEl.appendChild(space);
+          insertRange = null;
+        }
 
         // ── 智能定位 preview（fixed + 屏幕空间自适应） ──
         var preview = chip.querySelector('.ref-chip-preview');

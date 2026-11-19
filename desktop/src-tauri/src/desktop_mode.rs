@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
@@ -143,6 +143,7 @@ fn set_page_overlay(window: &WebviewWindow, on: bool) {
     let flag = if on { "true" } else { "false" };
     let js = format!(
         r#"(function(on){{
+  document.documentElement.classList.toggle('ic-overlay', !!on);
   if (document.getElementById('board')) {{
     window.__setOverlayMode && window.__setOverlayMode(on);
     return;
@@ -375,9 +376,8 @@ fn apply_window(app: &AppHandle, on: bool) -> Result<(), String> {
         set_page_overlay(&window, false);
 
         let _ = window.set_skip_taskbar(false);
-        window
-            .set_decorations(true)
-            .map_err(|e| format!("恢复边框失败：{e}"))?;
+        // 主窗口常态就是无边框（自绘标题条），这里不要再把系统边框带回来。
+        let _ = window.set_decorations(false);
 
         if let Some(saved) = SAVED.lock().unwrap().take() {
             let _ = window.set_always_on_top(saved.always_on_top);
@@ -421,7 +421,9 @@ pub fn init_tray(app: &AppHandle) -> tauri::Result<()> {
     )?;
 
     let mut builder = TrayIconBuilder::with_id("artcanvas-tray")
-        .tooltip(format!("IsleChain · {HOTKEY_LABEL} 切换透明画布"))
+        .tooltip(format!(
+            "IsleChain · 点关闭只收进托盘 · {HOTKEY_LABEL} 切换透明画布"
+        ))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -431,8 +433,31 @@ pub fn init_tray(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::DoubleClick { .. } = event {
-                toggle(tray.app_handle());
+            let app = tray.app_handle();
+            let hidden = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .map(|visible| !visible)
+                .unwrap_or(true);
+            match event {
+                // 收进托盘以后，单击图标就是「叫我回来」。
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                } => {
+                    if hidden {
+                        show_studio(app);
+                    }
+                }
+                TrayIconEvent::DoubleClick { .. } => {
+                    if hidden {
+                        show_studio(app);
+                    } else {
+                        toggle(app);
+                    }
+                }
+                _ => {}
             }
         });
 

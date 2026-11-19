@@ -373,7 +373,7 @@
         if (global.PromptPanel) global.PromptPanel.close();
     }
 
-    function lightboxAction(action) {
+    async function lightboxAction(action) {
         if (!state.currentRecord) return;
         const record = state.currentRecord;
         // 视频记录用 videos 字段，图片记录用 images 字段（优先当前索引，兜底首张）
@@ -419,7 +419,7 @@
                 break;
             case 'delete':
                 if (global.GalleryActions && GalleryActions.deleteHistoryItem) {
-                    if (confirm('确认删除这张图片？')) {
+                    if ((await window.StudioConfirm.ask('确认删除这张图片？'))) {
                         const ts2 = record.timestamp;
                         // [Task 5 收敛] 优先 NS.Config
                         const historyType = record.type || (window.GalleryDisplay?.Config?.type) || 'unknown';

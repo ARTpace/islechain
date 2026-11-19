@@ -1,0 +1,17 @@
+.chat-outline { position:fixed; z-index:45; right:10px; top:50%; transform:translateY(-50%); width:28px; max-height:65vh; overflow:auto; padding:12px 4px; border:1px solid transparent; border-radius:18px; scrollbar-width:none; transition:width .18s ease,background .18s ease,border-color .18s ease; }
+.chat-outline[hidden] { display:none; }
+.chat-outline::-webkit-scrollbar { width:0; }
+.chat-outline button { display:flex; align-items:center; justify-content:flex-end; gap:12px; width:100%; min-height:22px; padding:4px 7px; border:0; background:transparent; color:var(--ui-muted); cursor:pointer; text-align:right; font:inherit; font-size:12px; }
+.chat-outline button::after { content:''; width:12px; height:2px; flex:none; background:currentColor; opacity:.5; }
+.chat-outline button span { display:none; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chat-outline:is(:hover,:focus-within) { width:min(360px,calc(100vw - 32px)); background:var(--ui-panel); border-color:var(--ui-line-strong); box-shadow:0 8px 24px #0003; }
+.chat-outline:is(:hover,:focus-within) button { min-height:40px; font-size:15px; line-height:1.5; }
+.chat-outline:is(:hover,:focus-within) button span { display:block; }
+.chat-outline button:is(.is-current,:hover,:focus-visible) { color:var(--ui-text); }
+.chat-outline button.is-current::after { width:20px; opacity:1; }
+.chat-outline button:focus-visible { outline:1px solid var(--ui-accent); outline-offset:-1px; border-radius:6px; }
+@media(prefers-reduced-motion:reduce) { .chat-outline { transition:none; } }
+.chat-jump-latest { position:fixed; z-index:46; transform:translateX(-50%); width:42px; height:42px; display:flex; align-items:center; justify-content:center; border:1px solid var(--ui-line-strong); border-radius:50%; background:var(--ui-panel); color:var(--ui-text); box-shadow:0 3px 12px #0002; font-size:26px; line-height:1; cursor:pointer; }
+.chat-jump-latest[hidden] { display:none; }
+.chat-jump-latest:hover { border-color:var(--ui-accent); color:var(--ui-accent); }
+body > .chat-jump-latest { position:absolute; background:color-mix(in srgb,var(--ui-panel) 65%,transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-color:color-mix(in srgb,var(--ui-line-strong) 70%,transparent); border-radius:16px; }

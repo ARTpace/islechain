@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ComfyUI 设置</title>
     <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -721,7 +722,7 @@
             } catch(e){}
         }
         async function clearMediaCache(){
-            if(!confirm('确定要清理所有缩略图缓存吗？\n清理后下次访问图片时会重新生成。')) return;
+            if(!(await window.StudioConfirm.ask('确定要清理所有缩略图缓存吗？\n清理后下次访问图片时会重新生成。'))) return;
             setStatus('清理中...');
             try {
                 const res = await fetch('/api/cache/clear', { method:'POST' });
@@ -1764,7 +1765,7 @@
 
         async function onDelete(){
             if(!selectedName || isBuiltin) return;
-            if(!confirm(tf('comfy.deleteConfirm', {name: currentConfig.title || selectedName}))) return;
+            if(!(await window.StudioConfirm.ask(tf('comfy.deleteConfirm', {name: currentConfig.title || selectedName})))) return;
             try {
                 const res = await fetch(`/api/workflows/${encodeURIComponent(selectedName)}`, { method:'DELETE' });
                 if(!res.ok) throw new Error((await res.json()).detail || tr('comfy.deleteFailed'));

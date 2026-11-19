@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>在线生图</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -20,6 +21,7 @@
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <script src="/static/modules/auth-token.js"></script>
+    <script src="/static/modules/model-availability.js?v=20261115001"></script>
 
     <script src="/static/vendor/js/lucide.js"></script>
     <link rel="stylesheet" href="/static/app/preset-picker.css?v=20261024001">
@@ -27,7 +29,7 @@
     <script src="/static/app/preset-picker.js?v=20261027thumbqueue"></script>
     <!-- 角色选择器 -->
     <link rel="stylesheet" href="/static/app/anima-character-picker.css?v=20261024001">
-    <script src="/static/app/anima-character-picker.js?v=20261024001"></script>
+    <script src="/static/app/anima-character-picker.js?v=20261119002"></script>
     <!-- 画师选择器 -->
     <link rel="stylesheet" href="/static/app/anima-artist-picker.css?v=20261024001">
     <script src="/static/app/anima-artist-picker.js?v=20261024001"></script>
@@ -35,7 +37,7 @@
     <script src="/prompt/static/prompt-module.js?v=20261110groups"></script>
     <script src="/static/modules/card-progress.js?v=20261024001"></script>
     <!-- 参考图管理器 + 反推提示词 -->
-    <script src="/static/modules/ref-image-manager.js?v=20261110refdup"></script>
+    <script src="/static/modules/ref-image-manager.js?v=20261115001"></script>
     <script src="/static/modules/interrogator.js?v=20261024001"></script>
     <script src="/static/modules/prompt-tags.js?v=20261024001"></script>
     <script src="/static/js/prompt-translate.js?v=20261024001"></script>
@@ -46,7 +48,7 @@
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/history-bulk-manager.js?v=20261024001"></script>
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-<script src="/static/modules/gallery/bundle.js?v=20261101stablemasonry"></script>
+<script src="/static/modules/gallery/bundle.js?v=20261119002"></script>
     <style>
         :root { --accent:#181817; --bg:#faf9f7; --card:#fbfaf9; --easing:cubic-bezier(0.4,0,0.2,1); }
         body { background:var(--bg); font-family:'Inter',-apple-system,sans-serif; color:var(--accent); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
@@ -909,9 +911,10 @@
             const data = await res.json();
             allProviders = data.providers || [];
             apiProviders = allProviders;
+            const av = window.ModelAvailability;
             const imageProviders = allProviders.filter(p =>
-                p.enabled !== false && (
-                    (p.image_models && p.image_models.length > 0) ||
+                p.enabled !== false && (!av || av.isProviderAvailable(p.id)) && (
+                    (av ? av.filterModels('image', p.id, p.image_models || []) : (p.image_models || [])).length > 0 ||
                     (p.id === 'modelscope' ? p.has_key === true : p.id === 'jimeng')
                 )
             );
@@ -1065,7 +1068,8 @@
         const menu = document.getElementById('modelMenu');
         if(!menu) return;
         const prov = allProviders.find(p => p.id === selectedProviderId);
-        const models = prov?.image_models || [];
+        const av = window.ModelAvailability;
+        const models = av ? av.filterModels('image', selectedProviderId, prov?.image_models || []) : (prov?.image_models || []);
         menu.innerHTML = models.length === 0
             ? '<div class="anima-ctrl-menu-item" style="opacity:0.5"><span>该平台无模型</span></div>'
             : models.map(m => `
@@ -1081,6 +1085,10 @@
     function _refreshMenus(){
         buildProviderMenu();
         buildModelMenu();
+    }
+    // 检测在后台异步完成：快照到达 / 强制显示变更后，菜单要跟着刷新
+    if (window.ModelAvailability && window.ModelAvailability.subscribe) {
+        window.ModelAvailability.subscribe(() => { loadProviders(); _refreshMenus(); });
     }
 
     async function refreshProviderModels(){
@@ -1529,11 +1537,11 @@
         }
     }
 
-    function closeReverseSettingsModal() {
+    async function closeReverseSettingsModal() {
         // 关闭时若正在反推,提示用户
         var prog = document.getElementById('revViewProgress');
         if (prog && !prog.hidden) {
-            if (!confirm('反推正在进行中,确定关闭？')) return;
+            if (!(await window.StudioConfirm.ask('反推正在进行中,确定关闭？'))) return;
             cancelReverseFromModal();
         }
         var ov = document.getElementById('reverseModalOverlay');
@@ -1580,12 +1588,12 @@
         _setReverseFile(null);
     }
 
-    function resetReverseSettings() {
+    async function resetReverseSettings() {
         // 二次确认：仅在有文件/非默认设置时才询问,避免误点
         var hasFile = !!_reverseFile;
         var hasCustom = _reverseProvider !== 'auto' || _reverseMode !== 'auto' || _reverseVisionProvider;
         if (hasFile || hasCustom) {
-            if (!confirm('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。')) return;
+            if (!(await window.StudioConfirm.ask('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。'))) return;
         }
         _reverseProvider = 'auto';
         _reverseMode = 'auto';
@@ -1718,7 +1726,7 @@
         }
     }
 
-    function applyReverseResult(applyMode) {
+    async function applyReverseResult(applyMode) {
         var txtEl = document.getElementById('revResultText');
         var text = txtEl ? txtEl.value : '';
         var ta = document.getElementById('prompt');
@@ -1730,7 +1738,7 @@
         }
         ta.dispatchEvent(new Event('input', { bubbles: true }));
         if (window.updatePromptTags) window.updatePromptTags();
-        closeReverseSettingsModal();
+        (await closeReverseSettingsModal());
     }
 
     function copyReverseResult() {
@@ -1755,10 +1763,10 @@
     }
 
     // ESC 关闭模态
-    document.addEventListener('keydown', function(e){
+    document.addEventListener('keydown', async function(e){
         if (e.key === 'Escape') {
             var ov = document.getElementById('reverseModalOverlay');
-            if (ov && ov.classList.contains('show')) closeReverseSettingsModal();
+            if (ov && ov.classList.contains('show')) (await closeReverseSettingsModal());
         }
     });
 

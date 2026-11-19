@@ -175,7 +175,7 @@ class SettingsUI {
                 const kit = document.createElement('link');
                 kit.id = 'settings-kit-css';
                 kit.rel = 'stylesheet';
-                kit.href = '/static/setting/settings-kit.css?v=sk5';
+                kit.href = '/static/setting/settings-kit.css?v=20261119007';
                 document.head.appendChild(kit);
             }
             if (!document.getElementById('settings-graphic-js')) {
@@ -1296,9 +1296,9 @@ class SettingsUI {
             document.querySelectorAll('[data-look-theme]').forEach(btn => {
                 const on = btn.dataset.lookTheme === (dark ? 'dark' : 'light');
                 btn.setAttribute('aria-pressed', String(on));
-                btn.style.background = on ? 'var(--accent)' : 'transparent';
-                btn.style.color = on ? 'var(--accent-ink, var(--ui-accent-ink))' : 'var(--text)';
-                btn.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+                btn.style.background = on ? 'var(--ui-accent-soft)' : 'transparent';
+                btn.style.color = on ? 'var(--ui-accent)' : 'var(--text)';
+                btn.style.borderColor = on ? 'color-mix(in srgb, var(--ui-accent) 60%, transparent)' : 'var(--border)';
             });
             const scan = window.StudioLook ? window.StudioLook.scanlines() : false;
             const scanStatus = document.getElementById('look-scan-status');
@@ -2336,7 +2336,7 @@ class ComfyProcessManager {
     }
 
     async clearLog() {
-        if (!confirm('清空当前 ComfyUI 日志？')) return;
+        if (!(await window.StudioConfirm.ask('清空当前 ComfyUI 日志？'))) return;
         try {
             await fetch('/api/comfyui/log-clear', { method: 'POST' });
             this.refreshLog();

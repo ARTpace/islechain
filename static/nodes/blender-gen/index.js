@@ -306,11 +306,11 @@ function renderBlenderBody(node){
     }
     const approveBtn = container.querySelector('.blender-approve');
     if(approveBtn){
-        approveBtn.onclick = e => { e.stopPropagation(); approveBlenderStage(node.id, 'continue'); };
+        approveBtn.onclick = async e => { e.stopPropagation(); (await approveBlenderStage(node.id, 'continue')); };
     }
     const discardBtn = container.querySelector('.blender-discard');
     if(discardBtn){
-        discardBtn.onclick = e => { e.stopPropagation(); approveBlenderStage(node.id, 'discard'); };
+        discardBtn.onclick = async e => { e.stopPropagation(); (await approveBlenderStage(node.id, 'discard')); };
     }
     bindCascadeButtons(container, node.id);
     return container;
@@ -456,7 +456,7 @@ async function blenderImportJob(node, jobId){
 async function approveBlenderStage(nodeId, action){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || node.running || !node.jobId) return;
-    if(action === 'discard' && !confirm('否决这份灰模？作业会停止，需要重新生成。')) return;
+    if(action === 'discard' && !(await window.StudioConfirm.ask('否决这份灰模？作业会停止，需要重新生成。'))) return;
     node.running = true;
     node.statusText = action === 'continue' ? '正在从灰模检查点继续细化…' : '正在否决灰模…';
     render();

@@ -5,6 +5,7 @@
     const editModels = {
         klein: 'FLUX Klein', qwen: 'Qwen Edit', qwen21: 'Qwen 2.1',
         moss: 'MOSS 重绘', boogu: 'Boogu Edit', krea2: 'Krea2 Edit',
+        minimax: 'MiniMax H3 Edit',
     };
     function hidden() {
         try {

@@ -527,6 +527,24 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('windows-dpapi-v1', raw)
         self.assertEqual(mcp_tools.servers()[0].headers['Authorization'], 'Bearer legacy-private-secret')
 
+    async def test_missing_working_directory_does_not_break_server_list(self):
+        from contextlib import AsyncExitStack
+        path = mcp_tools.settings_path()
+        path.write_text(json.dumps({'servers': [{'id': 'moved', 'transport': 'stdio',
+            'command': sys.executable, 'cwd': str(Path(self.directory.name) / 'missing')}]}))
+        configured = mcp_tools.servers()
+        self.assertEqual([s.id for s in configured], ['moved'])
+        async with AsyncExitStack() as stack:
+            with self.assertRaisesRegex(mcp_tools.MCPError, 'moved.*工作目录不存在'):
+                await mcp_tools._connect(configured[0], stack)
+        events = []
+        async def emit(event):
+            events.append(event)
+        async with mcp_tools.tool_pool(['moved'], on_error=emit) as (tools, calls):
+            self.assertEqual(tools, [])
+            self.assertEqual(calls, {})
+        self.assertEqual(events[0]['name'], 'moved')
+
     async def test_offline_server_does_not_hide_healthy_tools(self):
         self.server()
         events = []

@@ -43,6 +43,9 @@ def list_builtin_workflows():
             "model_folder": (model_folders[0] if model_folders else ((meta and meta.get("model_folder")) or "")),
             "model_folders": model_folders,
             "unet_name": (meta and meta.get("unet_name")) or "",
+            # 速度档位：config.json 可显式声明 "tier": "极速"；留空表示沿用文件名后缀推断。
+            # 放在这里而不是前端硬编码，新增档位模型只改配置，不动 UI。
+            "tier": str(cfg.get("tier") or "").strip(),
         })
     return {"workflows": items}
 @router.get("/{name:path}")

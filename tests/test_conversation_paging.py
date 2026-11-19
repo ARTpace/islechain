@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 
 def load_function(path, name, context):
@@ -40,6 +41,25 @@ class ConversationPagingTests(unittest.TestCase):
         self.assertTrue(page['has_more'])
         self.assertFalse(asyncio.run(route(None, offset=40, limit=20))['has_more'])
         self.assertEqual(asyncio.run(route(None))['conversations'], records)
+
+    def test_only_changed_files_are_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            context = dict(os=os, json=json, user_dir=lambda _: directory, _conversation_list_cache={})
+            listing = load_function('main.py', 'list_conversations', context)
+            one, two = Path(directory) / 'one.json', Path(directory) / 'two.json'
+            one.write_text(json.dumps({'id': 'one', 'updated_at': 1}), encoding='utf-8')
+            two.write_text(json.dumps({'id': 'two', 'updated_at': 2}), encoding='utf-8')
+            with patch('builtins.open', wraps=open) as reads:
+                listing('user')
+                self.assertEqual(reads.call_count, 2)
+                reads.reset_mock()
+                one.write_text(json.dumps({'id': 'one', 'title': 'changed', 'updated_at': 3}), encoding='utf-8')
+                self.assertEqual(listing('user')[0]['id'], 'one')
+                self.assertEqual(reads.call_count, 1)
+                reads.reset_mock()
+                two.unlink()
+                self.assertEqual(len(listing('user')), 1)
+                self.assertEqual(reads.call_count, 0)
 
 
 if __name__ == '__main__':

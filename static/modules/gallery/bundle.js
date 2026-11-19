@@ -1717,7 +1717,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
         if (global.PromptPanel) global.PromptPanel.close();
     }
 
-    function lightboxAction(action) {
+    async function lightboxAction(action) {
         if (!state.currentRecord) return;
         const record = state.currentRecord;
         // 视频记录用 videos 字段，图片记录用 images 字段（优先当前索引，兜底首张）
@@ -1763,7 +1763,7 @@ body.nsfw-only-mode .date-separator { display: none !important; }
                 break;
             case 'delete':
                 if (global.GalleryActions && GalleryActions.deleteHistoryItem) {
-                    if (confirm('确认删除这张图片？')) {
+                    if ((await window.StudioConfirm.ask('确认删除这张图片？'))) {
                         const ts2 = record.timestamp;
                         // [Task 5 收敛] 优先 NS.Config
                         const historyType = record.type || (window.GalleryDisplay?.Config?.type) || 'unknown';
@@ -2931,7 +2931,7 @@ body.studio-theme-dark .lightbox-thumb.active {
     async function deleteSelected(timestamps, event) {
         if (event) event.stopPropagation();
         if (!timestamps || timestamps.size === 0) return;
-        if (!confirm(`确定删除选中的 ${timestamps.size} 条记录吗？`)) return;
+        if (!(await window.StudioConfirm.ask(`确定删除选中的 ${timestamps.size} 条记录吗？`))) return;
         // [Task 5 收敛] 优先 NS.Config
         const historyType = (window.GalleryDisplay?.Config?.type) || 'unknown';
         const items = Array.from(timestamps);

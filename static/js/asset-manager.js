@@ -1247,7 +1247,10 @@ async function loadAll(){
     selectedCanvasAssetIds.clear();
     render();
     setStatus('准备就绪');
-    if (window.PromptLibraryPicker?.enabled) window.parent.postMessage({type:'prompt-library:ready'}, location.origin);
+    if (window.PromptLibraryPicker?.enabled) {
+        window.PromptLibraryViewState?.onReady?.();
+        window.parent.postMessage({type:'prompt-library:ready'}, location.origin);
+    }
 }
 function render(){
     window.PromptGalleryUI.unmount();
@@ -2297,7 +2300,7 @@ async function cleanInvalidLocalImages(){
         const items = scan.items || [];
         if(!items.length){ setStatus('没有缺失或损坏的本地图片'); return; }
         const preview = items.slice(0, 8).map(x => `${x.name}：${x.reason}`).join('\n');
-        if(!window.confirm(`发现 ${items.length} 张失效图片：\n${preview}${items.length > 8 ? '\n…' : ''}\n\n确定清理这些资产记录？源文件保留，索引会先备份。`)){
+        if(!(await window.StudioConfirm.ask(`发现 ${items.length} 张失效图片：\n${preview}${items.length > 8 ? '\n…' : ''}\n\n确定清理这些资产记录？源文件保留，索引会先备份。`))){
             setStatus('已取消清理'); return;
         }
         const result = await request(items.map(x => x.id));
@@ -2335,7 +2338,7 @@ async function cleanAssetMaintenance(kind){
     const label = kind === 'missing'
         ? `${ids.length} 条文件已丢失的记录`
         : `${ids.length} 条重复素材（每组保留最早的一条）`;
-    if(!window.confirm(`确定删除${label}吗？删除后不可撤销。`)) return;
+    if(!(await window.StudioConfirm.ask(`确定删除${label}吗？删除后不可撤销。`))) return;
     const data = await apiJson('/api/asset-library/items/delete', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -5432,6 +5435,49 @@ function applyAssetTab(tab){
 window.AssetManagerBridge = {
     applyLibrary(library){ if(library) assetLibrary = library; render(); },
     toast(text){ setStatus(text); }
+};
+// 提示词库会话视图状态桥：外部模块只认这个接口，内部变量改名不影响它。
+// promptQuery（搜索词）故意不导出/不恢复 —— 工具重启后搜索框必须回到空。
+window.PromptLibraryStateBridge = {
+    snapshot(){
+        return {
+            lib: activePromptLibraryId,
+            cat: activePromptCategory,
+            sub: promptSubcategory,
+            subScope: promptSubcategoryScope,
+            kind: promptContentKind,
+            source: promptSourceFilter,
+            fav: promptFavOnly,
+            sort: promptSortMode,
+            limit: promptRenderLimit,
+            selectedId: selectedPromptId
+        };
+    },
+    restore(saved){
+        if(!saved || typeof saved !== 'object') return false;
+        if(typeof saved.lib === 'string') activePromptLibraryId = saved.lib;
+        if(typeof saved.cat === 'string') activePromptCategory = saved.cat;
+        if(typeof saved.sub === 'string') promptSubcategory = saved.sub;
+        if(typeof saved.subScope === 'string') promptSubcategoryScope = saved.subScope;
+        if(typeof saved.kind === 'string') promptContentKind = saved.kind;
+        if(typeof saved.source === 'string') promptSourceFilter = saved.source;
+        if(typeof saved.fav === 'boolean') promptFavOnly = saved.fav;
+        if(typeof saved.sort === 'string') promptSortMode = saved.sort;
+        const limit = Number(saved.limit);
+        if(Number.isInteger(limit) && limit >= PROMPT_RENDER_STEP && limit <= 5000) promptRenderLimit = limit;
+        if(typeof saved.selectedId === 'string') selectedPromptId = saved.selectedId;
+        activeTab = 'prompts';
+        // normalizePromptState() 会在这里校验库/分类是否还存在，失效值自动回落
+        render();
+        return true;
+    },
+    setScroll(top, left){
+        const el = document.querySelector('.prompt-gallery-scroll');
+        if(!el) return 0;
+        el.scrollTop = top || 0;
+        el.scrollLeft = left || 0;
+        return el.scrollTop;
+    }
 };
 window.addEventListener('message', event => {
     const type = event.data?.type;

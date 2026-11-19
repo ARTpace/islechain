@@ -22,7 +22,7 @@ const context = {
         createElement: () => ({ dataset: {}, remove() { more = null; } })
     },
     fetch: async url => { requests.push(url); return pending; },
-    chatHeaders: () => ({}), conversationId: '', escapeChat: String,
+    chatHeaders: () => ({}), chatUserId: () => 'user', conversationId: '', escapeChat: String, Date,
     splitChatReply: text => ({ reply: text }), visibleReply: String
 };
 vm.runInNewContext(html.slice(start, end), context);
@@ -41,13 +41,21 @@ function response(start, has_more) {
     assert.match(markup, /row39/);
     assert.equal(more, null);
     await context.openHistory(); // close
+    const count = requests.length;
+    const cachedMarkup = markup;
+    await context.openHistory(); // cached reopen, retaining all loaded pages
+    assert.equal(requests.length, count);
+    assert.equal(markup, cachedMarkup);
+    await context.openHistory(); // close
+    context.invalidateHistory();
     let resolve;
     pending = new Promise(done => { resolve = done; });
     const request = context.openHistory();
+    assert.equal(markup, cachedMarkup, 'refresh retains visible rows');
     await context.openHistory(); // close while request is in flight
     const before = markup;
     resolve(response(0, true));
     await request;
     assert.equal(markup, before, 'closed-menu responses must not replace contents');
-    console.log('History pages append, stop at last page and ignore stale requests');
+    console.log('History cache reopens without requests, retains pages, refreshes on changes and ignores stale requests');
 })().catch(error => { console.error(error); process.exitCode = 1; });

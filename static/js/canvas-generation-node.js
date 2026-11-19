@@ -62,6 +62,10 @@ const loraState = LoraManager.state;
             }
         });
     }
+    // 可用性快照到达后刷新已打开的节点按钮文案（菜单本身由 ModelPicker 自动重绘）
+    if(window.ModelAvailability)window.ModelAvailability.subscribe(()=>{
+        for(const node of nodes.filter(n=>n.type==='imageGen'))update(node);
+    });
     function modelLabel(node){
         const s=settings(node);
         if(s.engine==='cloud')return s.cloud.model||'选择在线模型';
@@ -171,7 +175,7 @@ const loraState = LoraManager.state;
             if(alive(version,node))place(anchor);
         }catch(error){if(alive(version,node))content.textContent=error.message;}
     }
-    function group(container,title){const section=document.createElement('section');section.className='imagegen-section';const label=document.createElement('h4');label.textContent=title;section.append(label);container.append(section);if(container.optionsPanel){section.optionsTitle=({'画面比例':'选择比例','分辨率':'选择分辨率','模型质量':'质量参数','图像质量':'质量参数','生成数量':'选择生成数量'})[title]||title;}return section;}
+    function group(container,title){const section=document.createElement('section');section.className='imagegen-section';const label=document.createElement('h4');label.textContent=title;section.append(label);container.append(section);if(container.optionsPanel){section.optionsTitle=({'画面比例':'选择比例','分辨率':'选择分辨率','速度模式':'速度模式','模型质量':'质量参数','质量参数':'质量参数','图像质量':'质量参数','生成数量':'选择生成数量'})[title]||title;}return section;}
     function choices(container,values,current,choose){
         if(container.optionsTitle){const parent=container;parent.replaceChildren();return window.GenerationOptionsPanel.renderSection(parent,{title:container.optionsTitle,ratio:container.optionsTitle==='选择比例',items:values.map(item=>{const [value,label]=Array.isArray(item)?item:[item,item];return {value,label:String(label)};}),current,onSelect:choose});}
         const row=document.createElement('div');row.className='imagegen-choices';
@@ -217,13 +221,15 @@ const loraState = LoraManager.state;
             choices(group(container,'画面比例'),RATIO_LABELS(),c.ratioW+':'+c.ratioH,v=>{pushUndo();[c.ratioW,c.ratioH]=v.split(':').map(Number);save(node);});
             choices(group(container,'分辨率'),Array.from({length:max},(_,i)=>[i+1,(i+1)+'K']),c.res,v=>{pushUndo();c.res=v;save(node);});
         }
-        // 多档模型（MOSS / Qwen / Boogu……）的「模型质量」统一从工作流归并结果得来，
-        // 不再逐个硬编码：只要同一模型的各档 config.title 一致，这里自动出现档位选项
+        // 多档模型（MOSS / Qwen / Boogu……）的「速度模式」统一从工作流归并结果得来，
+        // 与文生图页共用 ModelPicker.tierOptions：只要同一模型的各档 title 一致（或 config 写了 tier），
+        // 这里就自动出现档位选项，不再逐个硬编码，也不再叫「模型质量」和文生图页叫法不一致。
         if(s.engine==='local'&&window.ModelPicker){
             const row=window.ModelPicker.findRow(catalogRows(s.workflow),s.workflow);
-            if(row&&row.multi)choices(group(container,'模型质量'),row.workflows.map(name=>[name,window.ModelPicker.tierOfWorkflow(name)||'高']),s.workflow,v=>{pushUndo();s.workflow=v;save(node);});
+            const tiers=window.ModelPicker.tierOptions(row,s.workflow);
+            if(tiers.length>1)choices(group(container,'速度模式'),tiers.map(item=>[item.value,item.label]),s.workflow,v=>{pushUndo();s.workflow=v;save(node);redraw();});
         }
-        if(s.engine==='local'&&/ideogram4/i.test(s.workflow))choices(group(container,'模型质量'),[['Quality','高'],['Default','中'],['Turbo','低']],s.qualities?.ideogram||'Default',v=>{pushUndo();s.qualities={...s.qualities,ideogram:v};save(node);});
+        if(s.engine==='local'&&/ideogram4/i.test(s.workflow))choices(group(container,'质量参数'),[['Quality','高'],['Default','中'],['Turbo','低']],s.qualities?.ideogram||'Default',v=>{pushUndo();s.qualities={...s.qualities,ideogram:v};save(node);});
         if(s.engine==='cloud'&&!declared)choices(group(container,'图像质量'),[['high','高'],['medium','中'],['low','低']],s.cloud.quality||'medium',v=>{pushUndo();s.cloud.quality=v;save(node);});
         if(!declared||!schemaFor(s)?.params?.some(p=>p.key==='count'))choices(group(container,'生成数量'),[1,2,3,4],c.batchCount,v=>{pushUndo();c.batchCount=v;save(node);});
     }
@@ -249,11 +255,14 @@ const loraState = LoraManager.state;
     function renderAdvanced(node,container){
         container.replaceChildren();const s=settings(node),c=s.controls;
         if(s.engine==='local'){
+            // 速度档位在「参数」和「高级」两处都能改，免得用户为了切档再翻一遍面板
+            const tiers=window.ModelPicker?window.ModelPicker.tierOptions(window.ModelPicker.findRow(catalogRows(s.workflow),s.workflow),s.workflow):[];
+            if(tiers.length>1)choices(group(container,'速度模式'),tiers.map(item=>[item.value,item.label]),s.workflow,v=>{pushUndo();s.workflow=v;save(node);renderAdvanced(node,container);});
             const seeds=group(container,'种子');choices(seeds,[['random','随机'],['fixed','固定']],c.seedMode,v=>{c.seedMode=v;save(node);});
             const seed=field(seeds,'固定种子',c.fixedSeed,v=>{if(Number.isSafeInteger(v)&&v>=0){c.fixedSeed=v;save(node);}},'number');seed.min='0';seed.max='9007199254740991';
             field(group(container,'负面提示词'),'不希望出现的内容',s.negative,v=>{s.negative=v;save(node);},'textarea');
             field(group(container,'本地模型权重'),'UNET / Diffusion 路径（留空沿用工作流）',s.unet||'',v=>{s.unet=v;save(node);});
-            if(/ideogram4/i.test(s.workflow))selectField(group(container,'模型质量'),'质量',[{value:'Default'},{value:'Turbo'},{value:'Quality'}],s.qualities?.ideogram||'Default',v=>{s.qualities={...s.qualities,ideogram:v};save(node);});
+            if(/ideogram4/i.test(s.workflow))selectField(group(container,'质量参数'),'质量',[{value:'Default'},{value:'Turbo'},{value:'Quality'}],s.qualities?.ideogram||'Default',v=>{s.qualities={...s.qualities,ideogram:v};save(node);});
         }else{
             choices(group(container,'图像质量'),[['low','低'],['medium','中'],['high','高']],s.cloud.quality||'medium',v=>{s.cloud.quality=v;save(node);});
             const schema=schemaFor(s),section=group(container,'模型专用参数');

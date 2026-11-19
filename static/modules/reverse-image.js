@@ -2,7 +2,7 @@
  * reverse-image.js — 图片反推（interrogate）独立功能模块
  * 用法：
  *   <div id="reverseImageMount"></div>
- *   <script src="/static/modules/reverse-image.js"></script>
+ *   <script src="/static/modules/reverse-image.js?v=20261119002"></script>
  *   <script>
  *     ReverseImage.init({
  *       mountId: 'reverseImageMount',
@@ -435,10 +435,10 @@
   function _bindGlobal() {
     if (_globalBound) return;
     _globalBound = true;
-    document.addEventListener('keydown', function (e) {
+    document.addEventListener('keydown', async function (e) {
       if (e.key === 'Escape') {
         var ov = $('reverseModalOverlay');
-        if (ov && ov.classList.contains('show')) close();
+        if (ov && ov.classList.contains('show')) (await close());
       }
     });
   }
@@ -457,21 +457,21 @@
     if (!overlay) return;
 
     // 点击委托：关闭 / 各动作
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) { close(); return; }
+    overlay.addEventListener('click', async function (e) {
+      if (e.target === overlay) { (await close()); return; }
       var el = e.target.closest('[data-act]');
       if (!el) return;
       var act = el.getAttribute('data-act');
       if (act === 'rerun') backToReverseSettings();
-      else if (act === 'close') close();
+      else if (act === 'close') (await close());
       else if (act === 'pick') { var fi = $('revFileInput'); if (fi) fi.click(); }
       else if (act === 'clear') clearReverseFile();
       else if (act === 'provider') setReverseProvider(el.getAttribute('data-value'));
       else if (act === 'mode') setReverseMode(el.getAttribute('data-value'));
-      else if (act === 'reset') resetReverseSettings();
+      else if (act === 'reset') (await resetReverseSettings());
       else if (act === 'start') startReverseFromModal();
       else if (act === 'cancel') cancelReverseFromModal();
-      else if (act === 'apply') applyReverseResult(el.getAttribute('data-mode'));
+      else if (act === 'apply') (await applyReverseResult(el.getAttribute('data-mode')));
       else if (act === 'copy') copyReverseResult();
     });
 
@@ -625,10 +625,10 @@
     _renderIcons();
   }
 
-  function close() {
+  async function close() {
     var prog = $('revViewProgress');
     if (prog && !prog.hidden) {
-      if (!confirm('反推正在进行中,确定关闭？')) return;
+      if (!(await window.StudioConfirm.ask('反推正在进行中,确定关闭？'))) return;
       cancelReverseFromModal();
     }
     var ov = $('reverseModalOverlay');
@@ -717,11 +717,11 @@
     _setReverseFile(null);
   }
 
-  function resetReverseSettings() {
+  async function resetReverseSettings() {
     var hasFile = !!_reverseFile;
     var hasCustom = _reverseProvider !== 'vision' || _reverseMode !== 'auto' || _reverseVisionProvider;
     if (hasFile || hasCustom) {
-      if (!confirm('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。')) return;
+      if (!(await window.StudioConfirm.ask('确定重置所有反推设置？这将清空已选图片、恢复默认提供商和模式。'))) return;
     }
     _reverseProvider = 'vision';
     _reverseMode = 'auto';
@@ -902,14 +902,14 @@
     _renderIcons();
   }
 
-  function applyReverseResult(mode) {
+  async function applyReverseResult(mode) {
     var txtEl = $('revResultText');
     var text = txtEl ? txtEl.value : '';
     if (!text) return;   // 无结果不处理（也不关闭），等价原行为
     if (_onApply) {
       try { _onApply(text, mode); } catch (err) { console.error('[ReverseImage] onApply error:', err); }
     }
-    close();
+    (await close());
   }
 
   function copyReverseResult() {

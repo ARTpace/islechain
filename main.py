@@ -1749,14 +1749,8 @@ BUILTIN_PROVIDERS = [
 ]
 
 def ensure_builtin_providers(providers):
-    """确保内置平台（ModelScope/RunningHub/火山引擎）始终存在；为旧 ModelScope 补默认 LoRA"""
-    existing_ids = {p.get("id") for p in providers}
+    """只迁移已有平台配置，不自动添加推荐平台。"""
     changed = False
-    for bp in BUILTIN_PROVIDERS:
-        if bp["id"] not in existing_ids:
-            providers.append(dict(bp))
-            existing_ids.add(bp["id"])
-            changed = True
     # 为已存在的 ModelScope 补 LoRA 默认值
     for p in providers:
         if p.get("id") == "modelscope" and not p.get("ms_loras"):
@@ -1765,14 +1759,14 @@ def ensure_builtin_providers(providers):
     return providers, changed
 
 def load_api_providers():
-    """从文件加载 API 提供商列表（内置平台自动补全）"""
+    """从文件加载用户自行添加的 API 提供商列表。"""
     migrate_api_providers_from_app_dir()
     if not os.path.exists(API_PROVIDERS_FILE):
         try:
-            atomic_write_json(API_PROVIDERS_FILE, list(BUILTIN_PROVIDERS), ensure_ascii=False, indent=2)
+            atomic_write_json(API_PROVIDERS_FILE, [], ensure_ascii=False, indent=2)
         except Exception:
             pass
-        return list(BUILTIN_PROVIDERS)
+        return []
     try:
         with open(API_PROVIDERS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -2794,7 +2788,7 @@ def save_conversation(user_id, conversation):
         path = conversation_path(user_id, conversation["id"])
         atomic_write_json(path, conversation, ensure_ascii=False, indent=2)
 
-def finish_chat_generation(conversation_id, message_id, images=None, error="", user_id=""):
+def finish_chat_generation(conversation_id, message_id, images=None, error="", user_id="", videos=None):
     """把已经完成的生图写回对话。页面关掉后，后台任务仍能把图挂上。"""
     conversation_id = str(conversation_id or "").strip()
     message_id = str(message_id or "").strip()
@@ -2816,8 +2810,12 @@ def finish_chat_generation(conversation_id, message_id, images=None, error="", u
     for url in images or []:
         if url and url not in urls:
             urls.append(url)
+    video_urls = message.setdefault("video_urls", []) if videos else message.get("video_urls", [])
+    for url in videos or []:
+        if url and url not in video_urls:
+            video_urls.append(url)
     message.pop("pending_generation", None)
-    if error and not urls:
+    if error and not urls and not video_urls:
         message["generation_error"] = str(error)[:300]
     else:
         message.pop("generation_error", None)
@@ -2863,11 +2861,17 @@ def list_conversations(user_id):
     cached = _conversation_list_cache.get(directory)
     if cached and cached[0] == signature:
         return cached[1]
+    previous = cached[2] if cached else {}
+    summaries = {}
     records = []
-    for filename in os.listdir(user_dir(user_id)):
-        if not filename.endswith(".json"):
+    for filename, modified, size in signature:
+        stamp = (modified, size)
+        old = previous.get(filename)
+        if old and old[0] == stamp:
+            summaries[filename] = old
+            records.append(old[1])
             continue
-        path = os.path.join(user_dir(user_id), filename)
+        path = os.path.join(directory, filename)
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -2875,18 +2879,20 @@ def list_conversations(user_id):
             continue
         messages = data.get("messages", [])
         last_message = next((m for m in reversed(messages) if m.get("role") != "system"), None)
-        records.append({
+        summary = {
             "id": data.get("id"),
             "title": data.get("title", "新对话"),
             "created_at": data.get("created_at", 0),
             "updated_at": data.get("updated_at", 0),
             "last_message": (last_message or {}).get("content", ""),
-        })
+        }
+        summaries[filename] = (stamp, summary)
+        records.append(summary)
     records.sort(key=lambda item: item["updated_at"], reverse=True)
     # ponytail: 仅缓存摘要，文件变更自动失效；限制账户数量避免无限增长。
     if len(_conversation_list_cache) >= 32:
         _conversation_list_cache.pop(next(iter(_conversation_list_cache)))
-    _conversation_list_cache[directory] = (signature, records)
+    _conversation_list_cache[directory] = (signature, records, summaries)
     return records
 
 def canvas_path(canvas_id):
@@ -3748,7 +3754,7 @@ async def _gen_webai2api(client, prov, model, prompt, size, refs, generation_par
         capabilities = metadata.get('generation_params') or {}
         if capabilities.get('source') == 'website':
             if capabilities.get('status') != 'ready':
-                raise HTTPException(status_code=400, detail='未获取当前模型的参数，请刷新模型后重试')
+                raise HTTPException(status_code=400, detail=capabilities.get('message') or '未获取当前模型的参数，请刷新模型后重试')
             body.pop('ratio', None)
     policy = metadata.get('image_policy', 'optional')
     if policy in ('forbidden', 'none') and refs:
@@ -7414,10 +7420,35 @@ def _run_comfy_generate_sync(req: GenerateRequest, token: str = "") -> dict:
         seed = random.randint(1, 10**15)
 
         if "23" in workflow and req.prompt:
-            workflow["23"]["inputs"]["text"] = req.prompt
+            # MiniMax H3 Image 用 PrimitiveStringMultiline 承载提示词, 字段名是 value;
+            # 其余工作流(CLIPTextEncode 等)用 text。写错字段会让提示词静默失效,
+            # 而且多出来的 text 键还可能被 ComfyUI 判成非法输入。
+            _n23_inputs = workflow["23"].get("inputs")
+            if not isinstance(_n23_inputs, dict):
+                _n23_inputs = {}
+                workflow["23"]["inputs"] = _n23_inputs
+            if "text" not in _n23_inputs and "value" in _n23_inputs:
+                _n23_inputs["value"] = req.prompt
+            else:
+                _n23_inputs["text"] = req.prompt
         if "144" in workflow:
-            workflow["144"]["inputs"]["width"] = req.width
-            workflow["144"]["inputs"]["height"] = req.height
+            _n144 = workflow["144"]
+            _n144_inputs = _n144.get("inputs")
+            if not isinstance(_n144_inputs, dict):
+                _n144_inputs = {}
+                _n144["inputs"] = _n144_inputs
+            if _n144.get("class_type") == "MiniMaxH3ImageConditioning":
+                # 该节点 step=32，且 width/height=0 表示图像编辑流「按参考图自动推导」。
+                # 前端 build() 已按分辨率档位注入对齐后的尺寸（含 4K 4096×4096），
+                # req.width/height 只是 align8 的通用值，直接覆盖会破坏 32 对齐或把编辑流的 0 改掉。
+                # 因此这里只做防御性对齐，不覆盖；其余工作流维持原有注入行为。
+                for _dim in ("width", "height"):
+                    _v = _n144_inputs.get(_dim, 0)
+                    if _v and _v % 32:
+                        _n144_inputs[_dim] = max(32, int(float(_v) / 32.0 + 0.5) * 32)
+            else:
+                _n144_inputs["width"] = req.width
+                _n144_inputs["height"] = req.height
         if "22" in workflow:
             workflow["22"]["inputs"]["seed"] = seed
         if "158" in workflow:
@@ -9750,6 +9781,7 @@ from routers import game_node_assets, mcp_tools, generation_dashboard
 from routers import dcc_bridge
 from routers import ability_packs
 from routers import materials
+from routers import model_availability
 
 app.include_router(auth)
 app.include_router(canvases)
@@ -9812,6 +9844,7 @@ app.include_router(game_model3d)
 app.include_router(model3d_viewer)
 app.include_router(rodin3d)
 app.include_router(game_audio)
+app.include_router(model_availability.router)
 app.include_router(game_node_assets)
 app.include_router(mcp_tools)
 app.include_router(generation_dashboard)

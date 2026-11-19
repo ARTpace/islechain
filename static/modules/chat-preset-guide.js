@@ -45,9 +45,9 @@
             + '</div>';
         document.body.append(panel);
         panel.querySelector('[data-close]').onclick = close;
-        panel.querySelector('[data-fill]').onclick = () => {
+        panel.querySelector('[data-fill]').onclick = async () => {
             if (!composer) return;
-            if (composer.value.trim() && composer.value.trim() !== guide.example && !global.confirm('替换当前输入？已上传图片会保留。')) return;
+            if (composer.value.trim() && composer.value.trim() !== guide.example && !(await window.StudioConfirm.ask('替换当前输入？已上传图片会保留。'))) return;
             global.dispatchEvent(new CustomEvent('chat-preset-guide-use', {detail:{id:preset.id}}));
             composer.value = guide.example;
             composer.dispatchEvent(new Event('input', {bubbles:true})); close(); composer.focus();

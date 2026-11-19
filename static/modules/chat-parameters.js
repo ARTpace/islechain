@@ -27,8 +27,8 @@ window.ChatParameters = (() => {
                 if (!Number.isInteger(value) || value < 1 || value > max) throw new Error(max >= 4 ? '分辨率支持 1K、2K、3K 或 4K' : '分辨率支持 1K 或 2K');
                 controls.res = value; labels.push(value + 'K');
             } else if (key === 'batch_count') {
-                if (!Number.isInteger(value) || value < 1 || value > (current.engine === 'cloud' ? 1 : 4)) {
-                    throw new Error(current.engine === 'cloud' ? '当前 API 通道每次支持 1 张，请分次生成' : '每次支持生成 1–4 张');
+                if (!Number.isInteger(value) || value < 1 || value > 4) {
+                    throw new Error('每次支持生成 1–4 张');
                 }
                 controls.batchCount = value; labels.push(value + ' 张');
             } else if (key === 'seed') {
@@ -68,7 +68,7 @@ window.ChatParameters = (() => {
         if (current.engine === 'local') Object.assign(params, { seed:controls.seedMode === 'fixed' ? controls.fixedSeed : 'random', negative_prompt:current.negative, ...current.sampling });
         return '\n当前实际生图设置（用户未要求更改时必须保留）：' + JSON.stringify({ ...context, params }) +
             '\n你可以用自然语言理解用户的参数要求。需要生图时在最后输出 IMAGE {"prompt":"完整画面描述","params":{...}}；只修改设置、不要求生图时输出 PARAMS {"params":{...}}。不要代码块。params 只包含用户本轮明确要求修改的字段，普通聊天不要输出指令。' +
-            '\n字段：ratio 为 ' + ratios.join('/') + '；resolution 为数字 1 或 2，Agnes 2.0 / 2.1 / 2.5 还可以是 3 或 4（长边约对应 K 数，不是精确宽高）；batch_count 本地1–4、API仅1；seed 仅本地，整数或"random"，API 不要输出 seed；negative_prompt 本地文本；steps/cfg/denoise 仅限 allowedSampling 中存在的字段，范围分别1–100整数、0–30、0–1。横图无明确比例时用16:9，竖图用9:16，方图用1:1。精确像素、切换模型、LoRA等未列出的设置暂不支持，说明限制并询问，不得声称已执行或擅自替换。参考图不改变参数规则。';
+            '\n字段：ratio 为 ' + ratios.join('/') + '；resolution 为数字 1 或 2，Agnes 2.0 / 2.1 / 2.5 还可以是 3 或 4（长边约对应 K 数，不是精确宽高）；batch_count 为1–4，API由工具自动分次提交；seed 仅本地，整数或"random"，API 不要输出 seed；negative_prompt 本地文本；steps/cfg/denoise 仅限 allowedSampling 中存在的字段，范围分别1–100整数、0–30、0–1。横图无明确比例时用16:9，竖图用9:16，方图用1:1。精确像素、切换模型、LoRA等未列出的设置暂不支持，说明限制并询问，不得声称已执行或擅自替换。参考图不改变参数规则。';
     }
     return { plan, guide, samplingFields, applySampling };
 })();

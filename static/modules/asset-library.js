@@ -7,7 +7,7 @@
  *
  * 用法：
  *   <div id="assetLibraryMount"></div>
- *   <script src="/static/modules/asset-library.js"></script>
+ *   <script src="/static/modules/asset-library.js?v=20261119002"></script>
  *   <script>
  *     AssetLibrary.init({
  *       mountId:      'assetLibraryMount',                 // 挂载点
@@ -289,7 +289,7 @@
   function _bindEvents() {
     var overlay = $('assetLibraryOverlay');
     if (!overlay) return;
-    overlay.addEventListener('click', function (e) {
+    overlay.addEventListener('click', async function (e) {
       if (e.target === overlay) { close(); return; }
       var el = e.target.closest('[data-act]');
       if (!el) return;
@@ -298,7 +298,7 @@
       else if (act === 'confirm') { applyMulti(); }
       else if (act === 'select') { onCardClick(el); }
       else if (act === 'check') { onCardClick(el); }
-      else if (act === 'delete') { deleteItem(el.getAttribute('data-id'), el.getAttribute('data-url'), el.getAttribute('data-name')); }
+      else if (act === 'delete') { (await deleteItem(el.getAttribute('data-id'), el.getAttribute('data-url'), el.getAttribute('data-name'))); }
       else if (act === 'nav-all') { _activeCatId = ''; renderNav(); _renderGridIfReady(); }
       else if (act === 'nav-cat') { _activeCatId = el.getAttribute('data-id'); renderNav(); _renderGridIfReady(); }
     });
@@ -474,8 +474,8 @@
       list.forEach(function (it) { try { _onApply(it.url, it.name); } catch (_) {} });
     }
   }
-  function deleteItem(id, url, name) {
-    if (!confirm('确定从资产库删除「' + (name || '该资产') + '」？此操作不可撤销。')) return;
+  async function deleteItem(id, url, name) {
+    if (!(await window.StudioConfirm.ask('确定从资产库删除「' + (name || '该资产') + '」？此操作不可撤销。'))) return;
     fetch('/api/asset-library/items/' + encodeURIComponent(id), { method: 'DELETE' })
       .then(function (r) { if (!r.ok) throw new Error('删除失败: ' + r.status); if (typeof _onDeleted === 'function') { try { _onDeleted(id, url, name); } catch (_) {} } return loadLibrary(); })
       .catch(function (e) { alert('删除失败: ' + (e.message || '')); });

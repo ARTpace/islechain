@@ -1,0 +1,155 @@
+{
+  "3": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "70": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "lora_name": "KOOK-Minimax-H3-image-尘星.safetensors",
+      "strength_model": 0.8
+    },
+    "_meta": {
+      "title": "尘星 LoRA（默认画质增强；strength_model 设为 0 即关闭）"
+    }
+  },
+  "4": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "5": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_image_vae_fp16.safetensors"
+    }
+  },
+  "23": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "这是一张21世纪初用24mm广角镜头从低角度特写拍摄的超现实数码相机快照，显示了一位20岁、面容完美的东亚美女，侧身坐在米色沙发上。她有一头齐肩的湿发，留着刘海，她苍白的皮肤被强烈的正面直射闪光照亮，在背景保持黑暗的情况下，略微过度曝光了场景。她身体前倾，双臂张开，一条腿高高地踢向空中，表情充满活力。她穿着一件紧身的浅蓝灰色连体比赛泳衣，侧面有粉色和橙色的点缀，湿漉漉的，紧贴着她的身体。该图像呈现出可见的数字噪声、广角视角失真和随意的私人公寓快照美学。"
+    }
+  },
+  "144": {
+    "class_type": "MiniMaxH3ImageConditioning",
+    "inputs": {
+      "clip": [
+        "4",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ],
+      "prompt": [
+        "23",
+        0
+      ],
+      "width": 2048,
+      "height": 2048
+    }
+  },
+  "158": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 19960422
+    }
+  },
+  "65": {
+    "class_type": "SamplerLCM",
+    "inputs": {
+      "s_noise": 1.1,
+      "s_noise_end": 0.9,
+      "noise_clip_std": 0.0
+    },
+    "_meta": {
+      "title": "LCM 祖先采样｜消除 6 步蒸馏模型暗部/平坦区的高频噪点"
+    }
+  },
+  "66": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "70",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 6,
+      "denoise": 1.0
+    },
+    "_meta": {
+      "title": "按模型自身采样分布生成 sigma（simple / 6 步），替代硬编码 ManualSigmas"
+    }
+  },
+  "63": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "70",
+        0
+      ],
+      "conditioning": [
+        "144",
+        0
+      ]
+    }
+  },
+  "107": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "158",
+        0
+      ],
+      "guider": [
+        "63",
+        0
+      ],
+      "sampler": [
+        "65",
+        0
+      ],
+      "sigmas": [
+        "66",
+        0
+      ],
+      "latent_image": [
+        "144",
+        1
+      ]
+    }
+  },
+  "108": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "107",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
+    }
+  },
+  "132": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "108",
+        0
+      ],
+      "filename_prefix": "MiniMaxH3Image_LCM_t2i"
+    }
+  }
+}

@@ -105,7 +105,7 @@
         window.dispatchEvent(new Event('style-packs-changed'));
         window.dispatchEvent(new Event('content-packs-changed'));
     }
-    function onClick(event) {
+    async function onClick(event) {
         const category = event.target.closest('[data-cp-category]');
         if (category) { state.category = category.dataset.cpCategory; paint(); return; }
         const button = event.target.closest('[data-cp-action]');
@@ -129,7 +129,7 @@
         }
         if (action === 'remove-repo' && repoId) {
             const repo = state.repos.find(r => r.id === repoId);
-            if (!window.confirm('移除仓库「' + (repo?.name || repoId) + '」？已安装的内容包会保留。')) return;
+            if (!(await window.StudioConfirm.ask('移除仓库「' + (repo?.name || repoId) + '」？已安装的内容包会保留。'))) return;
             act(async () => { applyRepository(await request(API + '/' + encodeURIComponent(repoId), 'DELETE')); state.notice = '仓库已移除，已安装的内容保留'; });
             return;
         }
@@ -137,8 +137,8 @@
             act(async () => { applyRepository(await request(API + '?check=true')); state.notice = '仓库检查完成'; });
             return;
         }
-        if (action === 'install' && pack?.installed && !window.confirm('更新「' + pack.name + '」？仅替换此包，其他包保留。')) return;
-        if (action === 'uninstall' && !window.confirm('卸载这个内容包？')) return;
+        if (action === 'install' && pack?.installed && !(await window.StudioConfirm.ask('更新「' + pack.name + '」？仅替换此包，其他包保留。'))) return;
+        if (action === 'uninstall' && !(await window.StudioConfirm.ask('卸载这个内容包？'))) return;
         act(async () => {
             if (action === 'install') {
                 await request('/api/content-packs/repository/install', 'POST', {packId:id, replace:!!pack?.installed, repoId:repoId || ''});

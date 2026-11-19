@@ -165,7 +165,7 @@
     async function deleteSelected(timestamps, event) {
         if (event) event.stopPropagation();
         if (!timestamps || timestamps.size === 0) return;
-        if (!confirm(`确定删除选中的 ${timestamps.size} 条记录吗？`)) return;
+        if (!(await window.StudioConfirm.ask(`确定删除选中的 ${timestamps.size} 条记录吗？`))) return;
         // [Task 5 收敛] 优先 NS.Config
         const historyType = (window.GalleryDisplay?.Config?.type) || 'unknown';
         const items = Array.from(timestamps);

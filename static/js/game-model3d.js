@@ -197,7 +197,7 @@
         controls.querySelector('[data-operation]')?.addEventListener('change',e=>{node.modelOperation=e.target.value;refresh(node);});
         controls.querySelector('[data-prompt]')?.addEventListener('input',e=>{node.modelPrompt=e.target.value;save();});
         controls.querySelector('[data-model]')?.addEventListener('change',e=>{if(!e.target.value)return;[node.modelConnection,node.modelVersion]=JSON.parse(e.target.value);node.targetPolycount=selectedModel(node)?.settings.polycount.default;refresh(node);});
-        controls.querySelectorAll('[data-m3d]').forEach(el=>el.onclick=e=>{e.stopPropagation();void action(node,el.dataset.m3d).catch(error=>fail(node,error));});
+        controls.querySelectorAll('[data-m3d]').forEach(el=>el.onclick=async e=>{e.stopPropagation();void (await action(node,el.dataset.m3d)).catch(error=>fail(node,error));});
         if(view.key){const reference=document.createElement('div');reference.className='m3d-links';reference.innerHTML=button('reference',referenceImages(node).length?'更新参考视图':'设为参考视图','title="保存当前视角后，可连到图像、视频、LLM、策划节点"');reference.querySelector('button').disabled=locked;reference.querySelector('button').onclick=e=>{e.stopPropagation();void captureReference(node).catch(error=>fail(node,error));};controls.append(reference);}
         target.onwheel=e=>e.stopPropagation();
     }
@@ -370,7 +370,7 @@
     async function start(node){
         if(running(node))return;
         if(!node.modelPending){
-            if((node.modelJob?.submissionUncertain||node.modelJob?.status==='cancelled')&&!confirm('原任务可能已提交或仍在远端运行。建议先恢复原任务或到服务控制台核对。仍要新建可能重复计费的任务吗？'))return;
+            if((node.modelJob?.submissionUncertain||node.modelJob?.status==='cancelled')&&!(await window.StudioConfirm.ask('原任务可能已提交或仍在远端运行。建议先恢复原任务或到服务控制台核对。仍要新建可能重复计费的任务吗？')))return;
             if(!connection(node)||!selectedModel(node))throw new Error('请先选择或配置 3D 服务模型');
             const animate=node.type==='gameAnimate3d',operation=animate?'animate':node.modelOperation||'image',upstream=inputs(node);
             if(['animate','retexture','remesh'].includes(operation)&&upstream.filter(n=>types.includes(n.type)&&asset(n)).length>1)throw new Error('请只保留一个源模型连线，避免使用错误模型');
@@ -426,7 +426,7 @@
         if(name==='advanced')return advanced(node);
         if(name==='configure')return configure(node);
         if(name==='import')return pickFiles(node);
-        if(name==='generate')return start(node);
+        if(name==='generate')return (await start(node));
         if(name==='download'){const a=asset(node);if(!a)throw new Error('没有可下载模型');const response=await fetch(`/api/game-projects/${node.projectId}/workspace/media-assets/${a.id}/content`);if(!response.ok)throw new Error('模型下载失败');const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=a.name.endsWith('.glb')?a.name:a.name+'.glb';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return;}
         if(name==='resume'||name==='cancel'){node.modelJob=await request(node,`/jobs/${node.modelJob.jobId}/control/${name}`,'POST');refresh(node);return;}
         if(name==='adopt'){await window.GamePipeline.workflow(async ctx=>{const result=await ctx.write(`/model3d/jobs/${node.modelJob.jobId}/adopt`,'POST',{purpose:node.modelPurpose||'游戏角色或场景素材',name:titles[node.type]});node.modelAssetId=result.assetId;node.modelJob={...node.modelJob,status:'adopted',message:'已接入项目，可连接到游戏开发节点'};});refresh(node);return;}

@@ -1,0 +1,14 @@
+# 桌面外壳相关的应用级命令权限。
+#
+# 网页跑在 http://127.0.0.1:7000（非本地来源），Tauri 会对远程来源强制走 ACL，
+# 所以这些自定义命令必须在这里显式放行，否则托盘/标题条按钮会被拒。
+
+[[permission]]
+identifier = "allow-desktop-shell"
+description = "窗口外壳：最小化/最大化/关闭、拖动、最大化状态查询，以及启动错误查询。"
+
+commands.allow = [
+  "desktop_chrome",
+  "backend_startup_error",
+  "overlay_set_rects"
+]

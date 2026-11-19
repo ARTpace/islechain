@@ -120,7 +120,7 @@
 
     async function uninstallPack(packId) {
         if (state.busy) return;
-        if (!window.confirm('卸载风格包 ' + packId + '？\n\n该包里的风格条目会一并移除，你自己新增的单条风格不受影响。')) return;
+        if (!(await window.StudioConfirm.ask('卸载风格包 ' + packId + '？\n\n该包里的风格条目会一并移除，你自己新增的单条风格不受影响。'))) return;
         state.busy = packId;
         state.notice = '';
         paint();
@@ -146,7 +146,7 @@
         }
         const pack = state.repository.packs.find((p) => p.packId === packId);
         if (action === 'install' && pack && pack.blockedBy?.length) return;
-        if (action === 'install' && pack && pack.installed && !window.confirm('更新 ' + pack.name + '：' + pack.installedVersion + ' → ' + pack.version + '？\n仅替换这个平台包，其他包和用户增量修改会保留。')) return;
+        if (action === 'install' && pack && pack.installed && !(await window.StudioConfirm.ask('更新 ' + pack.name + '：' + pack.installedVersion + ' → ' + pack.version + '？\n仅替换这个平台包，其他包和用户增量修改会保留。'))) return;
         state.busy = 'repository';
         state.notice = action === 'install' ? '正在下载并安装风格包…' : '正在读取仓库…';
         state.repositoryError = '';
@@ -350,20 +350,20 @@
         icons();
     }
 
-    function onClick(event) {
+    async function onClick(event) {
         const target = event.target.closest('[data-sp-select],[data-sp-install],[data-sp-uninstall],[data-sp-export],[data-sp-import],[data-sp-refresh],[data-sp-repo],[data-sp-repo-install]');
         if (!target) return;
         if (target.hasAttribute('data-sp-repo')) {
-            repositoryAction(target.dataset.spRepo);
+            (await repositoryAction(target.dataset.spRepo));
         } else if (target.dataset.spRepoInstall) {
-            repositoryAction('install', target.dataset.spRepoInstall);
+            (await repositoryAction('install', target.dataset.spRepoInstall));
         } else if (target.dataset.spSelect) {
             state.selected = target.dataset.spSelect;
             paint();
         } else if (target.dataset.spInstall) {
             installPack(target.dataset.spInstall);
         } else if (target.dataset.spUninstall) {
-            uninstallPack(target.dataset.spUninstall);
+            (await uninstallPack(target.dataset.spUninstall));
         } else if (target.dataset.spExport) {
             window.open(API.download(target.dataset.spExport), '_blank');
         } else if (target.hasAttribute('data-sp-import')) {

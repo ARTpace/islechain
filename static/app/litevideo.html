@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>视频生成 | IsleChain</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -28,16 +29,16 @@
     <script src="/static/history-bulk-manager.js"></script>
     <!-- Gallery 模块（与生图页面一致的工具栏/收藏/搜索/批量管理/Lightbox） -->
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
-<script src="/static/modules/gallery/bundle.js?v=20261101stablemasonry"></script>
+<script src="/static/modules/gallery/bundle.js?v=20261119002"></script>
     <!-- LoRA 共享组件 -->
     <script src="/static/modules/lora-manager.js?v=20261024001"></script>
     <link rel="stylesheet" href="/static/app/lora-picker.css?v=20261028155">
     <script src="/static/app/lora-picker.js?v=20261028155"></script>
-    <script src="/static/modules/asset-library.js?v=20261024001"></script>
+    <script src="/static/modules/asset-library.js?v=20261119002"></script>
     <!-- 智能提示词模块（复用文生图页面 AI 提示词功能） -->
     <script src="/prompt/static/prompt-module.js?v=20261110groups"></script>
     <!-- 图片反推模块（复用文生图页面 interrogate 功能，依据参考图反推提示词） -->
-    <script src="/static/modules/reverse-image.js"></script>
+    <script src="/static/modules/reverse-image.js?v=20261119002"></script>
     <style>
         :root {
             --bg-base: #f8f8f8;
@@ -3426,11 +3427,11 @@ function renderRefStack(type) {
     // 内嵌清空全部按钮
     const clearAll = stack.querySelector('.lv-ref-clear-all');
     if (clearAll) {
-        clearAll.addEventListener('click', (e) => {
+        clearAll.addEventListener('click', async (e) => {
             e.preventDefault(); e.stopPropagation();
             const arr2 = _refArray(type);
             if (arr2.length === 0) return;
-            if (confirm('清空所有' + cfg.title + '?')) clearRefByType(type);
+            if ((await window.StudioConfirm.ask('清空所有' + cfg.title + '?'))) clearRefByType(type);
         });
         clearAll.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clearAll.click(); }
@@ -6459,10 +6460,10 @@ function removeSegment(id) {
     scheduleSaveDraft();
 }
 
-function clearSegments() {
+async function clearSegments() {
     if (_seq) stopSequence();
     if (!segments.length) return;
-    if (!confirm('确定清空所有片段？')) return;
+    if (!(await window.StudioConfirm.ask('确定清空所有片段？'))) return;
     segments = []; selectedSegId = null;
     _clearStageVideos();
     renderTimeline();

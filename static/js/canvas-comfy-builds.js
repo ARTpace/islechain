@@ -97,7 +97,7 @@
         const testing=testingPlugins.has(record.id);
         const runTest=async()=>{
             const worker=record.executionKind==='worker.python';
-            if(worker&&!confirm('此 Python worker 不是操作系统沙箱，可访问当前用户文件、网络并创建进程。请先通过“查看候选与报告”审阅代码，只对可信代码和依赖包授权。'+((record.dependencies||[]).length?'\n将从PyPI下载并安装到当前账号的独立目录，不改宿主或ComfyUI：\n'+record.dependencies.map(item=>item.name+'=='+item.version).join('\n'):'')))return;
+            if(worker&&!(await window.StudioConfirm.ask('此 Python worker 不是操作系统沙箱，可访问当前用户文件、网络并创建进程。请先通过“查看候选与报告”审阅代码，只对可信代码和依赖包授权。'+((record.dependencies||[]).length?'\n将从PyPI下载并安装到当前账号的独立目录，不改宿主或ComfyUI：\n'+record.dependencies.map(item=>item.name+'=='+item.version).join('\n'):''))))return;
             testingPlugins.add(record.id);await refresh();
             try{await api({action:'plugin-test',candidateId:record.id,trustedCode:worker},canvasId);}
             finally{testingPlugins.delete(record.id);await refresh();}
@@ -141,7 +141,7 @@
         if(busy)more.push({label:'停止监控（不全局中断安装）',run:cancel});
         let primary=null;
         if(record.status==='prepared')primary={label:'授权并安装可信插件',run:async()=>{
-            if(record.approvedRevision!==record.revision&&!confirm(record.risk+'\n\n实例：'+record.instance+'\n'+record.packages.map(item=>item.id+'@'+item.version+'\n'+item.repository).join('\n')))return;
+            if(record.approvedRevision!==record.revision&&!(await window.StudioConfirm.ask(record.risk+'\n\n实例：'+record.instance+'\n'+record.packages.map(item=>item.id+'@'+item.version+'\n'+item.repository).join('\n'))))return;
             await api({action:'install-start',installId:record.id,revision:record.revision,trustedCode:true},canvasId);await refresh();
         }};
         else if(record.status==='restart_required')primary={label:'重启受管实例并验证',run:async()=>{await api({action:'install-restart',installId:record.id},canvasId);await refresh();}};

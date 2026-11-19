@@ -124,7 +124,7 @@ async function spmSave() {
 }
 
 async function spmDelete(id) {
-    if (!confirm('确认删除此预设？')) return;
+    if (!(await window.StudioConfirm.ask('确认删除此预设？'))) return;
     try { await fetch('/api/smart-prompt/presets/' + id, { method: 'DELETE' }); } catch (e) {}
     spmPresets = spmPresets.filter(x => x.id !== id);
     if (spmEditingId === id) { spmEditingId = null; spmShowEmpty(); }

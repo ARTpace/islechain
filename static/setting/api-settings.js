@@ -2070,7 +2070,7 @@ async function clearKeyOnly(){
     const item = provider();
     if(!item) return;
     if(!item.has_key && !keyInput.value){ return; }
-    if(!confirm(tr('api.confirmClearKey') || '确认清除当前 Key？')) return;
+    if(!(await window.StudioConfirm.ask(tr('api.confirmClearKey') || '确认清除当前 Key？'))) return;
     item._clearKey = true;
     const ok = await saveProviders();
     if(ok) keyInput.value = '';
@@ -2201,7 +2201,7 @@ async function saveRhKeyOnly(kind){
 async function clearRhKeyOnly(kind){
     const item = provider();
     if(!item || item.id !== 'runninghub') return;
-    if(!confirm(tr('api.confirmClearKey') || '确认清除当前 Key？')) return;
+    if(!(await window.StudioConfirm.ask(tr('api.confirmClearKey') || '确认清除当前 Key？'))) return;
     if(kind === 'wallet') item._clearWalletKey = true;
     else item._clearKey = true;
     const ok = await saveProviders();

@@ -66,3 +66,7 @@ assert.equal(ctx.cloudWebsiteRequestParams().size, before);
     await assert.rejects(() => ctx.cloudPreflightWebsiteParams({protocol:'webai2api',provider_id:'p',model:'gpt'}), /未登录/);
     console.log('缓存失效、历史参数、同步失败及平台归属校验通过');
 })().catch(error => {console.error(error);process.exitCode=1;});
+
+const loginSchema = { source:'website', status:'unavailable', params:[], message:'请先在工作窗口登录 ai.bt' };
+assert.equal(ctx.cloudWebsiteUnavailableLabel(loginSchema), '需登录网站');
+assert.throws(() => ctx.cloudValidateWebsiteParams(loginSchema, {}, 0), /登录 ai\.bt/);

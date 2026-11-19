@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>TTS 语音合成 | IsleChain</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -26,7 +27,7 @@
     <script src="/static/history-bulk-manager.js"></script>
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
-    <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/actions.js?v=20261119002"></script>
     <script src="/static/modules/gallery/list.js?v=20261102scopebtn"></script>
 <script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
@@ -2564,7 +2565,7 @@
 
     async function deleteSelectedVoice() {
         if (!selectedVoiceName) return;
-        if (!confirm(`确定删除音色 "${selectedVoiceName}" 吗？`)) return;
+        if (!(await window.StudioConfirm.ask(`确定删除音色 "${selectedVoiceName}" 吗？`))) return;
 
         try {
             await fetch(`/api/tts/voices/${encodeURIComponent(selectedVoiceName)}` + window.location.search, {
@@ -2692,7 +2693,7 @@
         const sourceDir = prompt('请输入原神音色库目录路径:\n例如: H:\\AI-Tools\\mys-voice-genshin\\res\\audio');
         if (!sourceDir) return;
 
-        if (!confirm('确定要导入原神角色音色吗？\n每个角色将选择一个代表性音频文件。')) return;
+        if (!(await window.StudioConfirm.ask('确定要导入原神角色音色吗？\n每个角色将选择一个代表性音频文件。'))) return;
 
         try {
             const formData = new FormData();
@@ -3784,7 +3785,7 @@
             alert('请先选择要删除的记录');
             return;
         }
-        if (!confirm(`确定删除选中的 ${ttsSelectedCards.size} 条记录吗？`)) return;
+        if (!(await window.StudioConfirm.ask(`确定删除选中的 ${ttsSelectedCards.size} 条记录吗？`))) return;
 
         const timestamps = Array.from(ttsSelectedCards);
         // 前端先移除

@@ -1,26 +1,22 @@
-/* 统一模型选择菜单 —— 画布图像生成节点 / 文生图页共用
- *
- * 为什么要有它：这两处以前各写一套模型列表，连「哪些文件是同一模型的不同质量档」
- * 都各判一次（画布用正则硬编码 isMoss/isQwen21，文生图按 config.title 去重）。
- * 结果加一个多档模型要改两处，而且画布侧漏了 boogu。
- *
- * 分工：
- *   本组件 —— 档位识别、按 title 归并、DOM 结构、搜索、选中态
- *   宿主   —— 提供数据、决定行尾徽章文案、处理 onPick / onSettings
- *
- * 加多档模型的正确姿势：三份 .config.json 的 title 写成完全一致，
- * 文件名加 -fast / -turbo / -4step / -6step 后缀，两个界面自动都正确。
+/* 统一模型选择菜单 —— 画布图像生成节点 / 文生图页共用。
+ * 分工：本组件管档位识别 / 按 title 归并 / DOM / 搜索 / 选中态；宿主提供数据、徽章与 onPick。
+ * 多档模型：几份 .config.json 的 title 完全一致，文件名加 -fast/-turbo/-4step/-6step 即可。
+ * 可用性过滤是可替换策略，见 model-availability-filter.js；未加载时全部放行。
  */
 (function () {
     'use strict';
+    var filter = window.ModelPickerAvailability;
 
     // 文件名后缀 → 档位名。'' 表示默认档（高质量档，无后缀）
+    // 第 5 条是通用兜底：任何「-N步」写法（-1step / -8step ……）都算极速档，
+    // 以后加一份蒸馏版本不用再回来改这张表。
     var TIER_SUFFIXES = [
         ['-turbo', '极速'],
         ['-4step', '极速'],
         ['-6step', '极速'],
         ['-fast', '低']
     ];
+    var TIER_STEP_RE = /-(\d+)step$/i;
 
     function baseName(name) {
         return String(name || '').split('/').pop().replace(/\.json$/i, '');
@@ -33,7 +29,17 @@
                 return TIER_SUFFIXES[i][1];
             }
         }
+        if (TIER_STEP_RE.test(base)) return '极速';
         return '';
+    }
+
+    // 档位判定优先级：工作流 config 显式声明的 tier → 文件名后缀。
+    // 配置文件走数据缝，特殊命名（如 -lightning / 中文档位名）也能直接标，不用改代码。
+    function tierOfItem(item) {
+        if (!item) return '';
+        var declared = String(item.tier || '').trim();
+        if (declared) return declared;
+        return tierOfWorkflow(item.name || item.workflow || '');
     }
 
     // 档位在 UI 里的展示顺序：高 → 低 → 极速。未知档位排最后。
@@ -53,6 +59,7 @@
 
         (workflows || []).forEach(function (item) {
             if (!item || !item.name) return;
+            if (filter && filter.rejectWorkflow(item.name)) return;
             var title = item.title || baseName(item.name);
             if (!byTitle[title]) { byTitle[title] = []; order.push(title); }
             byTitle[title].push(item);
@@ -62,15 +69,19 @@
             var group = byTitle[title].slice().sort(function (a, b) {
                 return tierRank(a.name) - tierRank(b.name);
             });
+            // 先把「文件名 / 配置 → 档位」算一次，宿主和档位选择器都用这一份，避免两处判断漂移
+            var tiers = group.map(function (item) {
+                return { name: item.name, tier: tierOfItem(item) };
+            });
             var primary = null;
-            for (var i = 0; i < group.length; i++) {
-                if (!tierOfWorkflow(group[i].name)) { primary = group[i]; break; }
+            for (var i = 0; i < tiers.length; i++) {
+                if (!tiers[i].tier) { primary = tiers[i]; break; }
             }
-            if (!primary) primary = group[0];
+            if (!primary) primary = tiers[0];
 
             var picked = null;
-            for (var j = 0; j < group.length; j++) {
-                if (group[j].name === current) { picked = group[j]; break; }
+            for (var j = 0; j < tiers.length; j++) {
+                if (tiers[j].name === current) { picked = tiers[j]; break; }
             }
 
             return {
@@ -80,22 +91,61 @@
                 workflow: primary.name,
                 // 用户当前真正选中的那一档（可能不是默认档）；没有选中时为 ''
                 selected: picked ? picked.name : '',
-                workflows: group.map(function (item) { return item.name; }),
-                tier: picked ? tierOfWorkflow(picked.name) : '',
+                workflows: tiers.map(function (item) { return item.name; }),
+                tiers: tiers,
+                tier: picked ? picked.tier : '',
                 active: Boolean(picked),
-                multi: group.length > 1
+                multi: tiers.length > 1
             };
         });
+    }
+
+    // 速度档位选项：给「生成参数」面板等宿主共用的一份实现。
+    // 入参可以是工作流数组，也可以直接是 localRows() 产出的一行（宿主已按可见性筛过时用后者）。
+    // 返回 [{value: 工作流名, label: 档位名}]，按 高 → 低 → 极速 排序并去重；
+    // 只有多档模型才返回内容，单档模型返回空数组（宿主据此隐藏整组控件）。
+    function tierOptions(source, current) {
+        var row = null;
+        if (source && source.tiers) {
+            row = source;
+        } else {
+            row = findRow(localRows(source, { currentWorkflow: current }), current);
+        }
+        if (!row || !row.multi) return [];
+        var seen = {};
+        var options = [];
+        // 当前档优先占位：两档标签重名时（如 -4step 与 -6step 都叫「极速」）保留用户当前那份
+        var ordered = row.tiers.slice().sort(function (a, b) {
+            if (a.name === current) return -1;
+            if (b.name === current) return 1;
+            return 0;
+        });
+        ordered.forEach(function (item) {
+            var label = item.tier || '高';
+            if (seen[label]) return;
+            seen[label] = true;
+            options.push({ value: item.name, label: label });
+        });
+        return options.sort(function (a, b) {
+            return tierSortRank(a.label) - tierSortRank(b.label);
+        });
+    }
+    // 「高」在内部表示成无后缀档（TIER_ORDER 的 '' 键），排序前先换算一次
+    function tierSortRank(label) {
+        var key = label === '高' ? '' : label;
+        return Object.prototype.hasOwnProperty.call(TIER_ORDER, key) ? TIER_ORDER[key] : 9;
     }
 
     // 在线 provider → 分组（provider.models 支持字符串或 {id,label}）
     function cloudGroups(providers, options) {
         var currentProvider = (options && options.currentProvider) || '';
         var currentModel = (options && options.currentModel) || '';
+        var kind = (options && options.kind) || 'image';
         var groups = [];
 
         (providers || []).forEach(function (provider) {
             if (!provider || provider.enabled === false) return;
+            if (filter && filter.rejectProvider(provider.id)) return;
             var rows = (provider.models || []).map(function (model) {
                 var id = typeof model === 'string' ? model : (model.id || model.name || '');
                 var label = typeof model === 'string' ? model : (model.label || model.displayName || id);
@@ -108,8 +158,11 @@
                     active: provider.id === currentProvider && id === currentModel,
                     disabled: Boolean(model && model.disabled)
                 };
+            }).filter(function (row) {
+                return !filter || !filter.rejectModel(kind, provider.id, row.model);
             });
-            groups.push({ title: provider.name || provider.id, rows: rows });
+            // 整组模型都被过滤掉时，不留一个空的分组标题
+            if (rows.length) groups.push({ title: provider.name || provider.id, rows: rows });
         });
         return groups;
     }
@@ -275,19 +328,23 @@
                 sub = document.createElement('div');
                 sub.className = 'mp-subrows';
                 sub.hidden = true;
-                // row.workflow 是默认档；用户当前实际选中的可能是别的档，以 selected 为准
+                // row.workflow 是默认档；用户当前实际选中的可能是别的档，以 selected 为准。
+                // 缺权重的档位不能留在切换器里，否则点下去照样跑不起来。
+                var selectable = filter ? filter.workflows(row.workflows || []) : (row.workflows || []).slice();
                 var currentWorkflow = row.selected || row.workflow;
-                (row.workflows || []).forEach(function (name, index) {
+                var tierMap = {};
+                (row.tiers || []).forEach(function (item) { tierMap[item.name] = item.tier; });
+                selectable.forEach(function (name, index) {
                     var pill = document.createElement('button');
                     pill.type = 'button';
                     pill.className = 'mp-subrow' + (name === currentWorkflow ? ' is-active' : '');
-                    pill.textContent = tierOfWorkflow(name) || '高';
+                    pill.textContent = tierMap[name] || tierOfWorkflow(name) || '高';
                     pill.title = baseName(name);
                     pill.dataset.tierIndex = String(index);
                     pill.onclick = function (ev) {
                         ev.stopPropagation();
                         row.workflow = name;
-                        row.tier = tierOfWorkflow(name);
+                        row.tier = tierMap[name] || tierOfWorkflow(name);
                         row.active = true;
                         // 就地更新选中态，不重绘 —— 重绘会收起子行，连续对比档位很别扭
                         markActive(index);
@@ -341,7 +398,8 @@
             var sections = [{ title: features.localTitle || '本地 ComfyUI', rows: rows }].concat(groups);
 
             sections.forEach(function (section) {
-                var matched = (section.rows || []).filter(function (row) {
+                var source = filter ? filter.rows(section.rows || []) : (section.rows || []);
+            var matched = source.filter(function (row) {
                     if (!query) return true;
                     return (section.title + ' ' + row.label).toLowerCase().indexOf(query) >= 0;
                 });
@@ -369,6 +427,7 @@
         }
 
         draw();
+        if (filter && filter.bindRedraw) filter.bindRedraw(root, draw);
         return root;
     }
 
@@ -386,6 +445,8 @@
 
     window.ModelPicker = {
         tierOfWorkflow: tierOfWorkflow,
+        tierOfItem: tierOfItem,
+        tierOptions: tierOptions,
         maxResFor: maxResFor,
         RATIOS: RATIOS,
         localRows: localRows,

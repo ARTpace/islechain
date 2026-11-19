@@ -212,9 +212,6 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
         if provider["id"] == "modelscope":
             env_updates["MODELSCOPE_CHAT_MODELS"] = ",".join(provider["chat_models"])
 
-    if not providers:
-        raise HTTPException(status_code=400, detail="至少保留一个 API 平台")
-
     primary_indices = [i for i, flag in enumerate(raw_primary_flags) if flag]
     if primary_indices:
         winner = primary_indices[-1]
@@ -226,6 +223,13 @@ async def save_providers(payload: List[_main.ApiProviderPayload]):
     if env_updates:
         _main.update_env_values(env_updates)
         _main.reload_env_globals()
+
+    # 平台/Key/模型清单刚变过，下一次菜单读取必须重新检测
+    try:
+        from core import model_availability as _availability
+        _availability.invalidate()
+    except Exception:
+        pass
 
     return {"providers": [_main.public_provider(p) for p in providers]}
 

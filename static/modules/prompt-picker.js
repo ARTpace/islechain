@@ -480,6 +480,10 @@
     function closePromptPicker() {
         var shell = document.getElementById('promptPickerShell');
         if (!shell || !shell.classList.contains('is-open')) return;
+        // 收起前把提示词库当前分类/滚动位置存稳，重新打开时直接回到原处
+        if (global.GenerationPromptLibrary && typeof global.GenerationPromptLibrary.suspend === 'function') {
+            global.GenerationPromptLibrary.suspend();
+        }
         var token = ++closeToken;
         closing = true;
         try {

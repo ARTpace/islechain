@@ -25,7 +25,7 @@ def validate_generation_params(schema, values, reference_count=0):
         raise ValueError('生成参数格式错误')
     website = schema.get('source') == 'website'
     if website and (schema.get('status') != 'ready' or not schema.get('params')):
-        raise ValueError('尚未获取该模型的有效网站参数，请登录工作窗口并刷新模型')
+        raise ValueError(schema.get('message') or '尚未获取该模型的有效网站参数，请登录工作窗口并刷新模型')
     if schema.get('byProvider'):
         declared = next((p for p in schema.get('params', []) if p.get('key') == 'provider'), {})
         channel = values.get('provider', declared.get('default'))

@@ -4,7 +4,7 @@ import {IMAGE_MODEL_INFO, modelAvailable} from '/tripo-studio/shared/image-model
 import {estimateJobCredits} from '/tripo-studio/shared/credit-estimate.js';
 import {acceptSiteHandshake} from '/tripo-studio/shared/site.js';
 import {capabilities} from './rodin3d-capabilities.js';
-import * as imageTools from './rodin3d-image-tools.js';
+import * as imageTools from './rodin3d-image-tools.js?v=20261115004';
 
 const $ = id => document.getElementById(id);
 const root = $('tripoControls');

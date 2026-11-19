@@ -17,6 +17,7 @@
         "minWidth": 960,
         "minHeight": 640,
         "url": "waiting.html",
+        "decorations": false,
         "transparent": true,
         "backgroundColor": "#00000000"
       }

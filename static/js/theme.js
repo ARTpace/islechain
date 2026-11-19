@@ -63,7 +63,7 @@
 
     // 公共视觉入口：独立页和 iframe 都经同一入口加载，不逐页维护组件样式。
     function ensureDesignSystem(){
-        const version = '20261112004';
+        const version = '20261119006';
         let base = document.querySelector('link[href*="/static/css/studio-ui.css"]') || document.getElementById('studio-ui-base');
         if(!base){
             base = document.createElement('link');
@@ -601,7 +601,53 @@ ${surfaceCss(dark, 'html.studio-theme-dark body')}
         bodyAppearance.observe(document.documentElement, {childList:true});
     }
 
+    function installEdgeScrollbars() {
+        if (document.getElementById('studio-edge-scrollbars')) return;
+        const style = document.createElement('style');
+        style.id = 'studio-edge-scrollbars';
+        // ponytail: 保留原生滚动与拖动，仅控制滑条显隐，不创建第二套滚动条。
+        const root = ':is(html,#studio-scrollbar-root):is(html,#studio-scrollbar-policy)';
+        const all = `${root},${root} *`;
+        const select = suffix => `${root}${suffix},${root} *${suffix}`;
+        style.textContent = `
+${all}{scrollbar-width:auto!important;scrollbar-color:auto!important;}
+${select('::-webkit-scrollbar')}{display:block!important;width:6px!important;height:6px!important;background:transparent!important;}
+${select('::-webkit-scrollbar-track')},${select('::-webkit-scrollbar-corner')}{background:transparent!important;}
+${select('::-webkit-scrollbar-track:vertical')}{margin:8px 0!important;}
+${select('::-webkit-scrollbar-track:horizontal')}{margin:0 8px!important;}
+${select('::-webkit-scrollbar-button')}{display:none!important;width:0!important;height:0!important;}
+${select('::-webkit-scrollbar-thumb')}{background:transparent!important;border:1px solid transparent!important;border-radius:99px!important;background-clip:padding-box!important;box-shadow:none!important;min-height:24px;min-width:24px;}
+${root}.studio-scrollbar-visible::-webkit-scrollbar-thumb,${root} .studio-scrollbar-visible::-webkit-scrollbar-thumb{background-color:var(--scrollbar,#888)!important;}
+${root}.studio-scrollbar-visible::-webkit-scrollbar-thumb:hover,${root} .studio-scrollbar-visible::-webkit-scrollbar-thumb:hover{background-color:var(--scrollbar-hover,#aaa)!important;}`;
+        document.head.appendChild(style);
+        let visible = new Set();
+        function clear() {
+            visible.forEach(el => el.classList.remove('studio-scrollbar-visible'));
+            visible.clear();
+        }
+        document.addEventListener('pointermove', event => {
+            if (event.buttons) return; // 拖动原生滑条期间保持显示。
+            const next = new Set();
+            for (let el = event.target; el && el.nodeType === 1; el = el.parentElement) {
+                const page = el === document.scrollingElement;
+                const rect = page ? { left:0, top:0, right:window.innerWidth, bottom:window.innerHeight } : el.getBoundingClientRect();
+                const css = getComputedStyle(el);
+                const vertical = el.scrollHeight > el.clientHeight + 1 && (page || /auto|scroll|overlay/.test(css.overflowY));
+                const horizontal = el.scrollWidth > el.clientWidth + 1 && (page || /auto|scroll|overlay/.test(css.overflowX));
+                const nearY = event.clientY >= rect.top && event.clientY <= rect.bottom && Math.abs(event.clientX - (css.direction === 'rtl' ? rect.left : rect.right)) <= 20;
+                const nearX = event.clientX >= rect.left && event.clientX <= rect.right && Math.abs(event.clientY - rect.bottom) <= 20;
+                if ((vertical && nearY) || (horizontal && nearX)) next.add(el);
+            }
+            visible.forEach(el => { if (!next.has(el)) el.classList.remove('studio-scrollbar-visible'); });
+            next.forEach(el => el.classList.add('studio-scrollbar-visible'));
+            visible = next;
+        }, { passive:true });
+        document.addEventListener('pointerleave', clear);
+        window.addEventListener('blur', clear);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        installEdgeScrollbars();
         ensureDesignSystem();
         applyTheme(currentTheme());
         applyScale(currentScaleMode());

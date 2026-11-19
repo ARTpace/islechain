@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -10,7 +11,7 @@
     <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
 
     <script src="/static/js/ui-refine.js?v=20261024001"></script>
     <style>
@@ -290,7 +291,7 @@
                 const del = document.createElement('button');
                 del.className = 'thread-delete';
                 del.title = '删除对话';
-                del.onclick = (event) => deleteConversation(item.id, event);
+                del.onclick = async (event) => (await deleteConversation(item.id, event));
                 del.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i>';
                 row.appendChild(btn);
                 row.appendChild(del);
@@ -319,7 +320,7 @@
 
         async function deleteConversation(id, event){
             event.stopPropagation();
-            if(!confirm('删除这条历史对话?')) return;
+            if(!(await window.StudioConfirm.ask('删除这条历史对话?'))) return;
             await fetch(`/api/conversations/${id}`, {method:'DELETE', headers:{'X-User-ID':userId}});
             const deletedCurrent = currentConversation?.id === id;
             if(deletedCurrent){ currentConversation = null; document.getElementById('chatTitle').textContent = '新对话'; renderMessages([]); }

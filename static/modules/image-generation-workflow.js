@@ -16,16 +16,48 @@ const cache={};
             }
         }
 
-        async function buildLocalReferenceWorkflow(name, refs, prompt, seed, size, batchCount) {
-            if (!refs.length || !/(qwen-image-2\.1(?:-fast|-turbo)?|moss-image-sft(?:-fast|-4step)?|flux3-klein)\.json$/i.test(name)) return null;
+        // MiniMax H3 Image 权重固定；从别的模型切过来时 selectedUnetModel 可能残留旧权重名，
+        // _applySelectedUnet 会把它写进工作流，这里按模型族过滤并恢复默认权重。
+        const MINIMAX_UNET = 'minimax_h3_image_pruned_int8_convrot.safetensors';
+        function _restoreMinimaxUnet(wf, model) {
+            if (!wf || !wf['3'] || wf['3'].class_type !== 'UNETLoader') return;
+            if (!model || !/minimax/i.test(model)) wf['3'].inputs.unet_name = MINIMAX_UNET;
+        }
+
+        async function buildLocalReferenceWorkflow(name, refs, prompt, seed, size, batchCount, unet, editSizeMode) {
+            const minimax = /minimax-h3-image\.json$/i.test(name);
+            if (!refs.length || !/(qwen-image-2\.1(?:-fast|-turbo)?|moss-image-sft(?:-fast|-4step)?|flux3-klein|minimax-h3-image)\.json$/i.test(name)) return null;
             const moss = /moss-image-sft(?:-fast|-4step)?\.json$/i.test(name);
             if (moss && refs.length > 1) throw new Error('MOSS 图生图目前支持一张参考图，请仅保留一张');
-            if (refs.length > 16) throw new Error('Qwen 2.1 最多支持 16 张参考图');
-            const editName = 'image-edit/' + name.split('/').pop();
+            if (refs.length > 16) throw new Error('Qwen 2.1 / MiniMax H3 最多支持 16 张参考图');
+            const editName = minimax ? 'image-edit/minimax-h3-image-edit.json' : 'image-edit/' + name.split('/').pop();
             const response = await fetch('/api/workflows/' + encodeURIComponent(editName));
             if (!response.ok) throw new Error('参考图编辑工作流加载失败：' + editName);
             const envelope = await response.json();
             const graph = JSON.parse(JSON.stringify(envelope.workflow || envelope));
+            if (minimax) {
+                // 提示词直连 conditioning（默认跳过 T8 扩写）；尺寸 0 = 按参考图自动推导；
+                // 多参考图按 images.image_1 / image_2 … 动态挂到同一个 conditioning 节点。
+                _restoreMinimaxUnet(graph, unet);
+                graph['23'].inputs.value = prompt;
+                graph['158'].inputs.noise_seed = seed;
+                graph['14'].inputs.image = refs[0];
+                refs.slice(1).forEach((image, index) => {
+                    const id = String(200 + index);
+                    graph[id] = {class_type:'LoadImage', inputs:{image}};
+                    graph['144'].inputs['images.image_' + (index + 1)] = [id, 0];
+                });
+                // 参考官方双模式工作流升级：默认 width/height=0 跟随参考图1，尺寸档位不生效；
+                // 用户开启「自定输出尺寸」后，把图1 接到 300→301（4MP 归一 + 32 对齐）预处理链，
+                // 并按界面档位写入 align32 宽高，让 1K/2K/3K/4K 在图像编辑时真正生效。
+                if (editSizeMode === 'custom' && graph['301']) {
+                    const align32 = v => Math.max(32, Math.round(v / 32) * 32);
+                    graph['144'].inputs.width = align32(size.width);
+                    graph['144'].inputs.height = align32(size.height);
+                    graph['144'].inputs['images.image_0'] = ['301', 0];
+                }
+                return {workflow:graph, name:editName};
+            }
             graph['23'].inputs.text = prompt;
             graph['22'].inputs.seed = seed;
             graph['14'].inputs.image = refs[0];
@@ -147,9 +179,9 @@ async function build(options){
                 // 注入用户选择的 UNET 模型（若已显式选择）
                 _applySelectedUnet(workflow, lockedUnetModel);
 
-                if (taskRefs?.length && !/(?:qwen-image-2\.1|moss-image-sft|flux3-klein|krea2)/i.test(lockedWorkflow)) throw new Error('当前模型未接入对话图片编辑，请选择 Qwen 2.1、MOSS、FLUX.3 Klein 或 Krea2');
-                const referenceNames = /(?:qwen-image-2\.1(?:-fast|-turbo)?|moss-image-sft(?:-fast|-4step)?|flux3-klein)\.json$/i.test(lockedWorkflow) ? await ensureRefComfyNames(taskRefs) : [];
-                const referenceEdit = await buildLocalReferenceWorkflow(lockedWorkflow, referenceNames, cleanPrompt, seed, size, _gc.batchCount);
+                if (taskRefs?.length && !/(?:qwen-image-2\.1|moss-image-sft|flux3-klein|krea2|minimax-h3-image)/i.test(lockedWorkflow)) throw new Error('当前模型未接入对话图片编辑，请选择 Qwen 2.1、MOSS、FLUX.3 Klein、Krea2 或 MiniMax H3 Image');
+                const referenceNames = /(?:qwen-image-2\.1(?:-fast|-turbo)?|moss-image-sft(?:-fast|-4step)?|flux3-klein|minimax-h3-image)\.json$/i.test(lockedWorkflow) ? await ensureRefComfyNames(taskRefs) : [];
+                const referenceEdit = await buildLocalReferenceWorkflow(lockedWorkflow, referenceNames, cleanPrompt, seed, size, _gc.batchCount, lockedUnetModel, options.h3EditSizeMode);
                 if (referenceEdit) {
                     workflow = referenceEdit.workflow;
                     actualWorkflowName = referenceEdit.name;
@@ -299,6 +331,20 @@ async function build(options){
                     if (workflow["11"]?.inputs) workflow["11"].inputs.text = cleanPrompt;
                     if (workflow["8"]?.inputs) { workflow["8"].inputs.width = size.width; workflow["8"].inputs.height = size.height; workflow["8"].inputs.batch_size = _gc.batchCount; }
                     if (workflow["32"]?.inputs) workflow["32"].inputs.seed = seed;
+                } else if (/minimax-h3-image/i.test(lockedWorkflow)) {
+                    // MiniMax H3 Image：SamplerLCM 祖先采样 + BasicScheduler(simple,6) + 无 CFG(BasicGuider)。
+                    // 23 = PrimitiveStringMultiline(value)，144 = MiniMaxH3ImageConditioning(width/height，step 32)，
+                    // 158 = RandomNoise(noise_seed)。链路没有 KSampler.model / batch_size，
+                    // 因此不注入 batch_count，也不走通用负面提示词合并。
+                    _restoreMinimaxUnet(workflow, lockedUnetModel);
+                    const size = options.size;
+                    const align32 = v => Math.max(32, Math.round(v / 32) * 32);
+                    if (workflow["23"]?.inputs) workflow["23"].inputs.value = cleanPrompt;
+                    if (workflow["144"]?.inputs) {
+                        workflow["144"].inputs.width = align32(size.width);
+                        workflow["144"].inputs.height = align32(size.height);
+                    }
+                    if (workflow["158"]?.inputs) workflow["158"].inputs.noise_seed = seed;
                 } else {
                     // Z-Image：使用与 ANIMA 相同的 ratio+res 尺寸计算
                     const size = options.size;

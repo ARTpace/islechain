@@ -3,6 +3,8 @@
     'use strict';
     const selected = new Map();
     const owned = {positive:new Set(), negative:new Set()};
+    // 一次工具会话的令牌：父页重载（重启工具 / 刷新）就会换新，iframe 里的旧快照随之失效
+    const session = 'plib_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
     let frame;
     let view = 'style';
     let applying = false;
@@ -43,8 +45,12 @@
         sendState();
     });
     function sendView() {
-        frame?.contentWindow?.postMessage({type:'prompt-library:view', view}, location.origin);
+        frame?.contentWindow?.postMessage({type:'prompt-library:view', view, session}, location.origin);
         sendState();
+    }
+    // 收起面板时强制存一次，避免节流窗口里最后一次筛选/滚动没落盘
+    function suspend() {
+        frame?.contentWindow?.postMessage({type:'prompt-library:suspend'}, location.origin);
     }
     function mount(tab) {
         view = tab;
@@ -70,5 +76,5 @@
         if (selected.has(key)) selected.delete(key); else selected.set(key, item);
         apply();
     });
-    window.GenerationPromptLibrary = {mount, reconcile, count:() => selected.size};
+    window.GenerationPromptLibrary = {mount, reconcile, suspend, session, count:() => selected.size};
 })();

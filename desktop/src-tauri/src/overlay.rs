@@ -141,6 +141,9 @@ pub fn create_probe(app: &AppHandle) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
+    // 新建窗口不走 setup 的批量初始化，补一次原生右键菜单策略。
+    crate::webview_prefs::disable_native_context_menu(&window);
+
     extend_frame_for_transparency(window.hwnd().map_err(|e| e.to_string())?.0 as isize);
 
     let rects: Vec<(i32, i32, i32, i32)> = PROBE_CARDS

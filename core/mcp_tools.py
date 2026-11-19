@@ -42,8 +42,6 @@ class Server(BaseModel):
         if self.transport == 'stdio':
             if not self.command.strip() or '\n' in self.command or '\r' in self.command:
                 raise ValueError('stdio 需要可执行文件 command；参数单独放入 args')
-            if self.cwd and not Path(self.cwd).is_dir():
-                raise ValueError('cwd 目录不存在')
         else:
             url = urlsplit(self.url)
             if url.scheme not in ('http', 'https') or not url.hostname or url.username or url.password or url.fragment:
@@ -154,6 +152,9 @@ def stderr_log(server, stack):
 
 async def _connect(server, stack):
     """Open one MCP session on a caller-owned stack; the stack owns the lifetime."""
+    # ponytail: 目录可能在保存后被移动，仅让对应服务连接失败，不阻断全部工具和对话。
+    if server.transport == 'stdio' and server.cwd and not Path(server.cwd).is_dir():
+        raise MCPError(f'MCP 服务 {server.id} 工作目录不存在，请在 MCP 设置中更新目录')
     try:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client

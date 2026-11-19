@@ -1,5 +1,30 @@
-/* 公共浅色按钮皮肤：页面保留尺寸、排列、定位与业务行为，深色主题不参与。
+/* 公共按钮皮肤：页面保留尺寸、排列、定位与业务行为。
    只接管已知按钮类；色板、开关、媒体覆盖层及危险操作保持原有语义。 */
+/* 深色主操作也使用柔和底色与细描边，避免大面积主题色填充。 */
+html.studio-theme-dark body :is(
+    .ui-btn-primary, .btn-primary, .btn.primary, .primary-btn, .primary-action,
+    .action-btn.save-btn, .add-btn, .glass-btn, .btn-action-dark,
+    button.send, button.send-btn, .btn-render, .gen-run, .gen-btn, .comfy-run, .llm-run,
+    .ws-primary-btn, .run-btn, #mainGenBtn, #settings-comfyui-btn #comfy-start-btn
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"])) {
+    --primary-soft-bg: color-mix(in srgb, var(--ui-accent) 10%, var(--ui-panel));
+    --primary-soft-line: color-mix(in srgb, var(--ui-accent) 60%, transparent);
+    background: var(--primary-soft-bg) !important;
+    color: var(--ui-accent) !important;
+    border-color: var(--primary-soft-line) !important;
+    box-shadow: inset 0 0 0 1px var(--primary-soft-line) !important;
+    text-shadow: none !important;
+}
+html.studio-theme-dark body :is(
+    .ui-btn-primary, .btn-primary, .btn.primary, .primary-btn, .primary-action,
+    .action-btn.save-btn, .add-btn, .glass-btn, .btn-action-dark,
+    button.send, button.send-btn, .btn-render, .gen-run, .gen-btn, .comfy-run, .llm-run,
+    .ws-primary-btn, .run-btn, #mainGenBtn, #settings-comfyui-btn #comfy-start-btn
+):not(:where(.danger, .danger-btn, .btn-danger, .ui-btn-danger, .stop, .stop-btn, .btn-stop, .is-danger, [role="switch"])):hover:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"]) {
+    --primary-soft-bg: color-mix(in srgb, var(--ui-accent) 18%, var(--ui-panel));
+    --primary-soft-line: color-mix(in srgb, var(--ui-accent) 80%, transparent);
+}
+
 html:not(.studio-theme-dark) body {
     --control-radius: 8px;
     --control-bg: var(--ui-accent-soft);

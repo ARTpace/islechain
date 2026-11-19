@@ -619,7 +619,7 @@
             return;
         }
         if (kind === 'logout') {
-            if (!confirm('确认退出 ' + cli.name + ' 登录？')) return;
+            if (!(await window.StudioConfirm.ask('确认退出 ' + cli.name + ' 登录？'))) return;
             try { await post(login.logout, {}); log('[登出]', cli.name + ' 已退出'); await verify(id); }
             catch (e) { log('[登出]', '失败：' + (e.message || e)); }
             return;
@@ -663,7 +663,7 @@
 
     // ---------------------------------------------------------------- 事件
 
-    document.addEventListener('click', function (ev) {
+    document.addEventListener('click', async function (ev) {
         var nav = ev.target.closest('[data-nav]');
         if (nav) { if (nav.dataset.nav === 'back') showList(); return; }
         var tog = ev.target.closest('[data-toggle]');
@@ -681,7 +681,7 @@
         else if (act === 'clear-log') clearLog();
         else if (act === 'add-provider') addProviderChannel(id);
         else if (act === 'qr-login') qrLogin(id);
-        else if (['terminal', 'logout', 'credit', 'help'].indexOf(act) >= 0) simpleAction(id, act);
+        else if (['terminal', 'logout', 'credit', 'help'].indexOf(act) >= 0) (await simpleAction(id, act));
     });
     document.addEventListener('keydown', function (ev) {
         if (ev.key !== 'Enter' && ev.key !== ' ') return;

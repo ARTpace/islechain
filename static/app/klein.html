@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
-    <script src="/static/modules/model-visibility.js?v=20261024004"></script>
+    <script src="/static/modules/model-visibility.js?v=20261115001"></script>
+    <!-- 速度档位名与文生图/画布共用一套规则（ModelPicker.tierOfWorkflow） -->
+    <script src="/static/modules/model-picker.js?v=20261115004"></script>
     <title>图像编辑</title>
     <script src="/static/modules/auth-token.js?v=20261024001"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024001">
     <script src="/static/lucide.min.js?v=20261024001"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
 
     <script src="/static/modules/image-viewer.js?v=20261024001"></script>
     <script src="/static/modules/image-editor.js?v=20261024001"></script>
@@ -255,7 +258,7 @@
     <link rel="stylesheet" href="/static/modules/gallery/style.css?v=20261031ui2">
     <script src="/static/history-bulk-manager.js"></script>
     <script src="/static/modules/gallery/prompt-panel.js?v=20261024009"></script>
-    <script src="/static/modules/gallery/actions.js?v=20261024001"></script>
+    <script src="/static/modules/gallery/actions.js?v=20261119002"></script>
     <script src="/static/modules/gallery/list.js?v=20261102scopebtn"></script>
 <script src="/static/modules/gallery/card.js?v=20261101cutoutmethods"></script>
     <script src="/static/modules/gallery/context-menu.js?v=20261024001"></script>
@@ -355,16 +358,16 @@
                     <button onclick="toggleModel('qwen')" id="btnModelQwen" class="engine-btn">Qwen Edit</button>
                     <button onclick="toggleModel('boogu')" id="btnModelBoogu" class="engine-btn">Boogu Edit</button>
                     <button onclick="toggleModel('krea2')" id="btnModelKrea2" class="engine-btn">Krea2 Edit</button>
+                    <button onclick="toggleModel('minimax')" id="btnModelMinimax" class="engine-btn" title="MiniMax H3 Image 低噪点图像编辑（LCM 采样），尺寸按参考图自动推导">MiniMax H3</button>
                 </div>
-                <!-- Qwen 2.1 质量档：与文生图同一套「高 / 低 / 极速」，选中 qwen21 时才出现 -->
-                <div id="qwen21QualityWrap" class="flex items-center gap-1.5" style="display:none">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">质量</span>
-                    <select id="qwen21QualitySel" onchange="setQwen21QualityEdit(this.value)"
+                <!-- 速度模式：同一模型的多份工作流（_fast / _turbo / _Nstep）就是不同速度档，
+                     与文生图、画布共用同一套档位规则；只要当前选中的模型有多档文件就会出现，
+                     不再只给 Qwen 2.1 特判一个写死的下拉 -->
+                <div id="modelTierWrap" class="flex items-center gap-1.5" style="display:none">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">速度模式</span>
+                    <select id="modelTierSel" onchange="setModelTier(this.value)"
                             class="text-[11px] font-bold rounded-lg px-2 py-1.5 cursor-pointer"
                             style="background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.12); color:inherit;">
-                        <option value="High">高</option>
-                        <option value="Fast">低</option>
-                        <option value="Turbo">极速</option>
                     </select>
                 </div>
             </div>
@@ -939,6 +942,16 @@
                 workflowData["55"]["inputs"]["values_json"] = JSON.stringify(valuesJson);
                 workflowData["63"]["inputs"]["noise_seed"] = seed;
                 workflowData["44"]["inputs"]["filename_prefix"] = "Boogu_Edit_" + Date.now();
+            } else if (model === 'minimax') {
+                // MiniMax H3 Image：提示词直连 conditioning(默认跳过 T8 扩写)，
+                // 144.width/height 保持 0 → 按主图尺寸自动推导，故不套用 scaleEnabled。
+                workflowData["23"]["inputs"]["value"] = prompt;
+                workflowData["158"]["inputs"]["noise_seed"] = seed;
+                workflowData["14"]["inputs"]["image"] = uploadedImages[0];
+                if (uploadedImages[1] && !ignoreRef) {
+                    workflowData["200"] = { class_type: 'LoadImage', inputs: { image: uploadedImages[1] } };
+                    workflowData["144"]["inputs"]["images.image_1"] = ["200", 0];
+                }
             } else {
                 workflowData["16"]["inputs"]["text"] = prompt;
                 workflowData["23"]["inputs"]["noise_seed"] = seed;
@@ -1237,9 +1250,12 @@
             qwen21_fast: 'image-edit/qwen-image-2.1-fast.json',
             qwen21_turbo: 'image-edit/qwen-image-2.1-turbo.json',
             moss: 'image-edit/moss-image-sft.json',
+            // MOSS 的速度档（与文生图 text2image/moss-image-sft-4step 同参数）
+            moss_4step: 'image-edit/moss-image-sft-4step.json',
             boogu: 'image-edit/boogu-image-edit.json',
             krea2: 'image-edit/krea2-image-edit.json',
-            krea2_dual: 'image-edit/krea2-two_image-edit.json'
+            krea2_dual: 'image-edit/krea2-two_image-edit.json',
+            minimax: 'image-edit/minimax-h3-image-edit.json'
         };
         // nodeMappings 是前端 UI 绑定逻辑, 仍内联(不属于工作流拓扑)
         const NODE_MAPPINGS = {
@@ -1263,6 +1279,11 @@
                 "23": { param: "image", label: "主图", type: "upload" },
                 "34": { param: "text", label: "提示词", type: "textarea" },
                 "8":  { param: "seed", label: "Seed", type: "number" }
+            },
+            minimax: {
+                "14":  { param: "image", label: "主图", type: "upload" },
+                "23":  { param: "text", label: "提示词", type: "textarea" },
+                "158": { param: "seed", label: "Seed", type: "number" }
             }
         };
         // 全局容器: key=model, value=JSON 加载的 {name, type, apiEndpoint, flow, nodeMappings}
@@ -1299,8 +1320,8 @@
                         type: (rawFlow && rawFlow.type) || model,
                         apiEndpoint: (rawFlow && rawFlow.apiEndpoint) || '/api/generate',
                         workflow: nodes,
-                        // 档位文件（qwen21_fast / qwen21_turbo）没有自己的映射，回落到母模型
-                        nodeMappings: NODE_MAPPINGS[model] || NODE_MAPPINGS[model.replace(/_(fast|turbo)$/, '')]
+                        // 档位文件（qwen21_fast / moss_4step ……）没有自己的映射，回落到母模型
+                        nodeMappings: NODE_MAPPINGS[model] || NODE_MAPPINGS[model.replace(/_(?:fast|turbo|\d+step)$/, '')]
                     };
                 } else {
                     errors.push(r.reason && r.reason.message ? r.reason.message : String(r.reason));
@@ -1315,31 +1336,77 @@
             }
         }
 
-        // Qwen 2.1 质量档：'High' | 'Fast' | 'Turbo'
-        let qwen21EditQuality = localStorage.getItem('qwen21_edit_quality') || 'High';
-
-        function setQwen21QualityEdit(q) {
-            qwen21EditQuality = q;
-            localStorage.setItem('qwen21_edit_quality', q);
-            refreshQwen21QualityUI();
+        // ---- 速度档位：同一模型的多份工作流文件 = 不同速度档 ----
+        // 数据源就是上面 WORKFLOW_FILES 的命名约定（<模型>_fast / _turbo / _4step），
+        // 档位名与文生图、画布共用 ModelPicker.tierOfWorkflow，避免三处各写一套正则。
+        function tierOfKey(key) {
+            if (window.ModelPicker) return window.ModelPicker.tierOfWorkflow(String(key).replace(/_/g, '-'));
+            return /_(?:turbo|\d+step)$/.test(key) ? '极速' : (/_fast$/.test(key) ? '低' : '');
         }
+        // 母模型 → 它的各档 key，顺序固定 高 → 低 → 极速（与文生图参数面板一致）
+        const MODEL_TIER_KEYS = (function () {
+            const groups = {}, rank = { '': 0, '低': 1, '极速': 2 };
+            Object.keys(WORKFLOW_FILES).forEach(function (key) {
+                const base = key.replace(/_(?:fast|turbo|\d+step)$/, '');
+                (groups[base] = groups[base] || []).push(key);
+            });
+            Object.keys(groups).forEach(function (base) {
+                groups[base].sort(function (a, b) {
+                    const ra = rank[tierOfKey(a)], rb = rank[tierOfKey(b)];
+                    return (ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb);
+                });
+            });
+            return groups;
+        })();
+        let tierChoice = {};
+        try { tierChoice = JSON.parse(localStorage.getItem('edit_model_tiers') || '{}') || {}; } catch (e) { tierChoice = {}; }
+        // 旧版本只给 Qwen 2.1 存过 'High'/'Fast'/'Turbo'，迁移一次，用户不用重选
+        (function migrateLegacyTier() {
+            const legacy = localStorage.getItem('qwen21_edit_quality');
+            if (!legacy || tierChoice.qwen21) return;
+            tierChoice.qwen21 = legacy === 'Turbo' ? 'qwen21_turbo' : (legacy === 'Fast' ? 'qwen21_fast' : 'qwen21');
+            try { localStorage.setItem('edit_model_tiers', JSON.stringify(tierChoice)); } catch (e) {}
+        })();
 
-        // 只在「qwen21 被选中」且确实加载到该档工作流时才显示，避免无意义的控件
-        function refreshQwen21QualityUI() {
-            const wrap = document.getElementById('qwen21QualityWrap');
-            const sel = document.getElementById('qwen21QualitySel');
-            if (!wrap) return;
-            const show = activeModels.indexOf('qwen21') >= 0;
-            wrap.style.display = show ? '' : 'none';
-            if (sel) sel.value = qwen21EditQuality;
+        // 多选模型时控件只作用于「第一个有多档的选中模型」（旧行为就只认 Qwen 2.1）
+        function tierTargetModel() {
+            let fallback = '';
+            for (const model of activeModels) {
+                const keys = MODEL_TIER_KEYS[model];
+                if (!keys || keys.length < 2) continue;
+                if (model === 'qwen21') return model;
+                if (!fallback) fallback = model;
+            }
+            return fallback;
+        }
+        function setModelTier(key) {
+            const model = tierTargetModel();
+            if (!model) return;
+            tierChoice[model] = key;
+            try { localStorage.setItem('edit_model_tiers', JSON.stringify(tierChoice)); } catch (e) {}
+            refreshModelTierUI();
+        }
+        function refreshModelTierUI() {
+            const wrap = document.getElementById('modelTierWrap');
+            const sel = document.getElementById('modelTierSel');
+            if (!wrap || !sel) return;
+            const model = tierTargetModel();
+            const keys = model ? (MODEL_TIER_KEYS[model] || []) : [];
+            wrap.style.display = keys.length > 1 ? '' : 'none';
+            sel.replaceChildren(...keys.map(function (key) {
+                return new Option(tierOfKey(key) || '高', key);
+            }));
+            const current = (model && keys.indexOf(tierChoice[model]) >= 0) ? tierChoice[model] : (keys[0] || '');
+            if (current) sel.value = current;
+            const button = model ? document.getElementById('btnModel' + model.charAt(0).toUpperCase() + model.slice(1)) : null;
+            sel.title = model ? ((button ? button.textContent : model) + ' 的速度档') : '';
         }
 
         function getWorkflowForModel(model) {
-            if (model === 'qwen21') {
-                const tierKey = qwen21EditQuality === 'Turbo' ? 'qwen21_turbo'
-                    : (qwen21EditQuality === 'Fast' ? 'qwen21_fast' : 'qwen21');
-                if (WORKFLOWS[tierKey]) return WORKFLOWS[tierKey];
-            }
+            const keys = MODEL_TIER_KEYS[model] || [];
+            const picked = tierChoice[model];
+            // 选中的档位文件没加载成功时退回母模型，避免直接抛错
+            if (picked && keys.indexOf(picked) >= 0 && WORKFLOWS[picked]) return WORKFLOWS[picked];
             return WORKFLOWS[model] || WORKFLOWS.klein;
         }
 
@@ -1364,7 +1431,7 @@
             // 兼容旧代码:WORKFLOW_CONFIG 指向第一个选中的(已废弃, 留空操作)
             // WORKFLOWS[activeModels[0]] 始终是当前选中
             refreshSlotLabels();
-            refreshQwen21QualityUI();
+            refreshModelTierUI();
         }
 
         function applyModelVisibility() {
@@ -1384,6 +1451,7 @@
         window.onload = async () => {
             await loadImageEditWorkflows();
             applyModelVisibility();
+            refreshModelTierUI();
             await loadConfig();
             checkServerConnection();
             setInterval(checkServerConnection, 5000);

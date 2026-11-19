@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3D 生成</title>
 <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
 <script src="/static/js/theme-default.js"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ui-bg, #0d0f12); color: var(--ui-text, #e8eaee); font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -890,9 +891,9 @@
       .catch(function () { row.hidden = true; });
   }
 
-  function submitRedo() {
+  async function submitRedo() {
     if (state.mode !== 'generate' || state.provider !== 'hyper3d' || state.taskProvider !== 'hyper3d' || !state.previewUrl || state.busy) return;
-    if (!window.confirm('重做会用掉 1 次免费重做（每个模型共 10 次），重新生成几何。继续？')) return;
+    if (!(await window.StudioConfirm.ask('重做会用掉 1 次免费重做（每个模型共 10 次），重新生成几何。继续？'))) return;
     state.busy = true;
     updateActions();
     $('redoBtn').disabled = true;
@@ -1219,7 +1220,7 @@
 </script>
 <link rel="stylesheet" href="/static/css/theme.css?v=20261108011">
 <link rel="stylesheet" href="/static/app/rodin3d-tripo.css">
-<script src="/static/modules/image-generation-workflow.js"></script>
+<script src="/static/modules/image-generation-workflow.js?v=20261115001"></script>
 <script type="module" src="/static/app/rodin3d-tripo.js"></script>
 </body>
 </html>

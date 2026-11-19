@@ -2,7 +2,7 @@
   "identifier": "default",
   "description": "启动页走本地协议，工作台是本机 7000 端口。",
   "windows": ["main"],
-  "permissions": ["core:default"],
+  "permissions": ["core:default", "allow-desktop-shell"],
   "remote": {
     "urls": ["http://127.0.0.1:7000/*", "http://localhost:7000/*"]
   }

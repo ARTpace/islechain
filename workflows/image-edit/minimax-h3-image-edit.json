@@ -1,0 +1,198 @@
+{
+  "3": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "70": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "lora_name": "KOOK-Minimax-H3-image-尘星.safetensors",
+      "strength_model": 0.8
+    },
+    "_meta": {
+      "title": "尘星 LoRA（默认画质增强；strength_model 设为 0 即关闭）"
+    }
+  },
+  "4": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "5": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_image_vae_fp16.safetensors"
+    }
+  },
+  "23": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "Replace the vintage yellow taxi in <Picture 1> with a pastel pink ice-cream truck with a scalloped awning and a glowing service window, sitting in the same side profile at the curb."
+    }
+  },
+  "144": {
+    "class_type": "MiniMaxH3ImageConditioning",
+    "inputs": {
+      "clip": [
+        "4",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ],
+      "prompt": [
+        "23",
+        0
+      ],
+      "width": 0,
+      "height": 0,
+      "images.image_0": [
+        "14",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "width/height=0 表示按参考图1自动推导；自定尺寸模式由前端写入 align32 后的宽高，并把 images.image_0 改接 301"
+    }
+  },
+  "158": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 573390858548243
+    }
+  },
+  "65": {
+    "class_type": "SamplerLCM",
+    "inputs": {
+      "s_noise": 1.1,
+      "s_noise_end": 0.9,
+      "noise_clip_std": 0.0
+    },
+    "_meta": {
+      "title": "LCM 祖先采样｜消除 6 步蒸馏模型暗部/平坦区的高频噪点"
+    }
+  },
+  "66": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "70",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 6,
+      "denoise": 1.0
+    },
+    "_meta": {
+      "title": "按模型自身采样分布生成 sigma（simple / 6 步），替代硬编码 ManualSigmas"
+    }
+  },
+  "63": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "70",
+        0
+      ],
+      "conditioning": [
+        "144",
+        0
+      ]
+    }
+  },
+  "107": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "158",
+        0
+      ],
+      "guider": [
+        "63",
+        0
+      ],
+      "sampler": [
+        "65",
+        0
+      ],
+      "sigmas": [
+        "66",
+        0
+      ],
+      "latent_image": [
+        "144",
+        1
+      ]
+    }
+  },
+  "108": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "107",
+        0
+      ],
+      "vae": [
+        "5",
+        0
+      ]
+    }
+  },
+  "132": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "108",
+        0
+      ],
+      "filename_prefix": "MiniMaxH3Image_LCM_edit"
+    }
+  },
+  "14": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "02197272-d7f1-468f-bb2e-acec2887b8c9.jpeg"
+    }
+  },
+  "300": {
+    "class_type": "ResizeImageMaskNode",
+    "inputs": {
+      "input": [
+        "14",
+        0
+      ],
+      "resize_type": "scale total pixels",
+      "resize_type.megapixels": 4,
+      "scale_method": "area"
+    },
+    "_meta": {
+      "title": "可选｜参考图1 归一到 4MP（默认不接线，ComfyUI 不执行）"
+    }
+  },
+  "301": {
+    "class_type": "ResizeImageMaskNode",
+    "inputs": {
+      "input": [
+        "300",
+        0
+      ],
+      "resize_type": "scale to multiple",
+      "resize_type.multiple": 32,
+      "scale_method": "area"
+    },
+    "_meta": {
+      "title": "可选｜再对齐 32 倍数；启用自定尺寸时由前端把 144.images.image_0 接到这里"
+    }
+  }
+}

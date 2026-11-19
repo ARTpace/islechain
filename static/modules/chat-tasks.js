@@ -45,6 +45,7 @@ window.ChatTasks = (() => {
         park(host, [retry, answer]);
         // busy 阶段挂动态标记（呼吸省略点由页面 CSS 绘制），finish 传 false 收尾。
         task.setStage = (stage, busy = true) => {
+            if (stage === '等待 API 返回') stage = '';
             label.hidden = !stage;
             label.textContent = stage;
             if (label.classList && label.classList.toggle) label.classList.toggle('chat-task-busy', !!stage && busy);

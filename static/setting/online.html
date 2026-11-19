@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>在线生图</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -658,7 +659,7 @@
         }
         async function deleteHistoryItem(ts, ev){
             ev.stopPropagation();
-            if(!confirm(tr('online.deleteConfirm'))) return;
+            if(!(await window.StudioConfirm.ask(tr('online.deleteConfirm')))) return;
             const res = await fetch('/api/history/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({timestamp:ts})}).then(r=>r.json());
             if(res.success) document.getElementById(`history-${ts}`)?.remove();
         }

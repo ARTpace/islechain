@@ -5,7 +5,7 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from fastapi import HTTPException
-import asyncio, httpx, time
+import asyncio, httpx, time, os, uuid
 from fastapi import APIRouter
 
 import main as _main
@@ -153,7 +153,7 @@ class CanvasVideoRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
     provider_id: str = "jimeng"
     model: str = "veo3-fast"
-    duration: int = 5
+    duration: int = Field(default=5, ge=1, le=60)
     aspect_ratio: str = "16:9"
     resolution: str = ""
     size: str = ""
@@ -165,17 +165,132 @@ class CanvasVideoRequest(BaseModel):
     watermark: bool = False
     seed: Optional[int] = None
     camerafixed: bool = False
+    multimodal: bool = False
+    generate_audio: bool = False
+    conversation_id: str = ""
+    message_id: str = ""
 
 
 PROTOCOL_JIMENG = "jimeng"
 
 @router.post("/api/canvas-video")
-async def canvas_video_route(payload: CanvasVideoRequest):
-    provider_id = payload.provider_id or "jimeng"
-    size = payload.size or payload.resolution or "1920x1080"
-    refs = [r for r in payload.images if isinstance(r, dict)]
-    return await generate_video(
-        prompt=payload.prompt, size=size, model=payload.model or "veo3-fast",
-        refs=refs, protocol=PROTOCOL_JIMENG, provider_id=provider_id,
-        provider={"id": provider_id}, duration=payload.duration or 5,
-    )
+async def canvas_video_route(payload: CanvasVideoRequest, token: str = ""):
+    return await build_canvas_video_result(payload, _main.require_valid_token(token))
+
+
+def resolve_video_provider(payload):
+    provider = _main.get_api_provider(payload.provider_id)
+    if not provider or provider.get("enabled") is False:
+        raise HTTPException(400, "所选视频平台未启用")
+    if payload.model not in (provider.get("video_models") or []):
+        raise HTTPException(400, "所选视频模型未启用，请在 API 设置中添加视频模型")
+    if payload.aspect_ratio not in {"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "9:21", "keep_ratio", "adaptive"}:
+        raise HTTPException(400, "视频比例无效")
+    if payload.resolution not in {"", "480p", "720p", "1080p", "780P"}:
+        raise HTTPException(400, "视频分辨率无效")
+    return provider
+
+
+async def build_canvas_video_result(payload, username, on_progress=None):
+    from core.video_generation import generate_openai_video
+    provider = resolve_video_provider(payload)
+    protocol = _main.provider_protocol(provider)
+    if protocol == "jimeng" or provider["id"] == "jimeng":
+        result = await _main.generate_jimeng_video(payload, provider)
+        urls = result.get("videos") or []
+    else:
+        provider = _main._resolve_image_provider(provider["id"])
+        if protocol == "openai":
+            if len(payload.images) > 1 or payload.videos or payload.audios:
+                raise HTTPException(400, "OpenAI 视频接口支持一张参考图，暂不支持参考视频或音频")
+            if payload.aspect_ratio in {"keep_ratio", "adaptive"}:
+                raise HTTPException(400, "此视频通道需要明确的画面比例")
+            reference = _main.reference_file_part(payload.images[0]) if payload.images else None
+            if payload.images and not reference:
+                raise HTTPException(400, "无法读取参考图，请使用工具中的图片或重新上传")
+            result = await generate_openai_video(provider, payload, reference, on_progress)
+            if result.get("content"):
+                name = "chat_video_" + uuid.uuid4().hex + ".mp4"
+                directory, prefix = _main.media_paths.resolve_media_dir(owner=_main.get_user_dirname(username) or "", feature="chat-video", kind="video", ext=name, root=_main.OUTPUT_DIR)
+                with open(os.path.join(directory, name), "wb") as handle:
+                    handle.write(result["content"])
+                urls = [prefix + "/" + name]
+            else:
+                urls = [await _main.save_remote_video_to_output(result.get("url", ""), owner=_main.get_user_dirname(username) or "", feature="chat-video")]
+        else:
+            if payload.images:
+                raise HTTPException(400, "此视频通道尚未接入图生视频，请选择 OpenAI 视频通道或即梦")
+            result = await generate_video(payload.prompt, payload.size or payload.resolution or "1920x1080", payload.model, [], protocol=protocol, provider_id=provider["id"], provider=provider, duration=payload.duration)
+            urls = [await _main.save_remote_video_to_output(result.get("value", ""), owner=_main.get_user_dirname(username) or "", feature="chat-video")]
+    urls = [url for url in urls if url]
+    if not urls:
+        raise HTTPException(502, "视频模型没有返回视频")
+    result = {"videos": urls, "model": payload.model, "provider_id": payload.provider_id, "prompt": payload.prompt, "timestamp": time.time()*1000, "type": "video"}
+    _main.save_to_history({**result, "images": urls, "owner": username, "genParams": {"engine": "cloud", "model": payload.model, "provider": payload.provider_id, "duration": payload.duration, "ratio": payload.aspect_ratio, "resolution": payload.resolution}})
+    return result
+
+
+@router.get("/api/chat-video/models")
+async def chat_video_models():
+    providers = []
+    for provider in _main.load_api_providers():
+        if provider.get("enabled") is False or not provider.get("video_models"):
+            continue
+        protocol = _main.provider_protocol(provider)
+        if protocol not in {"openai", "jimeng", "runninghub", "volcengine"}:
+            continue
+        public = _main.public_provider(provider)
+        if protocol not in {"jimeng", "volcengine"} and not public.get("has_key"):
+            continue
+        providers.append({"id": provider["id"], "name": provider.get("name") or provider["id"], "models": provider["video_models"], "protocol": protocol, "image_to_video": protocol in {"openai", "jimeng"}})
+    return {"providers": providers}
+
+
+async def run_chat_video_task(task_id, payload, username, user_id):
+    def progress(value):
+        with _main.CANVAS_TASK_LOCK:
+            _main.CANVAS_TASKS[task_id].update(progress=value, updated_at=time.time())
+    with _main.CANVAS_TASK_LOCK:
+        _main.CANVAS_TASKS[task_id]["status"] = "running"
+    try:
+        result = await build_canvas_video_result(payload, username, progress)
+        _main.finish_chat_generation(payload.conversation_id, payload.message_id, user_id=user_id, videos=result["videos"])
+        with _main.CANVAS_TASK_LOCK:
+            _main.CANVAS_TASKS[task_id].update(status="succeeded", result=result, updated_at=time.time())
+    except Exception as exc:
+        detail = str(getattr(exc, "detail", None) or exc)[:500]
+        _main.finish_chat_generation(payload.conversation_id, payload.message_id, user_id=user_id, error=detail)
+        with _main.CANVAS_TASK_LOCK:
+            _main.CANVAS_TASKS[task_id].update(status="failed", error=detail, updated_at=time.time())
+
+
+@router.post("/api/chat-video/tasks")
+async def create_chat_video_task(payload: CanvasVideoRequest, token: str = ""):
+    username = _main.require_valid_token(token)
+    user_id = _main.account_dirname(username)
+    resolve_video_provider(payload)
+    if payload.conversation_id or payload.message_id:
+        conversation = _main.load_conversation(user_id, payload.conversation_id)
+        message = next((item for item in conversation.get("messages", []) if item.get("id") == payload.message_id and item.get("role") == "assistant"), None)
+        if not message:
+            raise HTTPException(404, "找不到这条对话消息")
+        message["pending_generation"] = {"boot_id": _main.APP_BOOT_ID, "kind": "video", "created_at": _main.now_ms()}
+        message.pop("generation_error", None)
+        _main.save_conversation(user_id, conversation)
+    task_id = "chat_video_" + uuid.uuid4().hex
+    with _main.CANVAS_TASK_LOCK:
+        _main.CANVAS_TASKS[task_id] = {"id": task_id, "owner": username, "type": "video", "status": "queued", "progress": {}, "created_at": time.time(), "updated_at": time.time(), "error": "", "result": None}
+    asyncio.create_task(run_chat_video_task(task_id, payload, username, user_id))
+    return {"task_id": task_id, "status": "queued"}
+
+
+@router.get("/api/chat-video/tasks/{task_id}")
+async def get_chat_video_task(task_id: str, token: str = ""):
+    username = _main.require_valid_token(token)
+    with _main.CANVAS_TASK_LOCK:
+        task = dict(_main.CANVAS_TASKS.get(task_id) or {})
+    if not task or task.get("type") != "video":
+        raise HTTPException(404, "视频任务不存在，服务可能已重启")
+    if task.get("owner") != username:
+        raise HTTPException(403, "无权访问此视频任务")
+    return task

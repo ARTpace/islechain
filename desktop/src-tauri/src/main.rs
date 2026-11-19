@@ -15,6 +15,9 @@ use tauri::{AppHandle, Manager};
 mod overlay;
 #[cfg(windows)]
 mod desktop_mode;
+#[cfg(windows)]
+mod webview_prefs;
+mod chrome;
 
 // 非 Windows 平台留占位，保证 invoke_handler 的注册表一致。
 #[cfg(not(windows))]
@@ -253,9 +256,23 @@ fn main() {
         .manage(BootError::default())
         .invoke_handler(tauri::generate_handler![
             backend_startup_error,
+            chrome::desktop_chrome,
             overlay::overlay_set_rects
         ])
+        .on_window_event(|window, event| {
+            // 点关闭不退出，收进托盘；真要退出走托盘菜单的「退出 IsleChain」。
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
+            // 桌面端不要 WebView2 的浏览器右键菜单（返回/刷新/打印/检查）。
+            #[cfg(windows)]
+            webview_prefs::apply_to_all(app.handle());
+            chrome::watch(app.handle());
             if let Err(error) = start_backend(app.handle()) {
                 *app.state::<BootError>().0.lock().unwrap() = Some(error);
             }

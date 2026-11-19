@@ -76,7 +76,7 @@ window.TrainingUI = (() => {
                 const button=document.createElement('button');button.type='button';button.className='project-item';button.dataset.project=name;
                 button.classList.toggle('active',name===project);button.textContent=name;
                 if(item.mode){const sub=document.createElement('small');sub.textContent=[item.mode,item.base_type].filter(Boolean).join(' · ');button.appendChild(sub);}
-                button.onclick=()=>busy(()=>loadProject(name));$('projectList').appendChild(button);
+                button.onclick=()=>busy(async ()=>(await loadProject(name)));$('projectList').appendChild(button);
             }
             if(!$('projectList').children.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='暂无项目，可从下方创建';$('projectList').appendChild(empty);}
             $('projectTemplate').replaceChildren();
@@ -96,7 +96,7 @@ window.TrainingUI = (() => {
             document.querySelectorAll('[data-project]').forEach(button=>button.classList.toggle('active',button.dataset.project===project));
         }
         async function loadProject(name){
-            if(dirty&&!confirm('当前参数尚未保存，放弃修改并重新读取？'))return;
+            if(dirty&&!(await window.StudioConfirm.ask('当前参数尚未保存，放弃修改并重新读取？')))return;
             const request=++catalogRequest;const data=await call('get_project',{project:name});
             if(request!==catalogRequest)return;project=name;renderConfig(data);show('实际生效参数',data.parameters||data);updateButtons();
         }
@@ -157,7 +157,7 @@ window.TrainingUI = (() => {
             if(dirty&&['start_training','resume_training','prepare_data','prepare_environment','download_model'].includes(name))throw new Error('请先保存项目参数，再执行操作');
             let actual=name;
             if(name==='resume_training'){actual='start_training';args.resume=true;}
-            if(['start_training','prepare_data','prepare_environment','download_model'].includes(actual)&&!confirm(actual==='start_training'?'按已保存参数开始训练？请确认其他生图任务已结束，显存足够。':'此操作可能下载依赖或模型，并处理素材，确认执行？'))return;
+            if(['start_training','prepare_data','prepare_environment','download_model'].includes(actual)&&!(await window.StudioConfirm.ask(actual==='start_training'?'按已保存参数开始训练？请确认其他生图任务已结束，显存足够。':'此操作可能下载依赖或模型，并处理素材，确认执行？')))return;
             const data=await call(actual,{project,...args});show(labels[name]||name,data);
             if(data.task_id){track(data.task_id);await poll();}else notify((labels[name]||name)+'完成');
         }
@@ -170,13 +170,13 @@ window.TrainingUI = (() => {
         $('connectBtn').onclick=()=>busy(connect);
         $('launchBtn').onclick=()=>busy(async()=>{const data=await api('launch',{});notify(data.message);});
         $('refreshProjectsBtn').onclick=()=>busy(refreshProjects);
-        $('reloadProjectBtn').onclick=()=>busy(()=>loadProject(project));
+        $('reloadProjectBtn').onclick=()=>busy(async ()=>(await loadProject(project)));
         $('projectForm').onsubmit=event=>{event.preventDefault();busy(saveProject);};
         $('advancedConfig').oninput=changed;
         $('createProjectForm').onsubmit=event=>{event.preventDefault();busy(async()=>{const name=$('newProjectName').value.trim();if(dirty)throw new Error('请先保存当前项目');await call('create_project',{project:name,template:$('projectTemplate').value,training_type:$('trainingType').value});await refreshProjects();await loadProject(name);notify('项目已创建');});};
-        document.querySelectorAll('[data-operation]').forEach(button=>button.onclick=()=>busy(()=>operation(button.dataset.operation)));
-        document.querySelectorAll('[data-setup]').forEach(button=>button.onclick=()=>busy(()=>operation('prepare_environment',{target:button.dataset.setup})));
-        $('downloadModelBtn').onclick=()=>busy(()=>{const key=$('downloadModelKey').value.trim();if(!key)throw new Error('请先填写模型状态返回的组件 key');return operation('download_model',{key});});
+        document.querySelectorAll('[data-operation]').forEach(button=>button.onclick=()=>busy(async ()=>(await operation(button.dataset.operation))));
+        document.querySelectorAll('[data-setup]').forEach(button=>button.onclick=()=>busy(async ()=>(await operation('prepare_environment',{target:button.dataset.setup}))));
+        $('downloadModelBtn').onclick=()=>busy(async ()=>{const key=$('downloadModelKey').value.trim();if(!key)throw new Error('请先填写模型状态返回的组件 key');return (await operation('download_model',{key}));});
         $('taskRefreshBtn').onclick=()=>busy(poll);
         $('samplesBtn').onclick=()=>busy(async()=>show('采样文件',await call('list_samples',{task_id:taskId,offset:0})));
         $('cancelTaskBtn').onclick=()=>busy(async()=>{show('请求停止',await call('cancel_task',{task_id:taskId}));await poll();});

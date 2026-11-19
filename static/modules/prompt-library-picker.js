@@ -4,6 +4,7 @@
     const enabled = window.parent !== window && new URLSearchParams(location.search).get('picker') === 'prompt';
     const items = new Map();
     let selected = new Set();
+    let lastView = null;
     const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function button(key, item) {
         if (!enabled) return '';
@@ -39,10 +40,24 @@
             }
             if (event.data?.type === 'prompt-library:view') {
                 const view = event.data.view;
-                promptContentKind = view === 'char' ? 'characters' : view === 'artist' ? 'artists' : '';
-                activeTab = 'prompts';
-                activePromptLibraryId = view === 'preset' ? 'system-tags' : 'system';
-                activePromptCategory = 'all'; promptDialogId = ''; render();
+                const state = window.PromptLibraryViewState;
+                const first = lastView === null;
+                const changed = lastView !== view;
+                lastView = view;
+                state?.bind(event.data.session || '');
+                state?.install();
+                if (first) state?.markPendingRestore(); // 数据加载完再由 onReady 恢复
+                if (first || changed) {
+                    // 首次进入 / 真正切换视图：按视图给默认值
+                    promptContentKind = view === 'char' ? 'characters' : view === 'artist' ? 'artists' : '';
+                    activeTab = 'prompts';
+                    activePromptLibraryId = view === 'preset' ? 'system-tags' : 'system';
+                    activePromptCategory = 'all'; promptDialogId = ''; render();
+                } else {
+                    // 收起后重新打开：内存里的分类/搜索/列表都在，不重置、不重绘，
+                    // 只把面板尺寸变化导致的滚动偏移补回原位。
+                    state?.restoreScrollOnly();
+                }
             }
         });
     }

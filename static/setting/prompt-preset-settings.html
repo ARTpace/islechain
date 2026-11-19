@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>提示词预设管理</title>
     <script src="/static/modules/auth-token.js"></script>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>(function(){try{var t=localStorage.getItem('studio_theme')||localStorage.getItem('canvas_theme')||(window.STUDIO_DEFAULT_THEME || 'dark');if(t==='dark'){document.documentElement.classList.add('studio-theme-dark','theme-dark');}}catch(e){}})();</script>
     <link rel="stylesheet" href="/static/tailwind.min.css">
     <script src="/static/lucide.min.js"></script>
@@ -265,7 +266,7 @@
         }
 
         async function deletePreset(id) {
-            if (!confirm('确认删除此预设？')) return;
+            if (!(await window.StudioConfirm.ask('确认删除此预设？'))) return;
             try { await fetch('/api/smart-prompt/presets/' + id, { method: 'DELETE' }); } catch (e) {}
             presets = presets.filter(x => x.id !== id);
             if (editingId === id) { editingId = null; document.getElementById('editorForm').style.display = 'none'; document.getElementById('emptyState').style.display = ''; }

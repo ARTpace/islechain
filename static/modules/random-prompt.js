@@ -1255,7 +1255,7 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
             btn.addEventListener('click', (e) => { e.stopPropagation(); openPlanEditor(btn.dataset.name); });
         });
         container.querySelectorAll('.plan-delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('确定删除方案"' + btn.dataset.name + '"？')) deletePlan(btn.dataset.name); });
+            btn.addEventListener('click', async (e) => { e.stopPropagation(); if ((await window.StudioConfirm.ask('确定删除方案"' + btn.dataset.name + '"？'))) deletePlan(btn.dataset.name); });
         });
     }
 
@@ -1662,11 +1662,11 @@ const SEQUENTIAL_STATE_KEY = 'random_sequential_state';
 
         // 删除分组
         section.querySelectorAll('.delete-group-btn').forEach(el => {
-            el.addEventListener('click', (e) => {
+            el.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const gIdx = parseInt(el.dataset.gIdx);
                 const group = currentPlan[planKey].groups[gIdx];
-                if (confirm(`确定删除分组"${group.name}"？`)) {
+                if ((await window.StudioConfirm.ask(`确定删除分组"${group.name}"？`))) {
                     currentPlan[planKey].groups.splice(gIdx, 1);
                     refreshCategory(editor, planKey);
                 }

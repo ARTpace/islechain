@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>对话生图</title>
 <script src="/static/modules/auth-token.js"></script>
 <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
 
 <script src="/static/js/ui-refine.js?v=20261024001"></script>
 <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
@@ -363,8 +364,8 @@ stopBtn.onclick = () => {
     setBusy(false);
 };
 
-clearBtn.onclick = () => {
-    if (!confirm('确定清空当前对话？')) return;
+clearBtn.onclick = async () => {
+    if (!(await window.StudioConfirm.ask('确定清空当前对话？'))) return;
     refs.forEach(URL.revokeObjectURL);
     refs = []; renderRefStrip();
     saveThread([]); render(loadThread());

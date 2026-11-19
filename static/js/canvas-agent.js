@@ -564,6 +564,13 @@
             candidate=null;persist();renderMessages();renderReferences();notice('已更新画布，可使用撤销恢复。节点尚未运行。');
         } catch(error){nodes=oldNodes;connections=oldConnections;canvasHistory.restore(oldUndo);render();scheduleSave();throw error;}
     }
+    // 只保留真正能用的对话模型：配置硬门槛 + 后端可用性快照
+    function buildModels(list){
+        const av=window.ModelAvailability;
+        return (list||[]).filter(p=>p.enabled!==false && p.has_key && (!av || av.isProviderAvailable(p.id)))
+            .flatMap(p=>(av?av.filterModels('chat',p.id,p.chat_models||[]):(p.chat_models||[]))
+                .map(model=>({provider:p.id,model,label:`${p.model_labels?.[model] || model} · ${p.name || p.id}`})));
+    }
     async function open() {
         if(!panel)buildDialog();loadChat();
         if(!panel.hidden){closePanel();return;}
@@ -571,12 +578,21 @@
         renderReferences();syncComposer();notice('正在加载模型与工具…');
         try{
             const [providers]=await Promise.all([fetch('/api/providers').then(response=>{if(!response.ok)throw new Error('模型配置读取失败');return response.json();}),refresh()]);
-            models=(providers.providers || []).filter(p=>p.enabled!==false && p.has_key).flatMap(p=>(p.chat_models || []).map(model=>({provider:p.id,model,label:`${p.model_labels?.[model] || model} · ${p.name || p.id}`})));
+            models=buildModels(providers.providers || []);
             if(selectedModelIndex()<0 && models.length)chat.model=JSON.stringify([models[0].provider,models[0].model]);
             renderModelMenu();renderMessages();
             notice('');$('prompt').focus();
         }catch(error){notice(error.message);}
     }
+    // 检测在后台完成 / 强制显示变更后，已打开的面板要跟着刷新
+    if(window.ModelAvailability)window.ModelAvailability.subscribe(async()=>{
+        try{
+            const data=await fetch('/api/providers').then(r=>r.json());
+            models=buildModels(data.providers||[]);
+            if(panel&&!panel.hidden)renderModelMenu();
+            updateModelLabel();
+        }catch(e){}
+    });
     window.CanvasAgent={open,canvasLoaded:loadChat};
     document.getElementById('canvasAgentToggle')?.addEventListener('click',()=>open());
 })();

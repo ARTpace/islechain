@@ -150,3 +150,8 @@ html[data-login-theme="night"] .scene-stage .scene-light-bloom { opacity: 0; fil
 html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-night-lighting:not(.scene-light-bloom) { opacity: .9; }
 html[data-login-theme="night"] .scene-stage[data-scene-awake="true"] .scene-light-bloom { opacity: .76; transition-delay: 1s; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* 注册入口直接可达，复用现有昼夜主题按钮颜色。 */
+.auth-switch { margin: 16px 0 0; text-align: center; font-size: 14px; }
+.field[hidden], .forgot-password[hidden] { display: none; }
+#confirmPassword { padding-left: 17px; }

@@ -51,8 +51,18 @@
     };
 
     const RATIO_OPTIONS = [['1:1',1,1],['4:3',4,3],['3:4',3,4],['16:9',16,9],['9:16',9,16],['3:2',3,2],['2:3',2,3],['21:9',21,9]];
-    const RES_OPTIONS = [1, 2];
+    const RES_OPTIONS = [1, 2, 3, 4];
     const BATCH_OPTIONS = [1, 2, 3, 4];
+
+    // 当前引擎 / 工作流允许的最高分辨率档（1=1K .. 4=4K）。
+    // 由页面按模型能力设置：小显存下普通模型仍只给 1K/2K，支持原生高分辨率的模型才放开 3K/4K。
+    // 默认放行全部档位，未设置的页面（画布、3D 页）行为不变。
+    let _resMax = 4;
+    function resChoices() { return RES_OPTIONS.filter(v => v <= _resMax); }
+    function setResMax(n) {
+        const v = parseInt(n, 10);
+        _resMax = (v >= 1 && v <= 4) ? v : 4;
+    }
 
     /* ============================================================
      *  菜单辅助（通用：所有 anima-ctrl-wrap 下拉菜单共享）
@@ -258,10 +268,10 @@
     function compactResToggle() {
         if (!_isCompact()) return false;
         try {
-            let idx = RES_OPTIONS.indexOf(_state.res);
-            if (idx < 0) idx = 0;
-            const next = (idx + 1) % RES_OPTIONS.length;
-            selectRes(RES_OPTIONS[next]);
+            const opts = resChoices();
+            let idx = opts.indexOf(_state.res);
+            if (idx < 0) idx = opts.length - 1;
+            selectRes(opts[(idx + 1) % opts.length]);
         } catch (e) { console.error('compactResToggle error:', e); }
         return true;
     }
@@ -313,6 +323,8 @@
         // 分辨率
         selectRes,
         compactResToggle,
+        setResMax,
+        resChoices,
 
         // 批量
         selectBatchCount,

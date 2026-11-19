@@ -245,7 +245,7 @@
     async function deletePicked(lib) {
         const ids = [...state.picked];
         if (!ids.length) return;
-        if (!window.confirm(`确定删除所选 ${ids.length} 个素材？此操作不可撤销。`)) return;
+        if (!(await window.StudioConfirm.ask(`确定删除所选 ${ids.length} 个素材？此操作不可撤销。`))) return;
         try {
             const data = await apiJson('/api/asset-library/items/delete', {
                 method:'POST', headers:{'Content-Type':'application/json'},
@@ -352,7 +352,7 @@
                 return;
             }
             if (event.target.closest('[data-media-remove]')) {
-                if (!window.confirm('确定删除这个素材？此操作不可撤销。')) return;
+                if (!(await window.StudioConfirm.ask('确定删除这个素材？此操作不可撤销。'))) return;
                 try {
                     const data = await apiJson(`/api/asset-library/items/${encodeURIComponent(item.id)}`, {method:'DELETE'});
                     close();

@@ -83,8 +83,8 @@ async def required_modules(request):
                            ('/api/tts','tts'),('/api/poster','poster'),('/api/angle','angle')):
         if path == prefix or path.startswith(prefix + '/'):
             return {module}
-    if path in {'/api/online-video','/api/canvas-video'}:
-        return {'litevideo','canvas'}
+    if path in {'/api/online-video','/api/canvas-video'} or path.startswith('/api/chat-video/'):
+        return {'chat-gen','litevideo','canvas'}
     if path in {'/api/online-image','/api/canvas-image-tasks','/generate','/api/ms/generate','/api/ideogram4/generate-json'}:
         return {'chat-gen','zimage','canvas'}
     if path in {'/api/canvas-llm','/api/chat','/api/chat/stream'}:

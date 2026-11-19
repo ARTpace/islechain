@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>内容卡片组件示例</title>
+<link rel="stylesheet" href="/static/modules/content-preview.css?v=20261119001">
+<style>
+:root{--ui-panel:#fff;--ui-text:#292b30;--ui-muted:#74777e;--ui-line:#d9dce0;--ui-accent:#b98b46;--ui-r:12px;color-scheme:light}
+body{margin:24px auto;max-width:1000px;padding:0 20px;background:#f3f4f6;color:var(--ui-text);font:14px/1.6 system-ui}
+body.studio-theme-dark{--ui-panel:#242628;--ui-text:#e6e7e9;--ui-muted:#a1a4aa;--ui-line:#3c3e43;background:#1b1d20;color-scheme:dark}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px}h1{font-size:20px}button{color:inherit;background:var(--ui-panel);border:1px solid var(--ui-line);border-radius:8px;padding:6px 12px;cursor:pointer}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;align-items:start}.chat-text-box{width:100%;margin:0;height:auto}article{min-width:0}
+@media(max-width:500px){main{grid-template-columns:1fr}}
+</style>
+<script src="/static/js/canvas-agent-markdown.js"></script><script src="/static/modules/content-preview.js?v=20261119001"></script>
+</head><body><header><h1>内容卡片</h1><button id="theme" type="button">切换深浅模式</button></header><p>预览、源码和复制直接可用；程序代码仅展示。</p><main id="examples"></main>
+<script>
+const examples=[
+['markdown','Markdown 文档','# 场景说明\n\n**温暖的房间**，窗外是花园。\n\n- 柔和光照\n- 木质家具\n\n| 参数 | 值 |\n| --- | --- |\n| 比例 | 16:9 |'],
+['json','JSON 数据','{"name":"温暖房间","scene":{"lighting":"柔光","objects":["书桌","花瓶"]}}'],
+['python','Python 代码','def greet(name):\n    # 保留缩进与行号\n    return f"Hello, {name}!"\n\nprint(greet("World"))'],
+['typescript','TypeScript 代码','interface Scene {\n  name: string;\n  width: number;\n}\nconst scene: Scene = { name: "Garden", width: 1024 };'],
+['html','HTML 网页','<style>.card{padding:24px;border-radius:12px;background:#e7efd9;color:#354b29}button{border:0;border-radius:8px;padding:8px 16px;background:#426438;color:white}</style><div class="card"><h2>花园工作室</h2><p>HTML 与内联 CSS 预览</p><button>开始创作</button></div>'],
+['svg','SVG 矢量图','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160"><rect width="320" height="160" rx="16" fill="#e7efd9"/><circle cx="160" cy="64" r="32" fill="#c58a57"/><path d="M100 140q60-80 120 0" fill="#557b45"/></svg>'],
+['mermaid','Mermaid 流程图','flowchart LR\n  A[描述需求] --> B{确认方向}\n  B -->|生成| C[绘制图片]\n  B -->|调整| A'],
+['csv','CSV 表格','名称,数量,备注\n花瓶,2,"白色,陶瓷"\n书桌,1,"第一行\n第二行"'],
+['yaml','YAML 层级','scene:\n  name: 温暖房间\n  lighting: 柔光\n  objects:\n    - 书桌\n    - 花瓶'],
+['xml','XML 层级','<scene name="温暖房间"><lighting>柔光</lighting><objects><item>书桌</item><item>花瓶</item></objects></scene>'],
+['diff','Diff 变更','@@ 场景设置 @@\n- lighting: dark\n+ lighting: warm\n  width: 1024'],
+['latex','LaTeX 数学公式','\\int_0^1 x^2\\,dx=\\frac{1}{3} \\qquad E=mc^2']
+];
+for(const [language,title,source] of examples){const host=document.createElement('article');document.getElementById('examples').appendChild(host);StudioContentPreview.render(host,source,{language,title});}
+document.getElementById('theme').onclick=()=>document.body.classList.toggle('studio-theme-dark');
+</script></body></html>

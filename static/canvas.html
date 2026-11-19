@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-studio-scale="off">
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
     <!-- 桌面叠加模式标记：必须在 canvas.js 之前记下来。
          画布启动流程会改写 location（openCanvas/replaceState），
@@ -19,7 +20,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>无限画布</title>
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261111016"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <script>
         (function(){
             try {
@@ -36,7 +37,7 @@
 
     <script src="/static/js/touch-mouse.js?v=20261024001"></script>
     <script src="/static/js/i18n.js?v=20261024001"></script>
-    <link rel="stylesheet" href="/static/css/canvas.css?v=20261111005">
+    <link rel="stylesheet" href="/static/css/canvas.css?v=20261119001">
     <link rel="stylesheet" href="/static/css/canvas-agent.css?v=20261108011">
     <link rel="stylesheet" href="/static/css/canvas-mask-editor.css?v=20261108011">
     <link rel="stylesheet" href="/static/css/studio-ui.css?v=20261108011">
@@ -428,11 +429,13 @@
     <script src="/static/modules/lora-manager.js?v=20261102lorabtn"></script>
     <script src="/static/app/lora-picker.js?v=20261101sharedprompts"></script>
     <script src="/static/modules/prompt-gallery-ui.js?v=20261101sharedprompts"></script>
-    <script src="/static/modules/generation-prompt-library.js?v=20261101sharedprompts"></script>
-    <script src="/static/modules/image-generation-workflow.js?v=20261105lr8guard1"></script>
-    <script src="/static/modules/generation-options-panel.js?v=20261103shared"></script>
-    <script src="/static/modules/model-visibility.js?v=20261105canvasvis1"></script>
-    <script src="/static/modules/model-picker.js?v=20261105tier1"></script>
+    <script src="/static/modules/generation-prompt-library.js?v=20261115001"></script>
+    <script src="/static/modules/image-generation-workflow.js?v=20261115001"></script>
+    <script src="/static/modules/generation-options-panel.js?v=20261115003"></script>
+    <script src="/static/modules/model-availability.js?v=20261115001"></script>
+    <script src="/static/modules/model-availability-filter.js?v=20261115001"></script>
+    <script src="/static/modules/model-visibility.js?v=20261115001"></script>
+    <script src="/static/modules/model-picker.js?v=20261115004"></script>
     <script src="/static/modules/comfy-status.js?v=20261105shared3"></script>
     <link rel="stylesheet" href="/static/css/canvas-alignment.css?v=20261108011">
     <link rel="stylesheet" href="/static/css/video-trimmer.css?v=20261108011">
@@ -443,7 +446,7 @@
     <script src="/static/modules/video-trimmer.js?v=20261105align1"></script>
     <script src="/static/modules/canvas-quick-start.js?v=20261105align1"></script>
     <script src="/static/modules/web-node.js?v=20261105web3"></script>
-    <script src="/static/js/canvas-generation-node.js?v=20261105tier1"></script>
+    <script src="/static/js/canvas-generation-node.js?v=20261115004"></script>
     <link rel="stylesheet" href="/static/css/canvas-materials.css?v=20261108011">
     <script src="/static/js/canvas-material-plan.js?v=20261105personas3"></script>
     <script src="/static/js/canvas-materials.js?v=20261105unified-model1"></script>
@@ -459,12 +462,12 @@
     <script src="/static/js/asset-split-export.js?v=20261111split1"></script>
     <script src="/static/js/canvas-asset-split.js?v=20261111split1"></script>
     <script src="/static/js/canvas-node-catalog.js?v=20261109uloop4"></script>
-    <script src="/static/js/canvas-comfy-builds.js?v=20261104uibridge1"></script>
+    <script src="/static/js/canvas-comfy-builds.js?v=20261119002"></script>
     <script src="/static/nodes/shared/node-controls.js?v=20261105controls1"></script>
     <script src="/static/nodes/cli-gen/index.js?v=20261108011"></script>
     <link rel="stylesheet" href="/static/nodes/blender-gen/workspace.css?v=20261108011">
     <script src="/static/nodes/blender-gen/workspace.js?v=20261108009"></script>
-    <script src="/static/nodes/blender-gen/index.js?v=20261108011"></script>
+    <script src="/static/nodes/blender-gen/index.js?v=20261119002"></script>
     <script src="/static/nodes/msgen/index.js?v=20261108011"></script>
     <script src="/static/nodes/loop/index.js?v=20261108011"></script>
     <script src="/static/nodes/llm/index.js?v=20261108011"></script>
@@ -477,19 +480,19 @@
     <script src="/static/js/preset-info.js?v=20261108011"></script>
     <script src="/static/js/canvas-generation-sources.js?v=20261111split1"></script>
     <script src="/static/js/canvas-schema.js?v=20261106persistence"></script>
-    <script src="/static/js/canvas.js?v=20261111split1"></script>
+    <script src="/static/js/canvas.js?v=20261119003"></script>
     <script src="/static/modules/canvas-overlay-bridge.js?v=20261106clear3"></script>
     <script src="/static/js/game-pipeline.js?v=20261102-3d3"></script>
     <script src="/static/js/game-authoring.js?v=20261102-authoring1"></script>
-    <script src="/static/js/game-development.js?v=20261104nodes3"></script>
+    <script src="/static/js/game-development.js?v=20261119002"></script>
     <script src="/static/js/game-asset-intake.js?v=20261103intake1"></script>
     <script src="/static/js/game-model-import.js?v=20261104matasset3"></script>
-    <script src="/static/js/game-model3d.js?v=20261108009"></script>
+    <script src="/static/js/game-model3d.js?v=20261119002"></script>
     <script src="/static/js/game-extra-nodes.js?v=20261104shared1"></script>
     <script src="/static/js/game-workflow.js?v=20261105removed-legacy1"></script>
     <script src="/static/modules/external-asset-drop.js?v=20261104nomid1"></script>
-    <script src="/static/js/canvas-agent-markdown.js?v=20261104gemini1"></script>
-    <script src="/static/js/canvas-agent-state.js?v=20261104gemini1"></script>
-    <script src="/static/js/canvas-agent.js?v=20261104gemini1"></script>
+    <script src="/static/js/canvas-agent-markdown.js?v=20261115001"></script>
+    <script src="/static/js/canvas-agent-state.js?v=20261115001"></script>
+    <script src="/static/js/canvas-agent.js?v=20261115001"></script>
 </body>
 </html>

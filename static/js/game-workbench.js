@@ -22,7 +22,7 @@
         catch (error) { $('status').textContent = error.message; $('status').scrollIntoView({block:'center'}); }
         finally { busy = false; document.querySelectorAll('button:not([data-native])').forEach(button => { button.disabled = false; }); }
     }
-    function protect() { return !(fileDirty || dataDirty) || confirm('存在未保存草稿。确认放弃草稿？'); }
+    async function protect() { return !(fileDirty || dataDirty) || (await window.StudioConfirm.ask('存在未保存草稿。确认放弃草稿？')); }
     function render() {
         $('editor').hidden = !state.active; $('dataSection').hidden = !state.active;
         $('buildSection').hidden = !state.active;
@@ -34,7 +34,7 @@
         for (const item of state.files.filter(f => f.path.toLowerCase().includes($('search').value.toLowerCase()))) {
             const button = document.createElement('button'); button.textContent = item.path;
             button.onclick = () => action(async () => {
-                if (fileDirty && !confirm('放弃当前文件草稿？')) return;
+                if (fileDirty && !(await window.StudioConfirm.ask('放弃当前文件草稿？'))) return;
                 file = await api('/file?path=' + encodeURIComponent(item.path));
                 $('fileTitle').textContent = file.path; $('content').value = file.content; fileDirty = false; $('diff').textContent = '';
             });
@@ -86,7 +86,7 @@
     $('generateCode').onclick = () => action(async () => {
         if (!file) throw new Error('先选择要修改的文件');
         if (fileDirty || dataDirty) throw new Error('先保存相关草稿，模型只读取已保存输入');
-        if (!confirm('使用已配置模型生成候选？可能产生渠道费用。')) return;
+        if (!(await window.StudioConfirm.ask('使用已配置模型生成候选？可能产生渠道费用。'))) return;
         codeCandidate = await codeApi('', {baseRevision: state.revision, requestId: crypto.randomUUID(),
             paths: [file.path], instruction: $('codeInstruction').value,
             provider: $('codeProvider').value.trim(), model: $('codeModel').value.trim()});
@@ -98,7 +98,7 @@
         if (!codeCandidate || codeCandidate.status !== 'ready') throw new Error('没有可采用的候选');
         if (fileDirty || dataDirty) throw new Error('先处理文件和数据草稿');
         showDiff(await api('/patches', 'POST', {baseRevision: state.revision, apply: false, changes: codeCandidate.changes}));
-        if (!confirm('应用所示候选差异？当前源码会先创建保护点；应用后需重新构建和验证。')) return;
+        if (!(await window.StudioConfirm.ask('应用所示候选差异？当前源码会先创建保护点；应用后需重新构建和验证。'))) return;
         await codeApi(`/${codeCandidate.candidateId}/apply`, {baseRevision: state.revision});
         codeCandidate = null; $('codeStatus').textContent = '已采用，尚未验证功能'; await reload();
     });
@@ -139,7 +139,7 @@
                 cell.append(control); tr.append(cell);
             }
             const removeCell = document.createElement('td'), remove = document.createElement('button'); remove.textContent = '删除行';
-            remove.onclick = () => { if (!confirm(`删除 ${row.id}？被引用时后端会拒绝保存。`)) return; dataset.rows = dataset.rows.filter(item => item !== row); sync(); renderDataForm(); };
+            remove.onclick = async () => { if (!(await window.StudioConfirm.ask(`删除 ${row.id}？被引用时后端会拒绝保存。`))) return; dataset.rows = dataset.rows.filter(item => item !== row); sync(); renderDataForm(); };
             removeCell.append(remove); tr.append(removeCell); table.append(tr);
         }
         container.append(table);
@@ -162,7 +162,7 @@
         if (file.size > 100 * 1024 * 1024) throw new Error('备份超过 100 MiB');
         const canvasId = $('importCanvas').value.trim(), title = $('importTitle').value.trim();
         if (!canvasId || !title) throw new Error('填写目标画布 ID 和标题');
-        if (!confirm('校验备份并在目标画布创建新项目？不会执行包内脚本。')) return;
+        if (!(await window.StudioConfirm.ask('校验备份并在目标画布创建新项目？不会执行包内脚本。'))) return;
         const response = await fetch(`/api/game-projects/import-backup?canvasId=${encodeURIComponent(canvasId)}&title=${encodeURIComponent(title)}`, {method:'POST',body:file});
         const result = await response.json(); if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : JSON.stringify(result.detail));
         $('status').textContent = `新项目已导入：${result.project.id}`;
@@ -170,7 +170,7 @@
         return false;
     });
     $('installTemplate').onclick = () => action(async () => {
-        if (!protect() || !confirm('添加原生 Canvas 灰盒模板？已有 game.js 时会阻止覆盖。')) return;
+        if (!(await protect()) || !(await window.StudioConfirm.ask('添加原生 Canvas 灰盒模板？已有 game.js 时会阻止覆盖。'))) return;
         await api('/template', 'POST', {baseRevision: state.revision}); await reload();
     });
     $('build').onclick = () => action(async () => {
@@ -235,9 +235,9 @@
             || !['error', 'rejection'].includes(data.kind) || typeof data.message !== 'string' || diagnostics.length >= 100) return;
         diagnostics.push(data.message.slice(0, 1000)); $('buildDetails').textContent = diagnostics.join('\n');
     });
-    $('reload').onclick = () => action(async () => { if (protect()) await reload(); });
+    $('reload').onclick = () => action(async () => { if ((await protect())) await reload(); });
     $('newFile').onclick = () => action(async () => {
-        if (fileDirty && !confirm('放弃当前文件草稿？')) return;
+        if (fileDirty && !(await window.StudioConfirm.ask('放弃当前文件草稿？'))) return;
         const path = $('newPath').value.trim(); if (!path) throw new Error('请输入新文件路径');
         if (state.files.some(f => f.path.toLowerCase() === path.toLowerCase())) throw new Error('文件已存在，请在列表中打开');
         file = {path, hash: null, revision: state.revision}; $('content').value = ''; $('fileTitle').textContent = path; fileDirty = true;
@@ -245,17 +245,17 @@
     $('preview').onclick = () => action(async () => { showDiff(await patch(false)); });
     $('save').onclick = () => action(async () => {
         if (dataDirty) throw new Error('请先保存数据草稿，避免重新载入时丢失');
-        showDiff(await patch(false)); if (!confirm('应用所示差异？更改前会保留恢复点。')) return;
+        showDiff(await patch(false)); if (!(await window.StudioConfirm.ask('应用所示差异？更改前会保留恢复点。'))) return;
         await patch(true); fileDirty = false; await reload();
     });
     $('remove').onclick = () => action(async () => {
         if (dataDirty) throw new Error('请先保存数据草稿');
-        if (!file || !confirm(`删除 ${file.path}？删除前保留恢复点。`)) return;
+        if (!file || !(await window.StudioConfirm.ask(`删除 ${file.path}？删除前保留恢复点。`))) return;
         await patch(true, true); fileDirty = false; await reload();
     });
     $('restore').onclick = () => action(async () => {
         const fullProject = $('restoreFullProject').checked;
-        if (!protect() || !confirm(fullProject ? '恢复工程、策划、文档与资产选择？当前版本先保留保护点，测试历史保留。' : '恢复工程文件？当前文件先保留保护点，策划与测试历史保留。')) return;
+        if (!(await protect()) || !(await window.StudioConfirm.ask(fullProject ? '恢复工程、策划、文档与资产选择？当前版本先保留保护点，测试历史保留。' : '恢复工程文件？当前文件先保留保护点，策划与测试历史保留。'))) return;
         try {
             await api('/restore', 'POST', {baseRevision: state.revision, snapshotId: $('snapshots').value, fullProject});
         } catch (error) {
@@ -270,7 +270,7 @@
         });
     }
     $('loadData').onclick = () => action(async () => {
-        if (dataDirty && !confirm('放弃数据草稿？')) return;
+        if (dataDirty && !(await window.StudioConfirm.ask('放弃数据草稿？'))) return;
         dataFile = await api('/datasets'); $('data').value = dataFile.content; dataDirty = false; renderDataForm();
         if ($('dataNotice')) $('dataNotice').textContent = '已载入当前数据。修改后点击「校验并预览数据差异」。';
     });
@@ -285,7 +285,7 @@
     });
     $('saveData').onclick = () => action(async () => {
         if (fileDirty) throw new Error('请先处理文件草稿，避免重新载入时丢失');
-        showDiff(await saveData(false)); if (!confirm('应用校验通过的数据差异？')) return;
+        showDiff(await saveData(false)); if (!(await window.StudioConfirm.ask('应用校验通过的数据差异？'))) return;
         await saveData(true); dataDirty = false; await reload();
         dataFile = await api('/datasets'); $('data').value = dataFile.content; renderDataForm();
         if ($('dataNotice')) $('dataNotice').textContent = '数据已保存。回到「试玩」点击「更新试玩版本」，新数值才会进入新的试玩构建。';

@@ -52,14 +52,15 @@
                 const button=menu.parentElement.querySelector('button');
                 if(!button || !menu.querySelector('.anima-ctrl-menu-item'))continue;
                 const id=menu.id.toLowerCase();
-                const title=id.includes('ratio')?'选择比例':id.includes('res')||id.includes('size')?'选择分辨率':id.includes('count')?'选择生成数量':id.includes('quality')?'质量参数':id.includes('provider')?'生成渠道':'模型参数';
+                const title=id.includes('ratio')?'选择比例':id.includes('tier')?'速度模式':id.includes('res')||id.includes('size')?'选择分辨率':id.includes('count')?'选择生成数量':id.includes('quality')?'质量参数':id.includes('provider')?'生成渠道':'模型参数';
                 result.push({menu,button,title,ratio:id.includes('ratio')});
             }
             const batch=document.getElementById('batchCountWrap');
             if(batch && !(cloud && document.documentElement.classList.contains('website-model'))){
                 result.push({menu:document.getElementById('batchCountMenu'),button:document.getElementById('batchCountBtn'),title:'选择生成数量'});
             }
-            return result.sort((a,b)=>['选择比例','选择分辨率','质量参数','选择生成数量','生成渠道','模型参数'].indexOf(a.title)-['选择比例','选择分辨率','质量参数','选择生成数量','生成渠道','模型参数'].indexOf(b.title));
+            const order=['选择比例','选择分辨率','速度模式','质量参数','选择生成数量','生成渠道','模型参数'];
+            return result.sort((a,b)=>order.indexOf(a.title)-order.indexOf(b.title));
         }
         function place() {
             if(panel.hidden)return;
@@ -71,7 +72,10 @@
             composer.querySelectorAll('.generation-options-source').forEach(el=>el.classList.remove('generation-options-source'));
             const entries=groups();
             trigger.hidden=!entries.length;
-            trigger.textContent=entries.map(entry=>label(entry.button)).filter(Boolean).join(' · ')+'  ⌃';
+            // 顶部胶囊只保留「比例 · 分辨率 · 数量」这三段，档位（速度模式）只在面板里展示，
+            // 免得「高」这种词进胶囊后被误读成画质。
+            const summary=entries.filter(entry=>entry.title!=='速度模式');
+            trigger.textContent=(summary.length?summary:entries).map(entry=>label(entry.button)).filter(Boolean).join(' · ')+'  ⌃';
             const ratio=entries.find(entry=>entry.ratio);
             const pair=ratio?label(ratio.button).split(':').map(Number):[];
             if(pair.length===2 && pair.every(n=>Number.isFinite(n)&&n>0)){
@@ -105,7 +109,11 @@
                 const items=Array.from(menu.querySelectorAll('.anima-ctrl-menu-item'));
                 if(ratio)items.sort((a,b)=>{const aspect=item=>{const [w,h]=label(item).split(':').map(Number);return w/h||0;};return aspect(b)-aspect(a);});
                 const section=renderSection(panel,{title,ratio,current,items:items.map((item,index)=>({value:label(item),label:label(item).replace(/^×/,''),disabled:button.disabled||item.getAttribute('aria-disabled')==='true'||item.hasAttribute('disabled')})),onSelect:value=>{
-                    choosing=true;try{items.find(item=>label(item)===value)?.click();}finally{choosing=false;}sync();
+                    // 有些选项会重建整个控制栏（如切换速度档位 → 换工作流 → innerHTML 重写），
+                    // 原点击目标当场脱 DOM。此时若立刻复位 choosing，紧接着冒泡到 document 的
+                    // 同一次点击就会被判成「点了面板外面」而把面板关掉。放到下一轮事件循环再复位。
+                    choosing=true;try{items.find(item=>label(item)===value)?.click();}catch(e){}sync();
+                    setTimeout(()=>{choosing=false;},0);
                 }});
                 Array.from(section.querySelectorAll('button')).forEach((option,index)=>{option.dataset.optionKey=menu.id+':'+index;});
             });
@@ -114,7 +122,7 @@
         }
         function close() {window.closeUnifiedModelMenu?.();panel.hidden=true;trigger.setAttribute('aria-expanded','false');}
         trigger.onclick=event=>{event.stopPropagation();panel.hidden=!panel.hidden;trigger.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)sync();};
-        document.addEventListener('click',event=>{if(!choosing&&!panel.contains(event.target)&&!trigger.contains(event.target))close();});
+        document.addEventListener('click',event=>{if(!choosing&&(event.target?.isConnected!==false)&&!panel.contains(event.target)&&!trigger.contains(event.target))close();});
         document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){close();trigger.focus();}});
         window.addEventListener('resize',place);
         // 拖动窗口宽度跨过阈值时，在「对话栏下方」与「参数面板」之间切换模型选择

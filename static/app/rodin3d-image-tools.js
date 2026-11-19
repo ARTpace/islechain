@@ -9,13 +9,30 @@ export async function catalog() {
   if(results.every(r=>r.status==='rejected'))throw new Error('工具模型加载失败');
   const providers=results[0].status==='fulfilled'?results[0].value.providers||[]:[];
   const workflows=results[1].status==='fulfilled'?results[1].value.workflows||[]:[];
+  const seen=new Set();
+  const localModels=workflows.filter(w=>w.name.startsWith('text2image/')).map(w=>{
+    const tier=tierLabel(w);
+    return {id:JSON.stringify(['local',w.name]),label:'本地 · '+(w.title||w.name)+(tier?' · '+tier:''),workflow:w.name,tier};
+  }).filter(model=>{
+    // 同一模型的两个档位重名时（-4step / -6step 都叫极速）只留一份，免得下拉里出现两条一模一样的选项
+    if(seen.has(model.label))return false;
+    seen.add(model.label);return true;
+  });
   return [
     ...providers.filter(p=>p.enabled!==false).flatMap(provider=>(provider.image_models||[]).map(m=>({
       id:JSON.stringify([provider.id,typeof m==='string'?m:m.id||m.name]),
       label:provider.name+' · '+(typeof m==='string'?m:m.name||m.id),provider,model:typeof m==='string'?m:m.id||m.name
     }))),
-    ...workflows.filter(w=>w.name.startsWith('text2image/')).map(w=>({id:JSON.stringify(['local',w.name]),label:'本地 · '+(w.title||w.name),workflow:w.name}))
+    ...localModels
   ];
+}
+// 档位：后端 config 里声明的 tier 优先，否则按文件名后缀推断（与 ModelPicker 同一套规则）
+export function tierLabel(item) {
+  const declared=String(item?.tier||'').trim();if(declared)return declared;
+  const base=String(item?.name||'').split('/').pop().replace(/\.json$/i,'').toLowerCase();
+  if(/-turbo$|-\d+step$/.test(base))return '极速';
+  if(/-fast$/.test(base))return '低';
+  return '';
 }
 export function supportsEditing(model) {
   if(model.workflow)return /(?:qwen-image-2\.1(?:-fast|-turbo)?|moss-image-sft(?:-fast|-4step)?|flux3-klein|krea2[^/]*)\.json$/i.test(model.workflow);

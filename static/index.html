@@ -2,14 +2,15 @@
 <html lang="zh-CN" data-studio-scale="off">
 
 <head>
+<script src="/static/js/ui-confirm.js?v=20261119002"></script>
     <meta charset="UTF-8">
-    <meta name="app-version" content="20261112017">
+    <meta name="app-version" content="20261119007">
     <!-- 应用自行管理深浅主题，避免扩展重复反色。 -->
     <meta name="darkreader-lock">
     <script src="/static/modules/load-log.js?v=20261027load"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/static/js/theme-default.js?v=20261031a"></script>
-<script src="/static/js/theme.js?v=20261112004"></script>
+<script src="/static/js/theme.js?v=20261119001"></script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>IsleChain</title>
     <link rel="stylesheet" href="/static/tailwind.min.css?v=20261024004">
@@ -18,6 +19,7 @@
     <link rel="stylesheet" href="/static/css/workspace-loading.css?v=20261108015">
     <link rel="stylesheet" href="/static/css/appearance-settings.css?v=20261111009">
     <script src="/static/js/ui-refine.js?v=20261024004" defer></script>
+    <script src="/static/js/sidebar-order.js?v=20261119002" defer></script>
     <script src="/static/js/i18n.js?v=20261024004" defer></script>
     <style>
         :root {
@@ -117,8 +119,8 @@
 
         /* 侧边栏 */
         .sidebar {
-            width: 80px;
-            min-width: 80px;
+            width: 52px;
+            min-width: 52px;
             height: 100vh;
             max-height: 100vh;
             background: var(--sidebar-bg);
@@ -192,7 +194,7 @@
         /* 锁定态：不展开，只显示图标 */
         .sidebar.locked,
         .sidebar.locked:hover {
-            width: 80px;
+            width: 52px;
         }
         .sidebar.locked .sidebar-nav,
         .sidebar.locked .sidebar-bottom {
@@ -200,7 +202,7 @@
             align-items: center;
         }
         .sidebar.locked .nav-item {
-            width: 56px;
+            width: 48px;
             padding-left: 0;
             justify-content: center;
         }
@@ -214,6 +216,17 @@
         .sidebar.locked .nav-arrow {
             display: none;
         }
+        .sidebar:not(:hover) .sidebar-nav,
+        .sidebar:not(:hover) .sidebar-bottom {
+            padding-left: 0;
+            align-items: center;
+        }
+        .sidebar:not(:hover) :is(.sidebar-nav, .sidebar-bottom) > .nav-item {
+            width: 48px;
+            padding-left: 0;
+            justify-content: center;
+        }
+        .sidebar:not(:hover) :is(.nav-text, .nav-arrow) { display: none; }
         /* 浮动栏不受锁定影响，始终显示图标+文字，并且左对齐 */
         .sidebar.locked .submenu .nav-item,
         .submenu .nav-item {
@@ -281,6 +294,10 @@
 
         /* 导航项 - 始终保持展开宽度，靠 sidebar overflow:hidden 裁切 */
         .nav-item.is-module-off { display: none !important; }
+        .sidebar-nav > .nav-item { cursor: grab; touch-action: none; user-select: none; }
+        .sidebar-nav > .nav-item.sidebar-dragging { opacity: .4; cursor: grabbing; }
+        .sidebar-nav > .nav-item.sidebar-drop-before { box-shadow: 0 -3px 0 var(--accent); }
+        .sidebar-nav > .nav-item.sidebar-drop-after { box-shadow: 0 3px 0 var(--accent); }
         .nav-item {
             position: relative;
             box-sizing: border-box;
@@ -308,7 +325,7 @@
         .sidebar.locked .sidebar-nav .nav-item,
         .sidebar.locked:hover .sidebar-bottom .nav-item,
         .sidebar.locked .sidebar-bottom .nav-item {
-            width: 56px;
+            width: 48px;
             padding-left: 0;
             justify-content: center;
         }
@@ -375,9 +392,9 @@
             pointer-events: none;
             transition: opacity 0.2s ease;
             z-index: 60;
-            background: var(--sidebar-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            background: var(--ui-panel);
+            border: 1px solid var(--ui-line);
+            border-radius: var(--ui-r, 12px);
             padding: 8px;
             display: flex;
             flex-direction: column;
@@ -392,9 +409,9 @@
         }
 
         body.theme-dark .submenu {
-            background: rgba(20, 20, 20, 0.95);
-            border-color: color-mix(in srgb, var(--accent-glow, #06b6d4) 12%, transparent);
-            box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-glow, #06b6d4) 8%, transparent);
+            background: var(--ui-panel);
+            border-color: var(--ui-line);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .22);
         }
 
         .submenu.expanded {
@@ -484,7 +501,7 @@
         .stage {
             flex: 1;
             background: var(--stage-bg);
-            margin: 16px 16px 16px 96px;
+            margin: 16px 16px 16px 68px;
             border-radius: 32px;
             overflow: hidden;
             border: 1px solid var(--stage-border);
@@ -779,6 +796,37 @@
 
         .theme-toggle svg { width: 16px; height: 16px; }
     </style>
+    <style id="sidebar-icon-selection">
+        #islechain-sidebar :is(.nav-item, .nav-child) {
+            background: transparent !important;
+            border-color: transparent !important;
+            color: var(--ui-muted, var(--muted)) !important;
+            box-shadow: none !important;
+        }
+        #islechain-sidebar :is(.nav-item.active, .nav-child.submenu-active, .nav-parent.has-active-child) {
+            color: var(--studio-accent-text, var(--accent-glow, var(--accent))) !important;
+        }
+        #islechain-sidebar :is(.nav-item.active, .nav-child.submenu-active, .nav-parent.has-active-child)::after {
+            content: '';
+            position: absolute;
+            left: 24px;
+            bottom: 5px;
+            width: 5px;
+            height: 5px;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+            pointer-events: none;
+        }
+        #islechain-sidebar:hover .nav-parent.has-active-child {
+            border-left: 0 !important;
+            padding-left: 16px;
+        }
+        #islechain-sidebar.locked:hover .nav-parent.has-active-child { padding-left: 0; }
+        #islechain-sidebar .sidebar-drop-before { box-shadow: 0 -3px 0 var(--accent) !important; }
+        #islechain-sidebar .sidebar-drop-after { box-shadow: 0 3px 0 var(--accent) !important; }
+    </style>
     <style id="ui-responsive">
         /* 外壳响应式：防横向滚动 + 移动端侧栏改为顶部条/抽屉 */
         html, body { overflow-x: hidden; }
@@ -787,7 +835,7 @@
         .stage { min-width: 0; }
 
         @media (max-width: 1024px) {
-            .stage { margin: 12px 12px 12px 92px; border-radius: 24px; }
+            .stage { margin: 12px 12px 12px 64px; border-radius: 24px; }
         }
 
         @media (max-width: 640px) {
@@ -851,6 +899,37 @@
             }
             .stage { margin: 8px !important; border-radius: 18px !important; }
         }
+
+        /* 仅画布编辑器去掉外框，管理页沿用普通页面的圆角与留白。 */
+        .stage:has(> #frame-canvas.active.canvas-editor) {
+            margin: 0 0 0 52px !important;
+            border-radius: 0 !important;
+            border: 0 !important;
+        }
+
+        @media (max-width: 640px) {
+            .stage:has(> #frame-canvas.active.canvas-editor) { margin: 0 !important; }
+        }
+
+        /* ponytail: 复用侧栏 hover，透明边缘触发区无需额外事件监听。 */
+        @media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+            .app-shell:has(#frame-canvas.active.canvas-editor) .stage { margin: 0 !important; }
+            .app-shell:has(#frame-canvas.active.canvas-editor) > .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.2s ease, width 0.24s ease, background 0.2s, border-color 0.2s, box-shadow 0.24s ease;
+            }
+            .app-shell:has(#frame-canvas.active.canvas-editor) > .sidebar::after {
+                content: '';
+                position: absolute;
+                left: 100%;
+                top: 0;
+                bottom: 0;
+                width: 10px;
+            }
+            .app-shell:has(#frame-canvas.active.canvas-editor) > .sidebar:is(:hover, :focus-within) {
+                transform: translateX(0);
+            }
+        }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20261108011">
 </head>
@@ -858,7 +937,7 @@
 <body>
 
     <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" id="islechain-sidebar">
             <div class="logo-ring mb-12">
                 <svg width="26" height="26" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path class="lr-fill" d="M48 14L84 32L48 50L12 32Z" opacity="0.92"/>
@@ -1036,10 +1115,10 @@
                 <div class="workspace-loading-label">正在打开工作区</div>
             </div>
             <iframe id="frame-tripo-studio" data-src="/tripo-studio/"></iframe>
-            <iframe id="frame-rodin3d" data-src="/static/app/rodin3d.html?v=20261111d"></iframe>
-            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261105noref"></iframe>
-            <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261024008"></iframe>
-            <iframe id="frame-texture-repaint" data-src="/static/app/texture-repaint.html?v=20261105tier1"></iframe>
+            <iframe id="frame-rodin3d" data-src="/static/app/rodin3d.html?v=20261115004"></iframe>
+            <iframe id="frame-zimage" data-src="/static/app/zimage.html?v=20261115005"></iframe>
+            <iframe id="frame-klein" data-src="/static/app/klein.html?v=20261115004"></iframe>
+            <iframe id="frame-texture-repaint" data-src="/static/app/texture-repaint.html?v=20261115004"></iframe>
             <iframe id="frame-angle" data-src="/static/app/angle.html?v=20261024008"></iframe>
             <iframe id="frame-cgstyle" data-src="/static/app/cgstyle.html?v=20261024008"></iframe>
             <iframe id="frame-threeview" data-src="/static/app/threeview.html?v=20261103a"></iframe>
@@ -1052,14 +1131,14 @@
             <iframe id="frame-promptgen" data-src="/static/app/promptgen.html"></iframe>
             <iframe id="frame-textmatting" data-src="/static/app/textmatting.html?v=20261024008"></iframe>
             <iframe id="frame-poster" data-src="/static/app/poster.html?v=20261024004"></iframe>
-            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261105noref"></iframe>
+            <iframe id="frame-chat-gen" data-src="/static/app/zimage.html?chat=1&v=20261119022"></iframe>
             <iframe id="frame-tts" data-src="/static/app/tts.html"></iframe>
     <iframe id="frame-litevideo" data-src="/static/app/litevideo.html?v=20261024009"></iframe>
-            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261108009"></iframe>
+            <iframe id="frame-canvas" data-src="/static/canvas.html?v=20261115004"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=20261102mergetab"></iframe>
             <iframe id="frame-training" data-src="/static/app/training.html?v=20261025"></iframe>
             <iframe id="frame-generation-dashboard" data-src="/static/app/generation-dashboard.html"></iframe>
-            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261112014"></iframe>
+            <iframe id="frame-api-settings" data-src="/static/setting/api-settings.html?v=20261115001"></iframe>
             <iframe id="frame-comfyui-settings" data-src="/static/setting/comfyui-settings.html?v=20261112015"></iframe>
             <iframe id="frame-mcp-settings" data-src="/static/setting/mcp-settings.html?v=20261109mcp1"></iframe>
             <iframe id="frame-cli-settings" data-src="/static/setting/cli-settings.html?v=20261109cli11"></iframe>
@@ -1265,8 +1344,9 @@
         });
     </script>
 
-    <script src="/static/modules/model-visibility.js?v=20261024pane"></script>
-    <script src="/static/modules/settings.js?v=20261112014"></script>
+    <script src="/static/modules/model-availability.js?v=20261115001"></script>
+    <script src="/static/modules/model-visibility.js?v=20261115001"></script>
+    <script src="/static/modules/settings.js?v=20261119007"></script>
     <script>
         if (!AuthManager.isLoggedIn()) {
             window.location.replace('/static/login.html');
@@ -1314,6 +1394,11 @@
             target.classList.remove('leaving');
             target.classList.add('active');
         }
+
+        document.getElementById('frame-canvas').addEventListener('load', function () {
+            const path = this.contentWindow.location.pathname;
+            this.classList.toggle('canvas-editor', path === '/static/canvas.html' || path === '/static/smart-canvas.html');
+        });
 
         let imageEditorReturnFrame = null;
         window.openGalleryCanvasEditor = function(key) {
